@@ -32,8 +32,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 4. **Every method/function has a short description** (docstring, YARD, or JSDoc).
 5. **Do not overcomplicate.** Pick the simplest thing that works; no speculative abstractions.
 6. **Ask for clarification** when requirements are ambiguous instead of guessing.
-7. **Every folder has an `AGENTS.md`** describing its purpose, contents, and local rules.
-   Update it when you add, rename, or remove files.
+7. **Every folder has an `AGENTS.md`** describing its purpose, contents, and local rules. Update it when you add, rename, or remove files.
 8. **Rails business logic lives in service objects** (`services/api/app/services/`), not in
    controllers, resolvers, or models.
 9. **History lives in git**, not in file headers. Write clear commit messages.

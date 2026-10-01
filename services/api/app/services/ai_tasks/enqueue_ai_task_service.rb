@@ -5,16 +5,20 @@ module AiTasks
   class EnqueueAiTaskService < ApplicationService
     QUEUE_ERRORS = [ Aws::SQS::Errors::ServiceError, Seahorse::Client::NetworkingError ].freeze
 
-    def initialize(user:, task_type:, input: {}, subject: nil)
+    # @param source_file [ActiveStorage::Blob, nil] an uploaded file the task reads, attached
+    #   to the task so it stays linked to the upload
+    def initialize(user:, task_type:, input: {}, subject: nil, source_file: nil)
       @user = user
       @task_type = task_type
       @input = input
       @subject = subject
+      @source_file = source_file
     end
 
     # Saves the task, then publishes it. A task that can't be published is marked failed.
     def call
       ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject)
+      ai_task.source_file.attach(@source_file) if @source_file
       return failure(ai_task.errors) unless ai_task.save
 
       publish(ai_task)

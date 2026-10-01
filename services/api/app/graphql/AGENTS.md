@@ -10,7 +10,8 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   subscriptions use `ActionCableSubscriptions`
 - `types/` — object types, enums, inputs, and the root `query_type.rb` / `mutation_type.rb` /
   `subscription_type.rb`
-- `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`)
+- `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`);
+  `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`
 - `subscriptions/` — `base_subscription.rb`, `ai_task_updated.rb` (`aiTaskUpdated(id)`)
 - `resolvers/` — generated base class (unused so far)
 
@@ -26,3 +27,6 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   record, so clients never miss an update that landed before they subscribed. Services
   trigger them with `ApiSchema.subscriptions.trigger(:field_name, { id: ... }, record)`.
 - Test operations with `execute_graphql(query, user:, variables:)` from `spec/support`.
+- File uploads use the GraphQL multipart request spec (`apollo_upload_server` middleware) and
+  the `ApolloUploadServer::Upload` scalar. In specs, wrap `build_uploaded_file(...)` in
+  `ApolloUploadServer::Wrappers::UploadedFile`.

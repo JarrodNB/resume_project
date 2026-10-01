@@ -14,6 +14,8 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - `workers/` — Shoryuken workers (called directly with a parsed body)
 - `factories/` — one FactoryBot factory per model
 - `support/graphql_helpers.rb` — `execute_graphql(query, user:, variables:)`
+- `support/uploaded_file_helpers.rb` — `build_uploaded_file(content:, filename:)`,
+  `minimal_pdf_bytes` (in-memory uploads; no binary fixtures)
 
 ## Local Rules
 

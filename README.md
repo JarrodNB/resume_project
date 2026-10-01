@@ -36,6 +36,7 @@ docker compose up --build
 | ai      | consumes `ai_tasks` (no port) |
 | db      | localhost:5432          |
 | sqs     | http://localhost:9324   |
+| s3      | http://localhost:9090 (S3Mock, bucket `throughline-uploads`) |
 
 Reset the local database (deletes all local data): `docker compose down -v`.
 After changing dependencies, rebuild: `docker compose up --build -V`.
@@ -45,11 +46,14 @@ After changing dependencies, rebuild: `docker compose up --build -V`.
 - Done: local dev foundation; Rails core (JWT auth, career library / resume / job / AI task
   models, GraphQL API with job and experience mutations, RSpec suite); SQS round trip
   (Rails -> `ai_tasks` -> Python echo worker -> `ai_results` -> Rails, with live
-  `aiTaskUpdated` GraphQL subscription).
-- Next: AI features (Pydantic AI agents with evals).
+  `aiTaskUpdated` GraphQL subscription); resume parsing (upload a PDF/DOCX via the
+  `parseResume` mutation, Pydantic AI agent traced in Langfuse, review, then
+  `importParsedResume` into the career library), with evals.
+- Next: job scraping, gap analysis, tailoring, memory.
 
 Run the Rails specs: `docker compose run --rm api bundle exec rspec`.
 Run the AI worker tests: `docker compose run --rm ai pytest`.
+Run the resume parsing evals (real OpenAI calls): `docker compose run --rm ai python -m evals.run_resume_parsing_evals`.
 
 
 ## Commands

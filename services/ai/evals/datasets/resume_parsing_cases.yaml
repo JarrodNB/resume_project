@@ -1,0 +1,274 @@
+# Description: Hand-labelled eval cases for the resume parsing agent. All resumes are synthetic.
+# `inputs` is resume text as extracted from a file; `expected_output` is a ParsedResume.
+# Metadata:
+#   - ambiguous_entries: company names that may reasonably land in experiences or projects
+#   - expects_warning: the agent should explain an ambiguity in parsing_warnings
+cases:
+  - name: chronological_backend_engineer
+    inputs: |
+      ALEX RIVERA
+      Seattle, WA | alex.rivera@example.com | (206) 555-0142 | github.com/alexrivera-dev
+
+      SUMMARY
+      Backend engineer with 6 years of experience building payment and data platforms.
+
+      EXPERIENCE
+      Senior Software Engineer — Northwind Payments, Seattle, WA
+      March 2022 – Present
+      • Led the migration of the ledger service from a monolith to event-driven microservices, cutting settlement latency by 40%.
+      • Designed an idempotent retry framework used by 12 internal services.
+      • Mentored four junior engineers through quarterly growth plans.
+
+      Software Engineer — Contoso Analytics, Remote
+      June 2018 – February 2022
+      • Built ETL pipelines in Python and Airflow processing 2 TB of event data per day.
+      • Reduced AWS spend by $180K per year by rightsizing Redshift clusters.
+
+      EDUCATION
+      University of Washington — B.S. Computer Science, 2014 – 2018
+
+      SKILLS
+      Languages: Python, Go, SQL
+      Infrastructure: AWS, Kubernetes, Terraform, Kafka
+    expected_output:
+      contact:
+        full_name: Alex Rivera
+        email: alex.rivera@example.com
+        phone: (206) 555-0142
+        location: Seattle, WA
+        links: [github.com/alexrivera-dev]
+      summary: Backend engineer with 6 years of experience building payment and data platforms.
+      experiences:
+        - company: Northwind Payments
+          title: Senior Software Engineer
+          location: Seattle, WA
+          start_date: "2022-03"
+          end_date: null
+          is_current: true
+          highlights:
+            - Led the migration of the ledger service from a monolith to event-driven microservices, cutting settlement latency by 40%.
+            - Designed an idempotent retry framework used by 12 internal services.
+            - Mentored four junior engineers through quarterly growth plans.
+        - company: Contoso Analytics
+          title: Software Engineer
+          location: Remote
+          start_date: "2018-06"
+          end_date: "2022-02"
+          is_current: false
+          highlights:
+            - Built ETL pipelines in Python and Airflow processing 2 TB of event data per day.
+            - Reduced AWS spend by $180K per year by rightsizing Redshift clusters.
+      educations:
+        - institution: University of Washington
+          degree: B.S.
+          field_of_study: Computer Science
+          start_date: "2014"
+          end_date: "2018"
+      skills:
+        - {name: Python, category: Languages}
+        - {name: Go, category: Languages}
+        - {name: SQL, category: Languages}
+        - {name: AWS, category: Infrastructure}
+        - {name: Kubernetes, category: Infrastructure}
+        - {name: Terraform, category: Infrastructure}
+        - {name: Kafka, category: Infrastructure}
+
+  - name: new_grad_with_projects_and_year_dates
+    inputs: |
+      Priya Natarajan
+      priya.n@example.org · linkedin.com/in/priya-natarajan-example
+
+      Education
+      Carnegie Mellon University
+      Master of Science in Machine Learning, 2023 – 2024
+      GPA 3.9/4.0
+
+      University of Toronto
+      Bachelor of Science, Statistics, 2019 – 2023
+
+      Experience
+      Data Science Intern, Lumen Health (May 2023 – August 2023)
+      - Built a readmission risk model with gradient boosting that reached 0.81 AUC on held-out data.
+      - Presented findings to the clinical operations team.
+
+      Research Assistant, University of Toronto Statistics Department (2021 – 2023)
+      - Cleaned and analyzed survey data for a study on transit ridership.
+
+      Projects
+      Transit Delay Forecaster — github.com/priya-n/transit-delays
+      Forecasts subway delays from weather and schedule data using PyTorch.
+
+      Skills
+      Python, R, PyTorch, scikit-learn, SQL, Tableau
+    expected_output:
+      contact:
+        full_name: Priya Natarajan
+        email: priya.n@example.org
+        links: [linkedin.com/in/priya-natarajan-example]
+      experiences:
+        - company: Lumen Health
+          title: Data Science Intern
+          start_date: "2023-05"
+          end_date: "2023-08"
+          is_current: false
+          highlights:
+            - Built a readmission risk model with gradient boosting that reached 0.81 AUC on held-out data.
+            - Presented findings to the clinical operations team.
+        - company: University of Toronto Statistics Department
+          title: Research Assistant
+          start_date: "2021"
+          end_date: "2023"
+          is_current: false
+          highlights:
+            - Cleaned and analyzed survey data for a study on transit ridership.
+      projects:
+        - name: Transit Delay Forecaster
+          url: github.com/priya-n/transit-delays
+          description: Forecasts subway delays from weather and schedule data using PyTorch.
+      educations:
+        - institution: Carnegie Mellon University
+          degree: Master of Science
+          field_of_study: Machine Learning
+          start_date: "2023"
+          end_date: "2024"
+          description: GPA 3.9/4.0
+        - institution: University of Toronto
+          degree: Bachelor of Science
+          field_of_study: Statistics
+          start_date: "2019"
+          end_date: "2023"
+      skills:
+        - {name: Python}
+        - {name: R}
+        - {name: PyTorch}
+        - {name: scikit-learn}
+        - {name: SQL}
+        - {name: Tableau}
+
+  - name: messy_two_column_extraction
+    inputs: |
+      JORDAN LEE                                   SKILLS
+      Product Designer                             Figma, Sketch, user research,
+      jordan.lee@example.net                       prototyping, HTML/CSS
+      Portland, OR
+      EXPERIENCE
+      Brightline Studio | Senior Product Designer | 01/2021 - Present
+      • Redesigned the onboarding flow for a fitness app, increasing week-one
+      retention from 31% to 45%.
+      • Ran 40+ moderated usability sessions and turned findings into a
+      shared research repository.
+      Pixel & Co. | Product Designer | 08/2017 - 12/2020
+      • Shipped a design system adopted across 5 product teams.
+      EDUCATION
+      Oregon State University, BFA Graphic Design, 2013-2017
+    expected_output:
+      contact:
+        full_name: Jordan Lee
+        email: jordan.lee@example.net
+        location: Portland, OR
+      experiences:
+        - company: Brightline Studio
+          title: Senior Product Designer
+          start_date: "2021-01"
+          end_date: null
+          is_current: true
+          highlights:
+            - Redesigned the onboarding flow for a fitness app, increasing week-one retention from 31% to 45%.
+            - Ran 40+ moderated usability sessions and turned findings into a shared research repository.
+        - company: Pixel & Co.
+          title: Product Designer
+          start_date: "2017-08"
+          end_date: "2020-12"
+          is_current: false
+          highlights:
+            - Shipped a design system adopted across 5 product teams.
+      educations:
+        - institution: Oregon State University
+          degree: BFA
+          field_of_study: Graphic Design
+          start_date: "2013"
+          end_date: "2017"
+      skills:
+        - {name: Figma}
+        - {name: Sketch}
+        - {name: user research}
+        - {name: prototyping}
+        - {name: HTML/CSS}
+
+  - name: career_changer_with_ambiguous_freelance_work
+    inputs: |
+      Sam Okafor
+      Chicago, IL | sam.okafor@example.com
+
+      Profile
+      Former high school chemistry teacher transitioning into software development.
+
+      Experience
+      Chemistry Teacher, Lincoln Park High School — Aug 2016 to Jun 2023
+      • Taught chemistry to 150 students per year across five sections.
+      • Built a grade-tracking spreadsheet tool adopted by the science department.
+
+      Volunteer Web Developer, Chicago Food Share — Sep 2023 to Present
+      • Rebuilt the volunteer sign-up site in React, replacing a paper process.
+
+      Freelance
+      Built a booking website for a local yoga studio (2024).
+
+      Training
+      Full-Stack Web Development Bootcamp, Launch Academy, 2023
+
+      Skills
+      JavaScript, React, Node.js, PostgreSQL, Git
+    metadata:
+      ambiguous_entries: [Freelance, yoga studio]
+      expects_warning: true
+    expected_output:
+      contact:
+        full_name: Sam Okafor
+        email: sam.okafor@example.com
+        location: Chicago, IL
+      summary: Former high school chemistry teacher transitioning into software development.
+      experiences:
+        - company: Lincoln Park High School
+          title: Chemistry Teacher
+          start_date: "2016-08"
+          end_date: "2023-06"
+          is_current: false
+          highlights:
+            - Taught chemistry to 150 students per year across five sections.
+            - Built a grade-tracking spreadsheet tool adopted by the science department.
+        - company: Chicago Food Share
+          title: Volunteer Web Developer
+          start_date: "2023-09"
+          end_date: null
+          is_current: true
+          highlights:
+            - Rebuilt the volunteer sign-up site in React, replacing a paper process.
+      educations:
+        - institution: Launch Academy
+          degree: Full-Stack Web Development Bootcamp
+          start_date: null
+          end_date: "2023"
+      skills:
+        - {name: JavaScript}
+        - {name: React}
+        - {name: Node.js}
+        - {name: PostgreSQL}
+        - {name: Git}
+
+  - name: not_a_resume
+    inputs: |
+      Grandma's Banana Bread
+      Ingredients: 3 ripe bananas, 1/3 cup melted butter, 3/4 cup sugar, 1 egg, 1 tsp baking soda,
+      1 1/2 cups flour.
+      Mash the bananas, stir in the butter, then mix in the remaining ingredients. Bake at 350°F
+      for 60 minutes.
+    metadata:
+      expects_warning: true
+    expected_output: {}
+
+evaluators:
+  - SourceFaithfulness
+  - ExperienceMatch
+  - SectionRecall
+  - WarnsWhenAmbiguous

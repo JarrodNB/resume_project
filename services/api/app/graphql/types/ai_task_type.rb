@@ -11,6 +11,8 @@ module Types
           description: "Questions the AI is waiting on when status is NEEDS_USER_INPUT."
     field :error_message, String
     field :completed_at, GraphQL::Types::ISO8601DateTime
+    field :accepted_at, GraphQL::Types::ISO8601DateTime,
+          description: "When the user accepted the result into their data (e.g. imported a parsed resume)."
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
   end
 end

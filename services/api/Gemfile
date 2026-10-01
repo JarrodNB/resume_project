@@ -52,3 +52,6 @@ end
 
 gem "shoryuken", "~> 7.0"
 gem "aws-sdk-sqs", "~> 1.119"
+
+gem "aws-sdk-s3", "~> 1.233"
+gem "apollo_upload_server", "~> 2.1"

@@ -12,14 +12,19 @@ import signal
 from pydantic import ValidationError
 
 from worker.queue_messages import AiResultMessage, AiTaskMessage
+from worker.s3_file_storage import S3FileStorage
 from worker.settings import load_settings
 from worker.sqs_queue_client import SqsQueueClient
+from worker.task_dependencies import TaskDependencies
 from worker.task_handlers import handle_ai_task
+from worker.tracing import configure_tracing, trace_ai_task
 
 logger = logging.getLogger(__name__)
 
 
-def process_task_message(message_body: str, result_queue: SqsQueueClient) -> bool:
+def process_task_message(
+    message_body: str, result_queue: SqsQueueClient, dependencies: TaskDependencies
+) -> bool:
     """Handles one raw task message and publishes its result.
 
     Returns True once a result is published, so the task message can be deleted. An invalid
@@ -36,7 +41,8 @@ def process_task_message(message_body: str, result_queue: SqsQueueClient) -> boo
         return False
 
     try:
-        result = handle_ai_task(task)
+        with trace_ai_task(task):
+            result = handle_ai_task(task, dependencies)
     except Exception:
         logger.exception("Task %s failed", task.ai_task_id)
         result = AiResultMessage(
@@ -51,8 +57,10 @@ def process_task_message(message_body: str, result_queue: SqsQueueClient) -> boo
 def run_worker() -> None:
     """Long-polls the ai_tasks queue and handles messages until asked to stop."""
     settings = load_settings()
+    configure_tracing()
     task_queue = SqsQueueClient(settings, settings.ai_tasks_queue_name)
     result_queue = SqsQueueClient(settings, settings.ai_results_queue_name)
+    dependencies = TaskDependencies(settings=settings, file_storage=S3FileStorage(settings))
 
     stop_requested = False
 
@@ -68,7 +76,7 @@ def run_worker() -> None:
     logger.info("Worker polling queue %s", settings.ai_tasks_queue_name)
     while not stop_requested:
         for message in task_queue.receive_messages():
-            if process_task_message(message["Body"], result_queue):
+            if process_task_message(message["Body"], result_queue, dependencies):
                 task_queue.delete_message(message["ReceiptHandle"])
 
 

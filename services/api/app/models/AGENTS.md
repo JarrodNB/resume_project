@@ -13,8 +13,10 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   - `project.rb`, `education.rb`, `skill.rb`
 - `job.rb` — job profile + application stage
 - `resume.rb` + `resume_section.rb` — resume documents; section `content` is a JSON snapshot,
-  so editing a resume never changes the career library
-- `ai_task.rb` — one unit of AI work over SQS; `finished?` drives duplicate-result handling
+  so editing a resume never changes the career library (content shapes in `resume_section.rb`)
+- `ai_task.rb` — one unit of AI work over SQS; `finished?` drives duplicate-result handling;
+  `source_file` (Active Storage) is the upload a task reads; `accepted?` once its result has
+  been imported
 
 ## Local Rules
 

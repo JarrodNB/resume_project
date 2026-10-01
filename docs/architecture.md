@@ -43,6 +43,14 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
   message_history, error_message}`, where `status` is `completed`, `needs_user_input`, or `failed`
 
+Per task type:
+
+- `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
+  Active Storage blob key in the S3 uploads bucket. The completed result is
+  `{parsed_resume: ParsedResume}` (`services/ai/schemas/parsed_resume.py`). The user reviews and
+  edits it, then the `importParsedResume` mutation writes it to the career library and
+  creates a base resume (once per task, tracked by `AiTask#accepted_at`).
+
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
 receives.
@@ -113,5 +121,22 @@ information carries across conversations.
 - **Docker for everything.** Local dev runs through docker compose, and the same images
   deploy to Kubernetes. This avoids Windows toolchain issues (especially for Ruby) and keeps
   dev and prod consistent.
+- **Uploads go to S3; only the key goes over SQS.** SQS messages are capped at 256 KB, so
+  Rails stores uploads with Active Storage (S3 service) and the worker downloads them by blob
+  key, read-only. Locally the bucket is Adobe S3Mock (MinIO's community edition is archived,
+  LocalStack needs an account token). Text extraction (pypdf, python-docx) happens in Python,
+  next to the agents. The upload's type is detected from its bytes, not the client's claim.
+- **AI results are reviewed before they change user data.** A parsed resume is stored on the
+  `AiTask`; the user edits it and explicitly imports it. Imports append to the career library
+  (skills are de-duplicated by name) and can't be repeated for the same task.
+- **Resume parsing extracts, never rewrites.** Bullets are copied word for word and anything
+  not stated stays null, so evals can check faithfulness deterministically (every extracted
+  highlight, skill, and company must appear in the source text). Ambiguities go into
+  `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
+  showcased in gap analysis. Partial dates ("2021") stay strings until import, where they
+  become the first day of the month or year.
+- **Langfuse reading APIs:** new Langfuse Cloud organisations can only read data through
+  `GET /api/public/v2/observations` and `GET /api/public/v3/scores`; the older trace and
+  score endpoints return 410. Ingestion via OpenTelemetry is unaffected.
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.
   Decide before the deploy phase whether to use EKS or a cheaper k8s setup.

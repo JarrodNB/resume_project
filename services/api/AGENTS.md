@@ -68,5 +68,9 @@ Gems are installed into the `api_bundle` volume: add one with
 The Shoryuken process doesn't pick up code reloads: after editing a worker or a service it
 calls, run `docker compose restart api-results-worker`.
 
-Not added yet: mutations that enqueue AI tasks (arrive with the AI features), mutations for
-projects, educations, skills, and resumes (follow the jobs/experiences pattern).
+Uploads use Active Storage on the `amazon` service (`config/storage.yml`): S3Mock in
+development (`S3_ENDPOINT_URL`, `S3_UPLOADS_BUCKET` from docker compose), local disk in tests.
+Production still points at `:local` and must switch to `:amazon` at deploy time.
+
+Not added yet: mutations for projects, educations, skills, and resumes (follow the
+jobs/experiences pattern).

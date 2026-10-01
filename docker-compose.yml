@@ -2,6 +2,7 @@
 # Index:
 #   - db: Postgres 17 with pgvector (port 5432)
 #   - sqs: ElasticMQ, local SQS emulator (port 9324)
+#   - s3: Adobe S3Mock, local S3 emulator for uploaded files (port 9090)
 #   - api: Rails GraphQL API (port 3000; GraphQL subscriptions over WebSocket at /cable)
 #   - api-results-worker: Shoryuken consumer of ai_results (same image and code as api)
 #   - ai: Python SQS worker
@@ -13,6 +14,8 @@ x-local-aws: &local-aws
   AWS_ACCESS_KEY_ID: local
   AWS_SECRET_ACCESS_KEY: local
   SQS_ENDPOINT_URL: http://sqs:9324
+  S3_ENDPOINT_URL: http://s3:9090
+  S3_UPLOADS_BUCKET: throughline-uploads
 
 services:
   db:
@@ -38,6 +41,15 @@ services:
     volumes:
       - ./infra/elasticmq/elasticmq.conf:/opt/elasticmq.conf:ro
 
+  s3:
+    image: adobe/s3mock
+    # Files live in the container and are lost when it is recreated; that's fine for dev,
+    # since an upload is only needed until the AI worker has parsed it.
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: throughline-uploads
+    ports:
+      - "9090:9090"
+
   api:
     build:
       context: ./services/api
@@ -59,6 +71,8 @@ services:
       db:
         condition: service_healthy
       sqs:
+        condition: service_started
+      s3:
         condition: service_started
 
   api-results-worker:
@@ -106,6 +120,8 @@ services:
       db:
         condition: service_healthy
       sqs:
+        condition: service_started
+      s3:
         condition: service_started
 
   web:

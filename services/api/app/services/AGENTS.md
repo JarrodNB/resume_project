@@ -11,9 +11,16 @@ All business logic, as service objects grouped by domain folder.
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`
-- `ai_tasks/enqueue_ai_task_service.rb` — creates a queued AiTask and publishes it to `ai_tasks`
+- `ai_tasks/enqueue_ai_task_service.rb` — creates a queued AiTask (optionally attaching its
+  `source_file` blob) and publishes it to `ai_tasks`
 - `ai_tasks/apply_ai_result_service.rb` — applies an `ai_results` message (idempotent, row
   lock) and triggers the `aiTaskUpdated` subscription
+- `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
+  file bytes, 5 MB max), stores it in S3, enqueues `parse_resume`
+- `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into
+  the career library once per task (`accepted_at`, row lock, one transaction)
+- `resume_imports/build_base_resume_service.rb` — base resume whose sections snapshot the
+  import; only called inside the import transaction, so it raises on invalid records
 
 ## Local Rules
 

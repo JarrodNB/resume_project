@@ -6,7 +6,8 @@ Infrastructure as code and local dev infrastructure.
 
 ## Planned Layout
 
-- `terraform/` — AWS: VPC, EKS, RDS (Postgres + pgvector), SQS, Route53, Lambda (scheduled jobs), ECR
+- `terraform/` — AWS: VPC, EKS, RDS (Postgres + pgvector), SQS, S3 (uploads bucket: Rails
+  read/write, AI worker read-only), Route53, Lambda (scheduled jobs), ECR
 - `k8s/` — Kubernetes manifests for `api`, `ai` workers, `web`, `landing`
 - `elasticmq/` — local SQS emulator config (queues) used by docker compose
 - `postgres/` — local Postgres init scripts (dev database, read-only `ai_reader` role)

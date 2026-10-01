@@ -1,4 +1,5 @@
-# Description: RSpec setup for Rails specs. Loads spec/support, FactoryBot, and GraphqlHelpers.
+# Description: RSpec setup for Rails specs. Loads spec/support, FactoryBot, GraphqlHelpers, and
+# UploadedFileHelpers.
 require 'spec_helper'
 ENV['RAILS_ENV'] ||= 'test'
 require_relative '../config/environment'
@@ -70,6 +71,7 @@ RSpec.configure do |config|
 
   config.include FactoryBot::Syntax::Methods
   config.include GraphqlHelpers
+  config.include UploadedFileHelpers
   # arbitrary gems may also be filtered via:
   # config.filter_gems_from_backtrace("gem name")
 end

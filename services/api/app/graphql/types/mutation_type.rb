@@ -4,6 +4,7 @@
 # Index:
 #   - jobs: createJob, updateJob, moveJobToStage, deleteJob
 #   - experiences: createExperience, updateExperience, deleteExperience
+#   - resume imports: parseResume (file upload), importParsedResume
 module Types
   class MutationType < Types::BaseObject
     field :create_job, mutation: Mutations::Jobs::CreateJob
@@ -14,5 +15,8 @@ module Types
     field :create_experience, mutation: Mutations::Experiences::CreateExperience
     field :update_experience, mutation: Mutations::Experiences::UpdateExperience
     field :delete_experience, mutation: Mutations::Experiences::DeleteExperience
+
+    field :parse_resume, mutation: Mutations::ResumeImports::ParseResume
+    field :import_parsed_resume, mutation: Mutations::ResumeImports::ImportParsedResume
   end
 end

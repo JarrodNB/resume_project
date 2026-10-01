@@ -1,3 +1,6 @@
+# Description: Active Storage services. Development uploads to S3Mock (docker compose `s3`);
+# tests use the local disk. The bucket and endpoint come from S3_UPLOADS_BUCKET / S3_ENDPOINT_URL,
+# and the AI worker reads uploads from the same bucket by blob key.
 test:
   service: Disk
   root: <%= Rails.root.join("tmp/storage") %>
@@ -6,22 +9,11 @@ local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
 
-# Use bin/rails credentials:edit to set the AWS secrets (as aws:access_key_id|secret_access_key)
-# amazon:
-#   service: S3
-#   access_key_id: <%= Rails.application.credentials.dig(:aws, :access_key_id) %>
-#   secret_access_key: <%= Rails.application.credentials.dig(:aws, :secret_access_key) %>
-#   region: us-east-1
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# Remember not to checkin your GCS keyfile to a repository
-# google:
-#   service: GCS
-#   project: your_project
-#   credentials: <%= Rails.root.join("path/to/gcs.keyfile") %>
-#   bucket: your_own_bucket-<%= Rails.env %>
-
-# mirror:
-#   service: Mirror
-#   primary: local
-#   mirrors: [ amazon, google, microsoft ]
+amazon:
+  service: S3
+  region: <%= ENV.fetch("AWS_REGION", "us-east-1") %>
+  bucket: <%= ENV.fetch("S3_UPLOADS_BUCKET", "throughline-uploads") %>
+  <% if ENV["S3_ENDPOINT_URL"].present? %>
+  endpoint: <%= ENV["S3_ENDPOINT_URL"] %>
+  force_path_style: true
+  <% end %>

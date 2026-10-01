@@ -1,0 +1,15 @@
+# AGENTS.md — services/ai/prompts
+
+## Purpose
+
+Agent instructions, one constant per file. The module docstring lists the agent's input and
+output in addition to the usual Description/Index.
+
+## Contents
+
+- `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (extract only, copy bullets
+  word for word, partial dates, warnings for ambiguity)
+
+## Local Rules
+
+- Rerun the agent's evals after any prompt change.

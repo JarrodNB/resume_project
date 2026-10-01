@@ -15,7 +15,8 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
   The database connection uses the read-only `ai_reader` role (for memory retrieval); never
-  attempt writes.
+  attempt writes. Uploaded files are read (never written) from the S3 uploads bucket by
+  their Active Storage blob key.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.
 - **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
@@ -59,7 +60,13 @@ Every function and class gets a docstring describing what it does.
 
 ## Contents
 
-- `worker/` — polling loop, message models, task handlers, settings, SQS client (see `worker/AGENTS.md`)
+- `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
+  clients, Langfuse tracing (see `worker/AGENTS.md`)
+- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`)
+- `prompts/` — agent instructions
+- `schemas/` — structured output models (`ParsedResume`)
+- `documents/` — PDF/DOCX text extraction
+- `evals/` — Pydantic Evals datasets, evaluators, and runners
 - `tests/` — pytest suite (`docker compose run --rm ai pytest`)
 - `pyproject.toml` / `uv.lock` — dependencies, managed with `uv`
   (add one with `docker compose run --rm ai uv add <package>`, then rebuild)

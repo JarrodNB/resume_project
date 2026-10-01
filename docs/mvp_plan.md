@@ -46,8 +46,9 @@ employed-mode work journal.
    (Postgres + pgvector, ElasticMQ for SQS, api, ai worker, web, landing), a Dockerfile per
    app, and scaffold all four apps with their `AGENTS.md` files.
 2. **Rails core** — auth, models (User, Resume, ResumeSection, Job, AiTask), GraphQL schema.
-3. **Queue round trip** — Rails publishes to `ai_tasks`, a Python worker echoes to
-   `ai_results`, Rails consumes it. Proves the pipeline end to end.
+3. **Queue round trip** (done) — Rails publishes to `ai_tasks`, a Python worker echoes to
+   `ai_results`, Rails consumes it and pushes the `aiTaskUpdated` subscription. Proves the
+   pipeline end to end.
 4. **AI features** — resume parsing, then job scraping, gap analysis with questions,
    tailoring, then memory. Each agent ships with its eval dataset; write the first few
    eval cases before tuning the prompt.

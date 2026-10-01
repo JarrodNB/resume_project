@@ -1,5 +1,6 @@
 # Description: Database connections per environment. Host and credentials come from
 # DB_HOST, DB_USERNAME, and DB_PASSWORD (set by docker-compose locally, k8s secrets in prod).
+# Development has a separate `cable` database for Solid Cable (GraphQL subscriptions).
 #
 # PostgreSQL. Versions 9.5 and up are supported.
 #
@@ -27,8 +28,13 @@ default: &default
 
 
 development:
-  <<: *default
-  database: api_development
+  primary:
+    <<: *default
+    database: api_development
+  cable:
+    <<: *default
+    database: api_development_cable
+    migrations_paths: db/cable_migrate
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.

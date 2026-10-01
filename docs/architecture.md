@@ -33,6 +33,20 @@
 6. When the user answers, Rails publishes a follow-up task with the stored message history
    and the answers. The worker resumes the agent with `DeferredToolResults`.
 
+## Queue Messages
+
+Both are JSON. The Python side validates them with Pydantic (`services/ai/worker/queue_messages.py`).
+
+- `ai_tasks` (published by `AiTasks::EnqueueAiTaskService`):
+  `{ai_task_id, user_id, task_type, input}`
+- `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
+  in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
+  message_history, error_message}`, where `status` is `completed`, `needs_user_input`, or `failed`
+
+The Python worker deletes a task message only after its result is published. Messages that
+can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
+receives.
+
 ## Duplicate Messages
 
 Standard SQS delivers each message *at least* once, so a task or result can occasionally
@@ -40,7 +54,8 @@ arrive twice (a worker crashes before deleting, a task outlives its visibility t
 rare SQS redelivery). We handle this instead of trying to prevent it:
 
 - **Rails result handling is idempotent.** Every message carries the `ai_task_id`. Results for
-  an `AiTask` that is already `completed` or `failed` are ignored.
+  an `AiTask` that is already `completed` or `failed` are ignored. The check runs under a row
+  lock, so two copies processed at the same moment can't both apply.
 - **Workers receive one message at a time**, so no message sits in a local batch while its
   visibility timeout runs out. Scale by adding workers.
 - **Long tasks extend their visibility timeout** (heartbeat) if real runs approach the
@@ -61,6 +76,12 @@ information carries across conversations.
 - **SQS over Sidekiq for AI work.** Both Rails and Python need to use the queue, and a
   managed queue decouples scaling of the AI workers. ElasticMQ (an SQS-compatible
   emulator) runs locally; LocalStack was dropped because it now requires an account token.
+- **Shoryuken for SQS in Rails, in its own process.** Shoryuken publishes to `ai_tasks` and
+  consumes `ai_results` (polling, threads, retries, and dead-lettering come built in). The
+  consumer runs as a separate `api-results-worker` service (same image as the API), so it
+  scales and restarts independently of Puma and maps to its own k8s Deployment later.
+  Because subscription triggers come from that process, ActionCable uses Solid Cable in
+  development too.
 - **Plain Python workers, no FastAPI.** All communication is over SQS, so the AI service
   needs no HTTP layer. Trade-off: SQS can't stream LLM tokens to the browser. If live
   streaming is needed later (e.g. the gap analysis chat), add a small HTTP/WebSocket
@@ -82,7 +103,8 @@ information carries across conversations.
   free-tier limits or data-privacy needs require it, since traces contain resume content.
 - **GraphQL subscriptions for live UI updates.** graphql-ruby subscriptions over ActionCable,
   using the Solid Cable adapter (Postgres-backed, so there's no Redis to run). The web app
-  subscribes with Apollo over an ActionCable link.
+  subscribes with Apollo over an ActionCable link, passing the JWT as the `token` query
+  param on `/cable` (browsers can't set headers on WebSockets).
 - **Per-service env files** (`services/api/.env`, `services/ai/.env`) for secrets. They match
   Kubernetes, where each deployment gets its own secrets. Local, non-secret wiring lives in
   `docker-compose.yml`.

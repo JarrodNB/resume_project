@@ -38,7 +38,9 @@ class SqsQueueClient:
             try:
                 return self._sqs.get_queue_url(QueueName=queue_name)["QueueUrl"]
             except (BotoCoreError, ClientError) as error:
-                logger.warning("Queue %s not reachable (attempt %d): %s", queue_name, attempt, error)
+                logger.warning(
+                    "Queue %s not reachable (attempt %d): %s", queue_name, attempt, error
+                )
                 time.sleep(QUEUE_LOOKUP_RETRY_SECONDS)
         raise RuntimeError(f"Could not resolve SQS queue URL for {queue_name}")
 

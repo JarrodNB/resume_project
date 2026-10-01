@@ -59,7 +59,8 @@ Every function and class gets a docstring describing what it does.
 
 ## Contents
 
-- `worker/` — polling loop, settings, SQS client (see `worker/AGENTS.md`)
+- `worker/` — polling loop, message models, task handlers, settings, SQS client (see `worker/AGENTS.md`)
+- `tests/` — pytest suite (`docker compose run --rm ai pytest`)
 - `pyproject.toml` / `uv.lock` — dependencies, managed with `uv`
   (add one with `docker compose run --rm ai uv add <package>`, then rebuild)
 - `Dockerfile.dev` — local dev image (virtualenv at `/opt/venv`)

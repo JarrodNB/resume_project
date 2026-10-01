@@ -2,7 +2,8 @@
 # Index:
 #   - db: Postgres 17 with pgvector (port 5432)
 #   - sqs: ElasticMQ, local SQS emulator (port 9324)
-#   - api: Rails GraphQL API (port 3000)
+#   - api: Rails GraphQL API (port 3000; GraphQL subscriptions over WebSocket at /cable)
+#   - api-results-worker: Shoryuken consumer of ai_results (same image and code as api)
 #   - ai: Python SQS worker
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
@@ -58,6 +59,32 @@ services:
       db:
         condition: service_healthy
       sqs:
+        condition: service_started
+
+  api-results-worker:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile.dev
+    command: bundle exec shoryuken -R -C config/shoryuken.yml
+    # Restarts until the api service has run db:prepare and the queues exist on first boot.
+    restart: on-failure
+    env_file:
+      - path: ./services/api/.env
+        required: false
+    environment:
+      <<: *local-aws
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    volumes:
+      - ./services/api:/rails
+      - api_bundle:/usr/local/bundle
+    depends_on:
+      db:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+      api:
         condition: service_started
 
   ai:

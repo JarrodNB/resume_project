@@ -49,3 +49,6 @@ group :development, :test do
   gem "rspec-rails"
   gem "factory_bot_rails"
 end
+
+gem "shoryuken", "~> 7.0"
+gem "aws-sdk-sqs", "~> 1.119"

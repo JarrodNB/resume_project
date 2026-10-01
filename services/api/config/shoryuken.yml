@@ -1,0 +1,8 @@
+# Description: Shoryuken process config for the api-results-worker service
+# (`bundle exec shoryuken -R -C config/shoryuken.yml`).
+# Index:
+#   - concurrency: results are small DB updates, so a few threads are plenty
+#   - queues: ai_results (handled by AiResultWorker)
+concurrency: 5
+queues:
+  - <%= ENV.fetch("AI_RESULTS_QUEUE_NAME", "ai_results") %>

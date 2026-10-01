@@ -31,7 +31,9 @@ docker compose up --build
 | ------- | ----------------------- |
 | web     | http://localhost:5173   |
 | landing | http://localhost:5174   |
-| api     | http://localhost:3000   |
+| api     | http://localhost:3000 (GraphQL subscriptions: ws://localhost:3000/cable) |
+| api-results-worker | consumes `ai_results` (no port) |
+| ai      | consumes `ai_tasks` (no port) |
 | db      | localhost:5432          |
 | sqs     | http://localhost:9324   |
 
@@ -41,7 +43,15 @@ After changing dependencies, rebuild: `docker compose up --build -V`.
 ## Status
 
 - Done: local dev foundation; Rails core (JWT auth, career library / resume / job / AI task
-  models, GraphQL API with job and experience mutations, RSpec suite).
-- Next: SQS round trip between Rails and the AI worker.
+  models, GraphQL API with job and experience mutations, RSpec suite); SQS round trip
+  (Rails -> `ai_tasks` -> Python echo worker -> `ai_results` -> Rails, with live
+  `aiTaskUpdated` GraphQL subscription).
+- Next: AI features (Pydantic AI agents with evals).
 
 Run the Rails specs: `docker compose run --rm api bundle exec rspec`.
+Run the AI worker tests: `docker compose run --rm ai pytest`.
+
+
+## Commands
+- add commands per container that are commonly needed during development
+ex: check logs, bundle install, bash, tests, etc

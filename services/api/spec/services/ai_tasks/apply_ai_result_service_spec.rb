@@ -1,0 +1,69 @@
+# Description: Applying ai_results messages, including duplicate (redelivered) messages.
+require "rails_helper"
+
+RSpec.describe AiTasks::ApplyAiResultService do
+  let(:ai_task) { create(:ai_task) }
+
+  before { allow(ApiSchema.subscriptions).to receive(:trigger) }
+
+  # Builds a result message for ai_task with string keys, as parsed from JSON.
+  def result_message(status, **fields)
+    { "ai_task_id" => ai_task.id, "status" => status }.merge(fields.stringify_keys)
+  end
+
+  it "completes the task and notifies subscribers" do
+    result = described_class.call(message: result_message("completed", result: { "echo" => "hi" }))
+
+    expect(result).to be_success
+    expect(ai_task.reload).to be_completed
+    expect(ai_task.result).to eq("echo" => "hi")
+    expect(ai_task.completed_at).to be_present
+    expect(ApiSchema.subscriptions).to have_received(:trigger)
+      .with(:ai_task_updated, { id: ai_task.id }, ai_task)
+  end
+
+  it "ignores a duplicate result for a finished task" do
+    described_class.call(message: result_message("completed", result: { "attempt" => 1 }))
+    result = described_class.call(message: result_message("completed", result: { "attempt" => 2 }))
+
+    expect(result).to be_success
+    expect(ai_task.reload.result).to eq("attempt" => 1)
+    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+  end
+
+  it "ignores a late result for a failed task" do
+    described_class.call(message: result_message("failed", error_message: "Model timed out"))
+    described_class.call(message: result_message("completed", result: { "echo" => "late" }))
+
+    expect(ai_task.reload).to be_failed
+    expect(ai_task.result).to be_nil
+    expect(ai_task.error_message).to eq("Model timed out")
+  end
+
+  it "stores questions and message history when the AI needs user input" do
+    message = result_message(
+      "needs_user_input",
+      pending_questions: [ { "question" => "Did you lead the migration?" } ],
+      message_history: [ { "kind" => "request" } ]
+    )
+    described_class.call(message: message)
+
+    expect(ai_task.reload).to be_needs_user_input
+    expect(ai_task.pending_questions).to eq([ { "question" => "Did you lead the migration?" } ])
+    expect(ai_task.message_history).to eq([ { "kind" => "request" } ])
+    expect(ai_task.completed_at).to be_nil
+  end
+
+  it "rejects an unknown status" do
+    result = described_class.call(message: result_message("exploded"))
+
+    expect(result).not_to be_success
+    expect(ai_task.reload).to be_queued
+  end
+
+  it "rejects a result for an unknown task" do
+    result = described_class.call(message: { "ai_task_id" => SecureRandom.uuid, "status" => "completed" })
+
+    expect(result).not_to be_success
+  end
+end

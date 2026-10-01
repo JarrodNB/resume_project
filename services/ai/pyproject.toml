@@ -21,3 +21,11 @@ package = false
 
 [tool.ruff]
 line-length = 100
+
+[tool.ruff.lint]
+# Files on the Windows -> Docker bind mount always appear executable.
+ignore = ["EXE002"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

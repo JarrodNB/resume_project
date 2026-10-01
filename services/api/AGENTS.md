@@ -47,17 +47,26 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 
 - `app/models/` — domain models (career library, resumes, jobs, AI tasks)
 - `app/services/` — service objects (all business logic)
-- `app/graphql/` — GraphQL schema, types, mutations
+- `app/graphql/` — GraphQL schema, types, mutations, subscriptions
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
+- `app/channels/` — ActionCable: JWT-authenticated WebSocket at `/cable`, GraphQL channel
+- `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
 - `config/routes.rb` — `/auth/*` (REST, JWT), `/graphql`, `/up`
 - `config/initializers/devise.rb` — JWT settings at the bottom; `cors.rb` — allowed origins
+  (also used for WebSocket origins in `config/application.rb`)
+- `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
+- `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
+- `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `Dockerfile.dev` — local dev image; `Dockerfile` — generated production image
 - `.env.example` — secrets template
 
 Gems are installed into the `api_bundle` volume: add one with
 `docker compose run --rm --no-deps api bundle add <gem>` (no rebuild needed).
 
-Not added yet: Shoryuken (SQS), ActionCable subscriptions, mutations for projects,
-educations, skills, and resumes (follow the jobs/experiences pattern).
+The Shoryuken process doesn't pick up code reloads: after editing a worker or a service it
+calls, run `docker compose restart api-results-worker`.
+
+Not added yet: mutations that enqueue AI tasks (arrive with the AI features), mutations for
+projects, educations, skills, and resumes (follow the jobs/experiences pattern).

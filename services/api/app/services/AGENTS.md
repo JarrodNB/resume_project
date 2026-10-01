@@ -11,6 +11,9 @@ All business logic, as service objects grouped by domain folder.
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`
+- `ai_tasks/enqueue_ai_task_service.rb` — creates a queued AiTask and publishes it to `ai_tasks`
+- `ai_tasks/apply_ai_result_service.rb` — applies an `ai_results` message (idempotent, row
+  lock) and triggers the `aiTaskUpdated` subscription
 
 ## Local Rules
 

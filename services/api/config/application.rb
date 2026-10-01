@@ -1,4 +1,5 @@
-# Description: Rails application config. API-only, UUID primary keys, RSpec generators.
+# Description: Rails application config. API-only, UUID primary keys, RSpec generators,
+# ActionCable origins (WebSocket at /cable, auto-mounted by Rails).
 require_relative "boot"
 
 require "rails/all"
@@ -38,6 +39,9 @@ module Api
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # WebSocket origins match the CORS origins (see config/initializers/cors.rb).
+    config.action_cable.allowed_request_origins = ENV.fetch("CORS_ORIGINS", "http://localhost:5173").split(",")
 
     config.generators do |generator|
       generator.orm :active_record, primary_key_type: :uuid

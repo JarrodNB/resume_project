@@ -1,0 +1,45 @@
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Node
+node_modules/
+dist/
+coverage/
+
+# Ruby / Rails
+.bundle/
+vendor/bundle/
+services/api/config/master.key
+services/api/config/credentials/*.key
+services/api/log/*
+services/api/tmp/*
+services/api/storage/*
+!services/api/log/.keep
+!services/api/tmp/.keep
+!services/api/tmp/pids/
+services/api/tmp/pids/*
+!services/api/tmp/pids/.keep
+!services/api/storage/.keep
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example

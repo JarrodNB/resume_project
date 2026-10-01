@@ -1,0 +1,64 @@
+-----
+as far as llm guidance, can we add a description and index at the top of each file?
+- small modular/reusable files
+- descriptive naming for files, methods, and variables
+- every file and method has a description at the top
+- do not overcomplicate
+- ask questions for clarification
+- every folder has an agent.md or equivalent
+- rails service objects
+
+---------------------------
+### name undecided
+
+A job search aid/assistant platform that combines a resume builder with tools for managing the entire job search process. Users can maintain their resume, tailor it to individual positions, organize potential jobs, and track applications from discovery through hiring.
+
+**Notes**
+
+* A key selling point here is that we aren't mass sending ai generated resumes, but instead the ai works with the user to write the custom resumes and the product helps to keep the job search organized, helps to keep them focused
+* we want to focus on the AI Engineer portion of this first, so we have something resume worthy when pursing AI Engineering type jobs
+* does a que system make more sense for the generation? we have to think about scale, sidekiq worker's may not be suitable, lets use SQS, or localstack locally
+
+**Tech Stack**
+
+* React
+* Rails
+* FastAPI
+* Kubernetes
+* AWS, rds, route53, k8s
+* Lambda would be interesting here, maybe for scheduled jobs and stuff?
+* code base should show llm mastery in terms of development, so small files with comments, indexed project, proper system message highlighting index and code conventions and other instructions, every file has some sort of description file with llm revision history, needs to be very modular
+* GraphQL
+* Landing page that redirects to app
+* terraform?
+* automated GitHub actions deployment
+* langfuse
+
+**Functionality**
+
+* Resume builder with reusable sections and content
+* Tailor resumes to individual job descriptions
+* Analyze job descriptions against resume content, showing similiarities and gaps, attempts to close gap with user
+* Scrape job URLs to create structured job profiles
+* Save jobs to an unapplied job board
+* Move jobs through application stages, maybe unapplied, applied, interview in progress, rejected, offer received
+* Track interviews, contacts, notes, and follow-ups
+* Maintain multiple resume versions
+* Export resumes as PDF or DOCX
+* Job search functionality focused on niche and specialized sources rather than mass job boards
+* No automated mass applications or resume submissions
+* We want persistent and "searchable" memory or w/e its called like chatgpt so information carries into new conversations
+* human in the loop allows LLM to ask for information
+* can upload existing resume to begin the process and/or we can have existing form to fill out
+* Set goals for job applications
+* Emails to remind of goals, suggestions of what to apply for that day, can even include new jobs found through search, summary of previous day/week, etc
+* can create question sets for technical experience and interview questions, with scores, generate more questions etc, store answers for interview style questions so they can study
+* profile page like linkedin but simpler, maybe even generate a career page from user info, more interactive then linkedin
+* some sort of feed like linkedin but without the nonsense, just for people to post regular job search stuff
+- for companies hiring
+	* how companys benefit from this? maybe search my customers for job fits?
+	* I could allow companies to search my db of customers basically...
+	* they pay to put there job add at the top of the list when the match is high
+- While emeployed
+	* ask for weekly job updates, so their work can be added to the profile/resumes, like a work journal
+	* keep up the job searches, looking for potentialaly better jobs, like a recruiter that works for you

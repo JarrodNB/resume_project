@@ -1,0 +1,7 @@
+# Description: Forces LF line endings so scripts run correctly inside Linux containers.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.pdf binary
+*.docx binary

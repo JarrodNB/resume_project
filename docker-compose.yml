@@ -1,0 +1,104 @@
+# Description: Local development stack. Run everything with `docker compose up --build`.
+# Index:
+#   - db: Postgres 17 with pgvector (port 5432)
+#   - sqs: ElasticMQ, local SQS emulator (port 9324)
+#   - api: Rails GraphQL API (port 3000)
+#   - ai: Python SQS worker
+#   - web: React app (port 5173)
+#   - landing: landing page (port 5174)
+
+x-local-aws: &local-aws
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: local
+  AWS_SECRET_ACCESS_KEY: local
+  SQS_ENDPOINT_URL: http://sqs:9324
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  sqs:
+    image: softwaremill/elasticmq-native
+    ports:
+      - "9324:9324"
+    volumes:
+      - ./infra/elasticmq/elasticmq.conf:/opt/elasticmq.conf:ro
+
+  api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile.dev
+    env_file:
+      - path: ./services/api/.env
+        required: false
+    environment:
+      <<: *local-aws
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./services/api:/rails
+    depends_on:
+      db:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+
+  ai:
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile.dev
+    env_file:
+      - path: ./services/ai/.env
+        required: false
+    environment:
+      <<: *local-aws
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
+    volumes:
+      - ./services/ai:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+
+  landing:
+    build:
+      context: ./apps/landing
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5174:5174"
+    volumes:
+      - ./apps/landing:/app
+      - /app/node_modules
+
+volumes:
+  db_data:

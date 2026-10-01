@@ -1,0 +1,14 @@
+# Description: Local dev image for the AI worker. Source is bind-mounted by docker compose;
+# the virtualenv lives in /opt/venv so the bind mount doesn't hide it.
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+WORKDIR /app
+
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen
+
+CMD ["python", "-m", "worker.main"]

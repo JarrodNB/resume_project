@@ -14,10 +14,12 @@ for GraphQL subscriptions.
 ## Local Rules
 
 - **Business logic lives in service objects** under `app/services/`, grouped by domain
-  (`app/services/resumes/tailor_resume_service.rb`).
-  - One public method: `call`. Invoke with `Resumes::TailorResumeService.call(...)`.
-  - Return a simple result object (success/failure + value/errors).
+  (`app/services/jobs/move_job_to_stage_service.rb`). See `app/services/AGENTS.md`.
 - GraphQL resolvers and mutations stay thin: authorize, call a service, return the result.
+- **Every read goes through `current_user`** (`current_user.jobs.find(id)`), never
+  `Job.find(id)`. That is the entire authorization model; a missing record and someone
+  else's record both return "Record not found".
+- Every change ships with specs (RSpec + FactoryBot). Run: `docker compose run --rm api bundle exec rspec`.
 - Models hold associations, validations, and scopes only.
 - `ai_results` consumers must be idempotent: look up the `AiTask` by `ai_task_id` and ignore
   results for tasks that are already `completed` or `failed`.
@@ -40,11 +42,22 @@ Every method gets a one-line YARD-style comment describing what it does.
 
 ## Contents
 
-Standard Rails 8.1 API-mode app (generated with `rails new --api --database=postgresql`).
+Rails 8.1 API-mode app. Folders we own have their own `AGENTS.md`; generated framework
+folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 
-- `Dockerfile.dev` — local dev image; runs `db:prepare` then Puma on port 3000
-- `Dockerfile` — generated production image
-- `config/database.yml` — connection comes from `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`
+- `app/models/` — domain models (career library, resumes, jobs, AI tasks)
+- `app/services/` — service objects (all business logic)
+- `app/graphql/` — GraphQL schema, types, mutations
+- `app/controllers/` — GraphQL endpoint and REST auth controllers
+- `db/` — migrations and schema (UUID primary keys)
+- `spec/` — RSpec specs and FactoryBot factories
+- `config/routes.rb` — `/auth/*` (REST, JWT), `/graphql`, `/up`
+- `config/initializers/devise.rb` — JWT settings at the bottom; `cors.rb` — allowed origins
+- `Dockerfile.dev` — local dev image; `Dockerfile` — generated production image
 - `.env.example` — secrets template
 
-Not added yet: GraphQL, Devise/JWT, Shoryuken, ActionCable subscriptions (Rails core step).
+Gems are installed into the `api_bundle` volume: add one with
+`docker compose run --rm --no-deps api bundle add <gem>` (no rebuild needed).
+
+Not added yet: Shoryuken (SQS), ActionCable subscriptions, mutations for projects,
+educations, skills, and resumes (follow the jobs/experiences pattern).

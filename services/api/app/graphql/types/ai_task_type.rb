@@ -1,0 +1,16 @@
+# frozen_string_literal: true
+
+# Description: An AI task's status and outcome. Message history stays server-side.
+module Types
+  class AiTaskType < Types::BaseObject
+    field :id, ID, null: false
+    field :task_type, Types::AiTaskTypeEnum, null: false
+    field :status, Types::AiTaskStatusEnum, null: false
+    field :result, GraphQL::Types::JSON
+    field :pending_questions, GraphQL::Types::JSON, null: false,
+          description: "Questions the AI is waiting on when status is NEEDS_USER_INPUT."
+    field :error_message, String
+    field :completed_at, GraphQL::Types::ISO8601DateTime
+    field :created_at, GraphQL::Types::ISO8601DateTime, null: false
+  end
+end

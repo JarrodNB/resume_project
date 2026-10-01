@@ -40,4 +40,8 @@ After changing dependencies, rebuild: `docker compose up --build -V`.
 
 ## Status
 
-Local dev foundation in place (all services scaffolded and running). Next: Rails core.
+- Done: local dev foundation; Rails core (JWT auth, career library / resume / job / AI task
+  models, GraphQL API with job and experience mutations, RSpec suite).
+- Next: SQS round trip between Rails and the AI worker.
+
+Run the Rails specs: `docker compose run --rm api bundle exec rspec`.

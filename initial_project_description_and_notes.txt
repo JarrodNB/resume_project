@@ -1,3 +1,4 @@
+THIS DOCUMENT WAS JUST INITIAL IDEAS AND THOUGHTS AND MAY NOT REFLECT WHAT IS ACTUALLY IMPLEMENTED
 -----
 as far as llm guidance, can we add a description and index at the top of each file?
 - small modular/reusable files

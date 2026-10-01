@@ -59,6 +59,9 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
+- `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
+  GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`
+  (`lib/tasks/graphql_schema.rake`); `spec/graphql/schema_dump_spec.rb` fails if it's stale
 - `Dockerfile.dev` — local dev image; `Dockerfile` — generated production image
 - `.env.example` — secrets template
 

@@ -133,6 +133,8 @@ services:
     volumes:
       - ./apps/web:/app
       - /app/node_modules
+      # GraphQL codegen input, at the same relative path (../../services/api) as on the host.
+      - ./services/api/schema.graphql:/services/api/schema.graphql:ro
 
   landing:
     build:

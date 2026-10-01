@@ -9,6 +9,7 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - `models/` — validations, enums, ordering
 - `services/` — service object behavior, mirrored from `app/services/`
 - `graphql/queries/`, `graphql/mutations/` — operations run directly against the schema
+- `graphql/schema_dump_spec.rb` — fails when `schema.graphql` is out of date
 - `requests/auth_spec.rb` — end-to-end JWT sign-up, sign-in, sign-out over HTTP
 - `channels/` — WebSocket JWT auth and subscriptions run through `GraphqlChannel`
 - `workers/` — Shoryuken workers (called directly with a parsed body)

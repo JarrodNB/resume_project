@@ -12,4 +12,6 @@ SDKs pointed at `http://sqs:9324` (inside compose) or `http://localhost:9324` (f
 ## Local Rules
 
 - Queue names and settings here must match the Terraform SQS definitions used in AWS.
+- The `ai_tasks` dead-letter `maxReceiveCount` must equal the AI worker's `MAX_TASK_ATTEMPTS`
+  (default 3), or tasks can be dead-lettered without a `failed` result.
 - Restart the `sqs` container after changing this file: `docker compose restart sqs`.

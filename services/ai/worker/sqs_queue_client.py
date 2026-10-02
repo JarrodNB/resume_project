@@ -2,8 +2,9 @@
 Description: Thin wrapper around one SQS queue (works with AWS SQS and local ElasticMQ).
 Index:
     - SqsQueueClient: receive, delete, and send messages on a single named queue
-    - SqsQueueClient.receive_messages: long-polls for at most one message
+    - SqsQueueClient.receive_messages: long-polls for at most one message (with its receive count)
     - SqsQueueClient.delete_message: acknowledges a processed message
+    - SqsQueueClient.delay_redelivery: makes a received message visible again after a delay
     - SqsQueueClient.send_message: publishes a message body to the queue
 """
 
@@ -55,12 +56,20 @@ class SqsQueueClient:
             QueueUrl=self._queue_url,
             MaxNumberOfMessages=1,
             WaitTimeSeconds=self._receive_wait_seconds,
+            AttributeNames=["ApproximateReceiveCount"],
         )
         return response.get("Messages", [])
 
     def delete_message(self, receipt_handle: str) -> None:
         """Deletes a processed message so it isn't redelivered."""
         self._sqs.delete_message(QueueUrl=self._queue_url, ReceiptHandle=receipt_handle)
+
+    def delay_redelivery(self, receipt_handle: str, delay_seconds: int) -> None:
+        """Makes a received message visible again after delay_seconds instead of the queue's
+        full visibility timeout."""
+        self._sqs.change_message_visibility(
+            QueueUrl=self._queue_url, ReceiptHandle=receipt_handle, VisibilityTimeout=delay_seconds
+        )
 
     def send_message(self, message_body: str) -> None:
         """Publishes a message body to the queue."""

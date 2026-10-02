@@ -105,6 +105,8 @@ services:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
+    # The polling loop survives errors; this restarts it if startup fails (e.g. SQS not up yet).
+    restart: unless-stopped
     env_file:
       - path: ./services/ai/.env
         required: false

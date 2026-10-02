@@ -1,0 +1,59 @@
+"""
+Description: Per-model token prices and the cost estimate reported with every task result
+(Rails sums these to enforce each user's monthly budget).
+Index:
+    - ModelPrice: USD per 1M tokens for uncached input, cached input, and output
+    - MODEL_PRICES: price table keyed by the Pydantic AI model name (e.g. "openai:gpt-5-mini")
+    - estimate_cost_microdollars: cost of one run's usage, in millionths of a dollar
+    - build_model_usage: the ModelUsage entry a result message reports for one agent run
+"""
+
+import math
+from typing import NamedTuple
+
+from pydantic_ai.usage import RunUsage
+
+from worker.queue_messages import ModelUsage
+
+
+class ModelPrice(NamedTuple):
+    """USD per 1M tokens."""
+
+    input: float
+    cached_input: float
+    output: float
+
+
+# Standard (non-batch) rates from https://developers.openai.com/api/docs/pricing, checked
+# 2026-10-02. A model missing here fails the task loudly instead of being recorded as free.
+MODEL_PRICES: dict[str, ModelPrice] = {
+    "openai:gpt-5-mini": ModelPrice(input=0.25, cached_input=0.025, output=2.00),
+    "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
+    "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
+}
+
+
+def estimate_cost_microdollars(model: str, usage: RunUsage) -> int:
+    """Returns the cost of the usage in micro-dollars, rounded up. Raises KeyError for a model
+    without a price."""
+    price = MODEL_PRICES[model]
+    cached_input_tokens = usage.cache_read_tokens
+    uncached_input_tokens = max(usage.input_tokens - cached_input_tokens, 0)
+    # USD per 1M tokens times tokens is exactly micro-dollars.
+    cost = (
+        uncached_input_tokens * price.input
+        + cached_input_tokens * price.cached_input
+        + usage.output_tokens * price.output
+    )
+    return math.ceil(cost)
+
+
+def build_model_usage(model: str, usage: RunUsage) -> ModelUsage:
+    """Converts one agent run's usage into the token counts and cost sent to Rails."""
+    return ModelUsage(
+        model=model,
+        input_tokens=usage.input_tokens,
+        cached_input_tokens=usage.cache_read_tokens,
+        output_tokens=usage.output_tokens,
+        cost_microdollars=estimate_cost_microdollars(model, usage),
+    )

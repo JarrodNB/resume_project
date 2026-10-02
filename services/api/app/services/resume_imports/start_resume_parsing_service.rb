@@ -1,7 +1,7 @@
 # Description: Stores an uploaded resume file (PDF or DOCX) and queues a parse_resume AI task.
 # The worker downloads the file from storage by its blob key, so only the key goes over SQS.
 # Index:
-#   - call: validates and uploads the file, enqueues the task; returns the AiTask
+#   - call: validates the file and the user's AI usage limits, uploads, enqueues; returns the AiTask
 module ResumeImports
   class StartResumeParsingService < ApplicationService
     ALLOWED_CONTENT_TYPES = %w[
@@ -22,6 +22,10 @@ module ResumeImports
 
       content_type = detect_content_type
       return failure([ "Resume must be a PDF or DOCX file" ]) unless ALLOWED_CONTENT_TYPES.include?(content_type)
+
+      # Checked again under a lock when enqueuing; this early check avoids storing the upload.
+      allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
+      return allowance unless allowance.success?
 
       blob = ActiveStorage::Blob.create_and_upload!(
         io: @file, filename: @file.original_filename, content_type: content_type, identify: false

@@ -9,6 +9,7 @@ import json
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.exceptions import ModelHTTPError
 
 from worker import main
 from worker.main import process_task_message
@@ -59,7 +60,7 @@ def test_publishes_handler_result_and_allows_delete(task_dependencies: TaskDepen
     result_queue = FakeResultQueue()
     task_body = build_task_body()
 
-    assert process_task_message(task_body, result_queue, task_dependencies) is True
+    assert process_task_message(task_body, 1, result_queue, task_dependencies) is True
 
     [published] = [json.loads(body) for body in result_queue.sent_bodies]
     assert published["ai_task_id"] == json.loads(task_body)["ai_task_id"]
@@ -75,8 +76,8 @@ def test_running_the_same_task_twice_publishes_the_same_result(
     result_queue = FakeResultQueue()
     task_body = build_task_body()
 
-    process_task_message(task_body, result_queue, task_dependencies)
-    process_task_message(task_body, result_queue, task_dependencies)
+    process_task_message(task_body, 1, result_queue, task_dependencies)
+    process_task_message(task_body, 1, result_queue, task_dependencies)
 
     first, second = result_queue.sent_bodies
     assert json.loads(first) == json.loads(second)
@@ -89,8 +90,8 @@ def test_invalid_message_is_not_deleted_and_publishes_nothing(
     result_queue = FakeResultQueue()
 
     invalid_task = build_task_body(task_type="write_poem")
-    assert process_task_message(invalid_task, result_queue, task_dependencies) is False
-    assert process_task_message("not json", result_queue, task_dependencies) is False
+    assert process_task_message(invalid_task, 1, result_queue, task_dependencies) is False
+    assert process_task_message("not json", 1, result_queue, task_dependencies) is False
     assert result_queue.sent_bodies == []
 
 
@@ -106,7 +107,7 @@ def test_handler_error_publishes_failed_result(
     monkeypatch.setattr(main, "handle_ai_task", crashing_handler)
     result_queue = FakeResultQueue()
 
-    assert process_task_message(build_task_body(), result_queue, task_dependencies) is True
+    assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is True
 
     published = json.loads(result_queue.sent_bodies[0])
     assert published["status"] == "failed"
@@ -120,5 +121,40 @@ def test_publish_failure_propagates_so_task_is_not_deleted(
     """If the result can't be published, the task must be redelivered rather than lost."""
     with pytest.raises(ConnectionError):
         process_task_message(
-            build_task_body(), FakeResultQueue(fail_on_send=True), task_dependencies
+            build_task_body(), 1, FakeResultQueue(fail_on_send=True), task_dependencies
         )
+
+
+@pytest.fixture
+def rate_limited_handler(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replaces the dispatcher with one that always hits a model rate limit."""
+
+    def handler(_task: object, _dependencies: object) -> None:
+        """Simulates OpenAI answering 429 through Pydantic AI."""
+        raise ModelHTTPError(status_code=429, model_name="gpt-5-mini", body="rate limited")
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+
+
+@pytest.mark.usefixtures("rate_limited_handler")
+def test_temporary_error_before_last_attempt_is_left_for_retry(
+    task_dependencies: TaskDependencies,
+) -> None:
+    """A rate limit publishes nothing and keeps the message, so SQS redelivers it."""
+    result_queue = FakeResultQueue()
+
+    assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is False
+    assert result_queue.sent_bodies == []
+
+
+@pytest.mark.usefixtures("rate_limited_handler")
+def test_temporary_error_on_last_attempt_publishes_failed(
+    task_dependencies: TaskDependencies,
+) -> None:
+    """On the last attempt the task fails for good instead of silently dead-lettering."""
+    result_queue = FakeResultQueue()
+    last_attempt = task_dependencies.settings.max_task_attempts
+
+    assert process_task_message(build_task_body(), last_attempt, result_queue, task_dependencies)
+
+    assert json.loads(result_queue.sent_bodies[0])["status"] == "failed"

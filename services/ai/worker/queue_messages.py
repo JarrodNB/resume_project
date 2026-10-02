@@ -3,6 +3,7 @@ Description: Pydantic models for the two SQS message formats shared with service
 Index:
     - TaskType: task types, mirroring AiTask::TASK_TYPES in Rails
     - AiTaskMessage: a task read from ai_tasks (published by AiTasks::EnqueueAiTaskService)
+    - ModelUsage: tokens and estimated cost of one agent run, reported with a result
     - AiResultMessage: a result written to ai_results (applied by AiTasks::ApplyAiResultService)
 """
 
@@ -23,6 +24,17 @@ class AiTaskMessage(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict)
 
 
+class ModelUsage(BaseModel):
+    """Token counts and estimated cost of one agent run. `input_tokens` includes the cached
+    ones."""
+
+    model: str
+    input_tokens: int
+    cached_input_tokens: int
+    output_tokens: int
+    cost_microdollars: int
+
+
 class AiResultMessage(BaseModel):
     """The outcome of one task. Which optional fields are set depends on `status`."""
 
@@ -32,3 +44,4 @@ class AiResultMessage(BaseModel):
     pending_questions: list[dict[str, Any]] = Field(default_factory=list)
     message_history: list[dict[str, Any]] = Field(default_factory=list)
     error_message: str | None = None
+    usage: list[ModelUsage] = Field(default_factory=list)

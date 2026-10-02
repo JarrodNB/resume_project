@@ -40,4 +40,16 @@ RSpec.describe ResumeImports::StartResumeParsingService do
     expect(result.errors).to eq([ "Resume file must be 5 MB or smaller" ])
     expect(queue).not_to have_received(:send_message)
   end
+
+  it "doesn't store the upload when the user has reached an AI usage limit" do
+    user.update!(monthly_ai_budget_microdollars: 100)
+    create(:ai_task, :completed_resume_parse, user: user, cost_microdollars: 100)
+    file = build_uploaded_file(content: minimal_pdf_bytes, filename: "jane.pdf")
+
+    result = described_class.call(user: user, file: file)
+
+    expect(result.errors.first).to start_with("You've reached this month's AI usage limit")
+    expect(ActiveStorage::Blob.count).to eq(0)
+    expect(queue).not_to have_received(:send_message)
+  end
 end

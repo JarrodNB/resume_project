@@ -1,0 +1,31 @@
+The weak spots are reliability and edge cases that only show up when something goes wrong. Three detailed reviews ran in parallel: Rails API, Python worker, and web, infra and docs. I checked the findings below against the code myself, except where I say otherwise. Nothing was run.
+
+Fix soon
+Temporary failures become permanent. Every exception, including an OpenAI rate limit or an S3 timeout, publishes a final failed result. Rails then marks the task finished, so the queue's built-in retry never happens.
+LLM calls have no timeout. The queue hides a message for 300 seconds while it's being worked on. A slow OpenAI call can run past that, so the task gets handed out again and runs twice, which doubles the cost.
+The import crashes on malformed input. importParsedResume takes arbitrary JSON, and ImportParsedResumeService only rescues validation errors. A wrong shape (for example experiences sent as an object) causes a NoMethodError and a 500.
+Deleting a job breaks its tailored resumes. Job nullifies its resumes on delete, but Resume requires a job when it's tailored, so every later save of those resumes fails.
+Worth doing before real users
+Abuse limits. Sign-in, sign-up and GraphQL are now throttled (Rack::Attack) and AI usage has per-user limits, but there's still no GraphQL complexity limit (only a depth cap).
+Too much database access for the AI worker. The read-only ai_reader role is granted SELECT on every table, including users.encrypted_password. It should be limited to the tables the worker actually reads.
+Resume contents go to Langfuse. Full resume text and contact details are sent to Langfuse Cloud by default (include_content=True), and invalid messages are logged in full. Decide whether that's acceptable.
+Unhelpful error for corrupt files. Corrupt or encrypted PDF and DOCX files show the generic "The AI task failed" instead of the "unreadable file" message.
+No limits on file parsing. The worker doesn't cap the extracted text length or the uncompressed size of a DOCX, which is a zip file.
+Endless spinners on the import page.
+If the WebSocket rejects an expired token, the page shows "Loading…" forever instead of ending the session.
+A task that completes with no usable result, or comes back as NEEDS_USER_INPUT, falls through to the "parsing" spinner.
+Unwanted navigation after leaving a page. If you leave /import mid-upload, you get dragged back when the upload finishes.
+Null values cause 500s. An explicit null for requirements, nice_to_haves or position hits a database constraint and returns a 500 instead of a validation error.
+Tasks can get stuck as queued. This happens if publishing fails with an error other than the queue errors the service catches, and nothing sweeps up stale tasks.
+LLM engineering (matters for the portfolio)
+The faithfulness evals can pass trivially. They use substring matching, so an invented "Java" passes because "JavaScript" is in the resume, and an expected skill "R" matches nearly anything. Empty output scores a perfect 1.0. The check also ignores titles, descriptions, contact details and education.
+Faithfulness is only measured, never enforced. It's the top metric, but production passes the LLM output straight through. A cheap runtime check could drop highlights that don't appear in the source text.
+The resume text isn't fenced off as data. The prompt doesn't tell the model to ignore instructions inside the resume, and there's no prompt-injection case in the eval dataset.
+Smaller items
+Missing spec coverage.
+Rails is missing ownership specs for updateJob, moveJobToStage, updateExperience, deleteExperience, resume(id) and aiTask(id).
+The worker has no tests for the polling loop itself or for PDF extraction.
+Header gaps. Many Rails mutation and type files have a Description: but no Index:, and the five empty Python __init__.py files have no header.
+Doc drift. The root AGENTS.md and the README.md describe Terraform and Kubernetes folders that don't exist yet. docs/mvp_plan.md marks only step 3 as done. apps/web/README.md is still the Vite template.
+Dev ports open to the network. Postgres, S3Mock and ElasticMQ bind to all network interfaces with default passwords. Binding them to 127.0.0.1 would fix that.
+My recommendation is the six "fix soon" items first. Most are small changes, and each one closes off a whole kind of failure.

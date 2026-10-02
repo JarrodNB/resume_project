@@ -8,6 +8,7 @@ import { FileUp } from 'lucide-react'
 import { Link } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
+import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { LibraryEntry } from './LibraryEntry'
 import { LibrarySection } from './LibrarySection'
@@ -32,7 +33,7 @@ export function CareerLibraryPage() {
           </Link>
         </Button>
       </div>
-      {error && <ErrorAlert title="Couldn't load your library" messages={[error.message]} />}
+      {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
       {library && (
         <>

@@ -51,11 +51,68 @@ After changing dependencies, rebuild: `docker compose up --build -V`.
   `importParsedResume` into the career library), with evals.
 - Next: job scraping, gap analysis, tailoring, memory.
 
-Run the Rails specs: `docker compose run --rm api bundle exec rspec`.
-Run the AI worker tests: `docker compose run --rm ai pytest`.
-Run the resume parsing evals (real OpenAI calls): `docker compose run --rm ai python -m evals.run_resume_parsing_evals`.
-
-
 ## Commands
-- add commands per container that are commonly needed during development
-ex: check logs, bundle install, bash, tests, etc
+
+Run these from the repo root. `exec` runs inside an already-running container;
+`run --rm` starts a throwaway one (use it when the stack is down).
+
+### Whole stack
+
+| Task | Command |
+| ---- | ------- |
+| Start (detached) | `docker compose up -d` |
+| Stop gracefully (keeps data) | `docker compose down` |
+| Stop without removing containers | `docker compose stop` |
+| Status | `docker compose ps` |
+| Follow all logs | `docker compose logs -f` |
+| Follow one service's logs | `docker compose logs -f <service>` |
+| Restart one service | `docker compose restart <service>` |
+| Rebuild after dependency changes | `docker compose up --build -V` |
+| Reset database (deletes all local data) | `docker compose down -v` |
+
+### api (Rails)
+
+| Task | Command |
+| ---- | ------- |
+| Shell | `docker compose exec api bash` |
+| Rails console | `docker compose exec api bin/rails console` |
+| Specs | `docker compose run --rm api bundle exec rspec` |
+| One spec file | `docker compose run --rm api bundle exec rspec spec/path/to_spec.rb` |
+| Migrate | `docker compose run --rm api bin/rails db:migrate` |
+| Generate a migration | `docker compose run --rm api bin/rails g migration <Name>` |
+| Install gems (after editing `Gemfile`) | `docker compose run --rm api bundle install` |
+| Dump GraphQL schema (after any GraphQL change) | `docker compose run --rm api bin/rails graphql:schema:dump` |
+| Routes | `docker compose run --rm api bin/rails routes` |
+
+`api-results-worker` shares the api image and gems; restart it after changing code it
+loads: `docker compose restart api-results-worker`.
+
+### ai (Python worker)
+
+| Task | Command |
+| ---- | ------- |
+| Shell | `docker compose exec ai bash` |
+| Tests | `docker compose run --rm ai pytest` |
+| One test file | `docker compose run --rm ai pytest tests/path/to_test.py` |
+| Resume parsing evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_resume_parsing_evals` |
+| Add a package | `docker compose run --rm ai uv add <package>`, then `docker compose up --build -V -d ai` |
+| Restart after code changes | `docker compose restart ai` |
+
+### web (React)
+
+| Task | Command |
+| ---- | ------- |
+| Shell | `docker compose exec web sh` |
+| Tests | `docker compose exec web npm test` |
+| Type check | `docker compose exec web npm run typecheck` |
+| Lint | `docker compose exec web npm run lint` |
+| GraphQL codegen (after schema dump or operation changes) | `docker compose exec web npm run codegen` |
+| Add a package | `docker compose run --rm --no-deps web npm install <package>`, then `docker compose up --build -V -d web` |
+| Add a shadcn/ui component | `docker compose exec -T web npx shadcn@latest add <name> -y` |
+
+### db (Postgres)
+
+| Task | Command |
+| ---- | ------- |
+| psql (dev database) | `docker compose exec db psql -U postgres api_development` |
+| List databases | `docker compose exec db psql -U postgres -c '\l'` |

@@ -72,6 +72,8 @@ RSpec.configure do |config|
   config.include FactoryBot::Syntax::Methods
   config.include GraphqlHelpers
   config.include UploadedFileHelpers
+  config.include ActiveSupport::Testing::TimeHelpers
+  config.include ActiveSupport::Testing::TimeHelpers
   # arbitrary gems may also be filtered via:
   # config.filter_gems_from_backtrace("gem name")
 end

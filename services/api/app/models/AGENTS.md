@@ -6,7 +6,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
-- `user.rb` — account (Devise + JWT); owns everything below
+- `user.rb` — account (Devise + JWT); owns everything below. Nullable
+  `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
+  the global AI usage limits
 - `jwt_denylist.rb` — revoked tokens (sign-out)
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
@@ -16,7 +18,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   so editing a resume never changes the career library (content shapes in `resume_section.rb`)
 - `ai_task.rb` — one unit of AI work over SQS; `finished?` drives duplicate-result handling;
   `source_file` (Active Storage) is the upload a task reads; `accepted?` once its result has
-  been imported
+  been imported; token columns and `cost_microdollars` come from the worker's reported usage
 
 ## Local Rules
 

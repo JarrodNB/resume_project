@@ -5,6 +5,7 @@
  */
 import { useState } from 'react'
 import { useMutation } from '@apollo/client/react'
+import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import type { ParsedResume } from './parsedResume'
 import { IMPORT_PARSED_RESUME_MUTATION } from './resumeImportOperations'
 
@@ -20,8 +21,8 @@ export function useImportParsedResume(aiTaskId: string) {
       const payload = data?.importParsedResume
       if (payload?.resume && payload.errors.length === 0) return true
       setErrors(payload?.errors.length ? payload.errors : ['The import failed. Please try again.'])
-    } catch {
-      setErrors(['Could not reach the server. Please try again.'])
+    } catch (error) {
+      setErrors([requestErrorMessage(error, 'Could not reach the server. Please try again.')])
     }
     return false
   }

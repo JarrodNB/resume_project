@@ -41,7 +41,9 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message}`, where `status` is `completed`, `needs_user_input`, or `failed`
+  message_history, error_message, usage}`, where `status` is `completed`, `needs_user_input`, or
+  `failed`, and `usage` lists one `{model, input_tokens, cached_input_tokens, output_tokens,
+  cost_microdollars}` entry per agent run (`input_tokens` includes the cached ones)
 
 Per task type:
 
@@ -72,6 +74,39 @@ rare SQS redelivery). We handle this instead of trying to prevent it:
   and they reduce throughput.
 
 A duplicate costs extra LLM spend at worst, never corrupt data.
+
+## Retrying Temporary Failures
+
+The worker retries through SQS redelivery instead of in-process loops:
+
+- A **temporary** failure (model rate limit or 5xx, connection error or timeout, AWS
+  throttling or 5xx; see `services/ai/worker/retryable_errors.py`) publishes nothing and keeps
+  the message. The worker shortens its visibility to 30s × the attempt number, so the retry
+  comes sooner than the 300-second timeout.
+- A **permanent** failure (bad input, bug, missing upload, invalid model output) publishes
+  `failed` right away.
+- The **last attempt** (`ApproximateReceiveCount` = `MAX_TASK_ATTEMPTS`, default 3) publishes
+  `failed` even for a temporary error, so the user sees a result before SQS dead-letters the
+  message. `MAX_TASK_ATTEMPTS` must equal the `ai_tasks` dead-letter `maxReceiveCount`.
+
+## Usage Limits
+
+LLM calls cost money, so each user has limits, checked by `AiUsage::CheckAiTaskAllowanceService`
+before a task is queued (under a lock on the user row, so concurrent requests can't both pass):
+
+- **Monthly budget** (default $2.00, `AI_MONTHLY_BUDGET_USD`): the sum of `ai_tasks.cost_microdollars`
+  for tasks created this calendar month (UTC). The worker estimates each run's cost from its
+  token usage and a per-model price table (`services/ai/worker/model_prices.py`) and reports it
+  with the result.
+- **Tasks per hour** (default 10, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
+- **Tasks in flight** (default 2, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
+  minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
+
+Nullable columns on `users` override each default. `me { aiUsage }` exposes the month's spend.
+
+Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
+IP and by email, sign-up by IP, and `/graphql` by user (JWT `sub`) and by IP. Throttled
+requests get a JSON 429 with `Retry-After`.
 
 ## Memory
 
@@ -138,5 +173,15 @@ information carries across conversations.
 - **Langfuse reading APIs:** new Langfuse Cloud organisations can only read data through
   `GET /api/public/v2/observations` and `GET /api/public/v3/scores`; the older trace and
   score endpoints return 410. Ingestion via OpenTelemetry is unaffected.
+- **AI budget checked before queuing, recorded after.** A task's cost is only known once it
+  finishes, so the check can't reserve an exact amount. The in-flight cap bounds the overshoot
+  to a couple of tasks, which is simpler than estimating and reserving costs up front. Spend is
+  summed from `ai_tasks` instead of kept in a counter, so it can't drift, and a redelivered
+  result assigns (never adds) its usage. Costs are integer micro-dollars because one resume
+  parse costs well under a cent. Usage from a crashed or timed-out run isn't reported; the
+  hourly and in-flight caps limit that gap. The price table lives in the worker, which knows
+  the models; a configured model without a price fails a test instead of counting as free.
+- **Rack::Attack on Rails.cache for request throttling.** No Redis: the dev memory store and
+  production Solid Cache are enough at this scale.
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.
   Decide before the deploy phase whether to use EKS or a cheaper k8s setup.

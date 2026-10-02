@@ -1,4 +1,5 @@
-# Description: Creates a queued AiTask and publishes it to the ai_tasks SQS queue for the AI worker.
+# Description: Creates a queued AiTask and publishes it to the ai_tasks SQS queue for the AI worker,
+# unless the user has reached an AI usage limit (AiUsage::CheckAiTaskAllowanceService).
 # Index:
 #   - call: saves the task and publishes {ai_task_id, user_id, task_type, input}; returns the task
 module AiTasks
@@ -15,12 +16,13 @@ module AiTasks
       @source_file = source_file
     end
 
-    # Saves the task, then publishes it. A task that can't be published is marked failed.
+    # Checks the user's AI usage limits, saves the task, then publishes it. A task that can't be
+    # published is marked failed.
     def call
-      ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject)
-      ai_task.source_file.attach(@source_file) if @source_file
-      return failure(ai_task.errors) unless ai_task.save
+      result = create_task_within_limits
+      return result unless result.success?
 
+      ai_task = result.value
       publish(ai_task)
       success(ai_task)
     rescue *QUEUE_ERRORS => error
@@ -30,6 +32,19 @@ module AiTasks
     end
 
     private
+
+    # Checks the limits and saves the task under a lock on the user's row, so two concurrent
+    # requests can't both pass the check. Publishing happens after the lock is released.
+    def create_task_within_limits
+      @user.with_lock do
+        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
+        next allowance unless allowance.success?
+
+        ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject)
+        ai_task.source_file.attach(@source_file) if @source_file
+        ai_task.save ? success(ai_task) : failure(ai_task.errors)
+      end
+    end
 
     # Sends the task message to the ai_tasks queue.
     def publish(ai_task)

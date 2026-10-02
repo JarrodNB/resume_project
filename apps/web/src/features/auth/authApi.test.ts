@@ -39,6 +39,15 @@ describe('signUpRequest', () => {
     expect(error.messages).toEqual(['Email is invalid', 'Password is too short'])
   })
 
+  it('shows the rate limit message when the API throttles the request', async () => {
+    stubFetch(
+      new Response(JSON.stringify({ errors: ['Too many requests. Please try again in 12 seconds.'] }), { status: 429 }),
+    )
+
+    const error = await signUpRequest({ email: 'a@b.c', password: 'password123' }).catch((caught) => caught)
+    expect(error.messages).toEqual(['Too many requests. Please try again in 12 seconds.'])
+  })
+
   it('falls back to a generic message when the body is not JSON', async () => {
     stubFetch(new Response('oops', { status: 500 }))
 

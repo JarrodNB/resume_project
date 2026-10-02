@@ -15,7 +15,8 @@ Source of the web app, organized by feature.
 - `components/` — shared app components (`AppLayout`, `ErrorAlert`); `components/ui/` is
   generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,
-  401 handling), `SessionApolloProvider.tsx` (new client per session); `generated/` is
+  401 handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
+  (friendly message for HTTP 429 rate limiting); `generated/` is
   GraphQL Code Generator output (don't edit)
 - `lib/` — `apiConfig.ts` (API URLs), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
 - `test/` — Vitest setup, `renderPage` helper, synthetic fixtures

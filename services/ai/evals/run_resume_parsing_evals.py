@@ -39,7 +39,7 @@ def run_resume_parsing_evals() -> None:
 
     def parse_case(resume_text: str) -> ParsedResume:
         """The task under evaluation."""
-        return parse_resume_text(resume_text, model=model)
+        return parse_resume_text(resume_text, model=model).parsed_resume
 
     with (
         langfuse.start_as_current_observation(name=TRACE_NAME, metadata={"model": model}),

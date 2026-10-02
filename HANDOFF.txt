@@ -1,0 +1,252 @@
+HANDOFF SUMMARY — Throughline (working name)
+Written 2026-10-01 at the end of the first build session. Start here, then read AGENTS.md.
+
+==========================================================================================
+WHAT THIS IS
+==========================================================================================
+A job search assistant. The AI works WITH the user to write tailored resumes (no mass-sent
+AI resumes) and keeps the search organized. It's a PORTFOLIO PROJECT for AI engineering
+roles first, and maybe a business later: prefer engineering quality over feature breadth.
+
+Key docs (read these first):
+  - AGENTS.md                     root conventions, project index, cross-service rules
+  - docs/architecture.md          services, AI task flow, duplicate handling, all DECISIONS
+  - docs/mvp_plan.md              MVP scope, build order, evals plan
+  - <every folder>/AGENTS.md      local rules + contents (header formats live per folder)
+  - initial_project_description_and_notes.txt   the user's original notes
+
+==========================================================================================
+CURRENT STATE (5 commits on master)
+==========================================================================================
+27cb180  Scaffold monorepo: conventions, docs, Docker dev stack
+4d12327  Rails core: JWT auth, domain models, GraphQL API (21 specs passing, rubocop clean)
+1a9522e  SQS round trip (Rails <-> Python) + live aiTaskUpdated subscription
+94159b4  AI resume parsing: upload, Pydantic AI agent, evals, reviewed import
+9393d1c  Web app slice: auth, resume upload with live parsing, review and import, library
+
+Build order progress (docs/mvp_plan.md):
+  [done] 1. Local dev foundation (docker compose, all apps scaffolded)
+  [done] 2. Rails core
+  [done] 3. Queue round trip (Rails <-> SQS <-> Python worker) + aiTaskUpdated subscription
+         (commit 1a9522e; 38 Rails specs + 5 pytest passing, rubocop/ruff clean,
+         verified live end to end over a real WebSocket)
+  [PAUSED] 4. AI features (Pydantic AI agents + evals)
+         - [done] resume parsing (commit 94159b4; see "STEP 4a" below)
+         - [later] job scraping, then gap analysis (first deferred-tool / ask_user flow),
+           tailoring, memory
+  [IN PROGRESS] 5. Web app, pulled forward (user's call) so resume upload and parsing can be
+         seen working in the browser.
+         - [done, commit 9393d1c] 5a. auth + upload + live parse + review + import + career
+           library (see "STEP 5a" below)
+  [NEXT] Ask the user: resume AI work (4b job scraping) or more web app (resume editing,
+         jobs board)?
+         6. Landing page   7. Deploy (Terraform, k8s, GitHub Actions)
+
+==========================================================================================
+STACK / LAYOUT
+==========================================================================================
+apps/web        Vite 8 + React 19 + TS, React Router 8, Apollo Client 4, Tailwind 4 + shadcn/ui,
+                GraphQL Code Generator, Vitest 5 + Testing Library, port 5173
+apps/landing    same tooling, port 5174 (starter page)
+services/api    Rails 8.1 API mode, Ruby 3.4.11, Postgres, graphql-ruby, Devise + devise-jwt,
+                RSpec + FactoryBot, port 3000
+                + Shoryuken (SQS), ActionCable/Solid Cable at /cable for GraphQL subscriptions
+api-results-worker  same image as api; `shoryuken -R` consuming ai_results (AiResultWorker)
+services/ai     Python 3.13 + uv, plain SQS worker (NO FastAPI). worker/main.py polls ai_tasks,
+                task_handlers.handle_ai_task dispatches by task_type (only parse_resume so far).
+                Pydantic AI 2.52, Langfuse SDK 4.16, Pydantic Evals; model gpt-5-mini
+s3 (S3Mock)     local S3 for uploads, port 9090, bucket throughline-uploads (not persisted)
+infra/elasticmq local SQS emulator config (queues: ai_tasks, ai_results, + dead-letter queues)
+infra/postgres  init SQL: creates api_development + read-only role ai_reader
+docker-compose.yml   db (pgvector/pg17), sqs (elasticmq-native :9324), api, ai, web, landing
+
+==========================================================================================
+DECISIONS ALREADY MADE (details in docs/architecture.md "Decisions")
+==========================================================================================
+- Everything runs in Docker; only Docker Desktop is installed on the host (Windows).
+- SQS for AI work. ElasticMQ locally (LocalStack now needs an account token, so dropped).
+- Rails owns all writes. The AI worker uses the READ-ONLY DB role ai_reader (for pgvector
+  memory search) and returns everything via the ai_results queue.
+- Duplicate SQS messages: worker receives 1 message at a time; Rails result handling must be
+  idempotent (ignore results for AiTask that is finished? = completed/failed). No FIFO.
+- Pydantic AI for all agents (OpenAI models); human-in-the-loop via Pydantic AI DEFERRED
+  TOOLS (ask_user tool -> run ends with DeferredToolRequests -> worker publishes
+  needs_user_input with serialized message history -> Rails stores it on AiTask -> user
+  answers -> new task resumes with DeferredToolResults).
+- Langfuse Cloud free tier for tracing (Agent.instrument_all()); Pydantic Evals for evals,
+  one dataset + runner per agent; faithfulness (no invented experience) is the top metric.
+- GraphQL subscriptions (graphql-ruby over ActionCable, Solid Cable adapter) for live UI updates.
+- Auth: REST endpoints for sign up/in/out (JWT in Authorization header), GraphQL for the rest.
+- Data model: "career library" (experiences + highlights, projects, educations, skills) is
+  the source of truth; resumes are documents whose sections store a JSON snapshot.
+- UUID primary keys. Per-service .env files (services/api/.env, services/ai/.env).
+- File history lives in git, not in file headers.
+
+==========================================================================================
+CONVENTIONS (enforced in AGENTS.md files)
+==========================================================================================
+- Every file starts with a "Description:" + "Index:" header (format per language in folder
+  AGENTS.md). Generated boilerplate is exempt until first edited.
+- Small single-purpose files, descriptive names, every method gets a one-line description.
+- Every folder has an AGENTS.md; update its Contents when adding/removing files.
+- Rails: business logic in service objects (app/services, <Verb><Noun>Service, `.call`,
+  returns ServiceResult via success/failure). Mutations are thin. ALL reads go through
+  current_user (current_user.jobs.find(id)); no Relay node/global-ID lookups.
+- Every new service/mutation/query gets a spec, including an ownership check.
+- Ask the user for clarification on ambiguous decisions; they like being consulted.
+
+==========================================================================================
+COMMANDS
+==========================================================================================
+docker compose up --build                       start everything
+docker compose run --rm api bundle exec rspec   Rails specs
+docker compose run --rm api bin/rubocop         Rails lint
+docker compose run --rm api bin/rails db:migrate
+docker compose run --rm --no-deps api bundle add <gem>   (gems live in api_bundle volume)
+docker compose run --rm ai uv add <package>     then: docker compose up --build -V ai
+docker compose down -v                          reset local DB (re-runs infra/postgres init)
+docker compose run --rm api bin/rails graphql:schema:dump   after any GraphQL change
+docker compose exec web npm run codegen         then regenerate web GraphQL types
+docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
+docker compose run --rm --no-deps web npm install <pkg>   then: docker compose up --build -V -d web
+
+==========================================================================================
+GOTCHAS LEARNED
+==========================================================================================
+- Cursor's terminals may not see `docker` on PATH unless Cursor was restarted after install.
+  In agent shells, refresh it with:
+  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+- The Rails API takes ~40s to boot over the Windows bind mount; /up fails until then.
+- If the Gemfile lists gems that aren't installed, the api container crash-loops; install with
+  `docker compose run --rm --no-deps api bundle install`, not `exec`.
+- Long chained docker commands sometimes report "Aborted" but actually keep running;
+  check the result before re-running (generators will refuse duplicate names).
+- PowerShell mangles JSON quotes inside `python -c "..."`; avoid inner double quotes.
+- Rails was scaffolded with --skip-git, so the root .gitignore carries the Rails ignores
+  (master.key is ignored; credentials.yml.enc is committed on purpose).
+- Vite dev servers use polling (file events don't cross the Windows -> Docker mount).
+- .gitattributes forces LF; CRLF warnings on `git add` are expected and harmless.
+- Shoryuken doesn't eager load in dev, so config/initializers/shoryuken.rb eager-loads
+  app/workers in configure_server. It also doesn't reload code: after editing a worker or a
+  service it calls, `docker compose restart api-results-worker`.
+- Dev Rails host authorization blocks `api:3000` (container hostname). Browsers use
+  localhost:3000, so it only matters for container-to-container HTTP tests (use the IP).
+- Ruff ignores EXE002 because every file on the Windows bind mount looks executable.
+- `uv add` in a `run --rm` container only updates pyproject/uv.lock; rebuild the ai image
+  (`docker compose build ai`) before the new package is importable.
+- S3Mock runs as uid 1000: don't mount a named volume as its store root (root-owned, every
+  request then fails with a generic S3 InternalError).
+- Langfuse Cloud (new orgs): legacy read APIs return 410. Read data via
+  /api/public/v2/observations and /api/public/v3/scores (basic auth with the project keys).
+- pytest disables Langfuse (LANGFUSE_TRACING_ENABLED=false in tests/conftest.py) because the
+  ai container loads the real .env.
+- Marcel: detect upload types from bytes only; passing `name:` lets a text file named .pdf
+  through.
+- Inline Ruby/Python in PowerShell gets mangled; write a throwaway script file instead.
+  Same for `docker compose exec web sh -c '...'` with quotes or pipes: filter output with
+  Select-String on the host instead.
+- shadcn CLI init is interactive; it was run with `-t vite -b radix -p nova --no-monorepo -y
+  --no-rtl < /dev/null`. Components import `cn` from the official `cn` npm package (correct).
+- Radix components need ResizeObserver in jsdom; src/test/setup.ts stubs it.
+- The Cursor browser tool sometimes returns stale snapshots/screenshots; confirm with
+  Runtime.evaluate (location.pathname, DOM reads) before assuming an app bug.
+- The first aiTaskUpdated result takes ~2-4s while the cable connects ("Loading..." shows).
+
+==========================================================================================
+STEP 3 (DONE): QUEUE ROUND TRIP — what exists now
+==========================================================================================
+User chose: Shoryuken, a separate api-results-worker compose service, subscription included.
+  - AiTasks::EnqueueAiTaskService(user:, task_type:, input:, subject:) creates a queued
+    AiTask and publishes {ai_task_id, user_id, task_type, input} to ai_tasks (marks the task
+    failed if SQS is unreachable).
+  - Python: worker/queue_messages.py (Pydantic AiTaskMessage / AiResultMessage),
+    task_handlers.handle_ai_task (echo), main.process_task_message (publish result, then the
+    task may be deleted; invalid messages are left for the dead-letter queue; handler crashes
+    publish a generic "failed" result).
+  - AiResultWorker (Shoryuken) -> AiTasks::ApplyAiResultService: ignores finished tasks
+    under a row lock, then triggers ApiSchema.subscriptions.trigger(:ai_task_updated, ...).
+  - Subscription aiTaskUpdated(id): ownership-checked, returns current state on subscribe.
+    WebSocket auth = JWT in `?token=` on /cable (ApplicationCable::Connection, honours the
+    denylist). Solid Cable in dev with its own api_development_cable database.
+  - Message formats are documented in docs/architecture.md "Queue Messages".
+
+==========================================================================================
+STEP 4a (DONE, commit 94159b4): RESUME PARSING
+==========================================================================================
+User chose: the ParsedResume schema as proposed; Rails stores uploads in S3 and Python
+extracts text; parsed results are reviewed by the user before import.
+  - Flow: parseResume(file: Upload!) mutation -> ResumeImports::StartResumeParsingService
+    (PDF/DOCX by magic bytes, 5 MB max) -> Active Storage blob in S3 -> AiTask parse_resume
+    with input {source_file: {key, filename, content_type}} -> worker downloads, extracts text
+    (documents/), runs agents/resume_parsing_agent -> result {parsed_resume: ...} ->
+    user edits -> importParsedResume(aiTaskId, parsedResume: JSON) ->
+    ImportParsedResumeService (career library + base resume with contact/summary/experience/
+    projects/education/skills sections; once per task via ai_tasks.accepted_at).
+  - Tracing: one Langfuse trace per task (ai_task.<type>, user id, ai_task_id metadata).
+  - Evals: evals/datasets/resume_parsing_cases.yaml (5 synthetic cases), deterministic
+    evaluators (faithfulness, experience match, section recall, warnings). First run: 1.0 on
+    every score (~$0.02). The set is too easy; add harder cases (multi-column PDFs, long
+    careers, mixed date formats). Seen live: degree "B.S. Computer Science" duplicated the
+    field of study -> good candidate for a new case.
+  - Verified: 14 pytest, 49 RSpec, ruff + rubocop clean, and a live end-to-end run
+    (PDF upload -> OpenAI -> import -> duplicate import refused).
+  - Not done: production Active Storage service is still :local (switch to :amazon at deploy).
+
+==========================================================================================
+STEP 5a (DONE, commit 9393d1c): WEB APP — RESUME UPLOAD AND PARSING IN THE BROWSER
+==========================================================================================
+User chose: Tailwind + shadcn/ui, React Router, GraphQL Code Generator from the Rails schema,
+Vitest + Testing Library from the start.
+  - Routes: /sign-in, /sign-up (public); /library, /import, /import/:aiTaskId (signed in,
+    inside AppLayout with nav + sign out). Sign-up lands on /import.
+  - Auth: REST /auth/*, JWT in localStorage (throughline.authToken). A GraphQL 401 ends the
+    session. A new Apollo client per session (no cache leaks between users).
+  - Apollo: UploadHttpLink (apollo-upload-client 20) + ActionCableLink (graphql-ruby-client)
+    for subscriptions at /cable?token=<JWT>.
+  - Import flow: drop/pick PDF or DOCX -> parseResume -> /import/:aiTaskId follows
+    aiTaskUpdated live -> editable review form (warnings shown first) -> importParsedResume ->
+    /library. Reloading the task page works (failed, already imported states included).
+  - Rails: new `graphql:schema:dump` task writes services/api/schema.graphql (codegen input,
+    mounted read-only into the web container); a spec fails if it's stale.
+  - Verified: 22 Vitest tests, tsc + oxlint clean; 50 RSpec, rubocop clean; live browser run
+    (sign up -> synthetic PDF -> parse in ~15s -> edits + added skill -> import -> library
+    shows everything -> task page says "Already imported" -> sign out to /sign-in).
+  - Seen live: year-only dates show as "Jan 2015 – Jan 2018" because Rails stores partial
+    dates as the first of the month/year. Fixing it needs date precision stored in Rails
+    (see open items).
+
+==========================================================================================
+PER-USER LLM BUDGET AND RATE LIMITS (uncommitted, 2026-10-02)
+==========================================================================================
+User chose: estimated USD cost, monthly budget, DB-based AI task limits + Rack::Attack,
+global ENV defaults with per-user override columns. Details: docs/architecture.md "Usage Limits".
+  - Worker reports `usage` [{model, tokens, cost_microdollars}] on results
+    (worker/model_prices.py; add a price for every new model or a test fails).
+  - Rails stores it on ai_tasks; AiUsage::CheckAiTaskAllowanceService (monthly budget $2,
+    10 tasks/hour, 2 in flight) runs in EnqueueAiTaskService under a user row lock, and early
+    in StartResumeParsingService so rejected uploads aren't stored.
+  - me { aiUsage { spentThisMonthUsd monthlyBudgetUsd resetsAt } } (no UI yet).
+  - Rack::Attack: sign-in 5/20s per IP + 10/10min per email, sign-up 5/hour per IP,
+    GraphQL 120/min per user + 300/min per IP; JSON 429. Web shows a friendly 429 message.
+  - Gap: usage of crashed/timed-out runs isn't reported (bounded by the hourly/in-flight caps).
+
+==========================================================================================
+LATER: 4b. JOB SCRAPING (paused for the web app)
+==========================================================================================
+  - Ask the user how to fetch job pages (plain HTTP + HTML-to-text vs a headless browser)
+    and the output schema (Job already has title, company, location, description,
+    requirements[], nice_to_haves[]).
+  - Same pattern: schema -> prompt -> agent -> handler -> eval dataset first -> mutation.
+  - Gap analysis after that brings the needs_user_input / deferred tools answer flow.
+
+==========================================================================================
+OPEN ITEMS / LATER
+==========================================================================================
+- Final product name (Throughline is a placeholder; the space is crowded, so check availability).
+- Mutations for projects, educations, skills, and resumes (follow the jobs/experiences pattern).
+- Date precision: store whether a date is year, month, or day precision so "2015" doesn't
+  display as "Jan 2015" (ask the user: precision column vs storing the partial-date string).
+- Web app: no editing of the career library or resumes yet (read-only library page).
+- Visibility-timeout heartbeat for long AI tasks (once real durations are known).
+- EKS cost (~$73/mo control plane) vs a cheaper k8s option, decide before deploy.
+- Pydantic AI 2.x run_sync emits a harmless "no current event loop" DeprecationWarning.

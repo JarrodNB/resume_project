@@ -64,6 +64,22 @@ def test_parse_resume_returns_parsed_resume(
     assert user_prompt.content == "Jane Doe\nEngineer at Acme"
 
 
+def test_parse_resume_reports_token_usage(
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+) -> None:
+    """The completed result carries the agent run's tokens and cost for the configured model."""
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
+
+    with resume_parsing_agent.override(model=TestModel()):
+        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+
+    [model_usage] = result.usage
+    assert model_usage.model == task_dependencies.settings.resume_parsing_model
+    assert model_usage.input_tokens > 0
+    assert model_usage.output_tokens > 0
+    assert model_usage.cost_microdollars > 0
+
+
 def test_parse_resume_fails_for_file_without_text(
     task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
 ) -> None:

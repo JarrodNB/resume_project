@@ -58,6 +58,10 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
   (also used for WebSocket origins in `config/application.rb`)
 - `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
+- `config/initializers/ai_usage_limits.rb` — default per-user AI limits (monthly budget, tasks
+  per hour, tasks in flight) from ENV
+- `config/initializers/rack_attack.rb` — request throttles (sign-in, sign-up, GraphQL) on
+  `Rails.cache`; JSON 429 responses
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
   GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`

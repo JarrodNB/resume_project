@@ -54,6 +54,37 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ai_task.completed_at).to be_nil
   end
 
+  describe "token usage" do
+    let(:usage) do
+      [
+        { "model" => "openai:gpt-5-mini", "input_tokens" => 1000, "cached_input_tokens" => 200,
+          "output_tokens" => 300, "cost_microdollars" => 805 },
+        { "model" => "openai:gpt-5-mini", "input_tokens" => 500, "cached_input_tokens" => 0,
+          "output_tokens" => 100, "cost_microdollars" => 325 }
+      ]
+    end
+
+    it "stores the summed usage of every agent run" do
+      described_class.call(message: result_message("completed", result: {}, usage: usage))
+
+      expect(ai_task.reload).to have_attributes(
+        input_tokens: 1500, cached_input_tokens: 200, output_tokens: 400, cost_microdollars: 1130
+      )
+    end
+
+    it "doesn't double-count a redelivered needs_user_input message" do
+      2.times { described_class.call(message: result_message("needs_user_input", usage: usage)) }
+
+      expect(ai_task.reload.cost_microdollars).to eq(1130)
+    end
+
+    it "records zero usage when the message has none" do
+      described_class.call(message: result_message("failed", error_message: "The AI task failed"))
+
+      expect(ai_task.reload.cost_microdollars).to eq(0)
+    end
+  end
+
   it "rejects an unknown status" do
     result = described_class.call(message: result_message("exploded"))
 

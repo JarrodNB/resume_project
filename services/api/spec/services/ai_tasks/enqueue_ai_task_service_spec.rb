@@ -30,6 +30,17 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     expect(queue).not_to have_received(:send_message)
   end
 
+  it "creates nothing and publishes nothing when the user has reached an AI usage limit" do
+    user.update!(max_in_flight_ai_tasks: 1)
+    create(:ai_task, user: user)
+
+    result = described_class.call(user: user, task_type: "analyze_gaps")
+
+    expect(result.errors).to eq([ "You already have AI tasks running. Wait for them to finish, then try again." ])
+    expect(user.ai_tasks.count).to eq(1)
+    expect(queue).not_to have_received(:send_message)
+  end
+
   it "marks the task failed when the queue is unreachable" do
     allow(queue).to receive(:send_message)
       .and_raise(Seahorse::Client::NetworkingError.new(StandardError.new("connection refused")))

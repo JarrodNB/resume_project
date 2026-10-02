@@ -9,7 +9,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 - `api_schema.rb` — root schema; turns `RecordNotFound` into a "Record not found" error;
   subscriptions use `ActionCableSubscriptions`
 - `types/` — object types, enums, inputs, and the root `query_type.rb` / `mutation_type.rb` /
-  `subscription_type.rb`
+  `subscription_type.rb`; `me { aiUsage }` (`ai_usage_type.rb`) is this month's AI spend vs budget
 - `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`);
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`
 - `subscriptions/` — `base_subscription.rb`, `ai_task_updated.rb` (`aiTaskUpdated(id)`)

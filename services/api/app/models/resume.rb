@@ -1,5 +1,5 @@
 # Description: A resume document built from the career library. Base resumes have no job;
-# tailored resumes belong to the job they were written for.
+# tailored resumes are created for a job and keep working (with no job) if it is deleted.
 # Index:
 #   - KINDS / kind enum: base, tailored
 #   - sections: ordered sections with JSON content snapshots
@@ -14,5 +14,6 @@ class Resume < ApplicationRecord
   enum :kind, KINDS.index_with(&:itself), validate: true
 
   validates :title, presence: true
-  validates :job, presence: true, if: :tailored?
+  # Only on create: deleting a job nullifies job_id, and its tailored resumes must stay editable.
+  validates :job, presence: true, if: :tailored?, on: :create
 end

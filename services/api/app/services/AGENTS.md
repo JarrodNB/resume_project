@@ -23,6 +23,8 @@ All business logic, as service objects grouped by domain folder.
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
 - `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into
   the career library once per task (`accepted_at`, row lock, one transaction)
+- `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
+  structure the import can't walk (wrong object/list types) with error messages, not a 500
 - `resume_imports/build_base_resume_service.rb` — base resume whose sections snapshot the
   import; only called inside the import transaction, so it raises on invalid records
 

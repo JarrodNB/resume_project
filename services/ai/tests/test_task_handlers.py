@@ -5,8 +5,11 @@ Index:
     - test_*: one behavior per test
 """
 
+import asyncio
+from unittest.mock import patch
 from uuid import uuid4
 
+import pytest
 from pydantic_ai import capture_run_messages
 from pydantic_ai.messages import UserPromptPart
 from pydantic_ai.models.test import TestModel
@@ -78,6 +81,25 @@ def test_parse_resume_reports_token_usage(
     assert model_usage.input_tokens > 0
     assert model_usage.output_tokens > 0
     assert model_usage.cost_microdollars > 0
+
+
+def test_parse_resume_gives_up_at_the_run_deadline(
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+) -> None:
+    """A run slower than llm_run_timeout_seconds is cancelled with TimeoutError."""
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
+    task_dependencies.settings.llm_run_timeout_seconds = 0.01
+
+    async def never_finishes(*_args: object, **_kwargs: object) -> None:
+        """Stands in for a model call that hangs."""
+        await asyncio.sleep(60)
+
+    with (
+        resume_parsing_agent.override(model=TestModel()),
+        patch.object(TestModel, "request", never_finishes),
+        pytest.raises(TimeoutError),
+    ):
+        handle_ai_task(build_parse_resume_task(), task_dependencies)
 
 
 def test_parse_resume_fails_for_file_without_text(

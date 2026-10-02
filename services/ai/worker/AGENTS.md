@@ -22,7 +22,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage) passed to every handler
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
 - `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()`), `trace_ai_task`
-- `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names)
+- `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names and
+  `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)
 - `sqs_queue_client.py` — wrapper for one SQS queue (receive, delete, send)
 
 ## Local Rules

@@ -34,6 +34,11 @@ def test_model_connection_errors_are_retryable() -> None:
     assert is_retryable_error(ModelAPIError(model_name="m", message="Connection error."))
 
 
+def test_agent_run_deadline_is_retryable() -> None:
+    """An agent run cancelled at its deadline may finish in time on the next attempt."""
+    assert is_retryable_error(TimeoutError())
+
+
 def test_aws_network_errors_are_retryable() -> None:
     """S3/SQS unreachable or timing out can succeed later."""
     assert is_retryable_error(EndpointConnectionError(endpoint_url="http://s3:9090"))

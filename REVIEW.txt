@@ -1,10 +1,10 @@
 The weak spots are reliability and edge cases that only show up when something goes wrong. Three detailed reviews ran in parallel: Rails API, Python worker, and web, infra and docs. I checked the findings below against the code myself, except where I say otherwise. Nothing was run.
 
-Fix soon
-Temporary failures become permanent. Every exception, including an OpenAI rate limit or an S3 timeout, publishes a final failed result. Rails then marks the task finished, so the queue's built-in retry never happens.
-LLM calls have no timeout. The queue hides a message for 300 seconds while it's being worked on. A slow OpenAI call can run past that, so the task gets handed out again and runs twice, which doubles the cost.
-The import crashes on malformed input. importParsedResume takes arbitrary JSON, and ImportParsedResumeService only rescues validation errors. A wrong shape (for example experiences sent as an object) causes a NoMethodError and a 500.
-Deleting a job breaks its tailored resumes. Job nullifies its resumes on delete, but Resume requires a job when it's tailored, so every later save of those resumes fails.
+Fix soon (all done)
+[done] Temporary failures become permanent. Fixed: worker/retryable_errors.py classifies rate limits, 5xx, timeouts and network errors as temporary; the worker leaves those messages for SQS to redeliver (with a growing delay) and only publishes "failed" on the last attempt.
+[done] LLM calls have no timeout. Fixed: parse_resume_text runs the agent under one overall deadline (WorkerSettings.llm_run_timeout_seconds, 240s, below the 300s visibility timeout). A per-request timeout alone wasn't enough because the OpenAI client retries timed-out requests itself. A deadline hit raises TimeoutError, which counts as retryable.
+[done] The import crashes on malformed input. Fixed: ResumeImports::ValidateParsedResumeShapeService checks the JSON structure (object, lists of objects, highlights as strings, skill names as strings) before importing and returns error messages instead of a 500.
+[done] Deleting a job breaks its tailored resumes. Fixed: Resume only requires a job when a tailored resume is created, so resumes whose job was deleted (job_id nulled, as the foreign key intends) stay editable. If deleting a job should delete its tailored resumes instead, switch Job to dependent: :destroy.
 Worth doing before real users
 Abuse limits. Sign-in, sign-up and GraphQL are now throttled (Rack::Attack) and AI usage has per-user limits, but there's still no GraphQL complexity limit (only a depth cap).
 Too much database access for the AI worker. The read-only ai_reader role is granted SELECT on every table, including users.encrypted_password. It should be limited to the tables the worker actually reads.
@@ -28,4 +28,4 @@ The worker has no tests for the polling loop itself or for PDF extraction.
 Header gaps. Many Rails mutation and type files have a Description: but no Index:, and the five empty Python __init__.py files have no header.
 Doc drift. The root AGENTS.md and the README.md describe Terraform and Kubernetes folders that don't exist yet. docs/mvp_plan.md marks only step 3 as done. apps/web/README.md is still the Vite template.
 Dev ports open to the network. Postgres, S3Mock and ElasticMQ bind to all network interfaces with default passwords. Binding them to 127.0.0.1 would fix that.
-My recommendation is the six "fix soon" items first. Most are small changes, and each one closes off a whole kind of failure.
+The "fix soon" items are done. Next, I'd recommend the "worth doing before real users" list, starting with the ai_reader table grants, the Langfuse content decision, and the import page spinners.

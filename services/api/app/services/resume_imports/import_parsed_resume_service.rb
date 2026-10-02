@@ -1,22 +1,28 @@
 # Description: Imports a parsed resume (as reviewed and edited by the user) into the career
 # library and creates a base resume from it. Each parse_resume task can be imported once.
 # Index:
-#   - call: creates library records + base resume in one transaction; returns the Resume
+#   - call: checks the JSON shape, then creates library records + base resume in one
+#     transaction; returns the Resume
 module ResumeImports
   class ImportParsedResumeService < ApplicationService
     PARTIAL_DATE = /\A(?<year>\d{4})(?:-(?<month>\d{2}))?\z/
 
-    # @param parsed_resume [Hash] a ParsedResume (see services/ai/schemas/parsed_resume.py)
+    # @param parsed_resume [Object] client JSON expected to be a ParsedResume
+    #   (see services/ai/schemas/parsed_resume.py); its shape is checked before importing
     def initialize(ai_task:, parsed_resume:)
       @ai_task = ai_task
       @user = ai_task.user
-      @parsed_resume = parsed_resume.to_h.deep_stringify_keys
+      @raw_parsed_resume = parsed_resume
     end
 
     # Imports everything under a row lock so a double submit can't import twice.
     def call
       return failure([ "Only completed resume parsing tasks can be imported" ]) unless importable?
 
+      shape = ValidateParsedResumeShapeService.call(parsed_resume: @raw_parsed_resume)
+      return shape unless shape.success?
+
+      @parsed_resume = shape.value
       @ai_task.with_lock do
         if @ai_task.accepted?
           failure([ "This resume has already been imported" ])

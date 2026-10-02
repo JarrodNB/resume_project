@@ -3,9 +3,10 @@ Description: Pydantic AI agent that turns resume text into a ParsedResume.
 Index:
     - resume_parsing_agent: the agent (model is chosen per run, see parse_resume_text)
     - ResumeParsingRun: the parsed resume plus the run's token usage
-    - parse_resume_text: runs the agent on extracted resume text
+    - parse_resume_text: runs the agent on extracted resume text within a time limit
 """
 
+import asyncio
 from typing import NamedTuple
 
 from pydantic_ai import Agent
@@ -29,7 +30,17 @@ class ResumeParsingRun(NamedTuple):
     usage: RunUsage
 
 
-def parse_resume_text(resume_text: str, model: str) -> ResumeParsingRun:
-    """Extracts structured resume data from plain text using the given model name."""
-    result = resume_parsing_agent.run_sync(resume_text, model=model)
+def parse_resume_text(resume_text: str, model: str, timeout_seconds: float) -> ResumeParsingRun:
+    """Extracts structured resume data from plain text using the given model name.
+    Raises TimeoutError if the whole run (including the provider's own retries) takes longer
+    than timeout_seconds."""
+    return asyncio.run(_run_with_deadline(resume_text, model, timeout_seconds))
+
+
+async def _run_with_deadline(
+    resume_text: str, model: str, timeout_seconds: float
+) -> ResumeParsingRun:
+    """Runs the agent, cancelling it once timeout_seconds have passed."""
+    async with asyncio.timeout(timeout_seconds):
+        result = await resume_parsing_agent.run(resume_text, model=model)
     return ResumeParsingRun(parsed_resume=result.output, usage=result.usage)

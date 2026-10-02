@@ -48,8 +48,11 @@ def handle_parse_resume_task(
             ai_task_id=task.ai_task_id, status="failed", error_message=UNREADABLE_FILE_MESSAGE
         )
 
-    model = dependencies.settings.resume_parsing_model
-    parsing_run = parse_resume_text(resume_text, model=model)
+    settings = dependencies.settings
+    model = settings.resume_parsing_model
+    parsing_run = parse_resume_text(
+        resume_text, model=model, timeout_seconds=settings.llm_run_timeout_seconds
+    )
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",

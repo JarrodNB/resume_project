@@ -23,6 +23,9 @@ class WorkerSettings(BaseSettings):
     s3_endpoint_url: str | None = None
     s3_uploads_bucket: str = "throughline-uploads"
     resume_parsing_model: str = "openai:gpt-5-mini"
+    # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
+    # before SQS hands the same task to another worker and it runs (and bills) twice.
+    llm_run_timeout_seconds: float = 240
 
 
 def load_settings() -> WorkerSettings:

@@ -40,6 +40,20 @@ RSpec.describe "Resume import mutations" do
     )
   end
 
+  it "importParsedResume returns errors for a malformed parsed resume" do
+    ai_task = create(:ai_task, :completed_resume_parse, user: user)
+
+    result = execute_graphql(<<~GQL, user: user, variables: { id: ai_task.id, parsedResume: [ "not", "an object" ] })
+      mutation($id: ID!, $parsedResume: JSON!) {
+        importParsedResume(input: { aiTaskId: $id, parsedResume: $parsedResume }) { resume { id } errors }
+      }
+    GQL
+
+    expect(result.dig("data", "importParsedResume")).to eq(
+      "resume" => nil, "errors" => [ "Parsed resume must be an object" ]
+    )
+  end
+
   it "importParsedResume can't use another user's task" do
     other_task = create(:ai_task, :completed_resume_parse)
 

@@ -1,4 +1,5 @@
-# Description: Job mutations: create, move stage, ownership checks, validation errors.
+# Description: Job mutations: create, move stage, delete (tailored resumes survive), ownership
+# checks, validation errors.
 require "rails_helper"
 
 RSpec.describe "Job mutations" do
@@ -38,6 +39,19 @@ RSpec.describe "Job mutations" do
 
     expect(result.dig("data", "moveJobToStage", "job", "stage")).to eq("APPLIED")
     expect(result.dig("data", "moveJobToStage", "job", "appliedAt")).to be_present
+  end
+
+  it "keeps the job's tailored resumes editable after deleting it" do
+    resume = create(:resume, :tailored, user: user)
+
+    result = execute_graphql(<<~GQL, user: user, variables: { id: resume.job_id })
+      mutation($id: ID!) { deleteJob(input: { id: $id }) { job { id } errors } }
+    GQL
+
+    expect(result.dig("data", "deleteJob", "errors")).to eq([])
+    resume.reload
+    expect(resume.job).to be_nil
+    expect(resume.update(title: "Renamed")).to be(true)
   end
 
   it "cannot delete another user's job" do

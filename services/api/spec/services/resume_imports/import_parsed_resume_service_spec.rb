@@ -70,6 +70,16 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(ai_task.reload).not_to be_accepted
   end
 
+  it "returns errors instead of crashing on a malformed parsed resume" do
+    parsed_resume["experiences"] = { "company" => "Acme" }
+
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(result.errors).to eq([ "experiences must be a list of objects" ])
+    expect(user.resumes.reload).to be_empty
+    expect(ai_task.reload).not_to be_accepted
+  end
+
   it "only imports completed parse_resume tasks" do
     queued_task = create(:ai_task, user: user, task_type: "parse_resume", status: "queued")
 

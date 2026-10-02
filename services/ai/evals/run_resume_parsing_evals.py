@@ -36,19 +36,27 @@ def run_resume_parsing_evals() -> None:
     configure_tracing()
     langfuse = get_client()
     model = settings.resume_parsing_model
+    thinking = settings.resume_parsing_thinking
 
     def parse_case(resume_text: str) -> ParsedResume:
         """The task under evaluation."""
         return parse_resume_text(
-            resume_text, model=model, timeout_seconds=settings.llm_run_timeout_seconds
+            resume_text,
+            model=model,
+            thinking=thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
         ).parsed_resume
 
     with (
-        langfuse.start_as_current_observation(name=TRACE_NAME, metadata={"model": model}),
-        propagate_attributes(trace_name=TRACE_NAME, tags=["eval", "parse_resume", model]),
+        langfuse.start_as_current_observation(
+            name=TRACE_NAME, metadata={"model": model, "thinking": thinking}
+        ),
+        propagate_attributes(
+            trace_name=TRACE_NAME, tags=["eval", "parse_resume", model, f"thinking:{thinking}"]
+        ),
     ):
         report = load_resume_parsing_dataset().evaluate_sync(
-            parse_case, name=f"resume_parsing:{model}", max_concurrency=5
+            parse_case, name=f"resume_parsing:{model}:thinking={thinking}", max_concurrency=5
         )
         for score_name, average in report.averages().scores.items():
             langfuse.score_current_trace(name=score_name, value=average)

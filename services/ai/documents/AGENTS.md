@@ -2,9 +2,15 @@
 
 ## Purpose
 
-Turning uploaded files into text for the agents. No LLM calls here.
+Turning uploaded files into text for the agents, and checking what the agents extracted
+against that text. No LLM calls here.
 
 ## Contents
 
 - `extract_document_text.py` — PDF (pypdf) and DOCX (python-docx, including table cells) to
   text; raises `UnsupportedDocumentError` for other types or files with no text layer
+- `enforce_source_faithfulness.py` — runtime guard for "extract, never rewrite": removes
+  highlights and skills not found in the resume text, warns (without removing) about
+  unmatched company, title, project, and institution names
+- `text_matching.py` — whitespace/case/bullet-insensitive matching helpers, shared with the
+  evals

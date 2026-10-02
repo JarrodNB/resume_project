@@ -1,10 +1,11 @@
 """
 Description: Worker configuration loaded from environment variables.
 Index:
-    - WorkerSettings: typed settings for SQS, S3, and the LLM model
+    - WorkerSettings: typed settings for SQS, S3, and the LLM model and its reasoning effort
     - load_settings: builds WorkerSettings from the environment
 """
 
+from pydantic_ai.settings import ThinkingEffort
 from pydantic_settings import BaseSettings
 
 
@@ -23,6 +24,9 @@ class WorkerSettings(BaseSettings):
     s3_endpoint_url: str | None = None
     s3_uploads_bucket: str = "throughline-uploads"
     resume_parsing_model: str = "openai:gpt-5-mini"
+    # Parsing is copying, not reasoning; the model's default effort spent most of each run's
+    # time and output tokens on reasoning. Rerun the evals before raising or lowering it.
+    resume_parsing_thinking: ThinkingEffort = "low"
     # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
     # before SQS hands the same task to another worker and it runs (and bills) twice.
     llm_run_timeout_seconds: float = 240

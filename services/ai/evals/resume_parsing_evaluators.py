@@ -14,7 +14,7 @@ from typing import Any
 
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from evals.text_matching import appears_in, fraction, loosely_equal
+from documents.text_matching import appears_in, fraction, loosely_equal
 from schemas.parsed_resume import ParsedExperience, ParsedResume
 
 ResumeContext = EvaluatorContext[str, ParsedResume, dict[str, Any]]

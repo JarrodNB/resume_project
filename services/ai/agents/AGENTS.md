@@ -8,7 +8,7 @@ instructions from `prompts/`.
 ## Contents
 
 - `resume_parsing_agent.py` — resume text -> `ParsedResume`;
-  `parse_resume_text(text, model, timeout_seconds)`
+  `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
 
 ## Local Rules

@@ -1,5 +1,6 @@
 """
-Description: Tests for task dispatch and the parse_resume handler (agent replaced by TestModel).
+Description: Tests for task dispatch and the parse_resume handler (agent replaced by TestModel,
+including the faithfulness check on its output).
 Index:
     - build_parse_resume_task: a parse_resume task pointing at a fake uploaded file
     - test_*: one behavior per test
@@ -65,6 +66,31 @@ def test_parse_resume_returns_parsed_resume(
     ParsedResume.model_validate(result.result["parsed_resume"])
     [user_prompt] = [part for part in messages[0].parts if isinstance(part, UserPromptPart)]
     assert user_prompt.content == "Jane Doe\nEngineer at Acme"
+
+
+def test_parse_resume_removes_highlights_not_in_the_file(
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+) -> None:
+    """Agent output is checked against the file's text before it becomes the result."""
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes(
+        ["Jane Doe", "Engineer at Acme", "Shipped the billing service"]
+    )
+    agent_output = {
+        "experiences": [
+            {
+                "company": "Acme",
+                "title": "Engineer",
+                "highlights": ["Shipped the billing service", "Led a team of 40 engineers"],
+            }
+        ]
+    }
+
+    with resume_parsing_agent.override(model=TestModel(custom_output_args=agent_output)):
+        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+
+    parsed_resume = ParsedResume.model_validate(result.result["parsed_resume"])
+    assert parsed_resume.experiences[0].highlights == ["Shipped the billing service"]
+    assert any("Led a team of 40 engineers" in text for text in parsed_resume.parsing_warnings)
 
 
 def test_parse_resume_reports_token_usage(

@@ -170,6 +170,15 @@ information carries across conversations.
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
   showcased in gap analysis. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.
+  The rule is also enforced at runtime: after every parse, `enforce_source_faithfulness`
+  (`services/ai/documents/`) removes highlights and skills that don't appear in the source text
+  and only warns about unmatched company, title, project, and institution names, since dropping
+  a whole entry over a name mismatch loses too much. Every finding goes into
+  `parsing_warnings`, so the user sees it during review. A rule-based parser as the default
+  (LLM as fallback) was considered and rejected: text extraction is already procedural, the
+  remaining structuring step is where rule-based parsers fail silently on varied layouts
+  (columns, heading names, date formats, entry boundaries), and the LLM parse costs well under
+  a cent per resume.
 - **Langfuse reading APIs:** new Langfuse Cloud organisations can only read data through
   `GET /api/public/v2/observations` and `GET /api/public/v3/scores`; the older trace and
   score endpoints return 410. Ingestion via OpenTelemetry is unaffected.

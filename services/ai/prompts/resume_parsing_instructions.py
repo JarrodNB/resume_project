@@ -27,6 +27,9 @@ Rules:
   headings.
 - If something is ambiguous (for example, an entry could be a job or a project) or you had to
   skip content that fits nowhere, make your best choice and describe it in `parsing_warnings`.
+  Always add a warning when you place an entry the resume doesn't clearly label: one under a
+  non-standard heading (such as "Freelance" or "Other"), or one missing a stated employer or
+  job title. Say where you put it and why, even if you are fairly sure.
 - If the text does not look like a resume, return empty sections and say so in
   `parsing_warnings`.
 """

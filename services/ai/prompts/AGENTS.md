@@ -8,7 +8,8 @@ output in addition to the usual Description/Index.
 ## Contents
 
 - `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (extract only, copy bullets
-  word for word, partial dates, warnings for ambiguity)
+  word for word, partial dates, warnings for ambiguity and for entries the resume doesn't
+  clearly label)
 
 ## Local Rules
 

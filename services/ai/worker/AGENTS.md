@@ -14,7 +14,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types
   without a handler yet return a "not supported yet" failure
 - `parse_resume_handler.py` — downloads the upload, extracts text, runs the resume parsing
-  agent, reports its token usage
+  agent, checks its output with `enforce_source_faithfulness`, reports its token usage
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network)

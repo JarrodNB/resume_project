@@ -11,8 +11,9 @@ score attached, so runs can be compared across prompt and model changes.
 - `datasets/resume_parsing_cases.yaml` — 5 synthetic, hand-labelled resumes (clean, year-only
   dates, messy two-column extraction, ambiguous entries, not a resume)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,
-  `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous`
-- `text_matching.py` — whitespace/case/bullet-insensitive matching helpers
+  `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous` (matching helpers come from
+  `documents/text_matching.py`, shared with the production faithfulness guard; evals score the
+  raw agent output, before that guard runs)
 - `run_resume_parsing_evals.py` — runner:
   `docker compose run --rm ai python -m evals.run_resume_parsing_evals`
 

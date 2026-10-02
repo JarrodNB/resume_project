@@ -1,15 +1,18 @@
 """
-Description: Handles parse_resume tasks: downloads the uploaded file, extracts its text, and
-runs the resume parsing agent. Safe to run twice (it only reads).
+Description: Handles parse_resume tasks: downloads the uploaded file, extracts its text, runs
+the resume parsing agent, and checks its output against the text. Safe to run twice (it only
+reads).
 Index:
     - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
-    - handle_parse_resume_task: returns a completed result with the ParsedResume and the
-      agent's token usage, or a failed result when the file has no readable text
+    - handle_parse_resume_task: returns a completed result with the faithfulness-checked
+      ParsedResume and the agent's token usage, or a failed result when the file has no
+      readable text
 """
 
 from pydantic import BaseModel
 
 from agents.resume_parsing_agent import parse_resume_text
+from documents.enforce_source_faithfulness import enforce_source_faithfulness
 from documents.extract_document_text import UnsupportedDocumentError, extract_document_text
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -51,11 +54,15 @@ def handle_parse_resume_task(
     settings = dependencies.settings
     model = settings.resume_parsing_model
     parsing_run = parse_resume_text(
-        resume_text, model=model, timeout_seconds=settings.llm_run_timeout_seconds
+        resume_text,
+        model=model,
+        thinking=settings.resume_parsing_thinking,
+        timeout_seconds=settings.llm_run_timeout_seconds,
     )
+    parsed_resume = enforce_source_faithfulness(parsing_run.parsed_resume, resume_text)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
-        result={"parsed_resume": parsing_run.parsed_resume.model_dump(mode="json")},
+        result={"parsed_resume": parsed_resume.model_dump(mode="json")},
         usage=[build_model_usage(model, parsing_run.usage)],
     )

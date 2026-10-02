@@ -1,6 +1,7 @@
 """
-Description: Text normalisation helpers for deterministic evaluators. Comparisons ignore case,
-whitespace (including line breaks from PDF extraction), and leading bullet characters.
+Description: Text normalisation helpers for checking extracted values against a resume's text
+(used by the faithfulness guard and the evals). Comparisons ignore case, whitespace (including
+line breaks from PDF extraction), and leading bullet characters.
 Index:
     - normalize_text: lower-cases, strips bullets, and collapses whitespace
     - appears_in: whether one string appears inside another after normalisation

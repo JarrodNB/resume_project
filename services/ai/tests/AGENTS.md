@@ -17,6 +17,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_model_prices.py` — cost math, unknown models, every configured model has a price
 - `test_extract_document_text.py` — DOCX text extraction and unsupported files
 - `test_resume_parsing_evaluators.py` — eval labels score 1.0; faithfulness catches invented text
+- `test_enforce_source_faithfulness.py` — runtime guard drops rewritten highlights and invented
+  skills, warns on unmatched names, leaves faithful parses unchanged
 
 ## Local Rules
 

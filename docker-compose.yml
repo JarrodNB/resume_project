@@ -17,6 +17,10 @@ x-local-aws: &local-aws
   S3_ENDPOINT_URL: http://s3:9090
   S3_UPLOADS_BUCKET: throughline-uploads
 
+# Keeps Rails' bootsnap cache off the Windows bind mount, where reading it makes boot ~10x slower.
+x-api-bootsnap: &api-bootsnap
+  BOOTSNAP_CACHE_DIR: /bootsnap
+
 services:
   db:
     image: pgvector/pgvector:pg17
@@ -58,7 +62,7 @@ services:
       - path: ./services/api/.env
         required: false
     environment:
-      <<: *local-aws
+      <<: [*local-aws, *api-bootsnap]
       DB_HOST: db
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
@@ -67,6 +71,7 @@ services:
     volumes:
       - ./services/api:/rails
       - api_bundle:/usr/local/bundle
+      - api_bootsnap:/bootsnap
     depends_on:
       db:
         condition: service_healthy
@@ -86,13 +91,14 @@ services:
       - path: ./services/api/.env
         required: false
     environment:
-      <<: *local-aws
+      <<: [*local-aws, *api-bootsnap]
       DB_HOST: db
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
     volumes:
       - ./services/api:/rails
       - api_bundle:/usr/local/bundle
+      - api_bootsnap:/bootsnap
     depends_on:
       db:
         condition: service_healthy
@@ -151,3 +157,4 @@ services:
 volumes:
   db_data:
   api_bundle:
+  api_bootsnap:

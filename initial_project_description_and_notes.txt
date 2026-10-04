@@ -1,4 +1,16 @@
 THIS DOCUMENT WAS JUST INITIAL IDEAS AND THOUGHTS AND MAY NOT REFLECT WHAT IS ACTUALLY IMPLEMENTED
+undocumented ideas:
+- allow user to upload additional documents that would then be used as a vector store to aid resume writing
+- personal/business/job/project storys, used to help prep converastion topics and delievery during interviews
+- to expand on interview questions, the user can keep questions and discard others
+- voice functionality on stories, to see how they sound out loud, maybe even voice out an entire interview
+- the voice function can also ask more indrect questions that can be answered from users content
+- on voicing individual sections, maybe pregenerate an interview question that may cover it
+- also, interview practice, so the user can use voice for interview practice, should provide useable feedback
+- maybe in the future, an AI video call? or maybe just a fake picture on the screen
+- can print/export study material
+- dailey tips emailed
+- reasons for canceling, i found a job, textfield for a statment on how throughline helped, reminder that throughline also has functionality for career continuance or w/e, maybe we have a lower tier subscription for this or a discount
 -----
 as far as llm guidance, can we add a description and index at the top of each file?
 - small modular/reusable files

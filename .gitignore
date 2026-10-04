@@ -43,3 +43,7 @@ __pycache__/
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+
+
+# other
+initial_project_description_and_notes.txt

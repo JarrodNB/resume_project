@@ -124,23 +124,22 @@ docker compose run --rm --no-deps web npm install <pkg>   then: docker compose u
 ==========================================================================================
 GOTCHAS LEARNED
 ==========================================================================================
-- Cursor's terminals may not see `docker` on PATH unless Cursor was restarted after install.
-  In agent shells, refresh it with:
-  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+- Shells (yours and agents') are bash inside WSL2 Ubuntu.
 - If the Gemfile lists gems that aren't installed, the api container crash-loops; install with
   `docker compose run --rm --no-deps api bundle install`, not `exec`.
 - Long chained docker commands sometimes report "Aborted" but actually keep running;
   check the result before re-running (generators will refuse duplicate names).
-- PowerShell mangles JSON quotes inside `python -c "..."`; avoid inner double quotes.
 - Rails was scaffolded with --skip-git, so the root .gitignore carries the Rails ignores
   (master.key is ignored; credentials.yml.enc is committed on purpose).
-- .gitattributes forces LF; CRLF warnings on `git add` are expected and harmless.
+- .gitattributes forces LF so scripts run inside the Linux containers.
 - Shoryuken doesn't eager load in dev, so config/initializers/shoryuken.rb eager-loads
   app/workers in configure_server. It also doesn't reload code: after editing a worker or a
   service it calls, `docker compose restart api-results-worker`.
 - Dev Rails host authorization blocks `api:3000` (container hostname). Browsers use
   localhost:3000, so it only matters for container-to-container HTTP tests (use the IP).
-- Ruff ignores EXE002 because every file on the Windows bind mount looks executable.
+- Executable bits matter now (WSL2 is a real Linux filesystem): new scripts in
+  services/api/bin need `chmod +x` and `git add --chmod=+x`, or the api container fails with
+  "Permission denied".
 - `uv add` in a `run --rm` container only updates pyproject/uv.lock; rebuild the ai image
   (`docker compose build ai`) before the new package is importable.
 - S3Mock runs as uid 1000: don't mount a named volume as its store root (root-owned, every
@@ -151,9 +150,6 @@ GOTCHAS LEARNED
   ai container loads the real .env.
 - Marcel: detect upload types from bytes only; passing `name:` lets a text file named .pdf
   through.
-- Inline Ruby/Python in PowerShell gets mangled; write a throwaway script file instead.
-  Same for `docker compose exec web sh -c '...'` with quotes or pipes: filter output with
-  Select-String on the host instead.
 - shadcn CLI init is interactive; it was run with `-t vite -b radix -p nova --no-monorepo -y
   --no-rtl < /dev/null`. Components import `cn` from the official `cn` npm package (correct).
 - Radix components need ResizeObserver in jsdom; src/test/setup.ts stubs it.

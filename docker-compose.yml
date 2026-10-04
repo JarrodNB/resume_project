@@ -17,7 +17,8 @@ x-local-aws: &local-aws
   S3_ENDPOINT_URL: http://s3:9090
   S3_UPLOADS_BUCKET: throughline-uploads
 
-# Keeps Rails' bootsnap cache off the Windows bind mount, where reading it makes boot ~10x slower.
+# Keeps Rails' bootsnap cache in a volume, so the root-run containers don't fill the bind-mounted
+# tmp/ with root-owned cache files.
 x-api-bootsnap: &api-bootsnap
   BOOTSNAP_CACHE_DIR: /bootsnap
 

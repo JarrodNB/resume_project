@@ -53,6 +53,8 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 ## Running Things
 
 - Everything runs in Docker. Do not assume Ruby, Node, or Python are installed on the host.
+- The host shell is bash in WSL2 Ubuntu (repo at `~/resume_project`), with Docker Desktop's
+  WSL integration. Use Linux commands, not PowerShell.
 - Local dev uses the root `docker-compose.yml`. Run commands inside containers, e.g.
   `docker compose run --rm api bin/rails db:migrate` or `docker compose run --rm ai pytest`.
 - Each app/service has a `Dockerfile.dev` for local dev (source is bind-mounted, so code

@@ -1,9 +1,12 @@
 /**
  * Description: Career library page: everything known about the user's career (the source of truth
- * for tailoring), starting with their profile. Entries can be deleted or merged into duplicates.
+ * for tailoring), starting with their profile. Roles, projects, and education are listed most
+ * recent first (the API orders them by date). Entries can be deleted or merged into duplicates;
+ * highlights can be dragged to a new place or into another role, and skills within their category.
  * Index:
  *   - CareerLibraryPage: page component
  */
+import { DragDropProvider } from '@dnd-kit/react'
 import { FileUp } from 'lucide-react'
 import { Link } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -18,8 +21,11 @@ import { educationLabel, experienceLabel, projectLabel } from './libraryEntryLab
 import type { MergeCandidate } from './MergeEntryDialog'
 import { ProfileSection } from './ProfileSection'
 import { SkillList } from './SkillList'
-import type { MergeableEntryKind } from './useLibraryEntryActions'
+import { SortableHighlightList } from './SortableHighlightList'
 import { useCareerLibrary } from './useCareerLibrary'
+import type { MergeableEntryKind } from './useLibraryEntryActions'
+import { useLibraryDragHandlers } from './useLibraryDragHandlers'
+import { useLibraryReordering } from './useLibraryReordering'
 
 /** Builds the actions menu for one entry; any other entry in its section is a merge target. */
 function entryActions(kind: MergeableEntryKind, entries: MergeCandidate[], entry: MergeCandidate) {
@@ -36,6 +42,8 @@ function entryActions(kind: MergeableEntryKind, entries: MergeCandidate[], entry
 /** Shows the profile, experiences, projects, education, and skills. */
 export function CareerLibraryPage() {
   const { library, loading, error } = useCareerLibrary()
+  const reordering = useLibraryReordering()
+  const { handlers, highlightsOf } = useLibraryDragHandlers(library, reordering)
   const experiences = library?.experiences.map((experience) => ({ id: experience.id, label: experienceLabel(experience) })) ?? []
   const projects = library?.projects.map((project) => ({ id: project.id, label: projectLabel(project) })) ?? []
   const educations = library?.educations.map((education) => ({ id: education.id, label: educationLabel(education) })) ?? []
@@ -55,34 +63,31 @@ export function CareerLibraryPage() {
       </div>
       <ImportSummaryNotice />
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
+      <ErrorAlert title="Couldn't save that change" messages={reordering.errors} />
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
       {library && (
-        <>
+        <DragDropProvider {...handlers}>
           <ProfileSection profile={library.me} />
-          <LibrarySection title="Experience" count={library.experiences.length} emptyText="No roles yet.">
+          <LibrarySection tone="experience" title="Experience" count={library.experiences.length} emptyText="No roles yet.">
             {library.experiences.map((experience, index) => (
               <LibraryEntry
                 key={experience.id}
+                tone="experience"
                 heading={experience.title}
                 subheading={[experience.company, experience.location].filter(Boolean).join(' · ')}
                 dates={formatDateRange(experience.startDate, experience.endDate, { openEndedMeansPresent: true })}
                 description={experience.description}
                 actions={entryActions('experience', experiences, experiences[index])}
               >
-                {experience.highlights.length > 0 && (
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">
-                    {experience.highlights.map((highlight) => (
-                      <li key={highlight.id}>{highlight.content}</li>
-                    ))}
-                  </ul>
-                )}
+                <SortableHighlightList experienceId={experience.id} highlights={highlightsOf(experience.id)} />
               </LibraryEntry>
             ))}
           </LibrarySection>
-          <LibrarySection title="Projects" count={library.projects.length} emptyText="No projects yet.">
+          <LibrarySection tone="projects" title="Projects" count={library.projects.length} emptyText="No projects yet.">
             {library.projects.map((project, index) => (
               <LibraryEntry
                 key={project.id}
+                tone="projects"
                 heading={project.name}
                 subheading={[project.role, project.url].filter(Boolean).join(' · ')}
                 dates={formatDateRange(project.startDate, project.endDate)}
@@ -91,10 +96,11 @@ export function CareerLibraryPage() {
               />
             ))}
           </LibrarySection>
-          <LibrarySection title="Education" count={library.educations.length} emptyText="No education yet.">
+          <LibrarySection tone="education" title="Education" count={library.educations.length} emptyText="No education yet.">
             {library.educations.map((education, index) => (
               <LibraryEntry
                 key={education.id}
+                tone="education"
                 heading={education.institution}
                 subheading={[education.degree, education.fieldOfStudy].filter(Boolean).join(', ')}
                 dates={formatDateRange(education.startDate, education.endDate)}
@@ -103,10 +109,10 @@ export function CareerLibraryPage() {
               />
             ))}
           </LibrarySection>
-          <LibrarySection title="Skills" count={library.skills.length} emptyText="No skills yet.">
+          <LibrarySection tone="skills" title="Skills" count={library.skills.length} emptyText="No skills yet.">
             <SkillList skills={library.skills} />
           </LibrarySection>
-        </>
+        </DragDropProvider>
       )}
     </div>
   )

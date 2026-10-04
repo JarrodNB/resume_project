@@ -15,6 +15,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
   - `project.rb`, `education.rb`, `skill.rb`
+  - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
+    educations (ongoing first, then by end date, undated last); `User` lists them this way
 - `job.rb` — job profile + application stage
 - `resume.rb` + `resume_section.rb` — resumes tailored to a job (there is no base resume; the
   career library is the base). Section `content` is a JSON snapshot, so editing a resume never
@@ -28,4 +30,5 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - String enums: define a frozen `CONSTANT` list and use `enum :field, CONSTANT.index_with(&:itself), validate: true`.
   GraphQL enums are generated from these constants, so add values in one place.
-- Ordered children use a `position` column and an ordered `has_many` scope.
+- Ordered children use a `position` column and an ordered `has_many` scope. Dated career
+  library entries are the exception: they are ordered by date, and `position` only breaks ties.

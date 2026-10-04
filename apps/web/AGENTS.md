@@ -7,8 +7,9 @@ The main user-facing app: resume builder, job board, gap analysis chat, applicat
 ## Stack
 
 Vite 8, React 19, TypeScript, React Router 8 (data router), Apollo Client 4, Tailwind CSS 4 +
-shadcn/ui (radix-nova style, `cn` from shadcn's `cn` package), GraphQL Code Generator (client
-preset), Vitest 5 + Testing Library, oxlint.
+shadcn/ui (radix-nova style, `cn` from shadcn's `cn` package), `@dnd-kit/react` +
+`@dnd-kit/helpers` (drag and drop), GraphQL Code Generator (client preset), Vitest 5 +
+Testing Library, oxlint.
 
 ## Local Rules
 

@@ -47,7 +47,7 @@ const libraryMock = {
       ],
       projects: [],
       educations: [],
-      skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null }],
+      skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 0 }],
     },
   },
 }

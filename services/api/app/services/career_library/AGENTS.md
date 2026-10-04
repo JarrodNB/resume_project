@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Keeps the single career library free of duplicates. Used by the resume import (automatic
-matching) and by the `merge*` mutations (the user picks two entries).
+Keeps the single career library free of duplicates, and saves the order of hand-ordered
+entries. Used by the resume import (automatic matching), the `merge*` mutations (the user
+picks two entries), and `reorderSkills` (drag-and-drop on the library page).
 
 ## Contents
 
@@ -15,6 +16,10 @@ matching) and by the `merge*` mutations (the user picks two entries).
 - `merge_library_records_service.rb` — merges a source entry into a target of the same model
   and user: fills fields blank on the target, appends highlights the target doesn't have, then
   deletes a saved source. Works with an unsaved source (the import).
+- `reorder_library_entries_service.rb` — saves a new order for a relation of the user's entries
+  (used for skills; experiences, projects, and educations are ordered by date instead): the ids
+  must be exactly the relation's ids, and each position becomes its index. Repeating the call
+  changes nothing.
 
 ## Local Rules
 

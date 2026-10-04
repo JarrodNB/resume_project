@@ -6,19 +6,23 @@ Source of the web app, organized by feature.
 
 ## Contents
 
-- `main.tsx` — entry point; `App.tsx` — AuthProvider > SessionApolloProvider > router
+- `main.tsx` — entry point (applies the saved color theme before rendering); `App.tsx` —
+  AuthProvider > SessionApolloProvider > router
 - `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`)
-- `index.css` — Tailwind + shadcn theme variables
+- `index.css` — Tailwind + shadcn theme variables: navy with warm amber/coral accents in light
+  mode, teal on slate in `.dark`, plus a tint and accent color per resume section
+  (`--section-<tone>`, `--section-<tone>-accent`)
 - `features/auth/` — sign-in/up pages, session (JWT) context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library and resumes page
-- `components/` — shared app components (`AppLayout`, `ErrorAlert`); `components/ui/` is
-  generated shadcn/ui
+- `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in
+  `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,
   401 handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
   (friendly message for HTTP 429 rate limiting); `generated/` is
   GraphQL Code Generator output (don't edit)
-- `lib/` — `apiConfig.ts` (API URLs), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
+- `lib/` — `apiConfig.ts` (API URLs), `colorTheme.ts` (light/dark preference in localStorage,
+  falling back to the system setting), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
 - `test/` — Vitest setup, `renderPage` helper, synthetic fixtures
 
 ## Local Rules

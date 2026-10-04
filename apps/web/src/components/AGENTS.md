@@ -1,0 +1,22 @@
+# AGENTS.md — apps/web/src/components
+
+## Purpose
+
+Shared UI used by more than one feature.
+
+## Contents
+
+- `AppLayout.tsx` — signed-in layout: header (nav, `ThemeToggle`, sign out) and routed page
+- `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
+- `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
+- `SectionCard.tsx` — card for one resume section, colored by its `tone`
+- `sectionTones.ts` — per-section classes (card stripe, header band, icon, entry tint) and icon
+- `dnd/` — drag-and-drop building blocks (see `dnd/AGENTS.md`)
+- `ui/` — generated shadcn/ui components (exempt from the header rule and lint)
+
+## Local Rules
+
+- Section colors come from the `--section-*` variables in `index.css`. Add a tone there (light
+  and dark values, plus the `@theme inline` entry) before using it in `sectionTones.ts`.
+- Tailwind only finds class names written out in full, so don't build them from template
+  strings (`bg-section-${tone}` won't work); add them to `sectionTones.ts` instead.

@@ -1,26 +1,37 @@
 /**
  * Description: Generic list of editable entries (experiences, projects, educations), each in its
- * own bordered block with a remove button, plus an add button.
+ * own tinted block with a remove button, plus an add button.
  * Index:
  *   - EditableList: renders `renderItem` for each entry and handles add/remove/replace
  */
 import type { ReactNode } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { SECTION_TONES, type SectionTone } from '@/components/sectionTones'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 
-interface EditableListProps<Item> {
+interface EditableListProps<Item extends { key: string }> {
   items: Item[]
   onChange: (items: Item[]) => void
   createItem: () => Item
   /** Short name of one entry, used in button labels (e.g. "experience"). */
   itemName: string
+  tone: SectionTone
   /** Heading shown above an entry (e.g. "Engineer at Acme"). */
   describeItem: (item: Item) => string
   renderItem: (item: Item, onItemChange: (item: Item) => void) => ReactNode
 }
 
 /** Edits a list of entries; the caller renders each entry's fields. */
-export function EditableList<Item>({ items, onChange, createItem, itemName, describeItem, renderItem }: EditableListProps<Item>) {
+export function EditableList<Item extends { key: string }>({
+  items,
+  onChange,
+  createItem,
+  itemName,
+  tone,
+  describeItem,
+  renderItem,
+}: EditableListProps<Item>) {
   const replaceAt = (index: number, item: Item) =>
     onChange(items.map((existing, position) => (position === index ? item : existing)))
   const removeAt = (index: number) => onChange(items.filter((_, position) => position !== index))
@@ -29,7 +40,7 @@ export function EditableList<Item>({ items, onChange, createItem, itemName, desc
     <div className="grid gap-4">
       {items.length === 0 && <p className="text-sm text-muted-foreground">None found on your resume.</p>}
       {items.map((item, index) => (
-        <div key={index} className="grid gap-4 rounded-lg border p-4">
+        <div key={item.key} className={cn('grid gap-4 rounded-lg border p-4', SECTION_TONES[tone].entry)}>
           <div className="flex items-center justify-between gap-2">
             <p className="font-medium">{describeItem(item) || `New ${itemName}`}</p>
             <Button

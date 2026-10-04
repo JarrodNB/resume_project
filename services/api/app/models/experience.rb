@@ -2,6 +2,8 @@
 # Index:
 #   - highlights: ordered bullet points for this role
 class Experience < ApplicationRecord
+  include MostRecentFirst
+
   belongs_to :user
   has_many :highlights, -> { order(:position) },
            class_name: "ExperienceHighlight", dependent: :destroy, inverse_of: :experience

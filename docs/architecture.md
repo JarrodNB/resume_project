@@ -152,6 +152,17 @@ information carries across conversations.
   "current", so it is never filled. Duplicates the import doesn't catch can be merged or
   deleted from the library page. Matching keys are deliberately narrow: a missed duplicate is
   one click to fix, but a wrong automatic merge silently loses an entry.
+- **Roles, projects, and education are always listed by date; highlights and skills are
+  arranged by dragging.** The API orders dated entries most recent first (ongoing first, then
+  by end date, undated last; `MostRecentFirst` concern), so a later import can't leave a new
+  role at the bottom and there is no manual order to maintain. Highlights can be dragged to a
+  new place or into another role (useful when the parser or an earlier merge put a bullet
+  under the wrong job), and skills within their category. In the import review this only
+  changes the draft in the browser; on the library page each drop is saved right away with
+  `reorderSkills` (the full ordered id list, so repeating it is harmless) or
+  `moveExperienceHighlight` (moves the existing row, keeping its id, and renumbers both
+  roles). The web app updates the Apollo cache before the server answers and refetches if the
+  change is rejected. Uses `@dnd-kit/react`, which supports keyboard dragging.
 - **File history in git**, not in file headers.
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
   them locally and in CI. Scores go to Langfuse for comparison across prompt and model

@@ -8,6 +8,7 @@ import { NavLink, Outlet } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ITEMS = [
   { to: '/library', label: 'Career library' },
@@ -22,7 +23,7 @@ export function AppLayout() {
     <div className="min-h-svh bg-muted/40">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
-          <span className="font-semibold tracking-tight">Throughline</span>
+          <span className="font-semibold tracking-tight text-primary">Throughline</span>
           <nav className="flex gap-1">
             {NAV_ITEMS.map((item) => (
               <NavLink
@@ -31,7 +32,7 @@ export function AppLayout() {
                 className={({ isActive }) =>
                   cn(
                     'rounded-md px-3 py-1.5 text-sm transition-colors',
-                    isActive ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+                    isActive ? 'bg-secondary font-medium text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
                   )
                 }
               >
@@ -39,9 +40,12 @@ export function AppLayout() {
               </NavLink>
             ))}
           </nav>
-          <Button variant="ghost" size="sm" className="ml-auto" onClick={() => void signOut()}>
-            <LogOut /> Sign out
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
+            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
+              <LogOut /> Sign out
+            </Button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">

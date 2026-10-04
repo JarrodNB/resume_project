@@ -3,10 +3,11 @@
 # Description: Root mutation fields. Each mutation delegates to a service object.
 # Index:
 #   - jobs: createJob, updateJob, moveJobToStage, deleteJob
-#   - experiences: createExperience, updateExperience, deleteExperience, mergeExperiences
+#   - experiences: createExperience, updateExperience, deleteExperience, mergeExperiences,
+#     moveExperienceHighlight
 #   - projects: deleteProject, mergeProjects
 #   - educations: deleteEducation, mergeEducations
-#   - skills: deleteSkill
+#   - skills: deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 module Types
   class MutationType < Types::BaseObject
@@ -19,6 +20,7 @@ module Types
     field :update_experience, mutation: Mutations::Experiences::UpdateExperience
     field :delete_experience, mutation: Mutations::Experiences::DeleteExperience
     field :merge_experiences, mutation: Mutations::Experiences::MergeExperiences
+    field :move_experience_highlight, mutation: Mutations::Experiences::MoveExperienceHighlight
 
     field :delete_project, mutation: Mutations::Projects::DeleteProject
     field :merge_projects, mutation: Mutations::Projects::MergeProjects
@@ -27,6 +29,7 @@ module Types
     field :merge_educations, mutation: Mutations::Educations::MergeEducations
 
     field :delete_skill, mutation: Mutations::Skills::DeleteSkill
+    field :reorder_skills, mutation: Mutations::Skills::ReorderSkills
 
     field :parse_resume, mutation: Mutations::ResumeImports::ParseResume
     field :import_parsed_resume, mutation: Mutations::ResumeImports::ImportParsedResume

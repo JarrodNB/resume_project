@@ -27,6 +27,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       highlights {
         id
         content
+        position
       }
     }
     projects {
@@ -51,6 +52,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       id
       name
       category
+      position
     }
   }
 `)

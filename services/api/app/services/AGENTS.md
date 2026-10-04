@@ -10,9 +10,11 @@ All business logic, as service objects grouped by domain folder.
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`
-- `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`
-- `career_library/` — duplicate matching and merging of experiences, projects, and educations
-  (see `career_library/AGENTS.md`)
+- `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
+  `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
+  renumbers positions in both roles)
+- `career_library/` — duplicate matching and merging of experiences, projects, and educations,
+  and reordering of library entries (see `career_library/AGENTS.md`)
 - `ai_tasks/enqueue_ai_task_service.rb` — checks the user's AI usage limits and creates a
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`

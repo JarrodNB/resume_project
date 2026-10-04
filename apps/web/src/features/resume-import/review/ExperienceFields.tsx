@@ -2,24 +2,25 @@
  * Description: Review fields for one parsed experience (role).
  * Index:
  *   - ExperienceFields: title, company, location, dates, current-role flag, description, highlights
+ *     (draggable, also into other roles)
  */
 import { useId } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import type { ParsedExperience } from '../parsedResume'
 import { DateRangeFields } from './DateRangeFields'
-import { StringListField } from './StringListField'
+import { HighlightsField } from './HighlightsField'
+import type { DraftExperience } from './reviewDraft'
 import { TextField } from './TextField'
 
 interface ExperienceFieldsProps {
-  experience: ParsedExperience
-  onChange: (experience: ParsedExperience) => void
+  experience: DraftExperience
+  onChange: (experience: DraftExperience) => void
 }
 
 /** Edits one experience. Marking it current clears the end date. */
 export function ExperienceFields({ experience, onChange }: ExperienceFieldsProps) {
   const currentRoleId = useId()
-  const set = <Key extends keyof ParsedExperience>(key: Key, value: ParsedExperience[Key]) =>
+  const set = <Key extends keyof DraftExperience>(key: Key, value: DraftExperience[Key]) =>
     onChange({ ...experience, [key]: value })
 
   return (
@@ -44,12 +45,10 @@ export function ExperienceFields({ experience, onChange }: ExperienceFieldsProps
         <Label htmlFor={currentRoleId}>I currently work here</Label>
       </div>
       <TextField label="Description" multiline value={experience.description} onChange={(value) => set('description', value)} />
-      <StringListField
-        label="Highlights"
-        multiline
-        values={experience.highlights}
+      <HighlightsField
+        experienceKey={experience.key}
+        highlights={experience.highlights}
         onChange={(highlights) => set('highlights', highlights)}
-        addLabel="Add highlight"
       />
     </div>
   )

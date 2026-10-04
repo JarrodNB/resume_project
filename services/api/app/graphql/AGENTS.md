@@ -14,7 +14,9 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`;
   career library entries have `delete*` (experiences, projects, educations, skills) and
   `merge*(targetId, sourceId)` (experiences, projects, educations; both ids are looked up
-  through `current_user`)
+  through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
+  (`reorderSkills(orderedIds)`) and `mutations/experiences/move_experience_highlight.rb`
+  (`moveExperienceHighlight(highlightId, experienceId, position)`, returning both roles)
 - `subscriptions/` — `base_subscription.rb`, `ai_task_updated.rb` (`aiTaskUpdated(id)`)
 - `resolvers/` — generated base class (unused so far)
 

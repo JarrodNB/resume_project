@@ -1,5 +1,5 @@
 /**
- * Description: Editable list of strings (experience highlights, contact links).
+ * Description: Editable list of strings (e.g. contact links).
  * Index:
  *   - StringListField: one input per entry, with remove buttons and an add button
  */

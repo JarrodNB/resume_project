@@ -63,7 +63,7 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     result = described_class.call(ai_task: second_task, parsed_resume: parsed_resume)
 
     expect(result).to be_success
-    expect(user.experiences.pluck(:company)).to eq(%w[Acme Globex Initech])
+    expect(user.experiences.pluck(:company)).to contain_exactly("Acme", "Globex", "Initech")
     acme = user.experiences.find_by!(company: "Acme")
     expect(acme.highlights.map(&:content)).to eq([ "Built the API", "Led the team", "Mentored two juniors" ])
     expect(user.projects.sole).to have_attributes(name: "Side project", role: "Author")

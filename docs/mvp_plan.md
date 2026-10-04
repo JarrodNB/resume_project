@@ -63,7 +63,8 @@ employed-mode work journal.
 
 Everything runs in Docker, so the only local install needed is:
 
-- Docker Desktop (WSL2 backend)
+- Docker Desktop (WSL2 backend), with WSL integration enabled for an Ubuntu distro
+- The repo cloned inside that distro (not under `C:\`), opened in Cursor via WSL
 
 Ruby, Node, and Python run inside containers; generators like `rails new` also run
 through Docker. Terraform, kubectl, and AWS CLI can run from containers later too.

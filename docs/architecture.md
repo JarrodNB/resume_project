@@ -172,6 +172,10 @@ information carries across conversations.
 - **Docker for everything.** Local dev runs through docker compose, and the same images
   deploy to Kubernetes. This avoids Windows toolchain issues (especially for Ruby) and keeps
   dev and prod consistent.
+- **On Windows, the repo lives in WSL2, not on `C:\`.** Bind mounts from the Windows
+  filesystem were slow enough that Rails' per-request reload check took ~5s (a 20 ms GraphQL
+  query took 6–12s end to end), and file-change events didn't reach containers, so Vite had to
+  poll. From the WSL2 filesystem, both work natively.
 - **Uploads go to S3; only the key goes over SQS.** SQS messages are capped at 256 KB, so
   Rails stores uploads with Active Storage (S3 service) and the worker downloads them by blob
   key, read-only. Locally the bucket is Adobe S3Mock (MinIO's community edition is archived,

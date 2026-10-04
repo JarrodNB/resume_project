@@ -37,7 +37,7 @@ preset), Vitest 5 + Testing Library, oxlint.
   (mounted read-only into the container at the same relative path)
 - `components.json` — shadcn/ui config
 - `vite.config.ts` — React + Tailwind plugins, `@` alias to `src/`, dev server on
-  `0.0.0.0:5173` with polling (needed for Docker on Windows), Vitest (jsdom) config
+  `0.0.0.0:5173`, Vitest (jsdom) config
 - `.oxlintrc.json` — lint rules (ignores `src/components/ui/` and `src/graphql/generated/`)
 - `Dockerfile.dev` — local dev image; `node_modules` lives in a container volume
 

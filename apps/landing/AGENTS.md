@@ -19,5 +19,5 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 Generated with `create-vite` (React + TypeScript template, Vite 8, oxlint).
 
 - `src/` — still the Vite starter; replaced when the landing page step begins
-- `vite.config.ts` — dev server on `0.0.0.0:5174` with polling (needed for Docker on Windows)
+- `vite.config.ts` — dev server on `0.0.0.0:5174`
 - `Dockerfile.dev` — local dev image; `node_modules` lives in a container volume

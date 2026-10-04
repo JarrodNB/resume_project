@@ -19,7 +19,10 @@ Start with `AGENTS.md` (conventions) and `docs/mvp_plan.md` (what we're building
 
 ## Running Locally
 
-Requires only Docker Desktop.
+Requires only Docker Desktop. On Windows, keep the repo inside a WSL2 distro (e.g.
+`~/resume_project` in Ubuntu) and run commands from that distro, with Docker Desktop's WSL
+integration enabled for it. Bind-mounting from the Windows filesystem (`C:\...`) makes every
+Rails request take seconds and breaks file-change events.
 
 ```bash
 cp services/ai/.env.example services/ai/.env     # add OpenAI and Langfuse keys

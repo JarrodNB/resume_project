@@ -16,13 +16,20 @@ Key docs (read these first):
   - initial_project_description_and_notes.txt   the user's original notes
 
 ==========================================================================================
-CURRENT STATE (5 commits on master)
+CURRENT STATE (12 commits on master)
 ==========================================================================================
 27cb180  Scaffold monorepo: conventions, docs, Docker dev stack
 4d12327  Rails core: JWT auth, domain models, GraphQL API (21 specs passing, rubocop clean)
 1a9522e  SQS round trip (Rails <-> Python) + live aiTaskUpdated subscription
 94159b4  AI resume parsing: upload, Pydantic AI agent, evals, reviewed import
 9393d1c  Web app slice: auth, resume upload with live parsing, review and import, library
+167fe32  Join AGENTS.md rule 7 onto one line
+ac4369a  Per-user LLM budget and rate limits, worker retries, auth route lockdown
+fe9463d  Bound AI run time, validate imported resume JSON, keep tailored resumes after job deletion
+c502b84  Enforce extract-only resume parsing at runtime, lower parsing reasoning effort
+b157bd0  Career library is the base (no base resume) and stays deduplicated (merge + delete)
+cc29309  Bootsnap cache off the Windows bind mount; cable schema regenerated for Rails 8.1
+fa845cb  Product ideas added to the initial project notes
 
 Build order progress (docs/mvp_plan.md):
   [done] 1. Local dev foundation (docker compose, all apps scaffolded)
@@ -38,6 +45,8 @@ Build order progress (docs/mvp_plan.md):
          seen working in the browser.
          - [done, commit 9393d1c] 5a. auth + upload + live parse + review + import + career
            library (see "STEP 5a" below)
+         - [done, commit b157bd0] career library as the single base, with dedupe on import
+           and manual merge/delete (see "CAREER LIBRARY AS THE BASE" below)
   [NEXT] Ask the user: resume AI work (4b job scraping) or more web app (resume editing,
          jobs board)?
          6. Landing page   7. Deploy (Terraform, k8s, GitHub Actions)
@@ -64,6 +73,8 @@ docker-compose.yml   db (pgvector/pg17), sqs (elasticmq-native :9324), api, ai, 
 DECISIONS ALREADY MADE (details in docs/architecture.md "Decisions")
 ==========================================================================================
 - Everything runs in Docker; only Docker Desktop is installed on the host (Windows).
+  The repo lives in a WSL2 Ubuntu distro (~/resume_project), not on C:\ (bind mounts from
+  C:\ made every Rails request take 5+ seconds).
 - SQS for AI work. ElasticMQ locally (LocalStack now needs an account token, so dropped).
 - Rails owns all writes. The AI worker uses the READ-ONLY DB role ai_reader (for pgvector
   memory search) and returns everything via the ai_results queue.
@@ -116,7 +127,6 @@ GOTCHAS LEARNED
 - Cursor's terminals may not see `docker` on PATH unless Cursor was restarted after install.
   In agent shells, refresh it with:
   $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
-- The Rails API takes ~40s to boot over the Windows bind mount; /up fails until then.
 - If the Gemfile lists gems that aren't installed, the api container crash-loops; install with
   `docker compose run --rm --no-deps api bundle install`, not `exec`.
 - Long chained docker commands sometimes report "Aborted" but actually keep running;
@@ -124,7 +134,6 @@ GOTCHAS LEARNED
 - PowerShell mangles JSON quotes inside `python -c "..."`; avoid inner double quotes.
 - Rails was scaffolded with --skip-git, so the root .gitignore carries the Rails ignores
   (master.key is ignored; credentials.yml.enc is committed on purpose).
-- Vite dev servers use polling (file events don't cross the Windows -> Docker mount).
 - .gitattributes forces LF; CRLF warnings on `git add` are expected and harmless.
 - Shoryuken doesn't eager load in dev, so config/initializers/shoryuken.rb eager-loads
   app/workers in configure_server. It also doesn't reload code: after editing a worker or a
@@ -216,7 +225,7 @@ Vitest + Testing Library from the start.
     (see open items).
 
 ==========================================================================================
-PER-USER LLM BUDGET AND RATE LIMITS (uncommitted, 2026-10-02)
+PER-USER LLM BUDGET AND RATE LIMITS (DONE, commit ac4369a)
 ==========================================================================================
 User chose: estimated USD cost, monthly budget, DB-based AI task limits + Rack::Attack,
 global ENV defaults with per-user override columns. Details: docs/architecture.md "Usage Limits".
@@ -231,6 +240,23 @@ global ENV defaults with per-user override columns. Details: docs/architecture.m
   - Gap: usage of crashed/timed-out runs isn't reported (bounded by the hourly/in-flight caps).
 
 ==========================================================================================
+CAREER LIBRARY AS THE BASE (DONE, commit b157bd0)
+==========================================================================================
+User chose: no base resume (it drifted from the library), and dedupe both on import and by hand.
+  - One career library per user (their experiences/projects/educations/skills rows) is the
+    source of truth. Profile (name, contact_email, phone, location, links, summary) lives on
+    users; import fills only blank fields. Resumes are always tailored (resumes.kind dropped).
+  - importParsedResume returns aiTask; result["import_summary"] = { added, merged }, shown on
+    /library after an import.
+  - CareerLibrary::FindMatchingLibraryRecordService: experience company+title, project name,
+    education institution+degree; case/whitespace-insensitive; differing start dates never match.
+  - CareerLibrary::MergeLibraryRecordsService: fills blanks + adds new highlights, never
+    overwrites; an experience's blank end_date ("current") is never filled.
+  - Mutations: deleteProject/Education/Skill, mergeExperiences/Projects/Educations.
+    Library page: "…" menu (Merge into…, Delete) per entry, × on skill chips.
+  - Verified: 102 RSpec, 27 Vitest, tsc + oxlint clean.
+
+==========================================================================================
 LATER: 4b. JOB SCRAPING (paused for the web app)
 ==========================================================================================
   - Ask the user how to fetch job pages (plain HTTP + HTML-to-text vs a headless browser)
@@ -243,10 +269,11 @@ LATER: 4b. JOB SCRAPING (paused for the web app)
 OPEN ITEMS / LATER
 ==========================================================================================
 - Final product name (Throughline is a placeholder; the space is crowded, so check availability).
-- Mutations for projects, educations, skills, and resumes (follow the jobs/experiences pattern).
+- Create/update mutations for projects, educations, skills, and resumes (delete and merge
+  exist; follow the jobs/experiences pattern).
 - Date precision: store whether a date is year, month, or day precision so "2015" doesn't
   display as "Jan 2015" (ask the user: precision column vs storing the partial-date string).
-- Web app: no editing of the career library or resumes yet (read-only library page).
+- Web app: no editing of career library entries or the profile yet (only merge and delete).
 - Visibility-timeout heartbeat for long AI tasks (once real durations are known).
 - EKS cost (~$73/mo control plane) vs a cheaper k8s option, decide before deploy.
 - Pydantic AI 2.x run_sync emits a harmless "no current event loop" DeprecationWarning.

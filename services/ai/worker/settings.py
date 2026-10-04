@@ -27,6 +27,10 @@ class WorkerSettings(BaseSettings):
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.
     resume_parsing_thinking: ThinkingEffort = "low"
+    # Only runs for postings whose headings don't label the requirements.
+    job_requirements_sorting_model: str = "openai:gpt-5-mini"
+    job_requirements_sorting_thinking: ThinkingEffort = "low"
+    job_page_fetch_timeout_seconds: float = 20
     # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
     # before SQS hands the same task to another worker and it runs (and bills) twice.
     llm_run_timeout_seconds: float = 240

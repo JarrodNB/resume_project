@@ -4,7 +4,7 @@
  *   - useAiTaskUpdates: returns the latest task state and any subscription error
  */
 import { useSubscription } from '@apollo/client/react'
-import { AI_TASK_UPDATED_SUBSCRIPTION } from './resumeImportOperations'
+import { AI_TASK_UPDATED_SUBSCRIPTION } from './aiTaskOperations'
 
 /** Subscribes to an AI task. The server sends its current state immediately, then every change. */
 export function useAiTaskUpdates(aiTaskId: string) {

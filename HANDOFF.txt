@@ -37,18 +37,17 @@ Build order progress (docs/mvp_plan.md):
   [done] 3. Queue round trip (Rails <-> SQS <-> Python worker) + aiTaskUpdated subscription
          (commit 1a9522e; 38 Rails specs + 5 pytest passing, rubocop/ruff clean,
          verified live end to end over a real WebSocket)
-  [PAUSED] 4. AI features (Pydantic AI agents + evals)
+  [IN PROGRESS] 4. AI features (Pydantic AI agents + evals)
          - [done] resume parsing (commit 94159b4; see "STEP 4a" below)
-         - [later] job scraping, then gap analysis (first deferred-tool / ask_user flow),
-           tailoring, memory
+         - [done, uncommitted] 4b. LinkedIn job scraping + minimal jobs UI (see "STEP 4b" below)
+         - [next] gap analysis (first deferred-tool / ask_user flow), tailoring, memory
   [IN PROGRESS] 5. Web app, pulled forward (user's call) so resume upload and parsing can be
          seen working in the browser.
          - [done, commit 9393d1c] 5a. auth + upload + live parse + review + import + career
            library (see "STEP 5a" below)
          - [done, commit b157bd0] career library as the single base, with dedupe on import
            and manual merge/delete (see "CAREER LIBRARY AS THE BASE" below)
-  [NEXT] Ask the user: resume AI work (4b job scraping) or more web app (resume editing,
-         jobs board)?
+  [NEXT] Commit 4b (when the user asks), then ask: gap analysis, or a second job site?
          6. Landing page   7. Deploy (Terraform, k8s, GitHub Actions)
 
 ==========================================================================================
@@ -62,7 +61,7 @@ services/api    Rails 8.1 API mode, Ruby 3.4.11, Postgres, graphql-ruby, Devise 
                 + Shoryuken (SQS), ActionCable/Solid Cable at /cable for GraphQL subscriptions
 api-results-worker  same image as api; `shoryuken -R` consuming ai_results (AiResultWorker)
 services/ai     Python 3.13 + uv, plain SQS worker (NO FastAPI). worker/main.py polls ai_tasks,
-                task_handlers.handle_ai_task dispatches by task_type (only parse_resume so far).
+                task_handlers.handle_ai_task dispatches by task_type (parse_resume, scrape_job).
                 Pydantic AI 2.52, Langfuse SDK 4.16, Pydantic Evals; model gpt-5-mini
 s3 (S3Mock)     local S3 for uploads, port 9090, bucket throughline-uploads (not persisted)
 infra/elasticmq local SQS emulator config (queues: ai_tasks, ai_results, + dead-letter queues)
@@ -119,6 +118,8 @@ docker compose down -v                          reset local DB (re-runs infra/po
 docker compose run --rm api bin/rails graphql:schema:dump   after any GraphQL change
 docker compose exec web npm run codegen         then regenerate web GraphQL types
 docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
+docker compose run --rm ai python -m evals.run_job_posting_extraction_evals   job scraping evals
+docker compose restart ai api-results-worker    after Python or result-handling Rails changes
 docker compose run --rm --no-deps web npm install <pkg>   then: docker compose up --build -V -d web
 
 ==========================================================================================
@@ -156,6 +157,12 @@ GOTCHAS LEARNED
 - The Cursor browser tool sometimes returns stale snapshots/screenshots; confirm with
   Runtime.evaluate (location.pathname, DOM reads) before assuming an app bug.
 - The first aiTaskUpdated result takes ~2-4s while the cable connects ("Loading..." shows).
+- __pycache__ folders in services/ai are root-owned (written by the container): delete them
+  with `docker compose run --rm --no-deps ai rm -rf <dir>`, not from the host.
+- The ai worker doesn't reload code; restart it after Python edits.
+- LinkedIn: fetch only the single job a user pasted (never crawl). If scraping starts failing
+  with "couldn't read this job posting", LinkedIn changed its layout: update the selectors in
+  scrapers/linkedin/linkedin_job_html_to_page.py and the fixtures in tests/fixtures/linkedin.
 
 ==========================================================================================
 STEP 3 (DONE): QUEUE ROUND TRIP — what exists now
@@ -253,13 +260,36 @@ User chose: no base resume (it drifted from the library), and dedupe both on imp
   - Verified: 102 RSpec, 27 Vitest, tsc + oxlint clean.
 
 ==========================================================================================
-LATER: 4b. JOB SCRAPING (paused for the web app)
+STEP 4b (DONE, NOT YET COMMITTED): LINKEDIN JOB SCRAPING
 ==========================================================================================
-  - Ask the user how to fetch job pages (plain HTTP + HTML-to-text vs a headless browser)
-    and the output schema (Job already has title, company, location, description,
-    requirements[], nice_to_haves[]).
-  - Same pattern: schema -> prompt -> agent -> handler -> eval dataset first -> mutation.
-  - Gap analysis after that brings the needs_user_input / deferred tools answer flow.
+User chose: one job site at a time, deterministic scraping (no "hand the page to an LLM"), the
+Job is created automatically when the result arrives, minimal jobs UI. Greenhouse was built
+first and then REMOVED at the user's request: companies embed Greenhouse in career pages
+that open jobs in pop-ups, so users have no link to paste. Job seekers browse job boards, and
+LinkedIn is the one whose job pages load without a login (Indeed/Glassdoor/ZipRecruiter return
+401/403 to plain HTTP). Decision + ToS note in docs/architecture.md.
+  - Flow: scrapeJob(url) -> Jobs::StartJobScrapingService (LinkedIn links only; reduces
+    /jobs/view/<id>, /jobs/view/<slug>-<id>, /comm/jobs/view/<id>, /jobs/...?currentJobId=<id>
+    to https://www.linkedin.com/jobs/view/<id>/; rejects jobs already saved) -> AiTask
+    scrape_job -> worker GETs linkedin.com/jobs-guest/jobs/api/jobPosting/<id> (no login) ->
+    services/ai/scrapers/linkedin reads the top card + description by class name ->
+    job_postings/ splits bullets by headings (<br> lines are turned into <p>s first so
+    <strong>Heading<br><br></strong> reads as a heading) -> sorting agent ONLY when no
+    requirement heading matches (returns bullet numbers, never text) -> {scraped_job: ...} ->
+    ApplyAiResultService creates the Job under the row lock (task subject, AiTask.job).
+  - Failures shown to the user: unsupported link, 404 (closed posting), page without a job
+    title (login wall / new layout). 429, 5xx, and LinkedIn's 999 are retried via SQS.
+  - Web: /jobs (list), /jobs/new (paste link), /jobs/new/:aiTaskId (live status, then opens the
+    job or shows warnings), /jobs/:id (read-only detail). useAiTaskUpdates moved to
+    features/ai-tasks (shared with resume import).
+  - Evals: evals/datasets/job_posting_extraction_cases.yaml (8 synthetic cases in LinkedIn's
+    markup; 6 heading cases, 2 LLM-fallback cases), all scores 1.0, ~$0.0004/LLM case.
+  - Verified: 113 pytest, 144 RSpec, 43 Vitest, ruff/rubocop/tsc/oxlint clean; live run against
+    real LinkedIn jobs (GM, Stripe, Affirm, Evlo AI parse correctly; GM saved end to end with 9
+    requirements / 4 nice-to-haves and no LLM call; Greenhouse link refused; the same job pasted
+    as a search-page link refused as a duplicate).
+  - Not done: a live run that hits the LLM fallback on a real LinkedIn job (no heading-less
+    posting found yet; the fallback is covered by evals and tests).
 
 ==========================================================================================
 OPEN ITEMS / LATER

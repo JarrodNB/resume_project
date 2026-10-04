@@ -16,10 +16,21 @@ score attached, so runs can be compared across prompt and model changes.
   raw agent output, before that guard runs)
 - `run_resume_parsing_evals.py` — runner:
   `docker compose run --rm ai python -m evals.run_resume_parsing_evals`
+- `datasets/job_posting_extraction_cases.yaml` — 8 synthetic LinkedIn postings written in
+  LinkedIn's description markup (bold and colon headings; curly apostrophes; plain-text
+  sub-headings; minimum vs preferred; "what you should have" / "bonus points"; nested lists; no
+  headings; unrecognized headings; prose only), hand-labelled requirements and nice-to-haves
+- The runner's `linkedin_case_to_page` builds each case's JobPage the way the scraper does
+- `job_posting_extraction_evaluators.py` — `RequirementMatch` (precision/recall),
+  `VerbatimBullets`, `SortedByExpectedPath` (the LLM only runs when headings don't match),
+  `PostingFieldsMatch`
+- `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
+  `docker compose run --rm ai python -m evals.run_job_posting_extraction_evals`
 
 ## Local Rules
 
 - All data is synthetic. Never commit real resumes.
-- `tests/test_resume_parsing_evaluators.py` checks that the hand labels score 1.0 against
-  their own inputs; keep it passing when adding cases.
+- `tests/test_resume_parsing_evaluators.py` and `tests/test_job_posting_extraction_evaluators.py`
+  check that the hand labels score 1.0 against their own inputs; keep them passing when adding
+  cases.
 - Runs cost real tokens (about $0.02 for the resume parsing set on gpt-5-mini).

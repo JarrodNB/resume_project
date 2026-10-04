@@ -6,10 +6,10 @@
  */
 import { useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { ParsedResumeReview } from './ParsedResumeReview'
 import { parsedResumeFromTaskResult } from './parsedResume'
 import { ParseTaskStatusCard } from './ParseTaskStatusCard'
-import { useAiTaskUpdates } from './useAiTaskUpdates'
 
 /** Renders the right step for the task's current state. */
 export function ResumeImportTaskPage() {

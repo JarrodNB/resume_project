@@ -15,11 +15,16 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   without a handler yet return a "not supported yet" failure
 - `parse_resume_handler.py` — downloads the upload, extracts text, runs the resume parsing
   agent, checks its output with `enforce_source_faithfulness`, reports its token usage
+- `scrape_job_handler.py` — picks the site's scraper for the URL, extracts the posting (sorting
+  agent only when headings don't label requirements), reports usage only if the agent ran;
+  unsupported URLs and missing postings fail with user-facing messages
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
-- `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network)
-  are left for SQS to redeliver; anything else, or the last attempt, publishes `failed`
-- `task_dependencies.py` — `TaskDependencies` (settings + file storage) passed to every handler
+- `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
+  incl. job site fetches through httpx) are left for SQS to redeliver; anything else, or the
+  last attempt, publishes `failed`
+- `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
+  sites) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
 - `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()`), `trace_ai_task`
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names and

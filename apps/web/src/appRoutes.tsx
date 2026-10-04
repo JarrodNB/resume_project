@@ -9,6 +9,10 @@ import { RequireAuth, RequireSignedOut } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { SignUpPage } from '@/features/auth/SignUpPage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
+import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
+import { JobDetailPage } from '@/features/jobs/JobDetailPage'
+import { JobScrapeTaskPage } from '@/features/jobs/JobScrapeTaskPage'
+import { JobsPage } from '@/features/jobs/JobsPage'
 import { ResumeImportTaskPage } from '@/features/resume-import/ResumeImportTaskPage'
 import { ResumeUploadPage } from '@/features/resume-import/ResumeUploadPage'
 
@@ -30,6 +34,10 @@ export const appRoutes: RouteObject[] = [
           { path: '/library', element: <CareerLibraryPage /> },
           { path: '/import', element: <ResumeUploadPage /> },
           { path: '/import/:aiTaskId', element: <ResumeImportTaskPage /> },
+          { path: '/jobs', element: <JobsPage /> },
+          { path: '/jobs/new', element: <AddJobFromUrlPage /> },
+          { path: '/jobs/new/:aiTaskId', element: <JobScrapeTaskPage /> },
+          { path: '/jobs/:id', element: <JobDetailPage /> },
         ],
       },
     ],

@@ -3,10 +3,12 @@ Description: Test doubles and builders shared by the pytest suite.
 Index:
     - FakeFileStorage: serves file bytes from a dict instead of S3
     - build_docx_bytes: builds a small DOCX file in memory
+    - FakeJobSite: answers HTTP requests from a dict of URL -> HTML (404 for anything else)
 """
 
 from io import BytesIO
 
+import httpx
 from docx import Document
 
 
@@ -35,3 +37,27 @@ def build_docx_bytes(paragraphs: list[str], table_rows: list[list[str]] | None =
     buffer = BytesIO()
     document.save(buffer)
     return buffer.getvalue()
+
+
+class FakeJobSite:
+    """Stands in for job sites, through httpx.MockTransport."""
+
+    def __init__(self) -> None:
+        """Starts empty; tests add pages with `pages[url] = html` or `statuses[url] = code`."""
+        self.pages: dict[str, str] = {}
+        self.statuses: dict[str, int] = {}
+        self.requested_urls: list[str] = []
+
+    def handle_request(self, request: httpx.Request) -> httpx.Response:
+        """Returns the configured HTML or status for the URL, else 404."""
+        url = str(request.url)
+        self.requested_urls.append(url)
+        if url in self.statuses:
+            return httpx.Response(self.statuses[url])
+        if url in self.pages:
+            return httpx.Response(200, html=self.pages[url])
+        return httpx.Response(404)
+
+    def build_client(self) -> httpx.Client:
+        """An httpx client whose requests this fake answers."""
+        return httpx.Client(transport=httpx.MockTransport(self.handle_request))

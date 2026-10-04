@@ -1,4 +1,5 @@
-# Description: Creates a job profile for a user (manual entry; scraping comes later via AI).
+# Description: Creates a job profile for a user (manual entry; scraped jobs are saved by
+# Jobs::CreateJobFromScrapedPostingService).
 # Index:
 #   - call: saves the job; returns it, or validation errors
 module Jobs

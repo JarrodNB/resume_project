@@ -13,6 +13,7 @@ import { ThemeToggle } from './ThemeToggle'
 const NAV_ITEMS = [
   { to: '/library', label: 'Career library' },
   { to: '/import', label: 'Import resume' },
+  { to: '/jobs', label: 'Jobs' },
 ]
 
 /** Renders the app header and the current page below it. */

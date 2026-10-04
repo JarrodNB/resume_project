@@ -1,7 +1,8 @@
 # Description: Applies one ai_results message to its AiTask and notifies subscribers.
 # Idempotent: results for a finished (completed/failed) task are ignored, and the row lock
 # stops two copies of the same message from both applying. The message's token usage and cost
-# are stored on the task (they count toward the user's monthly AI budget).
+# are stored on the task (they count toward the user's monthly AI budget). A completed scrape_job
+# also saves its Job (Jobs::CreateJobFromScrapedPostingService) in the same locked transaction.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
 module AiTasks
@@ -25,7 +26,9 @@ module AiTasks
       applied = ai_task.with_lock do
         next false if ai_task.finished?
 
-        ai_task.update!(attributes_for(status).merge(usage_attributes))
+        attributes = attributes_for(status).merge(usage_attributes)
+        attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
+        ai_task.update!(attributes)
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if applied
       success(ai_task)
@@ -47,6 +50,18 @@ module AiTasks
       when "failed"
         { status:, error_message: @message["error_message"], completed_at: Time.current }
       end
+    end
+
+    # Saves the domain record a completed task produces without user review (only scrape_job so
+    # far) and links it as the task's subject. If it can't be saved, the task fails instead.
+    def domain_record_attributes(ai_task)
+      return {} unless ai_task.scrape_job?
+
+      scraped_job = @message["result"]["scraped_job"] if @message["result"].is_a?(Hash)
+      result = Jobs::CreateJobFromScrapedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
+      return { subject: result.value } if result.success?
+
+      { status: "failed", error_message: "We couldn't save this job: #{result.errors.join(', ')}" }
     end
 
     # Sums the message's per-model usage entries into the task's token and cost columns. They

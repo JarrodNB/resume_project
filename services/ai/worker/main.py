@@ -20,7 +20,7 @@ from worker.retryable_errors import is_retryable_error
 from worker.s3_file_storage import S3FileStorage
 from worker.settings import load_settings
 from worker.sqs_queue_client import SqsQueueClient
-from worker.task_dependencies import TaskDependencies
+from worker.task_dependencies import TaskDependencies, build_http_client
 from worker.task_handlers import handle_ai_task
 from worker.tracing import configure_tracing, trace_ai_task
 
@@ -112,7 +112,11 @@ def run_worker() -> None:
     configure_tracing()
     task_queue = SqsQueueClient(settings, settings.ai_tasks_queue_name)
     result_queue = SqsQueueClient(settings, settings.ai_results_queue_name)
-    dependencies = TaskDependencies(settings=settings, file_storage=S3FileStorage(settings))
+    dependencies = TaskDependencies(
+        settings=settings,
+        file_storage=S3FileStorage(settings),
+        http_client=build_http_client(settings),
+    )
 
     stop_requested = False
 

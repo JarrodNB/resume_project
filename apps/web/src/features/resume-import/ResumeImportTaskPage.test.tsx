@@ -9,7 +9,8 @@ import { expect, it } from 'vitest'
 import { ImportSummaryNotice } from '@/features/career-library/ImportSummaryNotice'
 import { buildParsedResume } from '@/test/parsedResumeFixture'
 import { renderPage } from '@/test/renderPage'
-import { AI_TASK_UPDATED_SUBSCRIPTION, IMPORT_PARSED_RESUME_MUTATION } from './resumeImportOperations'
+import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
+import { IMPORT_PARSED_RESUME_MUTATION } from './resumeImportOperations'
 import { ResumeImportTaskPage } from './ResumeImportTaskPage'
 
 function aiTaskMock(task: Record<string, unknown>) {
@@ -26,6 +27,7 @@ function aiTaskMock(task: Record<string, unknown>) {
           errorMessage: null,
           acceptedAt: null,
           createdAt: '2026-10-01T00:00:00Z',
+          job: null,
           ...task,
         },
       },

@@ -1,4 +1,5 @@
-# Description: Applying ai_results messages, including duplicate (redelivered) messages.
+# Description: Applying ai_results messages, including duplicate (redelivered) messages and the
+# Job a completed scrape_job saves.
 require "rails_helper"
 
 RSpec.describe AiTasks::ApplyAiResultService do
@@ -82,6 +83,33 @@ RSpec.describe AiTasks::ApplyAiResultService do
       described_class.call(message: result_message("failed", error_message: "The AI task failed"))
 
       expect(ai_task.reload.cost_microdollars).to eq(0)
+    end
+  end
+
+  describe "completed scrape_job" do
+    let(:url) { "https://www.linkedin.com/jobs/view/1/" }
+    let(:ai_task) { create(:ai_task, task_type: "scrape_job", input: { "url" => url }) }
+    let(:scraped_job) do
+      { "title" => "AI Engineer", "company" => "Acme", "requirements" => [ "Python" ], "nice_to_haves" => [] }
+    end
+
+    it "saves the job once, even when the result is redelivered, and links it to the task" do
+      2.times { described_class.call(message: result_message("completed", result: { "scraped_job" => scraped_job })) }
+
+      job = ai_task.user.jobs.sole
+      expect(job).to have_attributes(title: "AI Engineer", url: url, requirements: [ "Python" ])
+      expect(ai_task.reload).to be_completed
+      expect(ai_task.subject).to eq(job)
+    end
+
+    it "fails the task when the job can't be saved" do
+      described_class.call(
+        message: result_message("completed", result: { "scraped_job" => scraped_job.merge("title" => "") })
+      )
+
+      expect(ai_task.reload).to be_failed
+      expect(ai_task.error_message).to eq("We couldn't save this job: Title can't be blank")
+      expect(ai_task.user.jobs).to be_empty
     end
   end
 

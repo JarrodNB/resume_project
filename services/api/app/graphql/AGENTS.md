@@ -12,6 +12,8 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `subscription_type.rb`; `me { aiUsage }` (`ai_usage_type.rb`) is this month's AI spend vs budget
 - `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`);
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`;
+  `mutations/jobs/scrape_job.rb` (`scrapeJob(url)`) queues scraping, and the task's
+  `job` field (`types/ai_task_type.rb`) is the saved Job once it completes;
   career library entries have `delete*` (experiences, projects, educations, skills) and
   `merge*(targetId, sourceId)` (experiences, projects, educations; both ids are looked up
   through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`

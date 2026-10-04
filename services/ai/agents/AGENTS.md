@@ -10,6 +10,11 @@ instructions from `prompts/`.
 - `resume_parsing_agent.py` — resume text -> `ParsedResume`;
   `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
+- `job_requirements_sorting_agent.py` — numbered job posting bullets ->
+  `SortedRequirementBullets` (bullet numbers only, so wording can't change);
+  `sort_job_requirement_bullets(bullets, model, thinking, timeout_seconds)` returns a
+  `BulletSortingRun` (`sorted_bullets`, `usage`). Only runs when a posting's headings don't
+  label its requirements
 
 ## Local Rules
 

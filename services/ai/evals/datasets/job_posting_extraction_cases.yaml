@@ -1,0 +1,206 @@
+# Description: Hand-labelled eval cases for job posting extraction (heading split + the job
+# requirements sorting agent fallback). All postings are synthetic.
+# `inputs` is what the LinkedIn scraper reads off a guest job page: the top card fields and the
+# raw description markup (<br>-separated lines, <strong>Heading<br><br></strong> headings).
+# Line breaks in description_html only fall between tags, so they add nothing.
+# `expected_output` is a ScrapedJobPosting; evaluators compare title, company, location,
+# requirements, nice_to_haves, and requirements_sorted_by.
+cases:
+  - name: bold_headings
+    inputs:
+      job_id: "1001"
+      title: Senior Backend Engineer
+      company: Northwind Payments
+      location: Seattle, WA
+      description_html: |
+        <strong>About the role<br><br></strong>We are hiring a backend engineer to scale our ledger platform.<br><br>
+        <strong>Responsibilities<br><br></strong><ul><li>Design and operate event-driven services</li><li>Mentor engineers on the payments team<br><br></li></ul>
+        <strong>Requirements<br><br></strong><ul><li>5+ years of backend development experience</li><li>Strong Python or Go skills</li><li>Experience with PostgreSQL at scale<br><br></li></ul>
+        <strong>Nice to have<br><br></strong><ul><li>Experience in fintech or payments</li><li>Familiarity with Kafka</li></ul>
+        <strong>Benefits<br><br></strong><ul><li>Health, dental, and vision insurance</li><li>Flexible remote work</li></ul>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1001/
+      title: Senior Backend Engineer
+      company: Northwind Payments
+      location: Seattle, WA
+      requirements:
+        - 5+ years of backend development experience
+        - Strong Python or Go skills
+        - Experience with PostgreSQL at scale
+      nice_to_haves:
+        - Experience in fintech or payments
+        - Familiarity with Kafka
+      requirements_sorted_by: headings
+
+  - name: curly_apostrophes_and_bold_words_in_bullets
+    inputs:
+      job_id: "1002"
+      title: Machine Learning Engineer
+      company: Contoso AI
+      location: United States
+      description_html: |
+        Contoso AI builds assistants for hospitals.<br><br>
+        <strong>What You’ll Do<br><br></strong><ul><li>Train and evaluate retrieval models</li><li>Ship models to production with the platform team</li></ul>
+        <strong>What You’ll Bring<br><br></strong><ul><li>3+ years building ML systems in production</li><li>Hands-on experience with <strong>PyTorch</strong>, and evaluation design</li></ul>
+        <strong>Bonus Points<br><br></strong><ul><li>Published research in information retrieval</li></ul>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1002/
+      title: Machine Learning Engineer
+      company: Contoso AI
+      location: United States
+      requirements:
+        - 3+ years building ML systems in production
+        - Hands-on experience with PyTorch, and evaluation design
+      nice_to_haves:
+        - Published research in information retrieval
+      requirements_sorted_by: headings
+
+  - name: plain_text_intro_then_minimum_and_preferred
+    inputs:
+      job_id: "1003"
+      title: Data Engineer
+      company: Fabrikam
+      location: London, England, United Kingdom
+      description_html: |
+        Who you are<br><br>We're looking for someone who meets the minimum requirements to be considered. The preferred qualifications are a bonus, not a requirement.<br><br>
+        <strong>Minimum Requirements<br><br></strong><ul><li>Bachelor's degree in Computer Science or equivalent experience</li><li>Experience building batch pipelines with Spark</li></ul>
+        <strong>Preferred Qualifications<br><br></strong><ul><li>Experience with dbt</li><li>Google Cloud certification</li></ul>
+        Hybrid work at Fabrikam<br><br>This role is available in our London office or remotely.<br><br>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1003/
+      title: Data Engineer
+      company: Fabrikam
+      location: London, England, United Kingdom
+      requirements:
+        - Bachelor's degree in Computer Science or equivalent experience
+        - Experience building batch pipelines with Spark
+      nice_to_haves:
+        - Experience with dbt
+        - Google Cloud certification
+      requirements_sorted_by: headings
+
+  - name: should_have_and_bonus_points
+    inputs:
+      job_id: "1008"
+      title: Data Scientist
+      company: Proseware
+      location: San Francisco Bay Area
+      description_html: |
+        <strong>What you'll be doing<br><br></strong><ul><li>Define KPIs for the client platform</li><li>Champion A/B testing best practices</li></ul>
+        <strong>What you should have<br><br></strong><ul><li>2+ years of hands-on analytics experience</li><li>Strong SQL skills</li></ul>
+        <strong>Bonus Points<br><br></strong><ul><li>Production ETL or BigQuery experience</li></ul>
+        <strong>Why Proseware? <br><br></strong>We make tools for writers.<br><br>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1008/
+      title: Data Scientist
+      company: Proseware
+      location: San Francisco Bay Area
+      requirements:
+        - 2+ years of hands-on analytics experience
+        - Strong SQL skills
+      nice_to_haves:
+        - Production ETL or BigQuery experience
+      requirements_sorted_by: headings
+
+  - name: colon_headings_and_nested_list
+    inputs:
+      job_id: "1004"
+      title: Frontend Engineer
+      company: Tailspin Toys
+      location: Austin, TX
+      description_html: |
+        Tailspin Toys makes games for kids.<br><br>You have:<br>
+        <ul><li>Professional experience with React and TypeScript</li><li>Comfort with modern CSS, including:<ul><li>Flexbox and grid layouts</li></ul></li></ul>
+        Ideally you also have:<br>
+        <ul><li>Shipped a product used by children</li></ul>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1004/
+      title: Frontend Engineer
+      company: Tailspin Toys
+      location: Austin, TX
+      requirements:
+        - Professional experience with React and TypeScript
+        - "Comfort with modern CSS, including:"
+        - Flexbox and grid layouts
+      nice_to_haves:
+        - Shipped a product used by children
+      requirements_sorted_by: headings
+
+  - name: no_headings_flat_bullets
+    inputs:
+      job_id: "1005"
+      title: Platform Engineer
+      company: Woodgrove Bank
+      location: Toronto, ON, Canada
+      description_html: |
+        Join the platform team that runs Woodgrove's Kubernetes clusters. In this role you will:<br>
+        <ul><li>Run and upgrade our Kubernetes clusters</li><li>Build self-service tooling for product teams</li></ul>
+        We think you'll be a great fit if you bring the following.<br>
+        <ul><li>4+ years of experience operating Kubernetes in production</li><li>Strong Terraform skills</li><li>Experience with Go is a plus</li></ul>
+        We offer a pension plan and four weeks of vacation.
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1005/
+      title: Platform Engineer
+      company: Woodgrove Bank
+      location: Toronto, ON, Canada
+      requirements:
+        - 4+ years of experience operating Kubernetes in production
+        - Strong Terraform skills
+      nice_to_haves:
+        - Experience with Go is a plus
+      requirements_sorted_by: llm
+
+  - name: unrecognized_headings
+    inputs:
+      job_id: "1006"
+      title: Product Designer
+      company: Litware
+      location: New York, NY
+      description_html: |
+        <strong>The team<br><br></strong>Litware's design team owns our mobile apps.<br><br>
+        <strong>The work<br><br></strong><ul><li>Lead design for the onboarding flow</li><li>Run usability studies every sprint</li></ul>
+        <strong>The person<br><br></strong><ul><li>A portfolio showing shipped mobile products</li><li>At least 3 years of product design experience</li><li>Figma expertise</li><li>Motion design skills would be a bonus</li></ul>
+        <strong>Perks<br><br></strong><ul><li>Annual learning budget</li></ul>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1006/
+      title: Product Designer
+      company: Litware
+      location: New York, NY
+      requirements:
+        - A portfolio showing shipped mobile products
+        - At least 3 years of product design experience
+        - Figma expertise
+      nice_to_haves:
+        - Motion design skills would be a bonus
+      requirements_sorted_by: llm
+
+  - name: prose_only_no_bullets
+    inputs:
+      job_id: "1007"
+      title: Office Manager
+      company: Adventure Works
+      location: null
+      description_html: |
+        Adventure Works is looking for an office manager to keep our Denver office running. You will coordinate vendors, plan events, and support a team of forty people.<br><br>
+        Experience in a fast-paced office is important to us.
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1007/
+      title: Office Manager
+      company: Adventure Works
+      location: null
+      requirements: []
+      nice_to_haves: []
+      requirements_sorted_by: none
+evaluators:
+  - RequirementMatch
+  - VerbatimBullets
+  - SortedByExpectedPath
+  - PostingFieldsMatch

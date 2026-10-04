@@ -10,6 +10,9 @@ output in addition to the usual Description/Index.
 - `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (extract only, copy bullets
   word for word, partial dates, warnings for ambiguity and for entries the resume doesn't
   clearly label)
+- `job_requirements_sorting_instructions.py` — `JOB_REQUIREMENTS_SORTING_INSTRUCTIONS`
+  (requirements vs nice-to-haves by bullet number; leave out responsibilities, benefits, and
+  company info)
 
 ## Local Rules
 

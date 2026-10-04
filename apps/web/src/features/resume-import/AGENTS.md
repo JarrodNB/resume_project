@@ -24,8 +24,8 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
     (the library lists them by date)
   - `reviewDraft.test.ts`, `ParsedResumeForm.test.tsx` — tests
 - `parsedResume.ts` — TypeScript mirror of `services/ai/schemas/parsed_resume.py`
-- `resumeImportOperations.ts` — GraphQL operations; `useParseResume`, `useAiTaskUpdates`,
-  `useImportParsedResume` — hooks
+- `resumeImportOperations.ts` — GraphQL operations; `useParseResume`,
+  `useImportParsedResume` — hooks (live task status: `features/ai-tasks/useAiTaskUpdates`)
 - `*.test.ts(x)` — validation, parsing defaults, review form, task page states
 
 ## Local Rules

@@ -3,13 +3,18 @@ Description: Shared services that task handlers need, built once at worker start
 swapped for fakes in tests.
 Index:
     - FileStorage: protocol for downloading uploaded files
-    - TaskDependencies: settings + file storage passed to every handler
+    - TaskDependencies: settings + file storage + HTTP client passed to every handler
+    - build_http_client: the HTTP client job scrapers fetch pages with
 """
 
 from dataclasses import dataclass
 from typing import Protocol
 
+import httpx
+
 from worker.settings import WorkerSettings
+
+USER_AGENT = "ThroughlineJobScraper/0.1"
 
 
 class FileStorage(Protocol):
@@ -26,3 +31,13 @@ class TaskDependencies:
 
     settings: WorkerSettings
     file_storage: FileStorage
+    http_client: httpx.Client
+
+
+def build_http_client(settings: WorkerSettings) -> httpx.Client:
+    """An HTTP client with a timeout that follows redirects."""
+    return httpx.Client(
+        timeout=settings.job_page_fetch_timeout_seconds,
+        follow_redirects=True,
+        headers={"User-Agent": USER_AGENT},
+    )

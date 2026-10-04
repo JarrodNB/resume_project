@@ -62,10 +62,14 @@ Every function and class gets a docstring describing what it does.
 
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
   clients, Langfuse tracing (see `worker/AGENTS.md`)
-- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`)
+- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `job_requirements_sorting_agent.py`)
 - `prompts/` — agent instructions
-- `schemas/` — structured output models (`ParsedResume`)
+- `schemas/` — structured output models (`ParsedResume`, `ScrapedJobPosting`,
+  `SortedRequirementBullets`)
 - `documents/` — PDF/DOCX text extraction
+- `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
+- `job_postings/` — job description to plain text and requirement bullets (headings first,
+  sorting agent as fallback)
 - `evals/` — Pydantic Evals datasets, evaluators, and runners
 - `tests/` — pytest suite (`docker compose run --rm ai pytest`)
 - `pyproject.toml` / `uv.lock` — dependencies, managed with `uv`

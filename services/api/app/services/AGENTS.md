@@ -9,7 +9,11 @@ All business logic, as service objects grouped by domain folder.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record
-- `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`
+- `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
+  `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
+  `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
+  `scrape_job`); `create_job_from_scraped_posting_service.rb` (saves the Job from a
+  `ScrapedJobPosting` with the task's canonical URL; reuses the user's Job for the same URL)
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
   `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)
@@ -19,7 +23,9 @@ All business logic, as service objects grouped by domain folder.
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`
 - `ai_tasks/apply_ai_result_service.rb` — applies an `ai_results` message (idempotent, row
-  lock), stores its token usage and cost, and triggers the `aiTaskUpdated` subscription
+  lock), stores its token usage and cost, and triggers the `aiTaskUpdated` subscription; a
+  completed `scrape_job` saves its Job in the same locked transaction (task `subject`), or the
+  task fails if the Job can't be saved
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time

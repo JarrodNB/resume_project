@@ -54,6 +54,15 @@ Per task type:
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
   `AiTask#accepted_at`.
+- `scrape_job`: input `{url}` (the canonical `https://www.linkedin.com/jobs/view/<id>/` form of
+  the link the user pasted; `Jobs::StartJobScrapingService` only accepts LinkedIn job links for
+  jobs the user hasn't saved yet). The completed result is
+  `{scraped_job: ScrapedJobPosting}` (`services/ai/schemas/scraped_job_posting.py`: source,
+  source_url, title, company, location, description, requirements, nice_to_haves,
+  requirements_sorted_by, warnings). `ApplyAiResultService` saves it as a Job
+  (`Jobs::CreateJobFromScrapedPostingService`, `url` = the canonical link) inside the same row lock,
+  links it as the task's `subject` (GraphQL `AiTask.job`), and fails the task instead if the
+  Job can't be saved. Usage is reported only when the sorting agent ran.
 
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
@@ -82,7 +91,7 @@ A duplicate costs extra LLM spend at worst, never corrupt data.
 The worker retries through SQS redelivery instead of in-process loops:
 
 - A **temporary** failure (model rate limit or 5xx, connection error or timeout, AWS
-  throttling or 5xx; see `services/ai/worker/retryable_errors.py`) publishes nothing and keeps
+  throttling or 5xx, job site 429/5xx or network error; see `services/ai/worker/retryable_errors.py`) publishes nothing and keeps
   the message. The worker shortens its visibility to 30s × the attempt number, so the retry
   comes sooner than the 300-second timeout.
 - A **permanent** failure (bad input, bug, missing upload, invalid model output) publishes
@@ -210,6 +219,28 @@ information carries across conversations.
   remaining structuring step is where rule-based parsers fail silently on varied layouts
   (columns, heading names, date formats, entry boundaries), and the LLM parse costs well under
   a cent per resume.
+- **Job scraping is deterministic and per site; the LLM only sorts scraped bullets by number.**
+  Each supported job site gets its own scraper (`services/ai/scrapers/`, one site at a time)
+  that reads the site's own markup or data instead of handing a whole page to an LLM.
+  Requirements and nice-to-haves come from the posting's own headings ("Requirements",
+  "Preferred qualifications", ...). Only when no requirement heading matches does a small agent
+  sort the posting's bullets, and it answers with bullet numbers, so every requirement is still
+  the posting's exact wording and nothing can be invented. Unsupported sites fail fast in Rails,
+  with no AI task.
+- **LinkedIn is the first (and only) job site.** Sites must be where job seekers actually find
+  jobs and copy links. Applicant tracking systems (Greenhouse, Lever, Ashby) were rejected: many
+  companies embed them in career pages that open jobs in pop-ups, with no copyable posting link.
+  Indeed, Glassdoor, and ZipRecruiter block plain HTTP requests. LinkedIn gives every job a
+  link, and its signed-out guest job page
+  (`/jobs-guest/jobs/api/jobPosting/<id>`) returns stable HTML without a login. LinkedIn's terms
+  forbid scraping, so we only ever fetch the single job a user pasted (no crawling), and a page
+  without a job title fails the task instead of saving an empty job.
+- **Scraped jobs are saved without a review step.** Unlike a parsed resume, a scraped job
+  changes nothing the user already has: it only adds a Job whose fields are copied from the
+  posting. So Rails creates it as soon as the result arrives, and the web app opens it (after
+  showing any scraper warnings, e.g. "AI sorted the requirements"). This is the exception to
+  "AI results are reviewed before they change user data". Creating the Job inside
+  `ApplyAiResultService`'s row lock keeps redelivered results from creating it twice.
 - **Langfuse reading APIs:** new Langfuse Cloud organisations can only read data through
   `GET /api/public/v2/observations` and `GET /api/public/v3/scores`; the older trace and
   score endpoints return 410. Ingestion via OpenTelemetry is unaffected.

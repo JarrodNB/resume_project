@@ -1,9 +1,11 @@
 """
-Description: Tests for classifying task failures as temporary (retry) or permanent (fail now).
+Description: Tests for classifying task failures as temporary (retry) or permanent (fail now),
+for model, AWS, and job site errors.
 Index:
     - test_*: one behavior per test
 """
 
+import httpx
 import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
@@ -54,6 +56,30 @@ def test_aws_throttling_and_server_errors_are_retryable() -> None:
 def test_missing_s3_object_is_permanent() -> None:
     """A missing upload will still be missing next time."""
     assert not is_retryable_error(build_client_error("NoSuchKey", 404))
+
+
+def build_http_status_error(status_code: int) -> httpx.HTTPStatusError:
+    """Builds the error httpx raises for a job site response with the given status."""
+    request = httpx.Request("GET", "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/1")
+    response = httpx.Response(status_code, request=request)
+    return httpx.HTTPStatusError("error", request=request, response=response)
+
+
+@pytest.mark.parametrize("status_code", [429, 500, 502])
+def test_job_site_rate_limits_and_server_errors_are_retryable(status_code: int) -> None:
+    """A job site that is busy or down may answer next time."""
+    assert is_retryable_error(build_http_status_error(status_code))
+
+
+def test_job_site_client_errors_are_permanent() -> None:
+    """A forbidden page stays forbidden."""
+    assert not is_retryable_error(build_http_status_error(403))
+
+
+def test_job_site_network_errors_are_retryable() -> None:
+    """Connection failures and timeouts while fetching a job page are temporary."""
+    assert is_retryable_error(httpx.ConnectError("refused"))
+    assert is_retryable_error(httpx.ReadTimeout("slow"))
 
 
 def test_other_errors_are_permanent() -> None:

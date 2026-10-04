@@ -1,0 +1,50 @@
+"""
+Description: Turns a job description's HTML into readable plain text for Job.description:
+paragraphs separated by a blank line, list items as "- " lines.
+Index:
+    - html_to_description_text: the plain-text description
+"""
+
+import re
+
+from bs4 import BeautifulSoup
+
+BLOCK_TAGS = [
+    "p", "div", "section", "article", "blockquote", "table", "tr",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+]  # fmt: skip
+SPACES = re.compile(r"[^\S\n]+")
+
+
+def html_to_description_text(description_html: str) -> str:
+    """Keeps the text and its structure; drops all markup."""
+    soup = BeautifulSoup(description_html, "html.parser")
+    for line_break in soup.find_all("br"):
+        line_break.replace_with("\n")
+    for item_list in soup.find_all(["ul", "ol"]):
+        item_list.insert_before("\n")
+        item_list.insert_after("\n")
+    for item in soup.find_all("li"):
+        item.insert(0, "- ")
+        item.append("\n")
+    for block in soup.find_all(BLOCK_TAGS):
+        # Paragraphs inside a list item stay on the item's line.
+        if block.find_parent("li") is None:
+            block.insert_before("\n\n")
+            block.insert_after("\n\n")
+    return _tidy_lines(soup.get_text())
+
+
+def _tidy_lines(text: str) -> str:
+    """Collapses spaces, trims lines, and keeps at most one blank line in a row."""
+    lines: list[str] = []
+    for raw_line in text.split("\n"):
+        line = SPACES.sub(" ", raw_line).strip()
+        if line in ("", "-"):
+            if lines and lines[-1] != "":
+                lines.append("")
+            continue
+        if lines and lines[-1].startswith("- ") and not line.startswith("- "):
+            lines.append("")
+        lines.append(line)
+    return "\n".join(lines).strip()

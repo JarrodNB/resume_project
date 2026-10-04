@@ -14,16 +14,30 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query CareerLibrary {\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n    resumes {\n      id\n      title\n      kind\n      updatedAt\n      sections {\n        id\n      }\n    }\n  }\n": typeof types.CareerLibraryDocument,
+    "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteExperienceDocument,
+    "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteProjectDocument,
+    "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteEducationDocument,
+    "\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteSkillDocument,
+    "\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeExperiencesDocument,
+    "\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeProjectsDocument,
+    "\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeEducationsDocument,
+    "\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n  }\n": typeof types.CareerLibraryDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseResumeDocument,
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      errorMessage\n      acceptedAt\n      createdAt\n    }\n  }\n": typeof types.AiTaskUpdatedDocument,
-    "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n": typeof types.ImportParsedResumeDocument,
+    "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": typeof types.ImportParsedResumeDocument,
 };
 const documents: Documents = {
-    "\n  query CareerLibrary {\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n    resumes {\n      id\n      title\n      kind\n      updatedAt\n      sections {\n        id\n      }\n    }\n  }\n": types.CareerLibraryDocument,
+    "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteExperienceDocument,
+    "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteProjectDocument,
+    "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteEducationDocument,
+    "\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteSkillDocument,
+    "\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeExperiencesDocument,
+    "\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeProjectsDocument,
+    "\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeEducationsDocument,
+    "\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n  }\n": types.CareerLibraryDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseResumeDocument,
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      errorMessage\n      acceptedAt\n      createdAt\n    }\n  }\n": types.AiTaskUpdatedDocument,
-    "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n": types.ImportParsedResumeDocument,
+    "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": types.ImportParsedResumeDocument,
 };
 
 /**
@@ -43,7 +57,35 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query CareerLibrary {\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n    resumes {\n      id\n      title\n      kind\n      updatedAt\n      sections {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query CareerLibrary {\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n    resumes {\n      id\n      title\n      kind\n      updatedAt\n      sections {\n        id\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n  }\n"): (typeof documents)["\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -55,7 +97,7 @@ export function graphql(source: "\n  subscription AiTaskUpdated($id: ID!) {\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n"];
+export function graphql(source: "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

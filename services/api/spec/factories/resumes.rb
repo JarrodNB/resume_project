@@ -1,13 +1,8 @@
-# Description: Resume factory. Base by default; use the :tailored trait for a job-specific resume.
+# Description: Resume factory: a resume tailored to one of the same user's jobs.
 FactoryBot.define do
   factory :resume do
     user
-    title { "Base resume" }
-    kind { "base" }
-
-    trait :tailored do
-      kind { "tailored" }
-      job { association :job, user: user }
-    end
+    title { "Tailored resume" }
+    job { association :job, user: user }
   end
 end

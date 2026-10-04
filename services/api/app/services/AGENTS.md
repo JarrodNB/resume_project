@@ -11,6 +11,8 @@ All business logic, as service objects grouped by domain folder.
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`
+- `career_library/` — duplicate matching and merging of experiences, projects, and educations
+  (see `career_library/AGENTS.md`)
 - `ai_tasks/enqueue_ai_task_service.rb` — checks the user's AI usage limits and creates a
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`
@@ -22,11 +24,11 @@ All business logic, as service objects grouped by domain folder.
 - `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
 - `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into
-  the career library once per task (`accepted_at`, row lock, one transaction)
+  the career library and fills blank user profile fields (contact, summary) once per task
+  (`accepted_at`, row lock, one transaction); entries matching the library are merged, with
+  the counts in `result["import_summary"]`; creates no resume
 - `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
   structure the import can't walk (wrong object/list types) with error messages, not a 500
-- `resume_imports/build_base_resume_service.rb` — base resume whose sections snapshot the
-  import; only called inside the import transaction, so it raises on invalid records
 
 ## Local Rules
 

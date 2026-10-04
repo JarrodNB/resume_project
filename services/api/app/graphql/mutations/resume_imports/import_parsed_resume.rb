@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Description: Imports a reviewed parsed resume into the career library and creates a base resume.
+# Description: Imports a reviewed parsed resume into the career library and fills blank profile fields.
 module Mutations
   module ResumeImports
     class ImportParsedResume < Mutations::BaseMutation
@@ -8,13 +8,13 @@ module Mutations
       argument :parsed_resume, GraphQL::Types::JSON, required: true,
                description: "The task's parsed_resume result, as edited by the user."
 
-      field :resume, Types::ResumeType
+      field :ai_task, Types::AiTaskType, description: "The task, now accepted."
 
       # Finds the user's task and calls ResumeImports::ImportParsedResumeService.
       def resolve(ai_task_id:, parsed_resume:)
         ai_task = current_user.ai_tasks.find(ai_task_id)
         result = ::ResumeImports::ImportParsedResumeService.call(ai_task: ai_task, parsed_resume: parsed_resume)
-        payload_from(result, :resume)
+        payload_from(result, :ai_task)
       end
     end
   end

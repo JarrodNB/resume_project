@@ -1,11 +1,18 @@
 # Description: Imports a parsed resume (as reviewed and edited by the user) into the career
-# library and creates a base resume from it. Each parse_resume task can be imported once.
+# library and fills blank profile fields (contact, summary). Experiences, projects, and
+# educations that match an existing entry are merged into it instead of duplicated; the counts
+# are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
+# task can be imported once.
 # Index:
-#   - call: checks the JSON shape, then creates library records + base resume in one
-#     transaction; returns the Resume
+#   - call: checks the JSON shape, then imports library records and fills the profile in one
+#     transaction; returns the accepted AiTask
 module ResumeImports
   class ImportParsedResumeService < ApplicationService
     PARTIAL_DATE = /\A(?<year>\d{4})(?:-(?<month>\d{2}))?\z/
+    # Parsed contact keys and the User columns they fill.
+    CONTACT_COLUMNS = {
+      "full_name" => :name, "email" => :contact_email, "phone" => :phone, "location" => :location, "links" => :links
+    }.freeze
 
     # @param parsed_resume [Object] client JSON expected to be a ParsedResume
     #   (see services/ai/schemas/parsed_resume.py); its shape is checked before importing
@@ -27,9 +34,9 @@ module ResumeImports
         if @ai_task.accepted?
           failure([ "This resume has already been imported" ])
         else
-          resume = import_everything
-          @ai_task.update!(accepted_at: Time.current)
-          success(resume)
+          import_everything
+          @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
+          success(@ai_task)
         end
       end
     rescue ActiveRecord::RecordInvalid => error
@@ -43,24 +50,57 @@ module ResumeImports
       @ai_task.parse_resume? && @ai_task.completed?
     end
 
-    # Creates the library records, then the base resume that snapshots them.
+    # Fills the profile, then adds or merges the library records.
     def import_everything
-      contact = @parsed_resume["contact"] || {}
-      @user.update!(name: contact["full_name"]) if @user.name.blank? && contact["full_name"].present?
-      experiences = create_records(@user.experiences, items("experiences")) { |record, item| assign_experience(record, item) }
-      projects = create_records(@user.projects, items("projects")) { |record, item| assign_project(record, item) }
-      educations = create_records(@user.educations, items("educations")) { |record, item| assign_education(record, item) }
+      @summary = { "added" => 0, "merged" => 0 }
+      fill_blank_profile_fields(@parsed_resume["contact"] || {}, @parsed_resume["summary"])
+      add_or_merge_records(@user.experiences, items("experiences")) { |record, item| assign_experience(record, item) }
+      add_or_merge_records(@user.projects, items("projects")) { |record, item| assign_project(record, item) }
+      add_or_merge_records(@user.educations, items("educations")) { |record, item| assign_education(record, item) }
       create_new_skills
+    end
 
-      BuildBaseResumeService.call(
-        user: @user, contact: contact, summary: @parsed_resume["summary"],
-        experiences: experiences, projects: projects, educations: educations, skills: items("skills")
-      ).value
+    # Sets name, contact details, and summary only where the user has nothing yet, so a later
+    # import never overwrites what they already have.
+    def fill_blank_profile_fields(contact, summary)
+      values = CONTACT_COLUMNS.to_h { |key, column| [ column, contact[key] ] }.merge(summary: summary)
+      blank_fills = values.select { |column, value| @user.public_send(column).blank? && value.present? }
+      @user.update!(blank_fills) if blank_fills.any?
     end
 
     # Returns the list under `key`, or an empty list.
     def items(key)
       Array(@parsed_resume[key])
+    end
+
+    # Builds one record per item (the block fills it in). A record matching an existing entry,
+    # including one saved earlier in this import, is merged into it; otherwise it is saved after
+    # the user's existing entries.
+    def add_or_merge_records(association, list)
+      existing = association.scope.to_a
+      next_position = (existing.map(&:position).max || -1) + 1
+      list.each do |item|
+        record = association.klass.new(user: @user)
+        yield(record, item)
+        match = CareerLibrary::FindMatchingLibraryRecordService.call(record: record, candidates: existing).value
+        if match
+          merge_into!(match, record)
+        else
+          record.update!(position: next_position)
+          next_position += 1
+          existing << record
+          @summary["added"] += 1
+        end
+      end
+    end
+
+    # Merges an unsaved record into its match; raises if the match can't be saved.
+    def merge_into!(match, record)
+      record.validate!
+      result = CareerLibrary::MergeLibraryRecordsService.call(target: match, source: record)
+      raise ActiveRecord::RecordInvalid, match unless result.success?
+
+      @summary["merged"] += 1
     end
 
     # Saves one record per item after the user's existing ones; the block fills in each record.

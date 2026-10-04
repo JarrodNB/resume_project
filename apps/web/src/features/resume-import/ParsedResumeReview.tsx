@@ -1,7 +1,8 @@
 /**
  * Description: Review step for a completed parse: the editable form wired to the import mutation.
  * Index:
- *   - ParsedResumeReview: imports the edited parse, then opens the career library
+ *   - ParsedResumeReview: imports the edited parse, then opens the career library with the
+ *     added/merged counts
  */
 import { useNavigate } from 'react-router'
 import type { ParsedResume } from './parsedResume'
@@ -19,7 +20,8 @@ export function ParsedResumeReview({ aiTaskId, parsedResume }: ParsedResumeRevie
   const { importParsedResume, importing, errors } = useImportParsedResume(aiTaskId)
 
   async function handleImport(edited: ParsedResume) {
-    if (await importParsedResume(edited)) navigate('/library')
+    const outcome = await importParsedResume(edited)
+    if (outcome) navigate('/library', { state: { importSummary: outcome.importSummary } })
   }
 
   return <ParsedResumeForm parsedResume={parsedResume} onImport={handleImport} importing={importing} errors={errors} />

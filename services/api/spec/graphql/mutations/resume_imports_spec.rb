@@ -22,22 +22,24 @@ RSpec.describe "Resume import mutations" do
     )
   end
 
-  it "importParsedResume creates a base resume from the user's task" do
+  it "importParsedResume accepts the user's task without creating a resume" do
     ai_task = create(:ai_task, :completed_resume_parse, user: user)
     parsed_resume = ai_task.result["parsed_resume"]
 
     result = execute_graphql(<<~GQL, user: user, variables: { id: ai_task.id, parsedResume: parsed_resume })
       mutation($id: ID!, $parsedResume: JSON!) {
         importParsedResume(input: { aiTaskId: $id, parsedResume: $parsedResume }) {
-          resume { kind sections { sectionType } }
+          aiTask { id acceptedAt }
           errors
         }
       }
     GQL
 
-    expect(result.dig("data", "importParsedResume")).to eq(
-      "resume" => { "kind" => "BASE", "sections" => [ { "sectionType" => "CONTACT" } ] }, "errors" => []
-    )
+    payload = result.dig("data", "importParsedResume")
+    expect(payload["errors"]).to eq([])
+    expect(payload.dig("aiTask", "id")).to eq(ai_task.id)
+    expect(payload.dig("aiTask", "acceptedAt")).to be_present
+    expect(user.resumes).to be_empty
   end
 
   it "importParsedResume returns errors for a malformed parsed resume" do
@@ -45,12 +47,12 @@ RSpec.describe "Resume import mutations" do
 
     result = execute_graphql(<<~GQL, user: user, variables: { id: ai_task.id, parsedResume: [ "not", "an object" ] })
       mutation($id: ID!, $parsedResume: JSON!) {
-        importParsedResume(input: { aiTaskId: $id, parsedResume: $parsedResume }) { resume { id } errors }
+        importParsedResume(input: { aiTaskId: $id, parsedResume: $parsedResume }) { aiTask { id } errors }
       }
     GQL
 
     expect(result.dig("data", "importParsedResume")).to eq(
-      "resume" => nil, "errors" => [ "Parsed resume must be an object" ]
+      "aiTask" => nil, "errors" => [ "Parsed resume must be an object" ]
     )
   end
 

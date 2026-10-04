@@ -2,13 +2,19 @@
 
 # Description: The signed-in user.
 # Index:
-#   - id, email, name
+#   - id, email (sign-in), name
+#   - profile: contact_email, phone, location, links, summary
 #   - ai_usage: this month's estimated AI spend and budget
 module Types
   class UserType < Types::BaseObject
     field :id, ID, null: false
     field :email, String, null: false
     field :name, String
+    field :contact_email, String, description: "Email shown on resumes (may differ from the sign-in email)."
+    field :phone, String
+    field :location, String
+    field :links, [ String ], null: false
+    field :summary, String
     field :ai_usage, Types::AiUsageType, null: false
 
     # Summarizes the user's AI spend this month. Only reachable through `me`, so it's always the

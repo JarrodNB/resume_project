@@ -1,5 +1,6 @@
 # Description: One ordered section of a resume. `content` is a JSON snapshot copied from the
-# career library (and possibly rewritten), so editing it never changes the library.
+# career library and profile when tailoring (and possibly rewritten), so editing it never
+# changes the library.
 # Content shapes: contact => { full_name, email, phone, location, links }, summary => { text },
 # experience / projects / education / skills => { items: [...] } (each item mirrors its
 # career library record, with highlights inline for experiences).

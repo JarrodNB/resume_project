@@ -1,11 +1,12 @@
 /**
  * Description: The task page renders the right step for each task state, and importing the
- * review navigates to the career library.
+ * review navigates to the career library with the added/merged counts.
  */
 import type { MockLink } from '@apollo/client/testing'
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
+import { ImportSummaryNotice } from '@/features/career-library/ImportSummaryNotice'
 import { buildParsedResume } from '@/test/parsedResumeFixture'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION, IMPORT_PARSED_RESUME_MUTATION } from './resumeImportOperations'
@@ -38,7 +39,17 @@ function renderTaskPage(mocks: MockLink.MockedResponse[]) {
     url: '/import/task-1',
     element: <ResumeImportTaskPage />,
     mocks,
-    extraRoutes: [{ path: '/library', element: <p>Library page</p> }],
+    extraRoutes: [
+      {
+        path: '/library',
+        element: (
+          <>
+            <p>Library page</p>
+            <ImportSummaryNotice />
+          </>
+        ),
+      },
+    ],
   })
 }
 
@@ -66,7 +77,12 @@ it('imports the reviewed resume and opens the career library', async () => {
       data: {
         importParsedResume: {
           __typename: 'ImportParsedResumePayload',
-          resume: { __typename: 'Resume', id: 'resume-1', title: 'Base resume' },
+          aiTask: {
+            __typename: 'AiTask',
+            id: 'task-1',
+            acceptedAt: '2026-10-01T00:01:00Z',
+            result: { parsed_resume: parsedResume, import_summary: { added: 2, merged: 3 } },
+          },
           errors: [],
         },
       },
@@ -77,8 +93,9 @@ it('imports the reviewed resume and opens the career library', async () => {
     importMock,
   ])
 
-  await userEvent.click(await screen.findByRole('button', { name: 'Import to career library' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Save to career library' }))
 
   expect(await screen.findByText('Library page')).toBeInTheDocument()
   expect(router.state.location.pathname).toBe('/library')
+  expect(screen.getByText('2 entries added, 3 merged into existing entries.')).toBeInTheDocument()
 })

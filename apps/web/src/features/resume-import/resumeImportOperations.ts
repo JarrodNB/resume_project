@@ -36,9 +36,10 @@ export const AI_TASK_UPDATED_SUBSCRIPTION = graphql(`
 export const IMPORT_PARSED_RESUME_MUTATION = graphql(`
   mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {
     importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {
-      resume {
+      aiTask {
         id
-        title
+        acceptedAt
+        result
       }
       errors
     }

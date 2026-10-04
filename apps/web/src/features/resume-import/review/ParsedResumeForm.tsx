@@ -81,9 +81,9 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
       <div className="sticky bottom-0 -mx-1 grid gap-3 border-t bg-background/95 px-1 py-4 backdrop-blur">
         <ErrorAlert messages={errors} title="Import failed" />
         <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted-foreground">Importing adds these to your career library and creates a base resume.</p>
+          <p className="text-sm text-muted-foreground">Importing adds these to your career library.</p>
           <Button type="submit" size="lg" disabled={importing}>
-            {importing ? 'Importing…' : 'Import to career library'}
+            {importing ? 'Importing…' : 'Save to career library'}
           </Button>
         </div>
       </div>

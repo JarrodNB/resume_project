@@ -51,7 +51,9 @@ Per task type:
   Active Storage blob key in the S3 uploads bucket. The completed result is
   `{parsed_resume: ParsedResume}` (`services/ai/schemas/parsed_resume.py`). The user reviews and
   edits it, then the `importParsedResume` mutation writes it to the career library and
-  creates a base resume (once per task, tracked by `AiTask#accepted_at`).
+  fills blank profile fields on the user (contact details, summary). It creates no resume;
+  resumes are only created when tailoring for a job. Each task imports once, tracked by
+  `AiTask#accepted_at`.
 
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
@@ -136,6 +138,20 @@ information carries across conversations.
   dependency injection, and switching LLM providers is a config change. Its deferred
   tools match our SQS pause/resume flow, and its OpenTelemetry instrumentation sends
   traces to Langfuse without a custom wrapper.
+- **The career library is the base; there is no base resume.** Importing a resume fills the
+  library and the user's profile (contact details, summary) instead of also creating a base
+  resume. A copied base resume would drift from the library as soon as the library was edited
+  or a second resume was imported. Resumes are snapshots by design, so they only exist when
+  tailored to a job.
+- **Keep the career library deduplicated: merge on import, plus manual merge and delete.**
+  Importing a resume merges an incoming experience, project, or education into an existing
+  entry that matches. Experiences match on company and title, projects on name, and educations
+  on institution and degree. Text compares case-insensitively, and if both entries have start
+  dates they must be equal. Merging only fills fields that are blank on the kept entry and adds
+  highlights it doesn't have; it never overwrites. An experience's blank end date means
+  "current", so it is never filled. Duplicates the import doesn't catch can be merged or
+  deleted from the library page. Matching keys are deliberately narrow: a missed duplicate is
+  one click to fix, but a wrong automatic merge silently loses an entry.
 - **File history in git**, not in file headers.
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
   them locally and in CI. Scores go to Langfuse for comparison across prompt and model

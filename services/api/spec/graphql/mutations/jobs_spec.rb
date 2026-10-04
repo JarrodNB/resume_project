@@ -42,7 +42,7 @@ RSpec.describe "Job mutations" do
   end
 
   it "keeps the job's tailored resumes editable after deleting it" do
-    resume = create(:resume, :tailored, user: user)
+    resume = create(:resume, user: user)
 
     result = execute_graphql(<<~GQL, user: user, variables: { id: resume.job_id })
       mutation($id: ID!) { deleteJob(input: { id: $id }) { job { id } errors } }

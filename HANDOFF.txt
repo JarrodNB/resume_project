@@ -180,8 +180,8 @@ extracts text; parsed results are reviewed by the user before import.
     with input {source_file: {key, filename, content_type}} -> worker downloads, extracts text
     (documents/), runs agents/resume_parsing_agent -> result {parsed_resume: ...} ->
     user edits -> importParsedResume(aiTaskId, parsedResume: JSON) ->
-    ImportParsedResumeService (career library + base resume with contact/summary/experience/
-    projects/education/skills sections; once per task via ai_tasks.accepted_at).
+    ImportParsedResumeService (career library records + blank user profile fields: contact
+    details, summary; no resume is created; once per task via ai_tasks.accepted_at).
   - Tracing: one Langfuse trace per task (ai_task.<type>, user id, ai_task_id metadata).
   - Evals: evals/datasets/resume_parsing_cases.yaml (5 synthetic cases), deterministic
     evaluators (faithfulness, experience match, section recall, warnings). First run: 1.0 on

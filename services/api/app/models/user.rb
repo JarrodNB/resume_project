@@ -1,5 +1,6 @@
 # Description: An account holder. Authenticates with Devise; API requests carry a JWT.
 # Index:
+#   - profile columns: name, contact_email, phone, location, links, summary
 #   - career library: experiences, projects, educations, skills
 #   - jobs, resumes, ai_tasks
 class User < ApplicationRecord

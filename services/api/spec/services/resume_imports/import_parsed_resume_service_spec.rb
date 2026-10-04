@@ -1,4 +1,4 @@
-# Description: Importing a reviewed parsed resume into the career library and a base resume.
+# Description: Importing a reviewed parsed resume into the career library and the user's profile.
 require "rails_helper"
 
 RSpec.describe ResumeImports::ImportParsedResumeService do
@@ -39,14 +39,36 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.reload.name).to eq("Jane Doe")
   end
 
-  it "creates a base resume whose sections snapshot the import" do
-    resume = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume).value
+  it "fills blank profile fields without overwriting existing ones and creates no resume" do
+    user.update!(phone: "555-0100")
+    parsed_resume["contact"].merge!("phone" => "555-9999", "location" => "Perth", "links" => [ "github.com/jane" ])
 
-    expect(resume).to be_base
-    expect(resume.sections.map(&:section_type)).to eq(%w[contact summary experience projects education skills])
-    experience_items = resume.sections.find_by!(section_type: "experience").content["items"]
-    expect(experience_items.first).to include("company" => "Acme", "highlights" => [ "Built the API", "Led the team" ])
-    expect(resume.sections.find_by!(section_type: "summary").content).to eq("text" => "Backend engineer.")
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(result.value).to eq(ai_task)
+    expect(user.reload).to have_attributes(
+      name: "Jane Doe", contact_email: "jane@example.com", phone: "555-0100", location: "Perth",
+      links: [ "github.com/jane" ], summary: "Backend engineer."
+    )
+    expect(user.resumes).to be_empty
+  end
+
+  it "merges entries that match the library instead of duplicating them" do
+    described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+    second_task = create(:ai_task, :completed_resume_parse, user: user)
+    parsed_resume["experiences"][0]["highlights"] = [ "built the api", "Mentored two juniors" ]
+    parsed_resume["experiences"] << { "company" => "Initech", "title" => "Intern", "start_date" => "2018" }
+    parsed_resume["projects"] << { "name" => "SIDE PROJECT", "role" => "Author" }
+
+    result = described_class.call(ai_task: second_task, parsed_resume: parsed_resume)
+
+    expect(result).to be_success
+    expect(user.experiences.pluck(:company)).to eq(%w[Acme Globex Initech])
+    acme = user.experiences.find_by!(company: "Acme")
+    expect(acme.highlights.map(&:content)).to eq([ "Built the API", "Led the team", "Mentored two juniors" ])
+    expect(user.projects.sole).to have_attributes(name: "Side project", role: "Author")
+    expect(user.educations.count).to eq(1)
+    expect(second_task.reload.result["import_summary"]).to eq("added" => 1, "merged" => 5)
   end
 
   it "marks the task accepted and refuses to import it twice" do
@@ -66,7 +88,7 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
 
     expect(result.errors).to eq([ "Company can't be blank" ])
     expect(user.experiences.reload).to be_empty
-    expect(user.resumes.reload).to be_empty
+    expect(user.reload.summary).to be_nil
     expect(ai_task.reload).not_to be_accepted
   end
 
@@ -76,7 +98,7 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
 
     expect(result.errors).to eq([ "experiences must be a list of objects" ])
-    expect(user.resumes.reload).to be_empty
+    expect(user.experiences.reload).to be_empty
     expect(ai_task.reload).not_to be_accepted
   end
 

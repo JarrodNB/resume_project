@@ -29,7 +29,7 @@ it('imports the edited resume', async () => {
   await user.click(screen.getByRole('button', { name: 'Remove Highlights 2' }))
   await user.type(screen.getByLabelText('New skill'), 'Python{Enter}')
   await user.click(screen.getByRole('button', { name: 'Remove education 1' }))
-  await user.click(screen.getByRole('button', { name: 'Import to career library' }))
+  await user.click(screen.getByRole('button', { name: 'Save to career library' }))
 
   const expected = buildParsedResume()
   expected.experiences[0] = { ...expected.experiences[0], title: 'Senior Engineer', highlights: ['Built the billing service'] }

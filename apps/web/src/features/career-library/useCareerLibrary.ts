@@ -1,5 +1,5 @@
 /**
- * Description: Hook that loads the signed-in user's career library and resumes.
+ * Description: Hook that loads the signed-in user's profile and career library.
  * Index:
  *   - useCareerLibrary: returns the library data plus loading and error state
  */

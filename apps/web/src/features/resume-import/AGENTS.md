@@ -10,7 +10,8 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 - `ResumeUploadPage.tsx` (`/import`) — `ResumeDropzone.tsx` + `resumeFileValidation.ts`
 - `ResumeImportTaskPage.tsx` (`/import/:aiTaskId`) — picks the step from the task state:
   `ParseTaskStatusCard.tsx` (connecting, parsing, failed, already imported) or
-  `ParsedResumeReview.tsx` (form wired to the import mutation)
+  `ParsedResumeReview.tsx` (form wired to the import mutation; on success it opens the career
+  library with the added/merged counts)
 - `review/` — the editable form: `ParsedResumeForm.tsx` plus one fields component per section,
   and generic `TextField`, `StringListField`, `EditableList`, `DateRangeFields`
 - `parsedResume.ts` — TypeScript mirror of `services/ai/schemas/parsed_resume.py`

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_103100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_02_140100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -159,7 +159,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_103100) do
     t.uuid "user_id", null: false
     t.uuid "job_id"
     t.string "title", null: false
-    t.string "kind", default: "base", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["job_id"], name: "index_resumes_on_job_id"
@@ -189,6 +188,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_103100) do
     t.bigint "monthly_ai_budget_microdollars"
     t.integer "ai_tasks_per_hour_limit"
     t.integer "max_in_flight_ai_tasks"
+    t.string "contact_email"
+    t.string "phone"
+    t.string "location"
+    t.jsonb "links", default: [], null: false
+    t.text "summary"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end

@@ -10,12 +10,14 @@ over feature breadth or market positioning.
 ## In Scope
 
 1. **Auth** — sign up / log in (Devise + JWT).
-2. **Base resume** — upload a PDF/DOCX (AI parses it into sections) or fill out a form.
+2. **Career library** — upload a PDF/DOCX (AI parses it into experiences, projects, education,
+   skills, contact details, and summary) or fill out a form. The library is the base; there
+   is no separate base resume to drift out of sync with it.
 3. **Job profiles** — paste a job URL; AI scrapes it into a structured profile
    (title, company, requirements, nice-to-haves). Manual entry as a fallback.
 4. **Gap analysis** — compare the resume to a job, show matches and gaps, and have the AI
    ask the user questions to close the gaps (human in the loop).
-5. **Tailored resume** — generate a job-specific version from the base resume plus the
+5. **Tailored resume** — generate a job-specific version from the career library plus the
    gap answers; the user edits and approves it.
 6. **Memory** — gap answers and facts are saved and reused in future tailoring.
 7. **Job board** — saved jobs with stages: unapplied, applied, interviewing, rejected, offer.

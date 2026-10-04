@@ -1,0 +1,53 @@
+/**
+ * Description: One requirement of a gap analysis: verdict badge, the requirement, the AI's
+ * explanation, and the career library entries cited as evidence (copied from the library).
+ * Index:
+ *   - VerdictBadge: colored badge for a verdict
+ *   - RequirementAssessmentItem: list item component
+ */
+import { CircleCheck, CircleDashed, CircleX } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+import { VERDICT_LABELS, type AssessedRequirement, type Verdict } from './parseGapAnalysisResult'
+
+const VERDICT_STYLES: Record<Verdict, string> = {
+  met: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  partial: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  missing: 'bg-destructive/10 text-destructive dark:bg-destructive/20',
+}
+
+const VERDICT_ICONS = { met: CircleCheck, partial: CircleDashed, missing: CircleX }
+
+/** A small colored badge naming the verdict. */
+export function VerdictBadge({ verdict }: { verdict: Verdict }) {
+  const Icon = VERDICT_ICONS[verdict]
+  return (
+    <Badge className={cn('shrink-0', VERDICT_STYLES[verdict])}>
+      <Icon data-icon="inline-start" />
+      {VERDICT_LABELS[verdict]}
+    </Badge>
+  )
+}
+
+/** Renders one assessed requirement with its evidence. */
+export function RequirementAssessmentItem({ assessment }: { assessment: AssessedRequirement }) {
+  return (
+    <li className="grid gap-2 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <p className="font-medium">{assessment.requirement}</p>
+        <VerdictBadge verdict={assessment.verdict} />
+      </div>
+      {assessment.explanation && <p className="text-sm text-muted-foreground">{assessment.explanation}</p>}
+      {assessment.evidence.length > 0 && (
+        <ul className="grid gap-1 border-l-2 pl-3 text-sm" aria-label="Evidence from your career library">
+          {assessment.evidence.map((evidence, index) => (
+            <li key={evidence.id ?? `${evidence.kind}-${index}`}>
+              {evidence.text}
+              {evidence.context && <span className="text-muted-foreground"> · {evidence.context}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}

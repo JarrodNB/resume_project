@@ -7,8 +7,18 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 ## Contents
 
 - `conftest.py` — disables Langfuse export and real model requests; `task_dependencies`,
-  `fake_file_storage`, `fake_job_site` fixtures
-- `fakes.py` — `FakeFileStorage`, `build_docx_bytes`, `FakeJobSite` (httpx.MockTransport)
+  `fake_file_storage`, `fake_job_site`, `fake_context_reader` fixtures
+- `fakes.py` — `FakeFileStorage`, `build_docx_bytes`, `FakeJobSite` (httpx.MockTransport),
+  `build_gap_analysis_context`, `FakeGapAnalysisContextReader`
+- `test_career_library_reader.py` — marked `db`: reads as `ai_reader` from the dev database
+  (seeds inside a rolled-back transaction); order, content, and another user's job is not found
+- `test_build_gap_analysis_prompt.py` — labels, date ranges, evidence lookup
+- `test_find_gap_analysis_problems.py` — missing, repeated, unknown labels; met without
+  evidence; labels leaked into prose (and label-like job terms allowed)
+- `test_attach_evidence_text.py` — labels to library text, order, dedupe, unknown labels skipped
+- `test_analyze_gaps_handler.py` — analyze_gaps end to end on `TestModel`, retry on a bad
+  output (`FunctionModel`), deleted job / empty library / no requirements failures
+- `test_gap_analysis_evaluators.py` — eval labels score 1.0
 - `fixtures/linkedin/` — synthetic LinkedIn guest job pages (see `fixtures/AGENTS.md`)
 - `test_parse_linkedin_job_url.py` — LinkedIn job link forms, rejected URLs, site registry
 - `test_linkedin_description_to_html.py` — `<br>` lines to paragraphs, bold headings split
@@ -35,4 +45,6 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 - Never call real SQS, S3, OpenAI, Langfuse, or job sites from tests; pass fakes and override
   agents with `TestModel`.
+- Only `db`-marked tests touch Postgres (the compose `db` service); they roll back everything
+  they write. Skip them with `pytest -m "not db"`.
 - Agent quality is measured by evals in `evals/`, not by pytest.

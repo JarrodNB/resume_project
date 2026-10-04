@@ -1,0 +1,303 @@
+# Description: Hand-labelled eval cases for the gap analysis agent. All people, companies, and
+# jobs are synthetic.
+# `inputs` is a GapAnalysisContext (schemas/gap_analysis_context.py): the job and the career
+# library as the database reader returns them. The runner fixes "today" at 2026-10-01, so year
+# counts for ongoing roles are stable.
+# `metadata` is GapAnalysisLabels (evals/gap_analysis_evaluators.py): one label per requirement
+# and nice-to-have, with `verdict`, optional `also_acceptable` verdicts for borderline cases, and
+# `key_evidence_ids` (citing any one of them counts as finding the evidence).
+cases:
+  - name: strong_match
+    inputs:
+      job:
+        id: job-1
+        title: Senior Backend Engineer
+        company: Northwind Payments
+        requirements:
+          - 5+ years of professional Python development
+          - Experience with PostgreSQL
+          - Designing REST APIs
+        nice_to_haves:
+          - Kubernetes
+      career_library:
+        summary: Backend engineer focused on payments infrastructure.
+        experiences:
+          - id: exp-1
+            company: Ledgerly
+            title: Senior Software Engineer
+            start_date: 2021-02-01
+            highlights:
+              - id: hl-1
+                content: Designed the public REST API for card payouts used by 300 merchants
+              - id: hl-2
+                content: Cut p95 latency of PostgreSQL reporting queries from 4s to 300ms
+              - id: hl-4
+                content: Wrote the payouts service in Python (FastAPI)
+          - id: exp-2
+            company: Bytewise
+            title: Software Engineer
+            start_date: 2018-06-01
+            end_date: 2021-01-01
+            highlights:
+              - id: hl-3
+                content: Built Python (Django) services for invoice processing
+        skills:
+          - id: sk-1
+            name: Python
+            category: Languages
+          - id: sk-2
+            name: PostgreSQL
+          - id: sk-3
+            name: Kubernetes
+    metadata:
+      assessments:
+        - requirement: 5+ years of professional Python development
+          verdict: met
+          key_evidence_ids: [hl-3, hl-4, sk-1, exp-1, exp-2]
+        - requirement: Experience with PostgreSQL
+          verdict: met
+          key_evidence_ids: [hl-2, sk-2]
+        - requirement: Designing REST APIs
+          verdict: met
+          key_evidence_ids: [hl-1]
+        - requirement: Kubernetes
+          verdict: met
+          key_evidence_ids: [sk-3]
+
+  - name: obvious_gaps
+    inputs:
+      job:
+        id: job-2
+        title: Machine Learning Engineer
+        company: Contoso AI
+        requirements:
+          - 3+ years training deep learning models
+          - Hands-on experience with PyTorch
+          - Experience building React front ends
+        nice_to_haves:
+          - Published research in machine learning
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Pixel Studio
+            title: Frontend Developer
+            start_date: 2020-03-01
+            highlights:
+              - id: hl-1
+                content: Built the customer dashboard in React and TypeScript
+              - id: hl-2
+                content: Set up visual regression tests with Playwright
+        skills:
+          - id: sk-1
+            name: React
+          - id: sk-2
+            name: TypeScript
+    metadata:
+      assessments:
+        - requirement: 3+ years training deep learning models
+          verdict: missing
+        - requirement: Hands-on experience with PyTorch
+          verdict: missing
+        - requirement: Experience building React front ends
+          verdict: met
+          key_evidence_ids: [hl-1, sk-1]
+        - requirement: Published research in machine learning
+          verdict: missing
+
+  - name: adjacent_skills_are_partial
+    inputs:
+      job:
+        id: job-3
+        title: Platform Engineer
+        company: Fabrikam Cloud
+        requirements:
+          - Production experience with PostgreSQL
+          - Experience with AWS
+          - Proficiency in Go
+          - Docker
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Tailspin Toys
+            title: DevOps Engineer
+            start_date: 2019-01-01
+            highlights:
+              - id: hl-1
+                content: Ran the MySQL fleet, including replication and failover drills
+              - id: hl-2
+                content: Moved CI workloads to Google Cloud Platform with Terraform
+              - id: hl-3
+                content: Containerized 20 services with Docker
+        skills:
+          - id: sk-1
+            name: MySQL
+          - id: sk-2
+            name: Google Cloud Platform
+          - id: sk-3
+            name: Docker
+    metadata:
+      assessments:
+        - requirement: Production experience with PostgreSQL
+          verdict: partial
+          key_evidence_ids: [hl-1, sk-1]
+        - requirement: Experience with AWS
+          verdict: partial
+          also_acceptable: [missing]
+          key_evidence_ids: [hl-2, sk-2]
+        - requirement: Proficiency in Go
+          verdict: missing
+        - requirement: Docker
+          verdict: met
+          key_evidence_ids: [hl-3, sk-3]
+
+  - name: requirement_shown_only_by_a_project
+    inputs:
+      job:
+        id: job-4
+        title: Systems Engineer
+        company: Adventure Works
+        requirements:
+          - Professional experience writing Rust
+          - Experience with Linux
+        nice_to_haves:
+          - Open source contributions
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Woodgrove Bank
+            title: Backend Engineer
+            start_date: 2020-05-01
+            highlights:
+              - id: hl-1
+                content: Maintained Java services deployed on Linux servers
+        projects:
+          - id: proj-1
+            name: tinykv
+            role: Creator and maintainer
+            description: Open source key-value store written in Rust, 1.2k GitHub stars
+    metadata:
+      assessments:
+        - requirement: Professional experience writing Rust
+          verdict: partial
+          key_evidence_ids: [proj-1]
+        - requirement: Experience with Linux
+          verdict: met
+          key_evidence_ids: [hl-1]
+        - requirement: Open source contributions
+          verdict: met
+          key_evidence_ids: [proj-1]
+
+  - name: synonyms_and_equivalent_degree
+    inputs:
+      job:
+        id: job-5
+        title: Full Stack Engineer
+        company: Litware
+        requirements:
+          - Bachelor's degree in Computer Science or equivalent
+          - Strong JS skills
+          - Experience with Postgres
+        nice_to_haves:
+          - K8s
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Proseware
+            title: Software Engineer
+            start_date: 2022-01-01
+            highlights:
+              - id: hl-1
+                content: Migrated deployments from VMs to Kubernetes
+        educations:
+          - id: edu-1
+            institution: Lakeside University
+            degree: BSc
+            field_of_study: Computer Science
+            start_date: 2017-09-01
+            end_date: 2021-06-01
+        skills:
+          - id: sk-1
+            name: JavaScript
+          - id: sk-2
+            name: PostgreSQL
+    metadata:
+      assessments:
+        - requirement: Bachelor's degree in Computer Science or equivalent
+          verdict: met
+          key_evidence_ids: [edu-1]
+        - requirement: Strong JS skills
+          verdict: met
+          key_evidence_ids: [sk-1]
+        - requirement: Experience with Postgres
+          verdict: met
+          key_evidence_ids: [sk-2]
+        - requirement: K8s
+          verdict: met
+          key_evidence_ids: [hl-1]
+
+  - name: fewer_years_than_asked
+    inputs:
+      job:
+        id: job-6
+        title: Staff Software Engineer
+        company: Northwind Traders
+        requirements:
+          - 8+ years of software engineering experience
+          - Experience leading a team
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Blue Yonder Airlines
+            title: Senior Software Engineer
+            start_date: 2023-04-01
+            highlights:
+              - id: hl-1
+                content: Led a team of 4 engineers building the booking service
+          - id: exp-2
+            company: Coho Winery
+            title: Software Engineer
+            start_date: 2021-01-01
+            end_date: 2023-03-01
+    metadata:
+      assessments:
+        - requirement: 8+ years of software engineering experience
+          verdict: partial
+          also_acceptable: [missing]
+          key_evidence_ids: [exp-1, exp-2]
+        - requirement: Experience leading a team
+          verdict: met
+          key_evidence_ids: [hl-1]
+
+  - name: near_empty_library
+    inputs:
+      job:
+        id: job-7
+        title: Data Analyst
+        company: Wide World Importers
+        requirements:
+          - Advanced SQL
+          - Python for data analysis
+          - Excel
+        nice_to_haves:
+          - Tableau
+      career_library:
+        skills:
+          - id: sk-1
+            name: Excel
+    metadata:
+      assessments:
+        - requirement: Advanced SQL
+          verdict: missing
+        - requirement: Python for data analysis
+          verdict: missing
+        - requirement: Excel
+          verdict: met
+          key_evidence_ids: [sk-1]
+        - requirement: Tableau
+          verdict: missing
+evaluators:
+  - Coverage
+  - EvidenceValidity
+  - VerdictAccuracy
+  - GapRecall
+  - EvidenceRecall

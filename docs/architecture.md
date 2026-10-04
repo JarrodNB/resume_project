@@ -25,7 +25,8 @@
 4. The worker publishes to `ai_results` with one of:
    - `completed` + structured payload (the agent's Pydantic `output_type`)
    - `needs_user_input` + question(s) + serialized agent message history
-     (the agent called the deferred `ask_user` tool)
+     (the agent called the deferred `ask_user` tool; planned for career library rewriting,
+     not used yet)
    - `failed` + error
 5. Rails consumes the result, updates the `AiTask` and related records (storing the message
    history on the `AiTask`), and pushes the update to the client through a GraphQL
@@ -63,6 +64,15 @@ Per task type:
   (`Jobs::CreateJobFromScrapedPostingService`, `url` = the canonical link) inside the same row lock,
   links it as the task's `subject` (GraphQL `AiTask.job`), and fails the task instead if the
   Job can't be saved. Usage is reported only when the sorting agent ran.
+- `analyze_gaps`: input `{job_id}`; the task's `subject` is the Job. The worker reads the job
+  and the user's career library itself (read-only `ai_reader` role, scoped by the message's
+  `user_id`), so the input stays tiny and the analysis always uses the current library. The
+  completed result is `{gap_analysis: GapAnalysisResult}` (`services/ai/schemas/gap_analysis.py`:
+  summary, and per requirement and nice-to-have its kind, text, verdict `met` / `partial` /
+  `missing`, explanation, and evidence entries `{kind, id, text, context}` copied from the
+  library). Rails stores it on the AiTask only; `Job.latestGapAnalysis` is the newest one, and
+  re-running creates a new task. A deleted job, an empty library, or a job without
+  requirements fails the task with a user-facing message.
 
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
@@ -187,8 +197,33 @@ information carries across conversations.
 - **Per-service env files** (`services/api/.env`, `services/ai/.env`) for secrets. They match
   Kubernetes, where each deployment gets its own secrets. Local, non-secret wiring lives in
   `docker-compose.yml`.
-- **AI worker uses a read-only DB role** (`ai_reader`) for memory retrieval, so "Rails owns
-  writes" is enforced by Postgres.
+- **AI worker reads the database directly with a read-only role** (`ai_reader`), so "Rails
+  owns writes" is enforced by Postgres. Gap analysis reads the job and career library itself
+  instead of Rails packing a snapshot into the task message (the library can outgrow a
+  comfortable SQS payload, and the worker would need the same access for memory retrieval
+  anyway). The role gets SELECT only on the tables it needs, and of `users` only `id` and
+  `summary`, so password hashes and tokens stay out of reach. Grants are applied by a Rails rake
+  task after every `db:prepare` / `db:migrate` (`lib/ai_reader_access.rb`), because `schema.rb`
+  doesn't record grants; a Postgres init script only creates the role. Every worker query
+  filters by the task's `user_id`, and all reads for one task run in one REPEATABLE READ
+  transaction, so the job and library are a consistent snapshot.
+- **Gap analysis speaks in short labels; code fills in the evidence.** The prompt labels each
+  requirement (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `SUMMARY`), and the
+  agent answers with labels only. An output validator sends missing, repeated, or unknown labels
+  back as a retry, then code maps labels to ids and copies the library text as evidence. Short
+  labels are cheaper and more reliable than UUIDs in a prompt, and the agent can't invent or
+  reword evidence. It only compares the library with the job; it asks no questions.
+- **Gaps are answered in the comparison view, not by an AI asking questions.** The user can
+  write a response under any gap or partial match. Responses are saved in Rails per job and
+  requirement (keyed by the requirement text, not the analysis run), so re-running the
+  comparison keeps them, and each can optionally be added to the career library. Tailoring
+  reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
+  and rejected here: the comparison already lists every gap, so a plain form is simpler, needs
+  no paused agent runs, and lets the user decide what's worth answering. Human in the loop is
+  kept for a later feature where the AI rewrites career library entries and must ask for facts.
+- **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job
+  clears the tasks' subject but keeps them, so their cost still counts toward the monthly
+  budget.
 - **Docker for everything.** Local dev runs through docker compose, and the same images
   deploy to Kubernetes. This avoids Windows toolchain issues (especially for Ruby) and keeps
   dev and prod consistent.
@@ -208,7 +243,7 @@ information carries across conversations.
   not stated stays null, so evals can check faithfulness deterministically (every extracted
   highlight, skill, and company must appear in the source text). Ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
-  showcased in gap analysis. Partial dates ("2021") stay strings until import, where they
+  planned for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.
   The rule is also enforced at runtime: after every parse, `enforce_source_faithfulness`
   (`services/ai/documents/`) removes highlights and skills that don't appear in the source text

@@ -63,6 +63,12 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `config/initializers/rack_attack.rb` — request throttles (sign-in, sign-up, GraphQL) on
   `Rails.cache`; JSON 429 responses
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
+- `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
+  grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
+  (of `users`, only `id` and `summary`). It runs after `db:prepare`, `db:migrate`, and
+  `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
+  the AI worker must read needs to be added there; `spec/lib/ai_reader_access_spec.rb` checks
+  what the role can and can't see
 - `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
   GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`
   (`lib/tasks/graphql_schema.rake`); `spec/graphql/schema_dump_spec.rb` fails if it's stale

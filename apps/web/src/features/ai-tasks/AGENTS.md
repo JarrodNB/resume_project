@@ -3,7 +3,7 @@
 ## Purpose
 
 Following an AI task live, shared by every feature that starts one (resume import, job
-scraping).
+scraping, gap analysis).
 
 ## Contents
 

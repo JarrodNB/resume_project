@@ -14,6 +14,11 @@ the `result` sent to Rails, so changes must be mirrored there.
   `Jobs::CreateJobFromScrapedPostingService`
 - `sorted_requirement_bullets.py` — `SortedRequirementBullets`, the job requirements sorting
   agent's output (1-based bullet numbers)
+- `gap_analysis_context.py` — `GapAnalysisContext` (job + `CareerLibrary`), read from the
+  database by `database/career_library_reader.py`; the gap analysis input, not an LLM output
+- `gap_analysis.py` — `GapAnalysis` (agent output: verdicts citing short labels) and
+  `GapAnalysisResult`, the `analyze_gaps` result (`result["gap_analysis"]`) with evidence text
+  copied from the library; mirrored by `apps/web/src/features/gap-analysis/parseGapAnalysisResult.ts`
 
 ## Local Rules
 

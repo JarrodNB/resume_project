@@ -15,6 +15,7 @@ from collections.abc import Callable
 
 from pydantic import ValidationError
 
+from database.career_library_reader import build_database_context_reader
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.retryable_errors import is_retryable_error
 from worker.s3_file_storage import S3FileStorage
@@ -116,6 +117,7 @@ def run_worker() -> None:
         settings=settings,
         file_storage=S3FileStorage(settings),
         http_client=build_http_client(settings),
+        read_gap_analysis_context=build_database_context_reader(settings),
     )
 
     stop_requested = False

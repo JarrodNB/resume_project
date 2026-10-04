@@ -12,9 +12,10 @@ step.
 - `AddJobFromUrlPage.tsx` (`/jobs/new`) — URL form calling `scrapeJob`
 - `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — live status; redirects to the saved job
   (`aiTask.job`), or shows the scraper's warnings first; failures offer "Try another link"
-- `JobDetailPage.tsx` (`/jobs/:id`) — read-only requirements, nice-to-haves, description, and a
-  link to the original posting
-- `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY`, `SCRAPE_JOB_MUTATION`; hooks `useJobs.ts`
+- `JobDetailPage.tsx` (`/jobs/:id`) — gap analysis card (`features/gap-analysis/`), read-only
+  requirements, nice-to-haves, description, and a link to the original posting
+- `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`),
+  `SCRAPE_JOB_MUTATION`; hooks `useJobs.ts`
   (`useJobs`, `useJob`), `useScrapeJob.ts`
 - `jobStageLabels.ts` — stage labels; `scrapedJobWarnings.ts` — warnings from
   `result.scraped_job` (mirror of `services/ai/schemas/scraped_job_posting.py`)

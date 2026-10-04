@@ -2,7 +2,7 @@
  * Description: GraphQL operations for saved jobs (typed by GraphQL Code Generator).
  * Index:
  *   - JOBS_QUERY: the user's jobs, newest first
- *   - JOB_QUERY: one job with its description and requirements
+ *   - JOB_QUERY: one job with its description, requirements, and latest gap analysis
  *   - SCRAPE_JOB_MUTATION: starts a scrape_job AI task for a job posting URL
  * Live task status comes from features/ai-tasks.
  */
@@ -33,6 +33,13 @@ export const JOB_QUERY = graphql(`
       description
       requirements
       niceToHaves
+      latestGapAnalysis {
+        id
+        status
+        result
+        errorMessage
+        createdAt
+      }
     }
   }
 `)

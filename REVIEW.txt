@@ -7,7 +7,7 @@ Fix soon (all done)
 [done] Deleting a job breaks its tailored resumes. Fixed: Resume only requires a job when a tailored resume is created, so resumes whose job was deleted (job_id nulled, as the foreign key intends) stay editable. If deleting a job should delete its tailored resumes instead, switch Job to dependent: :destroy.
 Worth doing before real users
 Abuse limits. Sign-in, sign-up and GraphQL are now throttled (Rack::Attack) and AI usage has per-user limits, but there's still no GraphQL complexity limit (only a depth cap).
-Too much database access for the AI worker. The read-only ai_reader role is granted SELECT on every table, including users.encrypted_password. It should be limited to the tables the worker actually reads.
+[done] Too much database access for the AI worker. Fixed: Rails (lib/ai_reader_access.rb, run after db:prepare/db:migrate) grants ai_reader SELECT only on jobs and the career library tables, plus users (id, summary); the old default grant on every table is revoked. spec/lib/ai_reader_access_spec.rb checks that encrypted_password, ai_tasks and jwt_denylists are denied.
 Resume contents go to Langfuse. Full resume text and contact details are sent to Langfuse Cloud by default (include_content=True), and invalid messages are logged in full. Decide whether that's acceptable.
 Unhelpful error for corrupt files. Corrupt or encrypted PDF and DOCX files show the generic "The AI task failed" instead of the "unreadable file" message.
 No limits on file parsing. The worker doesn't cap the extracted text length or the uncompressed size of a DOCX, which is a zip file.
@@ -28,4 +28,4 @@ The worker has no tests for the polling loop itself or for PDF extraction.
 Header gaps. Many Rails mutation and type files have a Description: but no Index:, and the five empty Python __init__.py files have no header.
 Doc drift. The root AGENTS.md and the README.md describe Terraform and Kubernetes folders that don't exist yet. docs/mvp_plan.md marks only step 3 as done. apps/web/README.md is still the Vite template.
 Dev ports open to the network. Postgres, S3Mock and ElasticMQ bind to all network interfaces with default passwords. Binding them to 127.0.0.1 would fix that.
-The "fix soon" items are done. Next, I'd recommend the "worth doing before real users" list, starting with the ai_reader table grants, the Langfuse content decision, and the import page spinners.
+The "fix soon" items are done. Next, I'd recommend the "worth doing before real users" list, starting with the Langfuse content decision, and the import page spinners.

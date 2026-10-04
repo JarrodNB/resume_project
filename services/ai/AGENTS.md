@@ -14,8 +14,10 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 ## Local Rules
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
-  The database connection uses the read-only `ai_reader` role (for memory retrieval); never
-  attempt writes. Uploaded files are read (never written) from the S3 uploads bucket by
+  The database connection uses the read-only `ai_reader` role (career library and jobs for gap
+  analysis; later memory retrieval); never attempt writes. Every query is scoped by the task
+  message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
+  (`lib/ai_reader_access.rb`); a new table needs a grant there. Uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.
@@ -33,7 +35,9 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   from the user, it calls an external `ask_user` tool and the run ends with
   `DeferredToolRequests`. The worker publishes a `needs_user_input` result containing the
   question(s) and the serialized message history. When the user answers, the follow-up task
-  resumes with that history plus `DeferredToolResults`.
+  resumes with that history plus `DeferredToolResults`. Not built yet; planned for
+  AI-assisted rewriting of career library entries. Gap analysis and tailoring don't ask
+  questions: the user's gap responses arrive as ordinary task input.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
@@ -62,10 +66,15 @@ Every function and class gets a docstring describing what it does.
 
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
   clients, Langfuse tracing (see `worker/AGENTS.md`)
-- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `job_requirements_sorting_agent.py`)
+- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `job_requirements_sorting_agent.py`,
+  `gap_analysis_agent.py`)
 - `prompts/` — agent instructions
 - `schemas/` — structured output models (`ParsedResume`, `ScrapedJobPosting`,
-  `SortedRequirementBullets`)
+  `SortedRequirementBullets`, `GapAnalysis`) and the gap analysis input (`GapAnalysisContext`)
+- `database/` — read-only Postgres access (`ai_reader`): the job and career library for gap
+  analysis
+- `gap_analysis/` — gap analysis prompt building (short labels), output checks, and copying
+  evidence text from the library
 - `documents/` — PDF/DOCX text extraction
 - `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
 - `job_postings/` — job description to plain text and requirement bullets (headings first,

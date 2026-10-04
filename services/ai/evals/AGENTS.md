@@ -26,11 +26,20 @@ score attached, so runs can be compared across prompt and model changes.
   `PostingFieldsMatch`
 - `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
   `docker compose run --rm ai python -m evals.run_job_posting_extraction_evals`
+- `datasets/gap_analysis_cases.yaml` — 7 synthetic job + career library pairs (strong match,
+  obvious gaps, adjacent skills are partial, requirement shown only by a project, synonyms and
+  equivalent degree, fewer years than asked, near-empty library) with hand-labelled verdicts
+  (plus acceptable alternatives) and key evidence ids
+- `gap_analysis_evaluators.py` — `Coverage`, `EvidenceValidity`, `VerdictAccuracy`
+  (incl. met agreement), `GapRecall`, `EvidenceRecall`
+- `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
+  `docker compose run --rm ai python -m evals.run_gap_analysis_evals`
 
 ## Local Rules
 
 - All data is synthetic. Never commit real resumes.
-- `tests/test_resume_parsing_evaluators.py` and `tests/test_job_posting_extraction_evaluators.py`
-  check that the hand labels score 1.0 against their own inputs; keep them passing when adding
+- `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
+  and `tests/test_gap_analysis_evaluators.py` check that the hand labels score 1.0 against their own inputs; keep them passing when adding
   cases.
-- Runs cost real tokens (about $0.02 for the resume parsing set on gpt-5-mini).
+- Runs cost real tokens (about $0.02 for the resume parsing set and $0.01 for the gap
+  analysis set on gpt-5-mini).

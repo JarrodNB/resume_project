@@ -15,6 +15,10 @@ instructions from `prompts/`.
   `sort_job_requirement_bullets(bullets, model, thinking, timeout_seconds)` returns a
   `BulletSortingRun` (`sorted_bullets`, `usage`). Only runs when a posting's headings don't
   label its requirements
+- `gap_analysis_agent.py` — labeled job requirements + career library -> `GapAnalysis` (a
+  verdict per requirement citing library labels); its output validator retries with
+  `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
+  returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
 
 ## Local Rules
 

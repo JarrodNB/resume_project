@@ -16,8 +16,9 @@ Source of the web app, organized by feature.
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library and resumes page
 - `features/jobs/` — saved jobs: add from a posting link (live scrape status), list, detail
+- `features/gap-analysis/` — compare a job with the career library (shown on the job page)
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
-  resume import and jobs
+  resume import, jobs, and gap analysis
 - `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in
   `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,

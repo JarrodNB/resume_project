@@ -18,17 +18,20 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `scrape_job_handler.py` — picks the site's scraper for the URL, extracts the posting (sorting
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages
+- `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
+  builds the labeled prompt, runs the gap analysis agent, attaches evidence text; a deleted job,
+  empty library, or job without requirements fails with a user-facing message
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
-  incl. job site fetches through httpx) are left for SQS to redeliver; anything else, or the
+  incl. job site fetches through httpx and database connection errors) are left for SQS to redeliver; anything else, or the
   last attempt, publishes `failed`
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
-  sites) passed to every handler; `build_http_client`
+  sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
 - `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()`), `trace_ai_task`
-- `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names and
-  `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)
+- `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
+  read-only database connection (`DB_*`), and `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)
 - `sqs_queue_client.py` — wrapper for one SQS queue (receive, delete, send)
 
 ## Local Rules

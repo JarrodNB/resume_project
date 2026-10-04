@@ -1,0 +1,50 @@
+/**
+ * Description: A completed gap analysis: summary, verdict counts for the requirements, then each
+ * requirement and nice-to-have with its verdict and evidence.
+ * Index:
+ *   - GapAnalysisResultView: result component
+ */
+import { RequirementAssessmentItem } from './RequirementAssessmentItem'
+import { VERDICT_LABELS, type AssessedRequirement, type GapAnalysisResult, type Verdict } from './parseGapAnalysisResult'
+
+const VERDICT_ORDER: Verdict[] = ['met', 'partial', 'missing']
+
+/** Shows the summary and every assessed requirement, grouped by kind. */
+export function GapAnalysisResultView({ analysis }: { analysis: GapAnalysisResult }) {
+  const requirements = analysis.assessments.filter((item) => item.kind === 'required')
+  const niceToHaves = analysis.assessments.filter((item) => item.kind === 'nice_to_have')
+
+  return (
+    <div className="grid gap-4">
+      {analysis.summary && <p>{analysis.summary}</p>}
+      {requirements.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          Requirements:{' '}
+          {VERDICT_ORDER.map((verdict) => `${countVerdict(requirements, verdict)} ${VERDICT_LABELS[verdict].toLowerCase()}`).join(' · ')}
+        </p>
+      )}
+      <AssessmentList title="Requirements" assessments={requirements} />
+      <AssessmentList title="Nice to have" assessments={niceToHaves} />
+    </div>
+  )
+}
+
+/** Counts assessments with the given verdict. */
+function countVerdict(assessments: AssessedRequirement[], verdict: Verdict) {
+  return assessments.filter((item) => item.verdict === verdict).length
+}
+
+/** A titled list of assessments; nothing when empty. */
+function AssessmentList({ title, assessments }: { title: string; assessments: AssessedRequirement[] }) {
+  if (assessments.length === 0) return null
+  return (
+    <section className="grid gap-1">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      <ul className="divide-y">
+        {assessments.map((assessment) => (
+          <RequirementAssessmentItem key={assessment.requirement} assessment={assessment} />
+        ))}
+      </ul>
+    </section>
+  )
+}

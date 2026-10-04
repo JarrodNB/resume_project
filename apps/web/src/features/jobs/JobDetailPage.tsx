@@ -1,6 +1,6 @@
 /**
- * Description: One saved job (/jobs/:id), read-only: requirements, nice-to-haves, the full
- * description, and a link to the original posting.
+ * Description: One saved job (/jobs/:id), read-only: how the career library matches it (gap
+ * analysis), requirements, nice-to-haves, the full description, and a link to the original posting.
  * Index:
  *   - JobDetailPage: page component
  */
@@ -10,6 +10,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_STAGE_LABELS } from './jobStageLabels'
 import { useJob } from './useJobs'
@@ -46,6 +47,7 @@ export function JobDetailPage() {
               )}
             </div>
           </div>
+          <GapAnalysisCard jobId={job.id} latestGapAnalysis={job.latestGapAnalysis ?? null} />
           <BulletCard title="Requirements" items={job.requirements} emptyText="No requirements were found in the posting." />
           {job.niceToHaves.length > 0 && <BulletCard title="Nice to have" items={job.niceToHaves} />}
           {job.description && (

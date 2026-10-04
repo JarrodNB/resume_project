@@ -17,6 +17,8 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
   password reset)
 - `channels/` — WebSocket JWT auth and subscriptions run through `GraphqlChannel`
 - `workers/` — Shoryuken workers (called directly with a parsed body)
+- `lib/ai_reader_access_spec.rb` — what the AI worker's `ai_reader` role can read (runs
+  queries as that role inside a rolled-back savepoint)
 - `factories/` — one FactoryBot factory per model
 - `support/graphql_helpers.rb` — `execute_graphql(query, user:, variables:)`
 - `support/uploaded_file_helpers.rb` — `build_uploaded_file(content:, filename:)`,

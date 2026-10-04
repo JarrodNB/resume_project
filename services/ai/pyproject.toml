@@ -9,6 +9,7 @@ dependencies = [
     "boto3",
     "httpx>=0.28.1",
     "langfuse>=4.16.0",
+    "psycopg[binary]>=3.3.6",
     "pydantic",
     "pydantic-ai-slim[openai]>=2.52.0",
     "pydantic-settings",
@@ -31,3 +32,4 @@ line-length = 100
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = ["db: needs the compose Postgres (skipped when it isn't reachable)"]

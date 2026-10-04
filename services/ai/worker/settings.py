@@ -1,7 +1,8 @@
 """
 Description: Worker configuration loaded from environment variables.
 Index:
-    - WorkerSettings: typed settings for SQS, S3, and the LLM model and its reasoning effort
+    - WorkerSettings: typed settings for SQS, S3, the read-only database, and each agent's model
+      and reasoning effort
     - load_settings: builds WorkerSettings from the environment
 """
 
@@ -30,7 +31,16 @@ class WorkerSettings(BaseSettings):
     # Only runs for postings whose headings don't label the requirements.
     job_requirements_sorting_model: str = "openai:gpt-5-mini"
     job_requirements_sorting_thinking: ThinkingEffort = "low"
+    gap_analysis_model: str = "openai:gpt-5-mini"
+    gap_analysis_thinking: ThinkingEffort = "low"
     job_page_fetch_timeout_seconds: float = 20
+    # Read-only ai_reader role (see infra/postgres and services/api/lib/ai_reader_access.rb).
+    db_host: str = "localhost"
+    db_port: int = 5432
+    db_name: str = "api_development"
+    db_username: str = "ai_reader"
+    db_password: str = ""
+    db_connect_timeout_seconds: int = 10
     # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
     # before SQS hands the same task to another worker and it runs (and bills) twice.
     llm_run_timeout_seconds: float = 240

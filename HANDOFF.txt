@@ -39,15 +39,20 @@ Build order progress (docs/mvp_plan.md):
          verified live end to end over a real WebSocket)
   [IN PROGRESS] 4. AI features (Pydantic AI agents + evals)
          - [done] resume parsing (commit 94159b4; see "STEP 4a" below)
-         - [done, uncommitted] 4b. LinkedIn job scraping + minimal jobs UI (see "STEP 4b" below)
-         - [next] gap analysis (first deferred-tool / ask_user flow), tailoring, memory
+         - [done, commit 7dfd6da] 4b. LinkedIn job scraping + minimal jobs UI (see "STEP 4b" below)
+         - [done] 4c. gap analysis: career library vs job, no questions (see
+           "STEP 4c" below)
+         - [next] gap responses: the user responds to gaps in the comparison view (saved per
+           job + requirement, optional "add to career library"; no AI questions), then
+           tailoring (uses library + gap analysis + responses), then memory. The deferred-tool
+           / ask_user flow is saved for AI-assisted career library rewriting later
   [IN PROGRESS] 5. Web app, pulled forward (user's call) so resume upload and parsing can be
          seen working in the browser.
          - [done, commit 9393d1c] 5a. auth + upload + live parse + review + import + career
            library (see "STEP 5a" below)
          - [done, commit b157bd0] career library as the single base, with dedupe on import
            and manual merge/delete (see "CAREER LIBRARY AS THE BASE" below)
-  [NEXT] Commit 4b (when the user asks), then ask: gap analysis, or a second job site?
+  [NEXT] Gap responses.
          6. Landing page   7. Deploy (Terraform, k8s, GitHub Actions)
 
 ==========================================================================================
@@ -61,11 +66,12 @@ services/api    Rails 8.1 API mode, Ruby 3.4.11, Postgres, graphql-ruby, Devise 
                 + Shoryuken (SQS), ActionCable/Solid Cable at /cable for GraphQL subscriptions
 api-results-worker  same image as api; `shoryuken -R` consuming ai_results (AiResultWorker)
 services/ai     Python 3.13 + uv, plain SQS worker (NO FastAPI). worker/main.py polls ai_tasks,
-                task_handlers.handle_ai_task dispatches by task_type (parse_resume, scrape_job).
+                task_handlers.handle_ai_task dispatches by task_type (parse_resume, scrape_job,
+                analyze_gaps).
                 Pydantic AI 2.52, Langfuse SDK 4.16, Pydantic Evals; model gpt-5-mini
 s3 (S3Mock)     local S3 for uploads, port 9090, bucket throughline-uploads (not persisted)
 infra/elasticmq local SQS emulator config (queues: ai_tasks, ai_results, + dead-letter queues)
-infra/postgres  init SQL: creates api_development + read-only role ai_reader
+infra/postgres  init SQL: creates api_development + read-only role ai_reader (grants from Rails)
 docker-compose.yml   db (pgvector/pg17), sqs (elasticmq-native :9324), api, ai, web, landing
 
 ==========================================================================================
@@ -75,14 +81,17 @@ DECISIONS ALREADY MADE (details in docs/architecture.md "Decisions")
   The repo lives in a WSL2 Ubuntu distro (~/resume_project), not on C:\ (bind mounts from
   C:\ made every Rails request take 5+ seconds).
 - SQS for AI work. ElasticMQ locally (LocalStack now needs an account token, so dropped).
-- Rails owns all writes. The AI worker uses the READ-ONLY DB role ai_reader (for pgvector
-  memory search) and returns everything via the ai_results queue.
+- Rails owns all writes. The AI worker reads Postgres directly with the READ-ONLY role
+  ai_reader (job + career library for gap analysis; later pgvector memory search), scoped by
+  the task's user_id, and returns everything via the ai_results queue. Its table grants come
+  from Rails (lib/ai_reader_access.rb, after db:prepare/db:migrate), not the init SQL.
 - Duplicate SQS messages: worker receives 1 message at a time; Rails result handling must be
   idempotent (ignore results for AiTask that is finished? = completed/failed). No FIFO.
 - Pydantic AI for all agents (OpenAI models); human-in-the-loop via Pydantic AI DEFERRED
   TOOLS (ask_user tool -> run ends with DeferredToolRequests -> worker publishes
   needs_user_input with serialized message history -> Rails stores it on AiTask -> user
-  answers -> new task resumes with DeferredToolResults).
+  answers -> new task resumes with DeferredToolResults). Planned for AI-assisted career
+  library rewriting; gaps are answered in the comparison view instead (no ask_user).
 - Langfuse Cloud free tier for tracing (Agent.instrument_all()); Pydantic Evals for evals,
   one dataset + runner per agent; faithfulness (no invented experience) is the top metric.
 - GraphQL subscriptions (graphql-ruby over ActionCable, Solid Cable adapter) for live UI updates.
@@ -119,6 +128,7 @@ docker compose run --rm api bin/rails graphql:schema:dump   after any GraphQL ch
 docker compose exec web npm run codegen         then regenerate web GraphQL types
 docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
 docker compose run --rm ai python -m evals.run_job_posting_extraction_evals   job scraping evals
+docker compose run --rm ai python -m evals.run_gap_analysis_evals             gap analysis evals
 docker compose restart ai api-results-worker    after Python or result-handling Rails changes
 docker compose run --rm --no-deps web npm install <pkg>   then: docker compose up --build -V -d web
 
@@ -260,7 +270,7 @@ User chose: no base resume (it drifted from the library), and dedupe both on imp
   - Verified: 102 RSpec, 27 Vitest, tsc + oxlint clean.
 
 ==========================================================================================
-STEP 4b (DONE, NOT YET COMMITTED): LINKEDIN JOB SCRAPING
+STEP 4b (DONE, commit 7dfd6da): LINKEDIN JOB SCRAPING
 ==========================================================================================
 User chose: one job site at a time, deterministic scraping (no "hand the page to an LLM"), the
 Job is created automatically when the result arrives, minimal jobs UI. Greenhouse was built
@@ -290,6 +300,29 @@ LinkedIn is the one whose job pages load without a login (Indeed/Glassdoor/ZipRe
     as a search-page link refused as a duplicate).
   - Not done: a live run that hits the LLM fallback on a real LinkedIn job (no heading-less
     posting found yet; the fallback is covered by evals and tests).
+
+==========================================================================================
+STEP 4c (DONE): GAP ANALYSIS
+==========================================================================================
+User chose: gap analysis is ONLY a comparison of the career library with the job (no
+questions to the user; the user will respond to gaps in the same view, next), and the Python worker reads the database
+directly with the read-only ai_reader role instead of receiving a snapshot.
+  - Flow: analyzeJobGaps(jobId) -> GapAnalysis::StartGapAnalysisService (job must have
+    requirements, library not empty, no analysis of this job already queued) -> AiTask
+    analyze_gaps (subject = Job, input {job_id}) -> worker reads job + library in one
+    REPEATABLE READ read-only transaction (services/ai/database/) -> labeled prompt
+    (R1/N1 requirements; SUMMARY, E1, H1, P1, ED1, S1 library entries) -> gap_analysis_agent
+    (output validator retries on missing/repeated/unknown labels) -> code copies evidence text
+    by label -> {gap_analysis: GapAnalysisResult} stored on the AiTask.
+  - Job.latestGapAnalysis returns the newest task; re-running creates a new one. Deleting a
+    job nulls its tasks' subject (costs keep counting).
+  - Web: "How you match" card on /jobs/:id (features/gap-analysis/): run, live progress (also
+    after reload), failure + retry, verdicts (Met / Partly met / Gap) with cited evidence.
+  - ai_reader grants: SELECT on jobs + career library tables + users(id, summary) only
+    (the REVIEW.txt item is done). No DB reset needed; the rake task revokes the old grants.
+  - Evals: evals/datasets/gap_analysis_cases.yaml (7 synthetic cases), deterministic
+    evaluators (coverage, evidence validity, verdict accuracy, gap recall, evidence recall);
+    all 1.0 after one prompt fix (adjacent tech counts as partial), ~$0.0014/case.
 
 ==========================================================================================
 OPEN ITEMS / LATER

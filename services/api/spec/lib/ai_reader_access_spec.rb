@@ -1,0 +1,51 @@
+# Description: The ai_reader role can read only the tables and user columns the AI worker needs.
+# Everything runs inside the spec's transaction (grants and SET ROLE roll back with it).
+require "rails_helper"
+
+RSpec.describe AiReaderAccess do
+  let(:connection) { ActiveRecord::Base.connection }
+
+  before do
+    connection.execute("CREATE ROLE ai_reader NOLOGIN") unless described_class.role_exists?(connection)
+    described_class.grant(connection)
+  end
+
+  # Runs a query as ai_reader inside a savepoint, so the role switch (and any error) is undone.
+  def select_as_ai_reader(sql)
+    rows = nil
+    connection.transaction(requires_new: true) do
+      connection.execute("SET LOCAL ROLE ai_reader")
+      rows = connection.select_all(sql).to_a
+      raise ActiveRecord::Rollback
+    end
+    rows
+  end
+
+  it "reads the job and career library tables" do
+    job = create(:job)
+    create(:experience_highlight)
+
+    expect(select_as_ai_reader("SELECT id FROM jobs")).to eq([ { "id" => job.id } ])
+    expect(select_as_ai_reader("SELECT content FROM experience_highlights").size).to eq(1)
+  end
+
+  it "reads only the id and summary of users" do
+    user = create(:user, summary: "Backend engineer")
+
+    expect(select_as_ai_reader("SELECT id, summary FROM users")).to eq([ { "id" => user.id, "summary" => "Backend engineer" } ])
+    expect { select_as_ai_reader("SELECT encrypted_password FROM users") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "can't read AI tasks or the JWT denylist" do
+    expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "can't write" do
+    create(:job)
+
+    expect { select_as_ai_reader("UPDATE jobs SET title = 'x' RETURNING id") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+end

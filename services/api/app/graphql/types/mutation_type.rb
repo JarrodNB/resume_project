@@ -9,6 +9,7 @@
 #   - educations: deleteEducation, mergeEducations
 #   - skills: deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
+#   - gap analysis: analyzeJobGaps
 module Types
   class MutationType < Types::BaseObject
     field :create_job, mutation: Mutations::Jobs::CreateJob
@@ -34,5 +35,7 @@ module Types
 
     field :parse_resume, mutation: Mutations::ResumeImports::ParseResume
     field :import_parsed_resume, mutation: Mutations::ResumeImports::ImportParsedResume
+
+    field :analyze_job_gaps, mutation: Mutations::GapAnalysis::AnalyzeJobGaps
   end
 end

@@ -3,18 +3,24 @@ Description: Shared services that task handlers need, built once at worker start
 swapped for fakes in tests.
 Index:
     - FileStorage: protocol for downloading uploaded files
-    - TaskDependencies: settings + file storage + HTTP client passed to every handler
+    - GapAnalysisContextReader: reads a user's job and career library (None if no such job)
+    - TaskDependencies: settings, file storage, HTTP client, and database reader for handlers
     - build_http_client: the HTTP client job scrapers fetch pages with
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
+from uuid import UUID
 
 import httpx
 
+from schemas.gap_analysis_context import GapAnalysisContext
 from worker.settings import WorkerSettings
 
 USER_AGENT = "ThroughlineJobScraper/0.1"
+
+GapAnalysisContextReader = Callable[[UUID, UUID], GapAnalysisContext | None]
 
 
 class FileStorage(Protocol):
@@ -32,6 +38,8 @@ class TaskDependencies:
     settings: WorkerSettings
     file_storage: FileStorage
     http_client: httpx.Client
+    # Called with (user_id, job_id); production reads Postgres as ai_reader.
+    read_gap_analysis_context: GapAnalysisContextReader
 
 
 def build_http_client(settings: WorkerSettings) -> httpx.Client:

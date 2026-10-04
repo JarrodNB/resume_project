@@ -14,6 +14,8 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`;
   `mutations/jobs/scrape_job.rb` (`scrapeJob(url)`) queues scraping, and the task's
   `job` field (`types/ai_task_type.rb`) is the saved Job once it completes;
+  `mutations/gap_analysis/analyze_job_gaps.rb` (`analyzeJobGaps(jobId)`) queues a gap analysis,
+  and `Job.latestGapAnalysis` (`types/job_type.rb`) is the job's newest analyze_gaps task;
   career library entries have `delete*` (experiences, projects, educations, skills) and
   `merge*(targetId, sourceId)` (experiences, projects, educations; both ids are looked up
   through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`

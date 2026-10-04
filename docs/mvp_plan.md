@@ -12,14 +12,19 @@ over feature breadth or market positioning.
 1. **Auth** — sign up / log in (Devise + JWT).
 2. **Career library** — upload a PDF/DOCX (AI parses it into experiences, projects, education,
    skills, contact details, and summary) or fill out a form. The library is the base; there
-   is no separate base resume to drift out of sync with it.
+   is no separate base resume to drift out of sync with it. Later, the AI helps rewrite library
+   entries and asks the user when it needs facts (human in the loop).
 3. **Job profiles** — paste a job URL; AI scrapes it into a structured profile
    (title, company, requirements, nice-to-haves). Manual entry as a fallback.
-4. **Gap analysis** — compare the resume to a job, show matches and gaps, and have the AI
-   ask the user questions to close the gaps (human in the loop).
-5. **Tailored resume** — generate a job-specific version from the career library plus the
-   gap answers; the user edits and approves it.
-6. **Memory** — gap answers and facts are saved and reused in future tailoring.
+4. **Gap analysis** (done) — compare the career library to a job: a verdict (met, partly met,
+   gap) for each requirement and nice-to-have, citing library entries as evidence.
+   **Gap responses:** in the same view, the user can respond to any gap or partial match
+   (e.g. "I used Kubernetes at Acme for two years"). Responses are saved per job and
+   requirement, so they survive re-running the comparison, and each can optionally be added to
+   the career library. No AI questions: the user writes what they want.
+5. **Tailored resume** — generate a job-specific version from the career library, the gap
+   analysis, and the user's gap responses; the user edits and approves it.
+6. **Memory** — gap responses and facts are saved and reused in future tailoring.
 7. **Job board** — saved jobs with stages: unapplied, applied, interviewing, rejected, offer.
 8. **Export** — PDF export of a tailored resume.
 9. **Observability** — every LLM call traced in Langfuse.
@@ -30,8 +35,8 @@ over feature breadth or market positioning.
     | --------------- | ---------------------------------------------------------------------- |
     | Resume parsing  | Extracted fields match hand-labeled resumes                            |
     | Job scraping    | Extracted requirements match hand-labeled job postings                 |
-    | Gap analysis    | Finds the known gaps; asks relevant, non-redundant questions           |
-    | Tailoring       | **Faithfulness**: no invented experience, skills, or numbers; relevance to the job |
+    | Gap analysis    | Finds the known gaps; verdicts and cited evidence match hand labels    |
+    | Tailoring       | **Faithfulness**: no invented experience, skills, or numbers (the library and gap responses are the only sources); relevance to the job |
 
     Deterministic checks where possible, LLM-as-judge for subjective ones. Results are
     tracked in Langfuse so runs can be compared over time.
@@ -51,8 +56,8 @@ employed-mode work journal.
 3. **Queue round trip** (done) — Rails publishes to `ai_tasks`, a Python worker echoes to
    `ai_results`, Rails consumes it and pushes the `aiTaskUpdated` subscription. Proves the
    pipeline end to end.
-4. **AI features** — resume parsing, then job scraping, gap analysis with questions,
-   tailoring, then memory. Each agent ships with its eval dataset; write the first few
+4. **AI features** — resume parsing, then job scraping, gap analysis
+   (then gap responses), tailoring, then memory. Each agent ships with its eval dataset; write the first few
    eval cases before tuning the prompt.
 5. **Web app** — resume editor, job board, gap analysis chat, tailored resume view, PDF export.
 6. **Landing page.**

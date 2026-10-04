@@ -17,7 +17,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   - `project.rb`, `education.rb`, `skill.rb`
   - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
     educations (ongoing first, then by end date, undated last); `User` lists them this way
-- `job.rb` — job profile + application stage
+- `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,
+  gap analyses; nulled, not deleted, with the job so costs stay counted) and
+  `latest_gap_analysis`
 - `resume.rb` + `resume_section.rb` — resumes tailored to a job (there is no base resume; the
   career library is the base). Section `content` is a JSON snapshot, so editing a resume never
   changes the career library (content shapes in `resume_section.rb`). A resume needs a job only

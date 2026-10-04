@@ -1,13 +1,14 @@
 """
 Description: Decides whether a task failure is temporary (worth retrying via SQS redelivery) or
-permanent (report "failed" now). Covers the model provider (through Pydantic AI), AWS, and job
-site fetches (httpx).
+permanent (report "failed" now). Covers the model provider (through Pydantic AI), AWS, job
+site fetches (httpx), and the database (psycopg).
 Index:
     - is_retryable_error: True for rate limits, provider/AWS/job site 5xx, timeouts (including an
-      agent run that hit its deadline), and network errors
+      agent run that hit its deadline), network errors, and the database being unreachable
 """
 
 import httpx
+import psycopg
 from botocore.exceptions import ClientError, HTTPClientError
 from botocore.exceptions import ConnectionError as BotoConnectionError
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
@@ -33,7 +34,14 @@ def is_retryable_error(error: BaseException) -> bool:
         status_code = error.response.status_code
         return status_code in RETRYABLE_HTTP_STATUSES or status_code >= 500
     if isinstance(
-        error, (TimeoutError, BotoConnectionError, HTTPClientError, httpx.TransportError)
+        error,
+        (
+            TimeoutError,
+            BotoConnectionError,
+            HTTPClientError,
+            httpx.TransportError,
+            psycopg.OperationalError,
+        ),
     ):
         return True
     if isinstance(error, ClientError):

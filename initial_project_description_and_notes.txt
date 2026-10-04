@@ -1,5 +1,6 @@
 THIS DOCUMENT WAS JUST INITIAL IDEAS AND THOUGHTS AND MAY NOT REFLECT WHAT IS ACTUALLY IMPLEMENTED
 undocumented ideas:
+- can also just build a normal job search engine and allow them to be saved as jobs
 - allow user to upload additional documents that would then be used as a vector store to aid resume writing
 - personal/business/job/project storys, used to help prep converastion topics and delievery during interviews
 - to expand on interview questions, the user can keep questions and discard others

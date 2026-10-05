@@ -19,6 +19,9 @@ Shared UI used by more than one feature.
 
 ## Local Rules
 
+- New page sections are collapsible and start collapsed. Give `SectionCard` a `sectionId`, or
+  use `useOpenSection` with `CollapseToggle`. That id is what `lib/openSections.ts` remembers.
+  Don't collapse the section the user is currently editing.
 - Section colors come from the `--section-*` variables in `index.css`. Add a tone there (light
   and dark values, plus the `@theme inline` entry) before using it in `sectionTones.ts`.
 - Tailwind only finds class names written out in full, so don't build them from template

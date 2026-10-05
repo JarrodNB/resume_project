@@ -210,6 +210,13 @@ tailoring) instead of sending everything.
   `moveExperienceHighlight` (moves the existing row, keeping its id, and renumbers both
   roles). The web app updates the Apollo cache before the server answers and refetches if the
   change is rejected. Uses `@dnd-kit/react`, which supports keyboard dragging.
+- **Page sections are collapsible and start collapsed.** Long pages are a stack of titled
+  sections (the career library, a job, a tailored resume). Each starts collapsed and stays that
+  way until the user opens it. The browser remembers the open ones in localStorage
+  (`throughline.openSections`), the same way it remembers the color theme, so the choice is not
+  stored on the account. The section the user is in the middle of editing stays open: the import
+  review form, and the resume section being written. A new titled section on a page follows this
+  rather than rendering fully open.
 - **File history in git**, not in file headers.
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
   them locally and in CI. Scores go to Langfuse for comparison across prompt and model

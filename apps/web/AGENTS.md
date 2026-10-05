@@ -14,6 +14,11 @@ Testing Library, oxlint.
 ## Local Rules
 
 - Components are small and single-purpose; split when a component handles more than one concern.
+- Page sections are collapsible. A new titled section starts collapsed and stays that way until
+  the user opens it; this browser remembers the open ones (`src/lib/openSections.ts`). Pass a
+  stable `sectionId` to `SectionCard`, or use `useOpenSection` with `CollapseToggle`. Leave open
+  the section the user is filling in right now (the import review form, the resume section
+  being written).
 - Data fetching lives in hooks (`useTailoredResume`), not inline in components.
 - GraphQL operations live next to the feature that uses them (`<feature>Operations.ts`), written
   with `graphql(...)` from `@/graphql/generated`. After adding or changing one, run

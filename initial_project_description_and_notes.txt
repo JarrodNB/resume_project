@@ -15,7 +15,6 @@ undocumented ideas:
 - if gasp response, then gap and response in career library
 - characteristics in CL, like hard working, whatever, or maybe strength and weaknesses
 - cover letter
-- need to add qdrant or w/e vector store would be best, make sure volume persists
 -----
 as far as llm guidance, can we add a description and index at the top of each file?
 - small modular/reusable files

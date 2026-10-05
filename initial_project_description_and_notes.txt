@@ -12,6 +12,10 @@ undocumented ideas:
 - can print/export study material
 - dailey tips emailed
 - reasons for canceling, i found a job, textfield for a statment on how throughline helped, reminder that throughline also has functionality for career continuance or w/e, maybe we have a lower tier subscription for this or a discount
+- if gasp response, then gap and response in career library
+- characteristics in CL, like hard working, whatever, or maybe strength and weaknesses
+- cover letter
+- need to add qdrant or w/e vector store would be best, make sure volume persists
 -----
 as far as llm guidance, can we add a description and index at the top of each file?
 - small modular/reusable files

@@ -7,9 +7,12 @@
 
 const MONTH_YEAR = new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 
-/** Formats an ISO date as "Mon YYYY" (UTC, so the day never shifts the month). */
+/** Formats an ISO date as "Mon YYYY" (UTC, so the day never shifts the month). A year-month
+ * ("2025-01") is read as the first of that month. */
 export function formatMonthYear(isoDate: string): string {
-  return MONTH_YEAR.format(new Date(`${isoDate.slice(0, 10)}T00:00:00Z`))
+  const match = /^(\d{4})-(\d{2})/.exec(isoDate)
+  if (!match) return isoDate
+  return MONTH_YEAR.format(new Date(`${match[1]}-${match[2]}-01T00:00:00Z`))
 }
 
 /**

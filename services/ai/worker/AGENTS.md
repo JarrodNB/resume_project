@@ -23,7 +23,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   evidence text, and reports Jev usage; a deleted job, empty library, or job without
   requirements fails with a user-facing message
 - `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
-  summary, experience, projects, education, skills), pauses for approval, and echoes `generation`
+  summary, experience, projects, education, skills), pauses for approval, and echoes `generation`.
+  A section with no library entries is left out with no model call. Projects, education, and
+  skills are not narrowed by retrieval
 - `tailor_resume_steps.py` — folds the user's decision, screens gap responses, and builds the
   pause or failure result
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,

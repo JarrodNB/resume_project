@@ -16,6 +16,11 @@ _WRITE_ANYWAY = (
     "The user asked you to write this section anyway. Use the closest sources and set "
     "nothing_fits to false when any source can be used without adding a fact."
 )
+_SECTION_NOTE = {
+    "education": "Every source labeled ED is this person's education. Include each one, including certifications.",
+    "projects": "Every source labeled P is a project. Include each one that belongs on this resume.",
+    "skills": "Every source labeled S is a skill. Include the ones this job needs.",
+}
 
 
 @dataclass(frozen=True)
@@ -39,9 +44,10 @@ def build_section_prompt(
 ) -> SectionPrompt:
     """Builds the prompt for one section. Retrieval narrows the library; gap responses and
     approved sections are always listed."""
-    sources = label_sources(context, gap_responses, approved_sections, retrieved)
+    sources = label_sources(context, gap_responses, approved_sections, retrieved, section_type)
     lines = [
         f"# Write the {SECTION_TITLES[section_type]} section",
+        _SECTION_NOTE.get(section_type, ""),
         _WRITE_ANYWAY if write_anyway else "",
         "",
         f"# Job: {context.job.title} at {context.job.company}",

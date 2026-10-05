@@ -15,7 +15,9 @@ for each section; this page edits the current one and saves the finished draft o
   (`resume.<jobId>.<sectionType>`), and its draft stays in the parent while collapsed
 - `SectionFields.tsx` — resume-import review fields for one section
 - `SectionPreview.tsx` — a decided section, with "Edit again" while tailoring is open. The text
-  starts collapsed; "Edit again" stays on the header. The section being written does not collapse
+  starts collapsed; "Edit again" stays on the header. `SectionPreviewBody.tsx` shows a role,
+  project, or school as a card (heading, dates, bullets), not one block of text. The section
+  being written does not collapse
 - `sectionOrder.ts` — section order and which section a queued task is writing
 - `tailorDraft.ts` — section JSON to and from the review-field draft
 - `parseTailorTask.ts` — approved sections, the open question, and the finished draft

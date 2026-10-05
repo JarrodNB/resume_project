@@ -8,6 +8,7 @@ Index:
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from tailoring.check_section_faithfulness import find_section_problems
+from tailoring.labeled_sources import LabeledSources, SourceRecord
 from tests.fakes import build_gap_analysis_context
 
 
@@ -52,6 +53,51 @@ def test_invented_metric_is_rejected() -> None:
     assert problems
     assert "99%" in problems[0]
     assert prose.text == "Cut latency 99% at Initech."
+
+
+def test_sentence_opening_acronym_is_not_a_proper_name() -> None:
+    """'Integrated AI' opens a sentence. AI is checked on its own, and it is in the source."""
+    sources = LabeledSources(
+        records={
+            "E1": SourceRecord("E1", "experience", "Engineer at Co"),
+            "H1": SourceRecord("H1", "highlight", "Built an AI assistant"),
+        }
+    )
+    draft = TailoredSectionDraft(
+        nothing_fits=False,
+        entries=[
+            ChosenEntry(
+                label="E1",
+                prose=[CitedProse(text="Integrated AI into the product.", source_labels=["H1"])],
+            )
+        ],
+    )
+
+    assert find_section_problems("experience", draft, sources) == []
+
+
+def test_invented_name_is_rejected() -> None:
+    """A two-word name the cited source never states is a problem."""
+    sources = LabeledSources(
+        records={
+            "E1": SourceRecord("E1", "experience", "Engineer at Co"),
+            "H1": SourceRecord("H1", "highlight", "Moved hosting in-house"),
+        }
+    )
+    draft = TailoredSectionDraft(
+        nothing_fits=False,
+        entries=[
+            ChosenEntry(
+                label="E1",
+                prose=[CitedProse(text="Moved hosting to Google Cloud.", source_labels=["H1"])],
+            )
+        ],
+    )
+
+    problems = find_section_problems("experience", draft, sources)
+
+    assert problems
+    assert "Google Cloud" in problems[0]
 
 
 def test_nothing_fits_must_be_empty() -> None:

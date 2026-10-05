@@ -132,6 +132,58 @@ def test_approved_contact_then_writes_the_summary(
     assert result.usage[0].model == task_dependencies.settings.resume_tailoring_model
 
 
+def test_empty_projects_are_omitted_without_a_model_call(
+    task_dependencies: TaskDependencies,
+    fake_context_reader: FakeGapAnalysisContextReader,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No projects means that section is left out immediately, and education is still written."""
+    context = build_gap_analysis_context()
+    library = context.career_library.model_copy(update={"projects": []})
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = context.model_copy(update={"career_library": library})
+    monkeypatch.setattr(
+        "worker.tailor_resume_handler.retrieve_source_keys",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("education does not use retrieval")),
+    )
+    approved = [
+        {"section_type": name, "title": name, "content": {}, "omitted": False}
+        for name in ("contact", "summary", "experience")
+    ]
+    education = {
+        "nothing_fits": False,
+        "entries": [{"label": "ED1", "prose": []}],
+        "summary": None,
+    }
+
+    with resume_tailoring_agent.override(model=TestModel(custom_output_args=education)):
+        result = handle_ai_task(_task(_base_input(approved_sections=approved)), task_dependencies)
+
+    question = result.pending_questions[0]
+    assert question["section_type"] == "education"
+    assert question["content"]["items"][0]["institution"] == "State University"
+    omitted = [section["section_type"] for section in question["approved_sections"] if section["omitted"]]
+    assert omitted == ["projects"]
+
+
+def test_empty_education_draft_still_shows_the_library(
+    task_dependencies: TaskDependencies, stored_context: None
+) -> None:
+    """Saying nothing fits does not hide degrees that are in the library."""
+    approved = [
+        {"section_type": name, "title": name, "content": {}, "omitted": name == "projects"}
+        for name in ("contact", "summary", "experience", "projects")
+    ]
+    empty = {"nothing_fits": True, "entries": [], "summary": None}
+
+    with resume_tailoring_agent.override(model=TestModel(custom_output_args=empty)):
+        result = handle_ai_task(_task(_base_input(approved_sections=approved)), task_dependencies)
+
+    question = result.pending_questions[0]
+    assert question["section_type"] == "education"
+    assert question["nothing_fits"] is False
+    assert question["content"]["items"][0]["institution"] == "State University"
+
+
 def test_last_section_completes_the_draft(
     task_dependencies: TaskDependencies, stored_context: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

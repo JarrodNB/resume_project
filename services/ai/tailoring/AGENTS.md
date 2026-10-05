@@ -13,7 +13,8 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
   approved sections, and the pending user action
 - `retrieve_for_section.py` — embeds that section's job requirements and searches
   `library_embeddings`; no matches means the whole library
-- `labeled_sources.py` — short labels for retrieved entries, gap responses, and approved sections
+- `labeled_sources.py` — short labels for retrieved entries, gap responses, and approved sections.
+  Projects, education, and skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
 - `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
   replace the rewrite with the original library text

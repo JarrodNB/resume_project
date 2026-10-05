@@ -69,6 +69,18 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ai_task.input["pending_section"]).to be_nil
   end
 
+  it "keeps the tailor submission when a step fails before a draft comes back" do
+    pending = { "section_type" => "summary", "action" => "approve" }
+    approved = [ { "section_type" => "contact" } ]
+    ai_task.update!(task_type: "tailor_resume", generation: 2, input: { "pending_section" => pending, "approved_sections" => approved })
+
+    described_class.call(message: result_message("failed", error_message: "The AI task failed"))
+
+    expect(ai_task.reload).to be_failed
+    expect(ai_task.input["pending_section"]).to eq(pending)
+    expect(ai_task.input["approved_sections"]).to eq(approved)
+  end
+
   it "stores questions and message history when the AI needs user input" do
     message = result_message(
       "needs_user_input",

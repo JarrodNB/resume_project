@@ -76,10 +76,13 @@ module AiTasks
     end
 
     # Copies the sections approved so far onto the task input and clears the submission that
-    # this step already handled, so a reload shows the same draft.
+    # this step already handled, so a reload shows the same draft. A failure that carries no
+    # draft leaves the submission in place.
     def tailor_input_attributes(ai_task)
-      input = ai_task.input.deep_dup
       approved = approved_sections_from_message
+      return {} if @message["status"] == "failed" && approved.nil?
+
+      input = ai_task.input.deep_dup
       input["approved_sections"] = approved unless approved.nil?
       input["pending_section"] = nil
       { input: input }

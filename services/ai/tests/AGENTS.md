@@ -46,7 +46,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_screen_user_text.py` — phrase block, missing key fails closed, yes-confidence threshold
 - `test_check_section_faithfulness.py` — unsupported claims are rejected; library text is not
   substituted
-- `test_tailor_resume_handler.py` — one section per message, blocked edit, omit, generation
+- `test_labeled_sources.py` — a section's own rows stay labeled when retrieval returned other rows
+- `test_tailor_resume_handler.py` — one section per message, blocked edit, omit, an empty
+  projects list is skipped with no model call, generation
 - `test_tailoring_evaluators.py` — hand labels score as expected
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block

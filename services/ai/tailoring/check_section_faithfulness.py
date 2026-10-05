@@ -4,6 +4,7 @@ support. It does not replace the rewrite with the original library text; the age
 asked to try again.
 Index:
     - find_section_problems: problems to send back as a retry, empty when the draft is usable
+    - _title_phrases: multi-word names, excluding a sentence opening plus an acronym
 """
 
 import re
@@ -60,9 +61,28 @@ def _claim_problems(prose: CitedProse, sources: LabeledSources, *, extra_haystac
     if not prose.source_labels:
         return ["Cite the source labels each sentence uses."]
     haystack = normalize_text(extra_haystack + "\n" + sources.text_for(prose.source_labels))
-    claims = [*_NUMBER.findall(prose.text), *_TITLE_PHRASE.findall(prose.text), *_MARKED_TOKEN.findall(prose.text)]
+    claims = [*_NUMBER.findall(prose.text), *_title_phrases(prose.text), *_MARKED_TOKEN.findall(prose.text)]
     unsupported = [claim for claim in claims if normalize_text(claim).replace(",", "") not in haystack.replace(",", "")]
     if not unsupported:
         return []
     listed = ", ".join(dict.fromkeys(unsupported))
     return [f"These are not in the cited sources, so remove them or cite a source that states them: {listed}."]
+
+
+def _title_phrases(text: str) -> list[str]:
+    """Multi-word names. 'Integrated AI' at the start of a sentence is an opening word plus
+    an acronym, and the acronym is checked on its own."""
+    phrases: list[str] = []
+    for match in _TITLE_PHRASE.finditer(text):
+        phrase = match.group(0)
+        words = phrase.split(" ")
+        if _at_sentence_start(text, match.start()) and len(words) == 2 and _MARKED_TOKEN.fullmatch(words[1]):
+            continue
+        phrases.append(phrase)
+    return phrases
+
+
+def _at_sentence_start(text: str, index: int) -> bool:
+    """True when a match begins a sentence, so its first word is capitalized by grammar."""
+    prefix = text[:index].rstrip()
+    return prefix == "" or prefix[-1] in ".!?\n"

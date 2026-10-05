@@ -15,8 +15,8 @@ output in addition to the usual Description/Index.
   company info)
 - `gap_analysis_instructions.py` — `GAP_ANALYSIS_INSTRUCTIONS` (the library is the only
   evidence; met / partial / missing; years from dated roles; adjacent experience is partial,
-  never missing; cite labels, preferring highlights; a library fact counts like a highlight;
-  summary addresses the user as "you")
+  never missing; cite labels, preferring highlights; the profile summary is not evidence;
+  a library fact counts like a highlight; summary addresses the user as "you")
 - `user_text_screen_instructions.py` — framing for the Jev screen; the yes/no questions live
   on the output type
 - `resume_tailoring_instructions.py` — `RESUME_TAILORING_INSTRUCTIONS` (write toward the job

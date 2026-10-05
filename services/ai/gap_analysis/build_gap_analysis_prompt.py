@@ -1,7 +1,8 @@
 """
 Description: Turns a GapAnalysisContext into the agent's user prompt. Every requirement and every
-career library entry gets a short label (R1, N1, E1, H1, P1, ED1, S1, F1, SUMMARY): models copy short
-labels reliably (unlike UUIDs) and they cost fewer tokens. The returned maps let the validator
+career library entry gets a short label (R1, N1, E1, H1, P1, ED1, S1, F1): models copy short
+labels reliably (unlike UUIDs) and they cost fewer tokens. The profile summary is unlabeled
+background for the overall writeup, not evidence. The returned maps let the validator
 check the labels and the worker swap them back for ids and text.
 Index:
     - LabeledRequirement: one requirement with its kind and text
@@ -17,8 +18,6 @@ from datetime import date
 from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.gap_analysis import EvidenceItem, RequirementKind
 from schemas.gap_analysis_context import GapAnalysisContext
-
-SUMMARY_REF = "SUMMARY"
 
 
 @dataclass(frozen=True)
@@ -106,8 +105,12 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
     library = context.career_library
     lines: list[str] = []
     if library.summary:
-        _add_evidence(prompt, SUMMARY_REF, EvidenceItem(kind="summary", text=library.summary))
-        lines += ["", "## Summary", f"[{SUMMARY_REF}] {library.summary}"]
+        lines += [
+            "",
+            "## Profile summary",
+            "Background for the overall summary only. Not evidence, and it has no label.",
+            library.summary,
+        ]
 
     if library.experiences:
         lines += ["", "## Experience"]

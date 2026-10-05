@@ -27,4 +27,6 @@ Adding it to the career library creates a library fact, listed on the career lib
 - The result lives on the AI task (`Job.latestGapAnalysis`), not on the job. Re-running creates a
   new task; the newest one is shown. Responses are matched to requirements by their exact text,
   so they stay when the comparison is run again.
-- Evidence text is copied from the library by the AI service; display it as-is.
+- Evidence text is copied from the library by the AI service; display it as-is. Leave out
+  `kind: summary` evidence: that text is the whole profile summary, and showing it under a
+  requirement repeats the biography.

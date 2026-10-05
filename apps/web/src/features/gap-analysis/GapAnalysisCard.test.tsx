@@ -132,6 +132,34 @@ it('shows a failed comparison with a retry button', () => {
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })
 
+it('leaves the profile summary out of a requirement evidence list', () => {
+  const biography = 'Full-stack software engineer with 7+ years building a fintech platform.'
+  renderCard(
+    task({
+      result: {
+        gap_analysis: {
+          summary: 'You match the degree requirement.',
+          assessments: [
+            {
+              kind: 'required',
+              requirement: 'A degree in computer science',
+              verdict: 'met',
+              explanation: 'You hold a Bachelor of Science in Software Development.',
+              evidence: [
+                { kind: 'education', id: 'education-1', text: 'BSc, Software Development, Georgia Gwinnett College', context: null },
+                { kind: 'summary', id: null, text: biography, context: null },
+              ],
+            },
+          ],
+        },
+      },
+    }),
+  )
+
+  expect(screen.getByText('BSc, Software Development, Georgia Gwinnett College')).toBeInTheDocument()
+  expect(screen.queryByText(biography)).not.toBeInTheDocument()
+})
+
 it('shows verdicts, evidence, and the nice-to-have section', () => {
   renderCard(task({ result: COMPLETED_RESULT }))
 

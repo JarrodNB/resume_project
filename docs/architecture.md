@@ -237,8 +237,10 @@ tailoring) instead of sending everything.
   filters by the task's `user_id`, and all reads for one task run in one REPEATABLE READ
   transaction, so the job and library are a consistent snapshot.
 - **Gap analysis speaks in short labels; code fills in the evidence.** The prompt labels each
-  requirement (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `SUMMARY`), and the
-  agent answers with labels only. An output validator sends missing, repeated, or unknown labels
+  requirement (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `F1`), and the
+  agent answers with labels only. The profile summary is shown as unlabeled background for the
+  overall writeup and is not evidence, so it cannot be pasted under each requirement. An output
+  validator sends missing, repeated, or unknown labels
   back as a retry, then code maps labels to ids and copies the library text as evidence. Short
   labels are cheaper and more reliable than UUIDs in a prompt, and the agent can't invent or
   reword evidence. It only compares the library with the job; it asks no questions.

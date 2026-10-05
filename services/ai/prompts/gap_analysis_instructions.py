@@ -1,7 +1,7 @@
 """
 Description: Instructions for the gap analysis agent.
 Input: today's date, a job's labeled requirements (R1...) and nice-to-haves (N1...), and the
-user's career library with every entry labeled (SUMMARY, E1, H1, P1, ED1, S1, F1) (the user prompt,
+user's career library with every entry labeled (E1, H1, P1, ED1, S1, F1) (the user prompt,
 gap_analysis/build_gap_analysis_prompt.py).
 Output: GapAnalysis (schemas/gap_analysis.py): one assessment per requirement label, citing
 library labels, plus a short summary.
@@ -33,6 +33,8 @@ Evidence:
 - Cite the labels of the entries that support the verdict in `evidence_refs`: prefer a specific
   highlight (H3) over the whole role (E1), and add the skill entry (S2) when it applies.
 - Every met or partial verdict needs at least one label. Use only labels shown in the library.
+- The profile summary is background for the overall summary. It has no label. Do not cite it,
+  and do not treat it as evidence. A requirement is supported only by a labeled entry.
 - Treat obvious synonyms and spellings as the same thing (Postgres = PostgreSQL, JS = JavaScript,
   K8s = Kubernetes). A degree requirement is met by an equivalent degree in the education section.
 - Facts (F1, F2, ...) are statements the candidate wrote themselves. They count as evidence the

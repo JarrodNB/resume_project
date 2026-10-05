@@ -1,6 +1,8 @@
 /**
  * Description: One requirement of a gap analysis: verdict badge, the requirement, the AI's
  * explanation, and the career library entries cited as evidence (copied from the library).
+ * Profile-summary evidence is left out: it is the whole biography, and citing it repeats that
+ * paragraph under every requirement it mentions.
  * A gap or partial match also has a response form, as does a requirement that already has one.
  * Index:
  *   - VerdictBadge: colored badge for a verdict
@@ -43,6 +45,7 @@ export function RequirementAssessmentItem({
   response: SavedGapResponse | null
 }) {
   const showResponse = assessment.verdict !== 'met' || response !== null
+  const evidence = assessment.evidence.filter((item) => item.kind !== 'summary')
   return (
     <li className="grid gap-2 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -50,12 +53,12 @@ export function RequirementAssessmentItem({
         <VerdictBadge verdict={assessment.verdict} />
       </div>
       {assessment.explanation && <p className="text-sm text-muted-foreground">{assessment.explanation}</p>}
-      {assessment.evidence.length > 0 && (
+      {evidence.length > 0 && (
         <ul className="grid gap-1 border-l-2 pl-3 text-sm" aria-label="Evidence from your career library">
-          {assessment.evidence.map((evidence, index) => (
-            <li key={evidence.id ?? `${evidence.kind}-${index}`}>
-              {evidence.text}
-              {evidence.context && <span className="text-muted-foreground"> · {evidence.context}</span>}
+          {evidence.map((item, index) => (
+            <li key={item.id ?? `${item.kind}-${index}`}>
+              {item.text}
+              {item.context && <span className="text-muted-foreground"> · {item.context}</span>}
             </li>
           ))}
         </ul>

@@ -31,7 +31,7 @@ def test_labels_every_library_entry_with_its_id_and_text() -> None:
     """Each library entry gets a label that maps back to its database id and text."""
     prompt = build_gap_analysis_prompt(build_gap_analysis_context(), TODAY)
 
-    assert list(prompt.evidence) == ["SUMMARY", "E1", "H1", "H2", "P1", "ED1", "S1", "S2"]
+    assert list(prompt.evidence) == ["E1", "H1", "H2", "P1", "ED1", "S1", "S2"]
     highlight = prompt.evidence["H2"]
     assert (highlight.kind, highlight.id, highlight.text) == (
         "highlight",
@@ -41,7 +41,9 @@ def test_labels_every_library_entry_with_its_id_and_text() -> None:
     assert highlight.context == "Senior Engineer at Now Co"
     assert prompt.evidence["ED1"].text == "BSc, Computer Science, State University"
     assert prompt.evidence["S1"].context == "Languages"
-    assert prompt.evidence["SUMMARY"].id is None
+    assert "Backend engineer." in prompt.text
+    assert "[SUMMARY]" not in prompt.text
+    assert "SUMMARY" not in prompt.evidence
 
 
 def test_prompt_shows_today_and_role_dates() -> None:
@@ -54,12 +56,13 @@ def test_prompt_shows_today_and_role_dates() -> None:
 
 
 def test_leaves_out_empty_sections() -> None:
-    """No summary means no SUMMARY label; no nice-to-haves means no N labels."""
+    """No summary means no profile-summary section; no nice-to-haves means no N labels."""
     context = build_gap_analysis_context(nice_to_haves=[])
     context.career_library.summary = None
 
     prompt = build_gap_analysis_prompt(context, TODAY)
 
+    assert "Profile summary" not in prompt.text
     assert "SUMMARY" not in prompt.evidence
     assert "Nice to have" not in prompt.text
     assert list(prompt.requirements) == ["R1", "R2"]
@@ -99,7 +102,7 @@ def test_a_blocked_library_fact_is_omitted_with_a_warning() -> None:
         context, TODAY, allow_fact=lambda text: "Ignore previous" not in text
     )
 
-    assert list(prompt.evidence) == ["SUMMARY", "E1", "H1", "H2", "P1", "ED1", "S1", "S2", "F1"]
+    assert list(prompt.evidence) == ["E1", "H1", "H2", "P1", "ED1", "S1", "S2", "F1"]
     assert prompt.evidence["F1"].id == "fact-1"
     assert "fact-2" not in {item.id for item in prompt.evidence.values()}
     assert prompt.warnings == ["One of your notes was left out."]

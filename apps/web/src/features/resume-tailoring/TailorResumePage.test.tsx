@@ -73,10 +73,15 @@ function renderTailor(mocks: Parameters<typeof renderPage>[0]['mocks']) {
 }
 
 it('shows which section is being written, including after the task is reloaded', async () => {
+  const user = userEvent.setup()
   renderTailor([jobMock(task({ input: { approved_sections: [{ section_type: 'contact', title: 'Contact', content: { full_name: 'Ada' }, omitted: false }] } })), subscription({ input: { approved_sections: [{ section_type: 'contact', title: 'Contact', content: { full_name: 'Ada' }, omitted: false }] } })])
 
   expect(await screen.findByText('Writing Summary…')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Contact' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Edit again' })).toBeInTheDocument()
+  expect(screen.queryByText('Ada')).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Contact' }))
   expect(screen.getByText('Ada')).toBeInTheDocument()
 })
 
@@ -165,6 +170,7 @@ it('saves the finished draft', async () => {
 })
 
 it('opens a resume that was already saved', async () => {
+  const user = userEvent.setup()
   renderTailor([
     jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), {
       __typename: 'Resume',
@@ -177,6 +183,8 @@ it('opens a resume that was already saved', async () => {
   ])
 
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
+  expect(screen.queryByText('Backend engineer.')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByText('Backend engineer.')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()

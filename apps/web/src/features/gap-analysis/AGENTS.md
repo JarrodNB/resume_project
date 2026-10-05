@@ -14,7 +14,9 @@ Adding it to the career library creates a library fact, listed on the career lib
   completed result; follows the job's `latestGapAnalysis` when it is still queued (works on reload)
 - `GapAnalysisResultView.tsx` — summary, verdict counts, "Requirements" and "Nice to have" lists
 - `RequirementAssessmentItem.tsx` — `VerdictBadge` and one requirement with its evidence and,
-  for a gap or partial match, `GapResponseForm.tsx` (`useSaveGapResponse.ts`)
+  for a gap or partial match, `GapResponseForm.tsx` (`useSaveGapResponse.ts`). The row starts
+  collapsed to the requirement and verdict (`job.<id>.gap.<requirement>`); the form stays
+  mounted so an unsaved answer survives collapsing the row
 - `savedGapResponse.ts` — the `Job.gapResponses` shape the form matches by requirement text
 - `parseGapAnalysisResult.ts` — result types, `VERDICT_LABELS`, and `parseGapAnalysisResult`
   (mirror of `services/ai/schemas/gap_analysis.py` `GapAnalysisResult`); `warnings` on the

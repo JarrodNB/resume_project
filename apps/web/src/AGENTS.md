@@ -27,7 +27,8 @@ Source of the web app, organized by feature.
   (friendly message for HTTP 429 rate limiting); `generated/` is
   GraphQL Code Generator output (don't edit)
 - `lib/` — `apiConfig.ts` (API URLs), `colorTheme.ts` (light/dark preference in localStorage,
-  falling back to the system setting), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
+  falling back to the system setting), `openSections.ts` (which page sections are open, also
+  in localStorage; missing ids stay collapsed), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
 - `test/` — Vitest setup, `renderPage` helper, synthetic fixtures
 
 ## Local Rules

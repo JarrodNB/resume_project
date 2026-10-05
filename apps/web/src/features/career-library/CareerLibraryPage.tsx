@@ -69,7 +69,7 @@ export function CareerLibraryPage() {
       {library && (
         <DragDropProvider {...handlers}>
           <ProfileSection profile={library.me} />
-          <LibrarySection tone="experience" title="Experience" count={library.experiences.length} emptyText="No roles yet.">
+          <LibrarySection sectionId="library.experience" tone="experience" title="Experience" count={library.experiences.length} emptyText="No roles yet.">
             {library.experiences.map((experience, index) => (
               <LibraryEntry
                 key={experience.id}
@@ -84,7 +84,7 @@ export function CareerLibraryPage() {
               </LibraryEntry>
             ))}
           </LibrarySection>
-          <LibrarySection tone="projects" title="Projects" count={library.projects.length} emptyText="No projects yet.">
+          <LibrarySection sectionId="library.projects" tone="projects" title="Projects" count={library.projects.length} emptyText="No projects yet.">
             {library.projects.map((project, index) => (
               <LibraryEntry
                 key={project.id}
@@ -97,7 +97,7 @@ export function CareerLibraryPage() {
               />
             ))}
           </LibrarySection>
-          <LibrarySection tone="education" title="Education" count={library.educations.length} emptyText="No education yet.">
+          <LibrarySection sectionId="library.education" tone="education" title="Education" count={library.educations.length} emptyText="No education yet.">
             {library.educations.map((education, index) => (
               <LibraryEntry
                 key={education.id}
@@ -110,10 +110,10 @@ export function CareerLibraryPage() {
               />
             ))}
           </LibrarySection>
-          <LibrarySection tone="skills" title="Skills" count={library.skills.length} emptyText="No skills yet.">
+          <LibrarySection sectionId="library.skills" tone="skills" title="Skills" count={library.skills.length} emptyText="No skills yet.">
             <SkillList skills={library.skills} />
           </LibrarySection>
-          <LibrarySection tone="facts" title="Facts" count={library.libraryFacts.length} emptyText="No facts yet.">
+          <LibrarySection sectionId="library.facts" tone="facts" title="Facts" count={library.libraryFacts.length} emptyText="No facts yet.">
             <FactList facts={library.libraryFacts} />
           </LibrarySection>
         </DragDropProvider>

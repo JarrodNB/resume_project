@@ -1,5 +1,6 @@
 /**
  * Description: The user's profile in the career library: name, contact details, links, and summary.
+ * The card starts collapsed; opening it is remembered in this browser.
  * Index:
  *   - ProfileSection: profile card with an empty state
  */
@@ -14,7 +15,7 @@ export function ProfileSection({ profile }: { profile: Profile }) {
   const isEmpty = !profile.name && !contactLine && profile.links.length === 0 && !profile.summary
 
   return (
-    <SectionCard tone="contact" title="Profile" contentClassName="grid gap-2">
+    <SectionCard sectionId="library.profile" tone="contact" title="Profile" contentClassName="grid gap-2">
       {isEmpty ? (
         <p className="text-sm text-muted-foreground">Import a resume to fill in your contact details and summary.</p>
       ) : (

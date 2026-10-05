@@ -15,7 +15,8 @@ step.
 - `JobDetailPage.tsx` (`/jobs/:id`) — gap analysis card (`features/gap-analysis/`, including
   gap responses), a "Write resume" link to `/jobs/:id/tailor` once a comparison has finished
   ("Open resume" when one is already saved), read-only requirements, nice-to-haves,
-  description, and a link to the original posting
+  description (those three cards start collapsed, remembered per job), and a link to the
+  original posting
 - `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`,
   `gapResponses`, and `resume`),
   `SCRAPE_JOB_MUTATION`; hooks `useJobs.ts`

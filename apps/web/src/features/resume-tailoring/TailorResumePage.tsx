@@ -44,7 +44,10 @@ export function TailorResumePage() {
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
       <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
       {!job && loading && <p className="text-muted-foreground">Loading…</p>}
-      {job?.resume && savedSections.map((section) => <SectionPreview key={section.sectionType} section={section} />)}
+      {job?.resume &&
+        savedSections.map((section) => (
+          <SectionPreview key={section.sectionType} sectionId={`resume.${id}.${section.sectionType}`} section={section} />
+        ))}
       {job && !job.resume && task?.status === 'FAILED' && (
         <>
           <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />
@@ -54,7 +57,7 @@ export function TailorResumePage() {
         </>
       )}
       {job && !job.resume && task && task.status !== 'FAILED' && task.acceptedAt === null && (
-        <TailorProgress task={task} actions={actions} />
+        <TailorProgress jobId={id} task={task} actions={actions} />
       )}
       {job && !job.resume && !task && job.latestTailoring?.status === 'FAILED' && (
         <>
@@ -70,9 +73,11 @@ export function TailorResumePage() {
 
 /** The in-progress draft: writing, the open section, or the final editor. */
 function TailorProgress({
+  jobId,
   task,
   actions,
 }: {
+  jobId: string
   task: NonNullable<ReturnType<typeof useResumeTailoring>['task']>
   actions: ReturnType<typeof useTailorActions>
 }) {
@@ -82,6 +87,7 @@ function TailorProgress({
   if (task.status === 'COMPLETED') {
     return (
       <FinalResumeEditor
+        jobId={jobId}
         sections={finishedSectionsFromResult(task.result)}
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}
@@ -96,6 +102,7 @@ function TailorProgress({
       {approved.map((section) => (
         <SectionPreview
           key={section.sectionType}
+          sectionId={`resume.${jobId}.${section.sectionType}`}
           section={section}
           reopening={actions.pending}
           onReopen={(sectionType) => void actions.submitSection(sectionType, 'reopen', {})}

@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { JOB_QUERY } from '@/features/jobs/jobsOperations'
+import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { GapAnalysisCard, type GapAnalysisTask } from './GapAnalysisCard'
 import { ANALYZE_JOB_GAPS_MUTATION, SAVE_GAP_RESPONSE_MUTATION } from './gapAnalysisOperations'
@@ -83,6 +84,11 @@ function startMock(payload: { aiTask: { id: string; status: string } | null; err
   }
 }
 
+/** Opens one requirement row so a test can read its evidence and response form. */
+function openGap(requirement: string) {
+  setSectionOpen(`job.job-1.gap.${requirement}`, true)
+}
+
 function renderCard(
   latestGapAnalysis: GapAnalysisTask | null,
   mocks: ReturnType<typeof startMock | typeof aiTaskUpdateMock>[] = [],
@@ -134,6 +140,7 @@ it('shows a failed comparison with a retry button', () => {
 
 it('leaves the profile summary out of a requirement evidence list', () => {
   const biography = 'Full-stack software engineer with 7+ years building a fintech platform.'
+  openGap('A degree in computer science')
   renderCard(
     task({
       result: {
@@ -161,6 +168,9 @@ it('leaves the profile summary out of a requirement evidence list', () => {
 })
 
 it('shows verdicts, evidence, and the nice-to-have section', () => {
+  openGap('5+ years of Python')
+  openGap('Go')
+  openGap('Kubernetes')
   renderCard(task({ result: COMPLETED_RESULT }))
 
   expect(screen.getByText('Requirements: 1 met · 0 partly met · 1 gap')).toBeInTheDocument()
@@ -178,7 +188,22 @@ it('shows verdicts, evidence, and the nice-to-have section', () => {
   expect(within(gap).getByRole('checkbox', { name: 'Add to career library' })).toBeInTheDocument()
 })
 
+it('keeps an unsaved answer when its requirement is collapsed', async () => {
+  openGap('Go')
+  const user = userEvent.setup()
+  renderCard(task({ result: COMPLETED_RESULT }))
+
+  const gap = screen.getByText('Go').closest('li') as HTMLElement
+  await user.type(within(gap).getByRole('textbox'), 'Used it at Acme')
+  await user.click(within(gap).getByRole('button', { name: /Go/ }))
+  expect(within(gap).queryByRole('textbox')).not.toBeInTheDocument()
+
+  await user.click(within(gap).getByRole('button', { name: /Go/ }))
+  expect(within(gap).getByRole('textbox')).toHaveValue('Used it at Acme')
+})
+
 it('saves a response and can add it to the career library', async () => {
+  openGap('Go')
   const user = userEvent.setup()
   renderPage({
     path: '/jobs/:id',

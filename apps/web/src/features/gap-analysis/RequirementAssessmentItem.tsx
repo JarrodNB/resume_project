@@ -4,11 +4,15 @@
  * Profile-summary evidence is left out: it is the whole biography, and citing it repeats that
  * paragraph under every requirement it mentions.
  * A gap or partial match also has a response form, as does a requirement that already has one.
+ * The explanation, evidence, and form start collapsed; the form stays mounted so an unsaved
+ * answer is kept.
  * Index:
  *   - VerdictBadge: colored badge for a verdict
  *   - RequirementAssessmentItem: list item component
  */
 import { CircleCheck, CircleDashed, CircleX } from 'lucide-react'
+import { CollapseToggle } from '@/components/CollapseToggle'
+import { useOpenSection } from '@/components/useOpenSection'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { GapResponseForm } from './GapResponseForm'
@@ -44,26 +48,31 @@ export function RequirementAssessmentItem({
   assessment: AssessedRequirement
   response: SavedGapResponse | null
 }) {
+  const { open, toggle, panelId } = useOpenSection(`job.${jobId}.gap.${assessment.requirement}`)
   const showResponse = assessment.verdict !== 'met' || response !== null
   const evidence = assessment.evidence.filter((item) => item.kind !== 'summary')
   return (
     <li className="grid gap-2 py-3">
-      <div className="flex items-start justify-between gap-3">
-        <p className="font-medium">{assessment.requirement}</p>
-        <VerdictBadge verdict={assessment.verdict} />
+      <CollapseToggle open={open} panelId={panelId} onToggle={toggle} className="items-start">
+        <span className="flex min-w-0 flex-1 items-start justify-between gap-3">
+          <span className="font-medium">{assessment.requirement}</span>
+          <VerdictBadge verdict={assessment.verdict} />
+        </span>
+      </CollapseToggle>
+      <div id={panelId} hidden={!open} className={open ? 'grid gap-2' : undefined}>
+        {assessment.explanation && <p className="text-sm text-muted-foreground">{assessment.explanation}</p>}
+        {evidence.length > 0 && (
+          <ul className="grid gap-1 border-l-2 pl-3 text-sm" aria-label="Evidence from your career library">
+            {evidence.map((item, index) => (
+              <li key={item.id ?? `${item.kind}-${index}`}>
+                {item.text}
+                {item.context && <span className="text-muted-foreground"> · {item.context}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {showResponse && <GapResponseForm jobId={jobId} requirement={assessment.requirement} response={response} />}
       </div>
-      {assessment.explanation && <p className="text-sm text-muted-foreground">{assessment.explanation}</p>}
-      {evidence.length > 0 && (
-        <ul className="grid gap-1 border-l-2 pl-3 text-sm" aria-label="Evidence from your career library">
-          {evidence.map((item, index) => (
-            <li key={item.id ?? `${item.kind}-${index}`}>
-              {item.text}
-              {item.context && <span className="text-muted-foreground"> · {item.context}</span>}
-            </li>
-          ))}
-        </ul>
-      )}
-      {showResponse && <GapResponseForm jobId={jobId} requirement={assessment.requirement} response={response} />}
     </li>
   )
 }

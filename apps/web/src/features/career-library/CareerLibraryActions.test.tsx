@@ -7,6 +7,7 @@ import type { MockLink } from '@apollo/client/testing'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
+import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
@@ -54,6 +55,8 @@ const libraryMock = {
 }
 
 function renderLibrary(mutationMock: MockLink.MockedResponse) {
+  setSectionOpen('library.experience', true)
+  setSectionOpen('library.skills', true)
   renderPage({
     path: '/library',
     url: '/library',

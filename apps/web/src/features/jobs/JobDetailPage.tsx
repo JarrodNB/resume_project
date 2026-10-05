@@ -1,12 +1,18 @@
 /**
  * Description: One saved job (/jobs/:id), read-only: how the career library matches it (gap
  * analysis), requirements, nice-to-haves, the full description, and a link to the original posting.
+ * Requirements, nice-to-haves, and the description start collapsed.
  * Index:
  *   - JobDetailPage: page component
+ *   - CollapsibleJobCard: a titled card that stays collapsed until opened
+ *   - BulletCard: a collapsible list of bullet points
  */
+import type { ReactNode } from 'react'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { Link, useParams } from 'react-router'
+import { CollapseToggle } from '@/components/CollapseToggle'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { useOpenSection } from '@/components/useOpenSection'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -53,17 +59,19 @@ export function JobDetailPage() {
             </div>
           </div>
           <GapAnalysisCard jobId={job.id} latestGapAnalysis={job.latestGapAnalysis ?? null} gapResponses={job.gapResponses} />
-          <BulletCard title="Requirements" items={job.requirements} emptyText="No requirements were found in the posting." />
-          {job.niceToHaves.length > 0 && <BulletCard title="Nice to have" items={job.niceToHaves} />}
+          <BulletCard
+            sectionId={`job.${job.id}.requirements`}
+            title="Requirements"
+            items={job.requirements}
+            emptyText="No requirements were found in the posting."
+          />
+          {job.niceToHaves.length > 0 && (
+            <BulletCard sectionId={`job.${job.id}.nice-to-have`} title="Nice to have" items={job.niceToHaves} />
+          )}
           {job.description && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Full description</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm whitespace-pre-line text-muted-foreground">{job.description}</p>
-              </CardContent>
-            </Card>
+            <CollapsibleJobCard sectionId={`job.${job.id}.description`} title="Full description">
+              <p className="text-sm whitespace-pre-line text-muted-foreground">{job.description}</p>
+            </CollapsibleJobCard>
           )}
         </>
       )}
@@ -71,24 +79,35 @@ export function JobDetailPage() {
   )
 }
 
-/** A titled card listing bullet points. */
-function BulletCard({ title, items, emptyText }: { title: string; items: string[]; emptyText?: string }) {
+/** A titled card whose body unmounts until the user opens it. */
+function CollapsibleJobCard({ sectionId, title, children }: { sectionId: string; title: string; children: ReactNode }) {
+  const { open, toggle, panelId } = useOpenSection(sectionId)
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <CollapseToggle open={open} panelId={panelId} onToggle={toggle}>
+          <CardTitle>{title}</CardTitle>
+        </CollapseToggle>
       </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{emptyText}</p>
-        ) : (
-          <ul className="grid list-disc gap-1.5 pl-5 text-sm">
-            {items.map((item, index) => (
-              <li key={index}>{item}</li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
+      {open && <CardContent id={panelId}>{children}</CardContent>}
     </Card>
+  )
+}
+
+/** A titled card listing bullet points. */
+function BulletCard({ sectionId, title, items, emptyText }: { sectionId: string; title: string; items: string[]; emptyText?: string }) {
+  return (
+    <CollapsibleJobCard sectionId={sectionId} title={title}>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyText}</p>
+      ) : (
+        <ul className="grid list-disc gap-1.5 pl-5 text-sm">
+          {items.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      )}
+    </CollapsibleJobCard>
   )
 }

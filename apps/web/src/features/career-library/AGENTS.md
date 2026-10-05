@@ -13,7 +13,8 @@ another role; skills can be dragged within their category.
 ## Contents
 
 - `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`
-- `ProfileSection.tsx`, `LibrarySection.tsx` (tone-colored card with a count), `LibraryEntry.tsx`
+- `ProfileSection.tsx`, `LibrarySection.tsx` (tone-colored card with a count; each starts
+  collapsed and stays that way until opened), `LibraryEntry.tsx`
   (tinted entry with an `actions` slot) — display pieces
 - `SortableHighlightList.tsx` — a role's draggable highlights (drop area works when empty)
 - `SkillList.tsx` — skill chips grouped by category, draggable within a category, with delete
@@ -44,3 +45,6 @@ another role; skills can be dragged within their category.
 - `reorderSkills` needs every skill id, so skill drops send the whole skill list in display
   order (categories as `groupSkillsByCategory` shows them).
 - Don't sort roles, projects, or education on the client; the API's order is the display order.
+- Section ids are `library.profile`, `library.experience`, `library.projects`, `library.education`,
+  `library.skills`, and `library.facts`. A collapsed section's entries are not in the page, so
+  they are not drag targets.

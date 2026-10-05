@@ -2,7 +2,9 @@
  * Description: The career library page shows the profile, imported records, and empty states.
  */
 import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
+import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
@@ -42,7 +44,33 @@ const libraryMock = {
   },
 }
 
+const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.skills', 'library.facts']
+
+/** Opens every library section so a test can read what is inside. */
+function openLibrarySections() {
+  for (const sectionId of LIBRARY_SECTION_IDS) setSectionOpen(sectionId, true)
+}
+
+it('keeps a section collapsed until it is opened', async () => {
+  const user = userEvent.setup()
+  const page = { path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [libraryMock] }
+  const { unmount } = renderPage(page)
+
+  const experience = await screen.findByRole('button', { name: /Experience/ })
+  expect(experience).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByText('Engineer')).not.toBeInTheDocument()
+
+  await user.click(experience)
+  expect(screen.getByText('Engineer')).toBeInTheDocument()
+
+  unmount()
+  renderPage(page)
+  expect(await screen.findByText('Engineer')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /Experience/ })).toHaveAttribute('aria-expanded', 'true')
+})
+
 it('shows a fact added from a gap response', async () => {
+  openLibrarySections()
   renderPage({
     path: '/library',
     url: '/library',
@@ -72,6 +100,7 @@ it('shows a fact added from a gap response', async () => {
 })
 
 it('shows the imported library', async () => {
+  openLibrarySections()
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [libraryMock] })
 
   expect(await screen.findByText('Engineer')).toBeInTheDocument()

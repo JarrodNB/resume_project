@@ -1,8 +1,8 @@
 """
 Description: Worker configuration loaded from environment variables.
 Index:
-    - WorkerSettings: typed settings for SQS, S3, the read-only database, and each agent's model
-      and reasoning effort
+    - WorkerSettings: typed settings for SQS, S3, the read-only database, each agent's model
+      and reasoning effort, and the embedding model for career library search
     - load_settings: builds WorkerSettings from the environment
 """
 
@@ -33,6 +33,10 @@ class WorkerSettings(BaseSettings):
     job_requirements_sorting_thinking: ThinkingEffort = "low"
     gap_analysis_model: str = "openai:gpt-5-mini"
     gap_analysis_thinking: ThinkingEffort = "low"
+    # Must match Rails (CareerLibraryEmbeddings::MODEL / DIMENSIONS), which embeds the library;
+    # a search only matches rows embedded with this model.
+    embedding_model: str = "openai:text-embedding-3-small"
+    embedding_dimensions: int = 1536
     job_page_fetch_timeout_seconds: float = 20
     # Read-only ai_reader role (see infra/postgres and services/api/lib/ai_reader_access.rb).
     db_host: str = "localhost"

@@ -42,6 +42,8 @@ Build order progress (docs/mvp_plan.md):
          - [done, commit 7dfd6da] 4b. LinkedIn job scraping + minimal jobs UI (see "STEP 4b" below)
          - [done] 4c. gap analysis: career library vs job, no questions (see
            "STEP 4c" below)
+         - [done] vector store: pgvector + career library embeddings (see "VECTOR STORE" below);
+           memory retrieval is ready for tailoring to use
          - [next] gap responses: the user responds to gaps in the comparison view (saved per
            job + requirement, optional "add to career library"; no AI questions), then
            tailoring (uses library + gap analysis + responses), then memory. The deferred-tool
@@ -72,7 +74,7 @@ services/ai     Python 3.13 + uv, plain SQS worker (NO FastAPI). worker/main.py 
 s3 (S3Mock)     local S3 for uploads, port 9090, bucket throughline-uploads (not persisted)
 infra/elasticmq local SQS emulator config (queues: ai_tasks, ai_results, + dead-letter queues)
 infra/postgres  init SQL: creates api_development + read-only role ai_reader (grants from Rails)
-docker-compose.yml   db (pgvector/pg17), sqs (elasticmq-native :9324), api, ai, web, landing
+docker-compose.yml   db (pgvector/pg17; `vector` extension enabled, library_embeddings), sqs (elasticmq-native :9324), api, ai, web, landing
 
 ==========================================================================================
 DECISIONS ALREADY MADE (details in docs/architecture.md "Decisions")
@@ -125,6 +127,7 @@ docker compose run --rm --no-deps api bundle add <gem>   (gems live in api_bundl
 docker compose run --rm ai uv add <package>     then: docker compose up --build -V ai
 docker compose down -v                          reset local DB (re-runs infra/postgres init)
 docker compose run --rm api bin/rails graphql:schema:dump   after any GraphQL change
+docker compose run --rm api bin/rails career_library:sync_embeddings   backfill library embeddings
 docker compose exec web npm run codegen         then regenerate web GraphQL types
 docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
 docker compose run --rm ai python -m evals.run_job_posting_extraction_evals   job scraping evals
@@ -170,6 +173,9 @@ GOTCHAS LEARNED
 - __pycache__ folders in services/ai are root-owned (written by the container): delete them
   with `docker compose run --rm --no-deps ai rm -rf <dir>`, not from the host.
 - The ai worker doesn't reload code; restart it after Python edits.
+- ai_reader grants are applied after db:migrate. If you edit lib/ai_reader_access.rb without a
+  migration, run `docker compose run --rm api bin/rails db:grant_ai_reader_access`, or the
+  worker's `db` tests fail with "permission denied".
 - LinkedIn: fetch only the single job a user pasted (never crawl). If scraping starts failing
   with "couldn't read this job posting", LinkedIn changed its layout: update the selectors in
   scrapers/linkedin/linkedin_job_html_to_page.py and the fixtures in tests/fixtures/linkedin.
@@ -325,8 +331,34 @@ directly with the read-only ai_reader role instead of receiving a snapshot.
     all 1.0 after one prompt fix (adjacent tech counts as partial), ~$0.0014/case.
 
 ==========================================================================================
+VECTOR STORE (DONE): PGVECTOR + CAREER LIBRARY EMBEDDINGS
+==========================================================================================
+User chose: Rails calls the OpenAI embeddings API directly (vectors are too big for ai_results;
+documented exception in AGENTS.md + docs/architecture.md), and embed the career library now.
+  - Postgres: `vector` extension (pgvector 0.8.6 in the compose image), table library_embeddings
+    (source_type/source_id, content, content_digest, model, embedding vector(1536)), HNSW cosine
+    index. Model: text-embedding-3-small (CareerLibraryEmbeddings in Rails, embedding_model in
+    the worker; they must match).
+  - Rails: gems neighbor + openai. Embeddings::OpenAiEmbeddingClient,
+    CareerLibrary::BuildEmbeddingTextsService (contextual text per entry),
+    CareerLibrary::SyncLibraryEmbeddingsService (advisory lock, digest diff, upsert, orphan
+    delete), CareerLibrary::SyncLibraryEmbeddingsJob (after commit, retries OpenAI errors),
+    enqueued by import, merge, experience create/update, highlight moved to another role, and
+    library deletes. Backfill: `bin/rails career_library:sync_embeddings`.
+  - ai_reader can SELECT library_embeddings. Worker: database/library_embedding_search.py
+    (user + model filter, hnsw.iterative_scan) and memory/embed_search_query.py (Pydantic AI
+    Embedder, instrumented for Langfuse). Not wired into an agent yet.
+  - SETUP: add OPENAI_API_KEY to services/api/.env (the sync is skipped without it), then run
+    the backfill once.
+  - Verified: 182 RSpec, 140 pytest, rubocop + ruff clean; live backfill (97 entries embedded,
+    second run embedded 0) and a live worker search ("running containers on Kubernetes" ->
+    Kubernetes, Docker, then deployment highlights).
+
+==========================================================================================
 OPEN ITEMS / LATER
 ==========================================================================================
+- Production Active Job runs on Solid Queue: the deploy needs a jobs process (or
+  SOLID_QUEUE_IN_PUMA) and the queue database, or embedding syncs never run.
 - Final product name (Throughline is a placeholder; the space is crowded, so check availability).
 - Create/update mutations for projects, educations, skills, and resumes (delete and merge
   exist; follow the jobs/experiences pattern).

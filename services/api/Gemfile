@@ -57,3 +57,6 @@ gem "aws-sdk-s3", "~> 1.233"
 gem "apollo_upload_server", "~> 2.1"
 
 gem "rack-attack", "~> 6.8"
+
+gem "neighbor", "~> 1.2"
+gem "openai", "~> 0.99.0"

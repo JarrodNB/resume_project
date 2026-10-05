@@ -8,7 +8,11 @@ All business logic, as service objects grouped by domain folder.
 
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
-- `records/destroy_record_service.rb` — generic destroy for an already-authorized record
+- `records/destroy_record_service.rb` — generic destroy for an already-authorized record;
+  deleting a career library entry queues an embedding sync
+- `embeddings/open_ai_embedding_client.rb` — `embed_texts(texts)` via the OpenAI embeddings API
+  (batches of 500, raises API errors for the job to retry); `configured?` checks
+  `OPENAI_API_KEY`. The only place Rails calls OpenAI
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
@@ -22,7 +26,7 @@ All business logic, as service objects grouped by domain folder.
   `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)
 - `career_library/` — duplicate matching and merging of experiences, projects, and educations,
-  and reordering of library entries (see `career_library/AGENTS.md`)
+  reordering of library entries, and syncing library embeddings (see `career_library/AGENTS.md`)
 - `ai_tasks/enqueue_ai_task_service.rb` — checks the user's AI usage limits and creates a
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`
@@ -49,3 +53,6 @@ All business logic, as service objects grouped by domain folder.
 - Always return a `ServiceResult` via `success`/`failure`; never raise for validation errors.
 - Services receive records already scoped to the user; they don't do authorization lookups.
 - Multi-record changes run in a transaction (see `UpdateExperienceService`).
+- A service that changes career library text enqueues `CareerLibrary::SyncLibraryEmbeddingsJob`
+  for the user (import, merge, experience create/update, highlight moved to another role,
+  library deletes do today).

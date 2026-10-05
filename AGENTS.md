@@ -46,7 +46,10 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 - SQS can deliver a message more than once. Every handler on either side of the queue must
   be safe to run twice (see "Duplicate Messages" in `docs/architecture.md`).
 - Long-running AI work goes through SQS (ElasticMQ locally), never synchronous HTTP.
-- All LLM calls go through the AI service and are traced in Langfuse.
+- All LLM calls go through the AI service and are traced in Langfuse. One exception: Rails
+ embeds career library entries itself (OpenAI embeddings API, `CareerLibrary::SyncLibraryEmbeddingsJob`),
+ because embeddings are derived data with no prompt and are too large to return over SQS. The
+ AI service embeds search queries through Pydantic AI as usual.
 - Secrets come from environment variables; never commit them. Each service has its own
   `.env` (copied from its `.env.example`).
 

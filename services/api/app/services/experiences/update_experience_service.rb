@@ -1,5 +1,5 @@
 # Description: Updates a career library role. When highlights are given, they replace the
-# existing bullet points (in the given order).
+# existing bullet points (in the given order). Queues an embedding sync on success.
 # Index:
 #   - call: updates in one transaction; returns the experience, or validation errors
 module Experiences
@@ -17,7 +17,10 @@ module Experiences
         replace_highlights if @highlights
         raise ActiveRecord::Rollback unless @experience.save
       end
-      @experience.errors.any? ? failure(@experience.errors) : success(@experience.reload)
+      return failure(@experience.errors) if @experience.errors.any?
+
+      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@experience.user_id)
+      success(@experience.reload)
     end
 
     private

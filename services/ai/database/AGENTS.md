@@ -13,6 +13,11 @@ this folder only reads what an AI task needs.
   and the user's career library in one REPEATABLE READ transaction (None when the job isn't the
   user's); `build_database_context_reader(settings)`: the per-task reader handlers call (one
   connection per task)
+- `library_embedding_search.py` — `search_career_library(connection, user_id, query_embedding,
+  model, limit)`: the user's `library_embeddings` rows for `model` nearest the query by cosine
+  distance (`LibrarySearchMatch` list), using HNSW iterative scans so the user filter doesn't
+  cut results short. Registers the pgvector type on the connection. Not called by a handler yet
+  (tailoring will)
 
 ## Local Rules
 

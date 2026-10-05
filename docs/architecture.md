@@ -131,9 +131,26 @@ requests get a JSON 429 with `Retry-After`.
 
 ## Memory
 
-User facts (skills, accomplishments, answers to AI questions) are stored as rows with
-embeddings in pgvector. The AI service retrieves relevant memories per task, so
-information carries across conversations.
+User facts are stored as rows with embeddings in pgvector, so the AI service can retrieve the
+ones relevant to a task (e.g. the library entries closest to each job requirement when
+tailoring) instead of sending everything.
+
+- **What's embedded:** every career library entry: experiences, highlights, projects,
+  educations, and skills. Each is embedded as one text with enough context to stand alone
+  ("Senior Engineer at Acme: Cut deploy time 40%"). Gap responses will be added once they exist.
+- **Storage:** `library_embeddings` (`source_type` + `source_id`, `content`, `content_digest`,
+  `model`, `embedding vector(1536)`), HNSW index with cosine distance, in the same Postgres.
+- **Model:** OpenAI `text-embedding-3-small` at 1536 dimensions (Rails
+  `CareerLibraryEmbeddings`, worker `embedding_model`; they must match).
+- **Writing (Rails):** every service that changes library text enqueues
+  `CareerLibrary::SyncLibraryEmbeddingsJob` (after commit). `SyncLibraryEmbeddingsService`
+  holds a per-user advisory lock, embeds only entries whose SHA-256(model + text) changed, and
+  deletes rows whose entry is gone, so running it twice is harmless and any run repairs drift.
+  `bin/rails career_library:sync_embeddings` backfills all users (e.g. after a model change).
+- **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
+  `Embedder` (traced in Langfuse), and `database/library_embedding_search.py` searches as
+  `ai_reader`, filtered by `user_id` and `model`, with HNSW iterative scans so the user filter
+  doesn't cut results short. Tailoring will be the first caller.
 
 ## Decisions
 
@@ -151,6 +168,17 @@ information carries across conversations.
   streaming is needed later (e.g. the gap analysis chat), add a small HTTP/WebSocket
   service at that point.
 - **pgvector over a separate vector DB.** One database to run; enough for this scale.
+- **Rails computes career library embeddings itself (an exception to "all LLM calls go through
+  the AI service").** Embeddings are derived data that Rails can rebuild at any time, and they
+  contain no prompt. They are also too large for the result queue: one 1536-dimension vector is
+  roughly 8–20 KB as JSON, so a resume import's worth won't fit in a 256 KB SQS message. Two
+  alternatives were rejected: letting the worker write embeddings through a second, narrow
+  database role (weakens "Rails owns writes"), and returning smaller, packed vectors split
+  across several result messages (more moving parts for no product gain). The cost is a few
+  hundredths of a cent per library, so embeddings don't count toward the per-user AI budget,
+  and Rails' embedding calls aren't traced in Langfuse. The sync runs as a background job, so
+  an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
+  through Pydantic AI, so those calls are traced.
 - **Rails-owned auth** (Devise + JWT).
 - **OpenAI** as the LLM provider.
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
@@ -204,7 +232,8 @@ information carries across conversations.
   anyway). The role gets SELECT only on the tables it needs, and of `users` only `id` and
   `summary`, so password hashes and tokens stay out of reach. Grants are applied by a Rails rake
   task after every `db:prepare` / `db:migrate` (`lib/ai_reader_access.rb`), because `schema.rb`
-  doesn't record grants; a Postgres init script only creates the role. Every worker query
+  doesn't record grants; a Postgres init script only creates the role. It can also read
+  `library_embeddings` for memory search. Every worker query
   filters by the task's `user_id`, and all reads for one task run in one REPEATABLE READ
   transaction, so the job and library are a consistent snapshot.
 - **Gap analysis speaks in short labels; code fills in the evidence.** The prompt labels each

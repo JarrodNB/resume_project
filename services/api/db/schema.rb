@@ -10,9 +10,10 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_02_140100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_05_040100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+  enable_extension "vector"
 
   create_table "active_storage_attachments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "name", null: false
@@ -130,6 +131,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_140100) do
     t.index ["jti"], name: "index_jwt_denylists_on_jti", unique: true
   end
 
+  create_table "library_embeddings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "source_type", null: false
+    t.uuid "source_id", null: false
+    t.text "content", null: false
+    t.string "content_digest", null: false
+    t.string "model", null: false
+    t.vector "embedding", limit: 1536, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["embedding"], name: "index_library_embeddings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
+    t.index ["source_type", "source_id"], name: "index_library_embeddings_on_source_type_and_source_id", unique: true
+    t.index ["user_id"], name: "index_library_embeddings_on_user_id"
+  end
+
   create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "name", null: false
@@ -204,6 +220,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_02_140100) do
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
   add_foreign_key "jobs", "users"
+  add_foreign_key "library_embeddings", "users", on_delete: :cascade
   add_foreign_key "projects", "users"
   add_foreign_key "resume_sections", "resumes", on_delete: :cascade
   add_foreign_key "resumes", "jobs", on_delete: :nullify

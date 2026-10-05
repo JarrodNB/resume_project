@@ -2,7 +2,7 @@
 # library and fills blank profile fields (contact, summary). Experiences, projects, and
 # educations that match an existing entry are merged into it instead of duplicated; the counts
 # are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
-# task can be imported once.
+# task can be imported once. The library's embeddings are re-synced after the import commits.
 # Index:
 #   - call: checks the JSON shape, then imports library records and fills the profile in one
 #     transaction; returns the accepted AiTask
@@ -36,6 +36,7 @@ module ResumeImports
         else
           import_everything
           @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
+          CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
           success(@ai_task)
         end
       end

@@ -30,6 +30,8 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-5-mini": ModelPrice(input=0.25, cached_input=0.025, output=2.00),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
+    # Embeddings bill input tokens only.
+    "openai:text-embedding-3-small": ModelPrice(input=0.02, cached_input=0.02, output=0.0),
 }
 
 

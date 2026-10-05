@@ -15,7 +15,8 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
-  analysis; later memory retrieval); never attempt writes. Every query is scoped by the task
+  analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
+  the embeddings; the worker only embeds search queries. Every query is scoped by the task
   message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
   (`lib/ai_reader_access.rb`); a new table needs a grant there. Uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
@@ -70,9 +71,12 @@ Every function and class gets a docstring describing what it does.
   `gap_analysis_agent.py`)
 - `prompts/` — agent instructions
 - `schemas/` — structured output models (`ParsedResume`, `ScrapedJobPosting`,
-  `SortedRequirementBullets`, `GapAnalysis`) and the gap analysis input (`GapAnalysisContext`)
+  `SortedRequirementBullets`, `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and
+  `LibrarySearchMatch` (a similarity search hit)
 - `database/` — read-only Postgres access (`ai_reader`): the job and career library for gap
-  analysis
+  analysis, and similarity search over `library_embeddings`
+- `memory/` — embeds search queries (Pydantic AI `Embedder`) to compare with the library
+  embeddings Rails writes
 - `gap_analysis/` — gap analysis prompt building (short labels), output checks, and copying
   evidence text from the library
 - `documents/` — PDF/DOCX text extraction

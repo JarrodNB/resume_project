@@ -15,6 +15,10 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
   - `project.rb`, `education.rb`, `skill.rb`
+  - `library_embedding.rb` — derived data: the embedding (pgvector, 1536 dimensions, HNSW
+    cosine index, `has_neighbors`) of one library entry's text, keyed by `source_type` +
+    `source_id` (no foreign key; the sync deletes orphans), with `content`, `content_digest`, and
+    `model`. Written only by `CareerLibrary::SyncLibraryEmbeddingsService`; the AI worker reads it
   - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
     educations (ongoing first, then by end date, undated last); `User` lists them this way
 - `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,

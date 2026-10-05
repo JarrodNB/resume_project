@@ -29,6 +29,12 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT content FROM experience_highlights").size).to eq(1)
   end
 
+  it "reads career library embeddings" do
+    embedding = create(:library_embedding)
+
+    expect(select_as_ai_reader("SELECT id FROM library_embeddings")).to eq([ { "id" => embedding.id } ])
+  end
+
   it "reads only the id and summary of users" do
     user = create(:user, summary: "Backend engineer")
 

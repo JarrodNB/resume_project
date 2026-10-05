@@ -1,7 +1,8 @@
 # Description: Merges one career library record into another of the same model and user. Fields
 # blank on the target are filled from the source (existing values are never overwritten); an
 # experience also gains the source's highlights it doesn't already have. A saved source is then
-# deleted. Used by the import (unsaved source) and by the merge mutations (saved source).
+# deleted. Used by the import (unsaved source) and by the merge mutations (saved source). The
+# user's library embeddings are re-synced after the merge commits.
 # Index:
 #   - FILLABLE_FIELDS: fields copied when blank on the target, per model
 #   - call: merges in one transaction; returns the target, or errors
@@ -31,6 +32,7 @@ module CareerLibrary
         add_new_highlights if @target.is_a?(Experience)
         @target.save!
         @source.destroy! if @source.persisted?
+        SyncLibraryEmbeddingsJob.perform_later(@target.user_id)
       end
       success(@target)
     rescue ActiveRecord::RecordInvalid => error

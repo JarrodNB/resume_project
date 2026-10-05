@@ -12,6 +12,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   `build_gap_analysis_context`, `FakeGapAnalysisContextReader`
 - `test_career_library_reader.py` — marked `db`: reads as `ai_reader` from the dev database
   (seeds inside a rolled-back transaction); order, content, and another user's job is not found
+- `test_library_embedding_search.py` — marked `db`: searches as `ai_reader` (nearest first,
+  limit, another user's and another model's embeddings never match)
+- `test_embed_search_query.py` — query embedding on `TestEmbeddingModel`; stored model name
 - `test_build_gap_analysis_prompt.py` — labels, date ranges, evidence lookup
 - `test_find_gap_analysis_problems.py` — missing, repeated, unknown labels; met without
   evidence; labels leaked into prose (and label-like job terms allowed)

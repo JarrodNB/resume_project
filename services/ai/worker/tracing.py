@@ -2,7 +2,8 @@
 Description: Langfuse tracing. Pydantic AI's OpenTelemetry spans are exported to Langfuse,
 grouped into one trace per task and tagged with the user and task IDs.
 Index:
-    - configure_tracing: creates the Langfuse client and instruments all agents (call once)
+    - configure_tracing: creates the Langfuse client and instruments all agents and embedders
+      (call once)
     - trace_ai_task: context manager that wraps one task in a trace and flushes it afterwards
 """
 
@@ -10,15 +11,17 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from langfuse import Langfuse, get_client, propagate_attributes
-from pydantic_ai import Agent
+from pydantic_ai import Agent, Embedder
 
 from worker.queue_messages import AiTaskMessage
 
 
 def configure_tracing() -> None:
-    """Initialises Langfuse from LANGFUSE_* env vars and turns on agent instrumentation."""
+    """Initialises Langfuse from LANGFUSE_* env vars and turns on agent and embedder
+    instrumentation."""
     Langfuse()
     Agent.instrument_all()
+    Embedder.instrument_all()
 
 
 @contextmanager

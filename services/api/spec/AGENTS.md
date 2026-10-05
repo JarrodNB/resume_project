@@ -17,12 +17,15 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
   password reset)
 - `channels/` — WebSocket JWT auth and subscriptions run through `GraphqlChannel`
 - `workers/` — Shoryuken workers (called directly with a parsed body)
+- `jobs/` — Active Job jobs (performed inline with stubbed services)
 - `lib/ai_reader_access_spec.rb` — what the AI worker's `ai_reader` role can read (runs
   queries as that role inside a rolled-back savepoint)
 - `factories/` — one FactoryBot factory per model
 - `support/graphql_helpers.rb` — `execute_graphql(query, user:, variables:)`
 - `support/uploaded_file_helpers.rb` — `build_uploaded_file(content:, filename:)`,
   `minimal_pdf_bytes` (in-memory uploads; no binary fixtures)
+- `support/fake_embedding_client.rb` — `FakeEmbeddingClient`: deterministic vectors, records
+  every embedded text; pass it as `embedding_client:` to the sync service
 
 ## Local Rules
 
@@ -30,4 +33,6 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
   anything that takes an `id`.
 - Use factories (`create(:job, user: user)`), not fixtures.
 - Never call SQS from specs: stub `Shoryuken::Client.queues` and `ApiSchema.subscriptions`.
+- Never call OpenAI from specs: use `FakeEmbeddingClient`; check sync enqueueing with
+  `have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)`.
 - Time-dependent specs use `travel_to` (`ActiveSupport::Testing::TimeHelpers` is included).

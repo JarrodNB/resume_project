@@ -7,9 +7,9 @@ applications, interviews, contacts, goals.
 
 ## Stack
 
-Rails (API mode), PostgreSQL (RDS) with pgvector, graphql-ruby, Devise + JWT auth,
-Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
-for GraphQL subscriptions.
+Rails (API mode), PostgreSQL (RDS) with pgvector (`neighbor` gem), graphql-ruby, Devise + JWT
+auth, Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
+for GraphQL subscriptions, the official `openai` gem for career library embeddings only.
 
 ## Local Rules
 
@@ -51,6 +51,7 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
 - `app/channels/` — ActionCable: JWT-authenticated WebSocket at `/cable`, GraphQL channel
 - `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
+- `app/jobs/` — Active Job background jobs (career library embedding sync)
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
 - `config/routes.rb` — `/auth/*` (REST, JWT), `/graphql`, `/up`
@@ -60,12 +61,17 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
 - `config/initializers/ai_usage_limits.rb` — default per-user AI limits (monthly budget, tasks
   per hour, tasks in flight) from ENV
+- `config/initializers/career_library_embeddings.rb` — `CareerLibraryEmbeddings::MODEL`
+  (`EMBEDDING_MODEL`, default `text-embedding-3-small`) and `DIMENSIONS` (1536); must match the
+  AI worker's `embedding_model` / `embedding_dimensions`
+- `lib/tasks/career_library_embeddings.rake` — `career_library:sync_embeddings` backfills every
+  user's library embeddings (only new or changed entries call OpenAI)
 - `config/initializers/rack_attack.rb` — request throttles (sign-in, sign-up, GraphQL) on
   `Rails.cache`; JSON 429 responses
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
   grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
-  (of `users`, only `id` and `summary`). It runs after `db:prepare`, `db:migrate`, and
+  and `library_embeddings` (of `users`, only `id` and `summary`). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; `spec/lib/ai_reader_access_spec.rb` checks
   what the role can and can't see
@@ -84,6 +90,11 @@ calls, run `docker compose restart api-results-worker`.
 Uploads use Active Storage on the `amazon` service (`config/storage.yml`): S3Mock in
 development (`S3_ENDPOINT_URL`, `S3_UPLOADS_BUCKET` from docker compose), local disk in tests.
 Production still points at `:local` and must switch to `:amazon` at deploy time.
+
+Every service that changes career library text must enqueue
+`CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(user_id)` (it runs after commit, and an
+extra sync is harmless). `OPENAI_API_KEY` must be set in `services/api/.env` for embeddings;
+without it the sync is skipped.
 
 Not added yet: mutations for projects, educations, skills, and resumes (follow the
 jobs/experiences pattern).

@@ -41,6 +41,34 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ai_task.error_message).to eq("Model timed out")
   end
 
+  it "ignores a tailor result from an earlier generation" do
+    ai_task.update!(task_type: "tailor_resume", status: "needs_user_input", generation: 2, input: { "approved_sections" => [ { "section_type" => "summary" } ] })
+
+    described_class.call(message: result_message("needs_user_input", generation: 1, pending_questions: [ { "section_type" => "contact" } ]))
+
+    expect(ai_task.reload.generation).to eq(2)
+    expect(ai_task.pending_questions).to eq([])
+    expect(ai_task.input["approved_sections"]).to eq([ { "section_type" => "summary" } ])
+  end
+
+  it "adds each tailor generation's cost once and stores the approved sections" do
+    ai_task.update!(task_type: "tailor_resume", generation: 1, cost_microdollars: 40, input: { "pending_section" => { "action" => "approve" } })
+    usage = [ { "model" => "openai:gpt-5-mini", "input_tokens" => 10, "cached_input_tokens" => 0, "output_tokens" => 2, "cost_microdollars" => 15 } ]
+    message = result_message(
+      "needs_user_input",
+      generation: 1,
+      usage: usage,
+      pending_questions: [ { "section_type" => "summary", "approved_sections" => [ { "section_type" => "contact" } ] } ]
+    )
+
+    2.times { described_class.call(message: message) }
+
+    expect(ai_task.reload.cost_microdollars).to eq(55)
+    expect(ai_task.usage_generation).to eq(1)
+    expect(ai_task.input["approved_sections"]).to eq([ { "section_type" => "contact" } ])
+    expect(ai_task.input["pending_section"]).to be_nil
+  end
+
   it "stores questions and message history when the AI needs user input" do
     message = result_message(
       "needs_user_input",

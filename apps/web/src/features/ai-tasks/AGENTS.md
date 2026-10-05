@@ -3,11 +3,12 @@
 ## Purpose
 
 Following an AI task live, shared by every feature that starts one (resume import, job
-scraping, gap analysis).
+scraping, gap analysis, resume tailoring).
 
 ## Contents
 
-- `aiTaskOperations.ts` — `AI_TASK_UPDATED_SUBSCRIPTION` (includes `job { id }` for scrape_job)
+- `aiTaskOperations.ts` — `AI_TASK_UPDATED_SUBSCRIPTION` (includes `job { id }` for scrape_job,
+  and `input` / `pendingQuestions` so tailoring can reload)
 - `useAiTaskUpdates.ts` — `useAiTaskUpdates(aiTaskId)`: latest task state + subscription error
 
 ## Local Rules

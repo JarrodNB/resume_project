@@ -36,9 +36,13 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   from the user, it calls an external `ask_user` tool and the run ends with
   `DeferredToolRequests`. The worker publishes a `needs_user_input` result containing the
   question(s) and the serialized message history. When the user answers, the follow-up task
-  resumes with that history plus `DeferredToolResults`. Not built yet; planned for
-  AI-assisted rewriting of career library entries. Gap analysis and tailoring don't ask
-  questions: the user's gap responses arrive as ordinary task input.
+  resumes with that history plus `DeferredToolResults`. Not built yet; reserved for
+  AI-assisted rewriting of career library entries. Gap analysis doesn't ask questions.
+  Tailoring pauses once per section in ordinary code (the same task is requeued); it does
+  not use `ask_user`.
+- **User-written text is screened by Jev before it enters a prompt** (`screening/`). A missing
+  `TYPESAFE_API_KEY` or a Jev error omits the text. Career-library entries copied from a
+  resume are not screened. Jev usage is reported on the task result.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
@@ -46,7 +50,8 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
     checks (relevance, question quality, faithfulness).
   - Test data is synthetic or anonymized. Never commit real user resumes.
   - Report results to Langfuse. Run evals after any prompt, model, or agent change:
-    `docker compose run --rm ai python -m evals.run_tailoring_evals`.
+    `docker compose run --rm ai python -m evals.run_tailoring_evals` (Jev screen:
+    `docker compose run --rm ai python -m evals.run_user_text_screen_evals`).
 
 ## File Header Format
 
@@ -68,7 +73,7 @@ Every function and class gets a docstring describing what it does.
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
   clients, Langfuse tracing (see `worker/AGENTS.md`)
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `job_requirements_sorting_agent.py`,
-  `gap_analysis_agent.py`)
+  `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`)
 - `prompts/` — agent instructions
 - `schemas/` — structured output models (`ParsedResume`, `ScrapedJobPosting`,
   `SortedRequirementBullets`, `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and
@@ -77,8 +82,12 @@ Every function and class gets a docstring describing what it does.
   analysis, and similarity search over `library_embeddings`
 - `memory/` — embeds search queries (Pydantic AI `Embedder`) to compare with the library
   embeddings Rails writes
-- `gap_analysis/` — gap analysis prompt building (short labels), output checks, and copying
-  evidence text from the library
+- `gap_analysis/` — gap analysis prompt building (short labels), output checks, copying
+  evidence text from the library, and screening library facts before they enter the prompt
+- `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for
+  obvious instruction overrides
+- `tailoring/` — section order, retrieval, labeled sources, the section prompt, the
+  faithfulness check, and turning the agent's draft into resume section JSON
 - `documents/` — PDF/DOCX text extraction
 - `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
 - `job_postings/` — job description to plain text and requirement bullets (headings first,

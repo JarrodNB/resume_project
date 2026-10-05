@@ -33,6 +33,12 @@ class WorkerSettings(BaseSettings):
     job_requirements_sorting_thinking: ThinkingEffort = "low"
     gap_analysis_model: str = "openai:gpt-5-mini"
     gap_analysis_thinking: ThinkingEffort = "low"
+    # Jev screens one user-written message at a time. `jev-latest` is the alias; the response
+    # names the version that answered (jev-1.13.0 when this was added). Pin that id here after
+    # the 0.7 yes-confidence bar is tuned on real screens.
+    user_text_screen_model: str = "typesafe:jev-latest"
+    resume_tailoring_model: str = "openai:gpt-5-mini"
+    resume_tailoring_thinking: ThinkingEffort = "low"
     # Must match Rails (CareerLibraryEmbeddings::MODEL / DIMENSIONS), which embeds the library;
     # a search only matches rows embedded with this model.
     embedding_model: str = "openai:text-embedding-3-small"

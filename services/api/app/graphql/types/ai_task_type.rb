@@ -9,6 +9,8 @@ module Types
     field :task_type, Types::AiTaskTypeEnum, null: false
     field :status, Types::AiTaskStatusEnum, null: false
     field :result, GraphQL::Types::JSON
+    field :input, GraphQL::Types::JSON, null: false,
+          description: "The task input, including approved resume sections while tailoring."
     field :pending_questions, GraphQL::Types::JSON, null: false,
           description: "Questions the AI is waiting on when status is NEEDS_USER_INPUT."
     field :error_message, String

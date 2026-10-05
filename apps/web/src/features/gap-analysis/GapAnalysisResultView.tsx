@@ -25,6 +25,11 @@ export function GapAnalysisResultView({
 
   return (
     <div className="grid gap-4">
+      {analysis.warnings.map((warning) => (
+        <p key={warning} className="text-sm text-muted-foreground">
+          {warning}
+        </p>
+      ))}
       {analysis.summary && <p>{analysis.summary}</p>}
       {requirements.length > 0 && (
         <p className="text-sm text-muted-foreground">

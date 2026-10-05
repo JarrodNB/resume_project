@@ -19,8 +19,13 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages
 - `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
-  builds the labeled prompt, runs the gap analysis agent, attaches evidence text; a deleted job,
-  empty library, or job without requirements fails with a user-facing message
+  screens each library fact, builds the labeled prompt, runs the gap analysis agent, attaches
+  evidence text, and reports Jev usage; a deleted job, empty library, or job without
+  requirements fails with a user-facing message
+- `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
+  summary, experience, projects, education, skills), pauses for approval, and echoes `generation`
+- `tailor_resume_steps.py` — folds the user's decision, screens gap responses, and builds the
+  pause or failure result
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,

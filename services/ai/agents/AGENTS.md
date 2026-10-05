@@ -19,6 +19,13 @@ instructions from `prompts/`.
   verdict per requirement citing library labels); its output validator retries with
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
   returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
+- `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (two bool questions on
+  `typesafe:jev-latest`); `screen_user_message` returns the screen, model name, confidence, and
+  usage. No generative fallback
+- `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
+  validator retries with `find_section_problems`; `write_resume_section` returns the draft and
+  usage. It writes prose and must not invent employers, titles, tools, dates, metrics, or
+  responsibilities
 
 ## Local Rules
 

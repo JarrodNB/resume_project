@@ -37,6 +37,11 @@ export function JobDetailPage() {
               <p className="text-muted-foreground">{[job.company, job.location].filter(Boolean).join(' · ')}</p>
             </div>
             <div className="flex items-center gap-2">
+              {job.latestGapAnalysis?.status === 'COMPLETED' && (
+                <Button asChild size="sm">
+                  <Link to={`/jobs/${job.id}/tailor`}>{job.resume ? 'Open resume' : 'Write resume'}</Link>
+                </Button>
+              )}
               <Badge variant="secondary">{JOB_STAGE_LABELS[job.stage]}</Badge>
               {job.url && (
                 <Button asChild variant="outline" size="sm">

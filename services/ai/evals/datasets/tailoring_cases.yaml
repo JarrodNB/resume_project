@@ -1,0 +1,88 @@
+# Description: Hand-labelled tailoring cases. People, companies, and jobs are synthetic.
+# inputs.context is a GapAnalysisContext. metadata is TailorEvalLabels.
+cases:
+  - name: experience_stays_faithful
+    inputs:
+      section_type: experience
+      context:
+        job:
+          id: job-python
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python APIs
+        career_library:
+          summary: Backend engineer.
+          experiences:
+            - id: exp-1
+              company: Ledgerly
+              title: Senior Engineer
+              start_date: 2019-01-01
+              highlights:
+                - id: hl-1
+                  content: Built Python APIs for card payouts
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: Built Python APIs for card payouts.
+      source_labels:
+        - H1
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: summary_uses_the_library
+    inputs:
+      section_type: summary
+      context:
+        job:
+          id: job-summary
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python services
+        career_library:
+          summary: Backend engineer focused on Python services.
+          experiences: []
+    metadata:
+      nothing_fits: false
+      prose: Backend engineer focused on Python services.
+      source_labels:
+        - SUMMARY
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: unrelated_experience_is_omitted
+    inputs:
+      section_type: experience
+      context:
+        job:
+          id: job-kernel
+          title: Kernel Engineer
+          company: Northwind
+          requirements:
+            - Linux kernel internals
+        career_library:
+          summary: Pastry chef.
+          experiences:
+            - id: exp-1
+              company: Ovenly
+              title: Pastry Chef
+              start_date: 2016-04-01
+              highlights:
+                - id: hl-1
+                  content: Designed a seasonal dessert menu
+    metadata:
+      nothing_fits: true
+      job_terms: []
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked

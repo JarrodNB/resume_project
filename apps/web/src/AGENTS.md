@@ -17,8 +17,9 @@ Source of the web app, organized by feature.
 - `features/career-library/` — career library and resumes page
 - `features/jobs/` — saved jobs: add from a posting link (live scrape status), list, detail
 - `features/gap-analysis/` — compare a job with the career library (shown on the job page)
+- `features/resume-tailoring/` — write a resume for a job, one section at a time (`/jobs/:id/tailor`)
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
-  resume import, jobs, and gap analysis
+  resume import, jobs, gap analysis, and resume tailoring
 - `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in
   `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,

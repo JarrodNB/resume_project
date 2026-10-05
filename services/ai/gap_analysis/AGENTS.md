@@ -8,10 +8,13 @@ can't be invented.
 
 ## Contents
 
-- `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` returns a
-  `GapAnalysisPrompt` (prompt text + label lookups). Labels: `R1`/`N1` for requirements and
-  nice-to-haves;   `SUMMARY`, `E1` experience, `H1` highlight, `P1` project, `ED1` education,
-  `S1` skill, `F1` library fact; `format_date_range`
+- `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today, allow_fact=None)`
+  returns a `GapAnalysisPrompt` (prompt text, label lookups, warnings). Labels: `R1`/`N1` for
+  requirements and nice-to-haves; `SUMMARY`, `E1` experience, `H1` highlight, `P1` project,
+  `ED1` education, `S1` skill, `F1` library fact; `format_date_range`. `allow_fact` screens each
+  library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt
+  carries one warning. `None` keeps every fact (evals). Resume-copied entries are not screened
+- `screen_library_facts.py` — `select_screened_facts`; `LIBRARY_FACT_OMITTED_WARNING`
 - `find_gap_analysis_problems.py` — `find_gap_analysis_problems(analysis, prompt)`: missing,
   repeated, or unknown requirement labels, unknown evidence labels, met/partial without
   evidence, and labels written into the explanations or summary (the user never sees labels;
@@ -23,4 +26,4 @@ can't be invented.
 ## Local Rules
 
 - The LLM only ever sees and returns labels; ids and evidence text come from code.
-- No LLM calls here (they live in `agents/`).
+- No LLM calls here (they live in `agents/`). Fact screening is a callback the handler passes in.

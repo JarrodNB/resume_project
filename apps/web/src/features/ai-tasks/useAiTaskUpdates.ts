@@ -6,8 +6,11 @@
 import { useSubscription } from '@apollo/client/react'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from './aiTaskOperations'
 
-/** Subscribes to an AI task. The server sends its current state immediately, then every change. */
+/** Subscribes to an AI task. The server sends its current state immediately, then every change. An empty id does not subscribe. */
 export function useAiTaskUpdates(aiTaskId: string) {
-  const { data, error } = useSubscription(AI_TASK_UPDATED_SUBSCRIPTION, { variables: { id: aiTaskId } })
+  const { data, error } = useSubscription(AI_TASK_UPDATED_SUBSCRIPTION, {
+    variables: { id: aiTaskId },
+    skip: aiTaskId === '',
+  })
   return { aiTask: data?.aiTaskUpdated ?? null, error }
 }

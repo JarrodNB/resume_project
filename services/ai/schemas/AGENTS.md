@@ -19,6 +19,10 @@ the `result` sent to Rails, so changes must be mirrored there.
   LLM output
 - `library_search_match.py` — `LibrarySearchMatch` (source type and id, embedded text, cosine
   distance), returned by `database/library_embedding_search.py`; not an LLM output
+- `user_text_screen.py` — `UserTextScreen`: `prompt_injection` and `harmful_request`, each a
+  bool with `BoolCriteria` (one question). Code applies the yes-confidence threshold
+- `tailored_section.py` — `TailoredSectionDraft` (the writer output: `nothing_fits`, chosen
+  entries, cited prose). Identity fields are copied by code, not emitted by the model
 - `gap_analysis.py` — `GapAnalysis` (agent output: verdicts citing short labels) and
   `GapAnalysisResult`, the `analyze_gaps` result (`result["gap_analysis"]`) with evidence text
   copied from the library (kind `fact` is a library fact); mirrored by

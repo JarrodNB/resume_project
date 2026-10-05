@@ -1,0 +1,120 @@
+"""
+Description: Evaluators for one tailored section: the draft cites only real sources, it is
+relevant to the job when it writes something, and it omits a section the labels say to omit.
+Index:
+    - TailorEvalInput / TailorEvalLabels: one case
+    - SectionFaithfulness / SectionRelevance / OmitsWhenAsked: the scores
+    - labels_to_draft: the draft the hand labels describe
+    - TAILORING_EVALUATORS: the classes Dataset.from_file needs
+"""
+
+from dataclasses import dataclass
+
+from pydantic import BaseModel, Field
+from pydantic_evals.evaluators import Evaluator, EvaluatorContext
+
+from documents.text_matching import normalize_text
+from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
+from tailoring.build_section_prompt import build_section_prompt
+from tailoring.check_section_faithfulness import find_section_problems
+
+
+class TailorEvalInput(BaseModel):
+    """One section to write, against a synthetic library."""
+
+    section_type: str
+    context: GapAnalysisContext
+
+
+class TailorEvalLabels(BaseModel):
+    """What a faithful answer does on this case."""
+
+    nothing_fits: bool
+    entry_label: str | None = None
+    prose: str | None = None
+    source_labels: list[str] = Field(default_factory=list)
+    job_terms: list[str] = Field(default_factory=list)
+
+
+TailorContext = EvaluatorContext[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]
+
+
+def labels_to_draft(labels: TailorEvalLabels) -> TailoredSectionDraft:
+    """The draft a perfect run would return for these labels."""
+    if labels.nothing_fits:
+        return TailoredSectionDraft(nothing_fits=True)
+    if labels.entry_label is None:
+        return TailoredSectionDraft(
+            nothing_fits=False,
+            summary=CitedProse(text=labels.prose or "", source_labels=labels.source_labels),
+        )
+    return TailoredSectionDraft(
+        nothing_fits=False,
+        entries=[
+            ChosenEntry(
+                label=labels.entry_label,
+                prose=[CitedProse(text=labels.prose or "", source_labels=labels.source_labels)],
+            )
+        ],
+    )
+
+
+def _sources(ctx: TailorContext):
+    """The labeled library the checker uses (no retrieval narrowing)."""
+    prompt = build_section_prompt(
+        ctx.inputs.section_type,
+        ctx.inputs.context,
+        [],
+        [],
+        None,
+        write_anyway=False,
+        gap_analysis=None,
+    )
+    return prompt.sources
+
+
+@dataclass
+class SectionFaithfulness(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """No claim outside the cited sources."""
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        """1 when the checker accepts the draft."""
+        problems = find_section_problems(ctx.inputs.section_type, ctx.output, _sources(ctx))
+        return 1.0 if not problems else 0.0
+
+
+@dataclass
+class SectionRelevance(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """A written section addresses the job; an omitted one is not scored against the job."""
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        """1 when an omitted section was supposed to be omitted, or the prose hits a job term."""
+        labels = ctx.metadata
+        assert labels is not None
+        if labels.nothing_fits:
+            return 1.0 if ctx.output.nothing_fits else 0.0
+        prose = " ".join(_prose_texts(ctx.output))
+        haystack = normalize_text(prose)
+        return 1.0 if any(normalize_text(term) in haystack for term in labels.job_terms) else 0.0
+
+
+@dataclass
+class OmitsWhenAsked(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """The model leaves out a section that does not fit."""
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        """1 when nothing_fits matches the label."""
+        labels = ctx.metadata
+        assert labels is not None
+        return 1.0 if ctx.output.nothing_fits == labels.nothing_fits else 0.0
+
+
+def _prose_texts(draft: TailoredSectionDraft) -> list[str]:
+    """Every sentence the draft wrote."""
+    texts = [draft.summary.text] if draft.summary else []
+    texts += [prose.text for entry in draft.entries for prose in entry.prose]
+    return texts
+
+
+TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked)

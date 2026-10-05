@@ -26,6 +26,7 @@ it('keeps valid assessments and drops malformed ones', () => {
         { verdict: 'met' },
       ],
     },
+    warnings: ['One of your notes was left out.'],
   })
 
   expect(parsed).toEqual({
@@ -39,5 +40,6 @@ it('keeps valid assessments and drops malformed ones', () => {
         evidence: [{ kind: 'project', id: 'project-1', text: 'Deploy bot', context: null }],
       },
     ],
+    warnings: ['One of your notes was left out.'],
   })
 })

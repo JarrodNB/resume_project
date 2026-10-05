@@ -43,14 +43,14 @@ def build_parse_resume_task(content_type: str = DOCX_CONTENT_TYPE) -> AiTaskMess
     )
 
 
-def test_unsupported_task_type_fails_with_message(task_dependencies: TaskDependencies) -> None:
-    """Task types without an agent yet report a clear failure."""
-    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume")
+def test_unknown_task_type_fails_with_message(task_dependencies: TaskDependencies) -> None:
+    """A task type with no handler reports a clear failure."""
+    task = AiTaskMessage.model_construct(ai_task_id=uuid4(), user_id=uuid4(), task_type="unknown")
 
     result = handle_ai_task(task, task_dependencies)
 
     assert result.status == "failed"
-    assert result.error_message == "Task type tailor_resume is not supported yet"
+    assert "not supported" in (result.error_message or "")
 
 
 def test_parse_resume_returns_parsed_resume(

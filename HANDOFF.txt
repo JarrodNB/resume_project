@@ -133,6 +133,7 @@ docker compose exec web npm run codegen         then regenerate web GraphQL type
 docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
 docker compose run --rm ai python -m evals.run_job_posting_extraction_evals   job scraping evals
 docker compose run --rm ai python -m evals.run_gap_analysis_evals             gap analysis evals
+docker compose run --rm ai python -m evals.run_user_text_screen_evals         Jev screen evals
 docker compose restart ai api-results-worker    after Python or result-handling Rails changes
 docker compose run --rm --no-deps web npm install <pkg>   then: docker compose up --build -V -d web
 

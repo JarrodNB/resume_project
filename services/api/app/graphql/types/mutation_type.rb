@@ -10,6 +10,7 @@
 #   - skills: deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 #   - gap analysis: analyzeJobGaps
+#   - resume tailoring: startResumeTailoring, submitTailoredSection, saveTailoredResume
 #   - gap responses: saveGapResponse
 #   - library facts: deleteLibraryFact
 module Types
@@ -39,6 +40,10 @@ module Types
     field :import_parsed_resume, mutation: Mutations::ResumeImports::ImportParsedResume
 
     field :analyze_job_gaps, mutation: Mutations::GapAnalysis::AnalyzeJobGaps
+
+    field :start_resume_tailoring, mutation: Mutations::ResumeTailoring::StartResumeTailoring
+    field :submit_tailored_section, mutation: Mutations::ResumeTailoring::SubmitTailoredSection
+    field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
     field :delete_library_fact, mutation: Mutations::LibraryFacts::DeleteLibraryFact

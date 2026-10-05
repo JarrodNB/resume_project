@@ -18,8 +18,9 @@ from pydantic import BaseModel
 from agents.gap_analysis_agent import analyze_gaps
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
+from screening.screen_user_text import ScreenOutcome, screen_user_text
 from worker.model_prices import build_model_usage
-from worker.queue_messages import AiResultMessage, AiTaskMessage
+from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
 
 JOB_NOT_FOUND_MESSAGE = "This job no longer exists."
@@ -51,7 +52,18 @@ def handle_analyze_gaps_task(
 
     settings = dependencies.settings
     model = settings.gap_analysis_model
-    prompt = build_gap_analysis_prompt(context, today=datetime.now(UTC).date())
+    screen_usage: list[ModelUsage] = []
+
+    def allow_fact(text: str) -> bool:
+        """Screens one library fact and keeps its Jev usage for the monthly budget."""
+        outcome = _screen_fact(text, settings.user_text_screen_model, settings.llm_run_timeout_seconds)
+        if outcome.usage is not None and outcome.model is not None:
+            screen_usage.append(build_model_usage(outcome.model, outcome.usage))
+        return outcome.allowed
+
+    prompt = build_gap_analysis_prompt(
+        context, today=datetime.now(UTC).date(), allow_fact=allow_fact
+    )
     run = analyze_gaps(
         prompt,
         model=model,
@@ -62,9 +74,14 @@ def handle_analyze_gaps_task(
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
-        result={"gap_analysis": result.model_dump(mode="json")},
-        usage=[build_model_usage(model, run.usage)],
+        result={"gap_analysis": result.model_dump(mode="json"), "warnings": prompt.warnings},
+        usage=[build_model_usage(model, run.usage), *screen_usage],
     )
+
+
+def _screen_fact(text: str, model: str, timeout_seconds: float) -> ScreenOutcome:
+    """One Jev screen of a library fact. Split out so tests can replace it."""
+    return screen_user_text(text, model=model, timeout_seconds=timeout_seconds)
 
 
 def _failed(task: AiTaskMessage, error_message: str) -> AiResultMessage:

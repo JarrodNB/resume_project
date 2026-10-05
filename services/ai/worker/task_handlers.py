@@ -11,6 +11,7 @@ from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.parse_resume_handler import handle_parse_resume_task
 from worker.queue_messages import AiResultMessage, AiTaskMessage, TaskType
 from worker.scrape_job_handler import handle_scrape_job_task
+from worker.tailor_resume_handler import handle_tailor_resume_task
 from worker.task_dependencies import TaskDependencies
 
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
@@ -19,6 +20,7 @@ TASK_HANDLERS: dict[TaskType, TaskHandler] = {
     "parse_resume": handle_parse_resume_task,
     "scrape_job": handle_scrape_job_task,
     "analyze_gaps": handle_analyze_gaps_task,
+    "tailor_resume": handle_tailor_resume_task,
 }
 
 

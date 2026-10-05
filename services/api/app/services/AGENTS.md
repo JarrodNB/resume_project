@@ -35,7 +35,18 @@ All business logic, as service objects grouped by domain folder.
 - `ai_tasks/apply_ai_result_service.rb` — applies an `ai_results` message (idempotent, row
   lock), stores its token usage and cost, and triggers the `aiTaskUpdated` subscription; a
   completed `scrape_job` saves its Job in the same locked transaction (task `subject`), or the
-  task fails if the Job can't be saved
+  task fails if the Job can't be saved. A `tailor_resume` result whose `generation` doesn't
+  match the task is ignored; matching generations add usage once (`usage_generation`) and copy
+  approved sections onto the task input
+- `ai_tasks/republish_ai_task_service.rb` — publishes an existing task again (tailoring, one
+  section per message) without creating a row or re-checking the hourly limit
+- `resume_tailoring/start_resume_tailoring_service.rb` — queues `tailor_resume` for a job that
+  already has a completed gap analysis, or returns the task already in progress; snapshots
+  contact, the comparison, and gap responses into the task input
+- `resume_tailoring/submit_tailored_section_service.rb` — records approve / omit / write_anyway
+  / reopen and requeues the same task at the next generation
+- `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
+  (`accepted_at`); deleting the job keeps the resume
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time

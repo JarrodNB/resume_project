@@ -34,12 +34,24 @@ score attached, so runs can be compared across prompt and model changes.
   (incl. met agreement), `GapRecall`, `EvidenceRecall`
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
   `docker compose run --rm ai python -m evals.run_gap_analysis_evals`
+- `datasets/tailoring_cases.yaml` — faithfulness, relevance, and a section that should be omitted
+- `tailoring_evaluators.py` — faithfulness and relevance checks for a written section
+- `run_tailoring_evals.py` — runner:
+  `docker compose run --rm ai python -m evals.run_tailoring_evals`
+- `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
+  allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for
+  help breaking into an account). `block` is the decision at the 0.7 bar
+- `user_text_screen_evaluators.py` — `DecisionMatch` (the production bar) and `QuestionMatch`
+  (each yes/no bool)
+- `run_user_text_screen_evals.py` — runner (the Jev call itself, not the phrase list):
+  `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
 
 ## Local Rules
 
 - All data is synthetic. Never commit real resumes.
 - `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
-  and `tests/test_gap_analysis_evaluators.py` check that the hand labels score 1.0 against their own inputs; keep them passing when adding
+  `tests/test_gap_analysis_evaluators.py`, `tests/test_tailoring_evaluators.py`, and
+  `tests/test_user_text_screen_evaluators.py` check that the hand labels score 1.0 against their own inputs; keep them passing when adding
   cases.
 - Runs cost real tokens (about $0.02 for the resume parsing set and $0.01 for the gap
   analysis set on gpt-5-mini).

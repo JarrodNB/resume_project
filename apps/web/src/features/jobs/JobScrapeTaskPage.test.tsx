@@ -19,6 +19,8 @@ function aiTaskMock(task: Record<string, unknown>) {
           taskType: 'SCRAPE_JOB',
           status: 'QUEUED',
           result: null,
+          input: {},
+          pendingQuestions: [],
           errorMessage: null,
           acceptedAt: null,
           createdAt: '2026-10-01T00:00:00Z',

@@ -25,8 +25,10 @@ module AiTasks
 
       applied = ai_task.with_lock do
         next false if ai_task.finished?
+        next false if stale_generation?(ai_task)
 
-        attributes = attributes_for(status).merge(usage_attributes)
+        attributes = attributes_for(status).merge(usage_attributes(ai_task))
+        attributes.merge!(tailor_input_attributes(ai_task)) if ai_task.tailor_resume?
         attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
         ai_task.update!(attributes)
       end
@@ -64,11 +66,45 @@ module AiTasks
       { status: "failed", error_message: "We couldn't save this job: #{result.errors.join(', ')}" }
     end
 
-    # Sums the message's per-model usage entries into the task's token and cost columns. They
-    # are assigned, not added, so a redelivered message can't count twice.
-    def usage_attributes
+    # True when this result is from an earlier step of a requeued task. Other task types omit
+    # generation, and those results are applied as before.
+    def stale_generation?(ai_task)
+      generation = @message["generation"]
+      return false if generation.nil?
+
+      generation.to_i != ai_task.generation
+    end
+
+    # Copies the sections approved so far onto the task input and clears the submission that
+    # this step already handled, so a reload shows the same draft.
+    def tailor_input_attributes(ai_task)
+      input = ai_task.input.deep_dup
+      approved = approved_sections_from_message
+      input["approved_sections"] = approved unless approved.nil?
+      input["pending_section"] = nil
+      { input: input }
+    end
+
+    # Approved sections travel on the pause question, or as the finished draft's sections.
+    def approved_sections_from_message
+      question = Array(@message["pending_questions"]).first
+      return question["approved_sections"] if question.is_a?(Hash) && question.key?("approved_sections")
+
+      sections = @message["result"]["sections"] if @message["result"].is_a?(Hash)
+      sections
+    end
+
+    # Sums the message's per-model usage. A task that is requeued per section adds each step's
+    # cost once (`usage_generation`); every other task assigns, so a redelivery can't count twice.
+    def usage_attributes(ai_task)
       entries = Array(@message["usage"])
-      USAGE_COLUMNS.index_with { |column| entries.sum { |entry| entry[column].to_i } }
+      incoming = USAGE_COLUMNS.index_with { |column| entries.sum { |entry| entry[column].to_i } }
+      generation = @message["generation"]
+      return incoming if generation.nil?
+      return {} if generation.to_i == ai_task.usage_generation
+
+      added = USAGE_COLUMNS.index_with { |column| ai_task.public_send(column) + incoming[column] }
+      added.merge("usage_generation" => generation.to_i)
     end
   end
 end

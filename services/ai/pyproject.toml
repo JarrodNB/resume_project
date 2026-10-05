@@ -12,7 +12,7 @@ dependencies = [
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.6",
     "pydantic",
-    "pydantic-ai-slim[openai]>=2.52.0",
+    "pydantic-ai-slim[openai,typesafe]==2.53.0",
     "pydantic-settings",
     "pypdf>=6.19.0",
     "python-docx>=1.2.0",
@@ -20,7 +20,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pydantic-evals>=2.52.0",
+    "pydantic-evals==2.53.0",
     "pytest",
     "ruff",
 ]

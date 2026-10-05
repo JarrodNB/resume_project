@@ -48,6 +48,9 @@ export const JOB_QUERY = graphql(`
         errorMessage
         createdAt
       }
+      resume {
+        id
+      }
     }
   }
 `)

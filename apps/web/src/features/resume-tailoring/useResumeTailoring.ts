@@ -1,0 +1,89 @@
+/**
+ * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
+ * follows it live. A saved resume is returned as-is and no task is started.
+ * Index:
+ *   - TailorTaskView: the task fields the page renders
+ *   - useResumeTailoring: job, task, start errors, and retry
+ */
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useMutation, useQuery } from '@apollo/client/react'
+import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
+import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
+import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY } from './tailorOperations'
+
+export interface TailorTaskView {
+  id: string
+  status: AiTaskStatusEnum
+  input: unknown
+  pendingQuestions: unknown
+  result: unknown
+  errorMessage: string | null
+  acceptedAt: string | null
+}
+
+/** The job's tailoring task (live when one is running) and its saved resume. */
+export function useResumeTailoring(jobId: string) {
+  const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, { variables: { id: jobId } })
+  const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
+  const [startedId, setStartedId] = useState<string | null>(null)
+  const [startErrors, setStartErrors] = useState<string[]>([])
+  const started = useRef(false)
+  const job = data?.job ?? null
+  const existing = job?.latestTailoring ?? null
+  const followExisting = Boolean(existing && existing.status !== 'FAILED' && !job?.resume)
+  const taskId = startedId ?? (followExisting && existing ? existing.id : '')
+  const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
+
+  const begin = useCallback(async () => {
+    setStartErrors([])
+    try {
+      const { data: startedData } = await startTailoring({ variables: { jobId } })
+      const payload = startedData?.startResumeTailoring
+      if (payload?.aiTask && payload.errors.length === 0) {
+        setStartedId(payload.aiTask.id)
+        return
+      }
+      setStartErrors(payload?.errors.length ? payload.errors : ["Couldn't start the resume. Please try again."])
+    } catch (startError) {
+      setStartErrors([requestErrorMessage(startError, "Couldn't reach the server. Check your connection and try again.")])
+    }
+  }, [jobId, startTailoring])
+
+  useEffect(() => {
+    if (loading || !job || job.resume || job.latestTailoring || started.current) return
+    started.current = true
+    void begin()
+  }, [loading, job, begin])
+
+  /** Starts again after a failed task. */
+  function retry() {
+    started.current = true
+    void begin()
+  }
+
+  const task = taskFrom(aiTask) ?? (followExisting && existing ? taskFrom(existing) : null)
+  return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
+}
+
+/** Copies the fields the page reads off a query task or a subscription task. */
+function taskFrom(source: {
+  id: string
+  status: AiTaskStatusEnum
+  input?: unknown
+  pendingQuestions?: unknown
+  result?: unknown
+  errorMessage?: string | null
+  acceptedAt?: string | null
+} | null): TailorTaskView | null {
+  if (!source) return null
+  return {
+    id: source.id,
+    status: source.status,
+    input: source.input ?? null,
+    pendingQuestions: source.pendingQuestions ?? null,
+    result: source.result ?? null,
+    errorMessage: source.errorMessage ?? null,
+    acceptedAt: source.acceptedAt ?? null,
+  }
+}

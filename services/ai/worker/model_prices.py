@@ -32,6 +32,14 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
     # Embeddings bill input tokens only.
     "openai:text-embedding-3-small": ModelPrice(input=0.02, cached_input=0.02, output=0.0),
+    # TypeSafe Jev, https://docs.typesafe.ai/models checked 2026-10-05: $0.042 per 1M input
+    # tokens ($42 per billion); output is free ("too cheap to meter"). No cached-input rate is
+    # published, so cached input uses the input rate. `jev-latest` pointed at `jev-1.13.0` on
+    # that page. The API reports the versioned id on the response; the worker may report either
+    # name, and both are priced so a run is never recorded as free.
+    "typesafe:jev-latest": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
+    "typesafe:jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
+    "jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
 }
 
 

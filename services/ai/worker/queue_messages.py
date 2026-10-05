@@ -45,3 +45,6 @@ class AiResultMessage(BaseModel):
     message_history: list[dict[str, Any]] = Field(default_factory=list)
     error_message: str | None = None
     usage: list[ModelUsage] = Field(default_factory=list)
+    # Set on tailor_resume results. ApplyAiResultService ignores a result whose generation is
+    # not the task's current one, so a redelivered earlier section cannot rewind the draft.
+    generation: int | None = None

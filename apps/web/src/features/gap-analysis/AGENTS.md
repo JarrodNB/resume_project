@@ -17,7 +17,8 @@ Adding it to the career library creates a library fact, listed on the career lib
   for a gap or partial match, `GapResponseForm.tsx` (`useSaveGapResponse.ts`)
 - `savedGapResponse.ts` — the `Job.gapResponses` shape the form matches by requirement text
 - `parseGapAnalysisResult.ts` — result types, `VERDICT_LABELS`, and `parseGapAnalysisResult`
-  (mirror of `services/ai/schemas/gap_analysis.py` `GapAnalysisResult`)
+  (mirror of `services/ai/schemas/gap_analysis.py` `GapAnalysisResult`); `warnings` on the
+  task result (a note left out by the screen) are shown with the summary
 - `gapAnalysisOperations.ts` — `ANALYZE_JOB_GAPS_MUTATION`; hook `useStartGapAnalysis.ts`
 - `*.test.tsx` / `*.test.ts` — card states and the result parser
 

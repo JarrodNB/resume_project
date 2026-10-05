@@ -12,6 +12,8 @@ export const AI_TASK_UPDATED_SUBSCRIPTION = graphql(`
       taskType
       status
       result
+      input
+      pendingQuestions
       errorMessage
       acceptedAt
       createdAt

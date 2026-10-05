@@ -33,6 +33,7 @@ export interface AssessedRequirement {
 export interface GapAnalysisResult {
   summary: string
   assessments: AssessedRequirement[]
+  warnings: string[]
 }
 
 const VERDICTS: readonly string[] = ['met', 'partial', 'missing']
@@ -71,10 +72,12 @@ function parseAssessment(value: unknown): AssessedRequirement | null {
 export function parseGapAnalysisResult(result: unknown): GapAnalysisResult | null {
   const analysis = isRecord(result) ? result.gap_analysis : null
   if (!isRecord(analysis) || !Array.isArray(analysis.assessments)) return null
+  const warnings = isRecord(result) && Array.isArray(result.warnings) ? result.warnings : []
   return {
     summary: typeof analysis.summary === 'string' ? analysis.summary : '',
     assessments: analysis.assessments
       .map(parseAssessment)
       .filter((item): item is AssessedRequirement => item !== null),
+    warnings: warnings.filter((warning): warning is string => typeof warning === 'string'),
   }
 }

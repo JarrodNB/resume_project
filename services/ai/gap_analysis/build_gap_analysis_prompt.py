@@ -10,9 +10,11 @@ Index:
     - format_date_range: "Jan 2020 – present" style ranges
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 
+from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.gap_analysis import EvidenceItem, RequirementKind
 from schemas.gap_analysis_context import GapAnalysisContext
 
@@ -34,6 +36,7 @@ class GapAnalysisPrompt:
     text: str
     requirements: dict[str, LabeledRequirement] = field(default_factory=dict)
     evidence: dict[str, EvidenceItem] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
 
 
 def format_date_range(start_date: date | None, end_date: date | None) -> str | None:
@@ -45,20 +48,30 @@ def format_date_range(start_date: date | None, end_date: date | None) -> str | N
     return f"{start} – {end}"
 
 
-def build_gap_analysis_prompt(context: GapAnalysisContext, today: date) -> GapAnalysisPrompt:
-    """Builds the labeled prompt. `today` lets the model count years for ongoing roles."""
-    prompt = GapAnalysisPrompt(text="")
+def build_gap_analysis_prompt(
+    context: GapAnalysisContext,
+    today: date,
+    *,
+    allow_fact: Callable[[str], bool] | None = None,
+) -> GapAnalysisPrompt:
+    """Builds the labeled prompt. `today` lets the model count years for ongoing roles.
+    `allow_fact` screens each library fact (requirement and response together); None keeps
+    every fact, which is what the evals do."""
+    kept_facts, warnings = select_screened_facts(context.career_library.facts, allow_fact)
+    screened = context.model_copy(deep=True)
+    screened.career_library.facts = kept_facts
+    prompt = GapAnalysisPrompt(text="", warnings=warnings)
     lines = [
         f"Today's date: {today.isoformat()}",
         "",
-        f"# Job: {context.job.title} at {context.job.company}",
+        f"# Job: {screened.job.title} at {screened.job.company}",
     ]
-    lines += _requirement_lines(prompt, "required", "R", "Requirements", context.job.requirements)
+    lines += _requirement_lines(prompt, "required", "R", "Requirements", screened.job.requirements)
     lines += _requirement_lines(
-        prompt, "nice_to_have", "N", "Nice to have", context.job.nice_to_haves
+        prompt, "nice_to_have", "N", "Nice to have", screened.job.nice_to_haves
     )
     lines += ["", "# Career library"]
-    lines += _library_lines(prompt, context)
+    lines += _library_lines(prompt, screened)
     prompt.text = "\n".join(lines)
     return prompt
 

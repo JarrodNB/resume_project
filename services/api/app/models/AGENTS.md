@@ -24,15 +24,17 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
     educations (ongoing first, then by end date, undated last); `User` lists them this way
 - `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,
-  gap analyses; nulled, not deleted, with the job so costs stay counted), `gap_responses`
-  (deleted with the job; library facts they point at are kept), and `latest_gap_analysis`
+  gap analyses, tailoring; nulled, not deleted, with the job so costs stay counted),
+  `gap_responses` (deleted with the job; library facts they point at are kept),
+  `latest_gap_analysis`, and `latest_tailoring`
 - `resume.rb` + `resume_section.rb` — resumes tailored to a job (there is no base resume; the
   career library is the base). Section `content` is a JSON snapshot, so editing a resume never
   changes the career library (content shapes in `resume_section.rb`). A resume needs a job only
   on create; deleting the job keeps the resume (job nulled)
 - `ai_task.rb` — one unit of AI work over SQS; `finished?` drives duplicate-result handling;
   `source_file` (Active Storage) is the upload a task reads; `accepted?` once its result has
-  been imported; token columns and `cost_microdollars` come from the worker's reported usage
+  been imported; token columns and `cost_microdollars` come from the worker's reported usage;
+  `generation` is the tailor step in progress and `usage_generation` is the step already billed
 
 ## Local Rules
 

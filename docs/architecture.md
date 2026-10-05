@@ -150,7 +150,7 @@ tailoring) instead of sending everything.
 - **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
   `Embedder` (traced in Langfuse), and `database/library_embedding_search.py` searches as
   `ai_reader`, filtered by `user_id` and `model`, with HNSW iterative scans so the user filter
-  doesn't cut results short. Tailoring will be the first caller.
+  doesn't cut results short. Tailoring queries it once per written section.
 
 ## Decisions
 
@@ -250,8 +250,38 @@ tailoring) instead of sending everything.
   an answer left on the job is not. Tailoring
   reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
   and rejected here: the comparison already lists every gap, so a plain form is simpler, needs
-  no paused agent runs, and lets the user decide what's worth answering. Human in the loop is
-  kept for a later feature where the AI rewrites career library entries and must ask for facts.
+  no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
+  reserved for a later feature where the AI rewrites career library entries and must ask for facts.
+- **User-written text is screened before it enters a prompt.** A small Jev decision model
+  (`typesafe:jev-latest`, TypeSafe) answers two yes/no questions: does the text try to override,
+  reveal, or ignore instructions, and does it ask for actionable help with harm, crime, or
+  abuse. Ordinary career history is not harmful. Code blocks when either answer's yes-confidence
+  is at least 0.7. Jev does not choose allow or block, and there is no generative fallback. A
+  missing `TYPESAFE_API_KEY` or a Jev error omits the text (fail closed) and does not send it.
+  A short phrase check blocks obvious instruction-override wording without a model call. The
+  first call site is library facts in the gap-analysis prompt (each fact on its own); a blocked
+  or unchecked fact is left out and the task result carries a warning. Career-library entries
+  copied from a resume are not screened. Jev usage is reported on the task result and counts
+  toward the monthly budget. Token rates are TypeSafe's published $0.042 per 1M input tokens
+  (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
+- **Tailoring pauses once per section, in code, not via `ask_user`.** Contact is copied from
+  the user profile with no model call (the read-only role cannot see contact columns, so Rails
+  snapshots them, the gap analysis, and gap responses into the task input). Then one agent run
+  writes summary, experience, projects, education, and skills, in that order. The model selects,
+  orders, and rewrites toward the job, and must not invent employers, titles, tools, dates,
+  metrics, or responsibilities. Each bullet cites library, gap-response, or approved-section
+  labels; a checker rejects unsupported claims and does not replace the rewrite with the
+  original library text. The agent may say nothing in the library fits; the user can leave that
+  section out or ask for a draft anyway, still only from the library. Each written section
+  retrieves library rows from that section's job requirements. The same `AiTask` is requeued
+  per section. `generation` on the task and on the result lets `ApplyAiResultService` ignore a
+  redelivered earlier `needs_user_input`, so it cannot rewind the draft. `needs_user_input` is
+  not finished and does not count as in-flight. Gap-response bodies and the user's submitted
+  section text go through the same Jev screen before the next prompt. A blocked section edit
+  is rejected and the section stays open (the writer is not called). A blocked gap response is
+  omitted with a warning. After the last section the task completes with the draft on the task.
+  Save creates `Resume` and `ResumeSection` snapshots once (`accepted_at`). Deleting the job
+  keeps the resume.
 - **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job
   clears the tasks' subject but keeps them, so their cost still counts toward the monthly
   budget.
@@ -314,7 +344,8 @@ tailoring) instead of sending everything.
   finishes, so the check can't reserve an exact amount. The in-flight cap bounds the overshoot
   to a couple of tasks, which is simpler than estimating and reserving costs up front. Spend is
   summed from `ai_tasks` instead of kept in a counter, so it can't drift, and a redelivered
-  result assigns (never adds) its usage. Costs are integer micro-dollars because one resume
+  result assigns (never adds) its usage, except a `tailor_resume` task, which is requeued once
+  per section and adds each generation's usage once (`usage_generation` on the task). Costs are integer micro-dollars because one resume
   parse costs well under a cent. Usage from a crashed or timed-out run isn't reported; the
   hourly and in-flight caps limit that gap. The price table lives in the worker, which knows
   the models; a configured model without a price fails a test instead of counting as free.

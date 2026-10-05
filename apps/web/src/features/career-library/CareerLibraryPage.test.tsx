@@ -37,9 +37,39 @@ const libraryMock = {
       projects: [],
       educations: [],
       skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: 'Languages', position: 0 }],
+      libraryFacts: [],
     },
   },
 }
+
+it('shows a fact added from a gap response', async () => {
+  renderPage({
+    path: '/library',
+    url: '/library',
+    element: <CareerLibraryPage />,
+    mocks: [
+      {
+        ...libraryMock,
+        result: {
+          data: {
+            ...libraryMock.result.data,
+            libraryFacts: [
+              {
+                __typename: 'LibraryFact',
+                id: 'fact-1',
+                requirement: 'Experience with Kubernetes',
+                response: 'I used Kubernetes at Acme for two years',
+              },
+            ],
+          },
+        },
+      },
+    ],
+  })
+
+  expect(await screen.findByText('Experience with Kubernetes')).toBeInTheDocument()
+  expect(screen.getByText('I used Kubernetes at Acme for two years')).toBeInTheDocument()
+})
 
 it('shows the imported library', async () => {
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [libraryMock] })
@@ -54,4 +84,5 @@ it('shows the imported library', async () => {
   expect(screen.getByText('Backend engineer.')).toBeInTheDocument()
   expect(screen.getByText('Ruby')).toBeInTheDocument()
   expect(screen.getByText('No projects yet.')).toBeInTheDocument()
+  expect(screen.getByText('No facts yet.')).toBeInTheDocument()
 })

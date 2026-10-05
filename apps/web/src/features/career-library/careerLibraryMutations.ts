@@ -2,7 +2,8 @@
  * Description: GraphQL mutations that delete or merge career library entries (typed by GraphQL
  * Code Generator).
  * Index:
- *   - DELETE_EXPERIENCE_MUTATION, DELETE_PROJECT_MUTATION, DELETE_EDUCATION_MUTATION, DELETE_SKILL_MUTATION
+ *   - DELETE_EXPERIENCE_MUTATION, DELETE_PROJECT_MUTATION, DELETE_EDUCATION_MUTATION,
+ *     DELETE_SKILL_MUTATION, DELETE_LIBRARY_FACT_MUTATION
  *   - MERGE_EXPERIENCES_MUTATION, MERGE_PROJECTS_MUTATION, MERGE_EDUCATIONS_MUTATION
  */
 import { graphql } from '@/graphql/generated'
@@ -34,6 +35,14 @@ export const DELETE_EDUCATION_MUTATION = graphql(`
 export const DELETE_SKILL_MUTATION = graphql(`
   mutation DeleteSkill($id: ID!) {
     deleteSkill(input: { id: $id }) {
+      errors
+    }
+  }
+`)
+
+export const DELETE_LIBRARY_FACT_MUTATION = graphql(`
+  mutation DeleteLibraryFact($id: ID!) {
+    deleteLibraryFact(input: { id: $id }) {
       errors
     }
   }

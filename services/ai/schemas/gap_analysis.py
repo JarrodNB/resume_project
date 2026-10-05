@@ -15,7 +15,9 @@ from pydantic import BaseModel, Field
 
 Verdict = Literal["met", "partial", "missing"]
 RequirementKind = Literal["required", "nice_to_have"]
-EvidenceKind = Literal["summary", "experience", "highlight", "project", "education", "skill"]
+EvidenceKind = Literal[
+    "summary", "experience", "highlight", "project", "education", "skill", "fact"
+]
 
 
 class RequirementAssessment(BaseModel):

@@ -29,10 +29,12 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT content FROM experience_highlights").size).to eq(1)
   end
 
-  it "reads career library embeddings" do
+  it "reads career library embeddings and library facts" do
     embedding = create(:library_embedding)
+    fact = create(:library_fact)
 
     expect(select_as_ai_reader("SELECT id FROM library_embeddings")).to eq([ { "id" => embedding.id } ])
+    expect(select_as_ai_reader("SELECT id FROM library_facts")).to eq([ { "id" => fact.id } ])
   end
 
   it "reads only the id and summary of users" do
@@ -43,9 +45,12 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
-  it "can't read AI tasks or the JWT denylist" do
+  it "can't read AI tasks, the JWT denylist, or job-only gap responses" do
+    create(:job_gap_response)
+
     expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
   it "can't write" do

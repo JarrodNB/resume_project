@@ -26,10 +26,10 @@ score attached, so runs can be compared across prompt and model changes.
   `PostingFieldsMatch`
 - `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
   `docker compose run --rm ai python -m evals.run_job_posting_extraction_evals`
-- `datasets/gap_analysis_cases.yaml` — 7 synthetic job + career library pairs (strong match,
+- `datasets/gap_analysis_cases.yaml` — 8 synthetic job + career library pairs (strong match,
   obvious gaps, adjacent skills are partial, requirement shown only by a project, synonyms and
-  equivalent degree, fewer years than asked, near-empty library) with hand-labelled verdicts
-  (plus acceptable alternatives) and key evidence ids
+  equivalent degree, fewer years than asked, near-empty library, a library fact that closes a
+  gap) with hand-labelled verdicts (plus acceptable alternatives) and key evidence ids
 - `gap_analysis_evaluators.py` — `Coverage`, `EvidenceValidity`, `VerdictAccuracy`
   (incl. met agreement), `GapRecall`, `EvidenceRecall`
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):

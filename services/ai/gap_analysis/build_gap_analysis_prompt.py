@@ -1,6 +1,6 @@
 """
 Description: Turns a GapAnalysisContext into the agent's user prompt. Every requirement and every
-career library entry gets a short label (R1, N1, E1, H1, P1, ED1, S1, SUMMARY): models copy short
+career library entry gets a short label (R1, N1, E1, H1, P1, ED1, S1, F1, SUMMARY): models copy short
 labels reliably (unlike UUIDs) and they cost fewer tokens. The returned maps let the validator
 check the labels and the worker swap them back for ids and text.
 Index:
@@ -149,6 +149,13 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         item = EvidenceItem(kind="skill", id=skill.id, text=skill.name, context=skill.category)
         category = f" ({skill.category})" if skill.category else ""
         lines.append(f"[{_add_evidence(prompt, f'S{number}', item)}] {skill.name}{category}")
+
+    if library.facts:
+        lines += ["", "## Facts"]
+    for number, fact in enumerate(library.facts, start=1):
+        item = EvidenceItem(kind="fact", id=fact.id, text=fact.response, context=fact.requirement)
+        ref = _add_evidence(prompt, f"F{number}", item)
+        lines.append(f"[{ref}] {fact.requirement}: {fact.response}")
 
     if not lines:
         lines.append("(empty)")

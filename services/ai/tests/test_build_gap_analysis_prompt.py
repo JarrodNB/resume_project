@@ -7,6 +7,7 @@ Index:
 from datetime import date
 
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt, format_date_range
+from schemas.gap_analysis_context import LibraryFact
 from tests.fakes import build_gap_analysis_context
 
 TODAY = date(2026, 10, 4)
@@ -62,6 +63,27 @@ def test_leaves_out_empty_sections() -> None:
     assert "SUMMARY" not in prompt.evidence
     assert "Nice to have" not in prompt.text
     assert list(prompt.requirements) == ["R1", "R2"]
+
+
+def test_labels_library_facts() -> None:
+    """A fact the user added to the library is F1, with the answer as its text."""
+    context = build_gap_analysis_context()
+    context.career_library.facts = [
+        LibraryFact(
+            id="fact-1", requirement="Kubernetes", response="Ran it at Northwind for two years"
+        )
+    ]
+
+    prompt = build_gap_analysis_prompt(context, TODAY)
+
+    fact = prompt.evidence["F1"]
+    assert (fact.kind, fact.id, fact.text, fact.context) == (
+        "fact",
+        "fact-1",
+        "Ran it at Northwind for two years",
+        "Kubernetes",
+    )
+    assert "[F1] Kubernetes: Ran it at Northwind for two years" in prompt.text
 
 
 def test_format_date_range() -> None:

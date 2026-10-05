@@ -13,6 +13,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { formatDateRange } from '@/lib/formatDateRange'
+import { FactList } from './FactList'
 import { ImportSummaryNotice } from './ImportSummaryNotice'
 import { LibraryEntry } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
@@ -39,7 +40,7 @@ function entryActions(kind: MergeableEntryKind, entries: MergeCandidate[], entry
   )
 }
 
-/** Shows the profile, experiences, projects, education, and skills. */
+/** Shows the profile, experiences, projects, education, skills, and facts. */
 export function CareerLibraryPage() {
   const { library, loading, error } = useCareerLibrary()
   const reordering = useLibraryReordering()
@@ -111,6 +112,9 @@ export function CareerLibraryPage() {
           </LibrarySection>
           <LibrarySection tone="skills" title="Skills" count={library.skills.length} emptyText="No skills yet.">
             <SkillList skills={library.skills} />
+          </LibrarySection>
+          <LibrarySection tone="facts" title="Facts" count={library.libraryFacts.length} emptyText="No facts yet.">
+            <FactList facts={library.libraryFacts} />
           </LibrarySection>
         </DragDropProvider>
       )}

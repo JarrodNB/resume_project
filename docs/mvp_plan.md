@@ -18,10 +18,11 @@ over feature breadth or market positioning.
    (title, company, requirements, nice-to-haves). Manual entry as a fallback.
 4. **Gap analysis** (done) — compare the career library to a job: a verdict (met, partly met,
    gap) for each requirement and nice-to-have, citing library entries as evidence.
-   **Gap responses:** in the same view, the user can respond to any gap or partial match
+   **Gap responses** (done): in the same view, the user can respond to any gap or partial match
    (e.g. "I used Kubernetes at Acme for two years"). Responses are saved per job and
-   requirement, so they survive re-running the comparison, and each can optionally be added to
-   the career library. No AI questions: the user writes what they want.
+   requirement, so they survive re-running the comparison. Checking "Add to career library"
+   stores a library fact (the requirement plus the answer); only that fact is embedded and
+   visible to the next comparison. No AI questions: the user writes what they want.
 5. **Tailored resume** — generate a job-specific version from the career library, the gap
    analysis, and the user's gap responses; the user edits and approves it.
 6. **Memory** — gap responses and facts are saved and reused in future tailoring.
@@ -57,7 +58,7 @@ employed-mode work journal.
    `ai_results`, Rails consumes it and pushes the `aiTaskUpdated` subscription. Proves the
    pipeline end to end.
 4. **AI features** — resume parsing, then job scraping, gap analysis
-   (then gap responses), tailoring, then memory. Each agent ships with its eval dataset; write the first few
+   (done), gap responses (done), tailoring, then memory. Each agent ships with its eval dataset; write the first few
    eval cases before tuning the prompt.
 5. **Web app** — resume editor, job board, gap analysis chat, tailored resume view, PDF export.
 6. **Landing page.**

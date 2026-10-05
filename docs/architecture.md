@@ -245,7 +245,9 @@ tailoring) instead of sending everything.
 - **Gaps are answered in the comparison view, not by an AI asking questions.** The user can
   write a response under any gap or partial match. Responses are saved in Rails per job and
   requirement (keyed by the requirement text, not the analysis run), so re-running the
-  comparison keeps them, and each can optionally be added to the career library. Tailoring
+  comparison keeps them, and each can optionally be added to the career library as a `LibraryFact`
+  (the requirement plus the answer). Only that fact is embedded and read by later gap analysis;
+  an answer left on the job is not. Tailoring
   reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
   and rejected here: the comparison already lists every gap, so a plain form is simpler, needs
   no paused agent runs, and lets the user decide what's worth answering. Human in the loop is

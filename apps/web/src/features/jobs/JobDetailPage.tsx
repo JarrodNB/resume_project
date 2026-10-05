@@ -47,7 +47,7 @@ export function JobDetailPage() {
               )}
             </div>
           </div>
-          <GapAnalysisCard jobId={job.id} latestGapAnalysis={job.latestGapAnalysis ?? null} />
+          <GapAnalysisCard jobId={job.id} latestGapAnalysis={job.latestGapAnalysis ?? null} gapResponses={job.gapResponses} />
           <BulletCard title="Requirements" items={job.requirements} emptyText="No requirements were found in the posting." />
           {job.niceToHaves.length > 0 && <BulletCard title="Nice to have" items={job.niceToHaves} />}
           {job.description && (

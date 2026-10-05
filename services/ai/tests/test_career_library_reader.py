@@ -106,6 +106,20 @@ def test_reads_the_job_and_library_in_rails_order(
     _insert(admin_connection, "projects", user_id=user_id, name="CLI tool")
     _insert(admin_connection, "educations", user_id=user_id, institution="State University")
     _insert(admin_connection, "skills", user_id=user_id, name="Python")
+    fact_id = _insert(
+        admin_connection,
+        "library_facts",
+        user_id=user_id,
+        requirement="Kubernetes",
+        response="Ran production Kubernetes at Northwind",
+    )
+    _insert(
+        admin_connection,
+        "job_gap_responses",
+        job_id=job_id,
+        requirement="Go",
+        body="Only saved on the job",
+    )
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
     context = read_gap_analysis_context(admin_connection, user_id, job_id)
@@ -126,6 +140,9 @@ def test_reads_the_job_and_library_in_rails_order(
     assert [project.name for project in library.projects] == ["CLI tool"]
     assert [education.institution for education in library.educations] == ["State University"]
     assert [skill.name for skill in library.skills] == ["Python"]
+    assert [(fact.id, fact.requirement, fact.response) for fact in library.facts] == [
+        (str(fact_id), "Kubernetes", "Ran production Kubernetes at Northwind")
+    ]
 
 
 def test_another_users_job_reads_nothing(admin_connection: psycopg.Connection[DictRow]) -> None:

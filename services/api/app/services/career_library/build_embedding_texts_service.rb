@@ -3,7 +3,8 @@
 # ("Senior Engineer at Acme: Cut deploy time 40%"), a skill its category ("Languages: Ruby").
 # Index:
 #   - call: returns [{ source_type:, source_id:, content: }] for every experience, highlight,
-#     project, education, and skill of the user
+#     project, education, skill, and library fact of the user. Job-only gap responses are not
+#     embedded.
 module CareerLibrary
   class BuildEmbeddingTextsService < ApplicationService
     def initialize(user:)
@@ -18,6 +19,7 @@ module CareerLibrary
       entries += Project.where(user_id: @user.id).map { |project| entry(project, project_text(project)) }
       entries += Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) }
       entries += Skill.where(user_id: @user.id).map { |skill| entry(skill, skill_text(skill)) }
+      entries += LibraryFact.where(user_id: @user.id).order(:created_at).map { |fact| entry(fact, fact_text(fact)) }
       success(entries)
     end
 
@@ -40,6 +42,11 @@ module CareerLibrary
     def education_text(education)
       degree = [ education.degree, education.field_of_study ].compact_blank.join(" in ")
       with_details([ degree.presence, education.institution ].compact.join(", "), education.description)
+    end
+
+    # "Fact: requirement: response", so a search can match either side.
+    def fact_text(fact)
+      "Fact: #{fact.requirement}: #{fact.response}"
     end
 
     # "Category: Name", or just the name.

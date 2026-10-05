@@ -10,6 +10,8 @@
 #   - skills: deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 #   - gap analysis: analyzeJobGaps
+#   - gap responses: saveGapResponse
+#   - library facts: deleteLibraryFact
 module Types
   class MutationType < Types::BaseObject
     field :create_job, mutation: Mutations::Jobs::CreateJob
@@ -37,5 +39,8 @@ module Types
     field :import_parsed_resume, mutation: Mutations::ResumeImports::ImportParsedResume
 
     field :analyze_job_gaps, mutation: Mutations::GapAnalysis::AnalyzeJobGaps
+
+    field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
+    field :delete_library_fact, mutation: Mutations::LibraryFacts::DeleteLibraryFact
   end
 end

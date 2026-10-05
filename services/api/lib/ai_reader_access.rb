@@ -8,7 +8,9 @@
 #   - grant: revokes every other privilege and grants exactly the allowed ones
 module AiReaderAccess
   ROLE_NAME = "ai_reader".freeze
-  READABLE_TABLES = %w[jobs experiences experience_highlights projects educations skills library_embeddings].freeze
+  READABLE_TABLES = %w[
+    jobs experiences experience_highlights projects educations skills library_facts library_embeddings
+  ].freeze
   READABLE_USER_COLUMNS = %w[id summary].freeze
 
   module_function

@@ -6,9 +6,10 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
+import { JOB_QUERY } from '@/features/jobs/jobsOperations'
 import { renderPage } from '@/test/renderPage'
 import { GapAnalysisCard, type GapAnalysisTask } from './GapAnalysisCard'
-import { ANALYZE_JOB_GAPS_MUTATION } from './gapAnalysisOperations'
+import { ANALYZE_JOB_GAPS_MUTATION, SAVE_GAP_RESPONSE_MUTATION } from './gapAnalysisOperations'
 
 const COMPLETED_RESULT = {
   gap_analysis: {
@@ -80,11 +81,14 @@ function startMock(payload: { aiTask: { id: string; status: string } | null; err
   }
 }
 
-function renderCard(latestGapAnalysis: GapAnalysisTask | null, mocks: ReturnType<typeof startMock | typeof aiTaskUpdateMock>[] = []) {
+function renderCard(
+  latestGapAnalysis: GapAnalysisTask | null,
+  mocks: ReturnType<typeof startMock | typeof aiTaskUpdateMock>[] = [],
+) {
   return renderPage({
     path: '/jobs/:id',
     url: '/jobs/job-1',
-    element: <GapAnalysisCard jobId="job-1" latestGapAnalysis={latestGapAnalysis} />,
+    element: <GapAnalysisCard jobId="job-1" latestGapAnalysis={latestGapAnalysis} gapResponses={[]} />,
     mocks,
   })
 }
@@ -137,4 +141,77 @@ it('shows verdicts, evidence, and the nice-to-have section', () => {
   expect(screen.getByRole('heading', { name: 'Nice to have' })).toBeInTheDocument()
   expect(screen.getByText('Partly met')).toBeInTheDocument()
   expect(screen.getByText(/Compared on/)).toBeInTheDocument()
+  const met = screen.getByText('5+ years of Python').closest('li') as HTMLElement
+  const gap = screen.getByText('Go').closest('li') as HTMLElement
+  expect(within(met).queryByRole('textbox')).not.toBeInTheDocument()
+  expect(within(gap).getByRole('textbox')).toBeInTheDocument()
+  expect(within(gap).getByRole('checkbox', { name: 'Add to career library' })).toBeInTheDocument()
+})
+
+it('saves a response and can add it to the career library', async () => {
+  const user = userEvent.setup()
+  renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <GapAnalysisCard jobId="job-1" latestGapAnalysis={task({ result: COMPLETED_RESULT })} gapResponses={[]} />,
+    mocks: [
+      {
+        request: {
+          query: SAVE_GAP_RESPONSE_MUTATION,
+          variables: { jobId: 'job-1', requirement: 'Go', body: 'Used it at Acme', addToLibrary: true },
+        },
+        result: {
+          data: {
+            saveGapResponse: {
+              __typename: 'SaveGapResponsePayload',
+              errors: [],
+              jobGapResponse: {
+                __typename: 'JobGapResponse',
+                id: 'response-1',
+                requirement: 'Go',
+                body: 'Used it at Acme',
+                libraryFact: { __typename: 'LibraryFact', id: 'fact-1' },
+              },
+            },
+          },
+        },
+      },
+      {
+        request: { query: JOB_QUERY, variables: { id: 'job-1' } },
+        result: {
+          data: {
+            job: {
+              __typename: 'Job',
+              id: 'job-1',
+              title: 'Engineer',
+              company: 'Acme',
+              location: null,
+              stage: 'UNAPPLIED',
+              url: null,
+              description: null,
+              requirements: ['Go'],
+              niceToHaves: [],
+              gapResponses: [
+                {
+                  __typename: 'JobGapResponse',
+                  id: 'response-1',
+                  requirement: 'Go',
+                  body: 'Used it at Acme',
+                  libraryFact: { __typename: 'LibraryFact', id: 'fact-1' },
+                },
+              ],
+              latestGapAnalysis: null,
+            },
+          },
+        },
+      },
+    ],
+  })
+
+  const gap = screen.getByText('Go').closest('li') as HTMLElement
+  await user.type(within(gap).getByRole('textbox'), 'Used it at Acme')
+  await user.click(within(gap).getByRole('checkbox', { name: 'Add to career library' }))
+  await user.click(within(gap).getByRole('button', { name: 'Save' }))
+
+  expect(await within(gap).findByText('Saved on this job.')).toBeInTheDocument()
 })

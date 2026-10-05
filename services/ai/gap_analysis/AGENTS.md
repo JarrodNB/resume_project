@@ -10,8 +10,8 @@ can't be invented.
 
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` returns a
   `GapAnalysisPrompt` (prompt text + label lookups). Labels: `R1`/`N1` for requirements and
-  nice-to-haves; `SUMMARY`, `E1` experience, `H1` highlight, `P1` project, `ED1` education,
-  `S1` skill; `format_date_range`
+  nice-to-haves;   `SUMMARY`, `E1` experience, `H1` highlight, `P1` project, `ED1` education,
+  `S1` skill, `F1` library fact; `format_date_range`
 - `find_gap_analysis_problems.py` — `find_gap_analysis_problems(analysis, prompt)`: missing,
   repeated, or unknown requirement labels, unknown evidence labels, met/partial without
   evidence, and labels written into the explanations or summary (the user never sees labels;

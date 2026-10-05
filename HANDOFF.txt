@@ -44,17 +44,18 @@ Build order progress (docs/mvp_plan.md):
            "STEP 4c" below)
          - [done] vector store: pgvector + career library embeddings (see "VECTOR STORE" below);
            memory retrieval is ready for tailoring to use
-         - [next] gap responses: the user responds to gaps in the comparison view (saved per
-           job + requirement, optional "add to career library"; no AI questions), then
-           tailoring (uses library + gap analysis + responses), then memory. The deferred-tool
-           / ask_user flow is saved for AI-assisted career library rewriting later
+         - [done] gap responses: the user responds to gaps in the comparison view (saved per
+           job + requirement; optional library fact, which is the only thing embedded and shown
+           to the next comparison). Then tailoring (uses library + gap analysis + responses),
+           then memory. The deferred-tool / ask_user flow is saved for AI-assisted career
+           library rewriting later
   [IN PROGRESS] 5. Web app, pulled forward (user's call) so resume upload and parsing can be
          seen working in the browser.
          - [done, commit 9393d1c] 5a. auth + upload + live parse + review + import + career
            library (see "STEP 5a" below)
          - [done, commit b157bd0] career library as the single base, with dedupe on import
            and manual merge/delete (see "CAREER LIBRARY AS THE BASE" below)
-  [NEXT] Gap responses.
+  [NEXT] Tailoring.
          6. Landing page   7. Deploy (Terraform, k8s, GitHub Actions)
 
 ==========================================================================================
@@ -317,7 +318,7 @@ directly with the read-only ai_reader role instead of receiving a snapshot.
     requirements, library not empty, no analysis of this job already queued) -> AiTask
     analyze_gaps (subject = Job, input {job_id}) -> worker reads job + library in one
     REPEATABLE READ read-only transaction (services/ai/database/) -> labeled prompt
-    (R1/N1 requirements; SUMMARY, E1, H1, P1, ED1, S1 library entries) -> gap_analysis_agent
+    (R1/N1 requirements; SUMMARY, E1, H1, P1, ED1, S1, F1 library entries) -> gap_analysis_agent
     (output validator retries on missing/repeated/unknown labels) -> code copies evidence text
     by label -> {gap_analysis: GapAnalysisResult} stored on the AiTask.
   - Job.latestGapAnalysis returns the newest task; re-running creates a new one. Deleting a
@@ -326,9 +327,22 @@ directly with the read-only ai_reader role instead of receiving a snapshot.
     after reload), failure + retry, verdicts (Met / Partly met / Gap) with cited evidence.
   - ai_reader grants: SELECT on jobs + career library tables + users(id, summary) only
     (the REVIEW.txt item is done). No DB reset needed; the rake task revokes the old grants.
-  - Evals: evals/datasets/gap_analysis_cases.yaml (7 synthetic cases), deterministic
-    evaluators (coverage, evidence validity, verdict accuracy, gap recall, evidence recall);
-    all 1.0 after one prompt fix (adjacent tech counts as partial), ~$0.0014/case.
+  - Evals: evals/datasets/gap_analysis_cases.yaml (8 synthetic cases, including a library fact
+    that closes a gap). The fact case scored 1.0. The full set stayed at 1.0 except
+    evidence_recall, which averaged 0.958 because one existing case cited 2 of 3 labelled
+    entries.
+
+==========================================================================================
+GAP RESPONSES (DONE)
+==========================================================================================
+User chose: a response is always saved on the job, keyed by the requirement text. "Add to
+career library" creates a LibraryFact (the requirement plus the answer). Only that fact is
+embedded and shown to the next gap analysis.
+  - saveGapResponse(jobId, requirement, body, addToLibrary). A blank body clears the answer
+    and, when nothing else links to it, the fact. Job.gapResponses. libraryFacts +
+    deleteLibraryFact (unlinks answers; the job answers stay).
+  - Web: a response box under each gap and partial match on /jobs/:id (also when a saved
+    answer exists after a later "met"). Career library page has a Facts section.
 
 ==========================================================================================
 VECTOR STORE (DONE): PGVECTOR + CAREER LIBRARY EMBEDDINGS

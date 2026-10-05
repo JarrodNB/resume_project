@@ -6,11 +6,20 @@
  */
 import { RequirementAssessmentItem } from './RequirementAssessmentItem'
 import { VERDICT_LABELS, type AssessedRequirement, type GapAnalysisResult, type Verdict } from './parseGapAnalysisResult'
+import type { SavedGapResponse } from './savedGapResponse'
 
 const VERDICT_ORDER: Verdict[] = ['met', 'partial', 'missing']
 
 /** Shows the summary and every assessed requirement, grouped by kind. */
-export function GapAnalysisResultView({ analysis }: { analysis: GapAnalysisResult }) {
+export function GapAnalysisResultView({
+  jobId,
+  analysis,
+  responses,
+}: {
+  jobId: string
+  analysis: GapAnalysisResult
+  responses: SavedGapResponse[]
+}) {
   const requirements = analysis.assessments.filter((item) => item.kind === 'required')
   const niceToHaves = analysis.assessments.filter((item) => item.kind === 'nice_to_have')
 
@@ -23,8 +32,8 @@ export function GapAnalysisResultView({ analysis }: { analysis: GapAnalysisResul
           {VERDICT_ORDER.map((verdict) => `${countVerdict(requirements, verdict)} ${VERDICT_LABELS[verdict].toLowerCase()}`).join(' · ')}
         </p>
       )}
-      <AssessmentList title="Requirements" assessments={requirements} />
-      <AssessmentList title="Nice to have" assessments={niceToHaves} />
+      <AssessmentList title="Requirements" jobId={jobId} assessments={requirements} responses={responses} />
+      <AssessmentList title="Nice to have" jobId={jobId} assessments={niceToHaves} responses={responses} />
     </div>
   )
 }
@@ -35,14 +44,29 @@ function countVerdict(assessments: AssessedRequirement[], verdict: Verdict) {
 }
 
 /** A titled list of assessments; nothing when empty. */
-function AssessmentList({ title, assessments }: { title: string; assessments: AssessedRequirement[] }) {
+function AssessmentList({
+  title,
+  jobId,
+  assessments,
+  responses,
+}: {
+  title: string
+  jobId: string
+  assessments: AssessedRequirement[]
+  responses: SavedGapResponse[]
+}) {
   if (assessments.length === 0) return null
   return (
     <section className="grid gap-1">
       <h3 className="text-sm font-semibold">{title}</h3>
       <ul className="divide-y">
         {assessments.map((assessment) => (
-          <RequirementAssessmentItem key={assessment.requirement} assessment={assessment} />
+          <RequirementAssessmentItem
+            key={assessment.requirement}
+            jobId={jobId}
+            assessment={assessment}
+            response={responses.find((item) => item.requirement === assessment.requirement) ?? null}
+          />
         ))}
       </ul>
     </section>

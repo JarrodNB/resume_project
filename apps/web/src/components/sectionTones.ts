@@ -5,9 +5,9 @@
  *   - SectionTone: the resume section a piece of UI belongs to
  *   - SECTION_TONES: per-tone classes (card accent, header band, icon, entry tint) and icon
  */
-import { Briefcase, FileText, FolderKanban, GraduationCap, Sparkles, UserRound, type LucideIcon } from 'lucide-react'
+import { Briefcase, FileText, FolderKanban, GraduationCap, MessageSquareText, Sparkles, UserRound, type LucideIcon } from 'lucide-react'
 
-export type SectionTone = 'contact' | 'summary' | 'experience' | 'projects' | 'education' | 'skills'
+export type SectionTone = 'contact' | 'summary' | 'experience' | 'projects' | 'education' | 'skills' | 'facts'
 
 interface SectionToneStyle {
   card: string
@@ -59,5 +59,12 @@ export const SECTION_TONES: Record<SectionTone, SectionToneStyle> = {
     icon: 'text-section-skills-accent',
     entry: 'border-section-skills-accent/25 bg-section-skills/50',
     Icon: Sparkles,
+  },
+  facts: {
+    card: 'border-l-4 border-l-section-facts-accent',
+    header: 'bg-section-facts',
+    icon: 'text-section-facts-accent',
+    entry: 'border-section-facts-accent/25 bg-section-facts/50',
+    Icon: MessageSquareText,
   },
 }

@@ -295,6 +295,34 @@ cases:
           key_evidence_ids: [sk-1]
         - requirement: Tableau
           verdict: missing
+
+  - name: fact_closes_a_gap
+    inputs:
+      job:
+        id: job-8
+        title: Platform Engineer
+        company: Fabrikam Cloud
+        requirements:
+          - Experience running production Kubernetes
+        nice_to_haves: []
+      career_library:
+        experiences:
+          - id: exp-1
+            company: Contoso
+            title: Software Engineer
+            start_date: 2022-01-01
+            highlights:
+              - id: hl-1
+                content: Built internal tools in Python
+        facts:
+          - id: fact-1
+            requirement: Experience running production Kubernetes
+            response: I ran production Kubernetes at Northwind for two years, including cluster upgrades.
+    metadata:
+      assessments:
+        - requirement: Experience running production Kubernetes
+          verdict: met
+          key_evidence_ids: [fact-1]
 evaluators:
   - Coverage
   - EvidenceValidity

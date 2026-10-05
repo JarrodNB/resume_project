@@ -24,6 +24,7 @@ from schemas.gap_analysis_context import (
     JobToAnalyze,
     LibraryEducation,
     LibraryExperience,
+    LibraryFact,
     LibraryHighlight,
     LibraryProject,
     LibrarySkill,
@@ -66,6 +67,10 @@ SKILLS_QUERY = """
     SELECT id::text, name, category FROM skills WHERE user_id = %(user_id)s
     ORDER BY position, name
 """
+FACTS_QUERY = """
+    SELECT id::text, requirement, response FROM library_facts WHERE user_id = %(user_id)s
+    ORDER BY created_at
+"""
 
 
 def read_gap_analysis_context(
@@ -85,6 +90,7 @@ def read_gap_analysis_context(
         project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
         education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
         skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
+        fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
 
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
@@ -101,6 +107,7 @@ def read_gap_analysis_context(
         projects=[LibraryProject(**row) for row in project_rows],
         educations=[LibraryEducation(**row) for row in education_rows],
         skills=[LibrarySkill(**row) for row in skill_rows],
+        facts=[LibraryFact(**row) for row in fact_rows],
     )
     return GapAnalysisContext(job=JobToAnalyze(**job_row), career_library=library)
 

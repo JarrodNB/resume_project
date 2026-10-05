@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_05_040100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_05_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -105,6 +105,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_05_040100) do
     t.index ["user_id"], name: "index_experiences_on_user_id"
   end
 
+  create_table "job_gap_responses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "job_id", null: false
+    t.text "requirement", null: false
+    t.text "body", null: false
+    t.uuid "library_fact_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_id", "requirement"], name: "index_job_gap_responses_on_job_id_and_requirement", unique: true
+    t.index ["job_id"], name: "index_job_gap_responses_on_job_id"
+    t.index ["library_fact_id"], name: "index_job_gap_responses_on_library_fact_id"
+  end
+
   create_table "jobs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "title", null: false
@@ -144,6 +156,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_05_040100) do
     t.index ["embedding"], name: "index_library_embeddings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_library_embeddings_on_source_type_and_source_id", unique: true
     t.index ["user_id"], name: "index_library_embeddings_on_user_id"
+  end
+
+  create_table "library_facts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.text "requirement", null: false
+    t.text "response", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "requirement"], name: "index_library_facts_on_user_id_and_requirement", unique: true
+    t.index ["user_id"], name: "index_library_facts_on_user_id"
   end
 
   create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -219,8 +241,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_05_040100) do
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "job_gap_responses", "jobs"
+  add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
   add_foreign_key "jobs", "users"
   add_foreign_key "library_embeddings", "users", on_delete: :cascade
+  add_foreign_key "library_facts", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "resume_sections", "resumes", on_delete: :cascade
   add_foreign_key "resumes", "jobs", on_delete: :nullify

@@ -27,9 +27,10 @@ module GapAnalysis
 
     private
 
-    # True when the user has no experiences, projects, educations, or skills.
+    # True when the user has no experiences, projects, educations, skills, or library facts.
+    # Job-only gap responses are not library content.
     def career_library_empty?
-      [ @user.experiences, @user.projects, @user.educations, @user.skills ].none?(&:exists?)
+      [ @user.experiences, @user.projects, @user.educations, @user.skills, @user.library_facts ].none?(&:exists?)
     end
 
     # True when a recent analysis of this job is still queued (older ones count as stuck).

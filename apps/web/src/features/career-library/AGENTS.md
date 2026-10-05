@@ -3,7 +3,7 @@
 ## Purpose
 
 The career library page (`/library`): the user's profile (contact details, summary),
-experiences with highlights, projects, education, and skills. The library is the base that
+experiences with highlights, projects, education, skills, and facts added from gap responses. The library is the base that
 tailored resumes are built from, so resumes are not listed here. Experiences, projects, and
 educations are listed most recent first (the API orders them by date; they can't be dragged).
 Entries can be deleted, and experiences, projects, and educations can be merged into a
@@ -17,6 +17,7 @@ another role; skills can be dragged within their category.
   (tinted entry with an `actions` slot) — display pieces
 - `SortableHighlightList.tsx` — a role's draggable highlights (drop area works when empty)
 - `SkillList.tsx` — skill chips grouped by category, draggable within a category, with delete
+- `FactList.tsx` — facts (a requirement and the user's answer), with delete
 - `LibraryEntryActions.tsx` — "…" menu per entry; `DeleteEntryDialog.tsx`, `MergeEntryDialog.tsx`
   (pick another entry in the same section) — confirmation dialogs
 - `libraryEntryLabels.ts` — entry labels for menus and dialogs (with dates, so look-alike

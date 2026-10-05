@@ -1,6 +1,7 @@
 /**
  * Description: One requirement of a gap analysis: verdict badge, the requirement, the AI's
  * explanation, and the career library entries cited as evidence (copied from the library).
+ * A gap or partial match also has a response form, as does a requirement that already has one.
  * Index:
  *   - VerdictBadge: colored badge for a verdict
  *   - RequirementAssessmentItem: list item component
@@ -8,7 +9,9 @@
 import { CircleCheck, CircleDashed, CircleX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { GapResponseForm } from './GapResponseForm'
 import { VERDICT_LABELS, type AssessedRequirement, type Verdict } from './parseGapAnalysisResult'
+import type { SavedGapResponse } from './savedGapResponse'
 
 const VERDICT_STYLES: Record<Verdict, string> = {
   met: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
@@ -29,8 +32,17 @@ export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   )
 }
 
-/** Renders one assessed requirement with its evidence. */
-export function RequirementAssessmentItem({ assessment }: { assessment: AssessedRequirement }) {
+/** Renders one assessed requirement with its evidence and, for a gap or partial match, a response. */
+export function RequirementAssessmentItem({
+  jobId,
+  assessment,
+  response,
+}: {
+  jobId: string
+  assessment: AssessedRequirement
+  response: SavedGapResponse | null
+}) {
+  const showResponse = assessment.verdict !== 'met' || response !== null
   return (
     <li className="grid gap-2 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -48,6 +60,7 @@ export function RequirementAssessmentItem({ assessment }: { assessment: Assessed
           ))}
         </ul>
       )}
+      {showResponse && <GapResponseForm jobId={jobId} requirement={assessment.requirement} response={response} />}
     </li>
   )
 }

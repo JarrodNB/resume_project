@@ -1,0 +1,106 @@
+# Description: Saving a gap response on a job, and optionally as a career-library fact.
+# A job-only answer never queues an embedding sync.
+require "rails_helper"
+
+RSpec.describe GapResponses::SaveGapResponseService do
+  include ActiveJob::TestHelper
+
+  let(:user) { create(:user) }
+  let(:job) { create(:job, user: user) }
+  let(:requirement) { "Experience with Kubernetes" }
+  let(:sync_job) { CareerLibrary::SyncLibraryEmbeddingsJob }
+
+  def save(body:, add_to_library:, job: self.job)
+    described_class.call(job: job, requirement: requirement, body: body, add_to_library: add_to_library)
+  end
+
+  it "saves an answer on the job without embedding it" do
+    expect { save(body: "Used it at Acme", add_to_library: false) }
+      .not_to have_enqueued_job(sync_job)
+
+    response = job.gap_responses.sole
+    expect(response).to have_attributes(requirement: requirement, body: "Used it at Acme", library_fact: nil)
+    expect(user.library_facts.reload).to be_empty
+  end
+
+  it "updates the same answer when the requirement text matches" do
+    save(body: "Used it at Acme", add_to_library: false)
+
+    result = save(body: "  Used it at Acme for two years  ", add_to_library: false)
+
+    expect(result.value.body).to eq("Used it at Acme for two years")
+    expect(job.gap_responses.count).to eq(1)
+  end
+
+  it "adds a library fact and queues an embedding sync" do
+    expect { save(body: "Used it at Acme", add_to_library: true) }
+      .to have_enqueued_job(sync_job).with(user.id)
+
+    fact = user.library_facts.sole
+    expect(fact).to have_attributes(requirement: requirement, response: "Used it at Acme")
+    expect(job.gap_responses.sole.library_fact).to eq(fact)
+  end
+
+  it "doesn't queue a sync when the fact's text is unchanged" do
+    save(body: "Used it at Acme", add_to_library: true)
+
+    expect { save(body: "Used it at Acme", add_to_library: true) }
+      .not_to have_enqueued_job(sync_job)
+  end
+
+  it "shares one fact between jobs with the same requirement, and the later answer wins" do
+    other_job = create(:job, user: user)
+    save(body: "Used it at Acme", add_to_library: true)
+
+    save(body: "Used it at Acme and Now Co", add_to_library: true, job: other_job)
+
+    expect(user.library_facts.sole.response).to eq("Used it at Acme and Now Co")
+    expect(user.library_facts.count).to eq(1)
+    expect(job.gap_responses.sole.body).to eq("Used it at Acme")
+    expect(other_job.gap_responses.sole.library_fact).to eq(job.gap_responses.sole.library_fact)
+  end
+
+  it "removes the fact when the answer is no longer added to the library" do
+    save(body: "Used it at Acme", add_to_library: true)
+
+    expect { save(body: "Used it at Acme", add_to_library: false) }
+      .to have_enqueued_job(sync_job).with(user.id)
+
+    expect(user.library_facts.reload).to be_empty
+    expect(job.gap_responses.sole.library_fact).to be_nil
+  end
+
+  it "keeps the fact while another job's answer still points at it" do
+    other_job = create(:job, user: user)
+    save(body: "Used it at Acme", add_to_library: true)
+    save(body: "Used it at Acme", add_to_library: true, job: other_job)
+
+    expect { save(body: "Used it at Acme", add_to_library: false) }
+      .not_to have_enqueued_job(sync_job)
+
+    expect(user.library_facts.count).to eq(1)
+    expect(other_job.gap_responses.sole.library_fact).to eq(user.library_facts.sole)
+  end
+
+  it "clears a blank answer and the fact it was the only link to" do
+    save(body: "Used it at Acme", add_to_library: true)
+
+    result = save(body: "   ", add_to_library: true)
+
+    expect(result.value).to be_nil
+    expect(job.gap_responses.reload).to be_empty
+    expect(user.library_facts.reload).to be_empty
+  end
+
+  it "clearing an answer that was never saved does nothing" do
+    expect(save(body: "", add_to_library: false).value).to be_nil
+    expect(job.gap_responses).to be_empty
+  end
+
+  it "rejects a blank requirement" do
+    result = described_class.call(job: job, requirement: "  ", body: "Used it", add_to_library: false)
+
+    expect(result.errors).to eq([ "Requirement can't be blank" ])
+    expect(job.gap_responses).to be_empty
+  end
+end

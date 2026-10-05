@@ -51,6 +51,16 @@ RSpec.describe GapAnalysis::StartGapAnalysisService do
     expect(described_class.call(user: user, job: job)).to be_success
   end
 
+  it "counts a library fact, but not a gap response that stays on the job" do
+    user.skills.destroy_all
+    create(:job_gap_response, job: job)
+
+    expect(described_class.call(user: user, job: job).errors).to eq([ described_class::EMPTY_LIBRARY_MESSAGE ])
+
+    create(:library_fact, user: user)
+    expect(described_class.call(user: user, job: job)).to be_success
+  end
+
   it "refuses while an analysis of the same job is queued" do
     create(:ai_task, user: user, task_type: "analyze_gaps", subject: job)
 

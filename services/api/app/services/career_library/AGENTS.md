@@ -21,8 +21,9 @@ picks two entries), and `reorderSkills` (drag-and-drop on the library page).
   must be exactly the relation's ids, and each position becomes its index. Repeating the call
   changes nothing.
 - `build_embedding_texts_service.rb` — one text per experience, highlight, project, education,
-  and skill, with context ("Senior Engineer at Acme: Cut deploy time 40%", "Languages: Ruby");
-  queries the tables directly so a sync never sees stale loaded associations
+  skill, and library fact, with context ("Senior Engineer at Acme: Cut deploy time 40%",
+  "Languages: Ruby", "Fact: Kubernetes: Used it at Acme for two years"); job-only gap responses
+  are not included; queries the tables directly so a sync never sees stale loaded associations
 - `sync_library_embeddings_service.rb` — under a per-user advisory lock, embeds entries whose
   SHA-256(model + text) digest changed, upserts them into `library_embeddings`, and deletes rows
   whose entry is gone; returns `{ embedded:, deleted: }`. Idempotent; run by

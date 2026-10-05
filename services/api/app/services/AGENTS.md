@@ -22,6 +22,8 @@ All business logic, as service objects grouped by domain folder.
   library isn't empty, and no analysis for this job is already running (within the in-flight
   window), then enqueues `analyze_gaps` with the job as task `subject`; the result stays on the
   AiTask (`Job#latest_gap_analysis`)
+- `gap_responses/save_gap_response_service.rb` — saves an answer on a job by requirement text;
+  optionally creates a library fact (see `gap_responses/AGENTS.md`)
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
   `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)

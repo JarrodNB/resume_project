@@ -3,6 +3,7 @@
  * Index:
  *   - TAILOR_JOB_QUERY: the job, its saved resume, and the newest tailoring task
  *   - START_RESUME_TAILORING_MUTATION / SUBMIT_TAILORED_SECTION_MUTATION / SAVE_TAILORED_RESUME_MUTATION
+ *   - UPDATE_RESUME_MUTATION: replace the content of a saved resume's sections
  * Live status comes from features/ai-tasks (input and pendingQuestions on aiTaskUpdated).
  */
 import { graphql } from '@/graphql/generated'
@@ -67,6 +68,25 @@ export const SAVE_TAILORED_RESUME_MUTATION = graphql(`
       resume {
         id
         title
+      }
+      errors
+    }
+  }
+`)
+
+export const UPDATE_RESUME_MUTATION = graphql(`
+  mutation UpdateResume($id: ID!, $sections: JSON!) {
+    updateResume(input: { id: $id, sections: $sections }) {
+      resume {
+        id
+        title
+        sections {
+          id
+          sectionType
+          title
+          position
+          content
+        }
       }
       errors
     }

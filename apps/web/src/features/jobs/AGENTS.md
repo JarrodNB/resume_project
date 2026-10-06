@@ -15,7 +15,8 @@ application stages, and deleted.
   (`aiTask.job`), or shows the scraper's warnings first; failures offer "Try another link"
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
   card (`features/gap-analysis/`, including gap responses), a "Write resume" link to
-  `/jobs/:id/tailor` once a comparison has finished ("Open resume" when one is already saved),
+  `/jobs/:id/tailor` once a comparison has finished ("Open resume" goes to `/resumes/:id` when
+  one is already saved, and that page's breadcrumb returns here),
   requirements, nice-to-haves, notes, description (those cards start collapsed, remembered per
   job), the applied date once set, and a link to the original posting
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared

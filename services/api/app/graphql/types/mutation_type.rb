@@ -11,7 +11,8 @@
 #   - skills: createSkill, updateSkill, deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 #   - gap analysis: analyzeJobGaps
-#   - resume tailoring: startResumeTailoring, submitTailoredSection, saveTailoredResume
+#   - resume tailoring: startResumeTailoring, submitTailoredSection, saveTailoredResume,
+#     updateResume
 #   - gap responses: saveGapResponse
 #   - library facts: createLibraryFact, updateLibraryFact, deleteLibraryFact
 module Types
@@ -53,6 +54,7 @@ module Types
     field :start_resume_tailoring, mutation: Mutations::ResumeTailoring::StartResumeTailoring
     field :submit_tailored_section, mutation: Mutations::ResumeTailoring::SubmitTailoredSection
     field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
+    field :update_resume, mutation: Mutations::ResumeTailoring::UpdateResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
     field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact

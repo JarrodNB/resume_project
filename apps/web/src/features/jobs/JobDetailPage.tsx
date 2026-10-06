@@ -81,7 +81,9 @@ export function JobDetailPage() {
               </Button>
               {job.latestGapAnalysis?.status === 'COMPLETED' && (
                 <Button asChild size="sm">
-                  <Link to={`/jobs/${job.id}/tailor`}>{job.resume ? 'Open resume' : 'Write resume'}</Link>
+                  <Link to={job.resume ? `/resumes/${job.resume.id}` : `/jobs/${job.id}/tailor`} state={job.resume ? { fromJobId: job.id } : undefined}>
+                    {job.resume ? 'Open resume' : 'Write resume'}
+                  </Link>
                 </Button>
               )}
               {job.url && (

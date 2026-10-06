@@ -1,7 +1,7 @@
 /**
  * Description: /jobs/:id/tailor. Writes a resume one section at a time after a gap analysis.
  * Approved sections stay read-only; the current one is editable. Save stores the resume, and
- * a later visit opens that resume.
+ * a later visit opens that resume for editing. Preview shows the draft as a large PDF.
  * Index:
  *   - TailorResumePage: page component
  */
@@ -12,9 +12,10 @@ import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { FinalResumeEditor } from './FinalResumeEditor'
 import { OpenSectionCard } from './OpenSectionCard'
-import { approvedSectionsFromInput, finishedSectionsFromResult, openSectionFromTask, warningsFromResult, type TailorSection } from './parseTailorTask'
+import { approvedSectionsFromInput, finishedSectionsFromResult, openSectionFromTask, warningsFromResult } from './parseTailorTask'
+import { SavedResumeEditor } from './SavedResumeEditor'
 import { SectionPreview } from './SectionPreview'
-import { asSectionType, SECTION_TITLES, sectionBeingWritten } from './sectionOrder'
+import { SECTION_TITLES, sectionBeingWritten } from './sectionOrder'
 import { useResumeTailoring } from './useResumeTailoring'
 import { useTailorActions } from './useTailorActions'
 
@@ -23,7 +24,6 @@ export function TailorResumePage() {
   const { id = '' } = useParams()
   const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id)
   const actions = useTailorActions(task?.id ?? '', () => void refetch())
-  const savedSections = savedResumeSections(job?.resume?.sections)
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
@@ -35,19 +35,16 @@ export function TailorResumePage() {
       <div className="grid gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">{job?.resume ? job.resume.title : 'Write resume'}</h1>
         {job && (
-          <p className="text-muted-foreground">
+          <Link to={`/jobs/${job.id}`} className="text-muted-foreground underline-offset-4 hover:underline">
             {job.title} at {job.company}
-          </p>
+          </Link>
         )}
       </div>
       {error && <ErrorAlert title="Couldn't load this job" messages={[requestErrorMessage(error, error.message)]} />}
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
       <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
       {!job && loading && <p className="text-muted-foreground">Loading…</p>}
-      {job?.resume &&
-        savedSections.map((section) => (
-          <SectionPreview key={section.sectionType} sectionId={`resume.${id}.${section.sectionType}`} section={section} />
-        ))}
+      {job?.resume && <SavedResumeEditor resumeId={job.resume.id} sections={job.resume.sections} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <>
           <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />
@@ -124,18 +121,4 @@ function TailorProgress({
       )}
     </div>
   )
-}
-
-/** Saved resume sections, in order, in the same shape as a tailored draft. */
-function savedResumeSections(
-  sections: { sectionType: string; title: string; position: number; content: unknown }[] | undefined,
-): TailorSection[] {
-  if (!sections) return []
-  return [...sections]
-    .sort((left, right) => left.position - right.position)
-    .flatMap((section) => {
-      const sectionType = asSectionType(section.sectionType.toLowerCase())
-      if (!sectionType) return []
-      return [{ sectionType, title: section.title, content: section.content, omitted: false }]
-    })
 }

@@ -1,14 +1,19 @@
 /**
  * Description: The tailor page restores a queued write, an open section (including a blocked
- * edit and a section nothing fits), the final editor, and a resume already saved.
+ * edit and a section nothing fits), the final editor, and a saved resume that can be edited.
+ * The PDF preview is mocked.
  */
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { renderPage } from '@/test/renderPage'
 import { TailorResumePage } from './TailorResumePage'
-import { SAVE_TAILORED_RESUME_MUTATION, SUBMIT_TAILORED_SECTION_MUTATION, TAILOR_JOB_QUERY } from './tailorOperations'
+import { SAVE_TAILORED_RESUME_MUTATION, SUBMIT_TAILORED_SECTION_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
+
+vi.mock('./ResumePdfPreview', () => ({
+  ResumePdfPreview: () => <iframe title="Resume preview" />,
+}))
 
 const CREATED_AT = '2026-10-05T00:00:00Z'
 
@@ -169,7 +174,7 @@ it('saves the finished draft', async () => {
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
 })
 
-it('opens a resume that was already saved', async () => {
+it('edits a resume that was already saved and shows the preview', async () => {
   const user = userEvent.setup()
   renderTailor([
     jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), {
@@ -180,12 +185,46 @@ it('opens a resume that was already saved', async () => {
         { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Backend engineer.' } },
       ],
     }),
+    {
+      request: {
+        query: UPDATE_RESUME_MUTATION,
+        variables: { id: 'resume-1', sections: [{ id: 'section-1', content: { text: 'Backend engineer and writer.' } }] },
+      },
+      result: {
+        data: {
+          updateResume: {
+            __typename: 'UpdateResumePayload',
+            resume: {
+              __typename: 'Resume',
+              id: 'resume-1',
+              title: 'Engineer at Acme',
+              sections: [
+                {
+                  __typename: 'ResumeSection',
+                  id: 'section-1',
+                  sectionType: 'SUMMARY',
+                  title: 'Summary',
+                  position: 0,
+                  content: { text: 'Backend engineer and writer.' },
+                },
+              ],
+            },
+            errors: [],
+          },
+        },
+      },
+    },
   ])
 
-  expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
-  expect(screen.queryByText('Backend engineer.')).not.toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Summary' }))
-  expect(screen.getByText('Backend engineer.')).toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
+  const summary = await screen.findByRole('textbox', { name: 'Summary' })
+  expect(summary).toHaveValue('Backend engineer.')
+  expect(screen.queryByTitle('Resume preview')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(await screen.findByTitle('Resume preview')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Close' }))
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
+  await user.clear(summary)
+  await user.type(summary, 'Backend engineer and writer.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  expect(summary).toHaveValue('Backend engineer and writer.')
 })

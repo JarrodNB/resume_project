@@ -52,6 +52,9 @@ type Documents = {
     "\n  mutation StartResumeTailoring($jobId: ID!) {\n    startResumeTailoring(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.StartResumeTailoringDocument,
     "\n  mutation SubmitTailoredSection($aiTaskId: ID!, $sectionType: String!, $action: String!, $content: JSON) {\n    submitTailoredSection(input: { aiTaskId: $aiTaskId, sectionType: $sectionType, action: $action, content: $content }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.SubmitTailoredSectionDocument,
     "\n  mutation SaveTailoredResume($aiTaskId: ID!, $sections: JSON) {\n    saveTailoredResume(input: { aiTaskId: $aiTaskId, sections: $sections }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n": typeof types.SaveTailoredResumeDocument,
+    "\n  mutation UpdateResume($id: ID!, $sections: JSON!) {\n    updateResume(input: { id: $id, sections: $sections }) {\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      errors\n    }\n  }\n": typeof types.UpdateResumeDocument,
+    "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": typeof types.ResumesDocument,
+    "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": typeof types.ResumeDocument,
 };
 const documents: Documents = {
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": types.AiTaskUpdatedDocument,
@@ -92,6 +95,9 @@ const documents: Documents = {
     "\n  mutation StartResumeTailoring($jobId: ID!) {\n    startResumeTailoring(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.StartResumeTailoringDocument,
     "\n  mutation SubmitTailoredSection($aiTaskId: ID!, $sectionType: String!, $action: String!, $content: JSON) {\n    submitTailoredSection(input: { aiTaskId: $aiTaskId, sectionType: $sectionType, action: $action, content: $content }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.SubmitTailoredSectionDocument,
     "\n  mutation SaveTailoredResume($aiTaskId: ID!, $sections: JSON) {\n    saveTailoredResume(input: { aiTaskId: $aiTaskId, sections: $sections }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n": types.SaveTailoredResumeDocument,
+    "\n  mutation UpdateResume($id: ID!, $sections: JSON!) {\n    updateResume(input: { id: $id, sections: $sections }) {\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      errors\n    }\n  }\n": types.UpdateResumeDocument,
+    "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": types.ResumesDocument,
+    "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": types.ResumeDocument,
 };
 
 /**
@@ -260,6 +266,18 @@ export function graphql(source: "\n  mutation SubmitTailoredSection($aiTaskId: I
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SaveTailoredResume($aiTaskId: ID!, $sections: JSON) {\n    saveTailoredResume(input: { aiTaskId: $aiTaskId, sections: $sections }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation SaveTailoredResume($aiTaskId: ID!, $sections: JSON) {\n    saveTailoredResume(input: { aiTaskId: $aiTaskId, sections: $sections }) {\n      resume {\n        id\n        title\n      }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateResume($id: ID!, $sections: JSON!) {\n    updateResume(input: { id: $id, sections: $sections }) {\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateResume($id: ID!, $sections: JSON!) {\n    updateResume(input: { id: $id, sections: $sections }) {\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n"): (typeof documents)["\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n"): (typeof documents)["\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

@@ -53,6 +53,8 @@ All business logic, as service objects grouped by domain folder.
   / reopen and requeues the same task at the next generation
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`); deleting the job keeps the resume
+- `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
+  resume (`updateResume`); type, title, and order stay put
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time

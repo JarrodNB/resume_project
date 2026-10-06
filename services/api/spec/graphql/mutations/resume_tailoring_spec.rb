@@ -66,6 +66,46 @@ RSpec.describe "Resume tailoring mutations" do
     expect(Resume.count).to eq(0)
   end
 
+  it "updateResume replaces section content" do
+    resume = create(:resume, user: user, job: job)
+    section = create(:resume_section, resume: resume, content: { "text" => "Old." })
+    query = <<~GQL
+      mutation($id: ID!, $sections: JSON!) {
+        updateResume(input: { id: $id, sections: $sections }) {
+          resume { sections { id content } }
+          errors
+        }
+      }
+    GQL
+
+    result = execute_graphql(query, user: user, variables: {
+      id: resume.id,
+      sections: [ { "id" => section.id, "content" => { "text" => "Backend engineer." } } ]
+    })
+
+    payload = result.dig("data", "updateResume")
+    expect(payload["errors"]).to eq([])
+    expect(payload.dig("resume", "sections", 0, "content")).to eq("text" => "Backend engineer.")
+  end
+
+  it "updateResume can't edit another user's resume" do
+    resume = create(:resume)
+    section = create(:resume_section, resume: resume, content: { "text" => "Theirs." })
+    query = <<~GQL
+      mutation($id: ID!, $sections: JSON!) {
+        updateResume(input: { id: $id, sections: $sections }) { resume { id } errors }
+      }
+    GQL
+
+    result = execute_graphql(query, user: user, variables: {
+      id: resume.id,
+      sections: [ { "id" => section.id, "content" => { "text" => "Mine." } } ]
+    })
+
+    expect(result["errors"].first["message"]).to eq("Record not found")
+    expect(section.reload.content).to eq("text" => "Theirs.")
+  end
+
   it "latestTailoring returns the job's tailor task" do
     task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "needs_user_input")
     query = <<~GQL

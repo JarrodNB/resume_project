@@ -15,6 +15,8 @@ import { JobScrapeTaskPage } from '@/features/jobs/JobScrapeTaskPage'
 import { JobsPage } from '@/features/jobs/JobsPage'
 import { ResumeImportTaskPage } from '@/features/resume-import/ResumeImportTaskPage'
 import { ResumeUploadPage } from '@/features/resume-import/ResumeUploadPage'
+import { ResumePage } from '@/features/resumes/ResumePage'
+import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
 
 export const appRoutes: RouteObject[] = [
@@ -40,6 +42,8 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/new/:aiTaskId', element: <JobScrapeTaskPage /> },
           { path: '/jobs/:id/tailor', element: <TailorResumePage /> },
           { path: '/jobs/:id', element: <JobDetailPage /> },
+          { path: '/resumes', element: <ResumesPage /> },
+          { path: '/resumes/:id', element: <ResumePage /> },
         ],
       },
     ],

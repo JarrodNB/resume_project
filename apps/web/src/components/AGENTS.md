@@ -6,7 +6,8 @@ Shared UI used by more than one feature.
 
 ## Contents
 
-- `AppLayout.tsx` — signed-in layout: header (nav, `ThemeToggle`, sign out) and routed page
+- `AppLayout.tsx` — signed-in layout: header (Career library, Import resume, Jobs, Resumes,
+  `ThemeToggle`, sign out) and routed page
 - `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
 - `CollapseToggle.tsx` — header button (chevron, `aria-expanded`) for a collapsible section

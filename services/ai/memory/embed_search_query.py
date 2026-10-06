@@ -14,6 +14,8 @@ from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingModel, EmbeddingSettings
 from pydantic_ai.usage import RequestUsage
 
+from worker.contact_mask import mask_outbound
+
 
 class QueryEmbedding(NamedTuple):
     """One embedded query."""
@@ -23,10 +25,11 @@ class QueryEmbedding(NamedTuple):
 
 
 def embed_search_query(text: str, model: EmbeddingModel | str, dimensions: int) -> QueryEmbedding:
-    """Embeds `text` as a search query. Pass `WorkerSettings.embedding_model` and
+    """Embeds `text` as a search query, with known contact replaced by the same placeholders
+    Rails uses for library rows. Pass `WorkerSettings.embedding_model` and
     `embedding_dimensions` (tests pass a TestEmbeddingModel)."""
     embedder = Embedder(model, settings=EmbeddingSettings(dimensions=dimensions))
-    result = embedder.embed_query_sync(text)
+    result = embedder.embed_query_sync(mask_outbound(text))
     return QueryEmbedding(vector=list(result.embeddings[0]), usage=result.usage)
 
 

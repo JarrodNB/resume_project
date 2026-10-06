@@ -38,7 +38,12 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
 - `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()` +
-  `Embedder.instrument_all()`), `trace_ai_task`
+  `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`
+- `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
+  to «name», «email», and «phone»
+- `contact_mask.py` — applies that map on the model request, the Langfuse payload, and
+  `mask_outbound` (search-query embeddings). The model response is restored before the app
+  sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
   embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
   read-only database connection (`DB_*`), and `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)

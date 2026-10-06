@@ -30,7 +30,9 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 - Use Pydantic models for every queue message and every structured LLM output.
 - **Langfuse tracing** comes from Pydantic AI's OpenTelemetry instrumentation
   (`Agent.instrument_all()` at worker startup). Tag traces with the user ID and task ID,
-  and flush at the end of each task. Langfuse Cloud (free tier) is used in all environments
+  and flush at the end of each task. Known name, contact email, and phone are placeholders
+  on the trace and on the provider request; the model response is restored before the result
+  is published. Langfuse Cloud (free tier) is used in all environments
   for now; its API keys go in `services/ai/.env` (copied from `.env.example`, never committed).
 - **Human-in-the-loop uses Pydantic AI deferred tools.** When an agent needs information
   from the user, it calls an external `ask_user` tool and the run ends with

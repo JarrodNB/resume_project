@@ -225,6 +225,9 @@ tailoring) instead of sending everything.
 - **Langfuse Cloud (free tier) for now.** Self-hosting needs ClickHouse, Redis, and S3-compatible
   storage, which is too heavy for local dev. Revisit self-hosting (on the k8s cluster) if
   free-tier limits or data-privacy needs require it, since traces contain resume content.
+  Known name, contact email, and phone are replaced with «name», «email», and «phone» before
+  they reach a model, an embedding API, or Langfuse. Location stays. The rest of the resume
+  still leaves the app; self-hosting Langfuse is the option for that.
 - **GraphQL subscriptions for live UI updates.** graphql-ruby subscriptions over ActionCable,
   using the Solid Cable adapter (Postgres-backed, so there's no Redis to run). The web app
   subscribes with Apollo over an ActionCable link, passing the JWT as the `token` query
@@ -236,8 +239,9 @@ tailoring) instead of sending everything.
   owns writes" is enforced by Postgres. Gap analysis reads the job and career library itself
   instead of Rails packing a snapshot into the task message (the library can outgrow a
   comfortable SQS payload, and the worker would need the same access for memory retrieval
-  anyway). The role gets SELECT only on the tables it needs, and of `users` only `id` and
-  `summary`, so password hashes and tokens stay out of reach. Grants are applied by a Rails rake
+  anyway). The role gets SELECT only on the tables it needs, and of `users` only `id`,
+  `summary`, `name`, `contact_email`, and `phone`, so the sign-in email, password hashes, and
+  tokens stay out of reach. Grants are applied by a Rails rake
   task after every `db:prepare` / `db:migrate` (`lib/ai_reader_access.rb`), because `schema.rb`
   doesn't record grants; a Postgres init script only creates the role. It can also read
   `library_embeddings` for memory search. Every worker query
@@ -274,9 +278,10 @@ tailoring) instead of sending everything.
   toward the monthly budget. Token rates are TypeSafe's published $0.042 per 1M input tokens
   (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
 - **Tailoring pauses once per section, in code, not via `ask_user`.** Contact is copied from
-  the user profile with no model call (the read-only role cannot see contact columns, so Rails
-  snapshots them, the gap analysis, and gap responses into the task input). Then one agent run
-  writes summary, experience, projects, education, and skills, in that order. The model selects,
+  the user profile with no model call. Rails snapshots contact, the gap analysis, and gap
+  responses into the task input. The worker reads `name`, `contact_email`, and `phone` and
+  replaces those known values with placeholders before a model call or a Langfuse trace. Then one
+  agent run writes summary, experience, projects, education, and skills, in that order. The model selects,
   orders, and rewrites toward the job, and must not invent employers, titles, tools, dates,
   metrics, or responsibilities. Each bullet cites library, gap-response, or approved-section
   labels; a checker rejects unsupported claims and does not replace the rewrite with the

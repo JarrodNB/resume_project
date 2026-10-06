@@ -75,6 +75,25 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
     expect(client.embedded_texts).to eq([ "Ruby" ])
   end
 
+  it "sends placeholders to the embedding API and stores the original text" do
+    user.update!(name: "Ada Lovelace", contact_email: "ada@example.com", phone: "555-0100")
+    experience = create(:experience, user: user, title: "Engineer", company: "Acme")
+    highlight = create(:experience_highlight, experience: experience, content: "Ada Lovelace shipped it. ada@example.com 555-0100")
+    original = "Engineer at Acme: Ada Lovelace shipped it. ada@example.com 555-0100"
+    masked = "Engineer at Acme: «name» shipped it. «email» «phone»"
+
+    sync
+
+    row = user.library_embeddings.find_by!(source_type: "ExperienceHighlight", source_id: highlight.id)
+    expect(row.content).to eq(original)
+    expect(client.embedded_texts).to include(masked)
+    expect(row.embedding.to_a).to eq(FakeEmbeddingClient.vector_for(masked))
+    expect(sync.value).to eq(embedded: 0, deleted: 0)
+
+    user.update!(contact_email: "ada@other.com")
+    expect(sync.value).to eq(embedded: 1, deleted: 0)
+  end
+
   it "finds the closest entries by cosine distance" do
     create_skill("Go")
     create_skill("Ruby")

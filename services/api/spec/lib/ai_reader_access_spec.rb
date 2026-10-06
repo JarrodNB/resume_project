@@ -37,10 +37,14 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT id FROM library_facts")).to eq([ { "id" => fact.id } ])
   end
 
-  it "reads only the id and summary of users" do
-    user = create(:user, summary: "Backend engineer")
+  it "reads the profile name, contact email, and phone, and not the sign-in email or password" do
+    user = create(:user, name: "Ada Lovelace", contact_email: "ada@example.com", phone: "555-0100", summary: "Backend engineer")
 
-    expect(select_as_ai_reader("SELECT id, summary FROM users")).to eq([ { "id" => user.id, "summary" => "Backend engineer" } ])
+    expect(select_as_ai_reader("SELECT id, summary, name, contact_email, phone FROM users")).to eq(
+      [ { "id" => user.id, "summary" => "Backend engineer", "name" => "Ada Lovelace", "contact_email" => "ada@example.com", "phone" => "555-0100" } ]
+    )
+    expect { select_as_ai_reader("SELECT email FROM users") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT encrypted_password FROM users") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end

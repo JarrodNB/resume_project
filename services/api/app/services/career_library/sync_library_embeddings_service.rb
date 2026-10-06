@@ -1,7 +1,9 @@
 # Description: Brings a user's library_embeddings in line with their career library: embeds entries
-# that are new or whose text (or embedding model) changed, and deletes embeddings of entries that
-# are gone. Unchanged entries cost nothing, so it is safe to run after every library change, twice,
-# or as a backfill. A per-user advisory lock stops two syncs from writing over each other.
+# that are new or whose masked text (or embedding model) changed, and deletes embeddings of entries
+# that are gone. The API receives placeholders for the user's known name, contact email, and phone;
+# the stored text stays original. Unchanged entries cost nothing, so it is safe to run after every
+# library change, twice, or as a backfill. A per-user advisory lock stops two syncs from writing
+# over each other.
 # Index:
 #   - call: syncs under the lock; returns { embedded:, deleted: } counts
 module CareerLibrary
@@ -38,7 +40,7 @@ module CareerLibrary
       changed = entries.reject { |entry| stored_digests[entry_key(entry)] == digest_of(entry) }
       return 0 if changed.empty?
 
-      vectors = @embedding_client.embed_texts(changed.map { |entry| entry[:content] })
+      vectors = @embedding_client.embed_texts(changed.map { |entry| outbound_content(entry) })
       rows = changed.zip(vectors).map { |entry, vector| row_for(entry, vector) }
       LibraryEmbedding.upsert_all(rows, unique_by: [ :source_type, :source_id ])
       changed.size
@@ -63,9 +65,14 @@ module CareerLibrary
       [ entry[:source_type], entry[:source_id] ]
     end
 
-    # SHA-256 of the model and text, so a model change also re-embeds.
+    # The text sent to the embeddings API. Stored content stays original.
+    def outbound_content(entry)
+      Embeddings::MaskContact.mask(entry[:content], @user)
+    end
+
+    # SHA-256 of the model and the masked text, so a contact or model change re-embeds.
     def digest_of(entry)
-      Digest::SHA256.hexdigest("#{@embedding_client.model}\n#{entry[:content]}")
+      Digest::SHA256.hexdigest("#{@embedding_client.model}\n#{outbound_content(entry)}")
     end
   end
 end

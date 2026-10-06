@@ -53,6 +53,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block
+- `test_contact_mask.py` — known name, email, and phone become placeholders on a model
+  request, a Langfuse payload, and a search-query embedding; the model response is restored
 
 ## Local Rules
 

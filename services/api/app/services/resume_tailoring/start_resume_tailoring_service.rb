@@ -45,7 +45,8 @@ module ResumeTailoring
       @job.ai_tasks.analyze_gaps.completed.order(created_at: :desc).first
     end
 
-    # What the worker needs that it cannot read itself (profile contact, the comparison, answers).
+    # Profile contact, the comparison, and answers. The worker reads name, contact email, and
+    # phone so it can mask them; location and links still come from this snapshot.
     def task_input(analysis)
       {
         "job_id" => @job.id,

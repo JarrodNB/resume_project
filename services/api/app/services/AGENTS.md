@@ -13,6 +13,8 @@ All business logic, as service objects grouped by domain folder.
 - `embeddings/open_ai_embedding_client.rb` — `embed_texts(texts)` via the OpenAI embeddings API
   (batches of 500, raises API errors for the job to retry); `configured?` checks
   `OPENAI_API_KEY`. The only place Rails calls OpenAI
+- `embeddings/mask_contact.rb` — `MaskContact.mask(text, user)` replaces that user's known
+  name, contact email, and phone with «name», «email», and «phone»
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues

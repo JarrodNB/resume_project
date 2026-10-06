@@ -11,7 +11,7 @@ module AiReaderAccess
   READABLE_TABLES = %w[
     jobs experiences experience_highlights projects educations skills library_facts library_embeddings
   ].freeze
-  READABLE_USER_COLUMNS = %w[id summary].freeze
+  READABLE_USER_COLUMNS = %w[id summary name contact_email phone].freeze
 
   module_function
 

@@ -7,6 +7,7 @@ Index:
     - admin_connection: a postgres connection inside a rolled-back transaction
     - test_reads_the_job_and_library_in_rails_order
     - test_another_users_job_reads_nothing
+    - test_reads_profile_name_email_and_phone
 """
 
 import os
@@ -19,6 +20,7 @@ from psycopg.rows import DictRow, dict_row
 from psycopg.types.json import Jsonb
 
 from database.career_library_reader import read_gap_analysis_context
+from database.profile_contact import read_profile_contact
 
 pytestmark = pytest.mark.db
 
@@ -153,3 +155,22 @@ def test_another_users_job_reads_nothing(admin_connection: psycopg.Connection[Di
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
     assert read_gap_analysis_context(admin_connection, other_user_id, job_id) is None
+
+
+def test_reads_profile_name_email_and_phone(admin_connection: psycopg.Connection[DictRow]) -> None:
+    """ai_reader can read the contact fields used for masking."""
+    user_id = _insert(
+        admin_connection,
+        "users",
+        email=f"{uuid4()}@example.com",
+        name="Ada Lovelace",
+        contact_email="ada@example.com",
+        phone="555-0100",
+    )
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+
+    assert read_profile_contact(admin_connection, user_id) == (
+        "Ada Lovelace",
+        "ada@example.com",
+        "555-0100",
+    )

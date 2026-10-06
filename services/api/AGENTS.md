@@ -71,7 +71,8 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
   grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
-  and `library_embeddings`   (of `users`, only `id` and `summary`). It runs after `db:prepare`, `db:migrate`, and
+  and `library_embeddings` (of `users`, `id`, `summary`, `name`, `contact_email`, and `phone`;
+  the sign-in email and password stay hidden). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see

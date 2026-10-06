@@ -25,8 +25,9 @@ picks two entries), and `reorderSkills` (drag-and-drop on the library page).
   "Languages: Ruby", "Fact: Kubernetes: Used it at Acme for two years"); job-only gap responses
   are not included; queries the tables directly so a sync never sees stale loaded associations
 - `sync_library_embeddings_service.rb` — under a per-user advisory lock, embeds entries whose
-  SHA-256(model + text) digest changed, upserts them into `library_embeddings`, and deletes rows
-  whose entry is gone; returns `{ embedded:, deleted: }`. Idempotent; run by
+  SHA-256(model + masked text) digest changed, upserts them into `library_embeddings`, and
+  deletes rows whose entry is gone; the API receives placeholders and the stored text stays
+  original; returns `{ embedded:, deleted: }`. Idempotent; run by
   `SyncLibraryEmbeddingsJob` and the `career_library:sync_embeddings` backfill
 
 ## Local Rules

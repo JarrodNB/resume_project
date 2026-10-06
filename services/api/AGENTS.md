@@ -96,5 +96,4 @@ Every service that changes career library text must enqueue
 extra sync is harmless). `OPENAI_API_KEY` must be set in `services/api/.env` for embeddings;
 without it the sync is skipped.
 
-Not added yet: mutations for projects, educations, skills, and resumes (follow the
-jobs/experiences pattern).
+Not added yet: resume mutations (follow the jobs/experiences pattern).

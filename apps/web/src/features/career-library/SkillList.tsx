@@ -1,11 +1,11 @@
 /**
- * Description: Skills grouped by category, shown as chips with a drag handle and a delete button.
+ * Description: Skills grouped by category, shown as chips with a drag handle, edit, and delete.
  * Chips can be dragged to a new place within their category; the page's DragDropProvider saves it.
  * Index:
  *   - SkillList: renders each category with its skills; deleting asks for confirmation
  */
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableId } from '@/components/dnd/moveItems'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
@@ -14,7 +14,7 @@ import { useLibraryEntryActions } from './useLibraryEntryActions'
 import { skillDragType } from './useLibraryDragHandlers'
 
 /** Renders each category heading with its skills as chips. */
-export function SkillList({ skills }: { skills: CategorizedSkill[] }) {
+export function SkillList({ skills, onEdit }: { skills: CategorizedSkill[]; onEdit: (skill: CategorizedSkill) => void }) {
   const [skillToDelete, setSkillToDelete] = useState<CategorizedSkill | null>(null)
   const { deleteEntry, busy, errors, clearErrors } = useLibraryEntryActions('skill')
 
@@ -49,6 +49,14 @@ export function SkillList({ skills }: { skills: CategorizedSkill[] }) {
                   <>
                     {dragHandle}
                     {skill.name}
+                    <button
+                      type="button"
+                      className="ml-1 rounded-full p-0.5 hover:bg-foreground/10"
+                      aria-label={`Edit ${skill.name}`}
+                      onClick={() => onEdit(skill)}
+                    >
+                      <Pencil className="size-3" />
+                    </button>
                     <button
                       type="button"
                       className="ml-1 rounded-full p-0.5 hover:bg-foreground/10"

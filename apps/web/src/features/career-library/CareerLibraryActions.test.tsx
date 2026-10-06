@@ -1,7 +1,7 @@
 /**
- * Description: Deleting and merging career library entries from the library page. Mutation mocks
- * only match the expected ids, so a dialog that closes means the right mutation succeeded. Mutation mocks
- * only match the expected ids, so a dialog that closes means the right mutation succeeded.
+ * Description: Deleting, merging, adding, and editing career library entries from the library page.
+ * Mutation mocks only match the expected variables, so a dialog that closes means the right
+ * mutation succeeded.
  */
 import type { MockLink } from '@apollo/client/testing'
 import { screen, waitFor, within } from '@testing-library/react'
@@ -10,6 +10,7 @@ import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
+import { CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
@@ -54,14 +55,17 @@ const libraryMock = {
   },
 }
 
-function renderLibrary(mutationMock: MockLink.MockedResponse) {
-  setSectionOpen('library.experience', true)
-  setSectionOpen('library.skills', true)
+function renderLibrary(
+  mutationMock: MockLink.MockedResponse,
+  sections = ['library.experience', 'library.skills'],
+  library: MockLink.MockedResponse = libraryMock,
+) {
+  for (const sectionId of sections) setSectionOpen(sectionId, true)
   renderPage({
     path: '/library',
     url: '/library',
     element: <CareerLibraryPage />,
-    mocks: [libraryMock, mutationMock, libraryMock],
+    mocks: [library, mutationMock, library],
   })
 }
 
@@ -95,6 +99,166 @@ it('deletes a skill after confirming', async () => {
   await user.click(await screen.findByRole('button', { name: 'Delete Ruby' }))
   const dialog = await screen.findByRole('dialog', { name: 'Delete Ruby?' })
   await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('adds a role', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: {
+      query: CREATE_EXPERIENCE_MUTATION,
+      variables: {
+        attributes: { company: 'Acme', title: 'Engineer', location: null, startDate: null, endDate: null, description: null },
+        highlights: [],
+      },
+    },
+    result: { data: { createExperience: { __typename: 'CreateExperiencePayload', errors: [] } } },
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Add role' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add role' })
+  await user.type(within(dialog).getByLabelText('Title'), 'Engineer')
+  await user.type(within(dialog).getByLabelText('Company'), 'Acme')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('edits a project and can clear a field', async () => {
+  const user = userEvent.setup()
+  const library = {
+    ...libraryMock,
+    result: {
+      data: {
+        ...libraryMock.result.data,
+        projects: [
+          {
+            __typename: 'Project',
+            id: 'project-1',
+            name: 'CLI',
+            role: 'Author',
+            url: null,
+            startDate: null,
+            endDate: null,
+            description: null,
+          },
+        ],
+      },
+    },
+  }
+  renderLibrary(
+    {
+      request: {
+        query: UPDATE_PROJECT_MUTATION,
+        variables: {
+          id: 'project-1',
+          attributes: { name: 'CLI', role: null, url: null, startDate: null, endDate: null, description: null },
+        },
+      },
+      result: { data: { updateProject: { __typename: 'UpdateProjectPayload', errors: [] } } },
+    },
+    ['library.projects'],
+    library,
+  )
+
+  await user.click(await screen.findByRole('button', { name: 'Actions for CLI' }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Edit project' })
+  await user.clear(within(dialog).getByLabelText('Role'))
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('edits the profile', async () => {
+  const user = userEvent.setup()
+  renderLibrary(
+    {
+      request: {
+        query: UPDATE_PROFILE_MUTATION,
+        variables: {
+          attributes: { name: 'Ada', contactEmail: null, phone: null, location: null, links: [], summary: null },
+        },
+      },
+      result: { data: { updateProfile: { __typename: 'UpdateProfilePayload', errors: [] } } },
+    },
+    ['library.profile'],
+  )
+
+  await user.click(await screen.findByRole('button', { name: 'Edit profile' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Edit profile' })
+  await user.type(within(dialog).getByLabelText('Name'), 'Ada')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('adds a skill', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: {
+      query: CREATE_SKILL_MUTATION,
+      variables: { attributes: { name: 'Go', category: null } },
+    },
+    result: { data: { createSkill: { __typename: 'CreateSkillPayload', errors: [] } } },
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Add skill' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add skill' })
+  await user.type(within(dialog).getByLabelText('Name'), 'Go')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('keeps a validation error in the skill dialog', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: {
+      query: CREATE_SKILL_MUTATION,
+      variables: { attributes: { name: 'Ruby', category: null } },
+    },
+    result: { data: { createSkill: { __typename: 'CreateSkillPayload', errors: ['Name has already been taken'] } } },
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Add skill' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add skill' })
+  await user.type(within(dialog).getByLabelText('Name'), 'Ruby')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+  expect(await within(dialog).findByText('Name has already been taken')).toBeInTheDocument()
+  expect(screen.getByRole('dialog', { name: 'Add skill' })).toBeInTheDocument()
+})
+
+it('edits a fact', async () => {
+  const user = userEvent.setup()
+  const library = {
+    ...libraryMock,
+    result: {
+      data: {
+        ...libraryMock.result.data,
+        libraryFacts: [{ __typename: 'LibraryFact', id: 'fact-1', requirement: 'Kubernetes', response: 'Used it at Acme' }],
+      },
+    },
+  }
+  renderLibrary(
+    {
+      request: {
+        query: UPDATE_LIBRARY_FACT_MUTATION,
+        variables: { id: 'fact-1', attributes: { requirement: 'Kubernetes', response: 'Used it for two years' } },
+      },
+      result: { data: { updateLibraryFact: { __typename: 'UpdateLibraryFactPayload', errors: [] } } },
+    },
+    ['library.facts'],
+    library,
+  )
+
+  await user.click(await screen.findByRole('button', { name: 'Edit Kubernetes' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Edit fact' })
+  await user.clear(within(dialog).getByLabelText('Response'))
+  await user.type(within(dialog).getByLabelText('Response'), 'Used it for two years')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })

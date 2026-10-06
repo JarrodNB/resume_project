@@ -22,6 +22,39 @@ RSpec.describe "Career library embedding sync enqueueing" do
       .not_to have_enqueued_job(sync_job)
   end
 
+  it "queues a sync when a project, education, skill, or fact is created or updated" do
+    expect { Projects::CreateProjectService.call(user: user, attributes: { name: "CLI" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+    project = user.projects.sole
+    expect { Projects::UpdateProjectService.call(project: project, attributes: { role: "Author" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+
+    expect { Educations::CreateEducationService.call(user: user, attributes: { institution: "State" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+    education = user.educations.sole
+    expect { Educations::UpdateEducationService.call(education: education, attributes: { degree: "BSc" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+
+    expect { Skills::CreateSkillService.call(user: user, attributes: { name: "Ruby" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+    skill = user.skills.sole
+    expect { Skills::UpdateSkillService.call(skill: skill, attributes: { category: "Languages" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+
+    expect { LibraryFacts::CreateLibraryFactService.call(user: user, attributes: { requirement: "K8s", response: "Yes" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+    fact = user.library_facts.sole
+    expect { LibraryFacts::UpdateLibraryFactService.call(library_fact: fact, attributes: { response: "Two years" }) }
+      .to have_enqueued_job(sync_job).with(user.id)
+  end
+
+  it "doesn't queue a sync for a profile update or a failed library save" do
+    expect { Users::UpdateProfileService.call(user: user, attributes: { name: "Ada" }) }
+      .not_to have_enqueued_job(sync_job)
+    expect { Projects::CreateProjectService.call(user: user, attributes: { name: "" }) }
+      .not_to have_enqueued_job(sync_job)
+  end
+
   it "queues a sync when two entries are merged" do
     target = create(:project, user: user, name: "CLI")
     source = create(:project, user: user, name: "cli")

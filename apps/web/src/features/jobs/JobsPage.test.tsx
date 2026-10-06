@@ -1,10 +1,11 @@
 /**
- * Description: The jobs page lists saved jobs and shows an empty state.
+ * Description: The jobs page lists saved jobs, shows an empty state, and adds one by hand.
  */
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
-import { JOBS_QUERY } from './jobsOperations'
+import { CREATE_JOB_MUTATION, JOBS_QUERY } from './jobsOperations'
 import { JobsPage } from './JobsPage'
 
 function jobsMock(jobs: Record<string, unknown>[]) {
@@ -42,4 +43,51 @@ it('invites the user to add a job when there are none', async () => {
 
   expect(await screen.findByText(/No jobs yet/)).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Add job from link' })).toHaveAttribute('href', '/jobs/new')
+})
+
+it('adds a job manually and opens it', async () => {
+  const user = userEvent.setup()
+  const { router } = renderPage({
+    path: '/jobs',
+    url: '/jobs',
+    element: <JobsPage />,
+    extraRoutes: [{ path: '/jobs/:id', element: <p>Job page</p> }],
+    mocks: [
+      jobsMock([]),
+      {
+        request: {
+          query: CREATE_JOB_MUTATION,
+          variables: {
+            attributes: {
+              title: 'Engineer',
+              company: 'Acme',
+              location: null,
+              url: null,
+              notes: null,
+              description: null,
+              requirements: [],
+              niceToHaves: [],
+            },
+          },
+        },
+        result: {
+          data: {
+            createJob: {
+              __typename: 'CreateJobPayload',
+              errors: [],
+              job: { __typename: 'Job', id: 'job-9' },
+            },
+          },
+        },
+      },
+      jobsMock([]),
+    ],
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Add manually' }))
+  await user.type(screen.getByLabelText('Title'), 'Engineer')
+  await user.type(screen.getByLabelText('Company'), 'Acme')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-9'))
 })

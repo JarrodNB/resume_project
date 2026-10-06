@@ -1,21 +1,25 @@
 /**
- * Description: Saved jobs list (/jobs), newest first, with a button to add one from a posting link.
+ * Description: Saved jobs list (/jobs), newest first, with ways to add one from a link or by hand.
  * Index:
  *   - JobsPage: page component
  */
+import { useState } from 'react'
 import { Link2 } from 'lucide-react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { JobFormDialog } from './JobFormDialog'
 import { JOB_STAGE_LABELS } from './jobStageLabels'
 import { useJobs } from './useJobs'
 
 /** Lists the user's jobs, each linking to its detail page. */
 export function JobsPage() {
+  const navigate = useNavigate()
   const { jobs, loading, error } = useJobs()
+  const [adding, setAdding] = useState(false)
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
@@ -24,18 +28,24 @@ export function JobsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Jobs</h1>
           <p className="text-muted-foreground">The roles you're tailoring resumes for.</p>
         </div>
-        <Button asChild>
-          <Link to="/jobs/new">
-            <Link2 /> Add job from link
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setAdding(true)}>
+            Add manually
+          </Button>
+          <Button asChild>
+            <Link to="/jobs/new">
+              <Link2 /> Add job from link
+            </Link>
+          </Button>
+        </div>
       </div>
+      <JobFormDialog open={adding} job={null} onOpenChange={setAdding} onCreated={(jobId) => navigate(`/jobs/${jobId}`)} />
       {error && <ErrorAlert title="Couldn't load your jobs" messages={[requestErrorMessage(error, error.message)]} />}
       {!jobs && loading && <p className="text-muted-foreground">Loading…</p>}
       {jobs?.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No jobs yet. Paste a job posting link to add your first one.
+            No jobs yet. Paste a job posting link, or add one yourself.
           </CardContent>
         </Card>
       )}

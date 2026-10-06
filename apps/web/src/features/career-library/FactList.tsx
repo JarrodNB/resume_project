@@ -1,11 +1,11 @@
 /**
- * Description: Career library facts (answers added from a gap analysis), each with a delete button.
+ * Description: Career library facts (answers the user keeps), each with edit and delete.
  * Index:
  *   - LibraryFact: one fact as the library query returns it
  *   - FactList: renders the facts; deleting asks for confirmation
  */
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { Pencil, X } from 'lucide-react'
 import { DeleteEntryDialog } from './DeleteEntryDialog'
 import { useLibraryEntryActions } from './useLibraryEntryActions'
 
@@ -16,7 +16,7 @@ export interface LibraryFact {
 }
 
 /** Renders each fact and confirms before deleting it. */
-export function FactList({ facts }: { facts: LibraryFact[] }) {
+export function FactList({ facts, onEdit }: { facts: LibraryFact[]; onEdit: (fact: LibraryFact) => void }) {
   const [factToDelete, setFactToDelete] = useState<LibraryFact | null>(null)
   const { deleteEntry, busy, errors, clearErrors } = useLibraryEntryActions('fact')
 
@@ -39,14 +39,24 @@ export function FactList({ facts }: { facts: LibraryFact[] }) {
             <p className="text-sm font-medium">{fact.requirement}</p>
             <p className="text-sm text-muted-foreground">{fact.response}</p>
           </div>
-          <button
-            type="button"
-            className="rounded-full p-1 hover:bg-foreground/10"
-            aria-label={`Delete ${fact.requirement}`}
-            onClick={() => confirmDelete(fact)}
-          >
-            <X className="size-4" />
-          </button>
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              className="rounded-full p-1 hover:bg-foreground/10"
+              aria-label={`Edit ${fact.requirement}`}
+              onClick={() => onEdit(fact)}
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              className="rounded-full p-1 hover:bg-foreground/10"
+              aria-label={`Delete ${fact.requirement}`}
+              onClick={() => confirmDelete(fact)}
+            >
+              <X className="size-4" />
+            </button>
+          </div>
         </li>
       ))}
       <DeleteEntryDialog

@@ -246,6 +246,8 @@ it('saves a response and can add it to the career library', async () => {
               description: null,
               requirements: ['Go'],
               niceToHaves: [],
+              notes: null,
+              appliedAt: null,
               gapResponses: [
                 {
                   __typename: 'JobGapResponse',

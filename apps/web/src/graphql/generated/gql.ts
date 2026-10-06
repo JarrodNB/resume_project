@@ -26,10 +26,25 @@ type Documents = {
     "\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n        position\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n      position\n    }\n    libraryFacts {\n      id\n      requirement\n      response\n    }\n  }\n": typeof types.CareerLibraryDocument,
     "\n  mutation ReorderSkills($orderedIds: [ID!]!) {\n    reorderSkills(input: { orderedIds: $orderedIds }) {\n      errors\n    }\n  }\n": typeof types.ReorderSkillsDocument,
     "\n  mutation MoveExperienceHighlight($highlightId: ID!, $experienceId: ID!, $position: Int!) {\n    moveExperienceHighlight(input: { highlightId: $highlightId, experienceId: $experienceId, position: $position }) {\n      experience {\n        id\n        highlights {\n          id\n          content\n          position\n        }\n      }\n      sourceExperience {\n        id\n        highlights {\n          id\n          content\n          position\n        }\n      }\n      errors\n    }\n  }\n": typeof types.MoveExperienceHighlightDocument,
+    "\n  mutation UpdateProfile($attributes: ProfileAttributesInput!) {\n    updateProfile(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateProfileDocument,
+    "\n  mutation CreateExperience($attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    createExperience(input: { attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n": typeof types.CreateExperienceDocument,
+    "\n  mutation UpdateExperience($id: ID!, $attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    updateExperience(input: { id: $id, attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n": typeof types.UpdateExperienceDocument,
+    "\n  mutation CreateProject($attributes: ProjectAttributesInput!) {\n    createProject(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.CreateProjectDocument,
+    "\n  mutation UpdateProject($id: ID!, $attributes: ProjectAttributesInput!) {\n    updateProject(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateProjectDocument,
+    "\n  mutation CreateEducation($attributes: EducationAttributesInput!) {\n    createEducation(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.CreateEducationDocument,
+    "\n  mutation UpdateEducation($id: ID!, $attributes: EducationAttributesInput!) {\n    updateEducation(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateEducationDocument,
+    "\n  mutation CreateSkill($attributes: SkillAttributesInput!) {\n    createSkill(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.CreateSkillDocument,
+    "\n  mutation UpdateSkill($id: ID!, $attributes: SkillAttributesInput!) {\n    updateSkill(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateSkillDocument,
+    "\n  mutation CreateLibraryFact($attributes: LibraryFactAttributesInput!) {\n    createLibraryFact(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.CreateLibraryFactDocument,
+    "\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateLibraryFactDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": typeof types.SaveGapResponseDocument,
     "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
-    "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": typeof types.JobDocument,
+    "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": typeof types.JobDocument,
+    "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.CreateJobDocument,
+    "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateJobDocument,
+    "\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n": typeof types.MoveJobToStageDocument,
+    "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ScrapeJobDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": typeof types.ImportParsedResumeDocument,
@@ -51,10 +66,25 @@ const documents: Documents = {
     "\n  query CareerLibrary {\n    me {\n      id\n      name\n      contactEmail\n      phone\n      location\n      links\n      summary\n    }\n    experiences {\n      id\n      company\n      title\n      location\n      startDate\n      endDate\n      description\n      highlights {\n        id\n        content\n        position\n      }\n    }\n    projects {\n      id\n      name\n      role\n      url\n      startDate\n      endDate\n      description\n    }\n    educations {\n      id\n      institution\n      degree\n      fieldOfStudy\n      startDate\n      endDate\n      description\n    }\n    skills {\n      id\n      name\n      category\n      position\n    }\n    libraryFacts {\n      id\n      requirement\n      response\n    }\n  }\n": types.CareerLibraryDocument,
     "\n  mutation ReorderSkills($orderedIds: [ID!]!) {\n    reorderSkills(input: { orderedIds: $orderedIds }) {\n      errors\n    }\n  }\n": types.ReorderSkillsDocument,
     "\n  mutation MoveExperienceHighlight($highlightId: ID!, $experienceId: ID!, $position: Int!) {\n    moveExperienceHighlight(input: { highlightId: $highlightId, experienceId: $experienceId, position: $position }) {\n      experience {\n        id\n        highlights {\n          id\n          content\n          position\n        }\n      }\n      sourceExperience {\n        id\n        highlights {\n          id\n          content\n          position\n        }\n      }\n      errors\n    }\n  }\n": types.MoveExperienceHighlightDocument,
+    "\n  mutation UpdateProfile($attributes: ProfileAttributesInput!) {\n    updateProfile(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateProfileDocument,
+    "\n  mutation CreateExperience($attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    createExperience(input: { attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n": types.CreateExperienceDocument,
+    "\n  mutation UpdateExperience($id: ID!, $attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    updateExperience(input: { id: $id, attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n": types.UpdateExperienceDocument,
+    "\n  mutation CreateProject($attributes: ProjectAttributesInput!) {\n    createProject(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.CreateProjectDocument,
+    "\n  mutation UpdateProject($id: ID!, $attributes: ProjectAttributesInput!) {\n    updateProject(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateProjectDocument,
+    "\n  mutation CreateEducation($attributes: EducationAttributesInput!) {\n    createEducation(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.CreateEducationDocument,
+    "\n  mutation UpdateEducation($id: ID!, $attributes: EducationAttributesInput!) {\n    updateEducation(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateEducationDocument,
+    "\n  mutation CreateSkill($attributes: SkillAttributesInput!) {\n    createSkill(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.CreateSkillDocument,
+    "\n  mutation UpdateSkill($id: ID!, $attributes: SkillAttributesInput!) {\n    updateSkill(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateSkillDocument,
+    "\n  mutation CreateLibraryFact($attributes: LibraryFactAttributesInput!) {\n    createLibraryFact(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.CreateLibraryFactDocument,
+    "\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateLibraryFactDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": types.SaveGapResponseDocument,
     "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": types.JobsDocument,
-    "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": types.JobDocument,
+    "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": types.JobDocument,
+    "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": types.CreateJobDocument,
+    "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateJobDocument,
+    "\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n": types.MoveJobToStageDocument,
+    "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ScrapeJobDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": types.ImportParsedResumeDocument,
@@ -129,6 +159,50 @@ export function graphql(source: "\n  mutation MoveExperienceHighlight($highlight
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation UpdateProfile($attributes: ProfileAttributesInput!) {\n    updateProfile(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateProfile($attributes: ProfileAttributesInput!) {\n    updateProfile(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateExperience($attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    createExperience(input: { attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateExperience($attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    createExperience(input: { attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateExperience($id: ID!, $attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    updateExperience(input: { id: $id, attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateExperience($id: ID!, $attributes: ExperienceAttributesInput!, $highlights: [String!]) {\n    updateExperience(input: { id: $id, attributes: $attributes, highlights: $highlights }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateProject($attributes: ProjectAttributesInput!) {\n    createProject(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateProject($attributes: ProjectAttributesInput!) {\n    createProject(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateProject($id: ID!, $attributes: ProjectAttributesInput!) {\n    updateProject(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateProject($id: ID!, $attributes: ProjectAttributesInput!) {\n    updateProject(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateEducation($attributes: EducationAttributesInput!) {\n    createEducation(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateEducation($attributes: EducationAttributesInput!) {\n    createEducation(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateEducation($id: ID!, $attributes: EducationAttributesInput!) {\n    updateEducation(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateEducation($id: ID!, $attributes: EducationAttributesInput!) {\n    updateEducation(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateSkill($attributes: SkillAttributesInput!) {\n    createSkill(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateSkill($attributes: SkillAttributesInput!) {\n    createSkill(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateSkill($id: ID!, $attributes: SkillAttributesInput!) {\n    updateSkill(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateSkill($id: ID!, $attributes: SkillAttributesInput!) {\n    updateSkill(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateLibraryFact($attributes: LibraryFactAttributesInput!) {\n    createLibraryFact(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateLibraryFact($attributes: LibraryFactAttributesInput!) {\n    createLibraryFact(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -141,7 +215,23 @@ export function graphql(source: "\n  query Jobs {\n    jobs {\n      id\n      t
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

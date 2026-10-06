@@ -119,3 +119,12 @@ loads: `docker compose restart api-results-worker`.
 | ---- | ------- |
 | psql (dev database) | `docker compose exec db psql -U postgres api_development` |
 | List databases | `docker compose exec db psql -U postgres -c '\l'` |
+
+docker compose logs -f --tail=100 api
+docker compose logs -f --tail=100 api-results-worker
+docker compose logs -f --tail=100 ai
+docker compose logs -f --tail=100 web
+
+
+docker compose up -d db sqs s3 landing
+docker compose up api api-results-worker ai web

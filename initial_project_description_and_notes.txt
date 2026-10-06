@@ -15,6 +15,10 @@ undocumented ideas:
 - if gasp response, then gap and response in career library
 - characteristics in CL, like hard working, whatever, or maybe strength and weaknesses
 - cover letter
+- career library review, asking for clarification, more info/specific info, etc
+- once employed, ability to continue to save jobs and company profile, to keep an eye on the market etc
+- need to add certifications
+- github and linkedin imports take the label and not the url
 -----
 as far as llm guidance, can we add a description and index at the top of each file?
 - small modular/reusable files

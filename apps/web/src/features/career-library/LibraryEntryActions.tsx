@@ -1,8 +1,8 @@
 /**
- * Description: "…" menu on a career library entry with Delete and, for mergeable kinds,
- * "Merge into…", each opening its confirmation dialog.
+ * Description: "…" menu on a career library entry with Edit, Delete, and, for mergeable kinds,
+ * "Merge into…". Delete and merge open confirmation dialogs.
  * Index:
- *   - LibraryEntryActions: menu plus delete and merge dialogs for one entry
+ *   - LibraryEntryActions: menu plus edit, delete, and merge dialogs for one entry
  */
 import { useState } from 'react'
 import { Ellipsis } from 'lucide-react'
@@ -17,12 +17,13 @@ interface LibraryEntryActionsProps {
   entryId: string
   entryLabel: string
   mergeCandidates: MergeCandidate[]
+  onEdit: () => void
 }
 
 type OpenDialog = 'delete' | 'merge' | null
 
 /** Renders the actions menu; "Merge into…" only appears when there is another entry to merge into. */
-export function LibraryEntryActions({ kind, entryId, entryLabel, mergeCandidates }: LibraryEntryActionsProps) {
+export function LibraryEntryActions({ kind, entryId, entryLabel, mergeCandidates, onEdit }: LibraryEntryActionsProps) {
   const [openDialog, setOpenDialog] = useState<OpenDialog>(null)
   const { deleteEntry, mergeEntries, busy, errors, clearErrors } = useLibraryEntryActions(kind)
 
@@ -46,6 +47,7 @@ export function LibraryEntryActions({ kind, entryId, entryLabel, mergeCandidates
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
           {mergeCandidates.length > 0 && <DropdownMenuItem onSelect={() => showDialog('merge')}>Merge into…</DropdownMenuItem>}
           <DropdownMenuItem variant="destructive" onSelect={() => showDialog('delete')}>
             Delete

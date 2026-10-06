@@ -3,18 +3,21 @@
 # Description: Root mutation fields. Each mutation delegates to a service object.
 # Index:
 #   - jobs: createJob, updateJob, moveJobToStage, deleteJob, scrapeJob
+#   - profile: updateProfile
 #   - experiences: createExperience, updateExperience, deleteExperience, mergeExperiences,
 #     moveExperienceHighlight
-#   - projects: deleteProject, mergeProjects
-#   - educations: deleteEducation, mergeEducations
-#   - skills: deleteSkill, reorderSkills
+#   - projects: createProject, updateProject, deleteProject, mergeProjects
+#   - educations: createEducation, updateEducation, deleteEducation, mergeEducations
+#   - skills: createSkill, updateSkill, deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 #   - gap analysis: analyzeJobGaps
 #   - resume tailoring: startResumeTailoring, submitTailoredSection, saveTailoredResume
 #   - gap responses: saveGapResponse
-#   - library facts: deleteLibraryFact
+#   - library facts: createLibraryFact, updateLibraryFact, deleteLibraryFact
 module Types
   class MutationType < Types::BaseObject
+    field :update_profile, mutation: Mutations::Users::UpdateProfile
+
     field :create_job, mutation: Mutations::Jobs::CreateJob
     field :update_job, mutation: Mutations::Jobs::UpdateJob
     field :move_job_to_stage, mutation: Mutations::Jobs::MoveJobToStage
@@ -27,12 +30,18 @@ module Types
     field :merge_experiences, mutation: Mutations::Experiences::MergeExperiences
     field :move_experience_highlight, mutation: Mutations::Experiences::MoveExperienceHighlight
 
+    field :create_project, mutation: Mutations::Projects::CreateProject
+    field :update_project, mutation: Mutations::Projects::UpdateProject
     field :delete_project, mutation: Mutations::Projects::DeleteProject
     field :merge_projects, mutation: Mutations::Projects::MergeProjects
 
+    field :create_education, mutation: Mutations::Educations::CreateEducation
+    field :update_education, mutation: Mutations::Educations::UpdateEducation
     field :delete_education, mutation: Mutations::Educations::DeleteEducation
     field :merge_educations, mutation: Mutations::Educations::MergeEducations
 
+    field :create_skill, mutation: Mutations::Skills::CreateSkill
+    field :update_skill, mutation: Mutations::Skills::UpdateSkill
     field :delete_skill, mutation: Mutations::Skills::DeleteSkill
     field :reorder_skills, mutation: Mutations::Skills::ReorderSkills
 
@@ -46,6 +55,8 @@ module Types
     field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
+    field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact
+    field :update_library_fact, mutation: Mutations::LibraryFacts::UpdateLibraryFact
     field :delete_library_fact, mutation: Mutations::LibraryFacts::DeleteLibraryFact
   end
 end

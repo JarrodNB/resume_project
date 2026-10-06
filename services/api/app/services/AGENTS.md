@@ -24,9 +24,15 @@ All business logic, as service objects grouped by domain folder.
   AiTask (`Job#latest_gap_analysis`)
 - `gap_responses/save_gap_response_service.rb` — saves an answer on a job by requirement text;
   optionally creates a library fact (see `gap_responses/AGENTS.md`)
+- `users/update_profile_service.rb` — name, contact details, links, and summary; blank strings
+  are cleared; does not queue an embedding sync (the summary is read live)
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
   `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)
+- `projects/`, `educations/`, `library_facts/` — create and update services; each queues an
+  embedding sync
+- `skills/create_skill_service.rb`, `update_skill_service.rb` — a new skill is placed after
+  the user's current highest position; update leaves position alone
 - `career_library/` — duplicate matching and merging of experiences, projects, and educations,
   reordering of library entries, and syncing library embeddings (see `career_library/AGENTS.md`)
 - `ai_tasks/enqueue_ai_task_service.rb` — checks the user's AI usage limits and creates a
@@ -68,4 +74,5 @@ All business logic, as service objects grouped by domain folder.
 - Multi-record changes run in a transaction (see `UpdateExperienceService`).
 - A service that changes career library text enqueues `CareerLibrary::SyncLibraryEmbeddingsJob`
   for the user (import, merge, experience create/update, highlight moved to another role,
-  library deletes do today).
+  library deletes, and project, education, skill, and library-fact create/update do today).
+  Profile updates do not: the summary is read from `users`, not from embeddings.

@@ -24,9 +24,11 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `mutations/gap_responses/save_gap_response.rb` (`saveGapResponse`) saves an answer on that job,
   and `Job.gapResponses` lists them; `mutations/library_facts/delete_library_fact.rb`
   (`deleteLibraryFact`) removes a fact (`libraryFacts` on the root query);
-  career library entries have `delete*` (experiences, projects, educations, skills) and
-  `merge*(targetId, sourceId)` (experiences, projects, educations; both ids are looked up
-  through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
+  career library entries have create and update (`create*` / `update*` for projects,
+  educations, skills, and library facts; experiences already had both; `updateProfile` edits
+  name, contact details, links, and summary), `delete*` (experiences, projects, educations,
+  skills, library facts), and `merge*(targetId, sourceId)` (experiences, projects, educations;
+  both ids are looked up through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
   (`reorderSkills(orderedIds)`) and `mutations/experiences/move_experience_highlight.rb`
   (`moveExperienceHighlight(highlightId, experienceId, position)`, returning both roles)
 - `subscriptions/` — `base_subscription.rb`, `ai_task_updated.rb` (`aiTaskUpdated(id)`)

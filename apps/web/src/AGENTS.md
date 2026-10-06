@@ -15,7 +15,8 @@ Source of the web app, organized by feature.
 - `features/auth/` — sign-in/up pages, session (JWT) context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library and resumes page
-- `features/jobs/` — saved jobs: add from a posting link (live scrape status), list, detail
+- `features/jobs/` — saved jobs: add from a posting link (live scrape status) or by hand, list,
+  detail, edit, stage, and delete
 - `features/gap-analysis/` — compare a job with the career library (shown on the job page)
 - `features/resume-tailoring/` — write a resume for a job, one section at a time (`/jobs/:id/tailor`)
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by

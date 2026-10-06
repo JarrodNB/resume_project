@@ -49,7 +49,8 @@ their category.
   highlights follow the pointer across roles during the drag (`highlightsOf`) and are saved on
   drop
 - `importSummary.ts` — reads `import_summary` from an AiTask result and from navigation state;
-  `ImportSummaryNotice.tsx` — "N added, M merged" notice after an import
+  `ImportSummaryNotice.tsx` — "N added, M merged" notice after an import. It hides after a few
+  seconds or when dismissed, and the navigation state is cleared so a refresh does not show it again
 - `groupSkillsByCategory.ts` — skill grouping helper (also defines the skill order sent when
   skills are reordered)
 - `*.test.ts(x)` — page, actions (add, edit, merge, delete, and delete all), highlight saving, and grouping tests
@@ -57,6 +58,8 @@ their category.
 ## Local Rules
 
 - After an import, `ParsedResumeReview` navigates here with `{ importSummary }` in router state.
+  The notice copies that into its own state and drops it from the browser history entry, so a
+  refresh does not show it again.
 - `reorderSkills` needs every skill id, so skill drops send the whole skill list in display
   order (categories as `groupSkillsByCategory` shows them).
 - Don't sort roles, projects, or education on the client; the API's order is the display order.

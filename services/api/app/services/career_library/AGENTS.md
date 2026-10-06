@@ -3,8 +3,10 @@
 ## Purpose
 
 Keeps the single career library free of duplicates, saves the order of hand-ordered
-entries, and keeps the library's embeddings (for similarity search by the AI worker) in sync. Used by the resume import (automatic matching), the `merge*` mutations (the user
-picks two entries), and `reorderSkills` (drag-and-drop on the library page).
+entries, empties it for a fresh import, and keeps the library's embeddings (for similarity
+search by the AI worker) in sync. Used by the resume import (automatic matching), the
+`merge*` mutations (the user picks two entries), `clearCareerLibrary`, and `reorderSkills`
+(drag-and-drop on the library page).
 
 ## Contents
 
@@ -16,6 +18,10 @@ picks two entries), and `reorderSkills` (drag-and-drop on the library page).
 - `merge_library_records_service.rb` — merges a source entry into a target of the same model
   and user: fills fields blank on the target, appends highlights the target doesn't have, then
   deletes a saved source. Works with an unsaved source (the import).
+- `clear_career_library_service.rb` — deletes the user's roles, projects, education, skills,
+  and facts, and clears the profile fields an import fills (name, contact, links, summary).
+  Sign-in email, jobs, and tailored resumes stay. Job answers that pointed at a fact stay,
+  unlinked. Queues one embedding sync when an entry was removed; a second call changes nothing.
 - `reorder_library_entries_service.rb` — saves a new order for a relation of the user's entries
   (used for skills; experiences, projects, and educations are ordered by date instead): the ids
   must be exactly the relation's ids, and each position becomes its index. Repeating the call

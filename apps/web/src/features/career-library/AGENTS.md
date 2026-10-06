@@ -7,12 +7,16 @@ experiences with highlights, projects, education, skills, and facts. The library
 tailored resumes are built from, so resumes are not listed here. Experiences, projects, and
 educations are listed most recent first (the API orders them by date; they can't be dragged).
 Each section can add an entry, and each entry can be edited. Entries can be deleted, and
-experiences, projects, and educations can be merged into a duplicate. Highlights can be dragged
-to a new place in their role or into another role; skills can be dragged within their category.
+experiences, projects, and educations can be merged into a duplicate. Delete all empties the
+library (entries and the profile an import fills) so a new import starts fresh. Highlights can
+be dragged to a new place in their role or into another role; skills can be dragged within
+their category.
 
 ## Contents
 
-- `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`
+- `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
+  and `ClearLibraryDialog.tsx` empty the library after confirmation; `useClearCareerLibrary.ts`
+  runs `clearCareerLibrary` and refetches
 - `ProfileSection.tsx` (profile card with Edit), `LibrarySection.tsx` (tone-colored card with a
   count and an Add button; each starts collapsed and stays that way until opened),
   `LibraryEntry.tsx` (tinted entry with an `actions` slot) — display pieces
@@ -34,8 +38,8 @@ to a new place in their role or into another role; skills can be dragged within 
   duplicates can be told apart)
 - `careerLibraryOperations.ts` — one query for the whole library (profile via `me`);
   `useCareerLibrary.ts` — hook (`cache-and-network`, so a fresh import shows up)
-- `careerLibraryMutations.ts` — delete and merge mutations; `useLibraryEntryActions.ts` — runs
-  them for one entry kind and refetches the library
+- `careerLibraryMutations.ts` — delete, clear-all, and merge mutations; `useLibraryEntryActions.ts`
+  — runs delete and merge for one entry kind and refetches the library
 - `careerLibrarySaveMutations.ts` — create and update mutations; `useSaveLibraryRecord.ts` —
   runs one and refetches the library, leaving validation errors in the dialog
 - `careerLibraryReorderMutations.ts` — `reorderSkills` and `moveExperienceHighlight`;
@@ -48,7 +52,7 @@ to a new place in their role or into another role; skills can be dragged within 
   `ImportSummaryNotice.tsx` — "N added, M merged" notice after an import
 - `groupSkillsByCategory.ts` — skill grouping helper (also defines the skill order sent when
   skills are reordered)
-- `*.test.ts(x)` — page, actions (add, edit, merge, and delete), highlight saving, and grouping tests
+- `*.test.ts(x)` — page, actions (add, edit, merge, delete, and delete all), highlight saving, and grouping tests
 
 ## Local Rules
 

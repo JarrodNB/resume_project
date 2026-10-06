@@ -36,7 +36,8 @@ All business logic, as service objects grouped by domain folder.
 - `skills/create_skill_service.rb`, `update_skill_service.rb` — a new skill is placed after
   the user's current highest position; update leaves position alone
 - `career_library/` — duplicate matching and merging of experiences, projects, and educations,
-  reordering of library entries, and syncing library embeddings (see `career_library/AGENTS.md`)
+  emptying the library (`clear_career_library_service.rb`), reordering of library entries, and
+  syncing library embeddings (see `career_library/AGENTS.md`)
 - `ai_tasks/enqueue_ai_task_service.rb` — checks the user's AI usage limits and creates a
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`

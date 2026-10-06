@@ -15,6 +15,7 @@
 #     updateResume
 #   - gap responses: saveGapResponse
 #   - library facts: createLibraryFact, updateLibraryFact, deleteLibraryFact
+#   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
     field :update_profile, mutation: Mutations::Users::UpdateProfile
@@ -57,6 +58,8 @@ module Types
     field :update_resume, mutation: Mutations::ResumeTailoring::UpdateResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
+    field :clear_career_library, mutation: Mutations::CareerLibrary::ClearCareerLibrary
+
     field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact
     field :update_library_fact, mutation: Mutations::LibraryFacts::UpdateLibraryFact
     field :delete_library_fact, mutation: Mutations::LibraryFacts::DeleteLibraryFact

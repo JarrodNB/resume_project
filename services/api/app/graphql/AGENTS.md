@@ -28,7 +28,8 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   career library entries have create and update (`create*` / `update*` for projects,
   educations, skills, and library facts; experiences already had both; `updateProfile` edits
   name, contact details, links, and summary), `delete*` (experiences, projects, educations,
-  skills, library facts), and `merge*(targetId, sourceId)` (experiences, projects, educations;
+  skills, library facts), `clearCareerLibrary` (empties entries and the import-filled profile),
+  and `merge*(targetId, sourceId)` (experiences, projects, educations;
   both ids are looked up through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
   (`reorderSkills(orderedIds)`) and `mutations/experiences/move_experience_highlight.rb`
   (`moveExperienceHighlight(highlightId, experienceId, position)`, returning both roles)

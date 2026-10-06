@@ -20,6 +20,7 @@ type Documents = {
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteEducationDocument,
     "\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteSkillDocument,
     "\n  mutation DeleteLibraryFact($id: ID!) {\n    deleteLibraryFact(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteLibraryFactDocument,
+    "\n  mutation ClearCareerLibrary {\n    clearCareerLibrary(input: {}) {\n      errors\n    }\n  }\n": typeof types.ClearCareerLibraryDocument,
     "\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeExperiencesDocument,
     "\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeProjectsDocument,
     "\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": typeof types.MergeEducationsDocument,
@@ -63,6 +64,7 @@ const documents: Documents = {
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteEducationDocument,
     "\n  mutation DeleteSkill($id: ID!) {\n    deleteSkill(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteSkillDocument,
     "\n  mutation DeleteLibraryFact($id: ID!) {\n    deleteLibraryFact(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteLibraryFactDocument,
+    "\n  mutation ClearCareerLibrary {\n    clearCareerLibrary(input: {}) {\n      errors\n    }\n  }\n": types.ClearCareerLibraryDocument,
     "\n  mutation MergeExperiences($targetId: ID!, $sourceId: ID!) {\n    mergeExperiences(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeExperiencesDocument,
     "\n  mutation MergeProjects($targetId: ID!, $sourceId: ID!) {\n    mergeProjects(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeProjectsDocument,
     "\n  mutation MergeEducations($targetId: ID!, $sourceId: ID!) {\n    mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {\n      errors\n    }\n  }\n": types.MergeEducationsDocument,
@@ -138,6 +140,10 @@ export function graphql(source: "\n  mutation DeleteSkill($id: ID!) {\n    delet
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteLibraryFact($id: ID!) {\n    deleteLibraryFact(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteLibraryFact($id: ID!) {\n    deleteLibraryFact(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ClearCareerLibrary {\n    clearCareerLibrary(input: {}) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ClearCareerLibrary {\n    clearCareerLibrary(input: {}) {\n      errors\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

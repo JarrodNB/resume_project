@@ -74,6 +74,15 @@ RSpec.describe "Career library embedding sync enqueueing" do
       .to have_enqueued_job(sync_job).with(user.id)
   end
 
+  it "queues one sync when the library is emptied, and none when it is already empty" do
+    create(:skill, user: user)
+
+    expect { CareerLibrary::ClearCareerLibraryService.call(user: user) }
+      .to have_enqueued_job(sync_job).with(user.id).once
+    expect { CareerLibrary::ClearCareerLibraryService.call(user: user) }
+      .not_to have_enqueued_job(sync_job)
+  end
+
   it "queues a sync when a library entry is deleted, not a job" do
     expect { Records::DestroyRecordService.call(record: create(:skill, user: user)) }
       .to have_enqueued_job(sync_job).with(user.id)

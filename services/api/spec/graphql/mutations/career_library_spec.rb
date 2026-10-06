@@ -100,4 +100,19 @@ RSpec.describe "Career library mutations" do
         expect(record.class.exists?(record.id)).to be(true)
       end
   end
+
+  it "clearCareerLibrary empties only the signed-in user's library" do
+    create(:experience, user: user, company: "Mine")
+    create(:skill, user: user, name: "Ruby")
+    theirs = create(:experience, company: "Theirs")
+
+    result = execute_graphql(<<~GQL, user: user)
+      mutation { clearCareerLibrary(input: {}) { user { name } errors } }
+    GQL
+
+    expect(result.dig("data", "clearCareerLibrary")).to eq("user" => { "name" => nil }, "errors" => [])
+    expect(user.experiences.count).to eq(0)
+    expect(user.skills.count).to eq(0)
+    expect(Experience.exists?(theirs.id)).to be(true)
+  end
 end

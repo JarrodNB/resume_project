@@ -4,6 +4,7 @@
  * Index:
  *   - DELETE_EXPERIENCE_MUTATION, DELETE_PROJECT_MUTATION, DELETE_EDUCATION_MUTATION,
  *     DELETE_SKILL_MUTATION, DELETE_LIBRARY_FACT_MUTATION
+ *   - CLEAR_CAREER_LIBRARY_MUTATION
  *   - MERGE_EXPERIENCES_MUTATION, MERGE_PROJECTS_MUTATION, MERGE_EDUCATIONS_MUTATION
  */
 import { graphql } from '@/graphql/generated'
@@ -43,6 +44,14 @@ export const DELETE_SKILL_MUTATION = graphql(`
 export const DELETE_LIBRARY_FACT_MUTATION = graphql(`
   mutation DeleteLibraryFact($id: ID!) {
     deleteLibraryFact(input: { id: $id }) {
+      errors
+    }
+  }
+`)
+
+export const CLEAR_CAREER_LIBRARY_MUTATION = graphql(`
+  mutation ClearCareerLibrary {
+    clearCareerLibrary(input: {}) {
       errors
     }
   }

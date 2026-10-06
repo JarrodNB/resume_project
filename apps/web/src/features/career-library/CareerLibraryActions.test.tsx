@@ -1,5 +1,5 @@
 /**
- * Description: Deleting, merging, adding, and editing career library entries from the library page.
+ * Description: Deleting, merging, adding, editing, and emptying career library entries from the library page.
  * Mutation mocks only match the expected variables, so a dialog that closes means the right
  * mutation succeeded.
  */
@@ -9,7 +9,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
-import { DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
+import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
 import { CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
@@ -85,6 +85,20 @@ it('merges an entry into the one picked from the other entries in its section', 
 
   await user.click(within(dialog).getByLabelText('Engineer at Acme (Mar 2021 – Present)'))
   await user.click(within(dialog).getByRole('button', { name: 'Merge' }))
+
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('empties the library after confirming delete all', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: { query: CLEAR_CAREER_LIBRARY_MUTATION },
+    result: { data: { clearCareerLibrary: { __typename: 'ClearCareerLibraryPayload', errors: [] } } },
+  })
+
+  await user.click(await screen.findByRole('button', { name: 'Delete all' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Delete everything in your career library?' })
+  await user.click(within(dialog).getByRole('button', { name: 'Delete all' }))
 
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })

@@ -5,6 +5,7 @@
  */
 import type { ReactNode } from 'react'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { PRODUCT_NAME } from '@/lib/productName'
 
 interface AuthPageShellProps {
   title: string
@@ -17,7 +18,7 @@ interface AuthPageShellProps {
 export function AuthPageShell({ title, description, footer, children }: AuthPageShellProps) {
   return (
     <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/40 p-6">
-      <p className="text-lg font-semibold tracking-tight">Throughline</p>
+      <p className="text-lg font-semibold tracking-tight">{PRODUCT_NAME}</p>
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">{title}</CardTitle>

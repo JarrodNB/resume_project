@@ -49,14 +49,12 @@ def labels_to_draft(labels: TailorEvalLabels) -> TailoredSectionDraft:
             nothing_fits=False,
             summary=CitedProse(text=labels.prose or "", source_labels=labels.source_labels),
         )
+    prose: list[CitedProse] = []
+    if labels.prose or labels.source_labels:
+        prose = [CitedProse(text=labels.prose or "", source_labels=labels.source_labels)]
     return TailoredSectionDraft(
         nothing_fits=False,
-        entries=[
-            ChosenEntry(
-                label=labels.entry_label,
-                prose=[CitedProse(text=labels.prose or "", source_labels=labels.source_labels)],
-            )
-        ],
+        entries=[ChosenEntry(label=labels.entry_label, prose=prose)],
     )
 
 
@@ -86,16 +84,15 @@ class SectionFaithfulness(Evaluator[TailorEvalInput, TailoredSectionDraft, Tailo
 
 @dataclass
 class SectionRelevance(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
-    """A written section addresses the job; an omitted one is not scored against the job."""
+    """A written section addresses the job. A skill has no prose, so its chosen names count."""
 
     def evaluate(self, ctx: TailorContext) -> float:
-        """1 when an omitted section was supposed to be omitted, or the prose hits a job term."""
+        """1 when an omitted section was supposed to be omitted, or the wording hits a job term."""
         labels = ctx.metadata
         assert labels is not None
         if labels.nothing_fits:
             return 1.0 if ctx.output.nothing_fits else 0.0
-        prose = " ".join(_prose_texts(ctx.output))
-        haystack = normalize_text(prose)
+        haystack = normalize_text(_relevance_text(ctx))
         return 1.0 if any(normalize_text(term) in haystack for term in labels.job_terms) else 0.0
 
 
@@ -115,6 +112,14 @@ def _prose_texts(draft: TailoredSectionDraft) -> list[str]:
     texts = [draft.summary.text] if draft.summary else []
     texts += [prose.text for entry in draft.entries for prose in entry.prose]
     return texts
+
+
+def _relevance_text(ctx: TailorContext) -> str:
+    """Prose when the section wrote any. Otherwise the text of the chosen entry labels."""
+    prose = " ".join(_prose_texts(ctx.output))
+    if prose.strip():
+        return prose
+    return _sources(ctx).text_for([entry.label for entry in ctx.output.entries])
 
 
 TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked)

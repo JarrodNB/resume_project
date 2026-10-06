@@ -1,4 +1,4 @@
-# Throughline (working name)
+# Careergrind
 
 A job search assistant that pairs an AI-assisted resume builder with tools to organize
 the whole search: tailoring resumes to jobs, gap analysis, a job board, and application tracking.
@@ -39,7 +39,7 @@ docker compose up --build
 | ai      | consumes `ai_tasks` (no port) |
 | db      | localhost:5432          |
 | sqs     | http://localhost:9324   |
-| s3      | http://localhost:9090 (S3Mock, bucket `throughline-uploads`) |
+| s3      | http://localhost:9090 (S3Mock, bucket `careergrind-uploads`) |
 
 Reset the local database (deletes all local data): `docker compose down -v`.
 After changing dependencies, rebuild: `docker compose up --build -V`.
@@ -100,6 +100,8 @@ loads: `docker compose restart api-results-worker`.
 | Resume parsing evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_resume_parsing_evals` |
 | Add a package | `docker compose run --rm ai uv add <package>`, then `docker compose up --build -V -d ai` |
 | Restart after code changes | `docker compose restart ai` |
+| Tailoring evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_tailoring_evals` |
+| Library retrieval evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_library_retrieval_evals` |
 
 ### web (React)
 

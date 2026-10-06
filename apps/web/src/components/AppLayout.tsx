@@ -7,6 +7,7 @@ import { LogOut } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
+import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -25,7 +26,7 @@ export function AppLayout() {
     <div className="min-h-svh bg-muted/40">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
-          <span className="font-semibold tracking-tight text-primary">Throughline</span>
+          <span className="font-semibold tracking-tight text-primary">{PRODUCT_NAME}</span>
           <nav className="flex gap-1">
             {NAV_ITEMS.map((item) => (
               <NavLink

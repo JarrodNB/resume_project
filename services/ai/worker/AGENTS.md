@@ -33,6 +33,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
   incl. job site fetches through httpx and database connection errors) are left for SQS to redeliver; anything else, or the
   last attempt, publishes `failed`
+- `product_name.py` — `PRODUCT_NAME` and the job-scraper `USER_AGENT` built from it
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)

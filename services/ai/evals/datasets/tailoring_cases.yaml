@@ -1,5 +1,6 @@
 # Description: Hand-labelled tailoring cases. People, companies, and jobs are synthetic.
 # inputs.context is a GapAnalysisContext. metadata is TailorEvalLabels.
+# Covers every written section: summary, experience, projects, education, and skills.
 cases:
   - name: experience_stays_faithful
     inputs:
@@ -79,6 +80,142 @@ cases:
               highlights:
                 - id: hl-1
                   content: Designed a seasonal dessert menu
+    metadata:
+      nothing_fits: true
+      job_terms: []
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: project_stays_faithful
+    inputs:
+      section_type: projects
+      context:
+        job:
+          id: job-project
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python APIs
+        career_library:
+          summary: Backend engineer.
+          projects:
+            - id: proj-1
+              name: Payouts API
+              description: Built Python APIs for card payouts
+    metadata:
+      nothing_fits: false
+      entry_label: P1
+      prose: Built Python APIs for card payouts.
+      source_labels:
+        - P1
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: unrelated_project_is_omitted
+    inputs:
+      section_type: projects
+      context:
+        job:
+          id: job-kernel-project
+          title: Kernel Engineer
+          company: Northwind
+          requirements:
+            - Linux kernel internals
+        career_library:
+          summary: Pastry chef.
+          projects:
+            - id: proj-1
+              name: Seasonal menu
+              description: Designed a seasonal dessert menu
+    metadata:
+      nothing_fits: true
+      job_terms: []
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: education_includes_the_degree
+    inputs:
+      section_type: education
+      context:
+        job:
+          id: job-degree
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Computer Science
+        career_library:
+          summary: Backend engineer.
+          educations:
+            - id: ed-1
+              institution: Harbor College
+              degree: BSc
+              field_of_study: Computer Science
+    metadata:
+      nothing_fits: false
+      entry_label: ED1
+      prose: BSc, Computer Science, Harbor College.
+      source_labels:
+        - ED1
+      job_terms:
+        - Computer Science
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: skill_matches_the_job
+    inputs:
+      section_type: skills
+      context:
+        job:
+          id: job-skill
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python
+        career_library:
+          summary: Backend engineer.
+          skills:
+            - id: sk-python
+              name: Python
+              category: Languages
+            - id: sk-baking
+              name: Baking
+              category: Kitchen
+    metadata:
+      nothing_fits: false
+      entry_label: S1
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: unrelated_skills_are_omitted
+    inputs:
+      section_type: skills
+      context:
+        job:
+          id: job-kernel-skill
+          title: Kernel Engineer
+          company: Northwind
+          requirements:
+            - Linux kernel internals
+        career_library:
+          summary: Pastry chef.
+          skills:
+            - id: sk-baking
+              name: Baking
+              category: Kitchen
     metadata:
       nothing_fits: true
       job_terms: []

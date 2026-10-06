@@ -50,6 +50,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_tailor_resume_handler.py` — one section per message, blocked edit, omit, an empty
   projects list is skipped with no model call, generation
 - `test_tailoring_evaluators.py` — hand labels score as expected
+- `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block
 

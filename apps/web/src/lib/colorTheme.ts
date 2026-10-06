@@ -7,9 +7,11 @@
  *   - applyColorTheme: toggles the `.dark` class on <html> and stores the choice
  */
 
+import { productStorageKey } from './productName'
+
 export type ColorTheme = 'light' | 'dark'
 
-const STORAGE_KEY = 'throughline.colorTheme'
+const STORAGE_KEY = productStorageKey('colorTheme')
 
 /** Returns the stored theme, falling back to the system's `prefers-color-scheme`. */
 export function preferredColorTheme(): ColorTheme {

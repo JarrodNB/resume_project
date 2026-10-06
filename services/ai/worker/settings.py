@@ -23,7 +23,7 @@ class WorkerSettings(BaseSettings):
     max_task_attempts: int = 3
     retry_delay_seconds: int = 30
     s3_endpoint_url: str | None = None
-    s3_uploads_bucket: str = "throughline-uploads"
+    s3_uploads_bucket: str = "careergrind-uploads"
     resume_parsing_model: str = "openai:gpt-5-mini"
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.

@@ -77,5 +77,6 @@ through Docker. Terraform, kubectl, and AWS CLI can run from containers later to
 
 ## Open Questions
 
-- Final product name. "Throughline" is a working codename. The space is crowded, so check
-  availability before any public launch.
+- Product name is Careergrind. The web app and the AI worker each keep it in one module
+  (`apps/web/src/lib/productName.ts`, `services/ai/worker/product_name.py`). Check that the
+  name is available before any public launch.

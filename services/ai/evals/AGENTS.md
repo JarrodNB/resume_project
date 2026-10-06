@@ -34,10 +34,20 @@ score attached, so runs can be compared across prompt and model changes.
   (incl. met agreement), `GapRecall`, `EvidenceRecall`
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
   `docker compose run --rm ai python -m evals.run_gap_analysis_evals`
-- `datasets/tailoring_cases.yaml` — faithfulness, relevance, and a section that should be omitted
+- `datasets/tailoring_cases.yaml` — every written section (summary, experience, projects,
+  education, skills): faithfulness, relevance, and sections that should be omitted. A skill
+  draft has no prose, so relevance uses the chosen skill name
 - `tailoring_evaluators.py` — faithfulness and relevance checks for a written section
 - `run_tailoring_evals.py` — runner:
   `docker compose run --rm ai python -m evals.run_tailoring_evals`
+- `datasets/library_retrieval_cases.yaml` — synthetic libraries in the text shape Rails embeds
+  (experience highlight, project, education, skill, library fact). An experience query and a
+  summary query, each with more rows than the search keeps, and the ids that should rank
+- `library_retrieval_evaluators.py` — `HitAt1` (nearest row is relevant) and `RecallAtLimit`
+  (every relevant id is inside the production limit from `retrieve_for_section`)
+- `run_library_retrieval_evals.py` — embeds the corpus with `Embedder.embed_documents` and the
+  query with `embed_search_query`, then ranks by cosine similarity (no Postgres):
+  `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
 - `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
   allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for
   help breaking into an account). `block` is the decision at the 0.7 bar
@@ -50,8 +60,9 @@ score attached, so runs can be compared across prompt and model changes.
 
 - All data is synthetic. Never commit real resumes.
 - `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
-  `tests/test_gap_analysis_evaluators.py`, `tests/test_tailoring_evaluators.py`, and
-  `tests/test_user_text_screen_evaluators.py` check that the hand labels score 1.0 against their own inputs; keep them passing when adding
+  `tests/test_gap_analysis_evaluators.py`, `tests/test_tailoring_evaluators.py`,
+  `tests/test_library_retrieval_evaluators.py`, and `tests/test_user_text_screen_evaluators.py`
+  check that the hand labels score 1.0 against their own inputs; keep them passing when adding
   cases.
 - Runs cost real tokens (about $0.02 for the resume parsing set and $0.01 for the gap
   analysis set on gpt-5-mini).

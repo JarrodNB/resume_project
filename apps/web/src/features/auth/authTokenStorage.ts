@@ -6,7 +6,9 @@
  *   - clearAuthToken: removes the stored JWT
  */
 
-const AUTH_TOKEN_KEY = 'throughline.authToken'
+import { productStorageKey } from '@/lib/productName'
+
+const AUTH_TOKEN_KEY = productStorageKey('authToken')
 
 /** Returns the stored JWT, or null when signed out. */
 export function readAuthToken(): string | null {

@@ -16,9 +16,8 @@ from uuid import UUID
 import httpx
 
 from schemas.gap_analysis_context import GapAnalysisContext
+from worker.product_name import USER_AGENT
 from worker.settings import WorkerSettings
-
-USER_AGENT = "ThroughlineJobScraper/0.1"
 
 GapAnalysisContextReader = Callable[[UUID, UUID], GapAnalysisContext | None]
 

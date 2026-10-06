@@ -5,7 +5,7 @@ Every folder has its own `AGENTS.md` with local rules; read the nearest one befo
 
 ## Project Summary
 
-**Throughline** (working name, may change). A job search assistant. The AI collaborates with the user to write tailored resumes
+**Careergrind**. A job search assistant. The AI collaborates with the user to write tailored resumes
 (no mass-generated, mass-sent resumes) and keeps the job search organized and focused.
 First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 

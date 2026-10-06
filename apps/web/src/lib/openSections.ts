@@ -8,7 +8,9 @@
  *   - subscribeOpenSections: listens for those updates
  */
 
-export const OPEN_SECTIONS_STORAGE_KEY = 'throughline.openSections'
+import { productStorageKey } from './productName'
+
+export const OPEN_SECTIONS_STORAGE_KEY = productStorageKey('openSections')
 
 const listeners = new Set<() => void>()
 

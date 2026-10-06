@@ -11,7 +11,7 @@ from evals.tailoring_evaluators import labels_to_draft
 def test_hand_labels_get_perfect_scores() -> None:
     """Feeding each case the draft its labels describe scores 1.0 everywhere."""
     dataset = load_tailoring_dataset()
-    assert len(dataset.cases) >= 3
+    assert len(dataset.cases) >= 8
 
     def answer(case_input):
         """The hand-labelled draft for this case."""

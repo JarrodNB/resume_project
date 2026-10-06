@@ -1,0 +1,86 @@
+# Description: Hand-labelled library retrieval cases. People, companies, and jobs are synthetic.
+# Document text matches CareerLibrary::BuildEmbeddingTextsService. metadata.relevant_ids are
+# the rows that should rank inside the production limit. Each library has more than that limit
+# so a random ranking can miss.
+cases:
+  - name: experience_ranks_the_kernel_highlight
+    inputs:
+      section_type: experience
+      job:
+        id: job-kernel
+        title: Kernel Engineer
+        company: Northwind
+        requirements:
+          - Linux kernel internals
+      documents:
+        - id: hl-kernel
+          content: "Kernel Engineer at Redwood: Maintained Linux kernel internals for storage drivers"
+        - id: hl-pastry
+          content: "Pastry Chef at Ovenly: Designed a seasonal dessert menu"
+        - id: hl-barista
+          content: "Barista at Northwind Cafe: Pulled espresso and trained new staff"
+        - id: hl-teacher
+          content: "Teacher at Harbor School: Taught third grade reading"
+        - id: hl-retail
+          content: "Retail Associate at Brightmart: Folded clothes and ran the register"
+        - id: proj-sourdough
+          content: "Project: Sourdough starter: Tracked fermentation times for a bakery"
+        - id: ed-music
+          content: "BMus in Music, Harbor College"
+        - id: skill-baking
+          content: "Kitchen: Baking"
+        - id: fact-hotel
+          content: "Fact: Customer service: Greeted guests at a hotel front desk"
+        - id: hl-accountant
+          content: "Accountant at Ledgerly: Reconciled monthly expense reports"
+        - id: proj-garden
+          content: "Project: Community garden: Organized weekend planting days"
+        - id: hl-nurse
+          content: "Nurse at City Clinic: Recorded patient vitals during intake"
+    metadata:
+      relevant_ids:
+        - hl-kernel
+    evaluators:
+      - HitAt1
+      - RecallAtLimit
+
+  - name: summary_ranks_the_python_highlight
+    inputs:
+      section_type: summary
+      job:
+        id: job-python
+        title: Backend Engineer
+        company: Northwind
+        requirements:
+          - Python services
+      documents:
+        - id: hl-python
+          content: "Senior Engineer at Ledgerly: Built Python services for card payouts"
+        - id: hl-pastry
+          content: "Pastry Chef at Ovenly: Designed a seasonal dessert menu"
+        - id: hl-barista
+          content: "Barista at Northwind Cafe: Pulled espresso and trained new staff"
+        - id: hl-teacher
+          content: "Teacher at Harbor School: Taught third grade reading"
+        - id: hl-retail
+          content: "Retail Associate at Brightmart: Folded clothes and ran the register"
+        - id: proj-sourdough
+          content: "Project: Sourdough starter: Tracked fermentation times for a bakery"
+        - id: ed-music
+          content: "BMus in Music, Harbor College"
+        - id: skill-baking
+          content: "Kitchen: Baking"
+        - id: fact-hotel
+          content: "Fact: Customer service: Greeted guests at a hotel front desk"
+        - id: hl-accountant
+          content: "Accountant at Ledgerly: Reconciled monthly expense reports"
+        - id: proj-garden
+          content: "Project: Community garden: Organized weekend planting days"
+        - id: hl-nurse
+          content: "Nurse at City Clinic: Recorded patient vitals during intake"
+    metadata:
+      relevant_ids:
+        - hl-python
+    evaluators:
+      - HitAt1
+      - RecallAtLimit

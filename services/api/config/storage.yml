@@ -12,7 +12,7 @@ local:
 amazon:
   service: S3
   region: <%= ENV.fetch("AWS_REGION", "us-east-1") %>
-  bucket: <%= ENV.fetch("S3_UPLOADS_BUCKET", "throughline-uploads") %>
+  bucket: <%= ENV.fetch("S3_UPLOADS_BUCKET", "careergrind-uploads") %>
   <% if ENV["S3_ENDPOINT_URL"].present? %>
   endpoint: <%= ENV["S3_ENDPOINT_URL"] %>
   force_path_style: true

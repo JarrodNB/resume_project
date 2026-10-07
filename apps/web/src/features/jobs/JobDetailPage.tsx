@@ -1,5 +1,5 @@
 /**
- * Description: One saved job (/jobs/:id): edit it, move its stage, or delete it, then how the
+ * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, or write a resume, then how the
  * career library matches it, requirements, nice-to-haves, notes, the description, and the
  * original posting. Requirements, nice-to-haves, notes, and the description start collapsed.
  * Index:
@@ -20,6 +20,7 @@ import { JobStageSelect } from './JobStageSelect'
 import { DELETE_JOB_MUTATION } from './jobsOperations'
 import { useSaveJob } from './useSaveJob'
 import { useJob } from './useJobs'
+import { WriteResumeAction } from './WriteResumeAction'
 
 /** Shows everything saved about one job, and the controls that change it. */
 export function JobDetailPage() {
@@ -79,13 +80,11 @@ export function JobDetailPage() {
               >
                 Delete
               </Button>
-              {job.latestGapAnalysis?.status === 'COMPLETED' && (
-                <Button asChild size="sm">
-                  <Link to={job.resume ? `/resumes/${job.resume.id}` : `/jobs/${job.id}/tailor`} state={job.resume ? { fromJobId: job.id } : undefined}>
-                    {job.resume ? 'Open resume' : 'Write resume'}
-                  </Link>
-                </Button>
-              )}
+              <WriteResumeAction
+                jobId={job.id}
+                resumeId={job.resume?.id ?? null}
+                comparisonFinished={job.latestGapAnalysis?.status === 'COMPLETED'}
+              />
               {job.url && (
                 <Button asChild variant="outline" size="sm">
                   <a href={job.url} target="_blank" rel="noreferrer">

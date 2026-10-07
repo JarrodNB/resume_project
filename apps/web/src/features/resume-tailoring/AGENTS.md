@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Write a resume for one job, one section at a time, after a gap analysis. The worker pauses
-for each section; this page edits the current one and saves the finished draft once. A later
-visit edits that saved resume. Preview opens the current draft as a large PDF.
+Write a resume for one job, one section at a time. A finished gap analysis is included when
+one exists; writing does not wait for it. The worker pauses for each section; this page edits
+the current one and saves the finished draft once. A later visit edits that saved resume.
+Preview opens the current draft as a large PDF.
 
 ## Contents
 

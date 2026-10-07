@@ -22,6 +22,7 @@ Adding it to the career library creates a library fact, listed on the career lib
   (mirror of `services/ai/schemas/gap_analysis.py` `GapAnalysisResult`); `warnings` on the
   task result (a note left out by the screen) are shown with the summary
 - `gapAnalysisOperations.ts` — `ANALYZE_JOB_GAPS_MUTATION`; hook `useStartGapAnalysis.ts`
+  writes the new task onto the cached job so the page sees it without a reload
 - `*.test.tsx` / `*.test.ts` — card states and the result parser
 
 ## Local Rules

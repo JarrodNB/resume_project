@@ -1,5 +1,5 @@
 /**
- * Description: Editing a job, moving its stage, and deleting it from the job page.
+ * Description: Editing a job, moving its stage, deleting it, and starting a resume from the job page.
  */
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -130,4 +130,72 @@ it('deletes the job after confirmation', async () => {
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs'))
+})
+
+it('asks before writing a resume when no comparison has finished', async () => {
+  const user = userEvent.setup()
+  const { router } = renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <JobDetailPage />,
+    extraRoutes: [{ path: '/jobs/:id/tailor', element: <p>Tailor</p> }],
+    mocks: [jobQuery(job())],
+  })
+
+  expect(await screen.findByRole('button', { name: 'Write resume' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Write resume' }))
+  expect(screen.getByRole('heading', { name: 'Compare this job first?' })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: 'Compare first' }))
+  expect(screen.queryByRole('heading', { name: 'Compare this job first?' })).not.toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/jobs/job-1')
+
+  await user.click(screen.getByRole('button', { name: 'Write resume' }))
+  await user.click(screen.getByRole('button', { name: 'Write resume anyway' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
+})
+
+it('writes a resume without asking after a comparison has finished', async () => {
+  const user = userEvent.setup()
+  const { router } = renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <JobDetailPage />,
+    extraRoutes: [{ path: '/jobs/:id/tailor', element: <p>Tailor</p> }],
+    mocks: [
+      jobQuery(
+        job({
+          latestGapAnalysis: {
+            __typename: 'AiTask',
+            id: 'task-1',
+            status: 'COMPLETED',
+            result: null,
+            errorMessage: null,
+            createdAt: '2026-10-01T00:00:00Z',
+          },
+        }),
+      ),
+    ],
+  })
+
+  await user.click(await screen.findByRole('link', { name: 'Write resume' }))
+
+  expect(screen.queryByRole('heading', { name: 'Compare this job first?' })).not.toBeInTheDocument()
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
+})
+
+it('opens a resume that was already saved', async () => {
+  const user = userEvent.setup()
+  const { router } = renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <JobDetailPage />,
+    extraRoutes: [{ path: '/resumes/:id', element: <p>Resume</p> }],
+    mocks: [jobQuery(job({ resume: { __typename: 'Resume', id: 'resume-1' } }))],
+  })
+
+  await user.click(await screen.findByRole('link', { name: 'Open resume' }))
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/resumes/resume-1'))
 })

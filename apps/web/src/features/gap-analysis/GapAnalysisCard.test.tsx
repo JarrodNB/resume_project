@@ -76,7 +76,13 @@ function startMock(payload: { aiTask: { id: string; status: string } | null; err
       data: {
         analyzeJobGaps: {
           __typename: 'AnalyzeJobGapsPayload',
-          aiTask: payload.aiTask && { __typename: 'AiTask', ...payload.aiTask },
+          aiTask: payload.aiTask && {
+            __typename: 'AiTask',
+            result: null,
+            errorMessage: null,
+            createdAt: '2026-10-01T00:00:00Z',
+            ...payload.aiTask,
+          },
           errors: payload.errors,
         },
       },

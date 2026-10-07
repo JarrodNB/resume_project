@@ -14,6 +14,9 @@ export const ANALYZE_JOB_GAPS_MUTATION = graphql(`
       aiTask {
         id
         status
+        result
+        errorMessage
+        createdAt
       }
       errors
     }

@@ -27,13 +27,14 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(queue).to have_received(:send_message)
   end
 
-  it "refuses before a comparison has finished" do
+  it "queues a tailor task when no comparison has finished" do
     job.ai_tasks.analyze_gaps.delete_all
 
     result = described_class.call(user: user, job: job)
 
-    expect(result.errors).to eq([ described_class::NEEDS_COMPARISON_MESSAGE ])
-    expect(queue).not_to have_received(:send_message)
+    expect(result).to be_success
+    expect(result.value.input["gap_analysis"]).to be_nil
+    expect(queue).to have_received(:send_message)
   end
 
   it "returns the task already waiting on the user instead of starting another" do

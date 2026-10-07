@@ -1,5 +1,6 @@
 /**
- * Description: /jobs/:id/tailor. Writes a resume one section at a time after a gap analysis.
+ * Description: /jobs/:id/tailor. Writes a resume one section at a time. A finished gap analysis
+ * is included when one exists.
  * Approved sections stay read-only; the current one is editable. Save stores the resume, and
  * a later visit opens that resume for editing. Preview shows the draft as a large PDF.
  * Index:

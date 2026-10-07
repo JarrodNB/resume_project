@@ -14,15 +14,18 @@ application stages, and deleted.
 - `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — live status; redirects to the saved job
   (`aiTask.job`), or shows the scraper's warnings first; failures offer "Try another link"
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
-  card (`features/gap-analysis/`, including gap responses), a "Write resume" link to
-  `/jobs/:id/tailor` once a comparison has finished ("Open resume" goes to `/resumes/:id` when
-  one is already saved, and that page's breadcrumb returns here),
+  card (`features/gap-analysis/`, including gap responses), and `WriteResumeAction.tsx`.
+  "Write resume" is always shown and goes to `/jobs/:id/tailor`. A finished comparison goes
+  straight there. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first, and
+  "Write resume anyway" continues. "Open resume" goes to `/resumes/:id` when one is already
+  saved, and that page's breadcrumb returns here.
   requirements, nice-to-haves, notes, description (those cards start collapsed, remembered per
   job), the applied date once set, and a link to the original posting
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared
   add and edit form; every field is sent, and a blank optional string is stored as null
-- `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `JobDetailCards.tsx` — stage control, delete
-  confirmation, and the collapsible cards
+- `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `ConfirmWriteResumeDialog.tsx`,
+  `WriteResumeAction.tsx`, `JobDetailCards.tsx` — stage control, delete confirmation, the
+  optional-comparison confirmation, the resume action, and the collapsible cards
 - `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`,
   `gapResponses`, `resume`, `notes`, and `appliedAt`),
   `SCRAPE_JOB_MUTATION`, `CREATE_JOB_MUTATION`, `UPDATE_JOB_MUTATION`,

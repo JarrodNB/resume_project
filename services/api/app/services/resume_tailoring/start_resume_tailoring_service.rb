@@ -1,11 +1,11 @@
 # Description: Queues a tailor_resume task for one job, or returns the task already in progress.
-# Contact is snapshotted from the profile. The worker reads the library itself.
+# Contact is snapshotted from the profile. A finished comparison is attached when one exists.
+# The worker reads the library itself.
 # Index:
-#   - NEEDS_COMPARISON_MESSAGE / ALREADY_SAVED_MESSAGE: failure messages
+#   - ALREADY_SAVED_MESSAGE: failure message
 #   - call: returns the task to follow
 module ResumeTailoring
   class StartResumeTailoringService < ApplicationService
-    NEEDS_COMPARISON_MESSAGE = "Compare this job with your career library before writing a resume.".freeze
     ALREADY_SAVED_MESSAGE = "This job already has a saved resume.".freeze
 
     def initialize(user:, job:)
@@ -19,13 +19,10 @@ module ResumeTailoring
       return failure([ ALREADY_SAVED_MESSAGE ]) if existing&.accepted?
       return success(existing) if resumable?(existing)
 
-      analysis = latest_completed_analysis
-      return failure([ NEEDS_COMPARISON_MESSAGE ]) unless analysis
-
       AiTasks::EnqueueAiTaskService.call(
         user: @user,
         task_type: "tailor_resume",
-        input: task_input(analysis),
+        input: task_input,
         subject: @job
       )
     end
@@ -47,7 +44,8 @@ module ResumeTailoring
 
     # Profile contact, the comparison, and answers. The worker reads name, contact email, and
     # phone so it can mask them; location and links still come from this snapshot.
-    def task_input(analysis)
+    def task_input
+      analysis = latest_completed_analysis
       {
         "job_id" => @job.id,
         "generation" => 0,
@@ -58,7 +56,7 @@ module ResumeTailoring
           "location" => @user.location,
           "links" => @user.links
         },
-        "gap_analysis" => analysis.result&.dig("gap_analysis"),
+        "gap_analysis" => analysis&.result&.dig("gap_analysis"),
         "gap_responses" => @job.gap_responses.map { |response| { "requirement" => response.requirement, "body" => response.body } },
         "approved_sections" => [],
         "pending_section" => nil

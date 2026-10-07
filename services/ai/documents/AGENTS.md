@@ -8,7 +8,8 @@ against that text. No LLM calls here.
 ## Contents
 
 - `extract_document_text.py` — PDF (pypdf) and DOCX (python-docx, including table cells) to
-  text; raises `UnsupportedDocumentError` for other types or files with no text layer
+  text; raises `UnsupportedDocumentError` for other types or files with no text layer, and
+  `DocumentTooLongError` when the PDF has more than 30 pages or the text is over 80,000 characters
 - `enforce_source_faithfulness.py` — runtime guard for "extract, never rewrite": removes
   highlights and skills not found in the resume text, warns (without removing) about
   unmatched company, title, project, and institution names

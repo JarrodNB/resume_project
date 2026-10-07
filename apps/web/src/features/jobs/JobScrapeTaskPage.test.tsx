@@ -65,6 +65,17 @@ it('opens the saved job when there are no warnings', async () => {
   expect(router.state.location.pathname).toBe('/jobs/job-1')
 })
 
+it('shows a too-long sorting warning before opening the job', async () => {
+  renderTaskPage({
+    status: 'COMPLETED',
+    result: { scraped_job: { warnings: ['This posting is too long to sort into requirements. Add them by hand.'] } },
+    job: { __typename: 'Job', id: 'job-1' },
+  })
+
+  expect(await screen.findByText('This posting is too long to sort into requirements. Add them by hand.')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'View job' })).toHaveAttribute('href', '/jobs/job-1')
+})
+
 it('shows warnings before opening the job', async () => {
   renderTaskPage({
     status: 'COMPLETED',

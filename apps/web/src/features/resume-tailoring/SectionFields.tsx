@@ -12,6 +12,7 @@ import { ExperienceFields } from '@/features/resume-import/review/ExperienceFiel
 import { ProjectFields } from '@/features/resume-import/review/ProjectFields'
 import { SkillsField } from '@/features/resume-import/review/SkillsField'
 import { TextField } from '@/features/resume-import/review/TextField'
+import { PROSE_TEXT } from '@/lib/textLimits'
 import type { ReviewDraft } from '@/features/resume-import/review/reviewDraft'
 import { useReviewDragHandlers } from '@/features/resume-import/review/useReviewDragHandlers'
 import type { SectionDraft } from './tailorDraft'
@@ -35,7 +36,7 @@ function PlainSection({ draft, onChange }: SectionFieldsProps) {
     return <ContactFields contact={draft.contact} onChange={(contact) => onChange({ kind: 'contact', contact })} />
   }
   if (draft.kind === 'summary') {
-    return <TextField label="Summary" multiline value={draft.text} onChange={(text) => onChange({ kind: 'summary', text })} />
+    return <TextField label="Summary" multiline maxLength={PROSE_TEXT} value={draft.text} onChange={(text) => onChange({ kind: 'summary', text })} />
   }
   if (draft.kind === 'projects') {
     return (

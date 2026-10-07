@@ -11,6 +11,7 @@ Index:
 
 from typing import Any
 
+import text_limits
 from gap_analysis.screen_library_facts import LIBRARY_FACT_OMITTED_WARNING
 from screening.screen_user_text import screen_user_text
 from tailoring.section_catalog import SECTION_TITLES, sections_before
@@ -27,21 +28,21 @@ from worker.task_dependencies import TaskDependencies
 
 def apply_pending(
     data: TailorResumeInput, dependencies: TaskDependencies, usage: list[ModelUsage]
-) -> tuple[list[ApprovedSection], dict[str, Any] | None]:
+) -> tuple[list[ApprovedSection], dict[str, Any] | None, str | None]:
     """Folds the user's decision into the approved list. A blocked edit returns the content
-    to show again and does not call the writer."""
+    to show again, plus a length message when the text was too long, and does not call the writer."""
     approved = list(data.approved_sections)
     pending = data.pending_section
     if pending is None:
-        return approved, None
+        return approved, None, None
     if pending.action == "reopen":
         keep = sections_before(pending.section_type)
-        return [section for section in approved if section.section_type in keep], None
+        return [section for section in approved if section.section_type in keep], None, None
     if pending.action == "omit":
         approved.append(section_snapshot(pending.section_type, {}, omitted=True))
-        return approved, None
+        return approved, None, None
     if pending.action == "write_anyway":
-        return approved, None
+        return approved, None, None
     outcome = screen_user_text(
         section_plain_text(pending.content),
         model=dependencies.settings.user_text_screen_model,
@@ -50,9 +51,10 @@ def apply_pending(
     if outcome.usage is not None and outcome.model is not None:
         usage.append(build_model_usage(outcome.model, outcome.usage))
     if not outcome.allowed:
-        return approved, pending.content
+        message = text_limits.SECTION_TOO_LONG_MESSAGE if outcome.too_long else None
+        return approved, pending.content, message
     approved.append(section_snapshot(pending.section_type, pending.content, omitted=False))
-    return approved, None
+    return approved, None, None
 
 
 def screened_gap_responses(
@@ -61,9 +63,11 @@ def screened_gap_responses(
     usage: list[ModelUsage],
     warnings: list[str],
 ) -> list[dict[str, str]]:
-    """Drops a gap response whose body fails the screen, and warns once."""
+    """Drops a gap response whose body fails the screen, and warns once for safety and once
+    for length."""
     kept: list[dict[str, str]] = []
     omitted = False
+    too_long = False
     settings = dependencies.settings
     for response in responses:
         outcome = screen_user_text(
@@ -75,10 +79,14 @@ def screened_gap_responses(
             usage.append(build_model_usage(outcome.model, outcome.usage))
         if outcome.allowed:
             kept.append(response)
+        elif outcome.too_long:
+            too_long = True
         else:
             omitted = True
     if omitted:
         warnings.append(LIBRARY_FACT_OMITTED_WARNING)
+    if too_long:
+        warnings.append(text_limits.NOTE_TOO_LONG_WARNING)
     return kept
 
 
@@ -128,6 +136,18 @@ def pause_for_section(
     )
 
 
-def failed_result(task: AiTaskMessage, error_message: str) -> AiResultMessage:
-    """A failed result with a message the user sees."""
-    return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=error_message)
+def failed_result(
+    task: AiTaskMessage,
+    error_message: str,
+    usage: list[ModelUsage] | None = None,
+    generation: int | None = None,
+) -> AiResultMessage:
+    """A failed result with a message the user sees. Usage and generation are set when a
+    tailor step already spent tokens before it stopped."""
+    return AiResultMessage(
+        ai_task_id=task.ai_task_id,
+        status="failed",
+        error_message=error_message,
+        usage=usage or [],
+        generation=generation,
+    )

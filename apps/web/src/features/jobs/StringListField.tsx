@@ -6,6 +6,7 @@
 import { ArrowDown, ArrowUp, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { BULLET_TEXT } from '@/lib/textLimits'
 
 interface StringListFieldProps {
   legend: string
@@ -33,7 +34,13 @@ export function StringListField({ legend, addLabel, itemLabel, items, onChange }
       <legend className="text-sm font-medium">{legend}</legend>
       {items.map((item, index) => (
         <div key={index} className="flex items-start gap-1">
-          <Textarea aria-label={`${itemLabel} ${index + 1}`} rows={2} value={item} onChange={(event) => replaceAt(index, event.target.value)} />
+          <Textarea
+            aria-label={`${itemLabel} ${index + 1}`}
+            rows={2}
+            maxLength={BULLET_TEXT}
+            value={item}
+            onChange={(event) => replaceAt(index, event.target.value)}
+          />
           <Button type="button" variant="ghost" size="icon-sm" aria-label={`Move ${itemLabel} ${index + 1} up`} disabled={index === 0} onClick={() => move(index, -1)}>
             <ArrowUp />
           </Button>

@@ -47,6 +47,27 @@ RSpec.describe Experiences::MoveHighlightService do
     expect(contents_and_positions(source)).to eq([ [ "B", 0 ], [ "C", 1 ] ])
   end
 
+  it "rejects a move onto a role that already has 40 bullets" do
+    full = create(:experience, user: user)
+    create_list(:experience_highlight, TextLimits::MAX_HIGHLIGHTS_PER_ROLE, experience: full)
+    moved = source_highlights.first
+
+    result = described_class.call(highlight: moved, experience: full, position: 0)
+
+    expect(result).not_to be_success
+    expect(result.errors).to eq([ "You can save up to #{TextLimits::MAX_HIGHLIGHTS_PER_ROLE} bullets on a role" ])
+    expect(moved.reload.experience).to eq(source)
+  end
+
+  it "still reorders a bullet inside a role that already has 40" do
+    create_list(:experience_highlight, TextLimits::MAX_HIGHLIGHTS_PER_ROLE - source_highlights.size, experience: source)
+
+    result = described_class.call(highlight: source_highlights.first, experience: source, position: TextLimits::MAX_HIGHLIGHTS_PER_ROLE - 1)
+
+    expect(result).to be_success
+    expect(source_highlights.first.reload.position).to eq(TextLimits::MAX_HIGHLIGHTS_PER_ROLE - 1)
+  end
+
   it "rejects a negative position or another user's role" do
     negative = described_class.call(highlight: source_highlights.first, experience: target, position: -1)
     other_user = described_class.call(highlight: source_highlights.first, experience: create(:experience), position: 0)

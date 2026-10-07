@@ -8,10 +8,11 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
 
-- `datasets/resume_parsing_cases.yaml` — 5 synthetic, hand-labelled resumes (clean, year-only
-  dates, messy two-column extraction, ambiguous entries, not a resume)
+- `datasets/resume_parsing_cases.yaml` — 6 synthetic, hand-labelled resumes (clean, year-only
+  dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,
-  `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous` (matching helpers come from
+  `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`
+  (matching helpers come from
   `documents/text_matching.py`, shared with the production faithfulness guard; evals score the
   raw agent output, before that guard runs)
 - `run_resume_parsing_evals.py` — runner:
@@ -50,7 +51,8 @@ score attached, so runs can be compared across prompt and model changes.
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
 - `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
   allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for
-  help breaking into an account). `block` is the decision at the 0.7 bar
+  help breaking into an account; an ordinary resume, a resume with an embedded jailbreak, and
+  a security-engineer resume). `block` is the decision at the 0.7 bar
 - `user_text_screen_evaluators.py` — `DecisionMatch` (the production bar) and `QuestionMatch`
   (each yes/no bool)
 - `run_user_text_screen_evals.py` — runner (the Jev call itself, not the phrase list):

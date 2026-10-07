@@ -17,10 +17,11 @@ interface TextFieldProps {
   disabled?: boolean
   placeholder?: string
   className?: string
+  maxLength?: number
 }
 
 /** Renders a label plus input (or textarea when `multiline`). Empty text becomes null. */
-export function TextField({ label, value, onChange, multiline, required, disabled, placeholder, className }: TextFieldProps) {
+export function TextField({ label, value, onChange, multiline, required, disabled, placeholder, className, maxLength }: TextFieldProps) {
   const id = useId()
   const inputProps = {
     id,
@@ -28,6 +29,7 @@ export function TextField({ label, value, onChange, multiline, required, disable
     required,
     disabled,
     placeholder,
+    maxLength,
     onChange: (event: { target: { value: string } }) => onChange(event.target.value === '' ? null : event.target.value),
   }
 

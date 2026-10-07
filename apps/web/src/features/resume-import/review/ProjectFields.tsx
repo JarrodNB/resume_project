@@ -3,6 +3,7 @@
  * Index:
  *   - ProjectFields: name, role, URL, dates, description
  */
+import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import type { ParsedProject } from '../parsedResume'
 import { DateRangeFields } from './DateRangeFields'
 import { TextField } from './TextField'
@@ -19,16 +20,16 @@ export function ProjectFields({ project, onChange }: ProjectFieldsProps) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="Name" required value={project.name} onChange={(value) => set('name', value ?? '')} />
-        <TextField label="Role" value={project.role} onChange={(value) => set('role', value)} />
-        <TextField label="URL" value={project.url} onChange={(value) => set('url', value)} />
+        <TextField label="Name" required maxLength={SHORT_TEXT} value={project.name} onChange={(value) => set('name', value ?? '')} />
+        <TextField label="Role" maxLength={SHORT_TEXT} value={project.role} onChange={(value) => set('role', value)} />
+        <TextField label="URL" maxLength={SHORT_TEXT} value={project.url} onChange={(value) => set('url', value)} />
         <DateRangeFields
           startDate={project.start_date}
           endDate={project.end_date}
           onChange={(dates) => onChange({ ...project, ...dates })}
         />
       </div>
-      <TextField label="Description" multiline value={project.description} onChange={(value) => set('description', value)} />
+      <TextField label="Description" multiline maxLength={PROSE_TEXT} value={project.description} onChange={(value) => set('description', value)} />
     </div>
   )
 }

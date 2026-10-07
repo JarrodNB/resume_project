@@ -5,5 +5,6 @@ class JobGapResponse < ApplicationRecord
   belongs_to :library_fact, optional: true
 
   validates :requirement, :body, presence: true
-  validates :requirement, uniqueness: { scope: :job_id }
+  validates :requirement, uniqueness: { scope: :job_id }, length: { maximum: TextLimits::BULLET }
+  validates :body, length: { maximum: TextLimits::PROSE }
 end

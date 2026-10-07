@@ -11,6 +11,7 @@ import { CREATE_EXPERIENCE_MUTATION, UPDATE_EXPERIENCE_MUTATION } from './career
 import { EntryFormDialog } from './EntryFormDialog'
 import { HighlightEditor } from './HighlightEditor'
 import { blankToNull, highlightsToSave } from './libraryFormValues'
+import { BULLET_TEXT, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
 
@@ -75,9 +76,9 @@ function ExperienceForm({ experience, onClose }: { experience: Experience | null
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Title" required value={title} onChange={setTitle} />
-        <LibraryField label="Company" required value={company} onChange={setCompany} />
-        <LibraryField label="Location" value={location} onChange={setLocation} />
+        <LibraryField label="Title" required value={title} onChange={setTitle} maxLength={SHORT_TEXT} />
+        <LibraryField label="Company" required value={company} onChange={setCompany} maxLength={SHORT_TEXT} />
+        <LibraryField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
         <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} disabled={currentRole} />
         <div className="flex items-center gap-2 self-end">
@@ -85,8 +86,8 @@ function ExperienceForm({ experience, onClose }: { experience: Experience | null
           <Label htmlFor="current-role">Current role</Label>
         </div>
       </div>
-      <LibraryField label="Description" multiline value={description} onChange={setDescription} />
-      <HighlightEditor highlights={highlights} onChange={setHighlights} />
+      <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
+      <HighlightEditor highlights={highlights} onChange={setHighlights} maxLength={BULLET_TEXT} />
     </EntryFormDialog>
   )
 }

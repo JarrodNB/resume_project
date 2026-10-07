@@ -6,6 +6,12 @@ class LibraryFact < ApplicationRecord
   belongs_to :user
   has_many :job_gap_responses, dependent: :nullify
 
+  include LibrarySizeLimit
+
+  library_size_limit :library_facts, TextLimits::MAX_LIBRARY_FACTS,
+                     "You can save up to #{TextLimits::MAX_LIBRARY_FACTS} notes"
+
   validates :requirement, :response, presence: true
-  validates :requirement, uniqueness: { scope: :user_id }
+  validates :requirement, uniqueness: { scope: :user_id }, length: { maximum: TextLimits::BULLET }
+  validates :response, length: { maximum: TextLimits::PROSE }
 end

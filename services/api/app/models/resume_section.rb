@@ -14,5 +14,15 @@ class ResumeSection < ApplicationRecord
 
   enum :section_type, SECTION_TYPES.index_with(&:itself), validate: true
 
-  validates :title, presence: true
+  validates :title, presence: true, length: { maximum: TextLimits::SHORT }
+  validate :content_within_text_limit
+
+  private
+
+  # Rejects a section whose strings would be too long to screen or to store on a task.
+  def content_within_text_limit
+    return unless TextLimits.section_too_long?(content)
+
+    errors.add(:base, TextLimits::SECTION_TOO_LONG)
+  end
 end

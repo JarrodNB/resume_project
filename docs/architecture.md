@@ -274,7 +274,14 @@ tailoring) instead of sending everything.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   first call site is library facts in the gap-analysis prompt (each fact on its own); a blocked
   or unchecked fact is left out and the task result carries a warning. Career-library entries
-  copied from a resume are not screened. Jev usage is reported on the task result and counts
+  copied from a resume are not screened. Text over a shared character cap is rejected before
+  it is stored and again before a Jev or generative call (`TextLimits` in Rails,
+  `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
+  PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000
+  characters. Those failures tell the user the text is too long. They are not reported as
+  unsafe, and rows are not silently truncated. A posting with too many bullets to sort is
+  still saved, with a warning to add requirements by hand. A request body over 8 MB is a
+  JSON 413. Jev usage is reported on the task result and counts
   toward the monthly budget. Token rates are TypeSafe's published $0.042 per 1M input tokens
   (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
 - **Tailoring pauses once per section, in code, not via `ask_user`.** Contact is copied from

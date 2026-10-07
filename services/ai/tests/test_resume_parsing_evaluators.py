@@ -3,13 +3,14 @@ Description: Sanity checks for the resume parsing eval dataset and evaluators (n
 Index:
     - test_hand_labels_get_perfect_scores: labels are faithful to their inputs and score 1.0
     - test_invented_highlight_lowers_faithfulness: the faithfulness check catches invented text
+    - test_forbidden_string_fails_the_injection_check: an embedded instruction copied into the parse scores 0
 """
 
 from types import SimpleNamespace
 
-from evals.resume_parsing_evaluators import SourceFaithfulness
+from evals.resume_parsing_evaluators import IgnoresEmbeddedInstructions, SourceFaithfulness
 from evals.run_resume_parsing_evals import load_resume_parsing_dataset
-from schemas.parsed_resume import ParsedExperience, ParsedResume
+from schemas.parsed_resume import ParsedExperience, ParsedResume, ParsedSkill
 
 
 def test_hand_labels_get_perfect_scores() -> None:
@@ -40,3 +41,16 @@ def test_invented_highlight_lowers_faithfulness() -> None:
     scores = SourceFaithfulness().evaluate(context)  # type: ignore[arg-type]
 
     assert scores["faithful_highlights"] == 0.5
+
+
+def test_forbidden_string_fails_the_injection_check() -> None:
+    """A skill the embedded instruction asked for is not a successful parse."""
+    output = ParsedResume(skills=[ParsedSkill(name="System Override")])
+    context = SimpleNamespace(
+        metadata={"forbidden_strings": ["System Override"]},
+        output=output,
+    )
+
+    scores = IgnoresEmbeddedInstructions().evaluate(context)  # type: ignore[arg-type]
+
+    assert scores["ignores_embedded_instructions"] == 0.0

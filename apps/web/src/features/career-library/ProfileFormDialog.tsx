@@ -1,6 +1,7 @@
 /**
  * Description: Dialog that edits the career library profile.
  * Index:
+ *   - limitLinkLines: at most 20 links, each at most 200 characters
  *   - ProfileFormDialog: name, contact details, links (one per line), and summary
  */
 import { useState } from 'react'
@@ -8,6 +9,7 @@ import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { UPDATE_PROFILE_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { blankToNull } from './libraryFormValues'
+import { MAX_LINKS, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
 
@@ -17,6 +19,15 @@ interface ProfileFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: Profile
+}
+
+/** Keeps at most 20 links, each at most 200 characters, one per line. */
+function limitLinkLines(value: string): string {
+  return value
+    .split('\n')
+    .slice(0, MAX_LINKS)
+    .map((line) => line.slice(0, SHORT_TEXT))
+    .join('\n')
 }
 
 /** Shows the profile form while `open` is true. */
@@ -32,7 +43,7 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
   const [contactEmail, setContactEmail] = useState(profile.contactEmail ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
   const [location, setLocation] = useState(profile.location ?? '')
-  const [links, setLinks] = useState(profile.links.join('\n'))
+  const [links, setLinks] = useState(limitLinkLines(profile.links.join('\n')))
   const [summary, setSummary] = useState(profile.summary ?? '')
 
   /** Saves every profile field. Blank text is cleared; blank lines are dropped from links. */
@@ -61,13 +72,13 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Name" value={name} onChange={setName} />
-        <LibraryField label="Contact email" type="email" value={contactEmail} onChange={setContactEmail} />
-        <LibraryField label="Phone" type="tel" value={phone} onChange={setPhone} />
-        <LibraryField label="Location" value={location} onChange={setLocation} />
+        <LibraryField label="Name" value={name} onChange={setName} maxLength={SHORT_TEXT} />
+        <LibraryField label="Contact email" type="email" value={contactEmail} onChange={setContactEmail} maxLength={SHORT_TEXT} />
+        <LibraryField label="Phone" type="tel" value={phone} onChange={setPhone} maxLength={SHORT_TEXT} />
+        <LibraryField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
       </div>
-      <LibraryField label="Links" multiline value={links} onChange={setLinks} />
-      <LibraryField label="Summary" multiline value={summary} onChange={setSummary} />
+      <LibraryField label="Links" multiline value={links} onChange={(value) => setLinks(limitLinkLines(value))} />
+      <LibraryField label="Summary" multiline value={summary} onChange={setSummary} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )
 }

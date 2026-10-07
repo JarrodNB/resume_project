@@ -18,4 +18,20 @@ class User < ApplicationRecord
   has_many :resumes, dependent: :destroy
   has_many :ai_tasks, dependent: :destroy
   has_many :library_embeddings, dependent: :delete_all
+
+  validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
+  validates :summary, length: { maximum: TextLimits::PROSE }
+  validate :links_within_limits
+
+  private
+
+  # Caps how many links the profile holds and how long each one is.
+  def links_within_limits
+    return unless links.is_a?(Array)
+
+    errors.add(:base, "You can save up to #{TextLimits::MAX_LINKS} links") if links.size > TextLimits::MAX_LINKS
+    return unless links.any? { |link| link.to_s.length > TextLimits::SHORT }
+
+    errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)")
+  end
 end

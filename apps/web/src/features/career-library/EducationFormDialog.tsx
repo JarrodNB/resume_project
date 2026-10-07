@@ -8,6 +8,7 @@ import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_EDUCATION_MUTATION, UPDATE_EDUCATION_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { blankToNull } from './libraryFormValues'
+import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
 
@@ -62,13 +63,13 @@ function EducationForm({ education, onClose }: { education: Education | null; on
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Institution" required value={institution} onChange={setInstitution} />
-        <LibraryField label="Degree" value={degree} onChange={setDegree} />
-        <LibraryField label="Field of study" value={fieldOfStudy} onChange={setFieldOfStudy} />
+        <LibraryField label="Institution" required value={institution} onChange={setInstitution} maxLength={SHORT_TEXT} />
+        <LibraryField label="Degree" value={degree} onChange={setDegree} maxLength={SHORT_TEXT} />
+        <LibraryField label="Field of study" value={fieldOfStudy} onChange={setFieldOfStudy} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
         <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} />
       </div>
-      <LibraryField label="Description" multiline value={description} onChange={setDescription} />
+      <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )
 }

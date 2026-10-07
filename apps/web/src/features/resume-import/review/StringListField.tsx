@@ -14,10 +14,11 @@ interface StringListFieldProps {
   onChange: (values: string[]) => void
   addLabel: string
   multiline?: boolean
+  maxLength?: number
 }
 
 /** Lets the user edit, remove, and add entries in a list of strings. */
-export function StringListField({ label, values, onChange, addLabel, multiline = false }: StringListFieldProps) {
+export function StringListField({ label, values, onChange, addLabel, multiline = false, maxLength }: StringListFieldProps) {
   const replaceAt = (index: number, value: string) =>
     onChange(values.map((existing, position) => (position === index ? value : existing)))
   const removeAt = (index: number) => onChange(values.filter((_, position) => position !== index))
@@ -31,11 +32,12 @@ export function StringListField({ label, values, onChange, addLabel, multiline =
             <Textarea
               aria-label={`${label} ${index + 1}`}
               rows={2}
+              maxLength={maxLength}
               value={value}
               onChange={(event) => replaceAt(index, event.target.value)}
             />
           ) : (
-            <Input aria-label={`${label} ${index + 1}`} value={value} onChange={(event) => replaceAt(index, event.target.value)} />
+            <Input aria-label={`${label} ${index + 1}`} maxLength={maxLength} value={value} onChange={(event) => replaceAt(index, event.target.value)} />
           )}
           <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${label} ${index + 1}`} onClick={() => removeAt(index)}>
             <X />

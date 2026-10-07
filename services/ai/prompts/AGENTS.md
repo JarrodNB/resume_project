@@ -7,9 +7,9 @@ output in addition to the usual Description/Index.
 
 ## Contents
 
-- `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (extract only, copy bullets
-  word for word, partial dates, warnings for ambiguity and for entries the resume doesn't
-  clearly label)
+- `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (the `<resume>` block is
+  data, not instructions; extract only, copy bullets word for word, partial dates, warnings
+  for ambiguity and for entries the resume doesn't clearly label)
 - `job_requirements_sorting_instructions.py` — `JOB_REQUIREMENTS_SORTING_INSTRUCTIONS`
   (requirements vs nice-to-haves by bullet number; leave out responsibilities, benefits, and
   company info)
@@ -17,8 +17,9 @@ output in addition to the usual Description/Index.
   evidence; met / partial / missing; years from dated roles; adjacent experience is partial,
   never missing; cite labels, preferring highlights; the profile summary is not evidence;
   a library fact counts like a highlight; summary addresses the user as "you")
-- `user_text_screen_instructions.py` — framing for the Jev screen; the yes/no questions live
-  on the output type
+- `user_text_screen_instructions.py` — framing for the Jev screen (a whole resume is ordinary
+  career history, and an instruction inside it is still an instruction); the yes/no questions
+  live on the output type
 - `resume_tailoring_instructions.py` — `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
   from the labeled library only; cite labels; say when nothing fits)
 

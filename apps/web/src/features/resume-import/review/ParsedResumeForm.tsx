@@ -9,6 +9,7 @@ import { useState, type FormEvent } from 'react'
 import { DragDropProvider } from '@dnd-kit/react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
+import { PROSE_TEXT } from '@/lib/textLimits'
 import { emptyEducation, emptyExperience, emptyProject, type ParsedResume } from '../parsedResume'
 import { ContactFields } from './ContactFields'
 import { EditableList } from './EditableList'
@@ -49,7 +50,7 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
           <ContactFields contact={draft.contact} onChange={(contact) => set('contact', contact)} />
         </ReviewSection>
         <ReviewSection tone="summary" title="Summary">
-          <TextField label="Summary" multiline value={draft.summary} onChange={(summary) => set('summary', summary)} />
+          <TextField label="Summary" multiline maxLength={PROSE_TEXT} value={draft.summary} onChange={(summary) => set('summary', summary)} />
         </ReviewSection>
         <ReviewSection
           tone="experience"

@@ -28,6 +28,29 @@ RSpec.describe ResumeTailoring::SubmitTailoredSectionService do
     expect(queue).to have_received(:send_message)
   end
 
+  it "leaves out or reopens a section even when the content argument is over the screen cap" do
+    content = { "text" => "a" * (TextLimits::SCREENED_TEXT + 1) }
+
+    %w[omit reopen].each do |action|
+      task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "needs_user_input", generation: 1, input: { "generation" => 1, "approved_sections" => [] })
+
+      result = described_class.call(ai_task: task, section_type: "summary", action: action, content: content)
+
+      expect(result).to be_success
+      expect(task.reload.input["pending_section"]).to include("action" => action)
+    end
+  end
+
+  it "refuses a section whose text is over the screen cap" do
+    content = { "text" => "a" * (TextLimits::SCREENED_TEXT + 1) }
+
+    result = described_class.call(ai_task: ai_task, section_type: "summary", action: "approve", content: content)
+
+    expect(result.errors).to eq([ TextLimits::SECTION_TOO_LONG ])
+    expect(ai_task.reload).to be_needs_user_input
+    expect(queue).not_to have_received(:send_message)
+  end
+
   it "refuses when the task is not waiting for an edit" do
     ai_task.update!(status: "queued")
 

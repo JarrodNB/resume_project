@@ -15,6 +15,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+import text_limits
 from agents.gap_analysis_agent import analyze_gaps
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
@@ -54,16 +55,23 @@ def handle_analyze_gaps_task(
     model = settings.gap_analysis_model
     screen_usage: list[ModelUsage] = []
 
-    def allow_fact(text: str) -> bool:
+    def allow_fact(text: str) -> ScreenOutcome:
         """Screens one library fact and keeps its Jev usage for the monthly budget."""
         outcome = _screen_fact(text, settings.user_text_screen_model, settings.llm_run_timeout_seconds)
         if outcome.usage is not None and outcome.model is not None:
             screen_usage.append(build_model_usage(outcome.model, outcome.usage))
-        return outcome.allowed
+        return outcome
 
     prompt = build_gap_analysis_prompt(
         context, today=datetime.now(UTC).date(), allow_fact=allow_fact
     )
+    if text_limits.prompt_is_too_long(prompt.text):
+        return AiResultMessage(
+            ai_task_id=task.ai_task_id,
+            status="failed",
+            error_message=text_limits.GAP_PROMPT_TOO_LONG_MESSAGE,
+            usage=screen_usage,
+        )
     run = analyze_gaps(
         prompt,
         model=model,

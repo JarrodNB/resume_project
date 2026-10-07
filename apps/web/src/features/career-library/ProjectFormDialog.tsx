@@ -8,6 +8,7 @@ import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_PROJECT_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { blankToNull } from './libraryFormValues'
+import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
 
@@ -62,13 +63,13 @@ function ProjectForm({ project, onClose }: { project: Project | null; onClose: (
       errors={errors}
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <LibraryField label="Name" required value={name} onChange={setName} />
-        <LibraryField label="Role" value={role} onChange={setRole} />
-        <LibraryField label="URL" type="url" value={url} onChange={setUrl} />
+        <LibraryField label="Name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
+        <LibraryField label="Role" value={role} onChange={setRole} maxLength={SHORT_TEXT} />
+        <LibraryField label="URL" type="url" value={url} onChange={setUrl} maxLength={SHORT_TEXT} />
         <LibraryField label="Start" type="date" value={startDate} onChange={setStartDate} />
         <LibraryField label="End" type="date" value={endDate} onChange={setEndDate} />
       </div>
-      <LibraryField label="Description" multiline value={description} onChange={setDescription} />
+      <LibraryField label="Description" multiline value={description} onChange={setDescription} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )
 }

@@ -7,6 +7,7 @@ Index:
     - BulletSorter: function that sorts numbered bullets (the agent in production, fakes in tests)
     - JobPostingExtraction: the posting plus the sorting run's usage (None when no LLM ran)
     - extract_job_posting: JobPage -> JobPostingExtraction
+    - fit_posting_to_saved_limits: drops text Rails would refuse, and says so
     - pick_sorted_bullets: maps the agent's bullet numbers back to bullets, dropping invalid ones
 """
 
@@ -15,6 +16,7 @@ from typing import NamedTuple
 
 from pydantic_ai.usage import RunUsage
 
+import text_limits
 from job_postings.html_to_description_text import html_to_description_text
 from job_postings.split_description_sections import split_description_sections
 from schemas.scraped_job_posting import RequirementsSortedBy, ScrapedJobPosting
@@ -57,7 +59,10 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
     warnings: list[str] = []
     sorting_usage: RunUsage | None = None
 
-    if not requirements and sections.all_bullets:
+    if not requirements and sections.all_bullets and text_limits.sorting_input_too_long(sections.all_bullets):
+        sorted_by = "none"
+        warnings.append(text_limits.POSTING_TOO_LONG_TO_SORT_WARNING)
+    elif not requirements and sections.all_bullets:
         sorting_run = sort_bullets(sections.all_bullets)
         requirements, nice_to_haves, had_invalid_numbers = pick_sorted_bullets(
             sections.all_bullets, sorting_run.sorted_bullets
@@ -70,19 +75,67 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
         sorted_by = "none"
         warnings.append(NO_BULLETS_WARNING)
 
-    posting = ScrapedJobPosting(
-        source=page.source,
-        source_url=page.source_url,
-        title=page.title,
-        company=page.company,
-        location=page.location,
-        description=html_to_description_text(page.description_html),
-        requirements=requirements,
-        nice_to_haves=nice_to_haves,
-        requirements_sorted_by=sorted_by,
-        warnings=warnings,
+    posting = fit_posting_to_saved_limits(
+        ScrapedJobPosting(
+            source=page.source,
+            source_url=page.source_url,
+            title=page.title,
+            company=page.company,
+            location=page.location,
+            description=html_to_description_text(page.description_html),
+            requirements=requirements,
+            nice_to_haves=nice_to_haves,
+            requirements_sorted_by=sorted_by,
+            warnings=warnings,
+        )
     )
     return JobPostingExtraction(posting=posting, sorting_usage=sorting_usage)
+
+
+def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting:
+    """Shortens fields and drops bullets Rails would refuse, and warns that text was left out.
+    A kept bullet is still copied verbatim."""
+    left_out = False
+
+    def shorten(value: str | None, limit: int) -> str | None:
+        """Keeps a field Rails can store. None stays None."""
+        nonlocal left_out
+        if value is None or len(value) <= limit:
+            return value
+        left_out = True
+        return value[:limit]
+
+    def keep_items(items: list[str]) -> list[str]:
+        """Drops a bullet over the character cap, then anything past the count cap."""
+        nonlocal left_out
+        kept: list[str] = []
+        for item in items:
+            if len(item) > text_limits.MAX_BULLET_TEXT or len(kept) >= text_limits.MAX_REQUIREMENT_ITEMS:
+                left_out = True
+                continue
+            kept.append(item)
+        return kept
+
+    title = shorten(posting.title, text_limits.MAX_SHORT_TEXT) or ""
+    company = shorten(posting.company, text_limits.MAX_SHORT_TEXT) or ""
+    location = shorten(posting.location, text_limits.MAX_SHORT_TEXT)
+    description = shorten(posting.description, text_limits.MAX_JOB_DESCRIPTION) or ""
+    requirements = keep_items(posting.requirements)
+    nice_to_haves = keep_items(posting.nice_to_haves)
+    warnings = list(posting.warnings)
+    if left_out:
+        warnings.append(text_limits.POSTING_LEFT_OUT_WARNING)
+    return posting.model_copy(
+        update={
+            "title": title,
+            "company": company,
+            "location": location,
+            "description": description,
+            "requirements": requirements,
+            "nice_to_haves": nice_to_haves,
+            "warnings": warnings,
+        }
+    )
 
 
 def pick_sorted_bullets(

@@ -13,21 +13,25 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types
   without a handler yet return a "not supported yet" failure
-- `parse_resume_handler.py` — downloads the upload, extracts text, runs the resume parsing
-  agent, checks its output with `enforce_source_faithfulness`, reports its token usage
+- `parse_resume_handler.py` — downloads the upload, extracts text, screens it (a block fails
+  the import; an extract over the text or page cap fails as too long, not unsafe; a screen
+  that does not run fails as unchecked, not unsafe; the phrase list is not applied to the
+  whole file), runs the
+  resume parsing agent, checks its output with `enforce_source_faithfulness`, reports parsing
+  and Jev token usage
 - `scrape_job_handler.py` — picks the site's scraper for the URL, extracts the posting (sorting
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages
 - `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
   screens each library fact, builds the labeled prompt, runs the gap analysis agent, attaches
-  evidence text, and reports Jev usage; a deleted job, empty library, or job without
-  requirements fails with a user-facing message
+  evidence text, and reports Jev usage; a deleted job, empty library, job without
+  requirements, or prompt over the character cap fails with a user-facing message
 - `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
   summary, experience, projects, education, skills), pauses for approval, and echoes `generation`.
   A section with no library entries is left out with no model call. Projects, education, and
   skills are not narrowed by retrieval
 - `tailor_resume_steps.py` — folds the user's decision, screens gap responses, and builds the
-  pause or failure result
+  pause or failure result. A section over the screen cap stays open with a length message
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,

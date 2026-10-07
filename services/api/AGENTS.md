@@ -61,6 +61,10 @@ folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
 - `config/initializers/ai_usage_limits.rb` — default per-user AI limits (monthly budget, tasks
   per hour, tasks in flight) from ENV
+- `config/initializers/text_limits.rb` — character and count caps for user-written text
+  (`TextLimits`) and `MaxRequestBody` (JSON 413 over 8 MB, including a body with no
+  Content-Length). The AI worker repeats the caps it
+  enforces in `services/ai/text_limits.py`
 - `config/initializers/career_library_embeddings.rb` — `CareerLibraryEmbeddings::MODEL`
   (`EMBEDDING_MODEL`, default `text-embedding-3-small`) and `DIMENSIONS` (1536); must match the
   AI worker's `embedding_model` / `embedding_dimensions`

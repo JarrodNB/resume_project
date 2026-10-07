@@ -8,7 +8,15 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 
 /** Edits a role's bullets. Reordering uses up and down buttons. */
-export function HighlightEditor({ highlights, onChange }: { highlights: string[]; onChange: (highlights: string[]) => void }) {
+export function HighlightEditor({
+  highlights,
+  onChange,
+  maxLength,
+}: {
+  highlights: string[]
+  onChange: (highlights: string[]) => void
+  maxLength?: number
+}) {
   const replaceAt = (index: number, content: string) =>
     onChange(highlights.map((highlight, position) => (position === index ? content : highlight)))
   const removeAt = (index: number) => onChange(highlights.filter((_, position) => position !== index))
@@ -26,7 +34,7 @@ export function HighlightEditor({ highlights, onChange }: { highlights: string[]
       <legend className="text-sm font-medium">Highlights</legend>
       {highlights.map((highlight, index) => (
         <div key={index} className="flex items-start gap-1">
-          <Textarea aria-label={`Highlight ${index + 1}`} rows={2} value={highlight} onChange={(event) => replaceAt(index, event.target.value)} />
+          <Textarea aria-label={`Highlight ${index + 1}`} rows={2} maxLength={maxLength} value={highlight} onChange={(event) => replaceAt(index, event.target.value)} />
           <Button type="button" variant="ghost" size="icon-sm" aria-label={`Move highlight ${index + 1} up`} disabled={index === 0} onClick={() => move(index, -1)}>
             <ArrowUp />
           </Button>

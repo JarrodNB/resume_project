@@ -14,7 +14,9 @@ can't be invented.
   education, `S1` skill, `F1` library fact; `format_date_range`. The profile summary is unlabeled
   background, not a citable label. `allow_fact` screens each
   library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt
-  carries one warning. `None` keeps every fact (evals). Resume-copied entries are not screened
+  carries one warning. A fact over the screen cap uses a separate "too long" warning. `None`
+  keeps every fact (evals). Resume-copied entries are not screened. A prompt over 120,000
+  characters fails the task before the agent runs
 - `screen_library_facts.py` — `select_screened_facts`; `LIBRARY_FACT_OMITTED_WARNING`
 - `find_gap_analysis_problems.py` — `find_gap_analysis_problems(analysis, prompt)`: missing,
   repeated, or unknown requirement labels, unknown evidence labels, met/partial without

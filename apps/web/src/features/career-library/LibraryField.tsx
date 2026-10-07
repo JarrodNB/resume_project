@@ -16,16 +16,18 @@ interface LibraryFieldProps {
   multiline?: boolean
   type?: 'text' | 'date' | 'email' | 'tel' | 'url'
   disabled?: boolean
+  maxLength?: number
 }
 
 /** Renders a label plus an input, a date input, or a textarea. */
-export function LibraryField({ label, value, onChange, required, multiline, type = 'text', disabled }: LibraryFieldProps) {
+export function LibraryField({ label, value, onChange, required, multiline, type = 'text', disabled, maxLength }: LibraryFieldProps) {
   const id = useId()
   const shared = {
     id,
     value,
     required,
     disabled,
+    maxLength,
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(event.target.value),
   }
 

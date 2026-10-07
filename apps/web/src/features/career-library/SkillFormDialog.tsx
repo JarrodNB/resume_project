@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { CREATE_SKILL_MUTATION, UPDATE_SKILL_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { blankToNull } from './libraryFormValues'
+import { SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import type { CategorizedSkill } from './groupSkillsByCategory'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -48,8 +49,8 @@ function SkillForm({ skill, onClose }: { skill: CategorizedSkill | null; onClose
       busy={busy}
       errors={errors}
     >
-      <LibraryField label="Name" required value={name} onChange={setName} />
-      <LibraryField label="Category" value={category} onChange={setCategory} />
+      <LibraryField label="Name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
+      <LibraryField label="Category" value={category} onChange={setCategory} maxLength={SHORT_TEXT} />
     </EntryFormDialog>
   )
 }

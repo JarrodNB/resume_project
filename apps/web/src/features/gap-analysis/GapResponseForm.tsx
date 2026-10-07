@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { PROSE_TEXT } from '@/lib/textLimits'
 import type { SavedGapResponse } from './savedGapResponse'
 import { useSaveGapResponse } from './useSaveGapResponse'
 
@@ -47,6 +48,7 @@ export function GapResponseForm({ jobId, requirement, response }: GapResponseFor
         id={`${checkboxId}-answer`}
         value={body}
         rows={3}
+        maxLength={PROSE_TEXT}
         placeholder="For example: I used Kubernetes at Acme for two years."
         onChange={(event) => setBody(event.target.value)}
       />

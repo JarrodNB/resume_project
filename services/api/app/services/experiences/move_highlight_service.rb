@@ -45,7 +45,16 @@ module Experiences
         "Position can't be negative"
       elsif @highlight.experience.user_id != @experience.user_id
         "Only your own entries can be changed"
+      elsif moving_onto_a_full_role?
+        "You can save up to #{TextLimits::MAX_HIGHLIGHTS_PER_ROLE} bullets on a role"
       end
+    end
+
+    # A move onto another role adds a bullet. Reordering within a role does not.
+    def moving_onto_a_full_role?
+      return false if @highlight.experience_id == @experience.id
+
+      highlights_without_moved(@experience).size >= TextLimits::MAX_HIGHLIGHTS_PER_ROLE
     end
 
     # The target's highlights with the moved one inserted at the requested position.

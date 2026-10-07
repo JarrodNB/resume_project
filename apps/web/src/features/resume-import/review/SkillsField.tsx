@@ -10,6 +10,7 @@ import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableId } from '@/components/dnd/moveItems'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { SHORT_TEXT } from '@/lib/textLimits'
 import { withDraftKey, type DraftSkill } from './reviewDraft'
 import { SKILL_TYPE } from './useReviewDragHandlers'
 
@@ -70,6 +71,7 @@ export function SkillsField({ skills, onChange }: SkillsFieldProps) {
         <Input
           aria-label="New skill"
           placeholder="Add a skill"
+          maxLength={SHORT_TEXT}
           value={newSkillName}
           onChange={(event) => setNewSkillName(event.target.value)}
           onKeyDown={handleKeyDown}

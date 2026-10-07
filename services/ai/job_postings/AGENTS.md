@@ -14,8 +14,12 @@ bullet-sorting fallback, which is passed in as a function.
   requirements, nice-to-haves, or other by keyword
 - `extract_job_posting.py` — `extract_job_posting(page, sort_bullets)` -> `ScrapedJobPosting`;
   calls `sort_bullets` (the job requirements sorting agent) only when no requirement heading
-  matched but bullets exist; `pick_sorted_bullets` maps the agent's 1-based numbers back to
-  bullets
+  matched but bullets exist, and skips it when there are more than 200 bullets or 40,000
+  characters of bullet text (a warning says to add requirements by hand). Text Rails would
+  refuse (more than 80 requirements or nice-to-haves, a bullet over 1,000 characters, a
+  description over 20,000, a short field over 200) is left out and the posting is still
+  returned with a warning;
+  `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets
 
 ## Local Rules
 

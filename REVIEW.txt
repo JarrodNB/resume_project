@@ -20,7 +20,6 @@ Tasks can get stuck as queued. This happens if publishing fails with an error ot
 LLM engineering (matters for the portfolio)
 The faithfulness evals can pass trivially. They use substring matching, so an invented "Java" passes because "JavaScript" is in the resume, and an expected skill "R" matches nearly anything. Empty output scores a perfect 1.0. The check also ignores titles, descriptions, contact details and education.
 Faithfulness is only measured, never enforced. It's the top metric, but production passes the LLM output straight through. A cheap runtime check could drop highlights that don't appear in the source text.
-The resume text isn't fenced off as data. The prompt doesn't tell the model to ignore instructions inside the resume, and there's no prompt-injection case in the eval dataset.
 Smaller items
 Missing spec coverage.
 Rails is missing ownership specs for updateJob, moveJobToStage, updateExperience, deleteExperience, resume(id) and aiTask(id).

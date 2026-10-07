@@ -10,6 +10,7 @@ from uuid import uuid4
 import pytest
 from pydantic_ai.models.test import TestModel
 
+import text_limits
 from agents.resume_tailoring_agent import resume_tailoring_agent
 from screening.screen_user_text import ScreenOutcome
 from tests.fakes import FakeGapAnalysisContextReader, build_gap_analysis_context
@@ -100,6 +101,31 @@ def test_blocked_edit_stays_open_and_skips_the_writer(
     assert question["message"] == SECTION_BLOCKED_MESSAGE
     assert question["section_type"] == "contact"
     assert question["approved_sections"] == []
+
+
+def test_too_long_edit_stays_open_with_a_length_message(
+    task_dependencies: TaskDependencies, stored_context: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A section over the screen cap stays open and says it is too long, not that it is unsafe."""
+    monkeypatch.setattr(
+        "worker.tailor_resume_steps.screen_user_text",
+        lambda *_args, **_kwargs: ScreenOutcome(allowed=False, too_long=True),
+    )
+    task_input = _base_input(
+        pending_section={
+            "section_type": "summary",
+            "action": "approve",
+            "content": {"text": "a" * 10},
+        }
+    )
+
+    result = handle_ai_task(_task(task_input), task_dependencies)
+
+    question = result.pending_questions[0]
+    assert result.status == "needs_user_input"
+    assert question["blocked"] is True
+    assert question["message"] == text_limits.SECTION_TOO_LONG_MESSAGE
+    assert question["section_type"] == "summary"
 
 
 def test_approved_contact_then_writes_the_summary(

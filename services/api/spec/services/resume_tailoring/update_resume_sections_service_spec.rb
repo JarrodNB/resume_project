@@ -42,6 +42,17 @@ RSpec.describe ResumeTailoring::UpdateResumeSectionsService do
     expect(summary.reload.content).to eq("text" => "Same.")
   end
 
+  it "rejects a section whose text is over the screen cap" do
+    result = described_class.call(
+      resume: resume,
+      sections: [ { "id" => summary.id, "content" => { "text" => "a" * (TextLimits::SCREENED_TEXT + 1) } } ]
+    )
+
+    expect(result).not_to be_success
+    expect(result.errors).to include(TextLimits::SECTION_TOO_LONG)
+    expect(summary.reload.content).to eq("text" => "Old.")
+  end
+
   it "rejects a section that isn't on this resume" do
     result = described_class.call(
       resume: resume,

@@ -40,7 +40,7 @@ module ResumeImports
           success(@ai_task)
         end
       end
-    rescue ActiveRecord::RecordInvalid => error
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => error
       failure(error.record.errors)
     end
 

@@ -19,6 +19,14 @@ from job_postings.extract_job_posting import (
 )
 from schemas.sorted_requirement_bullets import SortedRequirementBullets
 from scrapers.job_page import JobPage
+from text_limits import (
+    MAX_BULLET_TEXT,
+    MAX_JOB_DESCRIPTION,
+    MAX_REQUIREMENT_ITEMS,
+    MAX_SHORT_TEXT,
+    POSTING_LEFT_OUT_WARNING,
+    POSTING_TOO_LONG_TO_SORT_WARNING,
+)
 
 
 def build_page(description_html: str) -> JobPage:
@@ -70,6 +78,49 @@ def test_falls_back_to_the_sorter_without_requirement_headings() -> None:
     assert extraction.posting.requirements_sorted_by == "llm"
     assert extraction.posting.warnings == [LLM_SORTED_WARNING]
     assert extraction.sorting_usage is usage
+
+
+def test_too_many_bullets_skip_the_sorter_and_warn() -> None:
+    """A posting the sorter cannot take is saved without requirements and says why."""
+    bullets = "".join(f"<li>Bullet {index}</li>" for index in range(201))
+    page = build_page(f"<ul>{bullets}</ul>")
+
+    extraction = extract_job_posting(page, never_called)
+
+    assert extraction.posting.requirements == []
+    assert extraction.posting.requirements_sorted_by == "none"
+    assert extraction.sorting_usage is None
+    assert POSTING_TOO_LONG_TO_SORT_WARNING in extraction.posting.warnings
+
+
+def test_heading_extraction_over_the_save_caps_still_returns_a_posting() -> None:
+    """Rails would refuse more than 80 requirements, a long bullet, or a long description.
+    Those are left out and the posting is still returned, with a warning."""
+    short = "".join("<li>Python</li>" for _ in range(MAX_REQUIREMENT_ITEMS + 1))
+    long_bullet = "x" * (MAX_BULLET_TEXT + 1)
+    long_description = "d" * (MAX_JOB_DESCRIPTION + 1)
+    page = JobPage(
+        source="linkedin",
+        source_url="https://www.linkedin.com/jobs/view/1/",
+        title="T" * (MAX_SHORT_TEXT + 1),
+        company="Acme",
+        location=None,
+        description_html=(
+            f"<p>{long_description}</p><h3>Requirements</h3><ul>{short}"
+            f"<li>{long_bullet}</li></ul>"
+        ),
+    )
+
+    extraction = extract_job_posting(page, never_called)
+
+    posting = extraction.posting
+    assert len(posting.title) == MAX_SHORT_TEXT
+    assert len(posting.description) == MAX_JOB_DESCRIPTION
+    assert posting.requirements == ["Python"] * MAX_REQUIREMENT_ITEMS
+    assert long_bullet not in posting.requirements
+    assert all(len(item) <= MAX_BULLET_TEXT for item in posting.requirements)
+    assert POSTING_LEFT_OUT_WARNING in posting.warnings
+    assert extraction.sorting_usage is None
 
 
 def test_posting_without_bullets_warns_and_skips_the_agent() -> None:

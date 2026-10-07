@@ -51,11 +51,11 @@ def build_gap_analysis_prompt(
     context: GapAnalysisContext,
     today: date,
     *,
-    allow_fact: Callable[[str], bool] | None = None,
+    allow_fact: Callable[[str], object] | None = None,
 ) -> GapAnalysisPrompt:
     """Builds the labeled prompt. `today` lets the model count years for ongoing roles.
-    `allow_fact` screens each library fact (requirement and response together); None keeps
-    every fact, which is what the evals do."""
+    `allow_fact` screens each library fact (requirement and response together). It may return
+    a bool or an outcome with `allowed` and `too_long`. None keeps every fact (evals)."""
     kept_facts, warnings = select_screened_facts(context.career_library.facts, allow_fact)
     screened = context.model_copy(deep=True)
     screened.career_library.facts = kept_facts

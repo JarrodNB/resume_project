@@ -42,9 +42,10 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   AI-assisted rewriting of career library entries. Gap analysis doesn't ask questions.
   Tailoring pauses once per section in ordinary code (the same task is requeued); it does
   not use `ask_user`.
-- **User-written text is screened by Jev before it enters a prompt** (`screening/`). A missing
-  `TYPESAFE_API_KEY` or a Jev error omits the text. Career-library entries copied from a
-  resume are not screened. Jev usage is reported on the task result.
+- **User-written text is screened by Jev before it enters a prompt** (`screening/`), including
+  an uploaded resume before it is parsed. A missing `TYPESAFE_API_KEY` or a Jev error omits
+  the text; a blocked resume fails the import. Career-library entries copied from a resume
+  are not screened again. Jev usage is reported on the task result.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
@@ -86,8 +87,11 @@ Every function and class gets a docstring describing what it does.
   embeddings Rails writes
 - `gap_analysis/` — gap analysis prompt building (short labels), output checks, copying
   evidence text from the library, and screening library facts before they enter the prompt
+- `text_limits.py` — character caps checked before Jev and generative runs (the same numbers
+  Rails stores in `TextLimits`)
 - `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for
-  obvious instruction overrides
+  obvious instruction overrides. A string over the screen cap is rejected before the call
+  (`too_long`)
 - `tailoring/` — section order, retrieval, labeled sources, the section prompt, the
   faithfulness check, and turning the agent's draft into resume section JSON
 - `documents/` — PDF/DOCX text extraction

@@ -9,6 +9,7 @@ Index:
     - handle_tailor_resume_task: one step of the loop (screen, write, or finish)
 """
 
+import text_limits
 from agents.resume_tailoring_agent import write_resume_section
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.tailored_section import ChosenEntry, TailoredSectionDraft
@@ -44,11 +45,11 @@ def handle_tailor_resume_task(task: AiTaskMessage, dependencies: TaskDependencie
         return failed_result(task, JOB_NOT_FOUND_MESSAGE)
     usage: list[ModelUsage] = []
     warnings: list[str] = []
-    approved, blocked_content = apply_pending(data, dependencies, usage)
+    approved, blocked_content, length_message = apply_pending(data, dependencies, usage)
     if blocked_content is not None:
         return pause_for_section(
             task, data, approved, blocked_content, usage, warnings,
-            blocked=True, message=SECTION_BLOCKED_MESSAGE,
+            blocked=True, message=length_message or SECTION_BLOCKED_MESSAGE,
         )
     return _write_or_finish(task, data, context, approved, usage, warnings, dependencies)
 
@@ -138,6 +139,8 @@ def _write_section(
         write_anyway=force and data.pending_section.section_type == section_type,
         gap_analysis=data.gap_analysis,
     )
+    if text_limits.prompt_is_too_long(prompt.text):
+        return failed_result(task, text_limits.TAILOR_PROMPT_TOO_LONG_MESSAGE, usage, data.generation)
     settings = dependencies.settings
     run = write_resume_section(
         prompt,

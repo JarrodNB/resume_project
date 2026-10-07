@@ -18,6 +18,10 @@ class Job < ApplicationRecord
   enum :stage, STAGES.index_with(&:itself), validate: true
 
   validates :title, :company, presence: true
+  validates :title, :company, :location, :url, length: { maximum: TextLimits::SHORT }
+  validates :description, length: { maximum: TextLimits::JOB_DESCRIPTION }
+  validates :notes, length: { maximum: TextLimits::PROSE }
+  validate :requirement_lists_within_limits
 
   # Returns the newest gap analysis task for this job, or nil.
   def latest_gap_analysis
@@ -27,5 +31,26 @@ class Job < ApplicationRecord
   # Returns the newest tailor_resume task for this job, or nil.
   def latest_tailoring
     ai_tasks.tailor_resume.order(created_at: :desc).first
+  end
+
+  private
+
+  # Caps how many requirements each list holds and how long each item is.
+  def requirement_lists_within_limits
+    limit_list(:requirements, "requirement", "requirements")
+    limit_list(:nice_to_haves, "nice-to-have", "nice-to-haves")
+  end
+
+  # Adds a base error when the list is too long or an item exceeds a bullet.
+  def limit_list(attribute, singular, plural)
+    values = public_send(attribute)
+    return unless values.is_a?(Array)
+
+    if values.size > TextLimits::MAX_REQUIREMENTS
+      errors.add(:base, "You can save up to #{TextLimits::MAX_REQUIREMENTS} #{plural}")
+    end
+    return unless values.any? { |item| item.to_s.length > TextLimits::BULLET }
+
+    errors.add(:base, "A #{singular} is too long (maximum is #{TextLimits::BULLET} characters)")
   end
 end

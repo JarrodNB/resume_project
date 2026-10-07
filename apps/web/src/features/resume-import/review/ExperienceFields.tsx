@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { DateRangeFields } from './DateRangeFields'
 import { HighlightsField } from './HighlightsField'
 import type { DraftExperience } from './reviewDraft'
+import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { TextField } from './TextField'
 
 interface ExperienceFieldsProps {
@@ -26,9 +27,9 @@ export function ExperienceFields({ experience, onChange }: ExperienceFieldsProps
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="Title" required value={experience.title} onChange={(value) => set('title', value ?? '')} />
-        <TextField label="Company" required value={experience.company} onChange={(value) => set('company', value ?? '')} />
-        <TextField label="Location" value={experience.location} onChange={(value) => set('location', value)} />
+        <TextField label="Title" required maxLength={SHORT_TEXT} value={experience.title} onChange={(value) => set('title', value ?? '')} />
+        <TextField label="Company" required maxLength={SHORT_TEXT} value={experience.company} onChange={(value) => set('company', value ?? '')} />
+        <TextField label="Location" maxLength={SHORT_TEXT} value={experience.location} onChange={(value) => set('location', value)} />
         <DateRangeFields
           startDate={experience.start_date}
           endDate={experience.end_date}
@@ -44,7 +45,7 @@ export function ExperienceFields({ experience, onChange }: ExperienceFieldsProps
         />
         <Label htmlFor={currentRoleId}>I currently work here</Label>
       </div>
-      <TextField label="Description" multiline value={experience.description} onChange={(value) => set('description', value)} />
+      <TextField label="Description" multiline maxLength={PROSE_TEXT} value={experience.description} onChange={(value) => set('description', value)} />
       <HighlightsField
         experienceKey={experience.key}
         highlights={experience.highlights}

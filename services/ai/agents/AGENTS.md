@@ -8,6 +8,8 @@ instructions from `prompts/`.
 ## Contents
 
 - `resume_parsing_agent.py` — resume text -> `ParsedResume`;
+  `format_resume_user_prompt` fences the file as data and neutralizes a resume tag even
+  when it contains a space or a newline;
   `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
 - `job_requirements_sorting_agent.py` — numbered job posting bullets ->

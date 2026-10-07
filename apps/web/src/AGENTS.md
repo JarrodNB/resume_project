@@ -29,7 +29,8 @@ Source of the web app, organized by feature.
   401 handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
   (friendly message for HTTP 429 rate limiting); `generated/` is
   GraphQL Code Generator output (don't edit)
-- `lib/` — `productName.ts` (product name; localStorage keys are derived from it), `apiConfig.ts` (API URLs), `colorTheme.ts` (light/dark preference in localStorage,
+- `lib/` — `productName.ts` (product name; localStorage keys are derived from it), `textLimits.ts`
+  (character caps matching Rails `TextLimits`), `apiConfig.ts` (API URLs), `colorTheme.ts` (light/dark preference in localStorage,
   falling back to the system setting), `openSections.ts` (which page sections are open, also
   in localStorage; missing ids stay collapsed), `formatDateRange.ts`, `utils.ts` (shadcn `cn`)
 - `test/` — Vitest setup, `renderPage` helper, synthetic fixtures

@@ -10,6 +10,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { JOB_DESCRIPTION_TEXT, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { jobAttributes, type JobDraft } from './jobFormValues'
 import { CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
 import { StringListField } from './StringListField'
@@ -73,12 +74,12 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
             void submit()
           }}
         >
-          <JobField label="Title" value={title} onChange={setTitle} required />
-          <JobField label="Company" value={company} onChange={setCompany} required />
-          <JobField label="Location" value={location} onChange={setLocation} />
-          <JobField label="Link" value={url} onChange={setUrl} type="url" />
-          <JobField label="Notes" value={notes} onChange={setNotes} multiline />
-          <JobField label="Description" value={description} onChange={setDescription} multiline />
+          <JobField label="Title" value={title} onChange={setTitle} required maxLength={SHORT_TEXT} />
+          <JobField label="Company" value={company} onChange={setCompany} required maxLength={SHORT_TEXT} />
+          <JobField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
+          <JobField label="Link" value={url} onChange={setUrl} type="url" maxLength={SHORT_TEXT} />
+          <JobField label="Notes" value={notes} onChange={setNotes} multiline maxLength={PROSE_TEXT} />
+          <JobField label="Description" value={description} onChange={setDescription} multiline maxLength={JOB_DESCRIPTION_TEXT} />
           <StringListField legend="Requirements" addLabel="Add requirement" itemLabel="Requirement" items={requirements} onChange={setRequirements} />
           <StringListField legend="Nice to have" addLabel="Add nice to have" itemLabel="Nice to have" items={niceToHaves} onChange={setNiceToHaves} />
           <ErrorAlert title="Couldn't save" messages={errors} />
@@ -106,6 +107,7 @@ function JobField({
   required,
   multiline,
   type = 'text',
+  maxLength,
 }: {
   label: string
   value: string
@@ -113,12 +115,14 @@ function JobField({
   required?: boolean
   multiline?: boolean
   type?: 'text' | 'url'
+  maxLength?: number
 }) {
   const id = useId()
   const shared = {
     id,
     value,
     required,
+    maxLength,
     onChange: (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onChange(event.target.value),
   }
   return (

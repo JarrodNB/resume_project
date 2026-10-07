@@ -10,6 +10,7 @@ import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableGroupId, sortableId } from '@/components/dnd/moveItems'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { BULLET_TEXT } from '@/lib/textLimits'
 import { withDraftKey, type DraftHighlight } from './reviewDraft'
 import { HIGHLIGHT_TYPE } from './useReviewDragHandlers'
 
@@ -49,6 +50,7 @@ export function HighlightsField({ experienceKey, highlights, onChange }: Highlig
                 <Textarea
                   aria-label={`Highlights ${index + 1}`}
                   rows={2}
+                  maxLength={BULLET_TEXT}
                   value={highlight.text}
                   onChange={(event) => replaceTextAt(index, event.target.value)}
                 />

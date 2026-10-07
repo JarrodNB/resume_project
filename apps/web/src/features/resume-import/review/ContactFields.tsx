@@ -3,6 +3,7 @@
  * Index:
  *   - ContactFields: name, email, phone, location, and links
  */
+import { SHORT_TEXT } from '@/lib/textLimits'
 import type { ParsedContactInfo } from '../parsedResume'
 import { StringListField } from './StringListField'
 import { TextField } from './TextField'
@@ -20,12 +21,12 @@ export function ContactFields({ contact, onChange }: ContactFieldsProps) {
   return (
     <div className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <TextField label="Full name" value={contact.full_name} onChange={(value) => set('full_name', value)} />
-        <TextField label="Email" value={contact.email} onChange={(value) => set('email', value)} />
-        <TextField label="Phone" value={contact.phone} onChange={(value) => set('phone', value)} />
-        <TextField label="Location" value={contact.location} onChange={(value) => set('location', value)} />
+        <TextField label="Full name" maxLength={SHORT_TEXT} value={contact.full_name} onChange={(value) => set('full_name', value)} />
+        <TextField label="Email" maxLength={SHORT_TEXT} value={contact.email} onChange={(value) => set('email', value)} />
+        <TextField label="Phone" maxLength={SHORT_TEXT} value={contact.phone} onChange={(value) => set('phone', value)} />
+        <TextField label="Location" maxLength={SHORT_TEXT} value={contact.location} onChange={(value) => set('location', value)} />
       </div>
-      <StringListField label="Links" values={contact.links} onChange={(links) => set('links', links)} addLabel="Add link" />
+      <StringListField label="Links" maxLength={SHORT_TEXT} values={contact.links} onChange={(links) => set('links', links)} addLabel="Add link" />
     </div>
   )
 }

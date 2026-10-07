@@ -15,6 +15,7 @@ from pydantic_ai.messages import ModelMessage, ModelResponse, RetryPromptPart, T
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.models.test import TestModel
 
+import text_limits
 from agents.gap_analysis_agent import gap_analysis_agent
 from schemas.gap_analysis import GapAnalysisResult
 from schemas.gap_analysis_context import LibraryFact
@@ -162,6 +163,27 @@ def test_fails_when_the_job_has_no_requirements(
     result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
 
     assert result.error_message == NO_REQUIREMENTS_MESSAGE
+
+
+def test_fails_when_the_prompt_is_too_long(
+    task_dependencies: TaskDependencies,
+    fake_context_reader: FakeGapAnalysisContextReader,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An assembled prompt over the cap fails before the agent runs."""
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
+    monkeypatch.setattr("worker.analyze_gaps_handler.text_limits.prompt_is_too_long", lambda _text: True)
+
+    def refuse_agent(*_args: object, **_kwargs: object) -> None:
+        """A call here would mean the oversized prompt was sent."""
+        raise AssertionError("the gap agent was called")
+
+    monkeypatch.setattr("worker.analyze_gaps_handler.analyze_gaps", refuse_agent)
+
+    result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
+
+    assert result.status == "failed"
+    assert result.error_message == text_limits.GAP_PROMPT_TOO_LONG_MESSAGE
 
 
 def test_omits_a_blocked_library_fact_and_reports_jev_usage(

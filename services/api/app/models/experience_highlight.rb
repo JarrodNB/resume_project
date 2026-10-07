@@ -2,5 +2,5 @@
 class ExperienceHighlight < ApplicationRecord
   belongs_to :experience
 
-  validates :content, presence: true
+  validates :content, presence: true, length: { maximum: TextLimits::BULLET }
 end

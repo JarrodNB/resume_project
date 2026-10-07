@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { CREATE_LIBRARY_FACT_MUTATION, UPDATE_LIBRARY_FACT_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
+import { BULLET_TEXT, PROSE_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
 import type { LibraryFact } from './FactList'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
@@ -47,8 +48,8 @@ function FactForm({ fact, onClose }: { fact: LibraryFact | null; onClose: () => 
       busy={busy}
       errors={errors}
     >
-      <LibraryField label="Requirement" required value={requirement} onChange={setRequirement} />
-      <LibraryField label="Response" required multiline value={response} onChange={setResponse} />
+      <LibraryField label="Requirement" required value={requirement} onChange={setRequirement} maxLength={BULLET_TEXT} />
+      <LibraryField label="Response" required multiline value={response} onChange={setResponse} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )
 }

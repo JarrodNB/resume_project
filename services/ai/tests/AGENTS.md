@@ -28,6 +28,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_split_description_sections.py` — heading classification, bullet filing, plain-text
   description
 - `test_extract_job_posting.py` — headings vs sorting-agent fallback, bullet-number mapping
+- `test_posting_from_parsed_job.py` — pasted-ad span checks and the posting builder
+- `test_parse_job_posting_handler.py` — parse_job_posting with the screen and agent mocked
+- `test_job_posting_parse_evaluators.py` — pasted-ad eval labels score 1.0
 - `test_scrape_job_handler.py` — scrape_job end to end against a fake LinkedIn (sorting agent on
   `TestModel`), unsupported URLs, 404, unreadable page, 429/5xx/999 propagate
 - `test_job_posting_extraction_evaluators.py` — eval labels score 1.0; heading-labelled cases

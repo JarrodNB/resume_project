@@ -12,8 +12,9 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `subscription_type.rb`; `me { aiUsage }` (`ai_usage_type.rb`) is this month's AI spend vs budget
 - `mutations/` — one file per mutation, grouped by domain (`mutations/jobs/create_job.rb`);
   `mutations/resume_imports/` has `parseResume` (file upload) and `importParsedResume`;
-  `mutations/jobs/scrape_job.rb` (`scrapeJob(url)`) queues scraping, and the task's
-  `job` field (`types/ai_task_type.rb`) is the saved Job once it completes;
+  `mutations/jobs/scrape_job.rb` (`scrapeJob(url)`) queues scraping, and
+  `mutations/jobs/parse_job_posting.rb` (`parseJobPosting(text)`) queues a pasted ad; the task's
+  `job` field (`types/ai_task_type.rb`) is the saved Job once either completes;
   `mutations/gap_analysis/analyze_job_gaps.rb` (`analyzeJobGaps(jobId)`) queues a gap analysis,
   and `Job.latestGapAnalysis` (`types/job_type.rb`) is the job's newest analyze_gaps task;
   `mutations/resume_tailoring/` has `startResumeTailoring(jobId)`,

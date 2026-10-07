@@ -2,9 +2,10 @@
 
 ## Purpose
 
-Site-independent processing of a scraped job posting (`scrapers.job_page.JobPage`): plain-text
-description and requirement / nice-to-have bullets. Deterministic, except for the optional
-bullet-sorting fallback, which is passed in as a function.
+Site-independent processing of a job posting: plain-text description and requirement /
+nice-to-have bullets from scraped HTML, and the same ScrapedJobPosting built from a pasted ad.
+Deterministic, except for the optional bullet-sorting fallback and the pasted-ad parse, which
+are passed in or live in `agents/`.
 
 ## Contents
 
@@ -12,6 +13,9 @@ bullet-sorting fallback, which is passed in as a function.
 - `split_description_sections.py` — files each `<li>` under the nearest heading
   (`<h1>`-`<h6>`, an all-bold paragraph, or a short paragraph ending in ":"), classified as
   requirements, nice-to-haves, or other by keyword
+- `find_parsed_job_problems.py` — title, company, and bullets must appear in a pasted ad
+- `posting_from_parsed_job.py` — `ParsedJobPosting` -> `ScrapedJobPosting` (the paste is the
+  description; a location or link that is not in the ad is dropped with a warning)
 - `extract_job_posting.py` — `extract_job_posting(page, sort_bullets)` -> `ScrapedJobPosting`;
   calls `sort_bullets` (the job requirements sorting agent) only when no requirement heading
   matched but bullets exist, and skips it when there are more than 200 bullets or 40,000
@@ -23,8 +27,9 @@ bullet-sorting fallback, which is passed in as a function.
 
 ## Local Rules
 
-- Requirements and nice-to-haves are always bullets copied verbatim from the posting. The LLM
-  may only choose among them by number.
+- Requirements and nice-to-haves are always bullets copied verbatim from the posting. For a
+  scraped page the LLM may only choose among them by number. For a pasted ad the parse agent
+  copies spans, and `find_parsed_job_problems` rejects any that are not in the text.
 - When a real posting is split wrongly, add a synthetic case for it to
   `evals/datasets/job_posting_extraction_cases.yaml` and a unit test, then adjust the heading
   keywords.

@@ -18,8 +18,11 @@ All business logic, as service objects grouped by domain folder.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
-  `scrape_job`); `create_job_from_scraped_posting_service.rb` (saves the Job from a
-  `ScrapedJobPosting` with the task's canonical URL; reuses the user's Job for the same URL)
+  `scrape_job`);   `create_job_from_scraped_posting_service.rb` (saves the Job from a
+  `ScrapedJobPosting` with the task's canonical URL; reuses the user's Job for the same URL);
+  `start_job_posting_parse_service.rb` (rejects a blank or oversized paste, enqueues
+  `parse_job_posting`); `create_job_from_pasted_posting_service.rb` (saves that result; a blank
+  link is nil and is not used to find an existing job; a present link reuses the user's Job)
 - `gap_analysis/start_gap_analysis_service.rb` — checks the job has requirements, the career
   library isn't empty, and no analysis for this job is already running (within the in-flight
   window), then enqueues `analyze_gaps` with the job as task `subject`; the result stays on the

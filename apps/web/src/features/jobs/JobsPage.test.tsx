@@ -43,6 +43,7 @@ it('invites the user to add a job when there are none', async () => {
 
   expect(await screen.findByText(/No jobs yet/)).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Add job from link' })).toHaveAttribute('href', '/jobs/new')
+  expect(screen.getByRole('link', { name: 'Paste a job ad' })).toHaveAttribute('href', '/jobs/paste')
 })
 
 it('adds a job manually and opens it', async () => {

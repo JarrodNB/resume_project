@@ -64,6 +64,16 @@ Per task type:
   (`Jobs::CreateJobFromScrapedPostingService`, `url` = the canonical link) inside the same row lock,
   links it as the task's `subject` (GraphQL `AiTask.job`), and fails the task instead if the
   Job can't be saved. Usage is reported only when the sorting agent ran.
+- `parse_job_posting`: input `{text}` (the pasted advertisement, stripped, at most 20,000
+  characters; `Jobs::StartJobPostingParseService` rejects a blank or longer paste). The worker
+  screens the text with Jev, then a Pydantic AI agent copies the title, company, optional
+  location and link, and requirement lines. Title, company, and every bullet must appear in the
+  paste; location or a link that does not is dropped with a warning. The description saved on
+  the job is the paste itself. The completed result is `{scraped_job: ScrapedJobPosting}` with
+  `source` `pasted_text`. `ApplyAiResultService` saves it
+  (`Jobs::CreateJobFromPastedPostingService`; `url` is the posting's `source_url`, or nil) inside
+  the same row lock, links it as the task's `subject`, and fails the task instead if the Job
+  can't be saved. A blank url is not matched against other jobs that have no link.
 - `analyze_gaps`: input `{job_id}`; the task's `subject` is the Job. The worker reads the job
   and the user's career library itself (read-only `ai_reader` role, scoped by the message's
   `user_id`), so the input stays tiny and the analysis always uses the current library. The

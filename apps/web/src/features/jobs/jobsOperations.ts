@@ -4,6 +4,7 @@
  *   - JOBS_QUERY: the user's jobs, newest first
  *   - JOB_QUERY: one job with its description, requirements, notes, gap responses, and latest gap analysis
  *   - SCRAPE_JOB_MUTATION: starts a scrape_job AI task for a job posting URL
+ *   - PARSE_JOB_POSTING_MUTATION: starts a parse_job_posting AI task for a pasted ad
  *   - CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION: manual add and edit
  *   - MOVE_JOB_TO_STAGE_MUTATION: application stage, including the first applied date
  *   - DELETE_JOB_MUTATION: removes the job; a tailored resume stays, unlinked
@@ -98,6 +99,18 @@ export const DELETE_JOB_MUTATION = graphql(`
 export const SCRAPE_JOB_MUTATION = graphql(`
   mutation ScrapeJob($url: String!) {
     scrapeJob(input: { url: $url }) {
+      aiTask {
+        id
+        status
+      }
+      errors
+    }
+  }
+`)
+
+export const PARSE_JOB_POSTING_MUTATION = graphql(`
+  mutation ParseJobPosting($text: String!) {
+    parseJobPosting(input: { text: $text }) {
       aiTask {
         id
         status

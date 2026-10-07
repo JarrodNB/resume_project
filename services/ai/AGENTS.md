@@ -2,7 +2,7 @@
 
 ## Purpose
 
-All LLM work: resume parsing, job URL scraping into structured profiles, gap analysis,
+All LLM work: resume parsing, job URL scraping and pasted job ads into structured profiles, gap analysis,
 resume tailoring, and long-term user memory. Traced in Langfuse.
 
 ## Stack
@@ -75,10 +75,11 @@ Every function and class gets a docstring describing what it does.
 
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
   clients, Langfuse tracing (see `worker/AGENTS.md`)
-- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `job_requirements_sorting_agent.py`,
+- `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
+  `job_requirements_sorting_agent.py`,
   `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`)
 - `prompts/` — agent instructions
-- `schemas/` — structured output models (`ParsedResume`, `ScrapedJobPosting`,
+- `schemas/` — structured output models (`ParsedResume`, `ParsedJobPosting`, `ScrapedJobPosting`,
   `SortedRequirementBullets`, `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and
   `LibrarySearchMatch` (a similarity search hit)
 - `database/` — read-only Postgres access (`ai_reader`): the job and career library for gap

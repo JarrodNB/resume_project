@@ -27,6 +27,12 @@ score attached, so runs can be compared across prompt and model changes.
   `PostingFieldsMatch`
 - `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
   `docker compose run --rm ai python -m evals.run_job_posting_extraction_evals`
+- `datasets/job_posting_parse_cases.yaml` — 4 synthetic pasted ads, hand-labelled title,
+  company, location, and verbatim requirements
+- `job_posting_parse_evaluators.py` — `PastedFieldMatch`, `PastedRequirementMatch`,
+  `PastedVerbatim`
+- `run_job_posting_parse_evals.py` — runner (real parse agent, then the production posting
+  builder): `docker compose run --rm ai python -m evals.run_job_posting_parse_evals`
 - `datasets/gap_analysis_cases.yaml` — 8 synthetic job + career library pairs (strong match,
   obvious gaps, adjacent skills are partial, requirement shown only by a project, synonyms and
   equivalent degree, fewer years than asked, near-empty library, a library fact that closes a
@@ -62,6 +68,7 @@ score attached, so runs can be compared across prompt and model changes.
 
 - All data is synthetic. Never commit real resumes.
 - `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
+  `tests/test_job_posting_parse_evaluators.py`,
   `tests/test_gap_analysis_evaluators.py`, `tests/test_tailoring_evaluators.py`,
   `tests/test_library_retrieval_evaluators.py`, and `tests/test_user_text_screen_evaluators.py`
   check that the hand labels score 1.0 against their own inputs; keep them passing when adding

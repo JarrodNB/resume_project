@@ -1,10 +1,11 @@
 /**
- * Description: Saved jobs list (/jobs), newest first, with ways to add one from a link or by hand.
+ * Description: Saved jobs list (/jobs), newest first, with ways to add one from a link, a pasted
+ * ad, or by hand.
  * Index:
  *   - JobsPage: page component
  */
 import { useState } from 'react'
-import { Link2 } from 'lucide-react'
+import { ClipboardPaste, Link2 } from 'lucide-react'
 import { Link, useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +33,11 @@ export function JobsPage() {
           <Button variant="outline" onClick={() => setAdding(true)}>
             Add manually
           </Button>
+          <Button asChild variant="outline">
+            <Link to="/jobs/paste">
+              <ClipboardPaste /> Paste a job ad
+            </Link>
+          </Button>
           <Button asChild>
             <Link to="/jobs/new">
               <Link2 /> Add job from link
@@ -45,7 +51,7 @@ export function JobsPage() {
       {jobs?.length === 0 && (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            No jobs yet. Paste a job posting link, or add one yourself.
+            No jobs yet. Paste a job ad or a posting link, or add one yourself.
           </CardContent>
         </Card>
       )}

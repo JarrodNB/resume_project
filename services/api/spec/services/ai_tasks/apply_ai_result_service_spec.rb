@@ -153,6 +153,25 @@ RSpec.describe AiTasks::ApplyAiResultService do
     end
   end
 
+  describe "completed parse_job_posting" do
+    let(:ai_task) { create(:ai_task, task_type: "parse_job_posting", input: { "text" => "AI Engineer at Acme" }) }
+    let(:scraped_job) do
+      {
+        "source_url" => "", "title" => "AI Engineer", "company" => "Acme",
+        "description" => "AI Engineer at Acme", "requirements" => [ "Python" ], "nice_to_haves" => []
+      }
+    end
+
+    it "saves the job once, even when the result is redelivered, and links it to the task" do
+      2.times { described_class.call(message: result_message("completed", result: { "scraped_job" => scraped_job })) }
+
+      job = ai_task.user.jobs.sole
+      expect(job).to have_attributes(title: "AI Engineer", url: nil, requirements: [ "Python" ])
+      expect(ai_task.reload).to be_completed
+      expect(ai_task.subject).to eq(job)
+    end
+  end
+
   it "rejects an unknown status" do
     result = described_class.call(message: result_message("exploded"))
 

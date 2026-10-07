@@ -1,13 +1,14 @@
 # Description: One unit of AI work sent to the worker over SQS, and its outcome.
 # Index:
-#   - TASK_TYPES / task_type enum: parse_resume, scrape_job, analyze_gaps, tailor_resume
+#   - TASK_TYPES / task_type enum: parse_resume, scrape_job, parse_job_posting, analyze_gaps,
+#     tailor_resume
 #   - STATUSES / status enum: queued, needs_user_input, completed, failed
 #   - source_file: the uploaded file a task reads (e.g. the resume for parse_resume)
 #   - finished?: true once completed or failed (later results for it are ignored)
 #   - accepted?: true once the user has accepted the result into their data
 #   - generation / usage_generation: the tailor step in progress, and the step already billed
 class AiTask < ApplicationRecord
-  TASK_TYPES = %w[parse_resume scrape_job analyze_gaps tailor_resume].freeze
+  TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
 
   belongs_to :user

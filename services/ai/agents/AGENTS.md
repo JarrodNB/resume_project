@@ -12,6 +12,10 @@ instructions from `prompts/`.
   when it contains a space or a newline;
   `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
+- `parse_job_posting_agent.py` — pasted job ad -> `ParsedJobPosting` (title, company, optional
+  location and url, requirement lines copied from the ad); its output validator retries with
+  `find_parsed_job_problems`; `parse_job_posting(text, model, thinking, timeout_seconds)` returns
+  a `JobPostingParseRun` (`parsed`, `usage`)
 - `job_requirements_sorting_agent.py` — numbered job posting bullets ->
   `SortedRequirementBullets` (bullet numbers only, so wording can't change);
   `sort_job_requirement_bullets(bullets, model, thinking, timeout_seconds)` returns a

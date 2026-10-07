@@ -1,0 +1,134 @@
+# Description: Hand-labelled eval cases for parsing a pasted job advertisement. All ads are
+# synthetic. `inputs.text` is the paste. `expected_output` is the ScrapedJobPosting the handler
+# should save (description is the paste, requirements copied word for word).
+cases:
+  - name: requirements_and_nice_to_haves
+    inputs:
+      text: |
+        AI Engineer
+        Northwind Payments — Seattle, WA
+        https://example.com/jobs/4401
+
+        About the role
+        We are hiring an engineer to build payment agents.
+
+        Requirements
+        - 5 years of Python
+        - Experience with PostgreSQL
+
+        Nice to have
+        - Familiarity with Kafka
+
+        Benefits
+        - Health insurance
+    expected_output:
+      source: pasted_text
+      source_url: https://example.com/jobs/4401
+      title: AI Engineer
+      company: Northwind Payments
+      location: Seattle, WA
+      description: |
+        AI Engineer
+        Northwind Payments — Seattle, WA
+        https://example.com/jobs/4401
+
+        About the role
+        We are hiring an engineer to build payment agents.
+
+        Requirements
+        - 5 years of Python
+        - Experience with PostgreSQL
+
+        Nice to have
+        - Familiarity with Kafka
+
+        Benefits
+        - Health insurance
+      requirements:
+        - 5 years of Python
+        - Experience with PostgreSQL
+      nice_to_haves:
+        - Familiarity with Kafka
+      requirements_sorted_by: llm
+
+  - name: prose_without_requirements
+    inputs:
+      text: |
+        Contoso AI is hiring a Machine Learning Engineer in Austin.
+        You will train ranking models and talk to customers.
+        We offer a competitive salary.
+    expected_output:
+      source: pasted_text
+      source_url: ""
+      title: Machine Learning Engineer
+      company: Contoso AI
+      location: Austin
+      description: |
+        Contoso AI is hiring a Machine Learning Engineer in Austin.
+        You will train ranking models and talk to customers.
+        We offer a competitive salary.
+      requirements: []
+      nice_to_haves: []
+      requirements_sorted_by: none
+
+  - name: must_and_preferred_in_prose
+    inputs:
+      text: |
+        Backend Engineer, Fabrikam
+        Location: Remote
+
+        You must have 4 years of Go.
+        Kubernetes experience is preferred.
+        You will own the billing API.
+    expected_output:
+      source: pasted_text
+      source_url: ""
+      title: Backend Engineer
+      company: Fabrikam
+      location: Remote
+      description: |
+        Backend Engineer, Fabrikam
+        Location: Remote
+
+        You must have 4 years of Go.
+        Kubernetes experience is preferred.
+        You will own the billing API.
+      requirements:
+        - 4 years of Go
+      nice_to_haves:
+        - Kubernetes experience
+      requirements_sorted_by: llm
+
+  - name: link_in_the_footer
+    inputs:
+      text: |
+        Data Analyst at Adventure Works, Portland, OR.
+
+        Requirements
+        - SQL
+        - Experience with spreadsheets
+
+        Apply: https://jobs.example.com/analyst
+    expected_output:
+      source: pasted_text
+      source_url: https://jobs.example.com/analyst
+      title: Data Analyst
+      company: Adventure Works
+      location: Portland, OR
+      description: |
+        Data Analyst at Adventure Works, Portland, OR.
+
+        Requirements
+        - SQL
+        - Experience with spreadsheets
+
+        Apply: https://jobs.example.com/analyst
+      requirements:
+        - SQL
+        - Experience with spreadsheets
+      nice_to_haves: []
+      requirements_sorted_by: llm
+evaluators:
+  - PastedFieldMatch
+  - PastedRequirementMatch
+  - PastedVerbatim

@@ -2,17 +2,23 @@
 
 ## Purpose
 
-Saved jobs: add one from a job posting link (`scrapeJob`, followed live with `aiTaskUpdated`)
-or by hand (`createJob`), list them, and view one. Rails saves a scraped job itself when
-scraping completes; there is no review step. A saved job can be edited, moved between
+Saved jobs: add one from a job posting link (`scrapeJob`), from a pasted advertisement
+(`parseJobPosting`), or by hand (`createJob`), list them, and view one. Both AI paths are
+followed live with `aiTaskUpdated`. Rails saves the job itself when the task completes; there
+is no review step. A saved job can be edited, moved between
 application stages, and deleted.
 
 ## Contents
 
-- `JobsPage.tsx` (`/jobs`) — job list with stage badges, "Add job from link", and "Add manually"
+- `JobsPage.tsx` (`/jobs`) — job list with stage badges, "Paste a job ad", "Add job from link",
+  and "Add manually"
 - `AddJobFromUrlPage.tsx` (`/jobs/new`) — URL form calling `scrapeJob`
-- `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — live status; redirects to the saved job
-  (`aiTask.job`), or shows the scraper's warnings first; failures offer "Try another link"
+- `AddJobFromTextPage.tsx` (`/jobs/paste`) — textarea calling `parseJobPosting`
+- `JobImportTaskPage.tsx` — shared live status for a job import
+- `JobScrapeTaskPage.tsx` (`/jobs/new/:aiTaskId`) — scrape status; redirects to the saved job
+  (`aiTask.job`), or shows warnings first; failures offer "Try another link"
+- `JobPasteTaskPage.tsx` (`/jobs/paste/:aiTaskId`) — paste status; same redirect, failures offer
+  "Try another ad"
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
   card (`features/gap-analysis/`, including gap responses), and `WriteResumeAction.tsx`.
   "Write resume" is always shown and goes to `/jobs/:id/tailor`. A finished comparison goes
@@ -28,9 +34,9 @@ application stages, and deleted.
   optional-comparison confirmation, the resume action, and the collapsible cards
 - `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`,
   `gapResponses`, `resume`, `notes`, and `appliedAt`),
-  `SCRAPE_JOB_MUTATION`, `CREATE_JOB_MUTATION`, `UPDATE_JOB_MUTATION`,
-  `MOVE_JOB_TO_STAGE_MUTATION`, `DELETE_JOB_MUTATION`; hooks `useJobs.ts`
-  (`useJobs`, `useJob`), `useScrapeJob.ts`
+  `SCRAPE_JOB_MUTATION`, `PARSE_JOB_POSTING_MUTATION`, `CREATE_JOB_MUTATION`,
+  `UPDATE_JOB_MUTATION`, `MOVE_JOB_TO_STAGE_MUTATION`, `DELETE_JOB_MUTATION`; hooks `useJobs.ts`
+  (`useJobs`, `useJob`), `useScrapeJob.ts`, `useParseJobPosting.ts`
 - `jobStageLabels.ts` — stage labels; `scrapedJobWarnings.ts` — warnings from
   `result.scraped_job` (mirror of `services/ai/schemas/scraped_job_posting.py`)
 - `*.test.tsx` — list, manual add, edit, stage, delete, URL form, task page states

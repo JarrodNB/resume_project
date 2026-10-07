@@ -8,6 +8,7 @@ Index:
 from collections.abc import Callable
 
 from worker.analyze_gaps_handler import handle_analyze_gaps_task
+from worker.parse_job_posting_handler import handle_parse_job_posting_task
 from worker.parse_resume_handler import handle_parse_resume_task
 from worker.queue_messages import AiResultMessage, AiTaskMessage, TaskType
 from worker.scrape_job_handler import handle_scrape_job_task
@@ -19,6 +20,7 @@ TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
     "parse_resume": handle_parse_resume_task,
     "scrape_job": handle_scrape_job_task,
+    "parse_job_posting": handle_parse_job_posting_task,
     "analyze_gaps": handle_analyze_gaps_task,
     "tailor_resume": handle_tailor_resume_task,
 }

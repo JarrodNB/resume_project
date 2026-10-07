@@ -2,7 +2,7 @@
 
 # Description: Root mutation fields. Each mutation delegates to a service object.
 # Index:
-#   - jobs: createJob, updateJob, moveJobToStage, deleteJob, scrapeJob
+#   - jobs: createJob, updateJob, moveJobToStage, deleteJob, scrapeJob, parseJobPosting
 #   - profile: updateProfile
 #   - experiences: createExperience, updateExperience, deleteExperience, mergeExperiences,
 #     moveExperienceHighlight
@@ -25,6 +25,7 @@ module Types
     field :move_job_to_stage, mutation: Mutations::Jobs::MoveJobToStage
     field :delete_job, mutation: Mutations::Jobs::DeleteJob
     field :scrape_job, mutation: Mutations::Jobs::ScrapeJob
+    field :parse_job_posting, mutation: Mutations::Jobs::ParseJobPosting
 
     field :create_experience, mutation: Mutations::Experiences::CreateExperience
     field :update_experience, mutation: Mutations::Experiences::UpdateExperience

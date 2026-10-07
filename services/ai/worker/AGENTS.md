@@ -19,6 +19,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   whole file), runs the
   resume parsing agent, checks its output with `enforce_source_faithfulness`, reports parsing
   and Jev token usage
+- `parse_job_posting_handler.py` — screens a pasted ad, runs the parse agent, and returns a
+  `ScrapedJobPosting` (description is the paste; title, company, and bullets must appear in it)
 - `scrape_job_handler.py` — picks the site's scraper for the URL, extracts the posting (sorting
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages

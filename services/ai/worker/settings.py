@@ -31,6 +31,9 @@ class WorkerSettings(BaseSettings):
     # Only runs for postings whose headings don't label the requirements.
     job_requirements_sorting_model: str = "openai:gpt-5-mini"
     job_requirements_sorting_thinking: ThinkingEffort = "low"
+    # Copies title, company, and requirement lines out of a pasted job ad.
+    job_posting_parse_model: str = "openai:gpt-5-mini"
+    job_posting_parse_thinking: ThinkingEffort = "low"
     gap_analysis_model: str = "openai:gpt-5-mini"
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. `jev-latest` is the alias; the response

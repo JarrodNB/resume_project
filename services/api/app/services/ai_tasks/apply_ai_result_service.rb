@@ -2,7 +2,7 @@
 # Idempotent: results for a finished (completed/failed) task are ignored, and the row lock
 # stops two copies of the same message from both applying. The message's token usage and cost
 # are stored on the task (they count toward the user's monthly AI budget). A completed scrape_job
-# also saves its Job (Jobs::CreateJobFromScrapedPostingService) in the same locked transaction.
+# or parse_job_posting also saves its Job in the same locked transaction.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
 module AiTasks
@@ -54,16 +54,26 @@ module AiTasks
       end
     end
 
-    # Saves the domain record a completed task produces without user review (only scrape_job so
-    # far) and links it as the task's subject. If it can't be saved, the task fails instead.
+    # Saves the domain record a completed task produces without user review (scrape_job and
+    # parse_job_posting) and links it as the task's subject. If it can't be saved, the task
+    # fails instead.
     def domain_record_attributes(ai_task)
-      return {} unless ai_task.scrape_job?
+      return {} unless ai_task.scrape_job? || ai_task.parse_job_posting?
 
       scraped_job = @message["result"]["scraped_job"] if @message["result"].is_a?(Hash)
-      result = Jobs::CreateJobFromScrapedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
+      result = save_job(ai_task, scraped_job)
       return { subject: result.value } if result.success?
 
       { status: "failed", error_message: "We couldn't save this job: #{result.errors.join(', ')}" }
+    end
+
+    # Turns the worker's posting into a Job. A paste has no canonical link of its own.
+    def save_job(ai_task, scraped_job)
+      if ai_task.parse_job_posting?
+        Jobs::CreateJobFromPastedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
+      else
+        Jobs::CreateJobFromScrapedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
+      end
     end
 
     # True when this result is from an earlier step of a requeued task. Other task types omit

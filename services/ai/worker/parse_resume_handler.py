@@ -26,7 +26,9 @@ from worker.task_dependencies import TaskDependencies
 UNREADABLE_FILE_MESSAGE = (
     "We couldn't read any text from this file. Upload a PDF or DOCX that isn't a scanned image."
 )
-BLOCKED_RESUME_MESSAGE = "This resume was deemed unsafe, so it wasn't imported. Please edit the resume and try again."
+BLOCKED_RESUME_MESSAGE = (
+    "This resume was deemed unsafe, so it wasn't imported. Please edit the resume and try again."
+)
 RESUME_UNCHECKED_MESSAGE = "We couldn't check this resume, so it wasn't imported. Please try again."
 
 
@@ -81,13 +83,14 @@ def handle_parse_resume_task(
         model=model,
         thinking=settings.resume_parsing_thinking,
         timeout_seconds=settings.llm_run_timeout_seconds,
+        fallback_model=settings.generative_fallback_model,
     )
     parsed_resume = enforce_source_faithfulness(parsing_run.parsed_resume, resume_text)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"parsed_resume": parsed_resume.model_dump(mode="json")},
-        usage=[build_model_usage(model, parsing_run.usage), *screen_usage],
+        usage=[build_model_usage(parsing_run.model or model, parsing_run.usage), *screen_usage],
     )
 
 

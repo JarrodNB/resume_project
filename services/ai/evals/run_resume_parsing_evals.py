@@ -15,6 +15,7 @@ from pydantic_evals import Dataset
 
 from agents.resume_parsing_agent import parse_resume_text
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
+from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
 from worker.settings import load_settings
 from worker.tracing import configure_tracing
@@ -45,14 +46,22 @@ def run_resume_parsing_evals() -> None:
             model=model,
             thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         ).parsed_resume
 
     with (
         langfuse.start_as_current_observation(
-            name=TRACE_NAME, metadata={"model": model, "thinking": thinking}
+            name=TRACE_NAME,
+            metadata={
+                "model": model,
+                "thinking": thinking,
+                "prompt_version": RESUME_PARSING_PROMPT_VERSION,
+            },
         ),
         propagate_attributes(
-            trace_name=TRACE_NAME, tags=["eval", "parse_resume", model, f"thinking:{thinking}"]
+            trace_name=TRACE_NAME,
+            version=RESUME_PARSING_PROMPT_VERSION,
+            tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
         ),
     ):
         report = load_resume_parsing_dataset().evaluate_sync(

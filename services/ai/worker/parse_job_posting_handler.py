@@ -22,9 +22,7 @@ from worker.task_dependencies import TaskDependencies
 
 BLOCKED_AD_MESSAGE = "This text was deemed unsafe, so it wasn't used. Edit it and try again."
 UNCHECKED_AD_MESSAGE = "We couldn't check this job ad, so it wasn't used. Please try again."
-COULD_NOT_READ_MESSAGE = (
-    "We couldn't find a job title and company in that text. Paste the full ad, or add the job manually."
-)
+COULD_NOT_READ_MESSAGE = "We couldn't find a job title and company in that text. Paste the full ad, or add the job manually."
 
 
 class ParseJobPostingInput(BaseModel):
@@ -33,7 +31,9 @@ class ParseJobPostingInput(BaseModel):
     text: str
 
 
-def handle_parse_job_posting_task(task: AiTaskMessage, dependencies: TaskDependencies) -> AiResultMessage:
+def handle_parse_job_posting_task(
+    task: AiTaskMessage, dependencies: TaskDependencies
+) -> AiResultMessage:
     """Screens the paste, parses it, and returns a ScrapedJobPosting."""
     try:
         text = ParseJobPostingInput.model_validate(task.input).text.strip()
@@ -44,7 +44,9 @@ def handle_parse_job_posting_task(task: AiTaskMessage, dependencies: TaskDepende
 
     settings = dependencies.settings
     screen = screen_user_text(
-        text, model=settings.user_text_screen_model, timeout_seconds=settings.llm_run_timeout_seconds,
+        text,
+        model=settings.user_text_screen_model,
+        timeout_seconds=settings.llm_run_timeout_seconds,
         check_phrases=False,
     )
     screen_usage = _screen_usage(screen)
@@ -58,19 +60,25 @@ def handle_parse_job_posting_task(task: AiTaskMessage, dependencies: TaskDepende
             model=model,
             thinking=settings.job_posting_parse_thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         )
     except UnexpectedModelBehavior:
         return _failed(task, COULD_NOT_READ_MESSAGE, usage=screen_usage)
 
+    billed = run.model or model
     if find_parsed_job_problems(run.parsed, text):
-        return _failed(task, COULD_NOT_READ_MESSAGE, usage=[build_model_usage(model, run.usage), *screen_usage])
+        return _failed(
+            task,
+            COULD_NOT_READ_MESSAGE,
+            usage=[build_model_usage(billed, run.usage), *screen_usage],
+        )
 
     posting = posting_from_parsed_job(text, run.parsed)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"scraped_job": posting.model_dump(mode="json")},
-        usage=[build_model_usage(model, run.usage), *screen_usage],
+        usage=[build_model_usage(billed, run.usage), *screen_usage],
     )
 
 

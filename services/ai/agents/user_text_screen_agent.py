@@ -14,8 +14,12 @@ from pydantic_ai import Agent
 from pydantic_ai.models.decision import DecisionModelSettings
 from pydantic_ai.usage import RunUsage
 
-from prompts.user_text_screen_instructions import USER_TEXT_SCREEN_INSTRUCTIONS
+from prompts.user_text_screen_instructions import (
+    USER_TEXT_SCREEN_INSTRUCTIONS,
+    USER_TEXT_SCREEN_PROMPT_VERSION,
+)
 from schemas.user_text_screen import UserTextScreen
+from worker.tracing import record_prompt_version
 
 # The default bar. yes_probability() recovers P(yes) from this and the reported margin.
 # screening/yes_confidence.py must use the same value.
@@ -46,11 +50,12 @@ def screen_user_message(text: str, model: str, timeout_seconds: float) -> UserTe
 async def _run_with_deadline(text: str, model: str, timeout_seconds: float) -> UserTextScreenRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(timeout_seconds):
-        result = await user_text_screen_agent.run(
-            text,
-            model=model,
-            model_settings=DecisionModelSettings(decision_boolean_threshold=BOOLEAN_THRESHOLD),
-        )
+        with record_prompt_version(USER_TEXT_SCREEN_PROMPT_VERSION):
+            result = await user_text_screen_agent.run(
+                text,
+                model=model,
+                model_settings=DecisionModelSettings(decision_boolean_threshold=BOOLEAN_THRESHOLD),
+            )
     details = result.response.provider_details or {}
     confidence = details.get("confidence") or {}
     return UserTextScreenRun(

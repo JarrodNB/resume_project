@@ -6,6 +6,7 @@ Index:
     - configure_tracing: creates the Langfuse client and instruments all agents and embedders
       (call once)
     - trace_ai_task: context manager that wraps one task in a trace and flushes it afterwards
+    - record_prompt_version: stamps one prompt's version on the spans created inside it
 """
 
 from collections.abc import Iterator
@@ -47,3 +48,14 @@ def trace_ai_task(task: AiTaskMessage) -> Iterator[None]:
             yield
     finally:
         langfuse.flush()
+
+
+@contextmanager
+def record_prompt_version(version: str) -> Iterator[None]:
+    """Stamps `version` on the Langfuse spans created while this block runs.
+
+    A task can call more than one agent, so the version belongs on that run's spans, not on
+    the whole task. The environment comes from LANGFUSE_TRACING_ENVIRONMENT.
+    """
+    with propagate_attributes(version=version):
+        yield

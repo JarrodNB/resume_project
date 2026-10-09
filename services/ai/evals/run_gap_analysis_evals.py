@@ -19,6 +19,7 @@ from agents.gap_analysis_agent import analyze_gaps
 from evals.gap_analysis_evaluators import GAP_ANALYSIS_EVALUATORS, GapAnalysisLabels
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
+from prompts.gap_analysis_instructions import GAP_ANALYSIS_PROMPT_VERSION
 from schemas.gap_analysis import GapAnalysisResult
 from schemas.gap_analysis_context import GapAnalysisContext
 from worker.settings import load_settings
@@ -50,16 +51,27 @@ def run_gap_analysis_evals() -> None:
         """The task under evaluation."""
         prompt = build_gap_analysis_prompt(context, EVAL_TODAY)
         run = analyze_gaps(
-            prompt, model=model, thinking=thinking, timeout_seconds=settings.llm_run_timeout_seconds
+            prompt,
+            model=model,
+            thinking=thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         )
         return attach_evidence_text(run.gap_analysis, prompt)
 
     with (
         langfuse.start_as_current_observation(
-            name=TRACE_NAME, metadata={"model": model, "thinking": thinking}
+            name=TRACE_NAME,
+            metadata={
+                "model": model,
+                "thinking": thinking,
+                "prompt_version": GAP_ANALYSIS_PROMPT_VERSION,
+            },
         ),
         propagate_attributes(
-            trace_name=TRACE_NAME, tags=["eval", "analyze_gaps", model, f"thinking:{thinking}"]
+            trace_name=TRACE_NAME,
+            version=GAP_ANALYSIS_PROMPT_VERSION,
+            tags=["eval", "analyze_gaps", model, f"thinking:{thinking}"],
         ),
     ):
         report = load_gap_analysis_dataset().evaluate_sync(

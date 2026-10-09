@@ -7,8 +7,11 @@ gap_analysis/build_gap_analysis_prompt.py).
 Output: GapAnalysis (schemas/gap_analysis.py): one assessment per requirement label, citing
 library labels, plus a short summary.
 Index:
+    - GAP_ANALYSIS_PROMPT_VERSION: the version recorded on traces
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
+
+GAP_ANALYSIS_PROMPT_VERSION = "1"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
 You compare a job with a candidate's career library and report, for every requirement,

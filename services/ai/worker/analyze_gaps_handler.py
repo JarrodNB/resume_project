@@ -57,7 +57,9 @@ def handle_analyze_gaps_task(
 
     def allow_fact(text: str) -> ScreenOutcome:
         """Screens one library fact and keeps its Jev usage for the monthly budget."""
-        outcome = _screen_fact(text, settings.user_text_screen_model, settings.llm_run_timeout_seconds)
+        outcome = _screen_fact(
+            text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
+        )
         if outcome.usage is not None and outcome.model is not None:
             screen_usage.append(build_model_usage(outcome.model, outcome.usage))
         return outcome
@@ -77,13 +79,14 @@ def handle_analyze_gaps_task(
         model=model,
         thinking=settings.gap_analysis_thinking,
         timeout_seconds=settings.llm_run_timeout_seconds,
+        fallback_model=settings.generative_fallback_model,
     )
     result = attach_evidence_text(run.gap_analysis, prompt)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"gap_analysis": result.model_dump(mode="json"), "warnings": prompt.warnings},
-        usage=[build_model_usage(model, run.usage), *screen_usage],
+        usage=[build_model_usage(run.model or model, run.usage), *screen_usage],
     )
 
 

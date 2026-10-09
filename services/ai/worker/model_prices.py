@@ -6,6 +6,7 @@ Index:
     - MODEL_PRICES: price table keyed by the Pydantic AI model name (e.g. "openai:gpt-5-mini")
     - estimate_cost_microdollars: cost of one run's usage, in millionths of a dollar
     - build_model_usage: the ModelUsage entry a result message reports for one agent run
+    - reported_model_name: the priced name to bill (the response's model, or the setting)
 """
 
 import math
@@ -34,13 +35,20 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:text-embedding-3-small": ModelPrice(input=0.02, cached_input=0.02, output=0.0),
     # TypeSafe Jev, https://docs.typesafe.ai/models checked 2026-10-05: $0.042 per 1M input
     # tokens ($42 per billion); output is free ("too cheap to meter"). No cached-input rate is
-    # published, so cached input uses the input rate. `jev-latest` pointed at `jev-1.13.0` on
-    # that page. The API reports the versioned id on the response; the worker may report either
-    # name, and both are priced so a run is never recorded as free.
+    # published, so cached input uses the input rate. The worker asks for typesafe:jev-1.13.0.
+    # The API may report that id as jev-1.13.0. `jev-latest` stays priced so an old env override
+    # is not recorded as free.
     "typesafe:jev-latest": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
     "typesafe:jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
     "jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
 }
+
+
+def reported_model_name(response_model_name: str, configured_model: str) -> str:
+    """Bills the version the API named when that name has a price; otherwise the setting."""
+    if response_model_name in MODEL_PRICES:
+        return response_model_name
+    return configured_model
 
 
 def estimate_cost_microdollars(model: str, usage: RunUsage) -> int:

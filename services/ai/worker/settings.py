@@ -2,7 +2,8 @@
 Description: Worker configuration loaded from environment variables.
 Index:
     - WorkerSettings: typed settings for SQS, S3, the read-only database, each agent's model
-      and reasoning effort, and the embedding model for career library search
+      and reasoning effort, the generative fallback model, and the embedding model for career
+      library search
     - load_settings: builds WorkerSettings from the environment
 """
 
@@ -36,12 +37,13 @@ class WorkerSettings(BaseSettings):
     job_posting_parse_thinking: ThinkingEffort = "low"
     gap_analysis_model: str = "openai:gpt-5-mini"
     gap_analysis_thinking: ThinkingEffort = "low"
-    # Jev screens one user-written message at a time. `jev-latest` is the alias; the response
-    # names the version that answered (jev-1.13.0 when this was added). Pin that id here after
-    # the 0.7 yes-confidence bar is tuned on real screens.
-    user_text_screen_model: str = "typesafe:jev-latest"
+    # Jev screens one user-written message at a time. Pinned; there is no generative fallback.
+    user_text_screen_model: str = "typesafe:jev-1.13.0"
     resume_tailoring_model: str = "openai:gpt-5-mini"
     resume_tailoring_thinking: ThinkingEffort = "low"
+    # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.
+    # Output-validation retries stay on the primary. The same name as the primary skips it.
+    generative_fallback_model: str = "openai:gpt-5-nano"
     # Must match Rails (CareerLibraryEmbeddings::MODEL / DIMENSIONS), which embeds the library;
     # a search only matches rows embedded with this model.
     embedding_model: str = "openai:text-embedding-3-small"

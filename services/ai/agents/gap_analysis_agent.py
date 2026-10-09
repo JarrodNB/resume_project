@@ -5,7 +5,7 @@ output validator retries the model until every requirement is assessed once and 
 label exists.
 Index:
     - gap_analysis_agent: the agent (deps: the GapAnalysisPrompt; model and effort chosen per run)
-    - GapAnalysisRun: the validated analysis plus the run's token usage
+    - GapAnalysisRun: the validated analysis, token usage, and the model name to bill
     - analyze_gaps: runs the agent within a time limit
 """
 
@@ -18,8 +18,11 @@ from pydantic_ai.usage import RunUsage
 
 from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt
 from gap_analysis.find_gap_analysis_problems import find_gap_analysis_problems
-from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS
+from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS, GAP_ANALYSIS_PROMPT_VERSION
 from schemas.gap_analysis import GapAnalysis
+from worker.generative_model import generative_model
+from worker.model_prices import reported_model_name
+from worker.tracing import record_prompt_version
 
 gap_analysis_agent = Agent(
     name="gap_analysis_agent",
@@ -45,25 +48,39 @@ class GapAnalysisRun(NamedTuple):
 
     gap_analysis: GapAnalysis
     usage: RunUsage
+    model: str = ""
 
 
 def analyze_gaps(
-    prompt: GapAnalysisPrompt, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    prompt: GapAnalysisPrompt,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> GapAnalysisRun:
     """Runs the agent on a built prompt. Raises TimeoutError if the whole run takes longer than
-    timeout_seconds."""
-    return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds))
+    timeout_seconds. A provider error tries fallback_model."""
+    return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model))
 
 
 async def _run_with_deadline(
-    prompt: GapAnalysisPrompt, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    prompt: GapAnalysisPrompt,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> GapAnalysisRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(timeout_seconds):
-        result = await gap_analysis_agent.run(
-            prompt.text,
-            deps=prompt,
-            model=model,
-            model_settings=ModelSettings(thinking=thinking),
-        )
-    return GapAnalysisRun(gap_analysis=result.output, usage=result.usage)
+        with record_prompt_version(GAP_ANALYSIS_PROMPT_VERSION):
+            result = await gap_analysis_agent.run(
+                prompt.text,
+                deps=prompt,
+                model=generative_model(model, fallback_model),
+                model_settings=ModelSettings(thinking=thinking),
+            )
+    return GapAnalysisRun(
+        gap_analysis=result.output,
+        usage=result.usage,
+        model=reported_model_name(result.response.model_name or model, model),
+    )

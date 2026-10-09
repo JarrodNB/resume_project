@@ -14,6 +14,7 @@ from pydantic_evals import Dataset
 
 from agents.resume_tailoring_agent import write_resume_section
 from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, TailorEvalLabels
+from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
 from schemas.tailored_section import TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from worker.settings import load_settings
@@ -44,12 +45,23 @@ def run_tailoring_evals() -> None:
             case.section_type, case.context, [], [], None, write_anyway=False, gap_analysis=None
         )
         return write_resume_section(
-            prompt, model=model, thinking=thinking, timeout_seconds=settings.llm_run_timeout_seconds
+            prompt,
+            model=model,
+            thinking=thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         ).draft
 
     with (
-        langfuse.start_as_current_observation(name=TRACE_NAME, metadata={"model": model}),
-        propagate_attributes(trace_name=TRACE_NAME, tags=["eval", "tailor_resume", model]),
+        langfuse.start_as_current_observation(
+            name=TRACE_NAME,
+            metadata={"model": model, "prompt_version": RESUME_TAILORING_PROMPT_VERSION},
+        ),
+        propagate_attributes(
+            trace_name=TRACE_NAME,
+            version=RESUME_TAILORING_PROMPT_VERSION,
+            tags=["eval", "tailor_resume", model],
+        ),
     ):
         report = load_tailoring_dataset().evaluate_sync(
             write_case, name=f"tailoring:{model}", max_concurrency=2

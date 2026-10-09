@@ -32,7 +32,7 @@ def build_parse_task(text: str = AD) -> AiTaskMessage:
 def _allow(*_args: object, **_kwargs: object) -> ScreenOutcome:
     """A screen that lets the ad through, with usage to report."""
     return ScreenOutcome(
-        allowed=True, usage=RunUsage(input_tokens=20, output_tokens=5), model="typesafe:jev-latest"
+        allowed=True, usage=RunUsage(input_tokens=20, output_tokens=5), model="typesafe:jev-1.13.0"
     )
 
 
@@ -56,7 +56,9 @@ def test_parse_job_posting_saves_fields_copied_from_the_ad(
 
     def parse(*_args: object, **_kwargs: object) -> JobPostingParseRun:
         """Stands in for the agent."""
-        return JobPostingParseRun(parsed=_parsed(), usage=RunUsage(input_tokens=40, output_tokens=10))
+        return JobPostingParseRun(
+            parsed=_parsed(), usage=RunUsage(input_tokens=40, output_tokens=10)
+        )
 
     monkeypatch.setattr("worker.parse_job_posting_handler.parse_job_posting", parse)
 
@@ -71,7 +73,7 @@ def test_parse_job_posting_saves_fields_copied_from_the_ad(
     assert scraped["source"] == "pasted_text"
     assert [item.model for item in result.usage] == [
         task_dependencies.settings.job_posting_parse_model,
-        "typesafe:jev-latest",
+        "typesafe:jev-1.13.0",
     ]
 
 
@@ -85,7 +87,7 @@ def test_parse_job_posting_fails_when_the_screen_blocks(
         return ScreenOutcome(
             allowed=False,
             usage=RunUsage(input_tokens=100, output_tokens=0),
-            model="typesafe:jev-latest",
+            model="typesafe:jev-1.13.0",
         )
 
     monkeypatch.setattr("worker.parse_job_posting_handler.screen_user_text", block)

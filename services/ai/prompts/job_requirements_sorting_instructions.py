@@ -3,8 +3,11 @@ Description: Instructions for the job requirements sorting agent.
 Input: a job posting's bullet points, numbered from 1 (the user prompt).
 Output: SortedRequirementBullets (schemas/sorted_requirement_bullets.py), bullet numbers only.
 Index:
+    - JOB_REQUIREMENTS_SORTING_PROMPT_VERSION: the version recorded on traces
     - JOB_REQUIREMENTS_SORTING_INSTRUCTIONS: the agent's instructions
 """
+
+JOB_REQUIREMENTS_SORTING_PROMPT_VERSION = "1"
 
 JOB_REQUIREMENTS_SORTING_INSTRUCTIONS = """\
 You sort the bullet points of a job posting. The posting had no clear section headings, so its

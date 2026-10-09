@@ -65,10 +65,15 @@ def handle_scrape_job_task(task: AiTaskMessage, dependencies: TaskDependencies) 
             model=model,
             thinking=settings.job_requirements_sorting_thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         )
 
     extraction = extract_job_posting(page, sort_bullets)
-    usage = [build_model_usage(model, extraction.sorting_usage)] if extraction.sorting_usage else []
+    usage = (
+        [build_model_usage(extraction.sorting_model or model, extraction.sorting_usage)]
+        if extraction.sorting_usage
+        else []
+    )
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",

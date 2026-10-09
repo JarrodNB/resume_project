@@ -123,6 +123,7 @@ services:
       DB_NAME: api_development
       DB_USERNAME: ai_reader
       DB_PASSWORD: ai_reader
+      LANGFUSE_TRACING_ENVIRONMENT: development
     volumes:
       - ./services/ai:/app
     depends_on:

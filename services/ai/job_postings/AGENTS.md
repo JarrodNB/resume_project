@@ -25,7 +25,8 @@ are passed in or live in `agents/`.
   bullet over 1,000 characters, a description over 20,000, a short field over 200) is left out
   and the posting is still
   returned with a warning;
-  `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets
+  `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets. When the sorter ran,
+  `sorting_model` is the name to bill
 
 ## Local Rules
 

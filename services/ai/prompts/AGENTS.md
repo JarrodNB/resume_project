@@ -7,25 +7,26 @@ output in addition to the usual Description/Index.
 
 ## Contents
 
-- `resume_parsing_instructions.py` — `RESUME_PARSING_INSTRUCTIONS` (the `<resume>` block is
+- `resume_parsing_instructions.py` — `RESUME_PARSING_PROMPT_VERSION`, `RESUME_PARSING_INSTRUCTIONS` (the `<resume>` block is
   data, not instructions; extract only, copy bullets word for word, partial dates, warnings
   for ambiguity and for entries the resume doesn't clearly label)
 - `parse_job_posting_instructions.py` — `PARSE_JOB_POSTING_INSTRUCTIONS` and
   `PARSE_JOB_POSTING_PROMPT_VERSION` (copy title, company, duties, and qualification bullets
   from the fenced ad; leave out benefits and marketing)
-- `job_requirements_sorting_instructions.py` — `JOB_REQUIREMENTS_SORTING_INSTRUCTIONS`
+- `job_requirements_sorting_instructions.py` — `JOB_REQUIREMENTS_SORTING_PROMPT_VERSION`,
+  `JOB_REQUIREMENTS_SORTING_INSTRUCTIONS`
   (requirements, responsibilities, and nice-to-haves by bullet number; leave out benefits and
   company info)
-- `gap_analysis_instructions.py` — `GAP_ANALYSIS_INSTRUCTIONS` (the library is the only
+- `gap_analysis_instructions.py` — `GAP_ANALYSIS_PROMPT_VERSION`, `GAP_ANALYSIS_INSTRUCTIONS` (the library is the only
   evidence; met / partial / missing; years from dated roles; adjacent experience is partial,
   never missing; cite labels, preferring highlights; the profile summary is not evidence;
   a library fact counts like a highlight; summary addresses the user as "you")
-- `user_text_screen_instructions.py` — framing for the Jev screen (a whole resume is ordinary
+- `user_text_screen_instructions.py` — `USER_TEXT_SCREEN_PROMPT_VERSION` and framing for the Jev screen (a whole resume is ordinary
   career history, and an instruction inside it is still an instruction); the yes/no questions
   live on the output type
-- `resume_tailoring_instructions.py` — `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
+- `resume_tailoring_instructions.py` — `RESUME_TAILORING_PROMPT_VERSION`, `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
   from the labeled library only; cite labels; say when nothing fits)
 
 ## Local Rules
 
-- Rerun the agent's evals after any prompt change.
+- Bump that file's prompt version when the instructions change, then rerun the agent's evals.

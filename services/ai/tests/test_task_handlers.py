@@ -195,7 +195,7 @@ def test_parse_resume_fails_when_the_screen_blocks(
         return ScreenOutcome(
             allowed=False,
             usage=RunUsage(input_tokens=100, output_tokens=0),
-            model="typesafe:jev-latest",
+            model="typesafe:jev-1.13.0",
         )
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", block)
@@ -207,7 +207,7 @@ def test_parse_resume_fails_when_the_screen_blocks(
     assert result.error_message == BLOCKED_RESUME_MESSAGE
     assert messages == []
     [screen_usage] = result.usage
-    assert screen_usage.model == "typesafe:jev-latest"
+    assert screen_usage.model == "typesafe:jev-1.13.0"
     assert screen_usage.input_tokens == 100
 
 
@@ -248,7 +248,7 @@ def test_parse_resume_reports_screen_usage_when_allowed(
         return ScreenOutcome(
             allowed=True,
             usage=RunUsage(input_tokens=40, output_tokens=0),
-            model="typesafe:jev-latest",
+            model="typesafe:jev-1.13.0",
         )
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", allow)
@@ -259,7 +259,7 @@ def test_parse_resume_reports_screen_usage_when_allowed(
     assert result.status == "completed"
     assert [item.model for item in result.usage] == [
         task_dependencies.settings.resume_parsing_model,
-        "typesafe:jev-latest",
+        "typesafe:jev-1.13.0",
     ]
 
 

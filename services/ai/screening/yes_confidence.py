@@ -10,7 +10,7 @@ Index:
 
 from schemas.user_text_screen import UserTextScreen
 
-# Starting bar, recorded so it can be tuned. Pin user_text_screen_model once it is tuned.
+# Starting bar, recorded so it can be tuned. The screen model is pinned in WorkerSettings.
 YES_CONFIDENCE_THRESHOLD = 0.7
 _FIELDS = ("prompt_injection", "harmful_request")
 
@@ -32,7 +32,9 @@ def blocks_on_yes_confidence(
         margin = confidence.get(field)
         if margin is None:
             return True
-        probability = yes_probability(getattr(screen, field), margin, boolean_threshold=boolean_threshold)
+        probability = yes_probability(
+            getattr(screen, field), margin, boolean_threshold=boolean_threshold
+        )
         if probability >= YES_CONFIDENCE_THRESHOLD:
             return True
     return False

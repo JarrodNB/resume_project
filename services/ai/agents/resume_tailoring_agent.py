@@ -3,7 +3,7 @@ Description: Pydantic AI agent that writes one resume section from labeled sourc
 validator retries until the section cites real labels and doesn't name unsupported claims.
 Index:
     - resume_tailoring_agent: the agent (deps: the SectionPrompt; model chosen per run)
-    - TailoringRun: the checked draft plus token usage
+    - TailoringRun: the checked draft, token usage, and the model name to bill
     - write_resume_section: runs the agent within a time limit
 """
 
@@ -14,10 +14,16 @@ from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 
-from prompts.resume_tailoring_instructions import RESUME_TAILORING_INSTRUCTIONS
+from prompts.resume_tailoring_instructions import (
+    RESUME_TAILORING_INSTRUCTIONS,
+    RESUME_TAILORING_PROMPT_VERSION,
+)
 from schemas.tailored_section import TailoredSectionDraft
 from tailoring.build_section_prompt import SectionPrompt
 from tailoring.check_section_faithfulness import find_section_problems
+from worker.generative_model import generative_model
+from worker.model_prices import reported_model_name
+from worker.tracing import record_prompt_version
 
 resume_tailoring_agent = Agent(
     name="resume_tailoring_agent",
@@ -45,24 +51,39 @@ class TailoringRun(NamedTuple):
 
     draft: TailoredSectionDraft
     usage: RunUsage
+    model: str = ""
 
 
 def write_resume_section(
-    prompt: SectionPrompt, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    prompt: SectionPrompt,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> TailoringRun:
-    """Writes one section. Raises TimeoutError if the run exceeds timeout_seconds."""
-    return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds))
+    """Writes one section. Raises TimeoutError if the run exceeds timeout_seconds.
+    A provider error tries fallback_model."""
+    return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model))
 
 
 async def _run_with_deadline(
-    prompt: SectionPrompt, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    prompt: SectionPrompt,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> TailoringRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(timeout_seconds):
-        result = await resume_tailoring_agent.run(
-            prompt.text,
-            deps=prompt,
-            model=model,
-            model_settings=ModelSettings(thinking=thinking),
-        )
-    return TailoringRun(draft=result.output, usage=result.usage)
+        with record_prompt_version(RESUME_TAILORING_PROMPT_VERSION):
+            result = await resume_tailoring_agent.run(
+                prompt.text,
+                deps=prompt,
+                model=generative_model(model, fallback_model),
+                model_settings=ModelSettings(thinking=thinking),
+            )
+    return TailoringRun(
+        draft=result.output,
+        usage=result.usage,
+        model=reported_model_name(result.response.model_name or model, model),
+    )

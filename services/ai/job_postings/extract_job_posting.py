@@ -3,9 +3,9 @@ Description: Builds a ScrapedJobPosting from a scraped JobPage. Requirements com
 posting's headings; only when no requirement heading matches does the sorting agent pick among the
 posting's bullets, by number, so every requirement is still copied verbatim.
 Index:
-    - BulletSortingRun: the sorting agent's choice plus its token usage
+    - BulletSortingRun: the sorting agent's choice, its token usage, and the model name to bill
     - BulletSorter: function that sorts numbered bullets (the agent in production, fakes in tests)
-    - JobPostingExtraction: the posting plus the sorting run's usage (None when no LLM ran)
+    - JobPostingExtraction: the posting, the sorting run's usage, and the model billed for it
     - extract_job_posting: JobPage -> JobPostingExtraction
     - fit_posting_to_saved_limits: drops text Rails would refuse, and says so
     - pick_sorted_bullets: maps the agent's bullet numbers back to bullets, dropping invalid ones
@@ -34,20 +34,22 @@ INVALID_NUMBERS_WARNING = "The AI sorting step referred to bullets that don't ex
 
 
 class BulletSortingRun(NamedTuple):
-    """Which bullets the agent chose, and the tokens it used."""
+    """Which bullets the agent chose, the tokens it used, and the model name to bill."""
 
     sorted_bullets: SortedRequirementBullets
     usage: RunUsage
+    model: str = ""
 
 
 BulletSorter = Callable[[list[str]], BulletSortingRun]
 
 
 class JobPostingExtraction(NamedTuple):
-    """The extracted posting and, if the sorting agent ran, its usage."""
+    """The extracted posting and, if the sorting agent ran, its usage and billed model."""
 
     posting: ScrapedJobPosting
     sorting_usage: RunUsage | None
+    sorting_model: str | None = None
 
 
 def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPostingExtraction:
@@ -60,8 +62,13 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
     sorted_by: RequirementsSortedBy = "headings"
     warnings: list[str] = []
     sorting_usage: RunUsage | None = None
+    sorting_model: str | None = None
 
-    if not requirements and sections.all_bullets and text_limits.sorting_input_too_long(sections.all_bullets):
+    if (
+        not requirements
+        and sections.all_bullets
+        and text_limits.sorting_input_too_long(sections.all_bullets)
+    ):
         sorted_by = "none"
         warnings.append(text_limits.POSTING_TOO_LONG_TO_SORT_WARNING)
     elif not requirements and sections.all_bullets:
@@ -70,6 +77,7 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
             sections.all_bullets, sorting_run.sorted_bullets
         )
         sorted_by, sorting_usage = "llm", sorting_run.usage
+        sorting_model = sorting_run.model or None
         warnings.append(LLM_SORTED_WARNING)
         if had_invalid_numbers:
             warnings.append(INVALID_NUMBERS_WARNING)
@@ -92,7 +100,9 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
             warnings=warnings,
         )
     )
-    return JobPostingExtraction(posting=posting, sorting_usage=sorting_usage)
+    return JobPostingExtraction(
+        posting=posting, sorting_usage=sorting_usage, sorting_model=sorting_model
+    )
 
 
 def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting:
@@ -113,7 +123,10 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
         nonlocal left_out
         kept: list[str] = []
         for item in items:
-            if len(item) > text_limits.MAX_BULLET_TEXT or len(kept) >= text_limits.MAX_REQUIREMENT_ITEMS:
+            if (
+                len(item) > text_limits.MAX_BULLET_TEXT
+                or len(kept) >= text_limits.MAX_REQUIREMENT_ITEMS
+            ):
                 left_out = True
                 continue
             kept.append(item)
@@ -155,9 +168,11 @@ def pick_sorted_bullets(
     nice_to_have_numbers = {
         n for n in sorted_bullets.nice_to_have_numbers if n in valid_numbers
     } - requirement_numbers
-    responsibility_numbers = {
-        n for n in sorted_bullets.responsibility_numbers if n in valid_numbers
-    } - requirement_numbers - nice_to_have_numbers
+    responsibility_numbers = (
+        {n for n in sorted_bullets.responsibility_numbers if n in valid_numbers}
+        - requirement_numbers
+        - nice_to_have_numbers
+    )
     all_numbers = (
         sorted_bullets.requirement_numbers
         + sorted_bullets.responsibility_numbers

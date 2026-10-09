@@ -3,8 +3,11 @@ Description: Instructions for the resume parsing agent.
 Input: the plain text extracted from a resume file, fenced as data in the user prompt.
 Output: a ParsedResume (schemas/parsed_resume.py).
 Index:
+    - RESUME_PARSING_PROMPT_VERSION: the version recorded on traces
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
+
+RESUME_PARSING_PROMPT_VERSION = "1"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or

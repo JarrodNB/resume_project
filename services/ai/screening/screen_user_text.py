@@ -6,7 +6,7 @@ blocks without sending the text on (fail closed).
 Index:
     - ScreenOutcome: allowed or not, plus Jev usage when a call was made
     - screen_user_text: the check used by gap analysis, tailoring, and resume import
-    - reported_model_name: the model name to bill (the version that answered, or the setting)
+    - reported_model_name: re-exported from worker.model_prices (the name to bill)
 """
 
 import logging
@@ -19,7 +19,7 @@ from agents.user_text_screen_agent import screen_user_message
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.yes_confidence import blocks_on_yes_confidence
 from text_limits import MAX_SCREENED_TEXT
-from worker.model_prices import MODEL_PRICES
+from worker.model_prices import reported_model_name
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +34,6 @@ class ScreenOutcome(NamedTuple):
     model: str | None = None
     too_long: bool = False
     unchecked: bool = False
-
-
-def reported_model_name(response_model_name: str, configured_model: str) -> str:
-    """Bills the version the API named when that name has a price; otherwise the setting."""
-    if response_model_name in MODEL_PRICES:
-        return response_model_name
-    return configured_model
 
 
 def screen_user_text(

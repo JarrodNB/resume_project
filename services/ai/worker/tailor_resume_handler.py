@@ -37,7 +37,9 @@ SECTION_BLOCKED_MESSAGE = "That edit can't be used. Change it and try again."
 _LIBRARY_SECTIONS = ("projects", "education", "skills")
 
 
-def handle_tailor_resume_task(task: AiTaskMessage, dependencies: TaskDependencies) -> AiResultMessage:
+def handle_tailor_resume_task(
+    task: AiTaskMessage, dependencies: TaskDependencies
+) -> AiResultMessage:
     """Runs the next step of tailoring for this generation of the task."""
     data = TailorResumeInput.model_validate(task.input)
     context = dependencies.read_gap_analysis_context(task.user_id, data.job_id)
@@ -48,8 +50,14 @@ def handle_tailor_resume_task(task: AiTaskMessage, dependencies: TaskDependencie
     approved, blocked_content, length_message = apply_pending(data, dependencies, usage)
     if blocked_content is not None:
         return pause_for_section(
-            task, data, approved, blocked_content, usage, warnings,
-            blocked=True, message=length_message or SECTION_BLOCKED_MESSAGE,
+            task,
+            data,
+            approved,
+            blocked_content,
+            usage,
+            warnings,
+            blocked=True,
+            message=length_message or SECTION_BLOCKED_MESSAGE,
         )
     return _write_or_finish(task, data, context, approved, usage, warnings, dependencies)
 
@@ -71,11 +79,15 @@ def _write_or_finish(
         if section_type is None:
             return _completed(task, data, approved, warnings, usage)
         if section_type == "contact":
-            return pause_for_section(task, data, approved, contact_content(data.contact), usage, warnings)
+            return pause_for_section(
+                task, data, approved, contact_content(data.contact), usage, warnings
+            )
         if _library_empty(section_type, context.career_library):
             approved.append(section_snapshot(section_type, {}, omitted=True))
             continue
-        return _write_section(task, data, context, approved, usage, warnings, dependencies, section_type)
+        return _write_section(
+            task, data, context, approved, usage, warnings, dependencies, section_type
+        )
 
 
 def _completed(
@@ -140,20 +152,29 @@ def _write_section(
         gap_analysis=data.gap_analysis,
     )
     if text_limits.prompt_is_too_long(prompt.text):
-        return failed_result(task, text_limits.TAILOR_PROMPT_TOO_LONG_MESSAGE, usage, data.generation)
+        return failed_result(
+            task, text_limits.TAILOR_PROMPT_TOO_LONG_MESSAGE, usage, data.generation
+        )
     settings = dependencies.settings
     run = write_resume_section(
         prompt,
         model=settings.resume_tailoring_model,
         thinking=settings.resume_tailoring_thinking,
         timeout_seconds=settings.llm_run_timeout_seconds,
+        fallback_model=settings.generative_fallback_model,
     )
-    usage.append(build_model_usage(settings.resume_tailoring_model, run.usage))
+    usage.append(build_model_usage(run.model or settings.resume_tailoring_model, run.usage))
     draft = _keep_library_entries(section_type, run.draft, prompt.sources)
     content = materialize_section(section_type, draft, context.career_library, prompt.sources)
     return pause_for_section(
-        task, data, approved, content, usage, warnings,
-        section_type=section_type, nothing_fits=draft.nothing_fits,
+        task,
+        data,
+        approved,
+        content,
+        usage,
+        warnings,
+        section_type=section_type,
+        nothing_fits=draft.nothing_fits,
     )
 
 

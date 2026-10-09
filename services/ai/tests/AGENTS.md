@@ -42,6 +42,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_task_handlers.py` — dispatch and the parse_resume handler (agent on `TestModel`), incl.
   the resume fence, a blocked screen, and reported usage
 - `test_model_prices.py` — cost math, unknown models, every configured model has a price
+- `test_generative_model.py` — fallback is skipped when the names match, and a priced response
+  model is what a resume parse bills
 - `test_extract_document_text.py` — DOCX text extraction and unsupported files
 - `test_resume_parsing_evaluators.py` — eval labels score 1.0; faithfulness catches invented text
 - `test_enforce_source_faithfulness.py` — runtime guard drops rewritten highlights and invented

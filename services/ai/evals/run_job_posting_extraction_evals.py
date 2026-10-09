@@ -17,6 +17,7 @@ from pydantic_evals import Dataset
 from agents.job_requirements_sorting_agent import sort_job_requirement_bullets
 from evals.job_posting_extraction_evaluators import JOB_POSTING_EXTRACTION_EVALUATORS
 from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
+from prompts.job_requirements_sorting_instructions import JOB_REQUIREMENTS_SORTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
 from scrapers.job_page import JobPage
 from scrapers.linkedin.linkedin_description_to_html import linkedin_description_to_html
@@ -64,6 +65,7 @@ def run_job_posting_extraction_evals() -> None:
             model=model,
             thinking=thinking,
             timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         )
 
     def extract_case(inputs: dict[str, Any]) -> ScrapedJobPosting:
@@ -72,10 +74,17 @@ def run_job_posting_extraction_evals() -> None:
 
     with (
         langfuse.start_as_current_observation(
-            name=TRACE_NAME, metadata={"model": model, "thinking": thinking}
+            name=TRACE_NAME,
+            metadata={
+                "model": model,
+                "thinking": thinking,
+                "prompt_version": JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
+            },
         ),
         propagate_attributes(
-            trace_name=TRACE_NAME, tags=["eval", "scrape_job", model, f"thinking:{thinking}"]
+            trace_name=TRACE_NAME,
+            version=JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
+            tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
         ),
     ):
         report = load_job_posting_extraction_dataset().evaluate_sync(

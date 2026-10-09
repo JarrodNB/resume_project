@@ -27,7 +27,7 @@ instructions from `prompts/`.
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
   returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
 - `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (two bool questions on
-  `typesafe:jev-latest`); `screen_user_message` returns the screen, model name, confidence, and
+  `typesafe:jev-1.13.0`); `screen_user_message` returns the screen, model name, confidence, and
   usage. No generative fallback
 - `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
   validator retries with `find_section_problems`; `write_resume_section` returns the draft and
@@ -42,5 +42,9 @@ instructions from `prompts/`.
 - Expose one plain function per agent that handlers and eval runners call. It runs the agent
   under an overall deadline (`WorkerSettings.llm_run_timeout_seconds`, below the `ai_tasks`
   visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It returns the
-  output together with the run's `RunUsage`, so handlers can report cost.
+  output together with the run's `RunUsage` and the model name to bill, so handlers can report
+  cost for the model that answered.
+- Generative runs take `fallback_model` and call `generative_model` (primary, then
+  `gpt-5-nano` on a provider error). The Jev screen does not.
+- Each run stamps its prompt version with `record_prompt_version`.
 - Every agent has an eval dataset and runner in `evals/`.

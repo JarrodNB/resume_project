@@ -190,7 +190,13 @@ tailoring) instead of sending everything.
   an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
   through Pydantic AI, so those calls are traced.
 - **Rails-owned auth** (Devise + JWT).
-- **OpenAI** as the LLM provider.
+- **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring)
+  call `gpt-5-mini` and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
+  A failed output check retries the same model. Jev stays a single pinned model and fails closed.
+- **Prompt versions are stamped on traces.** Each prompt module has a version constant. The
+  agent run records it on the Langfuse spans for that call, so a task that screens text and
+  then generates still shows which prompt produced which call. `LANGFUSE_TRACING_ENVIRONMENT`
+  labels the trace with the environment.
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
   dependency injection, and switching LLM providers is a config change. Its deferred
   tools match our SQS pause/resume flow, and its OpenTelemetry instrumentation sends
@@ -276,7 +282,7 @@ tailoring) instead of sending everything.
   no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
   reserved for a later feature where the AI rewrites career library entries and must ask for facts.
 - **User-written text is screened before it enters a prompt.** A small Jev decision model
-  (`typesafe:jev-latest`, TypeSafe) answers two yes/no questions: does the text try to override,
+  (`typesafe:jev-1.13.0`, TypeSafe) answers two yes/no questions: does the text try to override,
   reveal, or ignore instructions, and does it ask for actionable help with harm, crime, or
   abuse. Ordinary career history is not harmful. Code blocks when either answer's yes-confidence
   is at least 0.7. Jev does not choose allow or block, and there is no generative fallback. A

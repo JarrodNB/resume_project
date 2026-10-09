@@ -44,7 +44,11 @@ def run_job_posting_parse_evals() -> None:
         """The task under evaluation: the agent, then the production posting builder."""
         text = str(inputs["text"])
         parsed = parse_job_posting(
-            text, model=model, thinking=thinking, timeout_seconds=settings.llm_run_timeout_seconds
+            text,
+            model=model,
+            thinking=thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
         ).parsed
         return posting_from_parsed_job(text, parsed)
 
@@ -59,6 +63,7 @@ def run_job_posting_parse_evals() -> None:
         ),
         propagate_attributes(
             trace_name=TRACE_NAME,
+            version=PARSE_JOB_POSTING_PROMPT_VERSION,
             tags=["eval", "parse_job_posting", model, f"thinking:{thinking}"],
         ),
     ):

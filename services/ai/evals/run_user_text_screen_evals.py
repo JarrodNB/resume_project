@@ -19,6 +19,7 @@ from evals.user_text_screen_evaluators import (
     UserTextScreenEvalLabels,
     UserTextScreenEvalOutput,
 )
+from prompts.user_text_screen_instructions import USER_TEXT_SCREEN_PROMPT_VERSION
 from worker.settings import load_settings
 from worker.tracing import configure_tracing
 
@@ -50,8 +51,15 @@ def run_user_text_screen_evals() -> None:
         return UserTextScreenEvalOutput(screen=run.screen, confidence=run.confidence)
 
     with (
-        langfuse.start_as_current_observation(name=TRACE_NAME, metadata={"model": model}),
-        propagate_attributes(trace_name=TRACE_NAME, tags=["eval", "user_text_screen", model]),
+        langfuse.start_as_current_observation(
+            name=TRACE_NAME,
+            metadata={"model": model, "prompt_version": USER_TEXT_SCREEN_PROMPT_VERSION},
+        ),
+        propagate_attributes(
+            trace_name=TRACE_NAME,
+            version=USER_TEXT_SCREEN_PROMPT_VERSION,
+            tags=["eval", "user_text_screen", model],
+        ),
     ):
         report = load_user_text_screen_dataset().evaluate_sync(
             judge_case, name=f"user_text_screen:{model}", max_concurrency=4

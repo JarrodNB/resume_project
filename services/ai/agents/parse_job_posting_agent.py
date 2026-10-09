@@ -4,7 +4,7 @@ pasted job advertisement. An output validator retries until those strings appear
 Index:
     - parse_job_posting_agent: the agent (deps: the ad text; model and effort chosen per run)
     - fence_job_ad: the user prompt, with the ad marked as data
-    - JobPostingParseRun: the validated parse plus the run's token usage
+    - JobPostingParseRun: the validated parse, token usage, and the model name to bill
     - parse_job_posting: runs the agent within a time limit
 """
 
@@ -16,8 +16,14 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
-from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_INSTRUCTIONS
+from prompts.parse_job_posting_instructions import (
+    PARSE_JOB_POSTING_INSTRUCTIONS,
+    PARSE_JOB_POSTING_PROMPT_VERSION,
+)
 from schemas.parsed_job_posting import ParsedJobPosting
+from worker.generative_model import generative_model
+from worker.model_prices import reported_model_name
+from worker.tracing import record_prompt_version
 
 parse_job_posting_agent = Agent(
     name="parse_job_posting_agent",
@@ -55,25 +61,39 @@ class JobPostingParseRun(NamedTuple):
 
     parsed: ParsedJobPosting
     usage: RunUsage
+    model: str = ""
 
 
 def parse_job_posting(
-    text: str, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    text: str,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> JobPostingParseRun:
     """Parses the ad with the given model and reasoning effort. Raises TimeoutError if the
-    whole run takes longer than timeout_seconds."""
-    return asyncio.run(_run_with_deadline(text, model, thinking, timeout_seconds))
+    whole run takes longer than timeout_seconds. A provider error tries fallback_model."""
+    return asyncio.run(_run_with_deadline(text, model, thinking, timeout_seconds, fallback_model))
 
 
 async def _run_with_deadline(
-    text: str, model: str, thinking: ThinkingEffort, timeout_seconds: float
+    text: str,
+    model: str,
+    thinking: ThinkingEffort,
+    timeout_seconds: float,
+    fallback_model: str,
 ) -> JobPostingParseRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(timeout_seconds):
-        result = await parse_job_posting_agent.run(
-            fence_job_ad(text),
-            deps=text,
-            model=model,
-            model_settings=ModelSettings(thinking=thinking),
-        )
-    return JobPostingParseRun(parsed=result.output, usage=result.usage)
+        with record_prompt_version(PARSE_JOB_POSTING_PROMPT_VERSION):
+            result = await parse_job_posting_agent.run(
+                fence_job_ad(text),
+                deps=text,
+                model=generative_model(model, fallback_model),
+                model_settings=ModelSettings(thinking=thinking),
+            )
+    return JobPostingParseRun(
+        parsed=result.output,
+        usage=result.usage,
+        model=reported_model_name(result.response.model_name or model, model),
+    )

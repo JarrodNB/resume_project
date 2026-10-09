@@ -44,13 +44,18 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
 - `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()` +
-  `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`
+  `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`,
+  `record_prompt_version` (stamps one prompt's version on that run's spans)
+- `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
+  when `generative_fallback_model` names a different model. Provider errors switch; output
+  validation retries do not. Jev does not use it
 - `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
   to «name», «email», and «phone»
 - `contact_mask.py` — applies that map on the model request, the Langfuse payload, and
   `mask_outbound` (search-query embeddings). The model response is restored before the app
   sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
+  pinned Jev model, `generative_fallback_model`, the
   embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
   read-only database connection (`DB_*`), and `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)
 - `sqs_queue_client.py` — wrapper for one SQS queue (receive, delete, send)
@@ -62,5 +67,6 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - Handlers take `(task, dependencies)` and return an `AiResultMessage`. Return a `failed`
   result with a user-facing `error_message` for expected problems (e.g. unreadable file);
   let unexpected exceptions propagate (main publishes a generic failure).
-- Completed results list a `ModelUsage` for every agent run (`build_model_usage(model, usage)`).
+- Completed results list a `ModelUsage` for every agent run (`build_model_usage`). The model
+  name is the one that answered when that name has a price, otherwise the configured primary.
   A new model needs an entry in `MODEL_PRICES` (a test checks every configured model has one).

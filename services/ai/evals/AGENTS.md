@@ -50,10 +50,10 @@ score attached, so runs can be compared across prompt and model changes.
 - `datasets/library_retrieval_cases.yaml` — synthetic libraries in the text shape Rails embeds
   (experience highlight, project, education, skill, library fact). An experience query and a
   summary query, each with more rows than the search keeps, and the ids that should rank
-- `library_retrieval_evaluators.py` — `HitAt1` (nearest row is relevant) and `RecallAtLimit`
-  (every relevant id is inside the production limit from `retrieve_for_section`)
+- `library_retrieval_evaluators.py` — `HitAt1`, `RecallAtK`, `PrecisionAtK`, and
+  `MeanReciprocalRank` (k is the production limit from `retrieve_for_section`)
 - `run_library_retrieval_evals.py` — embeds the corpus with `Embedder.embed_documents` and the
-  query with `embed_search_query`, then ranks by cosine similarity (no Postgres):
+  query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
 - `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
   allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for

@@ -19,7 +19,7 @@ the `result` sent to Rails, so changes must be mirrored there.
   read from the database by `database/career_library_reader.py`; the gap analysis input, not an
   LLM output
 - `library_search_match.py` — `LibrarySearchMatch` (source type and id, embedded text, cosine
-  distance), returned by `database/library_embedding_search.py`; not an LLM output
+  distance, fusion score), returned by `database/library_embedding_search.py`; not an LLM output
 - `user_text_screen.py` — `UserTextScreen`: `prompt_injection` and `harmful_request`, each a
   bool with `BoolCriteria` (one question). Code applies the yes-confidence threshold
 - `tailored_section.py` — `TailoredSectionDraft` (the writer output: `nothing_fits`, chosen

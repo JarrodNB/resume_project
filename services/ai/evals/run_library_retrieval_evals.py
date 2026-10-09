@@ -1,11 +1,12 @@
 """
-Description: Ranks synthetic library texts with the production embedding model and reports
+Description: Ranks synthetic library texts with the production hybrid ranker and reports
 average retrieval scores to Langfuse. Documents are embedded the way Rails stores them;
-the query is the same text the worker searches with.
+the query is the same text the worker searches with. Cosine order is fused with BM25
+the same way database/library_embedding_search.py does (no Postgres).
 Run: docker compose run --rm ai python -m evals.run_library_retrieval_evals
 Index:
     - load_library_retrieval_dataset: reads the YAML cases
-    - rank_library: cosine-nearest document ids for one case
+    - rank_library: hybrid-ranked document ids for one case
     - run_library_retrieval_evals: evaluates every case
 """
 
@@ -23,6 +24,7 @@ from evals.library_retrieval_evaluators import (
     RetrievalEvalLabels,
 )
 from memory.embed_search_query import embed_search_query
+from memory.hybrid_rank import hybrid_order
 from tailoring.retrieve_for_section import section_query
 from worker.settings import load_settings
 from worker.tracing import configure_tracing
@@ -41,16 +43,20 @@ def load_library_retrieval_dataset() -> Dataset[
 
 
 def rank_library(case: RetrievalEvalInput, model: str, dimensions: int) -> RankedLibrary:
-    """Nearest document ids for this section's production query."""
+    """Hybrid-ranked document ids for this section's production query."""
     embedder = Embedder(model, settings=EmbeddingSettings(dimensions=dimensions))
     embedded = embedder.embed_documents_sync([document.content for document in case.documents])
-    query = embed_search_query(section_query(case.section_type, case.job), model, dimensions)
-    ranked = sorted(
-        zip(case.documents, embedded.embeddings, strict=True),
-        key=lambda pair: _cosine_similarity(query.vector, list(pair[1])),
-        reverse=True,
-    )
-    return RankedLibrary(ids=[document.id for document, _vector in ranked])
+    query_text = section_query(case.section_type, case.job)
+    query = embed_search_query(query_text, model, dimensions)
+    similarities = {
+        document.id: _cosine_similarity(query.vector, list(vector))
+        for document, vector in zip(case.documents, embedded.embeddings, strict=True)
+    }
+    vector_ids = sorted(similarities, key=lambda doc_id: similarities[doc_id], reverse=True)
+    documents = [(document.id, document.content) for document in case.documents]
+    distances = {doc_id: 1 - similarity for doc_id, similarity in similarities.items()}
+    ordered = hybrid_order(vector_ids, documents, query_text, distances)
+    return RankedLibrary(ids=[doc_id for doc_id, _score in ordered])
 
 
 def run_library_retrieval_evals() -> None:

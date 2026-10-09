@@ -3,9 +3,10 @@ Description: The library retrieval eval labels score 1.0 against their own cases
 embedding call.
 Index:
     - test_hand_labels_get_perfect_scores
+    - test_retrieval_scores_count_hits_inside_k
 """
 
-from evals.library_retrieval_evaluators import labels_to_ranking
+from evals.library_retrieval_evaluators import labels_to_ranking, retrieval_scores
 from evals.run_library_retrieval_evals import load_library_retrieval_dataset
 
 
@@ -24,3 +25,10 @@ def test_hand_labels_get_perfect_scores() -> None:
 
     scores = report.averages().scores
     assert scores and all(value == 1.0 for value in scores.values()), scores
+
+
+def test_retrieval_scores_count_hits_inside_k() -> None:
+    """A relevant id in second place is full recall, half precision, and MRR 1/2."""
+    scores = retrieval_scores(["other", "hit"], ["hit"], k=8)
+
+    assert scores == {"recall": 1.0, "precision": 0.5, "mrr": 0.5}

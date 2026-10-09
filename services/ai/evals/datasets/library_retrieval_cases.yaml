@@ -1,7 +1,7 @@
 # Description: Hand-labelled library retrieval cases. People, companies, and jobs are synthetic.
 # Document text matches CareerLibrary::BuildEmbeddingTextsService. metadata.relevant_ids are
 # the rows that should rank inside the production limit. Each library has more than that limit
-# so a random ranking can miss.
+# so a random ranking can miss. The runner ranks with the production hybrid order.
 cases:
   - name: experience_ranks_the_kernel_highlight
     inputs:
@@ -42,7 +42,9 @@ cases:
         - hl-kernel
     evaluators:
       - HitAt1
-      - RecallAtLimit
+      - RecallAtK
+      - PrecisionAtK
+      - MeanReciprocalRank
 
   - name: summary_ranks_the_python_highlight
     inputs:
@@ -83,4 +85,6 @@ cases:
         - hl-python
     evaluators:
       - HitAt1
-      - RecallAtLimit
+      - RecallAtK
+      - PrecisionAtK
+      - MeanReciprocalRank

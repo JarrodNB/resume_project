@@ -84,8 +84,7 @@ Every function and class gets a docstring describing what it does.
   `LibrarySearchMatch` (a similarity search hit)
 - `database/` — read-only Postgres access (`ai_reader`): the job and career library for gap
   analysis, and similarity search over `library_embeddings`
-- `memory/` — embeds search queries (Pydantic AI `Embedder`) to compare with the library
-  embeddings Rails writes
+- `memory/` — embeds search queries (Pydantic AI `Embedder`) and fuses cosine order with BM25
 - `gap_analysis/` — gap analysis prompt building (short labels), output checks, copying
   evidence text from the library, and screening library facts before they enter the prompt
 - `text_limits.py` — character caps checked before Jev and generative runs (the same numbers

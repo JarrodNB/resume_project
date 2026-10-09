@@ -12,6 +12,8 @@ compared with the career library embeddings Rails stores in `library_embeddings`
   contact is replaced with the same placeholders Rails uses for library rows. Returns the
   vector and its token usage. `stored_embedding_model_name(model)`: the worker's
   `openai:`-prefixed model name as Rails stores it (`text-embedding-3-small`)
+- `hybrid_rank.py` — `keyword_rank` (BM25), `reciprocal_rank_scores` (k=60), and `hybrid_order`.
+  Library search and the library-retrieval eval both call `hybrid_order`
 
 ## Local Rules
 
@@ -19,5 +21,7 @@ compared with the career library embeddings Rails stores in `library_embeddings`
 - The model and dimensions come from `WorkerSettings.embedding_model` / `embedding_dimensions`
   and must match Rails' `CareerLibraryEmbeddings::MODEL` / `DIMENSIONS`. Searches filter by the
   stored model name, so a mismatch returns nothing rather than wrong neighbours.
-- The SQL side of a search lives in `database/library_embedding_search.py`.
+- The SQL side of a search lives in `database/library_embedding_search.py`. It loads the user's
+  rows in cosine order; `hybrid_order` fuses that with BM25. The user and model filters stay in
+  SQL, before either rank.
 - Tests use `TestEmbeddingModel`; `ALLOW_MODEL_REQUESTS = False` also blocks real embedding calls.

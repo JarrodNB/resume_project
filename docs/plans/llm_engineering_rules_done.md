@@ -39,10 +39,17 @@ The five OpenAI runs take `fallback_model`: resume parsing, pasted-ad parse, bul
 
 Handlers bill `reported_model_name` (`services/ai/worker/model_prices.py`): the response's model name when that name has a price, otherwise the configured primary. `JobPostingExtraction.sorting_model` carries the billed name when the sorting agent ran.
 
+## Hybrid search
+
+`search_career_library` loads the user's rows for the stored embedding model in cosine order, then `hybrid_order` in `services/ai/memory/hybrid_rank.py` fuses that list with BM25 over the same texts. Reciprocal rank fusion uses k=60. Ties break toward the smaller cosine distance. Tailoring calls this once per written section (`retrieve_for_section`).
+
+The user id and model filters stay in the SQL, before either rank.
+
+The library-retrieval eval ranks with the same `hybrid_order` and scores recall@k, precision@k, and MRR (`k` is the production limit). `tests/test_hybrid_rank.py` is the deterministic golden check: an exact term outranks a nearer row, a query with no shared term leaves cosine order alone, and k=60 prefers a row both lists rank well. k=1 does not, which is why 60 is the constant.
+
 ## Still open
 
-These were left on purpose. They are the ones to pick next, not the three above.
+These were left on purpose. They are the ones to pick next, not the ones above.
 
-- Hybrid search. Library search is cosine distance only, and no production handler calls it yet.
 - An MCP tool layer. The agents have no tools yet.
 - Pseudonymized trace user ids. Traces tag the real `user_id` on purpose so a task can be followed end to end.

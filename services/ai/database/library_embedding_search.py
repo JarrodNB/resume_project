@@ -1,9 +1,10 @@
 """
-Description: Similarity search over the user's career library embeddings (written by Rails'
+Description: Hybrid search over the user's career library embeddings (written by Rails'
 CareerLibrary::SyncLibraryEmbeddingsService). Scoped by the task's user id and by embedding
-model, so vectors from another user or another model are never compared.
+model, so vectors from another user or another model are never compared. Cosine order from
+pgvector is fused with BM25 over the same rows (memory/hybrid_rank.py).
 Index:
-    - search_career_library: the library entries closest to a query vector, nearest first
+    - search_career_library: the library entries that best match a query, best first
 """
 
 from collections.abc import Sequence
@@ -14,17 +15,17 @@ from pgvector import Vector
 from pgvector.psycopg import register_vector
 from psycopg.rows import DictRow
 
+from memory.hybrid_rank import hybrid_order
 from schemas.library_search_match import LibrarySearchMatch
 
-# Iterative scans keep the HNSW index walking until `limit` rows pass the user filter, instead of
-# filtering a fixed candidate list (which can return too few rows).
+# Iterative scans keep the HNSW index walking until every row that passes the user filter is
+# ordered, instead of filtering a fixed candidate list (which can drop a keyword match).
 ITERATIVE_SCAN = "SET LOCAL hnsw.iterative_scan = strict_order"
 SEARCH_QUERY = """
     SELECT source_type, source_id::text, content, embedding <=> %(query)s AS distance
     FROM library_embeddings
     WHERE user_id = %(user_id)s AND model = %(model)s
     ORDER BY embedding <=> %(query)s
-    LIMIT %(limit)s
 """
 
 
@@ -32,19 +33,41 @@ def search_career_library(
     connection: psycopg.Connection[DictRow],
     user_id: UUID,
     query_embedding: Sequence[float],
+    query_text: str,
     model: str,
     limit: int = 10,
 ) -> list[LibrarySearchMatch]:
     """Returns up to `limit` of the user's library entries embedded with `model` (the name Rails
-    stores, e.g. "text-embedding-3-small"), ordered by cosine distance to the query vector."""
+    stores, e.g. "text-embedding-3-small"). Order is reciprocal rank fusion of cosine distance
+    and BM25 on `query_text`; a higher score is a better match."""
     register_vector(connection)
     params = {
         "user_id": user_id,
         "model": model,
         "query": Vector(list(query_embedding)),
-        "limit": limit,
     }
     with connection.transaction(), connection.cursor() as cursor:
         cursor.execute(ITERATIVE_SCAN)
         rows = cursor.execute(SEARCH_QUERY, params).fetchall()
-    return [LibrarySearchMatch(**row) for row in rows]
+    if not rows:
+        return []
+    vector_ids = [_row_id(row["source_type"], row["source_id"]) for row in rows]
+    documents = [(vector_ids[index], row["content"]) for index, row in enumerate(rows)]
+    distances = {vector_ids[index]: float(row["distance"]) for index, row in enumerate(rows)}
+    ordered = hybrid_order(vector_ids, documents, query_text, distances)[:limit]
+    by_id = {vector_ids[index]: row for index, row in enumerate(rows)}
+    return [
+        LibrarySearchMatch(
+            source_type=by_id[item]["source_type"],
+            source_id=by_id[item]["source_id"],
+            content=by_id[item]["content"],
+            distance=distances[item],
+            score=score,
+        )
+        for item, score in ordered
+    ]
+
+
+def _row_id(source_type: str, source_id: str) -> str:
+    """One id for a library row. source_id alone can collide across entry kinds."""
+    return f"{source_type}\n{source_id}"

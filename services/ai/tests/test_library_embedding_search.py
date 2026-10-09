@@ -1,11 +1,12 @@
 """
-Description: Integration tests for career library similarity search against the compose Postgres.
+Description: Integration tests for career library hybrid search against the compose Postgres.
 Seeds embeddings as the admin role inside a transaction that always rolls back, then searches as
 ai_reader (SET LOCAL ROLE), so the real grants are exercised. Skipped when the database isn't
 reachable. Run only these with `docker compose run --rm ai pytest -m db`.
 Index:
     - admin_connection: a postgres connection inside a rolled-back transaction
     - test_returns_the_users_entries_nearest_first
+    - test_keyword_match_outranks_a_nearer_vector
     - test_ignores_other_users_and_other_models
 """
 
@@ -87,7 +88,7 @@ def _insert_embedding(
 def test_returns_the_users_entries_nearest_first(
     admin_connection: psycopg.Connection[DictRow],
 ) -> None:
-    """Entries come back by cosine distance, limited, with their ids and text, as ai_reader."""
+    """Entries come back by cosine distance when the query text matches the nearest row."""
     user_id = _insert_user(admin_connection)
     kubernetes_id = _insert_embedding(admin_connection, user_id, "Kubernetes", _axis_vector(1))
     _insert_embedding(admin_connection, user_id, "Docker", _axis_vector(2))
@@ -97,12 +98,34 @@ def test_returns_the_users_entries_nearest_first(
     query = _axis_vector(1)
     query[2] = 0.3
 
-    matches = search_career_library(admin_connection, user_id, query, MODEL, limit=2)
+    matches = search_career_library(
+        admin_connection, user_id, query, "Kubernetes clusters", MODEL, limit=2
+    )
 
     assert [match.content for match in matches] == ["Kubernetes", "Docker"]
     assert matches[0].source_id == str(kubernetes_id)
     assert matches[0].source_type == "Skill"
+    assert matches[0].score > matches[1].score
     assert 0 <= matches[0].distance < matches[1].distance
+
+
+def test_keyword_match_outranks_a_nearer_vector(
+    admin_connection: psycopg.Connection[DictRow],
+) -> None:
+    """A row that uses the query's word ranks above a nearer row that does not."""
+    user_id = _insert_user(admin_connection)
+    ruby_id = _insert_embedding(admin_connection, user_id, "Ruby", _axis_vector(3))
+    _insert_embedding(admin_connection, user_id, "Kubernetes", _axis_vector(1))
+    _insert_embedding(admin_connection, user_id, "Docker", _axis_vector(2))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+
+    matches = search_career_library(
+        admin_connection, user_id, _axis_vector(1), "Ruby programming", MODEL, limit=2
+    )
+
+    assert matches[0].content == "Ruby"
+    assert matches[0].source_id == str(ruby_id)
+    assert matches[0].distance > matches[1].distance
 
 
 def test_ignores_other_users_and_other_models(
@@ -118,6 +141,6 @@ def test_ignores_other_users_and_other_models(
     )
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
-    matches = search_career_library(admin_connection, user_id, _axis_vector(1), MODEL)
+    matches = search_career_library(admin_connection, user_id, _axis_vector(1), "Theirs", MODEL)
 
     assert [match.content for match in matches] == ["Mine"]

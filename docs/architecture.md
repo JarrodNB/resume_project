@@ -158,9 +158,10 @@ tailoring) instead of sending everything.
   deletes rows whose entry is gone, so running it twice is harmless and any run repairs drift.
   `bin/rails career_library:sync_embeddings` backfills all users (e.g. after a model change).
 - **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
-  `Embedder` (traced in Langfuse), and `database/library_embedding_search.py` searches as
-  `ai_reader`, filtered by `user_id` and `model`, with HNSW iterative scans so the user filter
-  doesn't cut results short. Tailoring queries it once per written section.
+  `Embedder` (traced in Langfuse). `database/library_embedding_search.py` loads that user's
+  rows for the stored model in cosine order (HNSW iterative scans, so the user filter does
+  not drop a row). `memory/hybrid_rank.py` then fuses that order with BM25 over the same
+  texts (reciprocal rank fusion, k=60). Tailoring queries it once per written section.
 
 ## Decisions
 
@@ -178,6 +179,14 @@ tailoring) instead of sending everything.
   streaming is needed later (e.g. the gap analysis chat), add a small HTTP/WebSocket
   service at that point.
 - **pgvector over a separate vector DB.** One database to run; enough for this scale.
+- **Library search is hybrid.** Cosine order from pgvector is fused with BM25 over the same
+  user's embedding texts by reciprocal rank fusion, k=60. Cosine alone misses a row that uses
+  the job's exact wording when a semantically nearby row ranks first. BM25 drops English
+  stopwords and does not stem; the embedding already covers inflection and synonyms. k=60
+  (checked on the golden disagreement case in `tests/test_hybrid_rank.py`) prefers a row that
+  both lists rank well over a row that is first on only one. Ties break toward the smaller
+  cosine distance. The user and model filters run in SQL before either rank. The
+  library-retrieval eval calls the same fusion and reports recall@k, precision@k, and MRR.
 - **Rails computes career library embeddings itself (an exception to "all LLM calls go through
   the AI service").** Embeddings are derived data that Rails can rebuild at any time, and they
   contain no prompt. They are also too large for the result queue: one 1536-dimension vector is

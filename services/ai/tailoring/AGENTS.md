@@ -11,7 +11,7 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
   education, skills) and entry label prefixes
 - `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, gap responses,
   approved sections, and the pending user action
-- `retrieve_for_section.py` — embeds that section's job requirements and searches
+- `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
   `library_embeddings`; no matches means the whole library
 - `labeled_sources.py` — short labels for retrieved entries, gap responses, and approved sections.
   Projects, education, and skills are labeled even when retrieval returned other rows

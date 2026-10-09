@@ -15,10 +15,10 @@ this folder only reads what an AI task needs.
   `build_database_context_reader(settings)`: the per-task reader handlers call (one
   connection per task)
 - `library_embedding_search.py` — `search_career_library(connection, user_id, query_embedding,
-  model, limit)`: the user's `library_embeddings` rows for `model` nearest the query by cosine
-  distance (`LibrarySearchMatch` list), using HNSW iterative scans so the user filter doesn't
-  cut results short. Registers the pgvector type on the connection. Not called by a handler yet
-  (tailoring will)
+  query_text, model, limit)`: the user's `library_embeddings` rows for `model`, ordered by
+  hybrid rank (`LibrarySearchMatch` list). Cosine order uses HNSW iterative scans so the user
+  filter doesn't drop a row before BM25 sees it. Registers the pgvector type on the connection.
+  Tailoring calls it once per written section
 - `profile_contact.py` — `read_profile_contact(connection, user_id)`: `name`, `contact_email`,
   and `phone` for masking outbound text
 

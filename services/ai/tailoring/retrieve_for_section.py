@@ -1,7 +1,7 @@
 """
 Description: Embeds one section's query (the section plus that job's requirements) and
-returns the closest library rows. An empty result means the caller should use the whole
-library, which is what happens before any embeddings exist.
+returns the library rows hybrid search ranks highest. An empty result means the caller
+should use the whole library, which is what happens before any embeddings exist.
 Index:
     - section_query: the text embedded for one section
     - retrieve_source_keys: (Rails class name, id) of the closest rows, or None when there
@@ -39,15 +39,15 @@ def retrieve_source_keys(
 ) -> tuple[set[tuple[str, str]] | None, ModelUsage | None]:
     """Returns the closest library rows and the embedding call's usage. None rows means
     use the whole library."""
-    embedded = embed_search_query(
-        section_query(section_type, job), settings.embedding_model, settings.embedding_dimensions
-    )
+    query = section_query(section_type, job)
+    embedded = embed_search_query(query, settings.embedding_model, settings.embedding_dimensions)
     usage = build_model_usage(settings.embedding_model, embedded.usage)
     with open_read_only_connection(settings) as connection:
         matches = search_career_library(
             connection,
             user_id,
             embedded.vector,
+            query,
             stored_embedding_model_name(settings.embedding_model),
             limit=_LIMIT,
         )

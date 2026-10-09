@@ -19,6 +19,8 @@ from prompts.user_text_screen_instructions import (
     USER_TEXT_SCREEN_PROMPT_VERSION,
 )
 from schemas.user_text_screen import UserTextScreen
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 # The default bar. yes_probability() recovers P(yes) from this and the reported margin.
@@ -43,7 +45,9 @@ class UserTextScreenRun(NamedTuple):
 
 
 def screen_user_message(text: str, model: str, timeout_seconds: float) -> UserTextScreenRun:
-    """Asks Jev about `text`. Raises if the call fails or times out; the caller fails closed."""
+    """Asks Jev about `text`. Raises if the call fails, times out, or passes its request,
+    tool-call, or token cap. A provider failure is fail-closed in the caller; a run limit
+    fails the task."""
     return asyncio.run(_run_with_deadline(text, model, timeout_seconds))
 
 
@@ -55,6 +59,7 @@ async def _run_with_deadline(text: str, model: str, timeout_seconds: float) -> U
                 text,
                 model=model,
                 model_settings=DecisionModelSettings(decision_boolean_threshold=BOOLEAN_THRESHOLD),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     details = result.response.provider_details or {}
     confidence = details.get("confidence") or {}

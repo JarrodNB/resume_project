@@ -9,11 +9,12 @@ import json
 from uuid import uuid4
 
 import pytest
-from pydantic_ai.exceptions import ModelHTTPError
+from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 
 from worker import main
 from worker.main import process_task_message
 from worker.queue_messages import AiResultMessage, AiTaskMessage
+from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.task_dependencies import TaskDependencies
 
 
@@ -145,6 +146,25 @@ def test_temporary_error_before_last_attempt_is_left_for_retry(
 
     assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is False
     assert result_queue.sent_bodies == []
+
+
+def test_run_limit_fails_on_the_first_attempt(
+    monkeypatch: pytest.MonkeyPatch, task_dependencies: TaskDependencies
+) -> None:
+    """A request, tool-call, or token cap publishes a failure and deletes the message."""
+
+    def handler(_task: object, _dependencies: object) -> None:
+        """Simulates an agent run that passed its cap."""
+        raise UsageLimitExceeded("request_limit of 6")
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    result_queue = FakeResultQueue()
+
+    assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is True
+
+    published = json.loads(result_queue.sent_bodies[0])
+    assert published["status"] == "failed"
+    assert published["error_message"] == RUN_LIMIT_MESSAGE
 
 
 @pytest.mark.usefixtures("rate_limited_handler")

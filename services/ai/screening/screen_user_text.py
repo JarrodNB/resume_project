@@ -2,7 +2,8 @@
 Description: Screens one user-written string before it can enter a prompt. An obvious
 instruction-override phrase blocks without a model call. Otherwise Jev is asked, and the text
 is blocked when either yes-probability is at least 0.7. A missing API key or a failed call
-blocks without sending the text on (fail closed).
+blocks without sending the text on (fail closed). A request, tool-call, or token cap is
+re-raised so the task fails instead of being treated as an unchecked screen.
 Index:
     - ScreenOutcome: allowed or not, plus Jev usage when a call was made
     - screen_user_text: the check used by gap analysis, tailoring, and resume import
@@ -13,6 +14,7 @@ import logging
 import os
 from typing import NamedTuple
 
+from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import RunUsage
 
 from agents.user_text_screen_agent import screen_user_message
@@ -39,7 +41,8 @@ class ScreenOutcome(NamedTuple):
 def screen_user_text(
     text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True
 ) -> ScreenOutcome:
-    """Returns whether `text` may be put in a prompt. Never raises for a Jev failure.
+    """Returns whether `text` may be put in a prompt. A Jev outage returns unchecked and does
+    not raise. A request, tool-call, or token cap raises UsageLimitExceeded so the task fails.
     `check_phrases` is for a short note. A whole resume skips it and lets Jev decide."""
     if not text.strip():
         return ScreenOutcome(allowed=True)
@@ -52,6 +55,8 @@ def screen_user_text(
         return ScreenOutcome(allowed=False, unchecked=True)
     try:
         run = screen_user_message(text, model=model, timeout_seconds=timeout_seconds)
+    except UsageLimitExceeded:
+        raise
     except Exception:
         logger.exception("Jev screen failed; leaving the text out of the prompt")
         return ScreenOutcome(allowed=False, unchecked=True)

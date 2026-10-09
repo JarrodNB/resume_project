@@ -21,6 +21,8 @@ from prompts.job_requirements_sorting_instructions import (
 from schemas.sorted_requirement_bullets import SortedRequirementBullets
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 job_requirements_sorting_agent = Agent(
@@ -44,7 +46,8 @@ def sort_job_requirement_bullets(
     fallback_model: str,
 ) -> BulletSortingRun:
     """Sorts the bullets with the given model and reasoning effort. Raises TimeoutError if the
-    whole run takes longer than timeout_seconds. A provider error tries fallback_model."""
+    whole run takes longer than timeout_seconds. Raises UsageLimitExceeded when the run passes
+    its request, tool-call, or token cap. A provider error tries fallback_model."""
     return asyncio.run(
         _run_with_deadline(bullets, model, thinking, timeout_seconds, fallback_model)
     )
@@ -64,6 +67,7 @@ async def _run_with_deadline(
                 format_numbered_bullets(bullets),
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     return BulletSortingRun(
         sorted_bullets=result.output,

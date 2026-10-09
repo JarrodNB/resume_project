@@ -22,6 +22,8 @@ from prompts.resume_parsing_instructions import (
 from schemas.parsed_resume import ParsedResume
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 # A resume can contain the fence tags, including a space or newline inside the tag.
@@ -60,7 +62,8 @@ def parse_resume_text(
 ) -> ResumeParsingRun:
     """Extracts structured resume data from plain text using the given model name and reasoning
     effort. Raises TimeoutError if the whole run (including the provider's own retries) takes
-    longer than timeout_seconds. A provider error tries fallback_model."""
+    longer than timeout_seconds. Raises UsageLimitExceeded when the run passes its request,
+    tool-call, or token cap. A provider error tries fallback_model."""
     return asyncio.run(
         _run_with_deadline(resume_text, model, thinking, timeout_seconds, fallback_model)
     )
@@ -80,6 +83,7 @@ async def _run_with_deadline(
                 format_resume_user_prompt(resume_text),
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     return ResumeParsingRun(
         parsed_resume=result.output,

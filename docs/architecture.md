@@ -206,6 +206,16 @@ tailoring) instead of sending everything.
   agent run records it on the Langfuse spans for that call, so a task that screens text and
   then generates still shows which prompt produced which call. `LANGFUSE_TRACING_ENVIRONMENT`
   labels the trace with the environment.
+- **An agent run stops at a modest cap, and the task fails.** Each run allows 6 model requests
+  (the first answer, two output-validator retries, and the same three after a switch to the
+  fallback model), no tool calls, 64,000 output tokens, and 128,000 total tokens. The library
+  default of 50 requests is a loop these agents never need. There are no tools yet, so a tool
+  call fails the run until one is registered and the cap is raised. Reasoning tokens count as
+  output. The token caps are checked after the response, so one over-limit response is billed
+  once and the task is not retried. A hit raises `UsageLimitExceeded`. The worker publishes
+  `failed` on the first attempt, with no partial resume, analysis, or section. A wall-clock
+  timeout stays retryable, because the same run may finish next time. A cap on the Jev screen
+  fails the task the same way; a Jev outage still omits the text.
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
   dependency injection, and switching LLM providers is a config change. Its deferred
   tools match our SQS pause/resume flow, and its OpenTelemetry instrumentation sends

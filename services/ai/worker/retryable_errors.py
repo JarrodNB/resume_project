@@ -4,7 +4,8 @@ permanent (report "failed" now). Covers the model provider (through Pydantic AI)
 site fetches (httpx), and the database (psycopg).
 Index:
     - is_retryable_error: True for rate limits, provider/AWS/job site 5xx, timeouts (including an
-      agent run that hit its deadline), network errors, and the database being unreachable
+      agent run that hit its deadline), network errors, and the database being unreachable.
+      A request, tool-call, or token cap (UsageLimitExceeded) is permanent
 """
 
 import httpx

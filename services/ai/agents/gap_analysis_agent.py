@@ -22,6 +22,8 @@ from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS, GAP_ANA
 from schemas.gap_analysis import GapAnalysis
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 gap_analysis_agent = Agent(
@@ -59,7 +61,8 @@ def analyze_gaps(
     fallback_model: str,
 ) -> GapAnalysisRun:
     """Runs the agent on a built prompt. Raises TimeoutError if the whole run takes longer than
-    timeout_seconds. A provider error tries fallback_model."""
+    timeout_seconds. Raises UsageLimitExceeded when the run passes its request, tool-call, or
+    token cap. A provider error tries fallback_model."""
     return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model))
 
 
@@ -78,6 +81,7 @@ async def _run_with_deadline(
                 deps=prompt,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     return GapAnalysisRun(
         gap_analysis=result.output,

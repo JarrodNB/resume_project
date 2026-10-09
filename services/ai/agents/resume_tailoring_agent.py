@@ -23,6 +23,8 @@ from tailoring.build_section_prompt import SectionPrompt
 from tailoring.check_section_faithfulness import find_section_problems
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 resume_tailoring_agent = Agent(
@@ -62,6 +64,7 @@ def write_resume_section(
     fallback_model: str,
 ) -> TailoringRun:
     """Writes one section. Raises TimeoutError if the run exceeds timeout_seconds.
+    Raises UsageLimitExceeded when the run passes its request, tool-call, or token cap.
     A provider error tries fallback_model."""
     return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model))
 
@@ -81,6 +84,7 @@ async def _run_with_deadline(
                 deps=prompt,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     return TailoringRun(
         draft=result.output,

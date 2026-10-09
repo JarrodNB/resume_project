@@ -57,7 +57,10 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
   pinned Jev model, `generative_fallback_model`, the
   embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
-  read-only database connection (`DB_*`), and `llm_run_timeout_seconds`, which must stay below the `ai_tasks` visibility timeout)
+  read-only database connection (`DB_*`), `llm_run_timeout_seconds` (must stay below the
+  `ai_tasks` visibility timeout), and the request, tool-call, and token caps
+- `run_limits.py` — `agent_usage_limits` and `RUN_LIMIT_MESSAGE`. A hit fails the task on the
+  first attempt. A timeout is still retried
 - `sqs_queue_client.py` — wrapper for one SQS queue (receive, delete, send)
 
 ## Local Rules
@@ -66,7 +69,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   tools in `tools/`, prompts in `prompts/` (sibling folders).
 - Handlers take `(task, dependencies)` and return an `AiResultMessage`. Return a `failed`
   result with a user-facing `error_message` for expected problems (e.g. unreadable file);
-  let unexpected exceptions propagate (main publishes a generic failure).
+  let unexpected exceptions propagate (main publishes a generic failure, or the run-limit
+  message when a request, tool-call, or token cap was hit).
 - Completed results list a `ModelUsage` for every agent run (`build_model_usage`). The model
   name is the one that answered when that name has a price, otherwise the configured primary.
   A new model needs an entry in `MODEL_PRICES` (a test checks every configured model has one).

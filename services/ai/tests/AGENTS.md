@@ -38,10 +38,13 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   `TestModel`), unsupported URLs, 404, unreadable page, 429/5xx/999 propagate
 - `test_job_posting_extraction_evaluators.py` — eval labels score 1.0; heading-labelled cases
   pass without the agent; the verbatim check catches rewording
-- `test_process_task_message.py` — per-message flow: parse, handle, publish result, delete rules
+- `test_process_task_message.py` — per-message flow: parse, handle, publish result, delete rules,
+  including a run cap that fails on the first attempt
 - `test_polling_loop.py` — polling loop: deletes only handled tasks, delays kept ones, survives
   queue errors, stops
-- `test_retryable_errors.py` — which model/AWS errors count as temporary
+- `test_retryable_errors.py` — which model/AWS errors count as temporary. A run cap does not
+- `test_run_limits.py` — settings caps, a request cap that never calls the model, an output-token
+  cap, and a Jev cap that is not treated as unchecked
 - `test_task_handlers.py` — dispatch and the parse_resume handler (agent on `TestModel`), incl.
   the resume fence, a blocked screen, and reported usage
 - `test_model_prices.py` — cost math, unknown models, every configured model has a price

@@ -14,10 +14,12 @@ import time
 from collections.abc import Callable
 
 from pydantic import ValidationError
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from database.career_library_reader import build_database_context_reader
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.retryable_errors import is_retryable_error
+from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.s3_file_storage import S3FileStorage
 from worker.settings import load_settings
 from worker.sqs_queue_client import SqsQueueClient
@@ -41,9 +43,10 @@ def process_task_message(
     Returns True once a result is published, so the task message can be deleted. Returns False
     (publish nothing, keep the message) for an invalid message, which SQS then moves to the
     dead-letter queue, and for a temporary failure (see is_retryable_error) before the last
-    attempt, so SQS redelivers it. Other handler errors, and temporary ones on the last
-    attempt, publish a "failed" result. If publishing itself fails, the error propagates and
-    the task is redelivered.
+    attempt, so SQS redelivers it. A run that hits its request, tool-call, or token cap fails
+    immediately, with no partial result and no retry. Other handler errors, and temporary ones
+    on the last attempt, publish a "failed" result. If publishing itself fails, the error
+    propagates and the task is redelivered.
     """
     try:
         task = AiTaskMessage.model_validate_json(message_body)
@@ -56,6 +59,11 @@ def process_task_message(
     try:
         with trace_ai_task(task):
             result = handle_ai_task(task, dependencies)
+    except UsageLimitExceeded:
+        logger.exception("Task %s hit a run limit on attempt %d", task.ai_task_id, receive_count)
+        result = AiResultMessage(
+            ai_task_id=task.ai_task_id, status="failed", error_message=RUN_LIMIT_MESSAGE
+        )
     except Exception as error:
         if is_retryable_error(error) and receive_count < dependencies.settings.max_task_attempts:
             logger.warning(

@@ -10,7 +10,8 @@ applies the threshold. This is not a second classifier and it does not choose al
 - `screen_user_text.py` — `screen_user_text`: a string over the screen cap returns not allowed
   with `too_long` and does not call Jev. Then the phrase check (skipped for a whole resume),
   then Jev, then the 0.7 yes-confidence threshold. A missing key or a Jev error returns not
-  allowed with `unchecked` and does not send the text. Blank text is allowed without a call
+  allowed with `unchecked` and does not send the text. A request, tool-call, or token cap is
+  re-raised. Blank text is allowed without a call
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 

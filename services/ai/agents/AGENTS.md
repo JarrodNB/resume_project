@@ -41,7 +41,9 @@ instructions from `prompts/`.
   with `agent.override(model=TestModel())`.
 - Expose one plain function per agent that handlers and eval runners call. It runs the agent
   under an overall deadline (`WorkerSettings.llm_run_timeout_seconds`, below the `ai_tasks`
-  visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It returns the
+  visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It also
+  passes `agent_usage_limits` (request, tool-call, and token caps). `UsageLimitExceeded` fails
+  the task on the first attempt. It returns the
   output together with the run's `RunUsage` and the model name to bill, so handlers can report
   cost for the model that answered.
 - Generative runs take `fallback_model` and call `generative_model` (primary, then

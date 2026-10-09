@@ -23,6 +23,8 @@ from prompts.parse_job_posting_instructions import (
 from schemas.parsed_job_posting import ParsedJobPosting
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
+from worker.run_limits import agent_usage_limits
+from worker.settings import load_settings
 from worker.tracing import record_prompt_version
 
 parse_job_posting_agent = Agent(
@@ -72,7 +74,8 @@ def parse_job_posting(
     fallback_model: str,
 ) -> JobPostingParseRun:
     """Parses the ad with the given model and reasoning effort. Raises TimeoutError if the
-    whole run takes longer than timeout_seconds. A provider error tries fallback_model."""
+    whole run takes longer than timeout_seconds. Raises UsageLimitExceeded when the run passes
+    its request, tool-call, or token cap. A provider error tries fallback_model."""
     return asyncio.run(_run_with_deadline(text, model, thinking, timeout_seconds, fallback_model))
 
 
@@ -91,6 +94,7 @@ async def _run_with_deadline(
                 deps=text,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
+                usage_limits=agent_usage_limits(load_settings()),
             )
     return JobPostingParseRun(
         parsed=result.output,

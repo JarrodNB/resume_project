@@ -8,7 +8,12 @@ Index:
 import httpx
 import pytest
 from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError
-from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, UnexpectedModelBehavior
+from pydantic_ai.exceptions import (
+    ModelAPIError,
+    ModelHTTPError,
+    UnexpectedModelBehavior,
+    UsageLimitExceeded,
+)
 
 from worker.retryable_errors import is_retryable_error
 
@@ -86,3 +91,4 @@ def test_other_errors_are_permanent() -> None:
     """Bugs and bad model output aren't retried."""
     assert not is_retryable_error(RuntimeError("bug"))
     assert not is_retryable_error(UnexpectedModelBehavior("bad output"))
+    assert not is_retryable_error(UsageLimitExceeded("request_limit of 6"))

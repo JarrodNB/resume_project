@@ -47,9 +47,24 @@ The user id and model filters stay in the SQL, before either rank.
 
 The library-retrieval eval ranks with the same `hybrid_order` and scores recall@k, precision@k, and MRR (`k` is the production limit). `tests/test_hybrid_rank.py` is the deterministic golden check: an exact term outranks a nearer row, a query with no shared term leaves cosine order alone, and k=60 prefers a row both lists rank well. k=1 does not, which is why 60 is the constant.
 
+## Agent run limits
+
+Every agent run passes `agent_usage_limits` from `services/ai/worker/run_limits.py`, built from `WorkerSettings`.
+
+| Cap | Setting | Default |
+| --- | --- | --- |
+| Model requests | `llm_request_limit` | 6 |
+| Tool calls | `llm_tool_calls_limit` | 0 |
+| Output tokens | `llm_output_tokens_limit` | 64000 |
+| Total tokens | `llm_total_tokens_limit` | 128000 |
+
+Six requests is the first answer, two output-validator retries (`retries=2`), and the same three after a fallback switch. The wall-clock cap was already `llm_run_timeout_seconds` (240s). A timeout is retried. A request, tool-call, or token cap is not: the worker publishes `failed` on the first attempt (`RUN_LIMIT_MESSAGE`) and does not return a partial result. The over-limit response is billed once, because the token check happens after it. A cap on the Jev screen fails the task the same way. A Jev outage still omits the text.
+
+`tool_calls_limit` stays 0 until an agent has a tool.
+
 ## Still open
 
 These were left on purpose. They are the ones to pick next, not the ones above.
 
-- An MCP tool layer. The agents have no tools yet.
+- An MCP tool layer. The agents have no tools yet. Skipping until we have tools
 - Pseudonymized trace user ids. Traces tag the real `user_id` on purpose so a task can be followed end to end.

@@ -2,8 +2,8 @@
 Description: Worker configuration loaded from environment variables.
 Index:
     - WorkerSettings: typed settings for SQS, S3, the read-only database, each agent's model
-      and reasoning effort, the generative fallback model, and the embedding model for career
-      library search
+      and reasoning effort, the generative fallback model, the embedding model for career
+      library search, and the request, tool-call, and token caps on a run
     - load_settings: builds WorkerSettings from the environment
 """
 
@@ -59,6 +59,16 @@ class WorkerSettings(BaseSettings):
     # Must stay well below the ai_tasks visibility timeout (300s), so a slow run is abandoned
     # before SQS hands the same task to another worker and it runs (and bills) twice.
     llm_run_timeout_seconds: float = 240
+    # First answer, two output-validator retries, and the same three after a fallback switch.
+    # The library default is 50. The next request fails the task.
+    llm_request_limit: int = 6
+    # No agent has tools. A tool call fails the run until one is registered and this is raised.
+    llm_tool_calls_limit: int = 0
+    # Reasoning tokens count as output. Above a long resume, below a runaway generation.
+    llm_output_tokens_limit: int = 64_000
+    # Covers the largest allowed prompt plus that output. Character caps reject a bigger prompt
+    # before the call. Checked after the response, so one over-limit response is billed once.
+    llm_total_tokens_limit: int = 128_000
 
 
 def load_settings() -> WorkerSettings:

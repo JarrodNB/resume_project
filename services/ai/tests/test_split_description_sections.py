@@ -25,8 +25,11 @@ from job_postings.split_description_sections import classify_heading, split_desc
         ("Preferred Qualifications", "nice_to_haves"),
         ("Nice-to-haves", "nice_to_haves"),
         ("Bonus points", "nice_to_haves"),
-        ("Responsibilities", "other"),
-        ("What you'll do", "other"),
+        ("Responsibilities", "responsibilities"),
+        ("What you'll do", "responsibilities"),
+        ("What you'll be doing", "responsibilities"),
+        ("Key duties", "responsibilities"),
+        ("In this role", "responsibilities"),
         ("Benefits", "other"),
     ],
 )
@@ -44,6 +47,7 @@ def test_files_bullets_under_their_heading() -> None:
     )
 
     assert sections.requirements == ["Python", "SQL"]
+    assert sections.responsibilities == ["Build APIs"]
     assert sections.nice_to_haves == ["Go"]
     assert sections.all_bullets == ["Build APIs", "Python", "SQL", "Go"]
 

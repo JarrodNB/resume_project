@@ -48,6 +48,8 @@ class PastedRequirementMatch(Evaluator[ParseInput, ScrapedJobPosting, dict[str, 
         return {
             "requirement_recall": _recall(expected.requirements, ctx.output.requirements),
             "requirement_precision": _recall(ctx.output.requirements, expected.requirements),
+            "responsibility_recall": _recall(expected.responsibilities, ctx.output.responsibilities),
+            "responsibility_precision": _recall(ctx.output.responsibilities, expected.responsibilities),
             "nice_to_have_recall": _recall(expected.nice_to_haves, ctx.output.nice_to_haves),
             "nice_to_have_precision": _recall(ctx.output.nice_to_haves, expected.nice_to_haves),
         }
@@ -60,7 +62,7 @@ class PastedVerbatim(Evaluator[ParseInput, ScrapedJobPosting, dict[str, Any]]):
     def evaluate(self, ctx: ParseContext) -> dict[str, float]:
         """Scores the share of extracted bullets found in the ad."""
         source_text = ctx.inputs.get("text") or ""
-        bullets = ctx.output.requirements + ctx.output.nice_to_haves
+        bullets = ctx.output.requirements + ctx.output.responsibilities + ctx.output.nice_to_haves
         found = sum(appears_in(bullet, source_text) for bullet in bullets)
         return {"verbatim_bullets": fraction(found, len(bullets))}
 

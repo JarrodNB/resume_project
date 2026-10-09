@@ -16,6 +16,7 @@ def find_parsed_job_problems(parsed: ParsedJobPosting, source_text: str) -> list
     if not appears_in(parsed.company, source_text):
         problems.append("company must be copied from the advertisement")
     problems.extend(_list_problems("requirements", parsed.requirements, source_text))
+    problems.extend(_list_problems("responsibilities", parsed.responsibilities, source_text))
     problems.extend(_list_problems("nice_to_haves", parsed.nice_to_haves, source_text))
     return problems
 

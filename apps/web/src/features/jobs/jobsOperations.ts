@@ -2,7 +2,7 @@
  * Description: GraphQL operations for saved jobs (typed by GraphQL Code Generator).
  * Index:
  *   - JOBS_QUERY: the user's jobs, newest first
- *   - JOB_QUERY: one job with its description, requirements, notes, gap responses, and latest gap analysis
+ *   - JOB_QUERY: one job with its description, requirements, responsibilities, notes, gap responses, and latest gap analysis
  *   - SCRAPE_JOB_MUTATION: starts a scrape_job AI task for a job posting URL
  *   - PARSE_JOB_POSTING_MUTATION: starts a parse_job_posting AI task for a pasted ad
  *   - CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION: manual add and edit
@@ -38,6 +38,7 @@ export const JOB_QUERY = graphql(`
       notes
       appliedAt
       requirements
+      responsibilities
       niceToHaves
       gapResponses {
         id

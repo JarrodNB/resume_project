@@ -48,6 +48,7 @@ def test_heading_split_matches_labels_without_the_agent() -> None:
         expected = case.expected_output
         assert expected is not None
         assert posting.requirements == expected.requirements, case.name
+        assert posting.responsibilities == expected.responsibilities, case.name
         assert posting.nice_to_haves == expected.nice_to_haves, case.name
         assert posting.requirements_sorted_by == expected.requirements_sorted_by, case.name
 

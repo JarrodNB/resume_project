@@ -60,14 +60,14 @@ def _labelled_pairs(ctx: GapContext) -> list[tuple[ExpectedAssessment, AssessedR
 
 @dataclass
 class Coverage(GapEvaluator):
-    """Requirements first, then nice-to-haves, each exactly once."""
+    """Requirements, then responsibilities, then nice-to-haves, each exactly once."""
 
     def evaluate(self, ctx: GapContext) -> dict[str, float]:
         """Scores 1 when the output lists exactly the job's requirements, in order, by kind."""
         job = ctx.inputs.job
         expected = [("required", text) for text in job.requirements] + [
-            ("nice_to_have", text) for text in job.nice_to_haves
-        ]
+            ("responsibility", text) for text in job.responsibilities
+        ] + [("nice_to_have", text) for text in job.nice_to_haves]
         actual = [(item.kind, item.requirement) for item in ctx.output.assessments]
         return {"coverage": float(actual == expected)}
 
@@ -147,8 +147,8 @@ def labels_to_result(context: GapAnalysisContext, labels: GapAnalysisLabels) -> 
         item.id: item for item in build_gap_analysis_prompt(context, date.min).evidence.values()
     }
     kinds = {text: "required" for text in context.job.requirements} | {
-        text: "nice_to_have" for text in context.job.nice_to_haves
-    }
+        text: "responsibility" for text in context.job.responsibilities
+    } | {text: "nice_to_have" for text in context.job.nice_to_haves}
     return GapAnalysisResult(
         summary="Labels.",
         assessments=[

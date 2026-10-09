@@ -39,11 +39,22 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
   const [notes, setNotes] = useState(job?.notes ?? '')
   const [description, setDescription] = useState(job?.description ?? '')
   const [requirements, setRequirements] = useState(job?.requirements ?? [])
+  const [responsibilities, setResponsibilities] = useState(job?.responsibilities ?? [])
   const [niceToHaves, setNiceToHaves] = useState(job?.niceToHaves ?? [])
 
   /** Creates or updates the job. A new job opens its page. */
   async function submit() {
-    const attributes = jobAttributes({ title, company, location, url, notes, description, requirements, niceToHaves })
+    const attributes = jobAttributes({
+      title,
+      company,
+      location,
+      url,
+      notes,
+      description,
+      requirements,
+      responsibilities,
+      niceToHaves,
+    })
     if (job) {
       const result = await save(UPDATE_JOB_MUTATION, { id: job.id, attributes })
       if (result.ok) onClose()
@@ -81,6 +92,13 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
           <JobField label="Notes" value={notes} onChange={setNotes} multiline maxLength={PROSE_TEXT} />
           <JobField label="Description" value={description} onChange={setDescription} multiline maxLength={JOB_DESCRIPTION_TEXT} />
           <StringListField legend="Requirements" addLabel="Add requirement" itemLabel="Requirement" items={requirements} onChange={setRequirements} />
+          <StringListField
+            legend="Responsibilities"
+            addLabel="Add responsibility"
+            itemLabel="Responsibility"
+            items={responsibilities}
+            onChange={setResponsibilities}
+          />
           <StringListField legend="Nice to have" addLabel="Add nice to have" itemLabel="Nice to have" items={niceToHaves} onChange={setNiceToHaves} />
           <ErrorAlert title="Couldn't save" messages={errors} />
           <DialogFooter>

@@ -40,7 +40,7 @@ MOST_RECENT_FIRST = """
 """
 
 JOB_QUERY = """
-    SELECT id::text, title, company, requirements, nice_to_haves
+    SELECT id::text, title, company, requirements, responsibilities, nice_to_haves
     FROM jobs WHERE id = %(job_id)s AND user_id = %(user_id)s
 """
 SUMMARY_QUERY = "SELECT summary FROM users WHERE id = %(user_id)s"

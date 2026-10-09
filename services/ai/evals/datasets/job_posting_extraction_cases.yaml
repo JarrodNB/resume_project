@@ -28,6 +28,9 @@ cases:
         - 5+ years of backend development experience
         - Strong Python or Go skills
         - Experience with PostgreSQL at scale
+      responsibilities:
+        - Design and operate event-driven services
+        - Mentor engineers on the payments team
       nice_to_haves:
         - Experience in fintech or payments
         - Familiarity with Kafka
@@ -53,6 +56,9 @@ cases:
       requirements:
         - 3+ years building ML systems in production
         - Hands-on experience with PyTorch, and evaluation design
+      responsibilities:
+        - Train and evaluate retrieval models
+        - Ship models to production with the platform team
       nice_to_haves:
         - Published research in information retrieval
       requirements_sorted_by: headings
@@ -102,6 +108,9 @@ cases:
       requirements:
         - 2+ years of hands-on analytics experience
         - Strong SQL skills
+      responsibilities:
+        - Define KPIs for the client platform
+        - Champion A/B testing best practices
       nice_to_haves:
         - Production ETL or BigQuery experience
       requirements_sorted_by: headings
@@ -152,6 +161,9 @@ cases:
       requirements:
         - 4+ years of experience operating Kubernetes in production
         - Strong Terraform skills
+      responsibilities:
+        - Run and upgrade our Kubernetes clusters
+        - Build self-service tooling for product teams
       nice_to_haves:
         - Experience with Go is a plus
       requirements_sorted_by: llm
@@ -177,6 +189,9 @@ cases:
         - A portfolio showing shipped mobile products
         - At least 3 years of product design experience
         - Figma expertise
+      responsibilities:
+        - Lead design for the onboarding flow
+        - Run usability studies every sprint
       nice_to_haves:
         - Motion design skills would be a bonus
       requirements_sorted_by: llm

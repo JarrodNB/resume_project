@@ -8,7 +8,7 @@
 module Jobs
   class CreateJobFromPastedPostingService < ApplicationService
     TEXT_FIELDS = %w[title company location description].freeze
-    LIST_FIELDS = %w[requirements nice_to_haves].freeze
+    LIST_FIELDS = %w[requirements responsibilities nice_to_haves].freeze
 
     # @param ai_task [AiTask] the parse_job_posting task
     # @param scraped_job [Object] result["scraped_job"] from the worker
@@ -69,6 +69,7 @@ module Jobs
       @scraped_job.slice(*TEXT_FIELDS).merge(
         "url" => url,
         "requirements" => @scraped_job.fetch("requirements", []),
+        "responsibilities" => @scraped_job.fetch("responsibilities", []),
         "nice_to_haves" => @scraped_job.fetch("nice_to_haves", [])
       )
     end

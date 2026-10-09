@@ -25,7 +25,7 @@ application stages, and deleted.
   straight there. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first, and
   "Write resume anyway" continues. "Open resume" goes to `/resumes/:id` when one is already
   saved, and that page's breadcrumb returns here.
-  requirements, nice-to-haves, notes, description (those cards start collapsed, remembered per
+  requirements, responsibilities, nice-to-haves, notes, description (those cards start collapsed, remembered per
   job), the applied date once set, and a link to the original posting
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared
   add and edit form; every field is sent, and a blank optional string is stored as null

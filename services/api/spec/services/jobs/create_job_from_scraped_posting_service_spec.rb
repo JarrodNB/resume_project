@@ -9,7 +9,8 @@ RSpec.describe Jobs::CreateJobFromScrapedPostingService do
     {
       "source" => "linkedin", "source_url" => "https://www.linkedin.com/jobs/view/1/?from=worker",
       "title" => "AI Engineer", "company" => "Acme", "location" => "Remote",
-      "description" => "Build agents.", "requirements" => [ "Python" ], "nice_to_haves" => [ "Rust" ],
+      "description" => "Build agents.", "requirements" => [ "Python" ],
+      "responsibilities" => [ "Build agents" ], "nice_to_haves" => [ "Rust" ],
       "requirements_sorted_by" => "headings", "warnings" => []
     }
   end
@@ -20,7 +21,8 @@ RSpec.describe Jobs::CreateJobFromScrapedPostingService do
     expect(result).to be_success
     expect(result.value).to have_attributes(
       user: user, url: url, title: "AI Engineer", company: "Acme", location: "Remote",
-      description: "Build agents.", requirements: [ "Python" ], nice_to_haves: [ "Rust" ], stage: "unapplied"
+      description: "Build agents.", requirements: [ "Python" ], responsibilities: [ "Build agents" ],
+      nice_to_haves: [ "Rust" ], stage: "unapplied"
     )
   end
 

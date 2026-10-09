@@ -55,7 +55,9 @@ def build_docx_bytes(paragraphs: list[str], table_rows: list[list[str]] | None =
 
 
 def build_gap_analysis_context(
-    requirements: list[str] | None = None, nice_to_haves: list[str] | None = None
+    requirements: list[str] | None = None,
+    nice_to_haves: list[str] | None = None,
+    responsibilities: list[str] | None = None,
 ) -> GapAnalysisContext:
     """A small job and career library: one ongoing role with two highlights, a project, a
     degree, and two skills (prompt labels E1, H1, H2, P1, ED1, S1, S2). The profile summary
@@ -68,6 +70,7 @@ def build_gap_analysis_context(
             requirements=["5+ years of Python", "PostgreSQL"]
             if requirements is None
             else requirements,
+            responsibilities=[] if responsibilities is None else responsibilities,
             nice_to_haves=["Kubernetes"] if nice_to_haves is None else nice_to_haves,
         ),
         career_library=CareerLibrary(

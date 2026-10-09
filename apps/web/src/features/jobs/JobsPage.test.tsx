@@ -67,6 +67,7 @@ it('adds a job manually and opens it', async () => {
               notes: null,
               description: null,
               requirements: [],
+              responsibilities: [],
               niceToHaves: [],
             },
           },

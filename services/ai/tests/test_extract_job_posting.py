@@ -74,6 +74,7 @@ def test_falls_back_to_the_sorter_without_requirement_headings() -> None:
 
     assert received == [["Run clusters", "Kubernetes", "Go is a plus"]]
     assert extraction.posting.requirements == ["Kubernetes"]
+    assert extraction.posting.responsibilities == []
     assert extraction.posting.nice_to_haves == ["Go is a plus"]
     assert extraction.posting.requirements_sorted_by == "llm"
     assert extraction.posting.warnings == [LLM_SORTED_WARNING]
@@ -133,21 +134,25 @@ def test_posting_without_bullets_warns_and_skips_the_agent() -> None:
 
 
 @pytest.mark.parametrize(
-    ("requirement_numbers", "nice_to_have_numbers", "expected"),
+    ("requirement_numbers", "responsibility_numbers", "nice_to_have_numbers", "expected"),
     [
-        ([3, 1], [2], (["a", "c"], ["b"], False)),
-        ([1, 1], [1, 2], (["a"], ["b"], False)),
-        ([0, 4, 2], [-1], (["b"], [], True)),
+        ([3, 1], [], [2], (["a", "c"], [], ["b"], False)),
+        ([1, 1], [1], [1, 2], (["a"], [], ["b"], False)),
+        ([0, 4, 2], [2], [-1], (["b"], [], [], True)),
+        ([], [1, 2], [2], ([], ["a"], ["b"], False)),
     ],
 )
 def test_pick_sorted_bullets_keeps_order_and_drops_invalid_numbers(
     requirement_numbers: list[int],
+    responsibility_numbers: list[int],
     nice_to_have_numbers: list[int],
-    expected: tuple[list[str], list[str], bool],
+    expected: tuple[list[str], list[str], list[str], bool],
 ) -> None:
-    """Posting order is kept, repeats collapse, requirements win ties, bad numbers are flagged."""
+    """Posting order is kept, repeats collapse, higher lists win ties, bad numbers are flagged."""
     sorted_bullets = SortedRequirementBullets(
-        requirement_numbers=requirement_numbers, nice_to_have_numbers=nice_to_have_numbers
+        requirement_numbers=requirement_numbers,
+        responsibility_numbers=responsibility_numbers,
+        nice_to_have_numbers=nice_to_have_numbers,
     )
 
     assert pick_sorted_bullets(["a", "b", "c"], sorted_bullets) == expected

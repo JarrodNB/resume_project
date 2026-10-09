@@ -5,7 +5,7 @@ Index:
     - LibraryHighlight / LibraryExperience / LibraryProject / LibraryEducation / LibrarySkill /
       LibraryFact: career library entries, each with its database id
     - CareerLibrary: everything in the user's library, plus the profile summary
-    - JobToAnalyze: the job's title, company, requirements, and nice-to-haves
+    - JobToAnalyze: the job's title, company, requirements, responsibilities, and nice-to-haves
     - GapAnalysisContext: the job and the library together
 """
 
@@ -91,12 +91,13 @@ class CareerLibrary(BaseModel):
 
 
 class JobToAnalyze(BaseModel):
-    """The saved job whose requirements are checked."""
+    """The saved job whose requirements, responsibilities, and nice-to-haves are checked."""
 
     id: str
     title: str
     company: str
     requirements: list[str] = Field(default_factory=list)
+    responsibilities: list[str] = Field(default_factory=list)
     nice_to_haves: list[str] = Field(default_factory=list)
 
 

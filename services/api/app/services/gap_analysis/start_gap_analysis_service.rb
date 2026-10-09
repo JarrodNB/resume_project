@@ -18,7 +18,7 @@ module GapAnalysis
 
     # Fails when there's nothing to compare or an analysis is already queued; otherwise enqueues.
     def call
-      return failure([ NO_REQUIREMENTS_MESSAGE ]) if @job.requirements.empty? && @job.nice_to_haves.empty?
+      return failure([ NO_REQUIREMENTS_MESSAGE ]) if nothing_to_compare?
       return failure([ EMPTY_LIBRARY_MESSAGE ]) if career_library_empty?
       return failure([ ALREADY_RUNNING_MESSAGE ]) if analysis_running?
 
@@ -26,6 +26,11 @@ module GapAnalysis
     end
 
     private
+
+    # True when the job has no requirements, responsibilities, or nice-to-haves.
+    def nothing_to_compare?
+      @job.requirements.empty? && @job.responsibilities.empty? && @job.nice_to_haves.empty?
+    end
 
     # True when the user has no experiences, projects, educations, skills, or library facts.
     # Job-only gap responses are not library content.

@@ -23,7 +23,7 @@ export interface EvidenceItem {
 }
 
 export interface AssessedRequirement {
-  kind: 'required' | 'nice_to_have'
+  kind: 'required' | 'responsibility' | 'nice_to_have'
   requirement: string
   verdict: Verdict
   explanation: string
@@ -60,7 +60,8 @@ function parseAssessment(value: unknown): AssessedRequirement | null {
   if (typeof value.verdict !== 'string' || !VERDICTS.includes(value.verdict)) return null
   const evidence = Array.isArray(value.evidence) ? value.evidence.map(parseEvidence) : []
   return {
-    kind: value.kind === 'nice_to_have' ? 'nice_to_have' : 'required',
+    kind:
+      value.kind === 'nice_to_have' || value.kind === 'responsibility' ? value.kind : 'required',
     requirement: value.requirement,
     verdict: value.verdict as Verdict,
     explanation: typeof value.explanation === 'string' ? value.explanation : '',

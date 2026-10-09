@@ -21,6 +21,7 @@ function job(overrides: Record<string, unknown> = {}) {
     notes: null,
     appliedAt: null,
     requirements: ['Python'],
+    responsibilities: [],
     niceToHaves: [],
     gapResponses: [],
     latestGapAnalysis: null,
@@ -41,6 +42,7 @@ const savedAttributes = {
   notes: null,
   description: null,
   requirements: ['Python'],
+  responsibilities: [],
   niceToHaves: [],
 }
 

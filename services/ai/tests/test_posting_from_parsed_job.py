@@ -20,6 +20,9 @@ Acme
 Remote
 https://example.com/jobs/1
 
+Responsibilities
+- Build agents
+
 Requirements
 - 5 years of Python
 - Experience with PostgreSQL
@@ -37,6 +40,7 @@ def _parsed(**overrides: object) -> ParsedJobPosting:
         "location": "Remote",
         "url": "https://example.com/jobs/1",
         "requirements": ["5 years of Python", "Experience with PostgreSQL"],
+        "responsibilities": ["Build agents"],
         "nice_to_haves": ["Familiarity with Rust"],
     }
     fields.update(overrides)
@@ -62,6 +66,13 @@ def test_an_invented_bullet_is_rejected() -> None:
     assert any("requirements item 1" in problem for problem in problems)
 
 
+def test_an_invented_responsibility_is_rejected() -> None:
+    """A duty that is not in the ad is sent back to the model."""
+    problems = find_parsed_job_problems(_parsed(responsibilities=["Invent a new database"]), AD)
+
+    assert any("responsibilities item 1" in problem for problem in problems)
+
+
 def test_posting_keeps_the_paste_as_the_description() -> None:
     """The saved description is the ad, and the link is the one copied from it."""
     posting = posting_from_parsed_job(AD, _parsed())
@@ -70,6 +81,7 @@ def test_posting_keeps_the_paste_as_the_description() -> None:
     assert posting.description == AD.strip()
     assert posting.source_url == "https://example.com/jobs/1"
     assert posting.requirements == ["5 years of Python", "Experience with PostgreSQL"]
+    assert posting.responsibilities == ["Build agents"]
     assert posting.requirements_sorted_by == "llm"
     assert posting.warnings == []
 
@@ -88,7 +100,9 @@ def test_location_and_url_missing_from_the_ad_are_dropped() -> None:
 
 def test_no_requirements_adds_a_warning() -> None:
     """A prose ad can still become a job, and the user is told to add requirements."""
-    posting = posting_from_parsed_job(AD, _parsed(requirements=[], nice_to_haves=[]))
+    posting = posting_from_parsed_job(
+        AD, _parsed(requirements=[], responsibilities=[], nice_to_haves=[])
+    )
 
     assert posting.requirements == []
     assert posting.requirements_sorted_by == "none"

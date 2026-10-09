@@ -251,6 +251,7 @@ it('saves a response and can add it to the career library', async () => {
               url: null,
               description: null,
               requirements: ['Go'],
+              responsibilities: [],
               niceToHaves: [],
               notes: null,
               appliedAt: null,

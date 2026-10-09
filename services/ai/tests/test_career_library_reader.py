@@ -72,6 +72,7 @@ def test_reads_the_job_and_library_in_rails_order(
         title="Platform Engineer",
         company="Acme",
         requirements=Jsonb(["5 years of Python"]),
+        responsibilities=Jsonb(["Ship models"]),
         nice_to_haves=Jsonb(["Kubernetes"]),
     )
     old_role = _insert(
@@ -128,6 +129,7 @@ def test_reads_the_job_and_library_in_rails_order(
 
     assert context is not None
     assert context.job.requirements == ["5 years of Python"]
+    assert context.job.responsibilities == ["Ship models"]
     assert context.job.nice_to_haves == ["Kubernetes"]
     library = context.career_library
     assert library.summary == "Backend engineer"

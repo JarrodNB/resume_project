@@ -25,7 +25,7 @@ from scrapers.job_page import JobPage
 
 LLM_SORTED_WARNING = (
     "This posting has no clear requirement headings, so AI sorted its bullet points into "
-    "requirements and nice-to-haves. Check them."
+    "requirements, responsibilities, and nice-to-haves. Check them."
 )
 NO_BULLETS_WARNING = (
     "This posting has no bullet points, so no requirements were extracted. Add them by hand."
@@ -54,7 +54,9 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
     """Splits the description by headings, falling back to sort_bullets when no requirement
     heading matched but the posting has bullets."""
     sections = split_description_sections(page.description_html)
-    requirements, nice_to_haves = sections.requirements, sections.nice_to_haves
+    requirements = sections.requirements
+    responsibilities = sections.responsibilities
+    nice_to_haves = sections.nice_to_haves
     sorted_by: RequirementsSortedBy = "headings"
     warnings: list[str] = []
     sorting_usage: RunUsage | None = None
@@ -64,7 +66,7 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
         warnings.append(text_limits.POSTING_TOO_LONG_TO_SORT_WARNING)
     elif not requirements and sections.all_bullets:
         sorting_run = sort_bullets(sections.all_bullets)
-        requirements, nice_to_haves, had_invalid_numbers = pick_sorted_bullets(
+        requirements, responsibilities, nice_to_haves, had_invalid_numbers = pick_sorted_bullets(
             sections.all_bullets, sorting_run.sorted_bullets
         )
         sorted_by, sorting_usage = "llm", sorting_run.usage
@@ -84,6 +86,7 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
             location=page.location,
             description=html_to_description_text(page.description_html),
             requirements=requirements,
+            responsibilities=responsibilities,
             nice_to_haves=nice_to_haves,
             requirements_sorted_by=sorted_by,
             warnings=warnings,
@@ -121,6 +124,7 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
     location = shorten(posting.location, text_limits.MAX_SHORT_TEXT)
     description = shorten(posting.description, text_limits.MAX_JOB_DESCRIPTION) or ""
     requirements = keep_items(posting.requirements)
+    responsibilities = keep_items(posting.responsibilities)
     nice_to_haves = keep_items(posting.nice_to_haves)
     warnings = list(posting.warnings)
     if left_out:
@@ -132,6 +136,7 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
             "location": location,
             "description": description,
             "requirements": requirements,
+            "responsibilities": responsibilities,
             "nice_to_haves": nice_to_haves,
             "warnings": warnings,
         }
@@ -140,19 +145,28 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
 
 def pick_sorted_bullets(
     bullets: list[str], sorted_bullets: SortedRequirementBullets
-) -> tuple[list[str], list[str], bool]:
-    """Returns (requirements, nice_to_haves, had_invalid_numbers). Numbers are 1-based; numbers
-    out of range or repeated are dropped, and a bullet in both lists stays a requirement. Both
-    lists keep the posting's order."""
+) -> tuple[list[str], list[str], list[str], bool]:
+    """Returns (requirements, responsibilities, nice_to_haves, had_invalid_numbers). Numbers are
+    1-based. Numbers out of range or repeated are dropped. A number in more than one list stays
+    in the higher one: requirements, then nice-to-haves, then responsibilities. Each list keeps
+    the posting's order."""
     valid_numbers = range(1, len(bullets) + 1)
     requirement_numbers = {n for n in sorted_bullets.requirement_numbers if n in valid_numbers}
     nice_to_have_numbers = {
         n for n in sorted_bullets.nice_to_have_numbers if n in valid_numbers
     } - requirement_numbers
-    all_numbers = sorted_bullets.requirement_numbers + sorted_bullets.nice_to_have_numbers
+    responsibility_numbers = {
+        n for n in sorted_bullets.responsibility_numbers if n in valid_numbers
+    } - requirement_numbers - nice_to_have_numbers
+    all_numbers = (
+        sorted_bullets.requirement_numbers
+        + sorted_bullets.responsibility_numbers
+        + sorted_bullets.nice_to_have_numbers
+    )
     had_invalid_numbers = any(n not in valid_numbers for n in all_numbers)
     return (
         [bullets[n - 1] for n in sorted(requirement_numbers)],
+        [bullets[n - 1] for n in sorted(responsibility_numbers)],
         [bullets[n - 1] for n in sorted(nice_to_have_numbers)],
         had_invalid_numbers,
     )

@@ -15,6 +15,7 @@ module Types
     field :url, String
     field :description, String
     field :requirements, [ String ], null: false
+    field :responsibilities, [ String ], null: false
     field :nice_to_haves, [ String ], null: false
     field :stage, Types::JobStageEnum, null: false
     field :applied_at, GraphQL::Types::ISO8601DateTime

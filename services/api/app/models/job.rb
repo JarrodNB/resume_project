@@ -38,6 +38,7 @@ class Job < ApplicationRecord
   # Caps how many requirements each list holds and how long each item is.
   def requirement_lists_within_limits
     limit_list(:requirements, "requirement", "requirements")
+    limit_list(:responsibilities, "responsibility", "responsibilities")
     limit_list(:nice_to_haves, "nice-to-have", "nice-to-haves")
   end
 

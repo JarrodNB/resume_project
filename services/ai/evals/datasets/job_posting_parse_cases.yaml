@@ -68,8 +68,10 @@ cases:
         You will train ranking models and talk to customers.
         We offer a competitive salary.
       requirements: []
+      responsibilities:
+        - You will train ranking models and talk to customers.
       nice_to_haves: []
-      requirements_sorted_by: none
+      requirements_sorted_by: llm
 
   - name: must_and_preferred_in_prose
     inputs:
@@ -95,6 +97,8 @@ cases:
         You will own the billing API.
       requirements:
         - 4 years of Go
+      responsibilities:
+        - You will own the billing API.
       nice_to_haves:
         - Kubernetes experience
       requirements_sorted_by: llm

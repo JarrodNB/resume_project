@@ -1,6 +1,6 @@
 """
 Description: Turns a GapAnalysisContext into the agent's user prompt. Every requirement and every
-career library entry gets a short label (R1, N1, E1, H1, P1, ED1, S1, F1): models copy short
+career library entry gets a short label (R1, D1, N1, E1, H1, P1, ED1, S1, F1): models copy short
 labels reliably (unlike UUIDs) and they cost fewer tokens. The profile summary is unlabeled
 background for the overall writeup, not evidence. The returned maps let the validator
 check the labels and the worker swap them back for ids and text.
@@ -22,7 +22,7 @@ from schemas.gap_analysis_context import GapAnalysisContext
 
 @dataclass(frozen=True)
 class LabeledRequirement:
-    """A job requirement or nice-to-have, as numbered in the prompt."""
+    """A job requirement, responsibility, or nice-to-have, as numbered in the prompt."""
 
     kind: RequirementKind
     text: str
@@ -66,6 +66,9 @@ def build_gap_analysis_prompt(
         f"# Job: {screened.job.title} at {screened.job.company}",
     ]
     lines += _requirement_lines(prompt, "required", "R", "Requirements", screened.job.requirements)
+    lines += _requirement_lines(
+        prompt, "responsibility", "D", "Responsibilities", screened.job.responsibilities
+    )
     lines += _requirement_lines(
         prompt, "nice_to_have", "N", "Nice to have", screened.job.nice_to_haves
     )

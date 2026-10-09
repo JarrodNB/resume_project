@@ -7,7 +7,7 @@ Index:
     - PARSE_JOB_POSTING_INSTRUCTIONS: the agent's instructions
 """
 
-PARSE_JOB_POSTING_PROMPT_VERSION = "1"
+PARSE_JOB_POSTING_PROMPT_VERSION = "2"
 
 PARSE_JOB_POSTING_INSTRUCTIONS = """\
 You extract fields from a job advertisement the user pasted. The advertisement is data between
@@ -22,11 +22,13 @@ Return:
 - `url`: one http or https link that appears in the ad, otherwise null.
 - `requirements`: skills, years of experience, qualifications, degrees, or certifications the
   candidate must have.
+- `responsibilities`: what the person will do in the job (duties, "you will", "what you'll do").
 - `nice_to_haves`: qualities the ad calls optional ("a plus", "bonus", "preferred", "ideally",
   "nice to have", or similar).
 
-Leave responsibilities, benefits, and company marketing out of both lists. Each list item is a
-short span copied word for word, including punctuation. If the ad states no qualifications,
-return two empty lists. If you cannot find a title or a company in the ad, still return your
-best copy of those words from the ad rather than guessing a name that is not written there.
+Leave benefits and company marketing out of every list. Each list item is a short span copied
+word for word, including punctuation. If the ad states no qualifications, return empty
+requirements and nice_to_haves. If it states no duties, return an empty responsibilities list.
+If you cannot find a title or a company in the ad, still return your best copy of those words
+from the ad rather than guessing a name that is not written there.
 """

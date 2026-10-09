@@ -65,7 +65,20 @@ def test_leaves_out_empty_sections() -> None:
     assert "Profile summary" not in prompt.text
     assert "SUMMARY" not in prompt.evidence
     assert "Nice to have" not in prompt.text
+    assert "Responsibilities" not in prompt.text
     assert list(prompt.requirements) == ["R1", "R2"]
+
+
+def test_labels_responsibilities_between_requirements_and_nice_to_haves() -> None:
+    """A duty is D1 and must be assessed with the other labels, in posting order."""
+    context = build_gap_analysis_context(responsibilities=["Ship models to production"])
+
+    prompt = build_gap_analysis_prompt(context, TODAY)
+
+    assert prompt.requirements["D1"].kind == "responsibility"
+    assert prompt.requirements["D1"].text == "Ship models to production"
+    assert list(prompt.requirements) == ["R1", "R2", "D1", "N1"]
+    assert "[D1] Ship models to production" in prompt.text
 
 
 def test_labels_library_facts() -> None:

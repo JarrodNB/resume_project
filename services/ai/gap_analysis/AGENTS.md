@@ -9,8 +9,8 @@ can't be invented.
 ## Contents
 
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today, allow_fact=None)`
-  returns a `GapAnalysisPrompt` (prompt text, label lookups, warnings). Labels: `R1`/`N1` for
-  requirements and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`
+  returns a `GapAnalysisPrompt` (prompt text, label lookups, warnings). Labels: `R1`/`D1`/`N1` for
+  requirements, responsibilities, and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`
   education, `S1` skill, `F1` library fact; `format_date_range`. The profile summary is unlabeled
   background, not a citable label. `allow_fact` screens each
   library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt

@@ -1,7 +1,7 @@
 /**
  * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, or write a resume, then how the
- * career library matches it, requirements, nice-to-haves, notes, the description, and the
- * original posting. Requirements, nice-to-haves, notes, and the description start collapsed.
+ * career library matches it, requirements, responsibilities, nice-to-haves, notes, the description, and the
+ * original posting. Requirements, responsibilities, nice-to-haves, notes, and the description start collapsed.
  * Index:
  *   - JobDetailPage: page component
  */
@@ -110,6 +110,9 @@ export function JobDetailPage() {
             items={job.requirements}
             emptyText="No requirements were found in the posting."
           />
+          {job.responsibilities.length > 0 && (
+            <BulletCard sectionId={`job.${job.id}.responsibilities`} title="Responsibilities" items={job.responsibilities} />
+          )}
           {job.niceToHaves.length > 0 && (
             <BulletCard sectionId={`job.${job.id}.nice-to-have`} title="Nice to have" items={job.niceToHaves} />
           )}

@@ -27,6 +27,12 @@ RSpec.describe GapAnalysis::StartGapAnalysisService do
     expect(described_class.call(user: user, job: job)).to be_success
   end
 
+  it "accepts a job with only responsibilities" do
+    job.update!(requirements: [], nice_to_haves: [], responsibilities: [ "Ship models" ])
+
+    expect(described_class.call(user: user, job: job)).to be_success
+  end
+
   it "refuses a job with no requirements or nice-to-haves" do
     job.update!(requirements: [], nice_to_haves: [])
 

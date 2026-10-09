@@ -14,11 +14,11 @@ benefits, or the company.
 Return the numbers of:
 - `requirement_numbers`: bullets stating something the candidate must have or be: skills,
   years of experience, qualifications, degrees, certifications, or traits.
+- `responsibility_numbers`: bullets stating what the person will do in the job.
 - `nice_to_have_numbers`: candidate qualities stated as optional: "a plus", "bonus",
   "preferred", "ideally", "nice to have", or similar.
 
-Leave out every other bullet: responsibilities (what the person will do in the job), benefits
-and perks, and information about the company or team.
+Leave out every other bullet: benefits and perks, and information about the company or team.
 
 Rules:
 - Use only the numbers shown. Never repeat a number or put it in both lists.

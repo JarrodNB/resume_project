@@ -9,13 +9,17 @@ from pydantic import BaseModel, Field
 
 
 class SortedRequirementBullets(BaseModel):
-    """Which numbered bullets are requirements and which are nice-to-haves. Bullets that are
-    neither (responsibilities, benefits, company info) are left out of both lists."""
+    """Which numbered bullets are requirements, responsibilities, or nice-to-haves. Benefits
+    and company information are left out of every list."""
 
     requirement_numbers: list[int] = Field(
         default_factory=list,
         description="Numbers of bullets the candidate must have (required skills, experience, "
         "qualifications).",
+    )
+    responsibility_numbers: list[int] = Field(
+        default_factory=list,
+        description="Numbers of bullets describing what the person will do in the job.",
     )
     nice_to_have_numbers: list[int] = Field(
         default_factory=list,

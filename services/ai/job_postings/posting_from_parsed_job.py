@@ -23,10 +23,11 @@ def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> Scrap
     location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
     url = _kept_url(parsed.url, source_text, warnings)
     requirements = _unique_items(parsed.requirements)
+    responsibilities = _unique_items(parsed.responsibilities)
     nice_to_haves = _unique_items(parsed.nice_to_haves)
     if not requirements:
         warnings.append(NO_REQUIREMENTS_WARNING)
-    sorted_by = "llm" if requirements or nice_to_haves else "none"
+    sorted_by = "llm" if requirements or responsibilities or nice_to_haves else "none"
     posting = ScrapedJobPosting(
         source="pasted_text",
         source_url=url or "",
@@ -35,6 +36,7 @@ def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> Scrap
         location=location,
         description=source_text.strip(),
         requirements=requirements,
+        responsibilities=responsibilities,
         nice_to_haves=nice_to_haves,
         requirements_sorted_by=sorted_by,
         warnings=warnings,

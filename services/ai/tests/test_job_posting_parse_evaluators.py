@@ -38,6 +38,7 @@ def test_faithful_parse_matches_labels() -> None:
             location=expected.location,
             url=expected.source_url or None,
             requirements=list(expected.requirements),
+            responsibilities=list(expected.responsibilities),
             nice_to_haves=list(expected.nice_to_haves),
         )
         return posting_from_parsed_job(str(inputs["text"]), parsed)

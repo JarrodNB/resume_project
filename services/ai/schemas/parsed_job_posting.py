@@ -23,6 +23,10 @@ class ParsedJobPosting(BaseModel):
         default_factory=list,
         description="Must-have qualifications, each copied word for word from the ad.",
     )
+    responsibilities: list[str] = Field(
+        default_factory=list,
+        description="What the person will do in the job, each copied word for word from the ad.",
+    )
     nice_to_haves: list[str] = Field(
         default_factory=list,
         description="Optional qualifications, each copied word for word from the ad.",

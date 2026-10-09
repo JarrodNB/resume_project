@@ -8,7 +8,8 @@ RSpec.describe Jobs::CreateJobFromPastedPostingService do
     {
       "source" => "pasted_text", "source_url" => "https://example.com/jobs/1",
       "title" => "AI Engineer", "company" => "Acme", "location" => "Remote",
-      "description" => "Build agents.", "requirements" => [ "Python" ], "nice_to_haves" => [ "Rust" ],
+      "description" => "Build agents.", "requirements" => [ "Python" ],
+      "responsibilities" => [ "Build agents" ], "nice_to_haves" => [ "Rust" ],
       "requirements_sorted_by" => "llm", "warnings" => []
     }
   end
@@ -20,7 +21,7 @@ RSpec.describe Jobs::CreateJobFromPastedPostingService do
     expect(result.value).to have_attributes(
       user: user, url: "https://example.com/jobs/1", title: "AI Engineer", company: "Acme",
       location: "Remote", description: "Build agents.", requirements: [ "Python" ],
-      nice_to_haves: [ "Rust" ], stage: "unapplied"
+      responsibilities: [ "Build agents" ], nice_to_haves: [ "Rust" ], stage: "unapplied"
     )
   end
 

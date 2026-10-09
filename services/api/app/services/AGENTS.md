@@ -23,7 +23,7 @@ All business logic, as service objects grouped by domain folder.
   `start_job_posting_parse_service.rb` (rejects a blank or oversized paste, enqueues
   `parse_job_posting`); `create_job_from_pasted_posting_service.rb` (saves that result; a blank
   link is nil and is not used to find an existing job; a present link reuses the user's Job)
-- `gap_analysis/start_gap_analysis_service.rb` — checks the job has requirements, the career
+- `gap_analysis/start_gap_analysis_service.rb` — checks the job has requirements, responsibilities, or nice-to-haves, the career
   library isn't empty, and no analysis for this job is already running (within the in-flight
   window), then enqueues `analyze_gaps` with the job as task `subject`; the result stays on the
   AiTask (`Job#latest_gap_analysis`)

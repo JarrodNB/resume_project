@@ -12,7 +12,8 @@ are passed in or live in `agents/`.
 - `html_to_description_text.py` — description HTML -> plain text (paragraphs, "- " bullets)
 - `split_description_sections.py` — files each `<li>` under the nearest heading
   (`<h1>`-`<h6>`, an all-bold paragraph, or a short paragraph ending in ":"), classified as
-  requirements, nice-to-haves, or other by keyword
+  requirements, responsibilities, nice-to-haves, or other by keyword. Nice-to-have wordings win,
+  then responsibilities ("responsibilities", "what you'll do", "the role"), then requirements
 - `find_parsed_job_problems.py` — title, company, and bullets must appear in a pasted ad
 - `posting_from_parsed_job.py` — `ParsedJobPosting` -> `ScrapedJobPosting` (the paste is the
   description; a location or link that is not in the ad is dropped with a warning)
@@ -20,14 +21,15 @@ are passed in or live in `agents/`.
   calls `sort_bullets` (the job requirements sorting agent) only when no requirement heading
   matched but bullets exist, and skips it when there are more than 200 bullets or 40,000
   characters of bullet text (a warning says to add requirements by hand). Text Rails would
-  refuse (more than 80 requirements or nice-to-haves, a bullet over 1,000 characters, a
-  description over 20,000, a short field over 200) is left out and the posting is still
+  refuse (more than 80 items in each of requirements, responsibilities, and nice-to-haves, a
+  bullet over 1,000 characters, a description over 20,000, a short field over 200) is left out
+  and the posting is still
   returned with a warning;
   `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets
 
 ## Local Rules
 
-- Requirements and nice-to-haves are always bullets copied verbatim from the posting. For a
+- Requirements, responsibilities, and nice-to-haves are always bullets copied verbatim from the posting. For a
   scraped page the LLM may only choose among them by number. For a pasted ad the parse agent
   copies spans, and `find_parsed_job_problems` rejects any that are not in the text.
 - When a real posting is split wrongly, add a synthetic case for it to

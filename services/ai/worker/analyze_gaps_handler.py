@@ -48,7 +48,7 @@ def handle_analyze_gaps_task(
         return _failed(task, JOB_NOT_FOUND_MESSAGE)
     if context.career_library.is_empty():
         return _failed(task, EMPTY_LIBRARY_MESSAGE)
-    if not (context.job.requirements or context.job.nice_to_haves):
+    if not (context.job.requirements or context.job.responsibilities or context.job.nice_to_haves):
         return _failed(task, NO_REQUIREMENTS_MESSAGE)
 
     settings = dependencies.settings

@@ -15,6 +15,7 @@ export interface JobDraft {
   notes: string | null
   description: string | null
   requirements: string[]
+  responsibilities: string[]
   niceToHaves: string[]
 }
 
@@ -32,6 +33,7 @@ interface JobFormFields {
   notes: string
   description: string
   requirements: string[]
+  responsibilities: string[]
   niceToHaves: string[]
 }
 
@@ -46,6 +48,7 @@ export function jobAttributes(values: JobFormFields) {
     notes: blankToNull(values.notes),
     description: blankToNull(values.description),
     requirements: lines(values.requirements),
+    responsibilities: lines(values.responsibilities),
     niceToHaves: lines(values.niceToHaves),
   }
 }

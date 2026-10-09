@@ -1,9 +1,10 @@
 """
-Description: Splits a job description's HTML into requirement and nice-to-have bullets using the
-posting's own headings ("Requirements", "Nice to have", ...). Deterministic; no LLM.
+Description: Splits a job description's HTML into requirement, responsibility, and nice-to-have
+bullets using the posting's own headings ("Requirements", "Responsibilities", "Nice to have", ...).
+Deterministic; no LLM.
 Index:
-    - DescriptionSections: bullets under requirement headings, nice-to-have headings, and all bullets
-    - classify_heading: "requirements", "nice_to_haves", or "other" for a heading's text
+    - DescriptionSections: bullets under those headings, and all bullets
+    - classify_heading: "requirements", "responsibilities", "nice_to_haves", or "other"
     - split_description_sections: walks the HTML in order and files each bullet under its heading
 """
 
@@ -13,12 +14,17 @@ from typing import Literal
 
 from bs4 import BeautifulSoup, Tag
 
-HeadingKind = Literal["requirements", "nice_to_haves", "other"]
+HeadingKind = Literal["requirements", "responsibilities", "nice_to_haves", "other"]
 
 # Checked first, so "Preferred qualifications" is a nice-to-have, not a requirement.
 NICE_TO_HAVE_HEADING = re.compile(
     r"\b(nice[\s-]to[\s-]haves?|bonus|preferred|pluses|plus|extra credit|desirable|ideally"
     r"|stand out|would be great|added advantage)\b"
+)
+# Checked before requirements, so "What you'll do" is not "what you'll bring".
+RESPONSIBILITY_HEADING = re.compile(
+    r"\b(responsibilit(?:y|ies)|dut(?:y|ies)|what you(?:'ll| will) (?:do|be doing)"
+    r"|day[\s-]to[\s-]day|in this role|the role|your role)\b"
 )
 REQUIREMENT_HEADING = re.compile(
     r"\b(requirements?|qualifications?|what you('ll| will)? bring|you bring|you have|about you"
@@ -38,15 +44,18 @@ class DescriptionSections:
     """Bullets found in a description, in document order."""
 
     requirements: list[str] = field(default_factory=list)
+    responsibilities: list[str] = field(default_factory=list)
     nice_to_haves: list[str] = field(default_factory=list)
     all_bullets: list[str] = field(default_factory=list)
 
 
 def classify_heading(heading_text: str) -> HeadingKind:
-    """Matches a heading against known requirement and nice-to-have wordings."""
+    """Matches a heading against known requirement, responsibility, and nice-to-have wordings."""
     text = _clean(heading_text).lower().replace("’", "'")
     if NICE_TO_HAVE_HEADING.search(text):
         return "nice_to_haves"
+    if RESPONSIBILITY_HEADING.search(text):
+        return "responsibilities"
     if REQUIREMENT_HEADING.search(text):
         return "requirements"
     return "other"
@@ -66,6 +75,8 @@ def split_description_sections(description_html: str) -> DescriptionSections:
             sections.all_bullets.append(bullet)
             if current_kind == "requirements":
                 sections.requirements.append(bullet)
+            elif current_kind == "responsibilities":
+                sections.responsibilities.append(bullet)
             elif current_kind == "nice_to_haves":
                 sections.nice_to_haves.append(bullet)
     return sections

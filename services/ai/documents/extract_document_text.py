@@ -8,7 +8,9 @@ Index:
 """
 
 from io import BytesIO
+from math import ceil
 from typing import Any
+from urllib.parse import urlparse
 
 from docx import Document
 from pypdf import PdfReader
@@ -90,17 +92,52 @@ def _pdf_hyperlink_markers(
             continue
         seen_urls.add(uri)
         x1, y1, x2, y2 = (float(value) for value in rectangle)
-        labels = [
-            text
-            for text, x, y, font_size in fragments
-            if x <= x2 + 2
-            and x + max(len(text), 1) * font_size * 0.6 >= x1 - 2
-            and y <= y2 + font_size
-            and y + font_size >= y1 - 2
-        ]
-        label = " ".join(labels).strip() or uri
+        label = _pdf_link_label(uri, (x1, y1, x2, y2), fragments)
         markers.append(_hyperlink_marker(label, uri))
     return markers
+
+
+def _pdf_link_label(
+    uri: str,
+    rectangle: tuple[float, float, float, float],
+    fragments: list[tuple[str, float, float, float]],
+) -> str:
+    """Finds the visible label within an annotation, avoiding the rest of its text line."""
+    x1, y1, x2, y2 = rectangle
+    overlapping = [
+        fragment
+        for fragment in fragments
+        if fragment[1] <= x2 + 2
+        and fragment[1] + max(len(fragment[0]), 1) * fragment[3] * 0.6 >= x1 - 2
+        and fragment[2] <= y2 + fragment[3]
+        and fragment[2] + fragment[3] >= y1 - 2
+    ]
+    branded_label = _known_link_label(uri)
+    if branded_label:
+        return branded_label
+
+    pieces = [_text_inside_rectangle(fragment, x1, x2) for fragment in overlapping]
+    return " ".join(piece for piece in pieces if piece).strip(" ·|,-") or uri
+
+
+def _known_link_label(uri: str) -> str | None:
+    """Returns a canonical label for links whose service name is unambiguous."""
+    hostname = (urlparse(uri).hostname or "").lower()
+    known_labels = {"linkedin.com": "LinkedIn", "github.com": "GitHub"}
+    for domain, label in known_labels.items():
+        if hostname == domain or hostname.endswith(f".{domain}"):
+            return label
+    return None
+
+def _text_inside_rectangle(
+    fragment: tuple[str, float, float, float], x1: float, x2: float
+) -> str:
+    """Approximates which characters of one PDF text fragment sit inside a link rectangle."""
+    text, x, _y, font_size = fragment
+    character_width = max(font_size * 0.6, 1)
+    start = max(0, int((x1 - x) / character_width))
+    end = min(len(text), ceil((x2 - x) / character_width))
+    return text[start:end].strip(" ·|,-")
 
 
 def _extract_docx_text(file_bytes: bytes) -> str:

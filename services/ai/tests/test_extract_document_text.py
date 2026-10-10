@@ -56,30 +56,39 @@ def test_docx_text_includes_hyperlink_label_and_url() -> None:
     assert "Find me on GitHub" in text
     assert '[hyperlink label="GitHub" url="https://github.com/jane"]' in text
 
-def test_pdf_text_includes_hyperlink_label_and_url() -> None:
-    """A PDF URI annotation is paired with the visible text inside its rectangle."""
+def test_pdf_text_uses_only_the_link_label_from_a_broad_contact_fragment() -> None:
+    """A URI annotation does not use the entire contact line as its visible label."""
+    contact_line = "Atlanta, Georgia · 770 - 202 - 0267 JarrodNBailey@gmail.com · LinkedIn ·"
 
     class Reference:
         """A small indirect-object stand-in for one PDF annotation."""
 
         def get_object(self) -> dict[str, object]:
-            """Returns an external link annotation."""
-            return {"/A": {"/URI": "https://linkedin.com/in/jane"}, "/Rect": [8, 8, 80, 24]}
+            """Returns an external LinkedIn annotation over part of the contact line."""
+            return {
+                "/A": {"/URI": "https://www.linkedin.com/in/jarrod-bailey-68w"},
+                "/Rect": [300, 8, 360, 24],
+            }
 
     class Page(dict[str, object]):
-        """A page with one labelled link."""
+        """A page whose extractor emits the whole contact line as one text fragment."""
 
         def __init__(self) -> None:
             super().__init__({"/Annots": [Reference()]})
 
         def extract_text(self, visitor_text: object) -> str:
-            """Feeds the visitor the label at coordinates inside the annotation."""
-            visitor_text("LinkedIn", [1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 10, 10], None, 10)
-            return "LinkedIn"
+            """Feeds the visitor the broad fragment that previously became the label."""
+            visitor_text(contact_line, [1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 10, 10], None, 10)
+            return contact_line
 
     text = _extract_pdf_page(Page())
 
-    assert '[hyperlink label="LinkedIn" url="https://linkedin.com/in/jane"]' in text
+    assert (
+        '[hyperlink label="LinkedIn" '
+        'url="https://www.linkedin.com/in/jarrod-bailey-68w"]'
+    ) in text
+    assert 'hyperlink label="Atlanta, Georgia' not in text
+
 
 def test_empty_docx_raises() -> None:
     """A document with no text can't be parsed."""

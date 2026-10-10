@@ -54,7 +54,7 @@ module ResumeTailoring
 
     # True for a section the tailoring loop writes.
     def known_section?
-      %w[contact summary experience projects education skills].include?(@section_type)
+      %w[contact summary experience projects education certifications skills].include?(@section_type)
     end
   end
 end

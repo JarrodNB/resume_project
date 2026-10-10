@@ -66,4 +66,19 @@ RSpec.describe ResumeTailoring::SubmitTailoredSectionService do
     expect(result).to be_success
     expect(ai_task.reload.input["pending_section"]["action"]).to eq("reopen")
   end
+  %w[approve omit write_anyway reopen].each do |action|
+    it "accepts #{action} for certifications and republishes the decision" do
+      content = { "items" => [ { "name" => "AWS Solutions Architect", "issuer" => "Amazon" } ] }
+      result = described_class.call(ai_task: ai_task, section_type: "certifications", action: action, content: content)
+
+      expect(result).to be_success
+      expect(ai_task.reload).to be_queued
+      expect(ai_task.generation).to eq(2)
+      expect(ai_task.input["pending_section"]).to eq(
+        "section_type" => "certifications", "action" => action, "content" => content
+      )
+      expect(queue).to have_received(:send_message)
+    end
+  end
+
 end

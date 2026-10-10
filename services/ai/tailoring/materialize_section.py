@@ -10,6 +10,7 @@ from datetime import date
 
 from schemas.gap_analysis_context import (
     CareerLibrary,
+    LibraryCertification,
     LibraryEducation,
     LibraryExperience,
     LibraryProject,
@@ -31,6 +32,8 @@ def materialize_section(
         return {"items": [_skill_item(entry.label, library, sources) for entry in draft.entries]}
     if section_type == "experience":
         return {"items": [_experience_item(entry.label, entry.prose, library, sources) for entry in draft.entries]}
+    if section_type == "certifications":
+        return {"items": [_certification_item(entry.label, entry.prose, library, sources) for entry in draft.entries]}
     if section_type == "projects":
         return {"items": [_project_item(entry.label, entry.prose, library, sources) for entry in draft.entries]}
     return {"items": [_education_item(entry.label, entry.prose, library, sources) for entry in draft.entries]}
@@ -91,6 +94,21 @@ def _education_item(label: str, prose: list, library: CareerLibrary, sources: La
         "start_date": _month(education.start_date),
         "end_date": _month(education.end_date),
         "description": description,
+    }
+
+
+def _certification_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+    """Copies certification identity and dates; keeps only checked description prose."""
+    certification = _find(library.certifications, sources, label)
+    assert isinstance(certification, LibraryCertification)
+    return {
+        "name": certification.name,
+        "issuer": certification.issuer,
+        "issued_date": _month(certification.issued_date),
+        "expiry_date": _month(certification.expiry_date),
+        "credential_id": certification.credential_id,
+        "credential_url": certification.credential_url,
+        "description": "\n".join(item.text for item in prose) or None,
     }
 
 

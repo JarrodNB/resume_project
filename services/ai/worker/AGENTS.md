@@ -29,8 +29,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   evidence text, and reports Jev usage; a deleted job, empty library, job without
   requirements, or prompt over the character cap fails with a user-facing message
 - `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
-  summary, experience, projects, education, skills), pauses for approval, and echoes `generation`.
-  A section with no library entries is left out with no model call. Projects, education, and
+  summary, experience, projects, education, certifications, skills), pauses for approval, and echoes `generation`.
+  A section with no library entries is left out with no model call. Projects, education, certifications, and
   skills are not narrowed by retrieval
 - `tailor_resume_steps.py` — folds the user's decision, screens gap responses, and builds the
   pause or failure result. A section over the screen cap stays open with a length message
@@ -74,3 +74,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - Completed results list a `ModelUsage` for every agent run (`build_model_usage`). The model
   name is the one that answered when that name has a price, otherwise the configured primary.
   A new model needs an entry in `MODEL_PRICES` (a test checks every configured model has one).
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

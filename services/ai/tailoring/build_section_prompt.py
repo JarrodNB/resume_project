@@ -17,7 +17,8 @@ _WRITE_ANYWAY = (
     "nothing_fits to false when any source can be used without adding a fact."
 )
 _SECTION_NOTE = {
-    "education": "Every source labeled ED is this person's education. Include each one, including certifications.",
+    "education": "Every source labeled ED is this person's education. Include each one.",
+    "certifications": "Every source labeled C is a certification. Include the relevant credentials; do not claim an expired credential is current.",
     "projects": "Every source labeled P is a project. Include each one that belongs on this resume.",
     "skills": "Every source labeled S is a skill. Include the ones this job needs.",
 }

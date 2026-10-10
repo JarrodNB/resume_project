@@ -23,7 +23,7 @@ export function ClearLibraryDialog({ open, onOpenChange, onConfirm, busy, errors
         <DialogHeader>
           <DialogTitle>Delete everything in your career library?</DialogTitle>
           <DialogDescription>
-            This clears the profile on this page and removes every role, project, education, skill, and fact, so a new
+            This clears the profile on this page and removes every role, project, education, certification, skill, and fact, so a new
             resume import starts fresh. Saved jobs and tailored resumes stay.
           </DialogDescription>
         </DialogHeader>

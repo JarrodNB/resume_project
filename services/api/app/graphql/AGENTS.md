@@ -56,3 +56,4 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `ApolloUploadServer::Wrappers::UploadedFile`.
 
 - Profile link output and input types expose separate visible labels and destination URLs.
+- Certification types/inputs and `mutations/certifications/` expose authorized create/update/delete/merge and the `certifications` query.

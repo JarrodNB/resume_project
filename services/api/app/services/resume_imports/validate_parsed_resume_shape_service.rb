@@ -5,7 +5,7 @@
 #   - call: returns the parsed resume with string keys, or errors describing each wrong shape
 module ResumeImports
   class ValidateParsedResumeShapeService < ApplicationService
-    LIST_KEYS = %w[experiences projects educations skills].freeze
+    LIST_KEYS = %w[experiences projects educations certifications skills].freeze
 
     # @param parsed_resume [Object] the raw JSON argument (any type)
     def initialize(parsed_resume:)

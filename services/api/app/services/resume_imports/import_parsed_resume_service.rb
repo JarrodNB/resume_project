@@ -1,6 +1,6 @@
 # Description: Imports a parsed resume (as reviewed and edited by the user) into the career
 # library and fills blank profile fields (contact, summary). Experiences, projects, and
-# educations that match an existing entry are merged into it instead of duplicated; the counts
+# educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
 # are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
 # task can be imported once. The library's embeddings are re-synced after the import commits.
 # Index:
@@ -58,6 +58,7 @@ module ResumeImports
       add_or_merge_records(@user.experiences, items("experiences")) { |record, item| assign_experience(record, item) }
       add_or_merge_records(@user.projects, items("projects")) { |record, item| assign_project(record, item) }
       add_or_merge_records(@user.educations, items("educations")) { |record, item| assign_education(record, item) }
+      add_or_merge_records(@user.certifications, items("certifications")) { |record, item| assign_certification(record, item) }
       create_new_skills
     end
 
@@ -136,6 +137,15 @@ module ResumeImports
     def assign_education(education, item)
       education.assign_attributes(
         item.slice("institution", "degree", "field_of_study", "description").merge(dates_of(item))
+      )
+    end
+
+    # Fills a Certification from stated credential facts only.
+    def assign_certification(certification, item)
+      certification.assign_attributes(
+        item.slice("name", "issuer", "credential_id", "credential_url", "description").merge(
+          issued_date: to_date(item["issued_date"]), expiry_date: to_date(item["expiry_date"])
+        )
       )
     end
 

@@ -58,3 +58,14 @@ it('builds a header and the sections that have something to print', () => {
 it('returns an empty document when there is nothing to print', () => {
   expect(buildResumePdfModel([])).toEqual({ name: '', contactLine: '', links: [], blocks: [] })
 })
+
+it('prints certifications separately with explicit issue and expiry dates', () => {
+  const model = buildResumePdfModel([
+    { sectionType: 'education', title: 'Education', content: { items: [{ institution: 'University' }] } },
+    { sectionType: 'certifications', title: 'Certifications', content: { items: [
+      { name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: '2024', expiry_date: '2027-06', credential_id: 'ABC', credential_url: 'https://example.com/ABC', description: 'Professional credential' },
+    ] } },
+  ])
+  expect(model.blocks.map((block) => block.title)).toEqual(['Education', 'Certifications'])
+  expect(model.blocks[1]?.entries[0]).toEqual({ heading: 'Cloud Architect', meta: 'Cloud Co · ABC · https://example.com/ABC', dates: 'Issued 2024 · Expires Jun 2027', body: 'Professional credential', bullets: [] })
+})

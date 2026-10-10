@@ -16,3 +16,5 @@ Database migrations and the generated schema.
 - Primary keys are UUIDs (configured in `config/application.rb`).
 - Add `null: false` and defaults for required columns; JSON columns default to `[]` or `{}`.
 - Run: `docker compose run --rm api bin/rails db:migrate`.
+
+- `20261010010000_create_certifications.rb` — independent user-owned credential table; leaves education intact.

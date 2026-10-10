@@ -87,4 +87,10 @@ RSpec.describe GapAnalysis::StartGapAnalysisService do
 
     expect(described_class.call(user: user, job: job)).to be_success
   end
+  it "allows a career library containing only certifications" do
+    user.skills.delete_all
+    create(:certification, user: user)
+    expect(described_class.call(user: user, job: job)).to be_success
+  end
+
 end

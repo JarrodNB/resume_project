@@ -7,7 +7,7 @@ the `result` sent to Rails, so changes must be mirrored there.
 
 ## Contents
 
-- `parsed_resume.py` — `ParsedResume` and its parts; mirrors the Rails career library and is
+- `parsed_resume.py` — `ParsedResume` and its parts (including `ParsedCertification`); mirrors the Rails career library and is
   imported by `ResumeImports::ImportParsedResumeService`
 - `parsed_job_posting.py` — `ParsedJobPosting`, the parse agent's output (title, company, requirements, responsibilities, nice-to-haves; not sent to Rails)
 - `scraped_job_posting.py` — `ScrapedJobPosting`, the `scrape_job` and `parse_job_posting` result
@@ -33,3 +33,9 @@ the `result` sent to Rails, so changes must be mirrored there.
 
 - Give fields `description`s when the model needs guidance; they are sent to the LLM.
 - Optional fields default to `None` / empty lists so "not stated" never forces invention.
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

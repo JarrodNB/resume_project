@@ -68,3 +68,6 @@ their category.
 - Section ids are `library.profile`, `library.experience`, `library.projects`, `library.education`,
   `library.skills`, and `library.facts`. A collapsed section's entries are not in the page, so
   they are not drag targets.
+
+- Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
+- `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD; section id is `library.certifications`.

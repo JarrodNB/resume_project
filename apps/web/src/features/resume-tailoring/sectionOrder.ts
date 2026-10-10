@@ -7,7 +7,7 @@
  *   - sectionBeingWritten: the section the worker is writing while the task is queued
  */
 
-export const SECTION_ORDER = ['contact', 'summary', 'experience', 'projects', 'education', 'skills'] as const
+export const SECTION_ORDER = ['contact', 'summary', 'experience', 'projects', 'education', 'certifications', 'skills'] as const
 
 export type TailorSectionType = (typeof SECTION_ORDER)[number]
 
@@ -17,6 +17,7 @@ export const SECTION_TITLES: Record<TailorSectionType, string> = {
   experience: 'Experience',
   projects: 'Projects',
   education: 'Education',
+  certifications: 'Certifications',
   skills: 'Skills',
 }
 

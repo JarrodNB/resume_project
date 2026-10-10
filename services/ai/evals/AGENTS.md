@@ -8,7 +8,7 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
 
-- `datasets/resume_parsing_cases.yaml` — 6 synthetic, hand-labelled resumes (clean, year-only
+- `datasets/resume_parsing_cases.yaml` — 7 synthetic, hand-labelled resumes (clean, year-only
   dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,
   `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`
@@ -33,7 +33,7 @@ score attached, so runs can be compared across prompt and model changes.
   `PastedVerbatim`
 - `run_job_posting_parse_evals.py` — runner (real parse agent, then the production posting
   builder): `docker compose run --rm ai python -m evals.run_job_posting_parse_evals`
-- `datasets/gap_analysis_cases.yaml` — 8 synthetic job + career library pairs (strong match,
+- `datasets/gap_analysis_cases.yaml` — 9 synthetic job + career library pairs (strong match,
   obvious gaps, adjacent skills are partial, requirement shown only by a project, synonyms and
   equivalent degree, fewer years than asked, near-empty library, a library fact that closes a
   gap) with hand-labelled verdicts (plus acceptable alternatives) and key evidence ids
@@ -42,7 +42,7 @@ score attached, so runs can be compared across prompt and model changes.
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
   `docker compose run --rm ai python -m evals.run_gap_analysis_evals`
 - `datasets/tailoring_cases.yaml` — every written section (summary, experience, projects,
-  education, skills): faithfulness, relevance, and sections that should be omitted. A skill
+  education, certifications, skills): faithfulness, relevance, and sections that should be omitted. A skill
   draft has no prose, so relevance uses the chosen skill name
 - `tailoring_evaluators.py` — faithfulness and relevance checks for a written section
 - `run_tailoring_evals.py` — runner:
@@ -75,3 +75,9 @@ score attached, so runs can be compared across prompt and model changes.
   cases.
 - Runs cost real tokens (about $0.02 for the resume parsing set and $0.01 for the gap
   analysis set on gpt-5-mini).
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

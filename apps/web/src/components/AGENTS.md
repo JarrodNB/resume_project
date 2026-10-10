@@ -27,3 +27,5 @@ Shared UI used by more than one feature.
   and dark values, plus the `@theme inline` entry) before using it in `sectionTones.ts`.
 - Tailwind only finds class names written out in full, so don't build them from template
   strings (`bg-section-${tone}` won't work); add them to `sectionTones.ts` instead.
+
+- Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

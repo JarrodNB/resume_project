@@ -36,3 +36,5 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - Never call OpenAI from specs: use `FakeEmbeddingClient`; check sync enqueueing with
   `have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)`.
 - Time-dependent specs use `travel_to` (`ActiveSupport::Testing::TimeHelpers` is included).
+
+- Certification factory, GraphQL lifecycle/ownership and reviewed-import specs cover independent credentials and legacy uploads.

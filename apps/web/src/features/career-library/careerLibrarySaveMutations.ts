@@ -6,6 +6,7 @@
  *   - CREATE_EXPERIENCE_MUTATION, UPDATE_EXPERIENCE_MUTATION
  *   - CREATE_PROJECT_MUTATION, UPDATE_PROJECT_MUTATION
  *   - CREATE_EDUCATION_MUTATION, UPDATE_EDUCATION_MUTATION
+ *   - CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION
  *   - CREATE_SKILL_MUTATION, UPDATE_SKILL_MUTATION
  *   - CREATE_LIBRARY_FACT_MUTATION, UPDATE_LIBRARY_FACT_MUTATION
  */
@@ -94,6 +95,22 @@ export const CREATE_LIBRARY_FACT_MUTATION = graphql(`
 export const UPDATE_LIBRARY_FACT_MUTATION = graphql(`
   mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {
     updateLibraryFact(input: { id: $id, attributes: $attributes }) {
+      errors
+    }
+  }
+`)
+
+export const CREATE_CERTIFICATION_MUTATION = graphql(`
+  mutation CreateCertification($attributes: CertificationAttributesInput!) {
+    createCertification(input: { attributes: $attributes }) {
+      errors
+    }
+  }
+`)
+
+export const UPDATE_CERTIFICATION_MUTATION = graphql(`
+  mutation UpdateCertification($id: ID!, $attributes: CertificationAttributesInput!) {
+    updateCertification(input: { id: $id, attributes: $attributes }) {
       errors
     }
   }

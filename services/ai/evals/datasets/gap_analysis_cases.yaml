@@ -323,6 +323,25 @@ cases:
         - requirement: Experience running production Kubernetes
           verdict: met
           key_evidence_ids: [fact-1]
+  - name: credential_closes_certification_requirement
+    inputs:
+      job:
+        id: job-cert
+        title: Cloud Engineer
+        company: Northwind
+        requirements: [AWS Solutions Architect certification]
+      career_library:
+        certifications:
+          - id: cert-1
+            name: AWS Solutions Architect
+            issuer: Amazon
+            issued_date: 2024-03-01
+            expiry_date: 2027-03-01
+    metadata:
+      assessments:
+        - requirement: AWS Solutions Architect certification
+          verdict: met
+          key_evidence_ids: [cert-1]
 evaluators:
   - Coverage
   - EvidenceValidity

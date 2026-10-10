@@ -2,13 +2,13 @@
 # career library and profile when tailoring (and possibly rewritten), so editing it never
 # changes the library.
 # Content shapes: contact => { full_name, email, phone, location, links }, summary => { text },
-# experience / projects / education / skills => { items: [...] } (each item mirrors its
+# experience / projects / education / certifications / skills => { items: [...] } (each item mirrors its
 # career library record, with highlights inline for experiences).
 # Index:
 #   - SECTION_TYPES / section_type enum: contact, summary, experience, projects, education,
-#     skills, custom
+#     certifications, skills, custom
 class ResumeSection < ApplicationRecord
-  SECTION_TYPES = %w[contact summary experience projects education skills custom].freeze
+  SECTION_TYPES = %w[contact summary experience projects education certifications skills custom].freeze
 
   belongs_to :resume
 

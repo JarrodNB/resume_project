@@ -5,9 +5,9 @@
  *   - sectionDraftFromContent / contentFromSectionDraft: one section, both ways
  *   - SectionDraft: the editable form of one section
  */
-import type { ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
-import { emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
-import { withDraftKey, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
+import type { ParsedCertification, ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
+import { emptyCertification, emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
+import { withDraftKey, type DraftCertification, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
 import type { TailorSectionType } from './sectionOrder'
 
 export type SectionDraft =
@@ -16,6 +16,7 @@ export type SectionDraft =
   | { kind: 'experience'; items: DraftExperience[] }
   | { kind: 'projects'; items: DraftProject[] }
   | { kind: 'education'; items: DraftEducation[] }
+  | { kind: 'certifications'; items: DraftCertification[] }
   | { kind: 'skills'; items: DraftSkill[] }
 
 /** A draft the review fields can edit. Missing fields are filled in. */
@@ -25,6 +26,7 @@ export function sectionDraftFromContent(sectionType: TailorSectionType, content:
   if (sectionType === 'summary') return { kind: 'summary', text: typeof record.text === 'string' ? record.text : '' }
   if (sectionType === 'experience') return { kind: 'experience', items: items(record).map(experienceFrom) }
   if (sectionType === 'projects') return { kind: 'projects', items: items(record).map(projectFrom) }
+  if (sectionType === 'certifications') return { kind: 'certifications', items: items(record).map(certificationFrom) }
   if (sectionType === 'education') return { kind: 'education', items: items(record).map(educationFrom) }
   return { kind: 'skills', items: items(record).map(skillFrom) }
 }
@@ -85,4 +87,9 @@ function skillFrom(value: unknown): DraftSkill {
 /** A string field, or null. */
 function stringOrNull(value: unknown): string | null {
   return typeof value === 'string' ? value : null
+}
+
+/** One certification entry with editable defaults and a stable key. */
+function certificationFrom(value: unknown): DraftCertification {
+  return withDraftKey({ ...emptyCertification(), ...(isRecord(value) ? (value as Partial<ParsedCertification>) : {}) })
 }

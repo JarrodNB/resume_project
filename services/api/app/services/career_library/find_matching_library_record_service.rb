@@ -1,5 +1,5 @@
 # Description: Finds the existing career library record that a record duplicates. Text compares
-# case-insensitively with whitespace squished; if both records have a start date, the dates must
+# case-insensitively with whitespace squished; if both records have a start/issued date, the dates must
 # be equal (so a second stint at the same company stays its own role).
 # Index:
 #   - MATCH_FIELDS: identifying fields per model
@@ -9,10 +9,11 @@ module CareerLibrary
     MATCH_FIELDS = {
       Experience => %w[company title],
       Project => %w[name],
-      Education => %w[institution degree]
+      Education => %w[institution degree],
+      Certification => %w[name issuer]
     }.freeze
 
-    # @param record [Experience, Project, Education] saved or unsaved record to look up
+    # @param record [Experience, Project, Education, Certification] saved or unsaved record to look up
     # @param candidates [Enumerable] the user's existing records of the same model
     def initialize(record:, candidates:)
       @record = record
@@ -26,15 +27,16 @@ module CareerLibrary
 
     private
 
-    # True when every identifying field matches and the start dates don't conflict.
+    # True when every identifying field matches and the start/issued dates don't conflict.
     def matches?(candidate)
       MATCH_FIELDS.fetch(@record.class).all? { |field| normalize(candidate[field]) == normalize(@record[field]) } &&
         start_dates_compatible?(candidate)
     end
 
-    # False only when both records have start dates and they differ.
+    # False only when both records have start/issued dates and they differ.
     def start_dates_compatible?(candidate)
-      candidate.start_date.nil? || @record.start_date.nil? || candidate.start_date == @record.start_date
+      date_field = @record.is_a?(Certification) ? :issued_date : :start_date
+      candidate[date_field].nil? || @record[date_field].nil? || candidate[date_field] == @record[date_field]
     end
 
     # Lowercases and squishes a value; nil and blank become "".

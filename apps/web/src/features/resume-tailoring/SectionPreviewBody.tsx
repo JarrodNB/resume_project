@@ -6,6 +6,7 @@
  */
 import { LibraryEntry } from '@/features/career-library/LibraryEntry'
 import { parsedLinks } from '@/features/resume-import/parsedResume'
+import { formatCertificationDates } from '@/lib/formatCertificationDates'
 import { formatDateRange } from '@/lib/formatDateRange'
 import type { TailorSection } from './parseTailorTask'
 import type { TailorSectionType } from './sectionOrder'
@@ -73,6 +74,17 @@ function EntryPreview({ sectionType, item }: { sectionType: TailorSectionType; i
           </ul>
         )}
       </LibraryEntry>
+    )
+  }
+  if (sectionType === 'certifications') {
+    return (
+      <LibraryEntry
+        tone="certifications"
+        heading={stringOr(item.name, 'Certification')}
+        subheading={[item.issuer, item.credential_id, item.credential_url].filter(isString).join(' · ')}
+        dates={formatCertificationDates(stringOrNull(item.issued_date), stringOrNull(item.expiry_date))}
+        description={stringOrNull(item.description)}
+      />
     )
   }
   if (sectionType === 'projects') {

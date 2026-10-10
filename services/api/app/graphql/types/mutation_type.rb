@@ -8,6 +8,7 @@
 #     moveExperienceHighlight
 #   - projects: createProject, updateProject, deleteProject, mergeProjects
 #   - educations: createEducation, updateEducation, deleteEducation, mergeEducations
+#   - certifications: createCertification, updateCertification, deleteCertification, mergeCertifications
 #   - skills: createSkill, updateSkill, deleteSkill, reorderSkills
 #   - resume imports: parseResume (file upload), importParsedResume
 #   - gap analysis: analyzeJobGaps
@@ -42,6 +43,11 @@ module Types
     field :update_education, mutation: Mutations::Educations::UpdateEducation
     field :delete_education, mutation: Mutations::Educations::DeleteEducation
     field :merge_educations, mutation: Mutations::Educations::MergeEducations
+
+    field :create_certification, mutation: Mutations::Certifications::CreateCertification
+    field :update_certification, mutation: Mutations::Certifications::UpdateCertification
+    field :delete_certification, mutation: Mutations::Certifications::DeleteCertification
+    field :merge_certifications, mutation: Mutations::Certifications::MergeCertifications
 
     field :create_skill, mutation: Mutations::Skills::CreateSkill
     field :update_skill, mutation: Mutations::Skills::UpdateSkill

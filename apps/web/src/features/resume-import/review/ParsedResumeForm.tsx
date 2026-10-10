@@ -10,9 +10,10 @@ import { DragDropProvider } from '@dnd-kit/react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { PROSE_TEXT } from '@/lib/textLimits'
-import { emptyEducation, emptyExperience, emptyProject, type ParsedResume } from '../parsedResume'
+import { emptyCertification, emptyEducation, emptyExperience, emptyProject, type ParsedResume } from '../parsedResume'
 import { ContactFields } from './ContactFields'
 import { EditableList } from './EditableList'
+import { CertificationFields } from './CertificationFields'
 import { EducationFields } from './EducationFields'
 import { ExperienceFields } from './ExperienceFields'
 import { ParsingWarnings } from './ParsingWarnings'
@@ -90,6 +91,19 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
             describeItem={(education) => education.institution}
             renderItem={(education, onChange) => (
               <EducationFields education={education} onChange={(updated) => onChange({ ...updated, key: education.key })} />
+            )}
+          />
+        </ReviewSection>
+        <ReviewSection tone="certifications" title="Certifications">
+          <EditableList
+            items={draft.certifications}
+            onChange={(certifications) => set('certifications', certifications)}
+            createItem={() => withDraftKey(emptyCertification())}
+            itemName="certification"
+            tone="certifications"
+            describeItem={(certification) => certification.name}
+            renderItem={(certification, onChange) => (
+              <CertificationFields certification={certification} onChange={(updated) => onChange({ ...updated, key: certification.key })} />
             )}
           />
         </ReviewSection>

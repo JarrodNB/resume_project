@@ -34,7 +34,7 @@ JOB_NOT_FOUND_MESSAGE = "This job no longer exists."
 SECTION_BLOCKED_MESSAGE = "That edit can't be used. Change it and try again."
 # These sections are the library rows of one type. An empty list is omitted with no model call,
 # and retrieval is not used: a degree must not lose out to work highlights.
-_LIBRARY_SECTIONS = ("projects", "education", "skills")
+_LIBRARY_SECTIONS = ("projects", "education", "certifications", "skills")
 
 
 def handle_tailor_resume_task(
@@ -114,6 +114,7 @@ def _library_empty(section_type: str, library: CareerLibrary) -> bool:
         "experience": library.experiences,
         "projects": library.projects,
         "education": library.educations,
+        "certifications": library.certifications,
         "skills": library.skills,
     }
     rows = entries.get(section_type)

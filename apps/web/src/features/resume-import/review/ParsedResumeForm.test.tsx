@@ -49,3 +49,17 @@ it('lists import errors', () => {
   )
   expect(screen.getByText('This resume has already been imported')).toBeInTheDocument()
 })
+
+it('adds a certification to import without moving education records', async () => {
+  const user = userEvent.setup()
+  const onImport = renderForm()
+  await user.click(screen.getByRole('button', { name: 'Add certification' }))
+  await user.type(screen.getByLabelText(/^Certification name/), 'Cloud Architect')
+  await user.type(screen.getByLabelText('Issuer'), 'Cloud Co')
+  await user.type(screen.getByLabelText('Credential ID'), 'ABC')
+  await user.click(screen.getByRole('button', { name: 'Save to career library' }))
+  expect(onImport).toHaveBeenCalledWith(expect.objectContaining({
+    educations: buildParsedResume().educations,
+    certifications: [{ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: null, expiry_date: null, credential_id: 'ABC', credential_url: null, description: null }],
+  }))
+})

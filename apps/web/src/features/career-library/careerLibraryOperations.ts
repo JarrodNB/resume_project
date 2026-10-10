@@ -1,7 +1,7 @@
 /**
  * Description: GraphQL operations for the career library (typed by GraphQL Code Generator).
  * Index:
- *   - CAREER_LIBRARY_QUERY: profile, experiences, projects, educations, skills, and library facts
+ *   - CAREER_LIBRARY_QUERY: profile, experiences, projects, educations, certifications, skills, and library facts
  */
 import { graphql } from '@/graphql/generated'
 
@@ -49,6 +49,16 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       fieldOfStudy
       startDate
       endDate
+      description
+    }
+    certifications {
+      id
+      name
+      issuer
+      issuedDate
+      expiryDate
+      credentialId
+      credentialUrl
       description
     }
     skills {

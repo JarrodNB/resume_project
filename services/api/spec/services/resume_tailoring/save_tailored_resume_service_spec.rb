@@ -52,4 +52,15 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(result.errors).to eq([ described_class::NOT_READY_MESSAGE ])
     expect(user.resumes).to be_empty
   end
+  it "saves and edits a separate certification snapshot while preserving the library" do
+    credential = create(:certification, user: user)
+    sections << { "section_type" => "certifications", "title" => "Certifications", "content" => { "items" => [ { "name" => credential.name, "issuer" => credential.issuer } ] } }
+    resume = described_class.call(ai_task: ai_task, sections: sections).value
+    section = resume.sections.find_by!(section_type: "certifications")
+    result = ResumeTailoring::UpdateResumeSectionsService.call(resume: resume, sections: [ { "id" => section.id, "content" => { "items" => [ { "name" => "Edited credential" } ] } } ])
+    expect(result).to be_success
+    expect(section.reload.content["items"].sole["name"]).to eq("Edited credential")
+    expect(credential.reload.name).to eq("AWS Solutions Architect")
+  end
+
 end

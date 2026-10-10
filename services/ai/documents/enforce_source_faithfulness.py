@@ -1,7 +1,7 @@
 """
 Description: Enforces "extract, never rewrite" on a ParsedResume by checking it against the
 resume's own text. Highlights and skills not found in the text are removed; experience, project,
-and education names not found are kept. Every finding is added to parsing_warnings.
+education, and certification names not found are kept. Every finding is added to parsing_warnings.
 Index:
     - enforce_source_faithfulness: returns a copy of the parse with unverifiable content handled
 """
@@ -69,6 +69,7 @@ def _warn_unmatched_names(
         + [("job title", role.title) for role in parsed_resume.experiences]
         + [("project name", project.name) for project in parsed_resume.projects]
         + [("institution", education.institution) for education in parsed_resume.educations]
+        + [("certification name", item.name) for item in parsed_resume.certifications]
     )
     for label, name in labelled_names:
         if not appears_in(name, source_text):

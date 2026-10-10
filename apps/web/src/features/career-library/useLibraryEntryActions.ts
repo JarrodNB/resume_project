@@ -12,6 +12,8 @@ import { useApolloClient } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import {
+  DELETE_CERTIFICATION_MUTATION,
+  MERGE_CERTIFICATIONS_MUTATION,
   DELETE_EDUCATION_MUTATION,
   DELETE_EXPERIENCE_MUTATION,
   DELETE_LIBRARY_FACT_MUTATION,
@@ -22,13 +24,14 @@ import {
   MERGE_PROJECTS_MUTATION,
 } from './careerLibraryMutations'
 
-export type LibraryEntryKind = 'experience' | 'project' | 'education' | 'skill' | 'fact'
+export type LibraryEntryKind = 'experience' | 'project' | 'education' | 'certification' | 'skill' | 'fact'
 export type MergeableEntryKind = Exclude<LibraryEntryKind, 'skill' | 'fact'>
 
 const DELETE_MUTATIONS: Record<LibraryEntryKind, DocumentNode> = {
   experience: DELETE_EXPERIENCE_MUTATION,
   project: DELETE_PROJECT_MUTATION,
   education: DELETE_EDUCATION_MUTATION,
+  certification: DELETE_CERTIFICATION_MUTATION,
   skill: DELETE_SKILL_MUTATION,
   fact: DELETE_LIBRARY_FACT_MUTATION,
 }
@@ -37,6 +40,7 @@ const MERGE_MUTATIONS: Record<MergeableEntryKind, DocumentNode> = {
   experience: MERGE_EXPERIENCES_MUTATION,
   project: MERGE_PROJECTS_MUTATION,
   education: MERGE_EDUCATIONS_MUTATION,
+  certification: MERGE_CERTIFICATIONS_MUTATION,
 }
 
 type MutationPayloads = Record<string, { errors: string[] } | null>

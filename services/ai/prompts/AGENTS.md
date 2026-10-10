@@ -30,3 +30,9 @@ output in addition to the usual Description/Index.
 ## Local Rules
 
 - Bump that file's prompt version when the instructions change, then rerun the agent's evals.
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

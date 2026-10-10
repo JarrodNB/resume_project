@@ -40,3 +40,6 @@ Source of the web app, organized by feature.
 - Auth: the JWT is kept in localStorage and sent as `Authorization: Bearer` over HTTP and as
   `?token=` on the `/cable` WebSocket. A 401 from GraphQL ends the session.
 - Signing in or out replaces the Apollo client, so no cached data leaks between users.
+
+- Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
+- `lib/formatCertificationDates.ts` formats explicit issue and expiry labels.

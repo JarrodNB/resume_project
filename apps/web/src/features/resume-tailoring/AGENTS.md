@@ -40,3 +40,5 @@ Preview opens the current draft as a large PDF.
 - Reopening a section sends `reopen`; the worker discards every section after it.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current draft, including edits that are not saved yet.
+
+- Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

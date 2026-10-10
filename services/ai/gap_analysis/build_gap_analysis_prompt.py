@@ -1,6 +1,6 @@
 """
 Description: Turns a GapAnalysisContext into the agent's user prompt. Every requirement and every
-career library entry gets a short label (R1, D1, N1, E1, H1, P1, ED1, S1, F1): models copy short
+career library entry gets a short label (R1, D1, N1, E1, H1, P1, ED1, C1, S1, F1): models copy short
 labels reliably (unlike UUIDs) and they cost fewer tokens. The profile summary is unlabeled
 background for the overall writeup, not evidence. The returned maps let the validator
 check the labels and the worker swap them back for ids and text.
@@ -161,6 +161,18 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         lines.append(f"[{ref}] {_join(text, dates, separator=' | ')}")
         if education.description:
             lines.append(f"  {education.description}")
+
+    if library.certifications:
+        lines += ["", "## Certifications"]
+    for number, certification in enumerate(library.certifications, start=1):
+        details = _join(certification.name, certification.issuer, certification.description)
+        dates = _join(
+            f"issued {certification.issued_date.isoformat()}" if certification.issued_date else None,
+            f"expires {certification.expiry_date.isoformat()}" if certification.expiry_date else None,
+        )
+        text = _join(details, dates, certification.credential_id, certification.credential_url)
+        item = EvidenceItem(kind="certification", id=certification.id, text=text)
+        lines.append(f"[{_add_evidence(prompt, f'C{number}', item)}] {text}")
 
     if library.skills:
         lines += ["", "## Skills"]

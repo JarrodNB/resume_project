@@ -60,4 +60,13 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
     expect { described_class.call(user: user) }
       .not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
   end
+  it "clears certifications only for the owner" do
+    credential = create(:certification, user: user)
+    theirs = create(:certification)
+    expect(described_class.call(user: user)).to be_success
+    expect(Certification.exists?(credential.id)).to be(false)
+    expect(theirs.reload).to be_persisted
+    expect(described_class.call(user: user)).to be_success
+  end
+
 end

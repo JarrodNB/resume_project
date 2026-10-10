@@ -12,11 +12,12 @@ module CareerLibrary
     FILLABLE_FIELDS = {
       Experience => %w[location description start_date],
       Project => %w[role url description start_date end_date],
-      Education => %w[field_of_study description start_date end_date]
+      Education => %w[field_of_study description start_date end_date],
+      Certification => %w[issuer issued_date expiry_date credential_id credential_url description]
     }.freeze
 
-    # @param target [Experience, Project, Education] the record that is kept
-    # @param source [Experience, Project, Education] the record merged into it (saved or unsaved)
+    # @param target [Experience, Project, Education, Certification] the record that is kept
+    # @param source [Experience, Project, Education, Certification] the record merged into it (saved or unsaved)
     def initialize(target:, source:)
       @target = target
       @source = source

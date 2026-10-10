@@ -38,3 +38,5 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 - The task page must work on reload: the subscription sends the task's current state first.
 
 - LinkListField edits each contact link's visible label and destination URL separately.
+- Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
+- `review/CertificationFields.tsx` edits parsed certifications; absent certifications default to an empty list for older task results.

@@ -23,6 +23,7 @@ export function buildParsedResume(): ParsedResume {
       },
     ],
     projects: [],
+    certifications: [],
     educations: [
       {
         institution: 'State University',

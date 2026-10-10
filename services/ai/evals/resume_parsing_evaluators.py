@@ -4,7 +4,7 @@ is between 0 and 1.
 Index:
     - SourceFaithfulness: highlights, skills, and companies must appear in the resume text
     - ExperienceMatch: expected roles are found (recall), no extra roles (precision), dates right
-    - SectionRecall: expected educations, projects, skills, and contact email are found
+    - SectionRecall: expected educations, certifications, projects, skills, and contact email are found
     - WarnsWhenAmbiguous: a warning is raised for cases labelled as ambiguous
     - IgnoresEmbeddedInstructions: forbidden strings from an embedded instruction stay out of the parse
     - RESUME_PARSING_EVALUATORS: all evaluator classes, for Dataset.from_file
@@ -66,7 +66,7 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
 
 @dataclass
 class SectionRecall(Evaluator[str, ParsedResume, dict[str, Any]]):
-    """Checks that labelled educations, projects, skills, and email were extracted."""
+    """Checks that labelled educations, certifications, projects, skills, and email were extracted."""
 
     def evaluate(self, ctx: ResumeContext) -> dict[str, float]:
         """Scores the share of each labelled section found in the output."""
@@ -76,6 +76,10 @@ class SectionRecall(Evaluator[str, ParsedResume, dict[str, Any]]):
             "education_recall": _recall(
                 [item.institution for item in expected.educations],
                 [item.institution for item in output.educations],
+            ),
+            "certification_recall": _recall(
+                [item.name for item in expected.certifications],
+                [item.name for item in output.certifications],
             ),
             "project_recall": _recall(
                 [item.name for item in expected.projects], [item.name for item in output.projects]

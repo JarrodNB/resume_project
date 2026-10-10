@@ -305,6 +305,34 @@ cases:
         - {name: Python}
         - {name: SQL}
 
+  - name: separate_degree_and_certification
+    inputs: |
+      Jordan Lee
+      EDUCATION
+      Harbor College — BSc Computer Science, 2019
+      CERTIFICATIONS
+      AWS Solutions Architect
+      Issuer: Amazon
+      Issued: March 2024
+      Expires: March 2027
+      Credential ID: AWS-123
+      Credential URL: https://example.com/credential
+    expected_output:
+      contact:
+        full_name: Jordan Lee
+      educations:
+        - institution: Harbor College
+          degree: BSc
+          field_of_study: Computer Science
+          end_date: "2019"
+      certifications:
+        - name: AWS Solutions Architect
+          issuer: Amazon
+          issued_date: "2024-03"
+          expiry_date: "2027-03"
+          credential_id: AWS-123
+          credential_url: https://example.com/credential
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

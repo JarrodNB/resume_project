@@ -4,6 +4,7 @@
  * Index:
  *   - DELETE_EXPERIENCE_MUTATION, DELETE_PROJECT_MUTATION, DELETE_EDUCATION_MUTATION,
  *     DELETE_SKILL_MUTATION, DELETE_LIBRARY_FACT_MUTATION
+ *   - DELETE_CERTIFICATION_MUTATION, MERGE_CERTIFICATIONS_MUTATION
  *   - CLEAR_CAREER_LIBRARY_MUTATION
  *   - MERGE_EXPERIENCES_MUTATION, MERGE_PROJECTS_MUTATION, MERGE_EDUCATIONS_MUTATION
  */
@@ -76,6 +77,22 @@ export const MERGE_PROJECTS_MUTATION = graphql(`
 export const MERGE_EDUCATIONS_MUTATION = graphql(`
   mutation MergeEducations($targetId: ID!, $sourceId: ID!) {
     mergeEducations(input: { targetId: $targetId, sourceId: $sourceId }) {
+      errors
+    }
+  }
+`)
+
+export const DELETE_CERTIFICATION_MUTATION = graphql(`
+  mutation DeleteCertification($id: ID!) {
+    deleteCertification(input: { id: $id }) {
+      errors
+    }
+  }
+`)
+
+export const MERGE_CERTIFICATIONS_MUTATION = graphql(`
+  mutation MergeCertifications($targetId: ID!, $sourceId: ID!) {
+    mergeCertifications(input: { targetId: $targetId, sourceId: $sourceId }) {
       errors
     }
   }

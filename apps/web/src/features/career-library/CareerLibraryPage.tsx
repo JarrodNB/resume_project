@@ -14,6 +14,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { ClearLibraryButton } from './ClearLibraryButton'
+import { CertificationSection } from './CertificationSection'
 import { EducationSection } from './EducationSection'
 import { ExperienceSection } from './ExperienceSection'
 import { FactsSection } from './FactsSection'
@@ -57,6 +58,7 @@ export function CareerLibraryPage() {
           <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} />
           <ProjectSection projects={library.projects} />
           <EducationSection educations={library.educations} />
+          <CertificationSection certifications={library.certifications} />
           <SkillsSection skills={library.skills} />
           <FactsSection facts={library.libraryFacts} />
         </DragDropProvider>

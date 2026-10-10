@@ -1,6 +1,6 @@
 # Description: Hand-labelled tailoring cases. People, companies, and jobs are synthetic.
 # inputs.context is a GapAnalysisContext. metadata is TailorEvalLabels.
-# Covers every written section: summary, experience, projects, education, and skills.
+# Covers every written section: summary, experience, projects, education, certifications, and skills.
 cases:
   - name: experience_stays_faithful
     inputs:
@@ -219,6 +219,33 @@ cases:
     metadata:
       nothing_fits: true
       job_terms: []
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+
+  - name: certification_keeps_credential_separate
+    inputs:
+      section_type: certifications
+      context:
+        job:
+          id: job-cert
+          title: Cloud Engineer
+          company: Northwind
+          requirements: [AWS Solutions Architect certification]
+        career_library:
+          certifications:
+            - id: cert-1
+              name: AWS Solutions Architect
+              issuer: Amazon
+              issued_date: 2024-03-01
+              expiry_date: 2027-03-01
+    metadata:
+      nothing_fits: false
+      entry_label: C1
+      prose: AWS Solutions Architect
+      source_labels: [C1]
+      job_terms: [AWS]
     evaluators:
       - SectionFaithfulness
       - SectionRelevance

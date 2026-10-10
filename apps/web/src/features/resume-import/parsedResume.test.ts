@@ -20,7 +20,17 @@ it('fills in missing fields with empty defaults', () => {
     experiences: [{ ...emptyExperience(), company: 'Acme', title: 'Engineer' }],
     projects: [],
     educations: [],
+    certifications: [],
     skills: [{ name: 'Ruby', category: null }],
     parsing_warnings: [],
   })
+})
+
+it('reads certifications separately from education and preserves credential details', () => {
+  const parsed = parsedResumeFromTaskResult({ parsed_resume: {
+    educations: [{ institution: 'University' }],
+    certifications: [{ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: '2024', credential_id: 'ABC', credential_url: 'https://example.com/ABC' }],
+  } })
+  expect(parsed?.educations[0]?.institution).toBe('University')
+  expect(parsed?.certifications[0]).toEqual({ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: '2024', expiry_date: null, credential_id: 'ABC', credential_url: 'https://example.com/ABC', description: null })
 })

@@ -23,7 +23,7 @@ class CitedProse(BaseModel):
 class ChosenEntry(BaseModel):
     """One library entry the section includes."""
 
-    label: str = Field(description="The entry to include, such as E1, P1, ED1, or S1.")
+    label: str = Field(description="The entry to include, such as E1, P1, ED1, C1, or S1.")
     prose: list[CitedProse] = Field(
         default_factory=list,
         description="Rewritten bullets or a description, closest match first. Empty for a skill.",

@@ -22,6 +22,7 @@ _FOCUS = {
     "summary": "professional summary",
     "experience": "work experience and achievements",
     "projects": "projects",
+    "certifications": "certifications and professional credentials",
     "education": "education and degrees",
     "skills": "skills and tools",
 }

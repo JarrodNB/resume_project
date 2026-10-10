@@ -84,3 +84,5 @@ All business logic, as service objects grouped by domain folder.
   for the user (import, merge, experience create/update, highlight moved to another role,
   library deletes, and project, education, skill, and library-fact create/update do today).
   Profile updates do not: the summary is read from `users`, not from embeddings.
+
+- `certifications/` — create/update credentials and enqueue embedding synchronization.

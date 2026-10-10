@@ -10,7 +10,7 @@ import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
-import { CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
+import { CREATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
@@ -48,6 +48,7 @@ const libraryMock = {
         experience('exp-3', 'Manager', '2023-01-01'),
       ],
       projects: [],
+      certifications: [],
       educations: [],
       skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 0 }],
       libraryFacts: [],
@@ -274,5 +275,19 @@ it('edits a fact', async () => {
   await user.type(within(dialog).getByLabelText('Response'), 'Used it for two years')
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('adds a certification using nullable optional fields', async () => {
+  const user = userEvent.setup()
+  renderLibrary({
+    request: { query: CREATE_CERTIFICATION_MUTATION, variables: { attributes: { name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: null, expiryDate: null, credentialId: null, credentialUrl: null, description: null } } },
+    result: { data: { createCertification: { __typename: 'CreateCertificationPayload', errors: [] } } },
+  }, ['library.certifications'])
+  await user.click(await screen.findByRole('button', { name: 'Add certification' }))
+  const dialog = await screen.findByRole('dialog')
+  await user.type(within(dialog).getByLabelText(/^Certification name/), 'Cloud Architect')
+  await user.type(within(dialog).getByLabelText('Issuer'), 'Cloud Co')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })

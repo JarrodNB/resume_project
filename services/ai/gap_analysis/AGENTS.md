@@ -11,7 +11,7 @@ can't be invented.
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today, allow_fact=None)`
   returns a `GapAnalysisPrompt` (prompt text, label lookups, warnings). Labels: `R1`/`D1`/`N1` for
   requirements, responsibilities, and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`
-  education, `S1` skill, `F1` library fact; `format_date_range`. The profile summary is unlabeled
+  education, `C1` certification, `S1` skill, `F1` library fact; `format_date_range`. The profile summary is unlabeled
   background, not a citable label. `allow_fact` screens each
   library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt
   carries one warning. A fact over the screen cap uses a separate "too long" warning. `None`
@@ -30,3 +30,9 @@ can't be invented.
 
 - The LLM only ever sees and returns labels; ids and evidence text come from code.
 - No LLM calls here (they live in `agents/`). Fact screening is a callback the handler passes in.
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

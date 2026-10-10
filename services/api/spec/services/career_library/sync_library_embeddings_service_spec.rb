@@ -103,4 +103,15 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
     expect(closest.content).to eq("Ruby")
   end
+  it "syncs certification facts and removes deleted credentials idempotently" do
+    credential = create(:certification, user: user, credential_id: "ABC", expiry_date: Date.new(2027, 1, 1))
+    create(:certification)
+    expect(sync.value).to eq(embedded: 1, deleted: 0)
+    expect(user.library_embeddings.sole).to have_attributes(source_type: "Certification", source_id: credential.id)
+    expect(user.library_embeddings.sole.content).to include("Credential id: ABC", "Expiry date: 2027-01-01")
+    expect(sync.value).to eq(embedded: 0, deleted: 0)
+    credential.destroy!
+    expect(sync.value).to eq(embedded: 0, deleted: 1)
+  end
+
 end

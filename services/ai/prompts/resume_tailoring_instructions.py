@@ -8,7 +8,7 @@ sections (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "1"
+RESUME_TAILORING_PROMPT_VERSION = "2"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.
@@ -18,7 +18,7 @@ Rewrite the wording toward the job's language: a summary is a new paragraph, and
 be recast. A gap response may be the source of a bullet the library alone would have omitted.
 
 Do not add a fact. Do not invent an employer, title, tool, date, metric, or responsibility.
-Identity (employer, title, dates, school, skill name) is copied from the label you pick; you
+Identity (employer, title, dates, school, certification and credential details, skill name) is copied from the label you pick; you
 only write the prose. Every bullet and the summary cite the source labels they use. Never
 write a label in the prose.
 

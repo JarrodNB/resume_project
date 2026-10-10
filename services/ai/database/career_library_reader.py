@@ -22,6 +22,7 @@ from schemas.gap_analysis_context import (
     CareerLibrary,
     GapAnalysisContext,
     JobToAnalyze,
+    LibraryCertification,
     LibraryEducation,
     LibraryExperience,
     LibraryFact,
@@ -63,6 +64,11 @@ EDUCATIONS_QUERY = f"""
     SELECT id::text, institution, degree, field_of_study, description, start_date, end_date
     FROM educations WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
+CERTIFICATIONS_QUERY = """
+    SELECT id::text, name, issuer, issued_date, expiry_date, credential_id, credential_url, description
+    FROM certifications WHERE user_id = %(user_id)s
+    ORDER BY issued_date DESC NULLS LAST, position
+"""
 SKILLS_QUERY = """
     SELECT id::text, name, category FROM skills WHERE user_id = %(user_id)s
     ORDER BY position, name
@@ -89,6 +95,7 @@ def read_gap_analysis_context(
         highlight_rows = cursor.execute(HIGHLIGHTS_QUERY, params).fetchall()
         project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
         education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
+        certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
         skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
         fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
 
@@ -106,6 +113,7 @@ def read_gap_analysis_context(
         ],
         projects=[LibraryProject(**row) for row in project_rows],
         educations=[LibraryEducation(**row) for row in education_rows],
+        certifications=[LibraryCertification(**row) for row in certification_rows],
         skills=[LibrarySkill(**row) for row in skill_rows],
         facts=[LibraryFact(**row) for row in fact_rows],
     )

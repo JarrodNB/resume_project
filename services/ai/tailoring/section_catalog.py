@@ -7,7 +7,7 @@ Index:
     - sections_before: sections that stay when an earlier one is reopened
 """
 
-SECTION_ORDER = ("contact", "summary", "experience", "projects", "education", "skills")
+SECTION_ORDER = ("contact", "summary", "experience", "projects", "education", "certifications", "skills")
 WRITTEN_SECTIONS = SECTION_ORDER[1:]
 SECTION_TITLES = {
     "contact": "Contact",
@@ -15,9 +15,10 @@ SECTION_TITLES = {
     "experience": "Experience",
     "projects": "Projects",
     "education": "Education",
+    "certifications": "Certifications",
     "skills": "Skills",
 }
-ENTRY_PREFIX = {"experience": "E", "projects": "P", "education": "ED", "skills": "S"}
+ENTRY_PREFIX = {"experience": "E", "projects": "P", "education": "ED", "certifications": "C", "skills": "S"}
 
 
 def next_section(done: list[str]) -> str | None:

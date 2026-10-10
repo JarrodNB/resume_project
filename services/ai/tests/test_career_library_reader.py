@@ -108,6 +108,14 @@ def test_reads_the_job_and_library_in_rails_order(
     )
     _insert(admin_connection, "projects", user_id=user_id, name="CLI tool")
     _insert(admin_connection, "educations", user_id=user_id, institution="State University")
+    certification_id = _insert(
+        admin_connection, "certifications", user_id=user_id, name="AWS Solutions Architect",
+        issuer="Amazon", issued_date="2024-03-01", expiry_date="2027-03-01",
+        credential_id="AWS-123", credential_url="https://example.com/credential",
+        description="Cloud architecture", position=0,
+    )
+    other_user = _insert_user(admin_connection)
+    _insert(admin_connection, "certifications", user_id=other_user, name="Other credential", position=0)
     _insert(admin_connection, "skills", user_id=user_id, name="Python")
     fact_id = _insert(
         admin_connection,
@@ -143,6 +151,12 @@ def test_reads_the_job_and_library_in_rails_order(
     ]
     assert [project.name for project in library.projects] == ["CLI tool"]
     assert [education.institution for education in library.educations] == ["State University"]
+    assert len(library.certifications) == 1
+    certification = library.certifications[0]
+    assert certification.id == str(certification_id)
+    assert certification.credential_id == "AWS-123"
+    assert certification.credential_url == "https://example.com/credential"
+    assert certification.expiry_date.isoformat() == "2027-03-01"
     assert [skill.name for skill in library.skills] == ["Python"]
     assert [(fact.id, fact.requirement, fact.response) for fact in library.facts] == [
         (str(fact_id), "Kubernetes", "Ran production Kubernetes at Northwind")

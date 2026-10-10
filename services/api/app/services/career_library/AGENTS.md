@@ -42,3 +42,5 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - An experience's blank `end_date` means "current role", so it is never filled from a merge.
 - Add a model's identifying fields to `MATCH_FIELDS` and fillable fields to `FILLABLE_FIELDS`
   together when another entry type becomes mergeable.
+
+- Certifications match normalized name + issuer and compatible issued dates; merges fill optional credential facts. Clear and embedding synchronization include certifications.

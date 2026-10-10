@@ -74,3 +74,10 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - Only `db`-marked tests touch Postgres (the compose `db` service); they roll back everything
   they write. Skip them with `pytest -m "not db"`.
 - Agent quality is measured by evals in `evals/`, not by pytest.
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+`test_certifications.py` checks compatibility, citable evidence, retrieval, and copied identity.

@@ -44,3 +44,5 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   GraphQL enums are generated from these constants, so add values in one place.
 - Ordered children use a `position` column and an ordered `has_many` scope. Dated career
   library entries are the exception: they are ordered by date, and `position` only breaks ties.
+
+- `certification.rb` — independent credentials with issued/expiry dates, credential ID/URL and optional description.

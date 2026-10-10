@@ -12,6 +12,12 @@ against that text. No LLM calls here.
   `DocumentTooLongError` when the PDF has more than 30 pages or the text is over 80,000 characters
 - `enforce_source_faithfulness.py` — runtime guard for "extract, never rewrite": removes
   highlights and skills not found in the resume text, warns (without removing) about
-  unmatched company, title, project, and institution names
+  unmatched company, title, project, institution, and certification names
 - `text_matching.py` — whitespace/case/bullet-insensitive matching helpers, shared with the
   evals
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

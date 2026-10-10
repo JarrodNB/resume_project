@@ -1,5 +1,5 @@
 # Description: Empties one user's career library so a later resume import starts fresh.
-# Removes roles (and their bullets), projects, education, skills, and facts, and clears the
+# Removes roles (and their bullets), projects, education, certifications, skills, and facts, and clears the
 # profile fields an import fills (name, contact, links, summary). The sign-in email, saved
 # jobs, and tailored resumes stay. Job answers that pointed at a fact stay, unlinked.
 # Queues one embedding sync when any entry was removed. Running it twice changes nothing.
@@ -29,7 +29,7 @@ module CareerLibrary
 
     # Deletes the user's library rows. Highlight rows and fact links are handled by foreign keys.
     def delete_entries
-      removed = [ Experience, Project, Education, Skill, LibraryFact ].sum do |model|
+      removed = [ Experience, Project, Education, Certification, Skill, LibraryFact ].sum do |model|
         model.where(user_id: @user.id).delete_all
       end
       removed.positive?

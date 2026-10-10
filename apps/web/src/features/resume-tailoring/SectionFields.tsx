@@ -6,6 +6,7 @@
  */
 import { DragDropProvider } from '@dnd-kit/react'
 import type { Dispatch, SetStateAction } from 'react'
+import { CertificationFields } from '@/features/resume-import/review/CertificationFields'
 import { ContactFields } from '@/features/resume-import/review/ContactFields'
 import { EducationFields } from '@/features/resume-import/review/EducationFields'
 import { ExperienceFields } from '@/features/resume-import/review/ExperienceFields'
@@ -46,6 +47,19 @@ function PlainSection({ draft, onChange }: SectionFieldsProps) {
             key={project.key}
             project={project}
             onChange={(next) => onChange({ kind: 'projects', items: replace(draft.items, project.key, { ...next, key: project.key }) })}
+          />
+        ))}
+      </div>
+    )
+  }
+  if (draft.kind === 'certifications') {
+    return (
+      <div className="grid gap-6">
+        {draft.items.map((certification) => (
+          <CertificationFields
+            key={certification.key}
+            certification={certification}
+            onChange={(next) => onChange({ kind: 'certifications', items: replace(draft.items, certification.key, { ...next, key: certification.key }) })}
           />
         ))}
       </div>
@@ -103,6 +117,7 @@ function reviewDraftFrom(draft: SectionDraft): ReviewDraft {
     experiences: draft.kind === 'experience' ? draft.items : [],
     projects: [],
     educations: [],
+    certifications: [],
     skills: draft.kind === 'skills' ? draft.items : [],
     parsing_warnings: [],
   }

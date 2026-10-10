@@ -2,7 +2,7 @@
  * Description: Short human-readable labels for career library entries, used in action menus and
  * dialogs. Dates are included so look-alike duplicates can be told apart.
  * Index:
- *   - experienceLabel, projectLabel, educationLabel
+ *   - experienceLabel, projectLabel, educationLabel, certificationLabel
  */
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
@@ -31,4 +31,9 @@ export function projectLabel(project: Project) {
 export function educationLabel(education: Education) {
   const name = [education.institution, education.degree].filter(Boolean).join(', ')
   return withDates(name, formatDateRange(education.startDate, education.endDate))
+}
+
+/** A certification label, including its issuer to distinguish duplicate names. */
+export function certificationLabel(certification: CareerLibraryQuery['certifications'][number]) {
+  return withDates([certification.name, certification.issuer].filter(Boolean).join(', '), formatDateRange(certification.issuedDate, certification.expiryDate))
 }

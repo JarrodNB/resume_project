@@ -4,7 +4,7 @@
 # user can only ever see their own records.
 # Index:
 #   - me
-#   - experiences, projects, educations, skills, library_facts (career library)
+#   - experiences, projects, educations, certifications, skills, library_facts (career library)
 #   - jobs(stage:), job(id:)
 #   - resumes, resume(id:)
 #   - ai_task(id:)
@@ -15,6 +15,7 @@ module Types
     field :experiences, [ Types::ExperienceType ], null: false
     field :projects, [ Types::ProjectType ], null: false
     field :educations, [ Types::EducationType ], null: false
+    field :certifications, [ Types::CertificationType ], null: false
     field :skills, [ Types::SkillType ], null: false
     field :library_facts, [ Types::LibraryFactType ], null: false
 
@@ -45,6 +46,9 @@ module Types
 
     # Returns the user's education entries.
     def educations = current_user.educations
+
+    # Returns the user's independent certification entries.
+    def certifications = current_user.certifications
 
     # Returns the user's skills.
     def skills = current_user.skills

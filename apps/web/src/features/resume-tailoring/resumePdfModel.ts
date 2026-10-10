@@ -6,6 +6,7 @@
  *   - ResumePdfSourceSection: one saved section, in stored order
  *   - buildResumePdfModel: sections to that model
  */
+import { formatCertificationDates } from '@/lib/formatCertificationDates'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { parsedLinks, type ParsedLink } from '@/features/resume-import/parsedResume'
 import type { TailorSectionType } from './sectionOrder'
@@ -76,6 +77,7 @@ function entryFrom(sectionType: TailorSectionType, value: unknown): ResumePdfEnt
   if (!isRecord(value)) return null
   if (sectionType === 'experience') return experienceEntry(value)
   if (sectionType === 'projects') return projectEntry(value)
+  if (sectionType === 'certifications') return certificationEntry(value)
   if (sectionType === 'education') return educationEntry(value)
   return null
 }
@@ -153,4 +155,14 @@ function items(content: Record<string, unknown>): unknown[] {
 /** The string values in a list, with blanks removed. */
 function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(text).filter(Boolean) : []
+}
+
+/** A certification: issuer, credential identifiers, explicit issue and expiry dates. */
+function certificationEntry(item: Record<string, unknown>): ResumePdfEntry | null {
+  const name = text(item.name)
+  const meta = [text(item.issuer), text(item.credential_id), text(item.credential_url)].filter(Boolean).join(' · ')
+  const dates = formatCertificationDates(textOrNull(item.issued_date), textOrNull(item.expiry_date))
+  const body = text(item.description)
+  if (!name && !meta && !dates && !body) return null
+  return { heading: name || 'Certification', meta, dates, body, bullets: [] }
 }

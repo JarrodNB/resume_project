@@ -5,7 +5,7 @@ Index:
     - SourceRecord: one labeled source and the text a claim must appear in
     - LabeledSources: the label map for one section
     - label_sources: builds that map, optionally limited to retrieved library ids.
-      Projects, education, and skills are always labeled, even when retrieval missed them
+      Projects, education, certifications, and skills are always labeled, even when retrieval missed them
 """
 
 from dataclasses import dataclass, field
@@ -39,6 +39,7 @@ class LabeledSources:
 # because a job's requirements sit closer to work highlights.
 _NATIVE_TYPES = {
     "projects": frozenset({"Project"}),
+    "certifications": frozenset({"Certification"}),
     "education": frozenset({"Education"}),
     "skills": frozenset({"Skill"}),
 }
@@ -112,7 +113,7 @@ def _add_simple(
     retrieved: set[tuple[str, str]] | None,
     native: frozenset[str],
 ) -> None:
-    """Labels projects, education, skills, and library facts."""
+    """Labels projects, education, certifications, skills, and library facts."""
     for number, project in enumerate(library.projects, start=1):
         if _keep(retrieved, "Project", project.id, native):
             text = project.name if not project.description else f"{project.name}: {project.description}"
@@ -122,6 +123,17 @@ def _add_simple(
             text = ", ".join(part for part in (education.degree, education.field_of_study, education.institution) if part)
             sources.records[f"ED{number}"] = SourceRecord(
                 f"ED{number}", "education", text, education.id, "Education"
+            )
+    for number, certification in enumerate(library.certifications, start=1):
+        if _keep(retrieved, "Certification", certification.id, native):
+            text = ", ".join(str(part) for part in (
+                certification.name, certification.issuer,
+                f"issued {certification.issued_date}" if certification.issued_date else None,
+                f"expires {certification.expiry_date}" if certification.expiry_date else None,
+                certification.credential_id, certification.credential_url, certification.description,
+            ) if part)
+            sources.records[f"C{number}"] = SourceRecord(
+                f"C{number}", "certification", text, certification.id, "Certification"
             )
     for number, skill in enumerate(library.skills, start=1):
         if _keep(retrieved, "Skill", skill.id, native):

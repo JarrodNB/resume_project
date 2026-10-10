@@ -1,12 +1,13 @@
 """
 Description: Structured output of the resume parsing agent. Mirrors the Rails career library
-(experiences + highlights, projects, educations, skills) plus contact info and summary.
+(experiences + highlights, projects, educations, certifications, skills) plus contact info and summary.
 Index:
     - ParsedLink: one contact link's visible label and destination URL
     - ParsedContactInfo: name, email, phone, location, links
     - ParsedExperience: one role with word-for-word highlights
     - ParsedProject: one project
     - ParsedEducation: one school or program
+    - ParsedCertification: one certification and its stated credential details
     - ParsedSkill: one skill, with the resume's own grouping if any
     - ParsedResume: the full parse result (the agent's output_type)
 """
@@ -69,7 +70,7 @@ class ParsedProject(BaseModel):
 
 
 class ParsedEducation(BaseModel):
-    """A school, degree, bootcamp, or certification program."""
+    """A school, degree, or bootcamp."""
 
     institution: str
     degree: str | None = None
@@ -77,6 +78,18 @@ class ParsedEducation(BaseModel):
     start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     description: str | None = Field(default=None, description="Honours, GPA, coursework.")
+
+
+class ParsedCertification(BaseModel):
+    """An explicitly stated certification, separate from education."""
+
+    name: str
+    issuer: str | None = None
+    issued_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
+    expiry_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
+    credential_id: str | None = None
+    credential_url: str | None = None
+    description: str | None = None
 
 
 class ParsedSkill(BaseModel):
@@ -96,6 +109,7 @@ class ParsedResume(BaseModel):
     experiences: list[ParsedExperience] = Field(default_factory=list)
     projects: list[ParsedProject] = Field(default_factory=list)
     educations: list[ParsedEducation] = Field(default_factory=list)
+    certifications: list[ParsedCertification] = Field(default_factory=list)
     skills: list[ParsedSkill] = Field(default_factory=list)
     parsing_warnings: list[str] = Field(
         default_factory=list,

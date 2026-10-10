@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "2"
+RESUME_PARSING_PROMPT_VERSION = "3"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -30,8 +30,10 @@ Rules:
   For a role marked "Present", "Current", or similar, set is_current to true and end_date to
   null.
 - Put paid roles, internships, and volunteer positions in `experiences`. Put personal,
-  open-source, and academic projects in `projects`. Put degrees, bootcamps, and
-  certifications in `educations`.
+  open-source, and academic projects in `projects`. Put degrees and bootcamps in `educations`.
+  Put certifications in `certifications`, copying name, issuer, issued/expiry dates,
+  credential ID/URL, and description only when explicitly stated. Do not duplicate them
+  in education or treat certification study as an earned credential.
 - List each skill once in `skills`. Set `category` only if the resume groups its skills under
   headings.
 - Contact hyperlinks extracted from the file appear as

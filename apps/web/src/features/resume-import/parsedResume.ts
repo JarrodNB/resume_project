@@ -2,9 +2,9 @@
  * Description: TypeScript mirror of the AI service's ParsedResume (services/ai/schemas/parsed_resume.py),
  * the JSON a parse_resume task returns in `result.parsed_resume`. Dates are partial: "YYYY-MM" or "YYYY".
  * Index:
- *   - ParsedLink, ParsedContactInfo, ParsedExperience, ParsedProject, ParsedEducation, ParsedSkill, ParsedResume
+ *   - ParsedLink, ParsedContactInfo, ParsedExperience, ParsedProject, ParsedEducation, ParsedCertification, ParsedSkill, ParsedResume
  *   - parsedResumeFromTaskResult: reads a task result into a ParsedResume with defaults filled in
- *   - emptyExperience, emptyProject, emptyEducation: blank entries for "Add" buttons
+ *   - emptyExperience, emptyProject, emptyEducation, emptyCertification: blank entries for "Add" buttons
  */
 
 export interface ParsedLink {
@@ -48,6 +48,16 @@ export interface ParsedEducation {
   description: string | null
 }
 
+export interface ParsedCertification {
+  name: string
+  issuer: string | null
+  issued_date: string | null
+  expiry_date: string | null
+  credential_id: string | null
+  credential_url: string | null
+  description: string | null
+}
+
 export interface ParsedSkill {
   name: string
   category: string | null
@@ -59,6 +69,7 @@ export interface ParsedResume {
   experiences: ParsedExperience[]
   projects: ParsedProject[]
   educations: ParsedEducation[]
+  certifications: ParsedCertification[]
   skills: ParsedSkill[]
   parsing_warnings: string[]
 }
@@ -73,6 +84,7 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
     experiences: (parsed.experiences ?? []).map((experience) => ({ ...emptyExperience(), ...experience })),
     projects: (parsed.projects ?? []).map((project) => ({ ...emptyProject(), ...project })),
     educations: (parsed.educations ?? []).map((education) => ({ ...emptyEducation(), ...education })),
+    certifications: (parsed.certifications ?? []).map((certification) => ({ ...emptyCertification(), ...certification })),
     skills: (parsed.skills ?? []).map((skill) => ({ ...skill, category: skill.category ?? null })),
     parsing_warnings: parsed.parsing_warnings ?? [],
   }
@@ -112,4 +124,9 @@ export function emptyProject(): ParsedProject {
 /** A blank education entry. */
 export function emptyEducation(): ParsedEducation {
   return { institution: '', degree: null, field_of_study: null, start_date: null, end_date: null, description: null }
+}
+
+/** A blank certification entry. */
+export function emptyCertification(): ParsedCertification {
+  return { name: '', issuer: null, issued_date: null, expiry_date: null, credential_id: null, credential_url: null, description: null }
 }

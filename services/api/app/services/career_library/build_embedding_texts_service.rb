@@ -3,7 +3,7 @@
 # ("Senior Engineer at Acme: Cut deploy time 40%"), a skill its category ("Languages: Ruby").
 # Index:
 #   - call: returns [{ source_type:, source_id:, content: }] for every experience, highlight,
-#     project, education, skill, and library fact of the user. Job-only gap responses are not
+#     project, education, certification, skill, and library fact of the user. Job-only gap responses are not
 #     embedded.
 module CareerLibrary
   class BuildEmbeddingTextsService < ApplicationService
@@ -18,6 +18,7 @@ module CareerLibrary
       entries = experiences.flat_map { |experience| experience_entries(experience) }
       entries += Project.where(user_id: @user.id).map { |project| entry(project, project_text(project)) }
       entries += Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) }
+      entries += Certification.where(user_id: @user.id).map { |certification| entry(certification, certification_text(certification)) }
       entries += Skill.where(user_id: @user.id).map { |skill| entry(skill, skill_text(skill)) }
       entries += LibraryFact.where(user_id: @user.id).order(:created_at).map { |fact| entry(fact, fact_text(fact)) }
       success(entries)
@@ -42,6 +43,14 @@ module CareerLibrary
     def education_text(education)
       degree = [ education.degree, education.field_of_study ].compact_blank.join(" in ")
       with_details([ degree.presence, education.institution ].compact.join(", "), education.description)
+    end
+
+    # Includes credential facts and dates so evidence never implies an unstated validity period.
+    def certification_text(certification)
+      fields = %w[issuer issued_date expiry_date credential_id credential_url].filter_map do |field|
+        "#{field.humanize(keep_id_suffix: true)}: #{certification[field]}" if certification[field].present?
+      end
+      with_details(([ "Certification: #{certification.name}" ] + fields).join(", "), certification.description)
     end
 
     # "Fact: requirement: response", so a search can match either side.

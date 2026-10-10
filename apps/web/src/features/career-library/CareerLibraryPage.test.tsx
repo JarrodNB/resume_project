@@ -37,6 +37,7 @@ const libraryMock = {
         },
       ],
       projects: [],
+      certifications: [],
       educations: [],
       skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: 'Languages', position: 0 }],
       libraryFacts: [],
@@ -44,7 +45,7 @@ const libraryMock = {
   },
 }
 
-const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.skills', 'library.facts']
+const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.facts']
 
 /** Opens every library section so a test can read what is inside. */
 function openLibrarySections() {
@@ -114,4 +115,15 @@ it('shows the imported library', async () => {
   expect(screen.getByText('Ruby')).toBeInTheDocument()
   expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   expect(screen.getByText('No facts yet.')).toBeInTheDocument()
+})
+
+it('shows certifications in their own section with credential metadata', async () => {
+  openLibrarySections()
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [{
+    ...libraryMock,
+    result: { data: { ...libraryMock.result.data, certifications: [{ __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-01-01', expiryDate: null, credentialId: 'ABC', credentialUrl: 'https://example.com/ABC', description: null }] } },
+  }] })
+  expect(await screen.findByText('Cloud Architect')).toBeInTheDocument()
+  expect(screen.getByText('Cloud Co, ABC, https://example.com/ABC')).toBeInTheDocument()
+  expect(screen.getByText('Issued Jan 2024')).toBeInTheDocument()
 })

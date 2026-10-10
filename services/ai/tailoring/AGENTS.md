@@ -8,13 +8,13 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 ## Contents
 
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
-  education, skills) and entry label prefixes
+  education, certifications, skills) and entry label prefixes
 - `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, gap responses,
   approved sections, and the pending user action
 - `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
   `library_embeddings`; no matches means the whole library
 - `labeled_sources.py` — short labels for retrieved entries, gap responses, and approved sections.
-  Projects, education, and skills are labeled even when retrieval returned other rows
+  Projects, education, certifications, and skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
 - `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
   replace the rewrite with the original library text
@@ -26,3 +26,9 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 - Contact is copied in the handler with no model call.
 - The checker never substitutes library text for a rejected rewrite.
 - Gap-response bodies are screened before they are labeled; resume-copied entries are not.
+
+## Certification support
+
+Certifications are separate career-library entries (`Certification`, labels `C1`), with
+name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
+payloads may omit `certifications`. Tailored resumes use a separate Certifications section.

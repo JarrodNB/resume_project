@@ -12,6 +12,7 @@ from pydantic_ai.models.test import TestModel
 
 import text_limits
 from agents.resume_tailoring_agent import resume_tailoring_agent
+from schemas.gap_analysis_context import LibraryCertification
 from screening.screen_user_text import ScreenOutcome
 from tests.fakes import FakeGapAnalysisContextReader, build_gap_analysis_context
 from worker.queue_messages import AiTaskMessage
@@ -234,3 +235,46 @@ def test_last_section_completes_the_draft(
     assert [section["section_type"] for section in result.result["sections"]] == [
         "contact", "summary", "experience", "projects", "education",
     ]
+
+
+def test_empty_certifications_skip_to_skills(
+    task_dependencies: TaskDependencies, stored_context: None,
+) -> None:
+    """A library without credentials skips that section without a model call."""
+    approved = [
+        {"section_type": name, "title": name, "content": {}, "omitted": False}
+        for name in ("contact", "summary", "experience", "projects", "education")
+    ]
+    skills = {"nothing_fits": False, "entries": [{"label": "S1", "prose": []}]}
+    with resume_tailoring_agent.override(model=TestModel(custom_output_args=skills)):
+        result = handle_ai_task(_task(_base_input(approved_sections=approved)), task_dependencies)
+    question = result.pending_questions[0]
+    assert question["section_type"] == "skills"
+    assert result.usage and len(result.usage) == 1
+    assert question["approved_sections"][-1]["section_type"] == "certifications"
+    assert question["approved_sections"][-1]["omitted"] is True
+
+
+@pytest.mark.parametrize("action", ["approve", "reopen"])
+def test_certification_approval_and_reopen(
+    action: str, task_dependencies: TaskDependencies,
+    fake_context_reader: FakeGapAnalysisContextReader, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Approval advances to skills; reopening removes later approvals and rewrites credentials."""
+    context = build_gap_analysis_context()
+    context.career_library.certifications = [LibraryCertification(id="cert", name="AWS Solutions Architect")]
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
+    monkeypatch.setattr("worker.tailor_resume_steps.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(allowed=True))
+    names = ["contact", "summary", "experience", "projects", "education"]
+    if action == "reopen":
+        names += ["certifications", "skills"]
+    approved = [{"section_type": name, "title": name, "content": {}, "omitted": False} for name in names]
+    output = {"nothing_fits": False, "entries": [{"label": "C1" if action == "reopen" else "S1", "prose": []}]}
+    pending = {"section_type": "certifications", "action": action, "content": {"items": [{"name": "AWS Solutions Architect"}]}}
+    with resume_tailoring_agent.override(model=TestModel(custom_output_args=output)):
+        result = handle_ai_task(_task(_base_input(approved_sections=approved, pending_section=pending)), task_dependencies)
+    question = result.pending_questions[0]
+    assert question["section_type"] == ("certifications" if action == "reopen" else "skills")
+    assert [section["section_type"] for section in question["approved_sections"]] == (names[:5] if action == "reopen" else names + ["certifications"])
+    if action == "reopen":
+        assert question["content"]["items"][0]["name"] == "AWS Solutions Architect"

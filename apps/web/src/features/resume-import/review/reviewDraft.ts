@@ -3,12 +3,12 @@
  * skill gets a stable `key` so it can be dragged (list indexes change as items move). The keys
  * are removed again before import, so the import payload is a plain ParsedResume.
  * Index:
- *   - DraftHighlight, DraftExperience, DraftProject, DraftEducation, DraftSkill, ReviewDraft
+ *   - DraftHighlight, DraftExperience, DraftProject, DraftEducation, DraftCertification, DraftSkill, ReviewDraft
  *   - withDraftKey: copies an object with a new key
  *   - toReviewDraft: ParsedResume -> ReviewDraft
  *   - toParsedResume: ReviewDraft -> ParsedResume (keys removed)
  */
-import type { ParsedEducation, ParsedExperience, ParsedProject, ParsedResume, ParsedSkill } from '../parsedResume'
+import type { ParsedCertification, ParsedEducation, ParsedExperience, ParsedProject, ParsedResume, ParsedSkill } from '../parsedResume'
 
 interface Keyed {
   key: string
@@ -23,13 +23,15 @@ export interface DraftExperience extends Omit<ParsedExperience, 'highlights'>, K
 }
 
 export type DraftProject = ParsedProject & Keyed
+export type DraftCertification = ParsedCertification & Keyed
 export type DraftEducation = ParsedEducation & Keyed
 export type DraftSkill = ParsedSkill & Keyed
 
-export interface ReviewDraft extends Omit<ParsedResume, 'experiences' | 'projects' | 'educations' | 'skills'> {
+export interface ReviewDraft extends Omit<ParsedResume, 'experiences' | 'projects' | 'educations' | 'certifications' | 'skills'> {
   experiences: DraftExperience[]
   projects: DraftProject[]
   educations: DraftEducation[]
+  certifications: DraftCertification[]
   skills: DraftSkill[]
 }
 
@@ -47,6 +49,7 @@ export function toReviewDraft(parsedResume: ParsedResume): ReviewDraft {
     ),
     projects: parsedResume.projects.map(withDraftKey),
     educations: parsedResume.educations.map(withDraftKey),
+    certifications: (parsedResume.certifications ?? []).map(withDraftKey),
     skills: parsedResume.skills.map(withDraftKey),
   }
 }
@@ -66,6 +69,7 @@ export function toParsedResume(draft: ReviewDraft): ParsedResume {
     })),
     projects: draft.projects.map(withoutKey),
     educations: draft.educations.map(withoutKey),
+    certifications: draft.certifications.map(withoutKey),
     skills: draft.skills.map(withoutKey),
   }
 }

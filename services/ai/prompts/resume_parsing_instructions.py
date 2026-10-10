@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "1"
+RESUME_PARSING_PROMPT_VERSION = "2"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -34,6 +34,10 @@ Rules:
   certifications in `educations`.
 - List each skill once in `skills`. Set `category` only if the resume groups its skills under
   headings.
+- Contact hyperlinks extracted from the file appear as
+  `[hyperlink label="visible text" url="https://destination"]`. Put both values in one
+  `contact.links` item exactly as given. Do not replace the URL with its label. A URL written
+  visibly in the resume should use that text as both label and URL.
 - If something is ambiguous (for example, an entry could be a job or a project) or you had to
   skip content that fits nowhere, make your best choice and describe it in `parsing_warnings`.
   Always add a warning when you place an entry the resume doesn't clearly label: one under a

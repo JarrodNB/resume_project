@@ -6,7 +6,7 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
   include ActiveJob::TestHelper
 
   let(:user) do
-    create(:user, name: "Ada", contact_email: "ada@example.com", phone: "555", location: "Perth", links: [ "github.com/ada" ], summary: "Engineer")
+    create(:user, name: "Ada", contact_email: "ada@example.com", phone: "555", location: "Perth", links: [ { "label" => "GitHub", "url" => "https://github.com/ada" } ], summary: "Engineer")
   end
 
   it "removes every library entry, clears the profile an import fills, and keeps the account" do

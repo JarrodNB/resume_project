@@ -5,6 +5,7 @@
  *   - SectionPreviewBody: the body for one section
  */
 import { LibraryEntry } from '@/features/career-library/LibraryEntry'
+import { parsedLinks } from '@/features/resume-import/parsedResume'
 import { formatDateRange } from '@/lib/formatDateRange'
 import type { TailorSection } from './parseTailorTask'
 import type { TailorSectionType } from './sectionOrder'
@@ -34,12 +35,16 @@ export function SectionPreviewBody({ section }: { section: TailorSection }) {
 /** Name, then the contact line and links. */
 function ContactBody({ content }: { content: Record<string, unknown> }) {
   const line = [content.email, content.phone, content.location].filter(isString).join(' · ')
-  const links = Array.isArray(content.links) ? content.links.filter(isString) : []
+  const links = parsedLinks(content.links)
   return (
     <div className="grid gap-1 text-sm">
       {isString(content.full_name) && <p className="font-medium">{content.full_name}</p>}
       {line && <p className="text-muted-foreground">{line}</p>}
-      {links.length > 0 && <p>{links.join(' · ')}</p>}
+      {links.length > 0 && (
+        <p>{links.map((link, index) => (
+          <span key={link.url}>{index > 0 && ' · '}<a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a></span>
+        ))}</p>
+      )}
     </div>
   )
 }

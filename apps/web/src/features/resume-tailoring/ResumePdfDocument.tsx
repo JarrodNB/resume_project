@@ -3,7 +3,7 @@
  * Index:
  *   - ResumePdfDocument: one letter-size page
  */
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ResumePdfBlock, ResumePdfEntry, ResumePdfModel } from './resumePdfModel'
 
 const styles = StyleSheet.create({
@@ -37,7 +37,13 @@ export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
       <Page size="LETTER" style={styles.page}>
         {model.name ? <Text style={styles.name}>{model.name}</Text> : null}
         {model.contactLine ? <Text style={styles.contact}>{model.contactLine}</Text> : null}
-        {model.links ? <Text style={styles.contact}>{model.links}</Text> : null}
+        {model.links.length > 0 ? (
+          <Text style={styles.contact}>
+            {model.links.map((link, index) => (
+              <Text key={link.url}>{index > 0 ? ' · ' : ''}<Link src={link.url}>{link.label}</Link></Text>
+            ))}
+          </Text>
+        ) : null}
         {model.blocks.map((block, index) => (
           <PdfBlock key={`${block.title}-${index}`} block={block} />
         ))}

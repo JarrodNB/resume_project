@@ -41,14 +41,14 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
 
   it "fills blank profile fields without overwriting existing ones and creates no resume" do
     user.update!(phone: "555-0100")
-    parsed_resume["contact"].merge!("phone" => "555-9999", "location" => "Perth", "links" => [ "github.com/jane" ])
+    parsed_resume["contact"].merge!("phone" => "555-9999", "location" => "Perth", "links" => [ { "label" => "GitHub", "url" => "https://github.com/jane" } ])
 
     result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
 
     expect(result.value).to eq(ai_task)
     expect(user.reload).to have_attributes(
       name: "Jane Doe", contact_email: "jane@example.com", phone: "555-0100", location: "Perth",
-      links: [ "github.com/jane" ], summary: "Backend engineer."
+      links: [ { "label" => "GitHub", "url" => "https://github.com/jane" } ], summary: "Backend engineer."
     )
     expect(user.resumes).to be_empty
   end

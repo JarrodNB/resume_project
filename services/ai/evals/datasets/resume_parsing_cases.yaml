@@ -36,7 +36,7 @@ cases:
         email: alex.rivera@example.com
         phone: (206) 555-0142
         location: Seattle, WA
-        links: [github.com/alexrivera-dev]
+        links: [{label: GitHub, url: "https://github.com/alexrivera-dev"}]
       summary: Backend engineer with 6 years of experience building payment and data platforms.
       experiences:
         - company: Northwind Payments
@@ -104,7 +104,7 @@ cases:
       contact:
         full_name: Priya Natarajan
         email: priya.n@example.org
-        links: [linkedin.com/in/priya-natarajan-example]
+        links: [{label: LinkedIn, url: "https://linkedin.com/in/priya-natarajan-example"}]
       experiences:
         - company: Lumen Health
           title: Data Science Intern

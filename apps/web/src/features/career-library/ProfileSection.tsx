@@ -34,7 +34,7 @@ export function ProfileSection({ profile }: { profile: Profile }) {
           {profile.links.length > 0 && (
             <ul className="flex flex-wrap gap-x-4 text-sm text-muted-foreground">
               {profile.links.map((link) => (
-                <li key={link}>{link}</li>
+                <li key={link.url}><a className="underline-offset-4 hover:underline" href={link.url}>{link.label}</a></li>
               ))}
             </ul>
           )}

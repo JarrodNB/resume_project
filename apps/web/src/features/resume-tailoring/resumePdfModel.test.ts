@@ -9,7 +9,7 @@ it('builds a header and the sections that have something to print', () => {
     {
       sectionType: 'contact',
       title: 'Contact',
-      content: { full_name: 'Ada Lovelace', email: 'ada@example.com', phone: null, location: 'London', links: ['https://ada.example'] },
+      content: { full_name: 'Ada Lovelace', email: 'ada@example.com', phone: null, location: 'London', links: [{ label: 'Website', url: 'https://ada.example' }] },
     },
     { sectionType: 'summary', title: 'Summary', content: { text: '  ' } },
     {
@@ -44,7 +44,7 @@ it('builds a header and the sections that have something to print', () => {
 
   expect(model.name).toBe('Ada Lovelace')
   expect(model.contactLine).toBe('ada@example.com · London')
-  expect(model.links).toBe('https://ada.example')
+  expect(model.links).toEqual([{ label: 'Website', url: 'https://ada.example' }])
   expect(model.blocks.map((block) => block.title)).toEqual(['Experience', 'Skills'])
   expect(model.blocks[0]?.entries[0]).toMatchObject({
     heading: 'Engineer',
@@ -56,5 +56,5 @@ it('builds a header and the sections that have something to print', () => {
 })
 
 it('returns an empty document when there is nothing to print', () => {
-  expect(buildResumePdfModel([])).toEqual({ name: '', contactLine: '', links: '', blocks: [] })
+  expect(buildResumePdfModel([])).toEqual({ name: '', contactLine: '', links: [], blocks: [] })
 })

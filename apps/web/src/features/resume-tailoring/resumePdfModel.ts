@@ -7,6 +7,7 @@
  *   - buildResumePdfModel: sections to that model
  */
 import { formatDateRange } from '@/lib/formatDateRange'
+import { parsedLinks, type ParsedLink } from '@/features/resume-import/parsedResume'
 import type { TailorSectionType } from './sectionOrder'
 
 export interface ResumePdfEntry {
@@ -26,7 +27,7 @@ export interface ResumePdfBlock {
 export interface ResumePdfModel {
   name: string
   contactLine: string
-  links: string
+  links: ParsedLink[]
   blocks: ResumePdfBlock[]
 }
 
@@ -43,7 +44,7 @@ export function buildResumePdfModel(sections: ResumePdfSourceSection[]): ResumeP
   return {
     name: text(record.full_name),
     contactLine: [record.email, record.phone, record.location].map(text).filter(Boolean).join(' · '),
-    links: stringList(record.links).join(' · '),
+    links: parsedLinks(record.links),
     blocks: sections.flatMap((section) => {
       const block = blockFrom(section)
       return block ? [block] : []

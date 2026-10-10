@@ -1101,11 +1101,21 @@ type ParseResumePayload {
 
 input ProfileAttributesInput {
   contactEmail: String
-  links: [String!]
+  links: [ProfileLinkAttributesInput!]
   location: String
   name: String
   phone: String
   summary: String
+}
+
+type ProfileLink {
+  label: String!
+  url: String!
+}
+
+input ProfileLinkAttributesInput {
+  label: String!
+  url: String!
 }
 
 type Project {
@@ -1616,7 +1626,7 @@ type User {
   contactEmail: String
   email: String!
   id: ID!
-  links: [String!]!
+  links: [ProfileLink!]!
   location: String
   name: String
   phone: String

@@ -3,13 +3,13 @@
 require "rails_helper"
 
 RSpec.describe "Career library editing mutations" do
-  let(:user) { create(:user, name: "Ada", location: "Seattle", links: [ "https://ada.example" ]) }
+  let(:user) { create(:user, name: "Ada", location: "Seattle", links: [ { "label" => "Website", "url" => "https://ada.example" } ]) }
 
   it "updates the profile and clears blank strings" do
     result = execute_graphql(<<~GQL, user: user)
       mutation {
-        updateProfile(input: { attributes: { name: "  ", phone: "555", links: [" https://ada.example ", ""] } }) {
-          user { name phone location links }
+        updateProfile(input: { attributes: { name: "  ", phone: "555", links: [{ label: " Website ", url: " https://ada.example " }, { label: "", url: "" }] } }) {
+          user { name phone location links { label url } }
           errors
         }
       }
@@ -18,7 +18,7 @@ RSpec.describe "Career library editing mutations" do
     payload = result.dig("data", "updateProfile")
     expect(payload["errors"]).to eq([])
     expect(payload["user"]).to eq(
-      "name" => nil, "phone" => "555", "location" => "Seattle", "links" => [ "https://ada.example" ]
+      "name" => nil, "phone" => "555", "location" => "Seattle", "links" => [ { "label" => "Website", "url" => "https://ada.example" } ]
     )
     expect(user.reload.email).to end_with("@example.com")
   end

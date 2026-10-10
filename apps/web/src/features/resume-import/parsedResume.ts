@@ -2,17 +2,21 @@
  * Description: TypeScript mirror of the AI service's ParsedResume (services/ai/schemas/parsed_resume.py),
  * the JSON a parse_resume task returns in `result.parsed_resume`. Dates are partial: "YYYY-MM" or "YYYY".
  * Index:
- *   - ParsedContactInfo, ParsedExperience, ParsedProject, ParsedEducation, ParsedSkill, ParsedResume
+ *   - ParsedLink, ParsedContactInfo, ParsedExperience, ParsedProject, ParsedEducation, ParsedSkill, ParsedResume
  *   - parsedResumeFromTaskResult: reads a task result into a ParsedResume with defaults filled in
  *   - emptyExperience, emptyProject, emptyEducation: blank entries for "Add" buttons
  */
 
+export interface ParsedLink {
+  label: string
+  url: string
+}
 export interface ParsedContactInfo {
   full_name: string | null
   email: string | null
   phone: string | null
   location: string | null
-  links: string[]
+  links: ParsedLink[]
 }
 
 export interface ParsedExperience {
@@ -64,7 +68,7 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   const parsed = (result as { parsed_resume?: Partial<ParsedResume> } | null)?.parsed_resume
   if (!parsed) return null
   return {
-    contact: { full_name: null, email: null, phone: null, location: null, links: [], ...parsed.contact },
+    contact: { full_name: null, email: null, phone: null, location: null, ...parsed.contact, links: parsedLinks((parsed.contact as { links?: unknown } | undefined)?.links) },
     summary: parsed.summary ?? null,
     experiences: (parsed.experiences ?? []).map((experience) => ({ ...emptyExperience(), ...experience })),
     projects: (parsed.projects ?? []).map((project) => ({ ...emptyProject(), ...project })),
@@ -74,6 +78,18 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   }
 }
 
+/** Reads structured links and upgrades legacy string-only task results. */
+export function parsedLinks(value: unknown): ParsedLink[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((link) => {
+    if (typeof link === 'string') return [{ label: link, url: link }]
+    if (typeof link !== 'object' || link === null) return []
+    const record = link as Record<string, unknown>
+    return typeof record.label === 'string' && typeof record.url === 'string'
+      ? [{ label: record.label, url: record.url }]
+      : []
+  })
+}
 /** A blank experience. */
 export function emptyExperience(): ParsedExperience {
   return {

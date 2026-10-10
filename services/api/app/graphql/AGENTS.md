@@ -54,3 +54,5 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 - File uploads use the GraphQL multipart request spec (`apollo_upload_server` middleware) and
   the `ApolloUploadServer::Upload` scalar. In specs, wrap `build_uploaded_file(...)` in
   `ApolloUploadServer::Wrappers::UploadedFile`.
+
+- Profile link output and input types expose separate visible labels and destination URLs.

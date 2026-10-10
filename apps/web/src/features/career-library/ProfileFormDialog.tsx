@@ -1,15 +1,15 @@
 /**
  * Description: Dialog that edits the career library profile.
  * Index:
- *   - limitLinkLines: at most 20 links, each at most 200 characters
- *   - ProfileFormDialog: name, contact details, links (one per line), and summary
+ *   - ProfileFormDialog: name, contact details, labelled links, and summary
  */
 import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { UPDATE_PROFILE_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
 import { blankToNull } from './libraryFormValues'
-import { MAX_LINKS, PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
+import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
+import { LinkListField } from '@/features/resume-import/review/LinkListField'
 import { LibraryField } from './LibraryField'
 import { useSaveLibraryRecord } from './useSaveLibraryRecord'
 
@@ -19,15 +19,6 @@ interface ProfileFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   profile: Profile
-}
-
-/** Keeps at most 20 links, each at most 200 characters, one per line. */
-function limitLinkLines(value: string): string {
-  return value
-    .split('\n')
-    .slice(0, MAX_LINKS)
-    .map((line) => line.slice(0, SHORT_TEXT))
-    .join('\n')
 }
 
 /** Shows the profile form while `open` is true. */
@@ -43,10 +34,10 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
   const [contactEmail, setContactEmail] = useState(profile.contactEmail ?? '')
   const [phone, setPhone] = useState(profile.phone ?? '')
   const [location, setLocation] = useState(profile.location ?? '')
-  const [links, setLinks] = useState(limitLinkLines(profile.links.join('\n')))
+  const [links, setLinks] = useState(profile.links)
   const [summary, setSummary] = useState(profile.summary ?? '')
 
-  /** Saves every profile field. Blank text is cleared; blank lines are dropped from links. */
+  /** Saves every profile field. Blank text and incomplete links are dropped. */
   async function submit() {
     const saved = await save(UPDATE_PROFILE_MUTATION, {
       attributes: {
@@ -54,7 +45,7 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
         contactEmail: blankToNull(contactEmail),
         phone: blankToNull(phone),
         location: blankToNull(location),
-        links: links.split('\n').map((link) => link.trim()).filter(Boolean),
+        links: links.filter((link) => link.label.trim() && link.url.trim()).map((link) => ({ label: link.label.trim(), url: link.url.trim() })),
         summary: blankToNull(summary),
       },
     })
@@ -77,7 +68,7 @@ function ProfileForm({ profile, onClose }: { profile: Profile; onClose: () => vo
         <LibraryField label="Phone" type="tel" value={phone} onChange={setPhone} maxLength={SHORT_TEXT} />
         <LibraryField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
       </div>
-      <LibraryField label="Links" multiline value={links} onChange={(value) => setLinks(limitLinkLines(value))} />
+      <LinkListField links={links} onChange={setLinks} maxLength={SHORT_TEXT} />
       <LibraryField label="Summary" multiline value={summary} onChange={setSummary} maxLength={PROSE_TEXT} />
     </EntryFormDialog>
   )

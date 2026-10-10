@@ -2,6 +2,7 @@
 Description: Structured output of the resume parsing agent. Mirrors the Rails career library
 (experiences + highlights, projects, educations, skills) plus contact info and summary.
 Index:
+    - ParsedLink: one contact link's visible label and destination URL
     - ParsedContactInfo: name, email, phone, location, links
     - ParsedExperience: one role with word-for-word highlights
     - ParsedProject: one project
@@ -17,6 +18,13 @@ PARTIAL_DATE_DESCRIPTION = (
 )
 
 
+class ParsedLink(BaseModel):
+    """One clickable contact link exactly as represented by the resume."""
+
+    label: str
+    url: str
+
+
 class ParsedContactInfo(BaseModel):
     """How to reach the candidate, as written on the resume."""
 
@@ -24,8 +32,9 @@ class ParsedContactInfo(BaseModel):
     email: str | None = None
     phone: str | None = None
     location: str | None = None
-    links: list[str] = Field(
-        default_factory=list, description="LinkedIn, GitHub, portfolio, etc., as written."
+    links: list[ParsedLink] = Field(
+        default_factory=list,
+        description="LinkedIn, GitHub, portfolio, etc., with visible label and destination URL.",
     )
 
 

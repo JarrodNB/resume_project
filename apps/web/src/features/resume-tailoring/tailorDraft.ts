@@ -6,7 +6,7 @@
  *   - SectionDraft: the editable form of one section
  */
 import type { ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
-import { emptyEducation, emptyExperience, emptyProject } from '@/features/resume-import/parsedResume'
+import { emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
 import { withDraftKey, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
 import type { TailorSectionType } from './sectionOrder'
 
@@ -55,7 +55,7 @@ function contactFrom(content: Record<string, unknown>): ParsedContactInfo {
     email: stringOrNull(content.email),
     phone: stringOrNull(content.phone),
     location: stringOrNull(content.location),
-    links: Array.isArray(content.links) ? content.links.filter((link): link is string => typeof link === 'string') : [],
+    links: parsedLinks(content.links),
   }
 }
 

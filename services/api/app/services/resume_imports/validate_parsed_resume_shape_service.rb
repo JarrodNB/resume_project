@@ -38,6 +38,11 @@ module ResumeImports
     # Checks the nested fields the import calls methods on.
     def item_errors(parsed_resume)
       errors = []
+      contact = parsed_resume["contact"] || {}
+      valid_links = list_of?(contact["links"], Hash) && Array(contact["links"]).all? do |link|
+        link["label"].is_a?(String) && link["url"].is_a?(String)
+      end
+      errors << "contact links must be a list of objects with string labels and URLs" unless valid_links
       unless Array(parsed_resume["experiences"]).all? { |item| list_of?(item["highlights"], String) }
         errors << "experience highlights must be a list of strings"
       end

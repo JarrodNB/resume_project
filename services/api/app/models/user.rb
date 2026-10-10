@@ -30,8 +30,14 @@ class User < ApplicationRecord
     return unless links.is_a?(Array)
 
     errors.add(:base, "You can save up to #{TextLimits::MAX_LINKS} links") if links.size > TextLimits::MAX_LINKS
-    return unless links.any? { |link| link.to_s.length > TextLimits::SHORT }
-
-    errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)")
+    invalid_shape = links.any? do |link|
+      link.is_a?(String) ? link.blank? : !link.is_a?(Hash) || link["label"].blank? || link["url"].blank?
+    end
+    errors.add(:links, "must include a label and URL") if invalid_shape
+    too_long = links.any? do |link|
+      values = link.is_a?(Hash) ? [ link["label"], link["url"] ] : [ link ]
+      values.any? { |value| value.to_s.length > TextLimits::SHORT }
+    end
+    errors.add(:links, "is too long (maximum is #{TextLimits::SHORT} characters)") if too_long
   end
 end

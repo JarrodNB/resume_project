@@ -20,7 +20,7 @@ const libraryMock = {
         contactEmail: 'jane@example.com',
         phone: null,
         location: 'Perth',
-        links: ['github.com/jane'],
+        links: [{ __typename: 'ProfileLink', label: 'GitHub', url: 'https://github.com/jane' }],
         summary: 'Backend engineer.',
       },
       experiences: [
@@ -109,7 +109,7 @@ it('shows the imported library', async () => {
   expect(screen.getByText('Built the billing service')).toBeInTheDocument()
   expect(screen.getByText('Jane Doe')).toBeInTheDocument()
   expect(screen.getByText('jane@example.com · Perth')).toBeInTheDocument()
-  expect(screen.getByText('github.com/jane')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'GitHub' })).toBeInTheDocument()
   expect(screen.getByText('Backend engineer.')).toBeInTheDocument()
   expect(screen.getByText('Ruby')).toBeInTheDocument()
   expect(screen.getByText('No projects yet.')).toBeInTheDocument()

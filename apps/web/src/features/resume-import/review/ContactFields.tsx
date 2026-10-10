@@ -5,7 +5,7 @@
  */
 import { SHORT_TEXT } from '@/lib/textLimits'
 import type { ParsedContactInfo } from '../parsedResume'
-import { StringListField } from './StringListField'
+import { LinkListField } from './LinkListField'
 import { TextField } from './TextField'
 
 interface ContactFieldsProps {
@@ -26,7 +26,7 @@ export function ContactFields({ contact, onChange }: ContactFieldsProps) {
         <TextField label="Phone" maxLength={SHORT_TEXT} value={contact.phone} onChange={(value) => set('phone', value)} />
         <TextField label="Location" maxLength={SHORT_TEXT} value={contact.location} onChange={(value) => set('location', value)} />
       </div>
-      <StringListField label="Links" maxLength={SHORT_TEXT} values={contact.links} onChange={(links) => set('links', links)} addLabel="Add link" />
+      <LinkListField maxLength={SHORT_TEXT} links={contact.links} onChange={(links) => set('links', links)} />
     </div>
   )
 }

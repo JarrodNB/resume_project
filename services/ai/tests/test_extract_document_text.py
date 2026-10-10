@@ -4,12 +4,18 @@ Index:
     - test_*: one behavior per test
 """
 
+from io import BytesIO
+
 import pytest
+from docx import Document
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
 
 from documents.extract_document_text import (
     DOCX_CONTENT_TYPE,
     DocumentTooLongError,
     UnsupportedDocumentError,
+    _extract_pdf_page,
     extract_document_text,
 )
 from tests.fakes import build_docx_bytes
@@ -24,6 +30,56 @@ def test_docx_text_includes_paragraphs_and_table_cells() -> None:
 
     assert text.splitlines() == ["Jane Doe", "Experience", "Acme", "2021 - 2023"]
 
+
+def test_docx_text_includes_hyperlink_label_and_url() -> None:
+    """A labelled DOCX hyperlink keeps both the visible text and destination."""
+    document = Document()
+    paragraph = document.add_paragraph("Find me on ")
+    relationship_id = paragraph.part.relate_to(
+        "https://github.com/jane",
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), relationship_id)
+    run = OxmlElement("w:r")
+    text_node = OxmlElement("w:t")
+    text_node.text = "GitHub"
+    run.append(text_node)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert "Find me on GitHub" in text
+    assert '[hyperlink label="GitHub" url="https://github.com/jane"]' in text
+
+def test_pdf_text_includes_hyperlink_label_and_url() -> None:
+    """A PDF URI annotation is paired with the visible text inside its rectangle."""
+
+    class Reference:
+        """A small indirect-object stand-in for one PDF annotation."""
+
+        def get_object(self) -> dict[str, object]:
+            """Returns an external link annotation."""
+            return {"/A": {"/URI": "https://linkedin.com/in/jane"}, "/Rect": [8, 8, 80, 24]}
+
+    class Page(dict[str, object]):
+        """A page with one labelled link."""
+
+        def __init__(self) -> None:
+            super().__init__({"/Annots": [Reference()]})
+
+        def extract_text(self, visitor_text: object) -> str:
+            """Feeds the visitor the label at coordinates inside the annotation."""
+            visitor_text("LinkedIn", [1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 10, 10], None, 10)
+            return "LinkedIn"
+
+    text = _extract_pdf_page(Page())
+
+    assert '[hyperlink label="LinkedIn" url="https://linkedin.com/in/jane"]' in text
 
 def test_empty_docx_raises() -> None:
     """A document with no text can't be parsed."""

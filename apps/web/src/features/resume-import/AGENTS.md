@@ -36,3 +36,5 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 - Dragging in the review only changes the draft; matching and merging into the library still
   happen on the server at import.
 - The task page must work on reload: the subscription sends the task's current state first.
+
+- LinkListField edits each contact link's visible label and destination URL separately.

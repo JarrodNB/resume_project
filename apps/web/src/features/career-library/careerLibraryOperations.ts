@@ -13,7 +13,10 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       contactEmail
       phone
       location
-      links
+      links {
+        label
+        url
+      }
       summary
     }
     experiences {

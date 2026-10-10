@@ -8,7 +8,7 @@ module Types
     argument :contact_email, String, required: false
     argument :phone, String, required: false
     argument :location, String, required: false
-    argument :links, [ String ], required: false
+    argument :links, [ Types::ProfileLinkAttributesInput ], required: false
     argument :summary, String, required: false
   end
 end

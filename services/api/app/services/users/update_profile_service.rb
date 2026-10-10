@@ -35,9 +35,14 @@ module Users
       value
     end
 
-    # Keeps only links that have text. An empty list clears the column (it cannot be nil).
+    # Keeps links with both a label and URL. An empty list clears the column.
     def compact_links(value)
-      Array(value).filter_map { |link| link.to_s.strip.presence }
+      Array(value).filter_map do |link|
+        attributes = link.respond_to?(:to_h) ? link.to_h.stringify_keys : { "label" => link.to_s, "url" => link.to_s }
+        label = attributes["label"].to_s.strip.presence
+        url = attributes["url"].to_s.strip.presence
+        { "label" => label, "url" => url } if label && url
+      end
     end
   end
 end

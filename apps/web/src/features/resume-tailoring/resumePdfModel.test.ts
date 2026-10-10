@@ -69,3 +69,10 @@ it('prints certifications separately with explicit issue and expiry dates', () =
   expect(model.blocks.map((block) => block.title)).toEqual(['Education', 'Certifications'])
   expect(model.blocks[1]?.entries[0]).toEqual({ heading: 'Cloud Architect', meta: 'Cloud Co · ABC · https://example.com/ABC', dates: 'Issued 2024 · Expires Jun 2027', body: 'Professional credential', bullets: [] })
 })
+
+it('retains exact certification expiry days in the PDF', () => {
+  const model = buildResumePdfModel([{ sectionType: 'certifications', title: 'Certifications', content: {
+    items: [{ name: 'Cloud Architect', issued_date: '2024-06', expiry_date: '2026-10-31' }],
+  } }])
+  expect(model.blocks[0]?.entries[0]?.dates).toBe('Issued Jun 2024 · Expires Oct 31, 2026')
+})

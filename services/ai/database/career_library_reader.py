@@ -65,7 +65,7 @@ EDUCATIONS_QUERY = f"""
     FROM educations WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 CERTIFICATIONS_QUERY = """
-    SELECT id::text, name, issuer, issued_date, expiry_date, credential_id, credential_url, description
+    SELECT id::text, name, issuer, issued_date, issued_date_precision, expiry_date, expiry_date_precision, credential_id, credential_url, description
     FROM certifications WHERE user_id = %(user_id)s
     ORDER BY issued_date DESC NULLS LAST, position
 """

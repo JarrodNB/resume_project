@@ -8,6 +8,7 @@ class Certification < ApplicationRecord
   library_size_limit :certifications, TextLimits::MAX_CERTIFICATIONS,
     "You can save up to #{TextLimits::MAX_CERTIFICATIONS} certifications"
 
+  validates :issued_date_precision, :expiry_date_precision, inclusion: { in: %w[year month day] }
   validates :name, presence: true
   validates :name, :issuer, :credential_id, :credential_url, length: { maximum: TextLimits::SHORT }
   validates :description, length: { maximum: TextLimits::PROSE }

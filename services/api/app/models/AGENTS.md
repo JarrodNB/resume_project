@@ -46,3 +46,5 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   library entries are the exception: they are ordered by date, and `position` only breaks ties.
 
 - `certification.rb` — independent credentials with issued/expiry dates, credential ID/URL and optional description.
+
+- Certification date precision metadata distinguishes stated years/months from exact dates.

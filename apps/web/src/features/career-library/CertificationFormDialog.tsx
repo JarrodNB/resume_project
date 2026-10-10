@@ -7,6 +7,7 @@ import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION } from './careerLibrarySaveMutations'
 import { EntryFormDialog } from './EntryFormDialog'
+import { editableCertificationDate, certificationDateAttributes } from './certificationDateValues'
 import { blankToNull } from './libraryFormValues'
 import { PROSE_TEXT, SHORT_TEXT } from '@/lib/textLimits'
 import { LibraryField } from './LibraryField'
@@ -31,8 +32,8 @@ function CertificationForm({ certification, onClose }: { certification: Certific
   const { save, busy, errors } = useSaveLibraryRecord()
   const [name, setName] = useState(certification?.name ?? '')
   const [issuer, setIssuer] = useState(certification?.issuer ?? '')
-  const [issuedDate, setIssuedDate] = useState(certification?.issuedDate ?? '')
-  const [expiryDate, setExpiryDate] = useState(certification?.expiryDate ?? '')
+  const [issuedDate, setIssuedDate] = useState(editableCertificationDate(certification?.issuedDate, certification?.issuedDatePrecision))
+  const [expiryDate, setExpiryDate] = useState(editableCertificationDate(certification?.expiryDate, certification?.expiryDatePrecision))
   const [credentialId, setCredentialId] = useState(certification?.credentialId ?? '')
   const [credentialUrl, setCredentialUrl] = useState(certification?.credentialUrl ?? '')
   const [description, setDescription] = useState(certification?.description ?? '')
@@ -44,8 +45,10 @@ function CertificationForm({ certification, onClose }: { certification: Certific
       attributes: {
         name: name.trim(),
         issuer: blankToNull(issuer),
-        issuedDate: blankToNull(issuedDate),
-        expiryDate: blankToNull(expiryDate),
+        issuedDate: certificationDateAttributes(issuedDate).date,
+        issuedDatePrecision: certificationDateAttributes(issuedDate).precision,
+        expiryDate: certificationDateAttributes(expiryDate).date,
+        expiryDatePrecision: certificationDateAttributes(expiryDate).precision,
         credentialId: blankToNull(credentialId),
         credentialUrl: blankToNull(credentialUrl),
         description: blankToNull(description),
@@ -67,8 +70,8 @@ function CertificationForm({ certification, onClose }: { certification: Certific
       <div className="grid gap-4 sm:grid-cols-2">
         <LibraryField label="Certification name" required value={name} onChange={setName} maxLength={SHORT_TEXT} />
         <LibraryField label="Issuer" value={issuer} onChange={setIssuer} maxLength={SHORT_TEXT} />
-        <LibraryField label="Issued" type="date" value={issuedDate} onChange={setIssuedDate} />
-        <LibraryField label="Expires" type="date" value={expiryDate} onChange={setExpiryDate} />
+        <LibraryField label="Issued (YYYY, YYYY-MM, or YYYY-MM-DD)" value={issuedDate} onChange={setIssuedDate} />
+        <LibraryField label="Expires (YYYY, YYYY-MM, or YYYY-MM-DD)" value={expiryDate} onChange={setExpiryDate} />
         <LibraryField label="Credential ID" value={credentialId} onChange={setCredentialId} maxLength={SHORT_TEXT} />
         <LibraryField label="Credential URL" value={credentialUrl} onChange={setCredentialUrl} maxLength={SHORT_TEXT} />
       </div>

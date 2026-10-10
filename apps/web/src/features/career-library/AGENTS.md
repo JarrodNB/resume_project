@@ -71,3 +71,5 @@ their category.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
 - `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD; section id is `library.certifications`.
+
+- `certificationDateValues.ts` restores partial certification dates from API precision metadata and normalizes edits with year/month/day precision.

@@ -32,3 +32,7 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+
+Credential dates retain `year`, `month`, or `day` precision. Exact expiration within a partial expiry period is unknown; after the period it is
+definitely expired. `schemas/certification_dates.py` centralizes
+formatting and expiry boundaries; tailoring prompts accept an injectable `today`.

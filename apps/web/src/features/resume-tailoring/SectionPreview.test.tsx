@@ -38,3 +38,13 @@ it('shows a role, its dates, and each bullet', async () => {
   expect(screen.getByText('Built the assistant')).toBeInTheDocument()
   expect(screen.getByText('Led the migration')).toBeInTheDocument()
 })
+
+it('renders exact certification expiry dates in preview', async () => {
+  const user = userEvent.setup()
+  render(<SectionPreview sectionId="preview.certifications" section={{
+    sectionType: 'certifications', title: 'Certifications', omitted: false,
+    content: { items: [{ name: 'Cloud Architect', issued_date: '2024', expiry_date: '2026-10-31' }] },
+  }} />)
+  await user.click(screen.getByRole('button', { name: 'Certifications' }))
+  expect(screen.getByText('Issued 2024 · Expires Oct 31, 2026')).toBeInTheDocument()
+})

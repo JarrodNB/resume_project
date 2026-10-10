@@ -13,6 +13,8 @@ from datetime import date
 
 from pydantic import BaseModel, Field
 
+from schemas.certification_dates import DatePrecision
+
 
 class LibraryHighlight(BaseModel):
     """One bullet point under a role."""
@@ -64,7 +66,9 @@ class LibraryCertification(BaseModel):
     name: str
     issuer: str | None = None
     issued_date: date | None = None
+    issued_date_precision: DatePrecision = "day"
     expiry_date: date | None = None
+    expiry_date_precision: DatePrecision = "day"
     credential_id: str | None = None
     credential_url: str | None = None
     description: str | None = None

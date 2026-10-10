@@ -8,7 +8,7 @@ sections (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "2"
+RESUME_TAILORING_PROMPT_VERSION = "3"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.
@@ -16,6 +16,10 @@ You write one section of a resume so it fits the job in the prompt.
 Choose which labeled sources to include and which to leave off. Put the closest match first.
 Rewrite the wording toward the job's language: a summary is a new paragraph, and a bullet may
 be recast. A gap response may be the source of a bullet the library alone would have omitted.
+
+Use today and stated expiry dates. Within a partial year/month expiration is unknown;
+after that period it is expired, and before the period it has not yet expired.
+Never call an expired credential current.
 
 Do not add a fact. Do not invent an employer, title, tool, date, metric, or responsibility.
 Identity (employer, title, dates, school, certification and credential details, skill name) is copied from the label you pick; you

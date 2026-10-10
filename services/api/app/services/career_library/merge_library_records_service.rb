@@ -56,7 +56,12 @@ module CareerLibrary
     # Copies each fillable field that is blank on the target and present on the source.
     def fill_blank_fields
       FILLABLE_FIELDS.fetch(@target.class).each do |field|
-        @target[field] = @source[field] if @target[field].blank? && @source[field].present?
+        next unless @target[field].blank? && @source[field].present?
+
+        @target[field] = @source[field]
+        if @target.is_a?(Certification) && %w[issued_date expiry_date].include?(field)
+          @target["#{field}_precision"] = @source["#{field}_precision"]
+        end
       end
     end
 

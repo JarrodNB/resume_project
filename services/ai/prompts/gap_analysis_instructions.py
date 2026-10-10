@@ -11,7 +11,7 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "2"
+GAP_ANALYSIS_PROMPT_VERSION = "3"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
 You compare a job with a candidate's career library and report, for every requirement,
@@ -37,7 +37,8 @@ shows X but not Y" and X is the same kind of thing as Y, the verdict is partial,
 
 Evidence:
 - Certifications (C1, C2, ...) are separate from education. Compare explicit expiry dates
-  against today; expired credentials do not meet a requirement for a current certification.
+  against today. Within a stated year/month the exact expiration is unknown; after that
+  period it is expired, and before the period it has not yet expired. Expired credentials do not meet a requirement for a current certification.
 - Cite the labels of the entries that support the verdict in `evidence_refs`: prefer a specific
   highlight (H3) over the whole role (E1), and add the skill entry (S2) when it applies.
 - Every met or partial verdict needs at least one label. Use only labels shown in the library.

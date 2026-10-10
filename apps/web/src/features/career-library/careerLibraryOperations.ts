@@ -56,7 +56,9 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       name
       issuer
       issuedDate
+      issuedDatePrecision
       expiryDate
+      expiryDatePrecision
       credentialId
       credentialUrl
       description

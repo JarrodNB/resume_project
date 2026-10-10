@@ -10,7 +10,7 @@ import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
-import { CREATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
+import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
@@ -281,13 +281,51 @@ it('edits a fact', async () => {
 it('adds a certification using nullable optional fields', async () => {
   const user = userEvent.setup()
   renderLibrary({
-    request: { query: CREATE_CERTIFICATION_MUTATION, variables: { attributes: { name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: null, expiryDate: null, credentialId: null, credentialUrl: null, description: null } } },
+    request: { query: CREATE_CERTIFICATION_MUTATION, variables: { attributes: { name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: null, issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: 'day', credentialId: null, credentialUrl: null, description: null } } },
     result: { data: { createCertification: { __typename: 'CreateCertificationPayload', errors: [] } } },
   }, ['library.certifications'])
   await user.click(await screen.findByRole('button', { name: 'Add certification' }))
   const dialog = await screen.findByRole('dialog')
   await user.type(within(dialog).getByLabelText(/^Certification name/), 'Cloud Architect')
   await user.type(within(dialog).getByLabelText('Issuer'), 'Cloud Co')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('retains year-only expiry when editing a certification issuer', async () => {
+  const user = userEvent.setup()
+  const library = { ...libraryMock, result: { data: { ...libraryMock.result.data, certifications: [{
+    __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-06-01', issuedDatePrecision: 'month', expiryDate: '2027-01-01', expiryDatePrecision: 'year', credentialId: null, credentialUrl: null, description: null,
+  }] } } }
+  renderLibrary({
+    request: { query: UPDATE_CERTIFICATION_MUTATION, variables: { id: 'cert-1', attributes: { name: 'Cloud Architect', issuer: 'New issuer', issuedDate: '2024-06-01', issuedDatePrecision: 'month', expiryDate: '2027-01-01', expiryDatePrecision: 'year', credentialId: null, credentialUrl: null, description: null } } },
+    result: { data: { updateCertification: { __typename: 'UpdateCertificationPayload', errors: [] } } },
+  }, ['library.certifications'], library)
+  await user.click(await screen.findByRole('button', { name: /Actions for Cloud Architect/ }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByLabelText(/^Issued /)).toHaveValue('2024-06')
+  expect(within(dialog).getByLabelText(/^Expires /)).toHaveValue('2027')
+  await user.clear(within(dialog).getByLabelText('Issuer'))
+  await user.type(within(dialog).getByLabelText('Issuer'), 'New issuer')
+  await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+})
+
+it('clears certification dates using valid default precision', async () => {
+  const user = userEvent.setup()
+  const library = { ...libraryMock, result: { data: { ...libraryMock.result.data, certifications: [{
+    __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: null, issuedDate: '2024-06-01', issuedDatePrecision: 'month', expiryDate: '2027-01-01', expiryDatePrecision: 'year', credentialId: null, credentialUrl: null, description: null,
+  }] } } }
+  renderLibrary({
+    request: { query: UPDATE_CERTIFICATION_MUTATION, variables: { id: 'cert-1', attributes: { name: 'Cloud Architect', issuer: null, issuedDate: null, issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: 'day', credentialId: null, credentialUrl: null, description: null } } },
+    result: { data: { updateCertification: { __typename: 'UpdateCertificationPayload', errors: [] } } },
+  }, ['library.certifications'], library)
+  await user.click(await screen.findByRole('button', { name: /Actions for Cloud Architect/ }))
+  await user.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+  const dialog = await screen.findByRole('dialog')
+  await user.clear(within(dialog).getByLabelText(/^Issued /))
+  await user.clear(within(dialog).getByLabelText(/^Expires /))
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })

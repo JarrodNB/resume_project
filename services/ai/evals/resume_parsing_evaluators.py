@@ -77,6 +77,15 @@ class SectionRecall(Evaluator[str, ParsedResume, dict[str, Any]]):
                 [item.institution for item in expected.educations],
                 [item.institution for item in output.educations],
             ),
+            "certification_dates": fraction(
+                sum(any(
+                    loosely_equal(item.name, actual.name)
+                    and item.issued_date == actual.issued_date
+                    and item.expiry_date == actual.expiry_date
+                    for actual in output.certifications
+                ) for item in expected.certifications),
+                len(expected.certifications),
+            ),
             "certification_recall": _recall(
                 [item.name for item in expected.certifications],
                 [item.name for item in output.certifications],

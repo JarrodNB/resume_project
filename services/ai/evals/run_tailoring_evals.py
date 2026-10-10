@@ -7,6 +7,7 @@ Index:
     - run_tailoring_evals: evaluates every case
 """
 
+from datetime import date
 from pathlib import Path
 
 from langfuse import get_client, propagate_attributes
@@ -42,7 +43,7 @@ def run_tailoring_evals() -> None:
     def write_case(case: TailorEvalInput) -> TailoredSectionDraft:
         """The task under evaluation: one section, the whole library as sources."""
         prompt = build_section_prompt(
-            case.section_type, case.context, [], [], None, write_anyway=False, gap_analysis=None
+            case.section_type, case.context, [], [], None, write_anyway=False, gap_analysis=None, today=date(2026, 10, 1)
         )
         return write_resume_section(
             prompt,

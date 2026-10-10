@@ -34,4 +34,15 @@ RSpec.describe "Certification services" do
     expect(result).not_to be_success
     expect(Certifications::UpdateCertificationService.call(certification: user.certifications.first, attributes: { description: "Updated" })).to be_success
   end
+  it "allows partial precision and resets edited exact dates to day precision" do
+    result = Certifications::CreateCertificationService.call(user: user, attributes: {
+      name: "AWS", expiry_date: Date.new(2026, 10, 1), expiry_date_precision: "month"
+    })
+    expect(result).to be_success
+    credential = result.value
+    expect(Certifications::UpdateCertificationService.call(certification: credential, attributes: { expiry_date: Date.new(2026, 10, 31) })).to be_success
+    expect(credential.reload).to have_attributes(expiry_date: Date.new(2026, 10, 31), expiry_date_precision: "day")
+    expect(Certifications::UpdateCertificationService.call(certification: credential, attributes: { expiry_date_precision: "unknown" })).not_to be_success
+  end
+
 end

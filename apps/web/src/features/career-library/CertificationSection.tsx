@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatCertificationDates } from '@/lib/formatCertificationDates'
+import { editableCertificationDate } from './certificationDateValues'
 import { CertificationFormDialog } from './CertificationFormDialog'
 import { LibraryEntry } from './LibraryEntry'
 import { LibraryEntryActions } from './LibraryEntryActions'
@@ -36,7 +37,7 @@ export function CertificationSection({ certifications }: { certifications: Certi
             tone="certifications"
             heading={certification.name}
             subheading={[certification.issuer, certification.credentialId, certification.credentialUrl].filter(Boolean).join(', ')}
-            dates={formatCertificationDates(certification.issuedDate, certification.expiryDate)}
+            dates={formatCertificationDates(editableCertificationDate(certification.issuedDate, certification.issuedDatePrecision), editableCertificationDate(certification.expiryDate, certification.expiryDatePrecision))}
             description={certification.description}
             actions={
               <LibraryEntryActions

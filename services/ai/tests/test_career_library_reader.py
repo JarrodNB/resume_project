@@ -110,7 +110,8 @@ def test_reads_the_job_and_library_in_rails_order(
     _insert(admin_connection, "educations", user_id=user_id, institution="State University")
     certification_id = _insert(
         admin_connection, "certifications", user_id=user_id, name="AWS Solutions Architect",
-        issuer="Amazon", issued_date="2024-03-01", expiry_date="2027-03-01",
+        issuer="Amazon", issued_date="2024-01-01", issued_date_precision="year",
+        expiry_date="2027-03-01", expiry_date_precision="month",
         credential_id="AWS-123", credential_url="https://example.com/credential",
         description="Cloud architecture", position=0,
     )
@@ -154,6 +155,8 @@ def test_reads_the_job_and_library_in_rails_order(
     assert len(library.certifications) == 1
     certification = library.certifications[0]
     assert certification.id == str(certification_id)
+    assert certification.issued_date_precision == "year"
+    assert certification.expiry_date_precision == "month"
     assert certification.credential_id == "AWS-123"
     assert certification.credential_url == "https://example.com/credential"
     assert certification.expiry_date.isoformat() == "2027-03-01"

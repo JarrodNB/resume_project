@@ -18,3 +18,5 @@ Database migrations and the generated schema.
 - Run: `docker compose run --rm api bin/rails db:migrate`.
 
 - `20261010010000_create_certifications.rb` — independent user-owned credential table; leaves education intact.
+
+- `20261010020000_add_certification_date_precision.rb` preserves year/month/day credential date precision.

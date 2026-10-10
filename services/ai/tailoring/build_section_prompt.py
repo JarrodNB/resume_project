@@ -7,7 +7,9 @@ Index:
 """
 
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 
+from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
 from tailoring.labeled_sources import LabeledSources, label_sources
 from tailoring.section_catalog import SECTION_TITLES
@@ -42,11 +44,19 @@ def build_section_prompt(
     *,
     write_anyway: bool,
     gap_analysis: dict[str, object] | None,
+    today: date | None = None,
 ) -> SectionPrompt:
     """Builds the prompt for one section. Retrieval narrows the library; gap responses and
     approved sections are always listed."""
     sources = label_sources(context, gap_responses, approved_sections, retrieved, section_type)
+    today = today or datetime.now(UTC).date()
+    expiry_statuses = [
+        f"{item.name}: {certification_expiry_status(item.expiry_date, item.expiry_date_precision, today)}"
+        for item in context.career_library.certifications
+    ]
     lines = [
+        f"Today's date: {today.isoformat()}",
+        "Credential expiry status: " + "; ".join(expiry_statuses) if expiry_statuses else "",
         f"# Write the {SECTION_TITLES[section_type]} section",
         _SECTION_NOTE.get(section_type, ""),
         _WRITE_ANYWAY if write_anyway else "",

@@ -10,6 +10,7 @@ Index:
 
 from dataclasses import dataclass, field
 
+from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 
 
@@ -128,8 +129,8 @@ def _add_simple(
         if _keep(retrieved, "Certification", certification.id, native):
             text = ", ".join(str(part) for part in (
                 certification.name, certification.issuer,
-                f"issued {certification.issued_date}" if certification.issued_date else None,
-                f"expires {certification.expiry_date}" if certification.expiry_date else None,
+                f"issued {format_certification_date(certification.issued_date, certification.issued_date_precision)}" if certification.issued_date else None,
+                f"expires {format_certification_date(certification.expiry_date, certification.expiry_date_precision)}" if certification.expiry_date else None,
                 certification.credential_id, certification.credential_url, certification.description,
             ) if part)
             sources.records[f"C{number}"] = SourceRecord(

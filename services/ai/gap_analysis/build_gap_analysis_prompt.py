@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from gap_analysis.screen_library_facts import select_screened_facts
+from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis import EvidenceItem, RequirementKind
 from schemas.gap_analysis_context import GapAnalysisContext
 
@@ -167,8 +168,8 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
     for number, certification in enumerate(library.certifications, start=1):
         details = _join(certification.name, certification.issuer, certification.description)
         dates = _join(
-            f"issued {certification.issued_date.isoformat()}" if certification.issued_date else None,
-            f"expires {certification.expiry_date.isoformat()}" if certification.expiry_date else None,
+            f"issued {format_certification_date(certification.issued_date, certification.issued_date_precision)}" if certification.issued_date else None,
+            f"expires {format_certification_date(certification.expiry_date, certification.expiry_date_precision)}" if certification.expiry_date else None,
         )
         text = _join(details, dates, certification.credential_id, certification.credential_url)
         item = EvidenceItem(kind="certification", id=certification.id, text=text)

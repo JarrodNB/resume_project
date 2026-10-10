@@ -121,9 +121,9 @@ it('shows certifications in their own section with credential metadata', async (
   openLibrarySections()
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [{
     ...libraryMock,
-    result: { data: { ...libraryMock.result.data, certifications: [{ __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-01-01', expiryDate: null, credentialId: 'ABC', credentialUrl: 'https://example.com/ABC', description: null }] } },
+    result: { data: { ...libraryMock.result.data, certifications: [{ __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-01-01', issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: null, credentialId: 'ABC', credentialUrl: 'https://example.com/ABC', description: null }] } },
   }] })
   expect(await screen.findByText('Cloud Architect')).toBeInTheDocument()
   expect(screen.getByText('Cloud Co, ABC, https://example.com/ABC')).toBeInTheDocument()
-  expect(screen.getByText('Issued Jan 2024')).toBeInTheDocument()
+  expect(screen.getByText('Issued Jan 1, 2024')).toBeInTheDocument()
 })

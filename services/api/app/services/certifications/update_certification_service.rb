@@ -6,7 +6,11 @@ module Certifications
     # Receives the authorized owner or record and editable certification attributes.
     def initialize(certification:, attributes:)
       @certification = certification
-      @attributes = attributes
+      @attributes = attributes.to_h.symbolize_keys
+      %i[issued_date expiry_date].each do |field|
+        precision = :"#{field}_precision"
+        @attributes[precision] = "day" if @attributes.key?(field) && !@attributes.key?(precision)
+      end
     end
 
     # Applies the attributes.

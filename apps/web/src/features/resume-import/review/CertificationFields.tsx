@@ -21,8 +21,8 @@ export function CertificationFields({ certification, onChange }: {
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label="Certification name" required maxLength={SHORT_TEXT} value={certification.name} onChange={(value) => set('name', value)} />
         <TextField label="Issuer" maxLength={SHORT_TEXT} value={certification.issuer} onChange={(value) => set('issuer', value)} />
-        <TextField label="Issued date" placeholder="YYYY-MM or YYYY" value={certification.issued_date} onChange={(value) => set('issued_date', value)} />
-        <TextField label="Expiry date" placeholder="YYYY-MM or YYYY" value={certification.expiry_date} onChange={(value) => set('expiry_date', value)} />
+        <TextField label="Issued date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD" value={certification.issued_date} onChange={(value) => set('issued_date', value)} />
+        <TextField label="Expiry date" placeholder="YYYY, YYYY-MM, or YYYY-MM-DD" value={certification.expiry_date} onChange={(value) => set('expiry_date', value)} />
         <TextField label="Credential ID" maxLength={SHORT_TEXT} value={certification.credential_id} onChange={(value) => set('credential_id', value)} />
         <TextField label="Credential URL" maxLength={SHORT_TEXT} value={certification.credential_url} onChange={(value) => set('credential_url', value)} />
       </div>

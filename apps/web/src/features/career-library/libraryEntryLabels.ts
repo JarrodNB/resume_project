@@ -5,6 +5,7 @@
  *   - experienceLabel, projectLabel, educationLabel, certificationLabel
  */
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
+import { editableCertificationDate } from './certificationDateValues'
 import { formatDateRange } from '@/lib/formatDateRange'
 
 type Experience = CareerLibraryQuery['experiences'][number]
@@ -35,5 +36,5 @@ export function educationLabel(education: Education) {
 
 /** A certification label, including its issuer to distinguish duplicate names. */
 export function certificationLabel(certification: CareerLibraryQuery['certifications'][number]) {
-  return withDates([certification.name, certification.issuer].filter(Boolean).join(', '), formatDateRange(certification.issuedDate, certification.expiryDate))
+  return withDates([certification.name, certification.issuer].filter(Boolean).join(', '), formatDateRange(editableCertificationDate(certification.issuedDate, certification.issuedDatePrecision), editableCertificationDate(certification.expiryDate, certification.expiryDatePrecision)))
 }

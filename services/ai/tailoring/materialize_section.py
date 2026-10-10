@@ -8,6 +8,7 @@ Index:
 
 from datetime import date
 
+from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import (
     CareerLibrary,
     LibraryCertification,
@@ -104,8 +105,8 @@ def _certification_item(label: str, prose: list, library: CareerLibrary, sources
     return {
         "name": certification.name,
         "issuer": certification.issuer,
-        "issued_date": _month(certification.issued_date),
-        "expiry_date": _month(certification.expiry_date),
+        "issued_date": format_certification_date(certification.issued_date, certification.issued_date_precision),
+        "expiry_date": format_certification_date(certification.expiry_date, certification.expiry_date_precision),
         "credential_id": certification.credential_id,
         "credential_url": certification.credential_url,
         "description": "\n".join(item.text for item in prose) or None,

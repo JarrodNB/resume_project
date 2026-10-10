@@ -48,9 +48,17 @@ module CareerLibrary
     # Includes credential facts and dates so evidence never implies an unstated validity period.
     def certification_text(certification)
       fields = %w[issuer issued_date expiry_date credential_id credential_url].filter_map do |field|
-        "#{field.humanize(keep_id_suffix: true)}: #{certification[field]}" if certification[field].present?
+        "#{field.humanize(keep_id_suffix: true)}: #{certification_value(certification, field)}" if certification[field].present?
       end
       with_details(([ "Certification: #{certification.name}" ] + fields).join(", "), certification.description)
+    end
+
+    # Formats a credential date using only the precision stated by the user.
+    def certification_value(certification, field)
+      value = certification[field]
+      return value unless %w[issued_date expiry_date].include?(field)
+
+      value.strftime({ "year" => "%Y", "month" => "%Y-%m", "day" => "%Y-%m-%d" }.fetch(certification["#{field}_precision"]))
     end
 
     # "Fact: requirement: response", so a search can match either side.

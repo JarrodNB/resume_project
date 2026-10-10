@@ -14,6 +14,10 @@ Index:
 
 from pydantic import BaseModel, Field
 
+CERTIFICATION_DATE_DESCRIPTION = (
+    "YYYY-MM-DD, YYYY-MM, or YYYY: preserve exactly the precision stated. Null if not stated."
+)
+
 PARTIAL_DATE_DESCRIPTION = (
     "'YYYY-MM' or 'YYYY', only as precise as the resume states. Null if not stated."
 )
@@ -85,8 +89,8 @@ class ParsedCertification(BaseModel):
 
     name: str
     issuer: str | None = None
-    issued_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
-    expiry_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
+    issued_date: str | None = Field(default=None, description=CERTIFICATION_DATE_DESCRIPTION)
+    expiry_date: str | None = Field(default=None, description=CERTIFICATION_DATE_DESCRIPTION)
     credential_id: str | None = None
     credential_url: str | None = None
     description: str | None = None

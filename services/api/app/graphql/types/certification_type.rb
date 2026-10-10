@@ -6,7 +6,9 @@ module Types
     field :name, String, null: false
     field :issuer, String
     field :issued_date, GraphQL::Types::ISO8601Date
+    field :issued_date_precision, String, null: false
     field :expiry_date, GraphQL::Types::ISO8601Date
+    field :expiry_date_precision, String, null: false
     field :credential_id, String
     field :credential_url, String
     field :description, String

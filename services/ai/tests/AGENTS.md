@@ -81,3 +81,6 @@ Certifications are separate career-library entries (`Certification`, labels `C1`
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 `test_certifications.py` checks compatibility, citable evidence, retrieval, and copied identity.
+
+Certification tests cover year/month/day precision, leap-month expiry boundaries, and
+unknown expiration within partially stated periods.

@@ -313,8 +313,8 @@ cases:
       CERTIFICATIONS
       AWS Solutions Architect
       Issuer: Amazon
-      Issued: March 2024
-      Expires: March 2027
+      Issued: March 10, 2024
+      Expires: 2027
       Credential ID: AWS-123
       Credential URL: https://example.com/credential
     expected_output:
@@ -328,8 +328,8 @@ cases:
       certifications:
         - name: AWS Solutions Architect
           issuer: Amazon
-          issued_date: "2024-03"
-          expiry_date: "2027-03"
+          issued_date: "2024-03-10"
+          expiry_date: "2027"
           credential_id: AWS-123
           credential_url: https://example.com/credential
 

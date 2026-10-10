@@ -89,8 +89,10 @@ type Certification {
   credentialUrl: String
   description: String
   expiryDate: ISO8601Date
+  expiryDatePrecision: String!
   id: ID!
   issuedDate: ISO8601Date
+  issuedDatePrecision: String!
   issuer: String
   name: String!
   position: Int!
@@ -101,7 +103,9 @@ input CertificationAttributesInput {
   credentialUrl: String
   description: String
   expiryDate: ISO8601Date
+  expiryDatePrecision: String
   issuedDate: ISO8601Date
+  issuedDatePrecision: String
   issuer: String
   name: String
 }

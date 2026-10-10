@@ -5,7 +5,9 @@ module Types
     argument :name, String, required: false
     argument :issuer, String, required: false
     argument :issued_date, GraphQL::Types::ISO8601Date, required: false
+    argument :issued_date_precision, String, required: false
     argument :expiry_date, GraphQL::Types::ISO8601Date, required: false
+    argument :expiry_date_precision, String, required: false
     argument :credential_id, String, required: false
     argument :credential_url, String, required: false
     argument :description, String, required: false

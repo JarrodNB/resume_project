@@ -58,7 +58,50 @@ def test_native_certifications_survive_retrieval_and_copy_identity() -> None:
     content = materialize_section("certifications", draft, context.career_library, sources)
     assert content == {"items": [{
         "name": "AWS Solutions Architect", "issuer": "Amazon",
-        "issued_date": "2024-03", "expiry_date": "2027-03",
+        "issued_date": "2024-03-01", "expiry_date": "2027-03-01",
         "credential_id": "AWS-123", "credential_url": "https://example.com/credential",
         "description": None,
     }]}
+
+
+def test_partial_date_materialization_and_prompt_preserve_precision() -> None:
+    """Year/month credential dates never gain a made-up day in snapshots or prompts."""
+    from tailoring.build_section_prompt import build_section_prompt
+
+    context = _context()
+    certification = context.career_library.certifications[0]
+    certification.issued_date_precision = "year"
+    certification.expiry_date_precision = "month"
+    prompt = build_section_prompt("certifications", context, [], [], None,
+                                  write_anyway=False, gap_analysis=None, today=date(2027, 3, 10))
+    assert "Today's date: 2027-03-10" in prompt.text
+    assert "unknown within stated expiry period" in prompt.text
+    assert "issued 2024" in prompt.text
+    assert "expires 2027-03" in prompt.text
+    assert "2027-03-01" not in prompt.text
+    content = materialize_section("certifications", TailoredSectionDraft(
+        nothing_fits=False, entries=[ChosenEntry(label="C1")]), context.career_library, prompt.sources)
+    assert content["items"][0]["issued_date"] == "2024"
+    assert content["items"][0]["expiry_date"] == "2027-03"
+    gap = build_gap_analysis_prompt(context, date(2027, 3, 10))
+    assert "expires 2027-03" in gap.text
+    assert "2027-03-01" not in gap.text
+
+
+def test_expiry_boundaries_include_unknown_partial_period() -> None:
+    """Exact days expire the next day; year/month precision is unknown within the period."""
+    from schemas.certification_dates import certification_expiry_status
+
+    cases = [
+        (date(2027, 1, 1), "year", date(2026, 12, 31), "not yet expired"),
+        (date(2027, 1, 1), "year", date(2027, 1, 1), "unknown within stated expiry period"),
+        (date(2027, 1, 1), "year", date(2027, 12, 31), "unknown within stated expiry period"),
+        (date(2027, 1, 1), "year", date(2028, 1, 1), "expired"),
+        (date(2028, 2, 1), "month", date(2028, 1, 31), "not yet expired"),
+        (date(2028, 2, 1), "month", date(2028, 2, 29), "unknown within stated expiry period"),
+        (date(2028, 2, 1), "month", date(2028, 3, 1), "expired"),
+        (date(2027, 3, 10), "day", date(2027, 3, 10), "not yet expired"),
+        (date(2027, 3, 10), "day", date(2027, 3, 11), "expired"),
+    ]
+    for expiry, precision, today, status in cases:
+        assert certification_expiry_status(expiry, precision, today) == status

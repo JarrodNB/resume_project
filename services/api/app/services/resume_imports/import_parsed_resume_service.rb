@@ -143,10 +143,25 @@ module ResumeImports
     # Fills a Certification from stated credential facts only.
     def assign_certification(certification, item)
       certification.assign_attributes(
-        item.slice("name", "issuer", "credential_id", "credential_url", "description").merge(
-          issued_date: to_date(item["issued_date"]), expiry_date: to_date(item["expiry_date"])
-        )
+        item.slice("name", "issuer", "credential_id", "credential_url", "description").merge(certification_dates(item))
       )
+    end
+
+    # Preserves stated precision and exact days for certification dates only.
+    def certification_dates(item)
+      %w[issued_date expiry_date].each_with_object({}) do |field, attributes|
+        value = item[field].to_s
+        precision = { 4 => "year", 7 => "month", 10 => "day" }[value.length] || "day"
+        attributes[field] = certification_date(value)
+        attributes["#{field}_precision"] = precision
+      end
+    end
+
+    # Parses exact credential days and existing partial dates independently.
+    def certification_date(value)
+      value.match?(/\A\d{4}-\d{2}-\d{2}\z/) ? Date.iso8601(value) : to_date(value)
+    rescue Date::Error
+      nil
     end
 
     # Converts an item's partial start/end dates.

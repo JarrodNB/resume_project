@@ -5,6 +5,7 @@ REPEATABLE READ transaction, so they see the same moment even if the user edits 
 Ordering matches the Rails API (dated entries most recent first, highlights and skills by
 position).
 Index:
+    - read_career_library / build_database_library_reader: job-independent library snapshot
     - read_gap_analysis_context: the job and library, or None when the user has no such job
     - build_database_context_reader: a reader that opens a fresh connection per call
 """
@@ -90,15 +91,20 @@ def read_gap_analysis_context(
         job_row = cursor.execute(JOB_QUERY, params).fetchone()
         if job_row is None:
             return None
-        summary_row = cursor.execute(SUMMARY_QUERY, params).fetchone()
-        experience_rows = cursor.execute(EXPERIENCES_QUERY, params).fetchall()
-        highlight_rows = cursor.execute(HIGHLIGHTS_QUERY, params).fetchall()
-        project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
-        education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
-        certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
-        skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
-        fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
+        library = _read_library(cursor, params)
+    return GapAnalysisContext(job=JobToAnalyze(**job_row), career_library=library)
 
+
+def _read_library(cursor, params: dict) -> CareerLibrary:
+    """Reads library rows within the caller's snapshot transaction."""
+    summary_row = cursor.execute(SUMMARY_QUERY, params).fetchone()
+    experience_rows = cursor.execute(EXPERIENCES_QUERY, params).fetchall()
+    highlight_rows = cursor.execute(HIGHLIGHTS_QUERY, params).fetchall()
+    project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
+    education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
+    certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
+    skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
+    fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(
@@ -117,7 +123,7 @@ def read_gap_analysis_context(
         skills=[LibrarySkill(**row) for row in skill_rows],
         facts=[LibraryFact(**row) for row in fact_rows],
     )
-    return GapAnalysisContext(job=JobToAnalyze(**job_row), career_library=library)
+    return library
 
 
 def build_database_context_reader(
@@ -131,4 +137,21 @@ def build_database_context_reader(
         with open_read_only_connection(settings) as connection:
             return read_gap_analysis_context(connection, user_id, job_id)
 
+    return read_from_database
+
+
+def read_career_library(connection: psycopg.Connection[DictRow], user_id: UUID) -> CareerLibrary:
+    """Reads a user-scoped library without requiring a saved job."""
+    if connection.info.transaction_status == TransactionStatus.IDLE:
+        connection.isolation_level = IsolationLevel.REPEATABLE_READ
+    with connection.transaction(), connection.cursor() as cursor:
+        return _read_library(cursor, {"user_id": user_id})
+
+
+def build_database_library_reader(settings: WorkerSettings) -> Callable[[UUID], CareerLibrary]:
+    """Builds a job-independent reader opening one read-only connection per task."""
+    def read_from_database(user_id: UUID) -> CareerLibrary:
+        """Reads the current library and closes the connection."""
+        with open_read_only_connection(settings) as connection:
+            return read_career_library(connection, user_id)
     return read_from_database

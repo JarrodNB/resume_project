@@ -48,3 +48,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `certification.rb` — independent credentials with issued/expiry dates, credential ID/URL and optional description.
 
 - Certification date precision metadata distinguishes stated years/months from exact dates.
+
+- `interview_question_set.rb` + `interview_question.rb` — user-owned practice sets, ordered question slots, typed answers, and revision-bound feedback; separate from the career library. AI task subjects are nulled on deletion to preserve usage accounting.
+
+- Interview task types: `generate_interview_questions`, `regenerate_interview_question`, and `review_interview_answer`; Python handlers return structured results, and `InterviewPrep` services apply them through `AiTasks::ApplyAiResultService`.

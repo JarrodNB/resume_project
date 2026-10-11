@@ -1,5 +1,15 @@
 # Architecture
 
+Description: Service boundaries, AI queue contracts, persistence, and architectural decisions.
+
+Index:
+- Services
+- AI Task Flow and Queue Messages
+- Interview Prep
+- Duplicate Messages and Retrying Temporary Failures
+- Usage Limits and Memory
+- Decisions
+
 ## Services
 
 ```
@@ -84,9 +94,84 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
+- `generate_interview_questions`: input `{question_set_id, set_number}`; the subject is an
+  empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
+  `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
+  Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
+  `introduction`, `strengths`, `development`, `goals`, and `behavioral`, one of each.
+- `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
+  answer_text, question_revision, answer_revision, other_questions}`; the subject is the
+  selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
+  The worker uses the current library and returns the same question result shape with one
+  draft, excluding both the old question and the other four.
+- `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
+  question_revision, answer_revision}`; the subject is the selected `InterviewQuestion`.
+  The result is `{interview_feedback: {strengths, improvements, example_answer,
+  evidence_quotes}, warnings: [...]}`. Strengths and improvements are lists of coaching
+  statements; the example uses square-bracket placeholders for missing facts and has no score.
+
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
 receives.
+
+## Interview Prep
+
+Rails owns `interview_question_sets` and `interview_questions`; the Python worker returns
+drafts without writing domain data. Sets belong to a user and have a unique per-user number.
+Allocation runs under the user lock and considers retained generation task inputs, so deleting
+a set does not reuse its number. Sets can be empty while generation is pending or failed.
+Successful generation validates all drafts and creates positions 1–5 atomically. Only question
+text is persisted on the slots; categories and evidence remain in the AI task result.
+
+Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
+feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
+an empty answer and increment the answer revision only when text changes. The answer limit is
+10,000 characters, defined in Rails `config/initializers/text_limits.rb`, Python `text_limits.py`,
+and web `src/lib/textLimits.ts`. Answers never become career-library entries. Deleting a set
+cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
+
+`InterviewPrep` services own generation, saving, replacement, feedback, and deletion. GraphQL
+exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries and the mutations
+`generateInterviewQuestionSet`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
+`requestInterviewAnswerFeedback`, and `deleteInterviewQuestionSet`. Question mutations scope
+`questionId` through the owned `questionSetId`. AI work uses the shared usage allowance checks.
+Feedback requires a nonblank answer and saves it before allowance checks or queue publication;
+screening, budget, or queue failure therefore preserves a valid submitted answer.
+
+Enqueue preparation, answer saving, deletion, and result application serialize on the owner
+lock. Result application takes the owner lock before the task lock. Only one queued replacement
+or feedback operation may run per question; replacement blocks answer saving, while pending
+feedback permits edits. Replacing an answered question requires `confirmed: true`.
+
+Result services check ownership, subject/set/question identity, latest task identity, and
+snapshot revisions before writing. Replacement requires unchanged question and answer
+revisions and checks distinctness against the current set, including the old question. On
+success it increments both revisions and clears only that slot's answer and feedback; on
+failure it preserves the old content. Feedback requires an unchanged question and the latest
+feedback task, but accepts a newer answer revision: coaching is stored against the reviewed
+revisions, so GraphQL `feedbackOutdated` marks substantive edits outdated. Capitalization and
+whitespace changes remain current when a completed task's matching feedback and reviewed
+answer snapshot verify that only formatting changed. Exact revisions still advance on saves.
+Generated feedback never writes
+the answer. Deleted, superseded, or invalid targets fail cleanly. The finished-task guard
+prevents duplicate result persistence and usage accounting; failed application still retains
+reported usage once.
+
+Question generation requires usable library content; feedback can use an empty library. Both
+handlers screen saved library-fact responses and omit job-derived requirement fields from
+prompts and grounding evidence. Feedback also screens the submitted answer and fails closed
+on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
+Pydantic AI runs, versioned prompts, and Langfuse tracing apply. Exact evidence checks and a
+conservative feedback vocabulary guard supplement the prompts; semantic grounding still
+requires quality evaluations. Run both interview eval runners after prompt/model/agent changes
+(commands in `services/ai/evals/AGENTS.md`); finite, stochastic passes are not a universal
+grounding guarantee.
+
+The web routes `/interview-prep` and `/interview-prep/:id` list numbered/date sets newest first
+and display five ordered cards. Persisted `latestTask` fields restore subscriptions on reload.
+Cards preserve local drafts, show outdated feedback for substantive unsaved changes too, warn before
+navigation with unsaved answers, and keep replacement controls locked until the new question
+revision is fetched. Set deletion is confirmed; feedback/examples remain beside the answer.
 
 ## Duplicate Messages
 
@@ -164,6 +249,28 @@ tailoring) instead of sending everything.
   texts (reciprocal rank fusion, k=60). Tailoring queries it once per written section.
 
 ## Decisions
+
+- **Interview practice is persistent and independent of the library.** Existing questions
+  stay fixed when career details change; new generation uses the current library. Multiple
+  numbered/date sets support repeated practice without custom names or archived question
+  history. The initial scope is five distinct English non-technical questions per set;
+  technical and job-specific generation remain future work.
+- **Interview feedback coaches the user's answer.** It never fills or replaces the answer
+  field and uses placeholders for missing facts. Excluding job-derived requirements avoids
+  treating an employer's expectations as the user's experience. Revision-bound feedback
+  allows editing during AI work while making delayed coaching visibly outdated.
+- **Feedback freshness ignores capitalization and whitespace.** Revision changes still track
+  exact saved edits, but harmless formatting should not force another AI review. Completed
+  task snapshots verify saved-answer equivalence; missing or mismatched evidence stays outdated.
+- **One successful feedback request per saved version.** Feedback enqueueing checks completed
+  task history for the question/answer revision pair under the owner lock. Queued requests
+  already prevent overlapping operations; failures can be retried. Saving changed text or
+  replacing a question creates a new version. The web button uses persisted feedback revisions
+  to remain disabled after success and reload.
+- **Interview replacement preserves content until success.** Task identity, revisions, and
+  owner-before-task locking prevent obsolete or concurrent results from overwriting newer
+  work. Atomic five-slot creation and single-slot replacement avoid partially populated sets
+  or clearing unrelated answers. Confirmation protects an answered slot from accidental loss.
 
 - **SQS over Sidekiq for AI work.** Both Rails and Python need to use the queue, and a
   managed queue decouples scaling of the AI workers. ElasticMQ (an SQS-compatible

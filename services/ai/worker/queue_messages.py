@@ -12,7 +12,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-TaskType = Literal["parse_resume", "scrape_job", "parse_job_posting", "analyze_gaps", "tailor_resume"]
+TaskType = Literal[
+    "parse_resume", "scrape_job", "parse_job_posting", "analyze_gaps", "tailor_resume",
+    "generate_interview_questions", "regenerate_interview_question", "review_interview_answer",
+]
 
 
 class AiTaskMessage(BaseModel):

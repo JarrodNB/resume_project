@@ -57,3 +57,5 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 
 - Profile link output and input types expose separate visible labels and destination URLs.
 - Certification types/inputs and `mutations/certifications/` expose authorized create/update/delete/merge and the `certifications` query.
+
+- Interview prep: `interviewQuestionSets` / `interviewQuestionSet(id)` expose persisted questions, revision metadata, outdated feedback, and latest tasks. `mutations/interview_prep/` provides generation, saving, regeneration, feedback, and deletion; question IDs are scoped through an owned set. `types/interview_question_set_type.rb` and `types/interview_question_type.rb` define these outputs.

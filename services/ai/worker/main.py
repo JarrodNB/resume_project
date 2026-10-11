@@ -16,7 +16,10 @@ from collections.abc import Callable
 from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
 
-from database.career_library_reader import build_database_context_reader
+from database.career_library_reader import (
+    build_database_context_reader,
+    build_database_library_reader,
+)
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.retryable_errors import is_retryable_error
 from worker.run_limits import RUN_LIMIT_MESSAGE
@@ -126,6 +129,7 @@ def run_worker() -> None:
         file_storage=S3FileStorage(settings),
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
+        read_career_library=build_database_library_reader(settings),
     )
 
     stop_requested = False

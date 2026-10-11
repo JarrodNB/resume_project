@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_10_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_10_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -122,6 +122,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_10_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_experiences_on_user_id"
+  end
+
+  create_table "interview_question_sets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.integer "number", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
+    t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
+    t.check_constraint "number > 0", name: "interview_set_positive_number"
+  end
+
+  create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_question_set_id", null: false
+    t.integer "position", null: false
+    t.text "question_text", null: false
+    t.text "answer_text", default: "", null: false
+    t.integer "question_revision", default: 1, null: false
+    t.integer "answer_revision", default: 0, null: false
+    t.jsonb "feedback", default: {}, null: false
+    t.integer "feedback_question_revision"
+    t.integer "feedback_answer_revision"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
+    t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
+    t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
+    t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
   end
 
   create_table "job_gap_responses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -262,6 +290,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_10_020000) do
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "interview_question_sets", "users"
+  add_foreign_key "interview_questions", "interview_question_sets"
   add_foreign_key "job_gap_responses", "jobs"
   add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
   add_foreign_key "jobs", "users"

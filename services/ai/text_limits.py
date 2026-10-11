@@ -4,6 +4,7 @@ live in Rails (`TextLimits`) for fields the API stores. Oversized text is reject
 Index:
     - MAX_RESUME_TEXT / MAX_PDF_PAGES: extracted resume
     - MAX_SCREENED_TEXT: one string sent to Jev
+    - MAX_INTERVIEW_ANSWER: user-written interview answer cap
     - MAX_PROMPT_TEXT: one gap-analysis or tailoring prompt
     - MAX_SORT_BULLETS / MAX_SORT_BULLET_TEXT: the requirements sorting agent
     - MAX_SHORT_TEXT / MAX_BULLET_TEXT / MAX_JOB_DESCRIPTION / MAX_REQUIREMENT_ITEMS:
@@ -18,6 +19,7 @@ MAX_RESUME_TEXT = 80_000
 MAX_PDF_PAGES = 30
 MAX_SCREENED_TEXT = 80_000
 MAX_PROMPT_TEXT = 120_000
+MAX_INTERVIEW_ANSWER = 1_000
 MAX_SORT_BULLETS = 200
 MAX_SORT_BULLET_TEXT = 40_000
 MAX_SHORT_TEXT = 200

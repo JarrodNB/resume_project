@@ -3,6 +3,7 @@
 # Description: Root query fields. Everything is read through `current_user` associations, so a
 # user can only ever see their own records.
 # Index:
+#   - interview_question_sets, interview_question_set(id:)
 #   - me
 #   - experiences, projects, educations, certifications, skills, library_facts (career library)
 #   - jobs(stage:), job(id:)
@@ -10,6 +11,11 @@
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
+    field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false
+    field :interview_question_set, Types::InterviewQuestionSetType, null: false do
+      argument :id, ID, required: true
+    end
+
     field :me, Types::UserType, null: false
 
     field :experiences, [ Types::ExperienceType ], null: false
@@ -34,6 +40,12 @@ module Types
     field :ai_task, Types::AiTaskType, null: false do
       argument :id, ID, required: true
     end
+
+    # Returns practice sets belonging to the signed-in user, newest first.
+    def interview_question_sets = current_user.interview_question_sets.includes(:questions)
+
+    # Returns one authorized practice set with ordered questions.
+    def interview_question_set(id:) = current_user.interview_question_sets.find(id)
 
     # Returns the signed-in user.
     def me = current_user

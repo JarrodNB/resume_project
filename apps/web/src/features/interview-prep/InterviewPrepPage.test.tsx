@@ -1,0 +1,68 @@
+/**
+ * Description: Interview set list, generation allowance errors, and confirmed deletion tests.
+ * Index: listMock, setFixture
+ */
+import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { expect, it, vi } from 'vitest'
+import { renderPage } from '@/test/renderPage'
+import { InterviewPrepPage } from './InterviewPrepPage'
+import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_SETS_QUERY } from './interviewPrepOperations'
+
+/** Builds a persistent set fixture. */
+function setFixture(number: number) {
+  return { __typename: 'InterviewQuestionSet', id: `set-${number}`, number, createdAt: '2026-10-11T00:00:00Z', latestTask: null }
+}
+/** Returns a list response with a reusable result for mutation refetches. */
+function listMock(sets = [setFixture(1), setFixture(2)]) {
+  return { request: { query: INTERVIEW_SETS_QUERY }, result: { data: { interviewQuestionSets: sets } } }
+}
+
+it('orders saved numbered sets newest first with detail links', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock()] })
+  const newest = await screen.findByRole('link', { name: /Set 2/ })
+  expect(newest).toHaveAttribute('href', '/interview-prep/set-2')
+  expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([expect.stringContaining('Set 2'), expect.stringContaining('Set 1')])
+})
+
+it('opens the persistent set immediately after queuing generation', async () => {
+  const { router } = renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Queued set</p> }], mocks: [listMock([]), {
+    request: { query: GENERATE_INTERVIEW_SET }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
+  }] })
+  fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
+  expect(await screen.findByText('Queued set')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/interview-prep/set-3')
+})
+
+it('shows usage-limit errors and leaves the saved list available', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock(), {
+    request: { query: GENERATE_INTERVIEW_SET }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
+  }] })
+  fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
+  expect(await screen.findByText('Monthly AI usage limit reached.')).toBeInTheDocument()
+  expect(await screen.findByRole('link', { name: /Set 2/ })).toBeInTheDocument()
+})
+
+it('requires confirmation, cancels safely, and retains a set when deletion fails', async () => {
+  const result = vi.fn(() => ({ data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: ['Please try again.'] } } }))
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock(), { request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }] })
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete set 2' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(result).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Delete set 2' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+  expect(await screen.findByText('Please try again.')).toBeInTheDocument()
+  await waitFor(() => expect(result).toHaveBeenCalledOnce())
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByRole('link', { name: /Set 2/ })).toBeInTheDocument()
+})
+
+it('removes a set from the persistent list after confirmed deletion succeeds', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock(), {
+    request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } },
+    result: { data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: [] } } },
+  }, listMock([setFixture(1)])] })
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete set 2' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+  await waitFor(() => expect(screen.queryByText(/Set 2 ·/)).not.toBeInTheDocument())
+  expect(screen.getByRole('link', { name: /Set 1/ })).toBeInTheDocument()
+})

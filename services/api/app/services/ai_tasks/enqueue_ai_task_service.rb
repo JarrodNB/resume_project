@@ -8,12 +8,15 @@ module AiTasks
 
     # @param source_file [ActiveStorage::Blob, nil] an uploaded file the task reads, attached
     #   to the task so it stays linked to the upload
-    def initialize(user:, task_type:, input: {}, subject: nil, source_file: nil)
+    # @param prepare_task [#call, nil] prepares input/subject under the user lock after allowance
+    #   checks, returning a ServiceResult; queue publication occurs after the lock commits
+    def initialize(user:, task_type:, input: {}, subject: nil, source_file: nil, prepare_task: nil)
       @user = user
       @task_type = task_type
       @input = input
       @subject = subject
       @source_file = source_file
+      @prepare_task = prepare_task
     end
 
     # Checks the user's AI usage limits, saves the task, then publishes it. A task that can't be
@@ -41,6 +44,10 @@ module AiTasks
         next allowance unless allowance.success?
 
         ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject)
+        if @prepare_task
+          preparation = @prepare_task.call(ai_task)
+          next preparation unless preparation.success?
+        end
         ai_task.source_file.attach(@source_file) if @source_file
         ai_task.save ? success(ai_task) : failure(ai_task.errors)
       end

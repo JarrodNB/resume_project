@@ -20,3 +20,5 @@ Database migrations and the generated schema.
 - `20261010010000_create_certifications.rb` — independent user-owned credential table; leaves education intact.
 
 - `20261010020000_add_certification_date_precision.rb` preserves year/month/day credential date precision.
+
+- `20261010030000_create_interview_question_sets.rb` — practice sets and question slots with unique positions and revision constraints.

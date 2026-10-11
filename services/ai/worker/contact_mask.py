@@ -77,6 +77,8 @@ def install_contact_hook(agent: Agent[Any, Any]) -> None:
 def install_contact_hooks() -> None:
     """Installs the mask hook on every worker agent. Call once, from configure_tracing."""
     from agents.gap_analysis_agent import gap_analysis_agent
+    from agents.interview_feedback_agent import interview_feedback_agent
+    from agents.interview_questions_agent import interview_questions_agent
     from agents.job_requirements_sorting_agent import job_requirements_sorting_agent
     from agents.resume_parsing_agent import resume_parsing_agent
     from agents.resume_tailoring_agent import resume_tailoring_agent
@@ -86,6 +88,8 @@ def install_contact_hooks() -> None:
         resume_parsing_agent,
         job_requirements_sorting_agent,
         gap_analysis_agent,
+        interview_questions_agent,
+        interview_feedback_agent,
         user_text_screen_agent,
         resume_tailoring_agent,
     ):

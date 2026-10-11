@@ -15,7 +15,7 @@ from uuid import UUID
 
 import httpx
 
-from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from worker.product_name import USER_AGENT
 from worker.settings import WorkerSettings
 
@@ -39,6 +39,7 @@ class TaskDependencies:
     http_client: httpx.Client
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
+    read_career_library: Callable[[UUID], CareerLibrary] | None = None
 
 
 def build_http_client(settings: WorkerSettings) -> httpx.Client:

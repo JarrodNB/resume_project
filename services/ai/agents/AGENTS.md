@@ -50,3 +50,12 @@ instructions from `prompts/`.
   `gpt-5-nano` on a provider error). The Jev screen does not.
 - Each run stamps its prompt version with `record_prompt_version`.
 - Every agent has an eval dataset and runner in `evals/`.
+
+- `interview_questions_agent.py` — bounded question generation/replacement with count, duplicate,
+  and exact excerpt validation; quality checks run in `evals/run_interview_questions_evals.py`.
+
+- `interview_feedback_agent.py` — bounded structured coaching and illustrative examples.
+  Runtime validation checks nonblank output and normalizes exact evidence excerpts, dropping
+  invalid optional quotes without failing feedback. Examples allow natural paraphrasing;
+  personal-fact grounding is instructed in the prompt and assessed in quality evals.
+  Quality checks run in `evals/run_interview_feedback_evals.py`.

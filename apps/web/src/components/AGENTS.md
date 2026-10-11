@@ -6,10 +6,12 @@ Shared UI used by more than one feature.
 
 ## Contents
 
-- `AppLayout.tsx` — signed-in layout: header (Career library, Import resume, Jobs, Resumes,
+- `AppLayout.tsx` — signed-in layout: header (Career library, Import resume, Jobs, Resumes, Interview prep,
   `ThemeToggle`, sign out) and routed page
 - `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
+- `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.
+- `ErrorAlert.test.tsx` — task-notification dismissal, timeout, and retry regression coverage.
 - `CollapseToggle.tsx` — header button (chevron, `aria-expanded`) for a collapsible section
 - `useOpenSection.ts` — open flag for one section id, from `lib/openSections.ts`
 - `SectionCard.tsx` — card for one resume section, colored by its `tone`; pass `sectionId` to

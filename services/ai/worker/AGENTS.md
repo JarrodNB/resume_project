@@ -80,3 +80,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+
+
+- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Fact responses are used; job-derived requirement fields are excluded from screening, prompts, and grounding evidence.
+
+- `interview_feedback_handler.py` — screens saved answers before model use, screens library notes, excludes job requirements, and reports coaching plus usage without writes.

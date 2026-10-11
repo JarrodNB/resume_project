@@ -42,10 +42,11 @@ Every method gets a one-line YARD-style comment describing what it does.
 
 ## Contents
 
-Rails 8.1 API-mode app. Folders we own have their own `AGENTS.md`; generated framework
-folders (`config/`, `bin/`, `lib/`, `public/`) are covered by this file.
+Rails 8.1 API-mode app. Each folder must have its own `AGENTS.md`; parent instructions
+still apply. Generated boilerplate is exempt only from file headers until first edited,
+not from the folder documentation requirement.
 
-- `app/models/` — domain models (career library, resumes, jobs, AI tasks)
+- `app/models/` — domain models (career library, resumes, jobs, AI tasks, interview practice sets/questions)
 - `app/services/` — service objects (all business logic)
 - `app/graphql/` — GraphQL schema, types, mutations, subscriptions
 - `app/controllers/` — GraphQL endpoint and REST auth controllers

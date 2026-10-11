@@ -7,43 +7,32 @@
  *   - ImportSummaryNotice: renders nothing unless this visit arrived with an import summary
  */
 import { useEffect, useState } from 'react'
-import { CircleCheck, X } from 'lucide-react'
+import { CircleCheck } from 'lucide-react'
 import { useLocation } from 'react-router'
-import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { TransientAlert, TRANSIENT_ALERT_MS } from '@/components/TransientAlert'
 import { describeImportSummary, importSummaryFromLocationState, type ImportSummary } from './importSummary'
 
 /** How long the notice stays on screen when it is left alone. */
-export const IMPORT_SUMMARY_NOTICE_MS = 8000
+export const IMPORT_SUMMARY_NOTICE_MS = TRANSIENT_ALERT_MS
 
 /** Shows the import result for this visit, then forgets it. */
 export function ImportSummaryNotice() {
   const arrivedWith = importSummaryFromLocationState(useLocation().state)
-  const [summary, setSummary] = useState<ImportSummary | null>(arrivedWith)
+  const [summary] = useState<ImportSummary | null>(arrivedWith)
 
   useEffect(() => {
     if (arrivedWith) clearImportSummaryFromHistory()
   }, [arrivedWith])
 
-  useEffect(() => {
-    if (!summary) return
-    const timer = window.setTimeout(() => setSummary(null), IMPORT_SUMMARY_NOTICE_MS)
-    return () => window.clearTimeout(timer)
-  }, [summary])
-
   if (!summary) return null
 
   return (
-    <Alert>
+    <TransientAlert>
       <CircleCheck />
       <AlertTitle>Resume imported</AlertTitle>
       <AlertDescription>{describeImportSummary(summary)}</AlertDescription>
-      <AlertAction>
-        <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={() => setSummary(null)}>
-          <X />
-        </Button>
-      </AlertAction>
-    </Alert>
+    </TransientAlert>
   )
 }
 

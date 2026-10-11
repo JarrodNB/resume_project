@@ -16,3 +16,5 @@ Project-level documentation that spans services.
 ## Local Rules
 
 - Record significant decisions in `architecture.md` under "Decisions", with the reasoning.
+
+- `plans/interview_prep.md` — phased interview practice plan and task verification progress.

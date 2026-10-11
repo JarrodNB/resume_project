@@ -1,0 +1,41 @@
+# Description: Synthetic coaching cases; missing facts must stay explicit placeholders.
+evaluators:
+  - FeedbackStructure
+cases:
+  - name: detailed-behavioral-answer
+    inputs:
+      question: "Describe a time you improved a process with colleagues."
+      answer: "Our onboarding instructions were scattered. I asked two colleagues about recurring questions and combined their notes into a checklist. We used it with the next new starter, who said it was easier to follow."
+      library: "Customer support specialist. Created an onboarding checklist with two colleagues."
+  - name: vague-answer-needs-specific-actions
+    inputs:
+      question: "Tell me about a time you handled a difficult situation."
+      answer: "There was a problem at work. I worked hard and fixed it."
+    metadata:
+      needs_placeholder: true
+  - name: no-library-development-answer
+    inputs:
+      question: "What skill would you like to develop?"
+      answer: "I want to get better at presenting. I get nervous."
+    metadata:
+      needs_placeholder: true
+  - name: missing-results-no-invented-metric
+    inputs:
+      question: "Describe improving a work process."
+      answer: "I made a checklist for handovers. I don't know whether it saved time."
+      library: "Retail assistant. Created a handover checklist."
+    metadata:
+      needs_placeholder: true
+  - name: career-goals-not-in-library
+    inputs:
+      question: "Where would you like your career to go?"
+      answer: "I am still exploring what I want to do next."
+      library: "Museum visitor assistant. Enjoys helping visitors understand exhibits."
+    metadata:
+      needs_placeholder: true
+  - name: career-introduction-needs-reordering
+    inputs:
+      question: "Tell me about yourself."
+      answer: "After working in hospitality I went to college. A lecturer recommended me for an internship at Northbridge during my final semester. I started with small backlog tasks and progressed to harder work. I was hired full time and still work there. Our stack was Rails and React. I later worked on a mobile web app, AI services, and a cloud migration."
+    metadata:
+      needs_placeholder: true

@@ -84,3 +84,12 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 Certification tests cover year/month/day precision, leap-month expiry boundaries, and
 unknown expiration within partially stated periods.
+
+
+- `test_interview_questions_handler.py` — generation/replacement, sparse/empty context, duplicate/excerpt/count checks, limits, and fail-closed notes. The database reader suite verifies job-independent ownership.
+
+- `test_interview_feedback_handler.py` — feedback screening failures, sparse context, invalid
+  output usage and illustrative paraphrasing, prompt cap, and excluded requirements/notes.
+- `test_interview_task_contract.py` — feedback snapshot validation for blank and oversized answers.
+- `test_interview_evaluators.py` — synthetic dataset loading and deterministic checks against
+  valid output, duplicates, incorrect counts/categories, invented quotes and missing placeholders.

@@ -2,7 +2,8 @@
 # Idempotent: results for a finished (completed/failed) task are ignored, and the row lock
 # stops two copies of the same message from both applying. The message's token usage and cost
 # are stored on the task (they count toward the user's monthly AI budget). A completed scrape_job
-# or parse_job_posting also saves its Job in the same locked transaction.
+# or parse_job_posting also saves its Job in the same locked transaction. Interview question
+# results acquire the owner lock before the task lock and persist in that transaction.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
 module AiTasks
@@ -23,7 +24,7 @@ module AiTasks
       ai_task = AiTask.find_by(id: @message["ai_task_id"])
       return failure([ "AI task not found: #{@message['ai_task_id'].inspect}" ]) unless ai_task
 
-      applied = ai_task.with_lock do
+      applied = with_result_lock(ai_task) do
         next false if ai_task.finished?
         next false if stale_generation?(ai_task)
 
@@ -37,6 +38,15 @@ module AiTasks
     end
 
     private
+
+    # Interview writes share the owner lock with enqueue/save/delete; acquire it before the task.
+    def with_result_lock(ai_task, &block)
+      if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+        ai_task.user.with_lock { ai_task.with_lock(&block) }
+      else
+        ai_task.with_lock(&block)
+      end
+    end
 
     # Maps a result message to the AiTask attributes it sets.
     def attributes_for(status)
@@ -54,10 +64,15 @@ module AiTasks
       end
     end
 
-    # Saves the domain record a completed task produces without user review (scrape_job and
-    # parse_job_posting) and links it as the task's subject. If it can't be saved, the task
-    # fails instead.
+    # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+        service = ai_task.review_interview_answer? ? InterviewPrep::ApplyFeedbackService : InterviewPrep::ApplyQuestionsService
+        result = service.call(ai_task: ai_task, result: @message["result"])
+        return {} if result.success?
+
+        return { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       return {} unless ai_task.scrape_job? || ai_task.parse_job_posting?
 
       scraped_job = @message["result"]["scraped_job"] if @message["result"].is_a?(Hash)

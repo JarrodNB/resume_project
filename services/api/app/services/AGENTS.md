@@ -86,3 +86,9 @@ All business logic, as service objects grouped by domain folder.
   Profile updates do not: the summary is read from `users`, not from embeddings.
 
 - `certifications/` — create/update credentials and enqueue embedding synchronization.
+
+- `interview_prep/` — numbered set generation, explicit answer saving, revision-snapshotted question tasks, and set deletion. Preparation uses `EnqueueAiTaskService`'s optional `prepare_task` callback under the user lock after allowance checks; publication follows commit.
+
+- Interview question result application uses `interview_prep/apply_questions_service.rb` under owner-then-task locks in `ApplyAiResultService`. Five-slot generation is atomic; replacements check task identity/revisions and current-set distinctness, then clear only that slot’s answer and feedback. Failed/obsolete results preserve content and retain usage once.
+
+- Interview feedback application uses `interview_prep/apply_feedback_service.rb` under the same owner/task lock order; feedback stores reviewed revisions and never changes the answer.

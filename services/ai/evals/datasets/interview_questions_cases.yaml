@@ -1,0 +1,26 @@
+# Description: Synthetic full-set and replacement quality evaluation cases.
+evaluators:
+  - QuestionStructure
+cases:
+  - name: experienced-collaborator
+    inputs:
+      library: "Customer support specialist for four years. Created a shared onboarding checklist with two colleagues. Enjoys explaining confusing processes. Wants to move into training."
+  - name: sparse-first-job
+    inputs:
+      library: "Recent history graduate. Volunteered at a community book exchange."
+  - name: technical-career-nontechnical-interview
+    inputs:
+      library: "Software developer using Python and PostgreSQL. Worked with designers to clarify accessibility issues. Presented project progress to nontechnical stakeholders."
+  - name: individual-contributor-no-invented-leadership
+    inputs:
+      library: "Warehouse associate. Followed the existing stock checking procedure. Reported damaged packages to a supervisor. No management experience."
+  - name: replacement-semantic-distinctness
+    inputs:
+      library: "Museum visitor assistant. Helped visitors find exhibits. Co-created an orientation leaflet. Wants to improve public speaking."
+      count: 1
+      excluded:
+        - "Tell me about your museum visitor assistant experience."
+        - "What strengths help you guide visitors?"
+        - "How would you develop your public speaking?"
+        - "What are your longer-term career goals?"
+        - "Describe collaborating on the orientation leaflet."

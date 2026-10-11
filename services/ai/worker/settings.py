@@ -35,6 +35,10 @@ class WorkerSettings(BaseSettings):
     # Copies title, company, and requirement lines out of a pasted job ad.
     job_posting_parse_model: str = "openai:gpt-5-mini"
     job_posting_parse_thinking: ThinkingEffort = "low"
+    interview_feedback_model: str = "openai:gpt-5-mini"
+    interview_feedback_thinking: ThinkingEffort = "low"
+    interview_questions_model: str = "openai:gpt-5-mini"
+    interview_questions_thinking: ThinkingEffort = "low"
     gap_analysis_model: str = "openai:gpt-5-mini"
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. Pinned; there is no generative fallback.

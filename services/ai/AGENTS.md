@@ -3,7 +3,7 @@
 ## Purpose
 
 All LLM work: resume parsing, job URL scraping and pasted job ads into structured profiles, gap analysis,
-resume tailoring, and long-term user memory. Traced in Langfuse.
+resume tailoring, interview questions and answer coaching, and long-term user memory. Traced in Langfuse.
 
 ## Stack
 
@@ -55,6 +55,8 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   - Report results to Langfuse. Run evals after any prompt, model, or agent change:
     `docker compose run --rm ai python -m evals.run_tailoring_evals` (Jev screen:
     `docker compose run --rm ai python -m evals.run_user_text_screen_evals`).
+    Interview agents: `docker compose run --rm ai python -m evals.run_interview_questions_evals`
+    and `docker compose run --rm ai python -m evals.run_interview_feedback_evals`.
 
 ## File Header Format
 
@@ -77,7 +79,8 @@ Every function and class gets a docstring describing what it does.
   clients, Langfuse tracing (see `worker/AGENTS.md`)
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
   `job_requirements_sorting_agent.py`,
-  `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`)
+  `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,
+  `interview_questions_agent.py`, `interview_feedback_agent.py`)
 - `prompts/` — agent instructions
 - `schemas/` — structured output models (`ParsedResume`, `ParsedJobPosting`, `ScrapedJobPosting`,
   `SortedRequirementBullets`, `GapAnalysis`), the gap analysis input (`GapAnalysisContext`), and

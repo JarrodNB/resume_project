@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/import', label: 'Import resume' },
   { to: '/jobs', label: 'Jobs' },
   { to: '/resumes', label: 'Resumes' },
+  { to: '/interview-prep', label: 'Interview prep' },
 ]
 
 /** Renders the app header and the current page below it. */
@@ -25,9 +26,9 @@ export function AppLayout() {
   return (
     <div className="min-h-svh bg-muted/40">
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-6">
+        <div className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2">
           <span className="font-semibold tracking-tight text-primary">{PRODUCT_NAME}</span>
-          <nav className="flex gap-1">
+          <nav className="flex flex-wrap gap-1">
             {NAV_ITEMS.map((item) => (
               <NavLink
                 key={item.to}

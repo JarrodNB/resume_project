@@ -1,0 +1,36 @@
+# Description: Allocates a practice set and queues generation within the AI allowance lock.
+# Index:
+#   - call: creates a numbered set and its task, then publishes after the transaction commits
+module InterviewPrep
+  class StartQuestionSetService < ApplicationService
+    # Receives the authenticated owner.
+    def initialize(user:)
+      @user = user
+    end
+
+    # Checks usable library presence and queues a set through the shared usage limits.
+    def call
+      associations = [ @user.experiences, @user.projects, @user.educations,
+                       @user.certifications, @user.skills, @user.library_facts ]
+      if @user.summary.blank? && associations.none?(&:exists?)
+        return failure([ "Your career library is empty. Add career details before generating questions." ])
+      end
+
+      AiTasks::EnqueueAiTaskService.call(user: @user, task_type: "generate_interview_questions",
+                                        prepare_task: method(:prepare_task))
+    end
+
+    private
+
+    # Allocates a number under the existing user lock; retained task inputs prevent number reuse.
+    def prepare_task(task)
+      previous = @user.ai_tasks.where(task_type: "generate_interview_questions")
+                      .maximum(Arel.sql("(input->>'set_number')::integer")).to_i
+      number = [ previous, @user.interview_question_sets.maximum(:number).to_i ].max + 1
+      question_set = @user.interview_question_sets.create!(number: number)
+      task.subject = question_set
+      task.input = { "question_set_id" => question_set.id, "set_number" => number }
+      success(task)
+    end
+  end
+end

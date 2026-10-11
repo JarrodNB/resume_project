@@ -2,6 +2,8 @@
 
 # Description: Root mutation fields. Each mutation delegates to a service object.
 # Index:
+#   - interview prep: generateInterviewQuestionSet, saveInterviewAnswer, regenerateInterviewQuestion,
+#     requestInterviewAnswerFeedback, deleteInterviewQuestionSet
 #   - jobs: createJob, updateJob, moveJobToStage, deleteJob, scrapeJob, parseJobPosting
 #   - profile: updateProfile
 #   - experiences: createExperience, updateExperience, deleteExperience, mergeExperiences,
@@ -19,6 +21,16 @@
 #   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
+    field :generate_interview_question_set, mutation: Mutations::InterviewPrep::GenerateInterviewQuestionSet
+
+    field :save_interview_answer, mutation: Mutations::InterviewPrep::SaveInterviewAnswer
+
+    field :regenerate_interview_question, mutation: Mutations::InterviewPrep::RegenerateInterviewQuestion
+
+    field :request_interview_answer_feedback, mutation: Mutations::InterviewPrep::RequestInterviewAnswerFeedback
+
+    field :delete_interview_question_set, mutation: Mutations::InterviewPrep::DeleteInterviewQuestionSet
+
     field :update_profile, mutation: Mutations::Users::UpdateProfile
 
     field :create_job, mutation: Mutations::Jobs::CreateJob

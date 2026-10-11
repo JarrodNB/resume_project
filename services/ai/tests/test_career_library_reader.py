@@ -193,3 +193,15 @@ def test_reads_profile_name_email_and_phone(admin_connection: psycopg.Connection
         "ada@example.com",
         "555-0100",
     )
+
+
+def test_job_independent_library_is_user_scoped(admin_connection: psycopg.Connection[DictRow]) -> None:
+    """Interview generation reads a library without a job and excludes other owners."""
+    from database.career_library_reader import read_career_library
+
+    owner_id = _insert_user(admin_connection)
+    other_user_id = _insert_user(admin_connection)
+    _insert(admin_connection, "skills", user_id=owner_id, name="Python", position=0)
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert [skill.name for skill in read_career_library(admin_connection, owner_id).skills] == ["Python"]
+    assert read_career_library(admin_connection, other_user_id).is_empty()

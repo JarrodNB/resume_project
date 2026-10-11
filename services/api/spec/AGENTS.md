@@ -38,3 +38,7 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - Time-dependent specs use `travel_to` (`ActiveSupport::Testing::TimeHelpers` is included).
 
 - Certification factory, GraphQL lifecycle/ownership and reviewed-import specs cover independent credentials and legacy uploads.
+
+- `models/interview_question_set_spec.rb` — practice persistence, ordering, validation, deletion, and answer isolation.
+
+- `services/interview_prep/`, `graphql/mutations/interview_prep_spec.rb`, and `graphql/queries/interview_prep_spec.rb` — practice operations, queue snapshots, allowance failures, answer limits/revisions, and set/question authorization.

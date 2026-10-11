@@ -66,6 +66,23 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Local Rules
 
+- `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
+  five question cases and six feedback cases for full sets/replacement, complete/incomplete answers, and introductions.
+- `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
+- `interview_eval_reporting.py` — input-aware Pydantic Evals LLM judges and Langfuse scores;
+  judges use the evaluated agent's configured model. Case errors make the runner fail.
+  Reports include raw output JSON so bracket placeholders can be checked without terminal
+  markup. Feedback placeholder expectations live in metadata, outside agent/judge inputs;
+  failed feedback runs print their validation retry reasons.
+- `run_interview_questions_evals.py` / `run_interview_feedback_evals.py` — run after changes
+  to either interview prompt, model, or agent:
+  `docker compose run --rm ai python -m evals.run_interview_questions_evals` and
+  `docker compose run --rm ai python -m evals.run_interview_feedback_evals`.
+  These exercise agents on trusted synthetic inputs; worker screening/failure behavior is
+  covered separately by handler tests. Subjective scores are review signals, not pass gates.
+- `tests/test_interview_evaluators.py` verifies structural passes and deliberate failures
+  without provider calls.
+
 - All data is synthetic. Never commit real resumes.
 - `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
   `tests/test_job_posting_parse_evaluators.py`,

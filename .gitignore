@@ -1,18 +1,32 @@
+# Repository ignore rules for secrets, local files, and generated artifacts.
+# Index: secrets, editors, Node, Rails, Python, Terraform, local notes.
+
 # Secrets / env
 .env
 .env.*
 !.env.example
+.aws/
+.ssh/
+.netrc
+.git-credentials
+*.pem
+*.key
 
 # OS / editor
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
+*.swp
+*.swo
+*~
 
 # Node
 node_modules/
 dist/
 coverage/
+*.log
+*.tsbuildinfo
 
 # Ruby / Rails
 .bundle/
@@ -32,19 +46,31 @@ services/api/tmp/pids/*
 # Python
 __pycache__/
 *.pyc
+*.pyo
 .venv/
+venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
 
 # Terraform
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.json
 !*.tfvars.example
+!*.tfvars.json.example
+*.tfplan
+crash.log
+crash.*.log
 
 
-# other
-initial_project_description_and_notes.txt
-docs/pydanticAI/
+# Local notes / downloaded reference docs
+/initial_project_description_and_notes.txt
+/running_notes.txt
+/docs/pydanticAI/

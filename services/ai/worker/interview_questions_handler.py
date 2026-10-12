@@ -1,7 +1,7 @@
 """
 Description: Read-only handlers for interview set generation and single-question replacement.
 Index:
-    - InterviewQuestionsInput: Rails queue snapshot, with future category/job extension points
+    - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical scope
     - _library_evidence_text: original library strings for excerpt validation
     - handle_interview_questions_task: screens notes, checks context size, generates questions
 """
@@ -17,7 +17,7 @@ from pydantic_ai.usage import RunUsage
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
 from gap_analysis.screen_library_facts import select_screened_facts
-from schemas.interview_questions import InterviewQuestionContext
+from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
 from screening.screen_user_text import screen_user_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -28,6 +28,7 @@ class InterviewQuestionsInput(BaseModel):
     """Generation metadata or the immutable replacement snapshot from Rails."""
 
     question_set_id: UUID
+    set_type: InterviewSetType = "general"
     question_id: UUID | None = None
     question_text: str = ""
     other_questions: list[str] = Field(default_factory=list)
@@ -81,13 +82,13 @@ def handle_interview_questions_task(
     library_text = json.dumps(content, ensure_ascii=False)
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
     count = 1 if replacement else 5
-    text = f"Generate {count} questions.\nLibrary JSON data:\n{library_text}"
+    text = f"Generate {count} {snapshot.set_type} questions.\nLibrary JSON data:\n{library_text}"
     if excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Your career library is too long for interview questions. Shorten its entries and try again.")
-    prompt = InterviewQuestionContext(text, _library_evidence_text(content), count, tuple(excluded))
+    prompt = InterviewQuestionContext(text, _library_evidence_text(content), count, tuple(excluded), snapshot.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_questions(prompt, model=settings.interview_questions_model,

@@ -11,6 +11,30 @@ RSpec.describe "Interview practice services" do
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
+  it "snapshots technical type for generation, replacement and feedback with sparse context" do
+    result = InterviewPrep::StartQuestionSetService.call(user: user, set_type: "technical")
+    expect(result).to be_success
+    expect(result.value.subject.set_type).to eq("technical")
+    expect(result.value.input["set_type"]).to eq("technical")
+    technical_question = result.value.subject.questions.create!(position: 1, question_text: "Describe your work methods?")
+    %w[regenerate_interview_question review_interview_answer].each do |operation|
+      queued = InterviewPrep::StartQuestionTaskService.call(user: user, question: technical_question,
+        task_type: operation, answer_text: "I use a checklist.")
+      expect(queued).to be_success
+      expect(queued.value.input["set_type"]).to eq("technical")
+      queued.value.update!(status: "failed")
+    end
+    expect(technical_question.reload.answer_text).to eq("I use a checklist.")
+  end
+
+  it "rejects unknown types before allocating sets or billing tasks" do
+    [ nil, "quiz" ].each do |set_type|
+      expect(InterviewPrep::StartQuestionSetService.call(user: user, set_type: set_type)).not_to be_success
+    end
+    expect(user.interview_question_sets).to be_empty
+    expect(queue).not_to have_received(:send_message)
+  end
+
   # Starts one authorized operation using the real shared task enqueue service.
   def start_operation(task_type, **options)
     InterviewPrep::StartQuestionTaskService.call(user: user, question: question, task_type: task_type, **options)

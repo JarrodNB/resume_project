@@ -1,11 +1,12 @@
 """
-Description: Generates illustrative coaching with structural checks and normalized evidence.
+Description: Generates grounded coaching with nonblank/placeholder checks and normalized evidence.
 Index:
     - interview_feedback_agent / check_labels: agent and output validation
     - InterviewFeedbackRun / generate_interview_feedback: bounded run and billed usage
     - source_excerpt: removes presentation quotes only when the contents match source text
 """
 import asyncio
+import re
 from typing import NamedTuple
 
 from pydantic_ai import Agent, ModelRetry, RunContext
@@ -41,9 +42,11 @@ interview_feedback_agent = Agent(
 
 @interview_feedback_agent.output_validator
 def check_labels(context: RunContext[InterviewFeedbackContext], analysis: InterviewFeedback) -> InterviewFeedback:
-    """Retries blank coaching; filters invalid evidence without rejecting examples."""
+    """Retries blank coaching or too many placeholders; filters invalid optional evidence."""
     if any(not text.strip() for text in [*analysis.strengths, *analysis.improvements, analysis.example_answer]):
         raise ModelRetry("Use nonblank strengths, improvements, and an illustrative example answer.")
+    if len(re.findall(r"\[[^\[\]]*\]", analysis.example_answer)) > 2:
+        raise ModelRetry("Use at most two focused square-bracket placeholders. Omit optional missing details.")
     excerpts = [source_excerpt(quote, context.deps.source_text) for quote in analysis.evidence_quotes]
     # Evidence is auxiliary metadata, so discard invalid excerpts without retrying prose.
     analysis.evidence_quotes = [quote for quote in excerpts if quote is not None]

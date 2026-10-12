@@ -10,7 +10,7 @@ import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_SETS_QUERY } fr
 
 /** Builds a persistent set fixture. */
 function setFixture(number: number) {
-  return { __typename: 'InterviewQuestionSet', id: `set-${number}`, number, createdAt: '2026-10-11T00:00:00Z', latestTask: null }
+  return { __typename: 'InterviewQuestionSet', id: `set-${number}`, number, setType: number === 2 ? 'TECHNICAL' : 'GENERAL', createdAt: '2026-10-11T00:00:00Z', latestTask: null }
 }
 /** Returns a list response with a reusable result for mutation refetches. */
 function listMock(sets = [setFixture(1), setFixture(2)]) {
@@ -21,12 +21,14 @@ it('orders saved numbered sets newest first with detail links', async () => {
   renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock()] })
   const newest = await screen.findByRole('link', { name: /Set 2/ })
   expect(newest).toHaveAttribute('href', '/interview-prep/set-2')
+  expect(newest).toHaveTextContent('Technical')
+  expect(screen.getByRole('link', { name: /Set 1/ })).toHaveTextContent('General')
   expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([expect.stringContaining('Set 2'), expect.stringContaining('Set 1')])
 })
 
 it('opens the persistent set immediately after queuing generation', async () => {
   const { router } = renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Queued set</p> }], mocks: [listMock([]), {
-    request: { query: GENERATE_INTERVIEW_SET }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
   }] })
   fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
   expect(await screen.findByText('Queued set')).toBeInTheDocument()
@@ -35,11 +37,22 @@ it('opens the persistent set immediately after queuing generation', async () => 
 
 it('shows usage-limit errors and leaves the saved list available', async () => {
   renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock(), {
-    request: { query: GENERATE_INTERVIEW_SET }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
   }] })
   fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
   expect(await screen.findByText('Monthly AI usage limit reached.')).toBeInTheDocument()
   expect(await screen.findByRole('link', { name: /Set 2/ })).toBeInTheDocument()
+})
+
+it('deliberately selects technical practice and submits that type', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Technical set queued</p> }], mocks: [listMock([]), {
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'TECHNICAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'technical-task', input: { question_set_id: 'technical-set', set_type: 'technical' } } } } },
+  }] })
+  expect(screen.getByRole('radio', { name: 'General' })).toBeChecked()
+  fireEvent.click(screen.getByRole('radio', { name: 'Technical' }))
+  expect(screen.getByRole('radio', { name: 'Technical' })).toBeChecked()
+  fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
+  expect(await screen.findByText('Technical set queued')).toBeInTheDocument()
 })
 
 it('requires confirmation, cancels safely, and retains a set when deletion fails', async () => {

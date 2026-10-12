@@ -94,18 +94,20 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
-- `generate_interview_questions`: input `{question_set_id, set_number}`; the subject is an
+- `generate_interview_questions`: input `{question_set_id, set_number, set_type}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
-  `introduction`, `strengths`, `development`, `goals`, and `behavioral`, one of each.
+  `introduction`, `strengths`, `development`, `goals`, and `behavioral` for general sets,
+  or `work_overview`, `tools_methods`, `decisions_tradeoffs`, `problem_solving`, and
+  `improvement_quality` for technical sets, one of each.
 - `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
-  answer_text, question_revision, answer_revision, other_questions}`; the subject is the
+  answer_text, question_revision, answer_revision, other_questions, set_type}`; the subject is the
   selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
   The worker uses the current library and returns the same question result shape with one
   draft, excluding both the old question and the other four.
 - `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
-  question_revision, answer_revision}`; the subject is the selected `InterviewQuestion`.
+  question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.
   The result is `{interview_feedback: {strengths, improvements, example_answer,
   evidence_quotes}, warnings: [...]}`. Strengths and improvements are lists of coaching
   statements; the example uses square-bracket placeholders for missing facts and has no score.
@@ -117,7 +119,8 @@ receives.
 ## Interview Prep
 
 Rails owns `interview_question_sets` and `interview_questions`; the Python worker returns
-drafts without writing domain data. Sets belong to a user and have a unique per-user number.
+drafts without writing domain data. Sets belong to a user and have a unique per-user number
+and immutable `set_type` (`general` or `technical`, defaulting to general for legacy data).
 Allocation runs under the user lock and considers retained generation task inputs, so deleting
 a set does not reuse its number. Sets can be empty while generation is pending or failed.
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
@@ -132,7 +135,7 @@ cascades its questions and nullifies AI task subjects, retaining usage records a
 
 `InterviewPrep` services own generation, saving, replacement, feedback, and deletion. GraphQL
 exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries and the mutations
-`generateInterviewQuestionSet`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
+`generateInterviewQuestionSet(input: {setType: GENERAL | TECHNICAL})`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
 `requestInterviewAnswerFeedback`, and `deleteInterviewQuestionSet`. Question mutations scope
 `questionId` through the owned `questionSetId`. AI work uses the shared usage allowance checks.
 Feedback requires a nonblank answer and saves it before allowance checks or queue publication;
@@ -249,6 +252,16 @@ tailoring) instead of sending everything.
   texts (reciprocal rank fusion, k=60). Tailoring queries it once per written section.
 
 ## Decisions
+
+- **Interview sets have an immutable general or technical scope.** Existing sets and older
+  queue snapshots default to general. Technical practice discusses actual role-specific work,
+  methods/tools, decisions/tradeoffs, problem solving, and improvement/quality for every
+  occupation, rather than knowledge quizzes, coding or hypothetical design exercises.
+  Sparse skills, education, and nontechnology backgrounds receive best-effort questions
+  grounded in available library evidence; only the existing empty/unusable-library check
+  blocks generation. Generation, replacement, and feedback snapshot the type, and result
+  application rejects mismatched snapshots. Feedback remains illustrative coaching and
+  never replaces the saved answer. Neither type targets a saved job.
 
 - **Interview practice is persistent and independent of the library.** Existing questions
   stay fixed when career details change; new generation uses the current library. Multiple

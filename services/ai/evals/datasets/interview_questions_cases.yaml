@@ -24,3 +24,26 @@ cases:
         - "How would you develop your public speaking?"
         - "What are your longer-term career goals?"
         - "Describe collaborating on the orientation leaflet."
+  - name: technical-software-practical-work
+    inputs:
+      set_type: technical
+      library: "Software developer. Built a Python import worker using PostgreSQL. Added duplicate-message checks and automated tests. Compared batching approaches before choosing smaller transactions."
+  - name: technical-warehouse-practical-work
+    inputs:
+      set_type: technical
+      library: "Warehouse associate. Used barcode scanners and the existing stock checking procedure. Compared package labels with the picking list. Reported damaged packages to a supervisor. Helped update a handover checklist."
+  - name: technical-sparse-education
+    inputs:
+      set_type: technical
+      library: "Recent history graduate. Skills: archival research and source comparison."
+  - name: technical-replacement-retains-practical-scope
+    inputs:
+      set_type: technical
+      count: 1
+      library: "Bakery assistant. Weighed ingredients using a digital scale. Followed recipe cards. Checked oven temperature and product appearance. Recorded batch details. Helped label stored ingredients."
+      excluded:
+        - "Walk me through weighing ingredients using a digital scale."
+        - "How do you use recipe cards in your work?"
+        - "What decisions do you make when checking oven temperature?"
+        - "Tell me about a problem you encountered while recording batch details."
+        - "How do you check the appearance of products for quality?"

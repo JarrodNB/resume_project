@@ -24,6 +24,33 @@ RSpec.describe "Applying interview question generation" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
+  context "with a technical set" do
+    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "technical") }
+    before { task.update!(input: task.input.merge("set_type" => "technical")) }
+
+    it "persists five practical categories and ignores duplicate deliveries" do
+      drafts.zip(InterviewPrep::ApplyQuestionsService::TECHNICAL_CATEGORIES).each { |draft, category| draft["category"] = category }
+      2.times { apply }
+      expect(task.reload).to be_completed
+      expect(question_set.questions.count).to eq(5)
+      expect(question_set.reload.set_type).to eq("technical")
+      expect(task.cost_microdollars).to eq(30)
+    end
+
+    it "rejects general categories without creating questions" do
+      apply
+      expect(task.reload).to be_failed
+      expect(question_set.questions).to be_empty
+    end
+
+    it "rejects a missing legacy type snapshot on a technical set" do
+      task.update!(input: task.input.except("set_type"))
+      apply
+      expect(task.reload).to be_failed
+      expect(question_set.questions).to be_empty
+    end
+  end
+
   # Applies a message through the production consumer service.
   def apply(payload = message)
     AiTasks::ApplyAiResultService.call(message: payload)

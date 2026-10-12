@@ -31,6 +31,7 @@ module InterviewPrep
       question = @task.subject
       return unless question.is_a?(InterviewQuestion)
       return unless question.interview_question_set.user_id == @task.user_id
+      return unless question.interview_question_set.set_type == @task.input.fetch("set_type", "general")
       return unless question.id == @task.input["question_id"] &&
                     question.interview_question_set_id == @task.input["question_set_id"]
       return unless question.question_revision == @task.input["question_revision"] &&

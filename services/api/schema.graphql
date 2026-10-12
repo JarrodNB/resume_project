@@ -614,6 +614,7 @@ input GenerateInterviewQuestionSetInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+  setType: InterviewQuestionSetTypeEnum = GENERAL
 }
 
 """
@@ -703,6 +704,12 @@ type InterviewQuestionSet {
   latestTask: AiTask
   number: Int!
   questions: [InterviewQuestion!]!
+  setType: InterviewQuestionSetTypeEnum!
+}
+
+enum InterviewQuestionSetTypeEnum {
+  GENERAL
+  TECHNICAL
 }
 
 """

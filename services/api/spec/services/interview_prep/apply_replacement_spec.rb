@@ -25,6 +25,28 @@ RSpec.describe "Applying an interview question replacement" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
+  context "with a technical set" do
+    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "technical") }
+
+    it "keeps the set type and clears only the selected answer after success" do
+      originals = questions.drop(1).map(&:attributes)
+      task.update!(input: task.input.merge("set_type" => "technical"))
+      message["result"]["interview_questions"]["questions"][0]["category"] = "problem_solving"
+      2.times { apply }
+      expect(task.reload).to be_completed
+      expect(question_set.reload.set_type).to eq("technical")
+      expect(question.reload.answer_text).to eq("")
+      expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(originals)
+    end
+
+    it "rejects a mismatched type snapshot and preserves content" do
+      original = question.attributes
+      apply
+      expect(task.reload).to be_failed
+      expect(question.reload.attributes).to eq(original)
+    end
+  end
+
   # Captures the same identity and revisions as the queue preparation service.
   def replacement_task(target)
     create(:ai_task, user: user, task_type: "regenerate_interview_question", subject: target,

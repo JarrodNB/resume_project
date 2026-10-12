@@ -76,7 +76,8 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  five question cases and six feedback cases for full sets/replacement, complete/incomplete answers, and introductions.
+  nine question cases and nine feedback cases for general/technical full sets and replacements,
+  software and nonsoftware practical work, sparse education, complete/incomplete answers, and introductions.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
 - `interview_eval_reporting.py` — input-aware Pydantic Evals LLM judges and Logfire scores;
   judges use the evaluated agent's configured model. Case errors make the runner fail.

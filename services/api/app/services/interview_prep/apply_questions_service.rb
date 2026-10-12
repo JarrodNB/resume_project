@@ -4,6 +4,7 @@
 module InterviewPrep
   class ApplyQuestionsService < ApplicationService
     CATEGORIES = %w[introduction strengths development goals behavioral].freeze
+    TECHNICAL_CATEGORIES = %w[work_overview tools_methods decisions_tradeoffs problem_solving improvement_quality].freeze
     STALE_MESSAGE = "These questions are out of date. Request generation again.".freeze
     INVALID_MESSAGE = "We couldn't save valid, distinct interview questions. Try again.".freeze
 
@@ -62,6 +63,9 @@ module InterviewPrep
                       record.question_text == @task.input["question_text"]
         return unless record.interview_question_set.questions.count == 5
       end
+      question_set = record.is_a?(InterviewQuestionSet) ? record : record.interview_question_set
+      return unless question_set.set_type == @task.input.fetch("set_type", "general")
+
       record
     end
 
@@ -71,11 +75,12 @@ module InterviewPrep
 
       drafts = @result["interview_questions"]["questions"]
       count = @task.generate_interview_questions? ? 5 : 1
+      categories = @task.input.fetch("set_type", "general") == "technical" ? TECHNICAL_CATEGORIES : CATEGORIES
       return unless drafts.is_a?(Array) && drafts.length == count
       return unless drafts.all? do |draft|
         draft.is_a?(Hash) && draft["question_text"].is_a?(String) &&
           draft["question_text"].strip.length.between?(10, 1000) &&
-          normalize(draft["question_text"]).present? && CATEGORIES.include?(draft["category"]) &&
+          normalize(draft["question_text"]).present? && categories.include?(draft["category"]) &&
           draft["evidence_quotes"].is_a?(Array) && draft["evidence_quotes"].any? &&
           draft["evidence_quotes"].all? { |quote| quote.is_a?(String) && quote.strip.present? }
       end

@@ -48,6 +48,7 @@ module InterviewPrep
         return failure([ "Feedback has already been requested for this answer version. Save a changed answer first." ])
       end
       task.input = {
+        "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
         "question_text" => @question.question_text, "answer_text" => @question.answer_text,
         "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision

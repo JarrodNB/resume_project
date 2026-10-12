@@ -4,7 +4,7 @@ each score to Langfuse (one trace per run, agent calls nested inside).
 Run: docker compose run --rm ai python -m evals.run_resume_parsing_evals
 Index:
     - load_resume_parsing_dataset: reads the YAML cases with the custom evaluators
-    - run_resume_parsing_evals: evaluates every case, prints the report, and scores the trace
+    - run_resume_parsing_evals: evaluates allowed parsing cases, prints and scores the report
 """
 
 from pathlib import Path
@@ -32,7 +32,7 @@ def load_resume_parsing_dataset() -> Dataset[str, ParsedResume, dict[str, Any]]:
 
 
 def run_resume_parsing_evals() -> None:
-    """Evaluates the agent on every case and records the average scores in Langfuse."""
+    """Evaluates allowed parsing cases; expected blocks run in the guardrail suite."""
     settings = load_settings()
     configure_tracing()
     langfuse = get_client()
@@ -49,6 +49,10 @@ def run_resume_parsing_evals() -> None:
             fallback_model=settings.generative_fallback_model,
         ).parsed_resume
 
+    dataset = load_resume_parsing_dataset()
+    # Expected rejections are measured by run_prompt_guardrail_evals, never bypassed here.
+    dataset.cases = [case for case in dataset.cases
+                     if not (case.metadata or {}).get("expects_input_block")]
     with (
         langfuse.start_as_current_observation(
             name=TRACE_NAME,
@@ -64,7 +68,7 @@ def run_resume_parsing_evals() -> None:
             tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
         ),
     ):
-        report = load_resume_parsing_dataset().evaluate_sync(
+        report = dataset.evaluate_sync(
             parse_case, name=f"resume_parsing:{model}:thinking={thinking}", max_concurrency=5
         )
         for score_name, average in report.averages().scores.items():

@@ -14,6 +14,7 @@ dependencies = [
     { name = "pgvector" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
+    { name = "pydantic-ai-harness" },
     { name = "pydantic-ai-slim", extra = ["openai", "typesafe"] },
     { name = "pydantic-settings" },
     { name = "pypdf" },
@@ -36,6 +37,7 @@ requires-dist = [
     { name = "pgvector", specifier = ">=0.5.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
     { name = "pydantic" },
+    { name = "pydantic-ai-harness", specifier = "==0.53.0" },
     { name = "pydantic-ai-slim", extras = ["openai", "typesafe"], specifier = "==2.53.0" },
     { name = "pydantic-settings" },
     { name = "pypdf", specifier = ">=6.19.0" },
@@ -468,6 +470,15 @@ wheels = [
 ]
 
 [[package]]
+name = "json-repair"
+version = "0.64.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/dc/85/bf69dc15a066728bf477b3a3cc16a49f8712acf5a6f9271bf6494f51bb91/json_repair-0.64.0.tar.gz", hash = "sha256:2890be942a7ef20626e4eda4bd91b37485bc5271ac122efe7bb924232fef60ea", size = 53703, upload-time = "2026-10-09T09:10:33.109Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7f/10/98f7c8a5039b791e4801f1307f5571688b4fffa2e589eea9e16be6dcf37f/json_repair-0.64.0-py3-none-any.whl", hash = "sha256:3bf14cf14d8ae96f7bc467e6964d8accd52aaad084f973e38ebe4e43f9d051e4", size = 51984, upload-time = "2026-10-09T09:10:31.708Z" },
+]
+
+[[package]]
 name = "langfuse"
 version = "4.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -849,6 +860,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/53/ef/fc4f868f4e2cee79f863883abffceff107875f569b848507319842d2a681/pydantic-2.13.5.tar.gz", hash = "sha256:51a9c5f7b2f8e636f04c6cada605d9b6a3bf1348fdf945a3d8869b19bba0ee08", size = 845750, upload-time = "2026-08-28T14:04:00.916Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/47/c95ffc2009878c7aac0c5e08528022dcb885933252a88b5f170058014464/pydantic-2.13.5-py3-none-any.whl", hash = "sha256:346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73", size = 472589, upload-time = "2026-08-28T14:03:59.136Z" },
+]
+
+[[package]]
+name = "pydantic-ai-harness"
+version = "0.53.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "genai-prices" },
+    { name = "httpx" },
+    { name = "json-repair" },
+    { name = "pydantic-ai-slim" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/57/a3/42e42a2d08c0917b99bc7b3972c022d59e916f7f6ae3329978d086a2722f/pydantic_ai_harness-0.53.0.tar.gz", hash = "sha256:cc6ab294b9cafbaa0d24ac549ca173064740ea3950351c306ed367d9e7149c71", size = 976932, upload-time = "2026-10-02T03:18:07.906Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/86/062d53fd1686892eb88f954b45f8f6f107e4be8cbb4b3bd5309f173ddc37/pydantic_ai_harness-0.53.0-py3-none-any.whl", hash = "sha256:2735cac269ebc1f09237b19cb35f5d367fec1634d4d6e119f95b63788d1b8dc7", size = 1216617, upload-time = "2026-10-02T03:17:57.02Z" },
 ]
 
 [[package]]

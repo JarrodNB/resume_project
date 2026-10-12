@@ -1,0 +1,71 @@
+"""
+Description: Evaluates live Jev through the actual input capability, with a fake generator.
+Run: docker compose run --rm ai python -m evals.run_prompt_guardrail_evals
+Index:
+    - load_prompt_guardrail_dataset: synthetic assembled inputs and expected allow decisions
+    - run_prompt_guardrail_evals: reports safety decisions and errors to Langfuse
+"""
+
+from pathlib import Path
+
+from langfuse import get_client
+from pydantic_ai import Agent
+from pydantic_ai.models.test import TestModel
+from pydantic_ai_harness import InputBlocked, InputGuardrail
+from pydantic_evals import Case, Dataset
+
+from agents.resume_parsing_agent import format_resume_user_prompt
+from evals.run_resume_parsing_evals import load_resume_parsing_dataset
+from screening.prompt_guardrail import BLOCKED_MESSAGE, screen_prompt
+from worker.settings import load_settings
+from worker.tracing import configure_tracing
+
+
+def load_prompt_guardrail_dataset() -> Dataset[str, bool, None]:
+    """Includes assembled-context cases and expected rejections from parsing fixtures."""
+    dataset = Dataset[str, bool, None].from_file(
+        Path(__file__).parent / "datasets" / "prompt_guardrail_cases.yaml"
+    )
+    for case in load_resume_parsing_dataset().cases:
+        if (case.metadata or {}).get("expects_input_block"):
+            dataset.cases.append(Case(
+                name=case.name, inputs=format_resume_user_prompt(case.inputs), expected_output=False,
+            ))
+    return dataset
+
+
+def run_prompt_guardrail_evals() -> None:
+    """Exercises the production capability and fails on wrong decisions or screening outages."""
+    configure_tracing()
+    client = get_client()
+    agent = Agent(TestModel(), capabilities=[InputGuardrail(guard=screen_prompt)])
+
+    def check_case(prompt: str) -> bool:
+        """Uses live Jev; no generative provider is called, even for allowed cases."""
+        try:
+            agent.run_sync(prompt)
+        except InputBlocked as error:
+            # Missing keys, length errors and outages must not score as a detected attack.
+            if str(error) != BLOCKED_MESSAGE:
+                raise
+            return False
+        return True
+
+    with client.start_as_current_observation(
+        name="evals.prompt_guardrail",
+        metadata={"screening_model": load_settings().user_text_screen_model},
+    ):
+        report = load_prompt_guardrail_dataset().evaluate_sync(check_case, max_concurrency=3)
+        errors = len(report.failures) + sum(len(case.evaluator_failures) for case in report.cases)
+        matched = sum(case.output == case.expected_output for case in report.cases)
+        accuracy = matched / len(report.cases) if report.cases else 0.0
+        client.score_current_trace(name="decision_accuracy", value=accuracy)
+        client.score_current_trace(name="case_errors", value=errors)
+    report.print(include_input=False, include_output=True)
+    client.flush()
+    if errors or matched != len(report.cases):
+        raise RuntimeError("Prompt guardrail evaluation contained errors or incorrect decisions")
+
+
+if __name__ == "__main__":
+    run_prompt_guardrail_evals()

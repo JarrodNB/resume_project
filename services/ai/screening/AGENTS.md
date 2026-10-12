@@ -7,6 +7,11 @@ applies the threshold. This is not a second classifier and it does not choose al
 
 ## Contents
 
+- `prompt_guardrail.py` — async `screen_prompt` policy for official Harness `InputGuardrail`,
+  registered through `capabilities` on every generative agent. Sequentially screens the entire
+  assembled text and supplied user/tool history with Jev, under the prompt cap. Blocks fail
+  with `InputBlocked`; usage caps propagate. No phrase prefilter on assembled context.
+- `guardrail_usage.py` — task-scoped capability usage accounting, including blocked runs.
 - `screen_user_text.py` — `screen_user_text`: a string over the screen cap returns not allowed
   with `too_long` and does not call Jev. Then the phrase check (skipped for a whole resume),
   then Jev, then the 0.7 yes-confidence threshold. A missing key or a Jev error returns not
@@ -18,6 +23,8 @@ applies the threshold. This is not a second classifier and it does not choose al
 ## Local Rules
 
 - Do not send the text when the screen cannot run.
-- An uploaded resume is screened once, in the parse handler, before it is parsed.
-- Career-library entries copied from a resume are not screened again.
+- Field-level screening provides early errors/omissions; the agent capability independently
+  screens the final prompt, including imported, manually edited, retrieved, and scraped text.
+- Jev must not carry its own input guardrail (that would recurse).
+- Keep guards sequential: a blocked input must never reach the generative provider.
 - Report Jev `ModelUsage` on the task result when a call was made.

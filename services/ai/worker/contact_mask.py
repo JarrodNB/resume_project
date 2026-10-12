@@ -80,6 +80,7 @@ def install_contact_hooks() -> None:
     from agents.interview_feedback_agent import interview_feedback_agent
     from agents.interview_questions_agent import interview_questions_agent
     from agents.job_requirements_sorting_agent import job_requirements_sorting_agent
+    from agents.parse_job_posting_agent import parse_job_posting_agent
     from agents.resume_parsing_agent import resume_parsing_agent
     from agents.resume_tailoring_agent import resume_tailoring_agent
     from agents.user_text_screen_agent import user_text_screen_agent
@@ -87,6 +88,7 @@ def install_contact_hooks() -> None:
     for agent in (
         resume_parsing_agent,
         job_requirements_sorting_agent,
+        parse_job_posting_agent,
         gap_analysis_agent,
         interview_questions_agent,
         interview_feedback_agent,

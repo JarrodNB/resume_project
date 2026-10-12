@@ -14,6 +14,7 @@ from typing import NamedTuple
 from pydantic_ai import Agent, ModelRetry, RunContext
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
+from pydantic_ai_harness import InputGuardrail
 
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from prompts.parse_job_posting_instructions import (
@@ -21,6 +22,7 @@ from prompts.parse_job_posting_instructions import (
     PARSE_JOB_POSTING_PROMPT_VERSION,
 )
 from schemas.parsed_job_posting import ParsedJobPosting
+from screening.prompt_guardrail import screen_prompt
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -34,6 +36,7 @@ parse_job_posting_agent = Agent(
     instructions=PARSE_JOB_POSTING_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
+    capabilities=[InputGuardrail(guard=screen_prompt)],
 )
 
 

@@ -15,12 +15,14 @@ from collections.abc import Callable
 
 from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai_harness import InputBlocked
 
 from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
-from worker.queue_messages import AiResultMessage, AiTaskMessage
+from screening.guardrail_usage import collect_guardrail_usage
+from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.retryable_errors import is_retryable_error
 from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.s3_file_storage import S3FileStorage
@@ -59,9 +61,15 @@ def process_task_message(
         )
         return False
 
+    guardrail_usage: list[ModelUsage] = []
     try:
-        with trace_ai_task(task):
+        with collect_guardrail_usage(guardrail_usage), trace_ai_task(task):
             result = handle_ai_task(task, dependencies)
+    except InputBlocked as error:
+        result = AiResultMessage(
+            ai_task_id=task.ai_task_id, status="failed", error_message=str(error),
+            generation=task.input.get("generation") if task.task_type == "tailor_resume" else None,
+        )
     except UsageLimitExceeded:
         logger.exception("Task %s hit a run limit on attempt %d", task.ai_task_id, receive_count)
         result = AiResultMessage(
@@ -81,6 +89,7 @@ def process_task_message(
             ai_task_id=task.ai_task_id, status="failed", error_message="The AI task failed"
         )
 
+    result.usage.extend(guardrail_usage)
     result_queue.send_message(result.model_dump_json())
     logger.info("Published %s result for task %s", result.status, task.ai_task_id)
     return True

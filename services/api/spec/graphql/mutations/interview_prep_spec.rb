@@ -20,6 +20,31 @@ RSpec.describe "Interview practice mutations" do
     expect(payload["errors"]).to eq([])
     expect(payload["aiTask"]).to include("taskType" => "GENERATE_INTERVIEW_QUESTIONS", "status" => "QUEUED")
     expect(user.interview_question_sets.count).to eq(1)
+    expect(user.interview_question_sets.first.set_type).to eq("general")
+    expect(payload["aiTask"]["input"]["set_type"]).to eq("general")
+  end
+
+  it "generates a technical set exposed on subsequent queries" do
+    result = execute_graphql(<<~GQL, user: user)
+      mutation { generateInterviewQuestionSet(input: {setType: TECHNICAL}) { aiTask { input } errors } }
+    GQL
+    expect(result.dig("data", "generateInterviewQuestionSet", "errors")).to eq([])
+    id = result.dig("data", "generateInterviewQuestionSet", "aiTask", "input", "question_set_id")
+    detail = execute_graphql(<<~GQL, user: user, variables: { id: id })
+      query($id: ID!) { interviewQuestionSet(id: $id) { setType } interviewQuestionSets { setType } }
+    GQL
+    expect(detail.dig("data", "interviewQuestionSet", "setType")).to eq("TECHNICAL")
+    expect(detail.dig("data", "interviewQuestionSets").first["setType"]).to eq("TECHNICAL")
+  end
+
+  it "rejects invalid and explicit null types without creating sets" do
+    [ "QUIZ", "null" ].each do |set_type|
+      result = execute_graphql(<<~GQL, user: user)
+        mutation { generateInterviewQuestionSet(input: {setType: #{set_type}}) { errors } }
+      GQL
+      expect(result["errors"].presence || result.dig("data", "generateInterviewQuestionSet", "errors").presence).to be_present
+    end
+    expect(user.interview_question_sets).to be_empty
   end
 
   it "saves and clears answers through the authorized question's set" do

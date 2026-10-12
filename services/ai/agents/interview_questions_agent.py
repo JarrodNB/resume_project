@@ -1,10 +1,11 @@
 """
-Description: Generates structured, distinct questions with validated library excerpts.
+Description: Generates scope-specific distinct questions with excerpt and category-label checks.
 Index:
     - interview_questions_agent / check_labels: agent and output validation
     - InterviewQuestionsRun / generate_interview_questions: bounded run and billed usage
 """
 import asyncio
+import re
 from typing import NamedTuple
 
 from pydantic_ai import Agent, ModelRetry, RunContext
@@ -17,6 +18,7 @@ from prompts.interview_question_instructions import (
     INTERVIEW_QUESTIONS_PROMPT_VERSION,
 )
 from schemas.interview_questions import (
+    QUESTION_CATEGORIES,
     InterviewQuestionContext,
     InterviewQuestions,
     normalize_question,
@@ -41,14 +43,20 @@ interview_questions_agent = Agent(
 
 @interview_questions_agent.output_validator
 def check_labels(context: RunContext[InterviewQuestionContext], analysis: InterviewQuestions) -> InterviewQuestions:
-    """Retries incorrect counts, repeated wording, and unsupported evidence excerpts."""
+    """Retries incorrect scope/count, exposed category labels, duplicates, or unsupported excerpts."""
     problems = []
+    categories = QUESTION_CATEGORIES[context.deps.set_type]
+    if any(q.category not in categories for q in analysis.questions):
+        problems.append(f"Use only {context.deps.set_type} categories: {', '.join(categories)}.")
     if len(analysis.questions) != context.deps.count:
         problems.append(f"Return exactly {context.deps.count} questions.")
     if context.deps.count == 5 and len({q.category for q in analysis.questions}) != 5:
         problems.append("Use each of the five interview categories once.")
     seen = {normalize_question(text) for text in context.deps.excluded}
     for question in analysis.questions:
+        category_prefix = question.category.replace("_", r"[ _]")
+        if re.match(rf"\s*{category_prefix}\s*:", question.question_text, re.IGNORECASE):
+            problems.append("Keep category labels in metadata only; start question_text directly with the question.")
         key = normalize_question(question.question_text)
         if key in seen:
             problems.append("Questions must be distinct from one another and excluded questions.")

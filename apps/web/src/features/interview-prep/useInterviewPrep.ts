@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
 import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 
 /** Refreshes the persistent list whenever its page opens. */
@@ -25,10 +26,10 @@ export function useGenerateInterviewSet() {
   const [mutate, { loading }] = useMutation(GENERATE_INTERVIEW_SET)
   const [errors, setErrors] = useState<string[]>([])
   /** Queues generation and extracts the server-created set identity. */
-  async function generate() {
+  async function generate(setType: InterviewQuestionSetTypeEnum) {
     setErrors([])
     try {
-      const { data } = await mutate()
+      const { data } = await mutate({ variables: { setType } })
       const payload = data?.generateInterviewQuestionSet
       if (!payload || payload.errors.length) {
         setErrors(payload?.errors ?? ['Could not start interview questions.'])

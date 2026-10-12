@@ -25,6 +25,24 @@ RSpec.describe "Applying interview answer feedback" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
+  context "with a technical set" do
+    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "technical") }
+
+    it "stores coaching once while preserving the typed answer" do
+      task.update!(input: task.input.merge("set_type" => "technical"))
+      2.times { apply }
+      expect(task.reload).to be_completed
+      expect(question.reload).to have_attributes(answer_text: "I organized a workshop.", feedback: feedback)
+    end
+
+    it "rejects mismatched type snapshots without replacing prior coaching" do
+      original = question.attributes
+      apply
+      expect(task.reload).to be_failed
+      expect(question.reload.attributes).to eq(original)
+    end
+  end
+
   # Captures the same snapshot as feedback enqueueing.
   def feedback_task
     create(:ai_task, user: user, task_type: "review_interview_answer", subject: question,

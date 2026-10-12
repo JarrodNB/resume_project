@@ -41,9 +41,22 @@ def dependencies(task_dependencies, monkeypatch):
     return replace(task_dependencies, read_career_library=lambda user: CareerLibrary())
 
 
-def test_empty_library_uses_answer_and_reports_usage(dependencies):
+@pytest.mark.parametrize("set_type", [None, "general", "technical"])
+def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, monkeypatch):
     """Sparse context still gives grounded feedback; snapshot remains unchanged."""
     request = task()
+    if set_type is not None:
+        request.input["set_type"] = set_type
+    from worker import interview_feedback_handler
+    generate = interview_feedback_handler.generate_interview_feedback
+
+    def inspect_context(prompt, **kwargs):
+        """Checks type survives prompt assembly for sparse nonsoftware feedback."""
+        assert prompt.set_type == (set_type or "general")
+        assert f'"set_type": "{prompt.set_type}"' in prompt.text
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect_context)
     original = request.model_dump()
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, dependencies)
@@ -132,6 +145,17 @@ def test_prompt_limit_prevents_generation(dependencies, monkeypatch):
     assert result.status == "failed"
     assert "Shorten" in result.error_message
     assert len(result.usage) == 1
+
+
+def test_excessive_placeholders_fail_with_billed_usage(dependencies):
+    """A placeholder checklist cannot bypass the two-placeholder coaching limit."""
+    draft = output()
+    draft["example_answer"] = "[Add context] [Add action] [Add outcome]"
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+        result = handle_ai_task(task(), dependencies)
+    assert result.status == "failed"
+    assert "answer is saved" in result.error_message
+    assert sum(entry.output_tokens for entry in result.usage) > 0
 
 
 def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypatch):

@@ -8,6 +8,16 @@ from pydantic import ValidationError
 
 from text_limits import MAX_INTERVIEW_ANSWER
 from worker.interview_feedback_handler import InterviewFeedbackInput
+from worker.interview_questions_handler import InterviewQuestionsInput
+
+
+def test_question_snapshot_type_defaults_and_rejects_unknown():
+    """Legacy generation defaults to general; unknown scopes never reach an agent."""
+    data = {"question_set_id": "00000000-0000-0000-0000-000000000001"}
+    assert InterviewQuestionsInput.model_validate(data).set_type == "general"
+    assert InterviewQuestionsInput.model_validate({**data, "set_type": "technical"}).set_type == "technical"
+    with pytest.raises(ValidationError):
+        InterviewQuestionsInput.model_validate({**data, "set_type": "quiz"})
 
 
 @pytest.mark.parametrize("answer", ["", "x" * (MAX_INTERVIEW_ANSWER + 1)])

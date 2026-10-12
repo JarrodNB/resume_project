@@ -15,7 +15,7 @@ function question(answerText = 'Saved answer', latestTask: unknown = null) {
 }
 /** Provides a complete set-query response. */
 function detail(answerText = 'Saved answer', latestTask: unknown = null) {
-  return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 's1' } }, result: { data: { interviewQuestionSet: { __typename: 'InterviewQuestionSet', id: 's1', number: 1, createdAt: '2026-10-11T00:00:00Z', latestTask: null, questions: [question(answerText, latestTask)] } } } }
+  return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 's1' } }, result: { data: { interviewQuestionSet: { __typename: 'InterviewQuestionSet', id: 's1', number: 1, setType: 'GENERAL', createdAt: '2026-10-11T00:00:00Z', latestTask: null, questions: [question(answerText, latestTask)] } } } }
 }
 /** Opens the initially collapsed answer card. */
 async function openAnswer() {

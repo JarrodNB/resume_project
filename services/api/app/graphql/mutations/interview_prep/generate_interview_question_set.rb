@@ -5,10 +5,11 @@ module Mutations
   module InterviewPrep
     class GenerateInterviewQuestionSet < Mutations::BaseMutation
       field :ai_task, Types::AiTaskType
+      argument :set_type, Types::InterviewQuestionSetTypeEnum, required: false, default_value: "general"
 
       # Authorizes records before invoking the domain service.
-      def resolve
-        payload_from(::InterviewPrep::StartQuestionSetService.call(user: current_user), :ai_task)
+      def resolve(set_type:)
+        payload_from(::InterviewPrep::StartQuestionSetService.call(user: current_user, set_type: set_type), :ai_task)
       end
     end
   end

@@ -7,7 +7,7 @@ import { graphql } from '@/graphql/generated'
 export const INTERVIEW_SETS_QUERY = graphql(`
   query InterviewSets {
     interviewQuestionSets {
-      id number createdAt
+      id number setType createdAt
       latestTask { id status errorMessage }
     }
   }
@@ -15,15 +15,15 @@ export const INTERVIEW_SETS_QUERY = graphql(`
 export const INTERVIEW_SET_QUERY = graphql(`
   query InterviewSet($id: ID!) {
     interviewQuestionSet(id: $id) {
-      id number createdAt
+      id number setType createdAt
       latestTask { id status errorMessage result }
       questions { id position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
     }
   }
 `)
 export const GENERATE_INTERVIEW_SET = graphql(`
-  mutation GenerateInterviewSet {
-    generateInterviewQuestionSet(input: {}) {
+  mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {
+    generateInterviewQuestionSet(input: { setType: $setType }) {
       errors
       aiTask { id input }
     }

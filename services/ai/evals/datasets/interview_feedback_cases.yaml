@@ -39,3 +39,23 @@ cases:
       answer: "After working in hospitality I went to college. A lecturer recommended me for an internship at Northbridge during my final semester. I started with small backlog tasks and progressed to harder work. I was hired full time and still work there. Our stack was Rails and React. I later worked on a mobile web app, AI services, and a cloud migration."
     metadata:
       needs_placeholder: true
+  - name: technical-software-reasoning
+    inputs:
+      set_type: technical
+      question: "How did you approach duplicate-message handling in your import worker?"
+      answer: "I used a unique import key in PostgreSQL. A repeated message looked up that key and skipped the already completed import. I wrote a test that sent the same message twice."
+      library: "Software developer. Built a Python import worker using PostgreSQL. Added duplicate-message checks and automated tests."
+  - name: technical-retail-practical-methods
+    inputs:
+      set_type: technical
+      question: "How do you use the stock checking procedure to identify discrepancies?"
+      answer: "I compare the shelf count with the stock record and note any difference. I recount before reporting it to my supervisor."
+      library: "Retail assistant. Followed the existing stock checking procedure and reported discrepancies."
+  - name: technical-sparse-education-no-invented-practice
+    inputs:
+      set_type: technical
+      question: "What approach have you learned for comparing historical sources?"
+      answer: "I learned to compare sources but I have not described an example yet."
+      library: "Recent history graduate. Skills: archival research and source comparison."
+    metadata:
+      needs_placeholder: true

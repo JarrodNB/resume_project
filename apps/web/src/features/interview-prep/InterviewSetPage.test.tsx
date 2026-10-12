@@ -16,7 +16,7 @@ function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
 /** Builds the detail response, intentionally returning questions in reverse order. */
 function setMock(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
   return { request: { query: INTERVIEW_SET_QUERY, variables: { id: 'set-1' } }, result: { data: { interviewQuestionSet: {
-    __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
+    __typename: 'InterviewQuestionSet', id: 'set-1', number: 1, setType: 'TECHNICAL', createdAt: '2026-10-11T00:00:00Z', latestTask: taskFixture(status),
     questions: status === 'COMPLETED' ? [5, 4, 3, 2, 1].map((position) => ({ __typename: 'InterviewQuestion', id: `question-${position}`, position, questionText: `Saved question text ${position}`, answerText: '', answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: null, feedbackAnswerRevision: null, feedback: {}, feedbackOutdated: false, latestTask: null })) : [],
   } } } }
 }
@@ -27,6 +27,7 @@ it('restores a queued task on reload and fetches five saved cards on live comple
     result: { data: { aiTaskUpdated: taskFixture('COMPLETED') } },
   }, setMock('COMPLETED')] })
   expect(await screen.findByRole('button', { name: 'Question 1' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Technical')
   expect(screen.getAllByRole('button', { name: /Question \d/ }).map((button) => button.textContent)).toEqual(['Question 1', 'Question 2', 'Question 3', 'Question 4', 'Question 5'])
   expect(screen.queryByText('Questions ready.')).not.toBeInTheDocument()
   expect(screen.queryByText('Saved question text 1')).not.toBeInTheDocument()

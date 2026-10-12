@@ -3,6 +3,7 @@ Description: Grounded interview question drafts and per-run validation context.
 Index:
     - InterviewQuestionDraft / InterviewQuestions: structured agent output
     - InterviewQuestionContext: prompt, evidence, expected count, excluded questions
+    - InterviewSetType / QUESTION_CATEGORIES: valid scopes and their five category values
     - normalize_question: stable comparison for duplicate wording
 """
 import re
@@ -11,12 +12,19 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+InterviewSetType = Literal["general", "technical"]
+QUESTION_CATEGORIES = {
+    "general": ("introduction", "strengths", "development", "goals", "behavioral"),
+    "technical": ("work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"),
+}
+
 
 class InterviewQuestionDraft(BaseModel):
-    """A non-technical question with exact library excerpts supporting its framing."""
+    """A general or practical question with exact library excerpts supporting its framing."""
 
     question_text: str = Field(min_length=10, max_length=1000)
-    category: Literal["introduction", "strengths", "development", "goals", "behavioral"]
+    category: Literal["introduction", "strengths", "development", "goals", "behavioral",
+                      "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"]
     evidence_quotes: list[str] = Field(min_length=1, description="Exact excerpts from library data supporting any stated facts. Do not treat these excerpts as proof of unstated assumptions.")
 
 
@@ -34,6 +42,7 @@ class InterviewQuestionContext:
     library_text: str
     count: int
     excluded: tuple[str, ...] = ()
+    set_type: InterviewSetType = "general"
 
 
 def normalize_question(text: str) -> str:

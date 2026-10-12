@@ -4,12 +4,14 @@
 module InterviewPrep
   class StartQuestionSetService < ApplicationService
     # Receives the authenticated owner.
-    def initialize(user:)
-      @user = user
+    def initialize(user:, set_type: "general")
+      @user, @set_type = user, set_type
     end
 
     # Checks usable library presence and queues a set through the shared usage limits.
     def call
+      return failure([ "Unknown interview question set type" ]) unless InterviewQuestionSet::SET_TYPES.include?(@set_type)
+
       associations = [ @user.experiences, @user.projects, @user.educations,
                        @user.certifications, @user.skills, @user.library_facts ]
       if @user.summary.blank? && associations.none?(&:exists?)
@@ -27,9 +29,9 @@ module InterviewPrep
       previous = @user.ai_tasks.where(task_type: "generate_interview_questions")
                       .maximum(Arel.sql("(input->>'set_number')::integer")).to_i
       number = [ previous, @user.interview_question_sets.maximum(:number).to_i ].max + 1
-      question_set = @user.interview_question_sets.create!(number: number)
+      question_set = @user.interview_question_sets.create!(number: number, set_type: @set_type)
       task.subject = question_set
-      task.input = { "question_set_id" => question_set.id, "set_number" => number }
+      task.input = { "question_set_id" => question_set.id, "set_number" => number, "set_type" => @set_type }
       success(task)
     end
   end

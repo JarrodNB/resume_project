@@ -17,6 +17,7 @@ import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
 from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.interview_feedback import InterviewFeedbackContext
+from schemas.interview_questions import InterviewSetType
 from screening.screen_user_text import screen_user_text
 from worker.interview_questions_handler import _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
@@ -28,6 +29,7 @@ class InterviewFeedbackInput(BaseModel):
     """Question and answer revisions saved before queue publication."""
 
     question_set_id: UUID
+    set_type: InterviewSetType = "general"
     question_id: UUID
     question_text: str = Field(min_length=1)
     answer_text: str = Field(min_length=1, max_length=text_limits.MAX_INTERVIEW_ANSWER)
@@ -67,11 +69,11 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     library.facts, warnings = select_screened_facts(library.facts, screen)
     content = library.model_dump(mode="json", exclude_none=True,
                                exclude={"facts": {"__all__": {"requirement"}}})
-    text = json.dumps({"question": snapshot.question_text, "answer": snapshot.answer_text,
+    text = json.dumps({"set_type": snapshot.set_type, "question": snapshot.question_text, "answer": snapshot.answer_text,
                        "career_library": content}, ensure_ascii=False)
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
-    context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + _library_evidence_text(content))
+    context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + _library_evidence_text(content), snapshot.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_feedback(context, model=settings.interview_feedback_model,

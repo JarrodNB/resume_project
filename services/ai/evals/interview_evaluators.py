@@ -14,8 +14,10 @@ from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
+    QUESTION_CATEGORIES,
     InterviewQuestionContext,
     InterviewQuestions,
+    InterviewSetType,
     normalize_question,
 )
 
@@ -24,6 +26,7 @@ class QuestionEvalInput(BaseModel):
     """Synthetic usable library and replacement exclusions."""
 
     library: str
+    set_type: InterviewSetType = "general"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
 
@@ -32,6 +35,7 @@ class FeedbackEvalInput(BaseModel):
     """Synthetic saved answer with optional career evidence."""
 
     question: str
+    set_type: InterviewSetType = "general"
     answer: str
     library: str = ""
 
@@ -44,17 +48,17 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    text = f"Generate {case.count} questions.\nLibrary JSON data:\n{json.dumps({'summary': case.library})}"
+    text = f"Generate {case.count} {case.set_type} questions.\nLibrary JSON data:\n{json.dumps({'summary': case.library})}"
     if case.excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(case.excluded)
-    return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded))
+    return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded), case.set_type)
 
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
-    text = json.dumps({"question": case.question, "answer": case.answer,
+    text = json.dumps({"set_type": case.set_type, "question": case.question, "answer": case.answer,
                        "career_library": {"summary": case.library}})
-    return InterviewFeedbackContext(text, case.answer + "\n" + case.library)
+    return InterviewFeedbackContext(text, case.answer + "\n" + case.library, case.set_type)
 
 
 @dataclass
@@ -68,7 +72,8 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
         excluded = {normalize_question(text) for text in ctx.inputs.excluded}
         checks = {
             "question_count": len(questions) == ctx.inputs.count,
-            "category_variety": ctx.inputs.count != 5 or len({q.category for q in questions}) == 5,
+            "category_variety": all(q.category in QUESTION_CATEGORIES[ctx.inputs.set_type] for q in questions)
+            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
                 quote.strip() and quote in ctx.inputs.library for quote in q.evidence_quotes

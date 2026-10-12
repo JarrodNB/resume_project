@@ -7,6 +7,14 @@ RSpec.describe InterviewQuestionSet do
   let(:user) { create(:user) }
   let(:question_set) { user.interview_question_sets.create!(number: 1) }
 
+  it "defaults legacy sets to general, validates types, and keeps the type immutable" do
+    expect(question_set.reload.set_type).to eq("general")
+    expect(user.interview_question_sets.build(number: 2, set_type: "quiz")).not_to be_valid
+    technical = user.interview_question_sets.create!(number: 2, set_type: "technical")
+    expect { technical.update!(set_type: "general") }.to raise_error(ActiveRecord::ReadonlyAttributeError)
+    expect(technical.reload.set_type).to eq("technical")
+  end
+
   # Builds a question within the user's practice set.
   def add_question(position, **attributes)
     question_set.questions.create!(position: position, question_text: "Question #{position}?", **attributes)

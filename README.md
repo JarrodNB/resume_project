@@ -1,132 +1,173 @@
-# Careergrind
+<!-- Description: Public overview and development guide for Resume Project.
+Index: Overview, Capabilities, AI engineering, Architecture, Getting started, Development, Documentation. -->
 
-A job search assistant that pairs an AI-assisted resume builder with tools to organize
-the whole search: tailoring resumes to jobs, gap analysis, a job board, and application tracking.
+# Resume Project
 
-The AI works *with* the user. It asks questions and fills gaps instead of mass-generating
-and mass-sending resumes.
+An AI-assisted job search application for building tailored resumes, organizing career
+experience, and managing applications. It brings resume preparation, job analysis, and
+interview practice into one workflow, with users reviewing and refining AI-generated content.
+The project combines retrieval-augmented generation (RAG), structured model outputs,
+prompt injection defenses, and evaluation workflows in a full-stack application.
 
-## Repository Layout
+## Capabilities
 
-- `apps/web` — React app
-- `apps/landing` — landing page
-- `services/api` — Rails GraphQL API
-- `services/ai` — Python SQS workers for all LLM work
-- `infra` — Terraform, Kubernetes, local ElasticMQ (SQS) config
-- `docs` — architecture and plans
+- **Career library:** Organize experience, education, projects, skills, and certifications
+  in a reusable profile.
+- **Resume import:** Extract information from PDF and DOCX resumes for review and import.
+- **Resume tailoring:** Adapt resume content to a job posting and export it as a PDF.
+- **Job management:** Save job postings and track applications through their stages.
+- **Gap analysis:** Compare a career profile with job requirements and capture additional evidence.
+- **Interview preparation:** Generate job-specific questions, save answers, and receive feedback.
 
-Start with `AGENTS.md` (conventions) and `docs/mvp_plan.md` (what we're building first).
+## AI engineering
 
-## Running Locally
+### Retrieval-augmented generation
 
-Requires only Docker Desktop. On Windows, keep the repo inside a WSL2 distro (e.g.
-`~/resume_project` in Ubuntu) and run commands from that distro, with Docker Desktop's WSL
-integration enabled for it. Bind-mounting from the Windows filesystem (`C:\...`) makes every
-Rails request take seconds and breaks file-change events.
+Resume tailoring retrieves career evidence for each section using the role and job requirements.
+[Hybrid search](services/ai/database/library_embedding_search.py) combines pgvector cosine
+ranking with BM25 keyword ranking through reciprocal rank fusion. Queries are scoped to
+the user and embedding model; the highest-ranked entries ground the section's context.
+[Section retrieval](services/ai/tailoring/retrieve_for_section.py) selects up to eight entries
+and falls back to the full library when no matching embeddings exist.
+
+### Prompt injection defenses and grounded outputs
+
+[Input screening](services/ai/screening/screen_user_text.py) checks user-written text before
+it reaches generation prompts. A phrase check catches obvious instruction overrides;
+TypeSafe Jev provides model-based screening with a confidence threshold. Uploaded resumes
+use model screening without the phrase check. Missing credentials or screening errors
+block the text from proceeding. Adversarial eval cases cover embedded instructions and
+legitimate security-related content to test both blocking and false positives.
+
+Pydantic schemas constrain model output. Resume parsing applies
+[source-faithfulness checks](services/ai/documents/enforce_source_faithfulness.py), while
+[tailoring validators](services/ai/agents/resume_tailoring_agent.py) check evidence labels
+and unsupported claims, requesting a retry when validation fails. These checks reduce
+unsupported output; users review generated content before using it.
+
+### Evaluations
+
+[Pydantic Evals suites](services/ai/evals/) use synthetic, labelled datasets and task-specific
+evaluators. Runs attach scores to Langfuse traces for comparison across prompt and model changes.
+
+| Area | Evaluation focus |
+| --- | --- |
+| Retrieval | Hit@1, Recall@K, Precision@K, and mean reciprocal rank using production ranking code |
+| Resume parsing and tailoring | Source faithfulness, section recall, relevance, and embedded instructions |
+| Job extraction and gap analysis | Field accuracy, verbatim requirements, verdict accuracy, and evidence validity |
+| Input screening | Screening decisions and classifier answers on benign and adversarial inputs |
+| Interview preparation | Deterministic structure/evidence checks and input-aware LLM judges |
+
+Retrieval evals exercise embeddings and ranking without PostgreSQL. Interview evals use
+trusted synthetic inputs; handler tests cover screening and failure behavior separately.
+Subjective judge scores serve as review signals. Evaluator unit tests check scoring logic.
+
+### Observability and reliability
+
+Langfuse instruments agents and embeddings, with contact masking in traces. Workers enforce
+request, token, and execution-time limits, and use a fallback model for transient provider
+failures. Rails applies queue results with duplicate-delivery and stale-generation checks,
+tracks model usage, and enforces per-user AI budgets and task limits.
+
+## Architecture
+
+The application uses React and TypeScript for the frontend, a Rails GraphQL API for
+authentication and domain data, and Python workers for asynchronous AI tasks.
+
+Rails publishes tasks to an SQS queue. Python workers process them and return results
+through a separate queue, while GraphQL subscriptions deliver updates to the frontend.
+PostgreSQL stores application data and pgvector supports career library retrieval.
+AI workflows use Pydantic AI, with tracing through Langfuse.
+
+| Directory | Purpose |
+| --- | --- |
+| `apps/web/` | React application with Apollo GraphQL client |
+| `apps/landing/` | Marketing landing page |
+| `services/api/` | Rails API, authentication, and domain services |
+| `services/ai/` | Python workers, AI agents, and evaluations |
+| `infra/` | Infrastructure configuration and local service emulators |
+| `docs/` | Architecture and technical documentation |
+
+## Getting started
+
+Install Docker with Docker Compose. Docker Desktop users on Windows should enable WSL2
+integration and keep the repository in the Linux filesystem, such as `~/resume_project`.
+Application runtimes and dependencies run inside containers.
+
+1. Copy the environment templates:
+
+   ```bash
+   cp services/api/.env.example services/api/.env
+   cp services/ai/.env.example services/ai/.env
+   ```
+
+2. Configure the environment files using the comments in each template. AI features use
+   OpenAI credentials; user-text screening uses a TypeSafe API key. Configure Langfuse
+   credentials to enable tracing. Local database, queue, and storage connections are
+   supplied by Docker Compose.
+
+3. Build and start the services:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   The API prepares the database on startup.
+
+| Service | Local endpoint |
+| --- | --- |
+| Web application | http://localhost:5173 |
+| Landing page | http://localhost:5174 |
+| API | http://localhost:3000 |
+| GraphQL subscriptions | ws://localhost:3000/cable |
+| PostgreSQL | `localhost:5432` |
+| ElasticMQ (SQS) | http://localhost:9324 |
+| S3Mock | http://localhost:9090 |
+
+The AI worker and API results worker consume queues and do not expose HTTP endpoints.
+
+Run a model evaluation, for example retrieval or input screening:
 
 ```bash
-cp services/ai/.env.example services/ai/.env     # add OpenAI and Langfuse keys
-cp services/api/.env.example services/api/.env
-docker compose up --build
+docker compose run --rm ai python -m evals.run_library_retrieval_evals
+docker compose run --rm ai python -m evals.run_user_text_screen_evals
 ```
 
-| Service | URL / port              |
-| ------- | ----------------------- |
-| web     | http://localhost:5173   |
-| landing | http://localhost:5174   |
-| api     | http://localhost:3000 (GraphQL subscriptions: ws://localhost:3000/cable) |
-| api-results-worker | consumes `ai_results` (no port) |
-| ai      | consumes `ai_tasks` (no port) |
-| db      | localhost:5432          |
-| sqs     | http://localhost:9324   |
-| s3      | http://localhost:9090 (S3Mock, bucket `careergrind-uploads`) |
+Evaluations call external model APIs and incur usage charges; unit tests use test doubles.
 
-Reset the local database (deletes all local data): `docker compose down -v`.
-After changing dependencies, rebuild: `docker compose up --build -V`.
+## Development
 
-## Status
-
-- Done: local dev foundation; Rails core (JWT auth, career library / resume / job / AI task
-  models, GraphQL API with job and experience mutations, RSpec suite); SQS round trip
-  (Rails -> `ai_tasks` -> Python echo worker -> `ai_results` -> Rails, with live
-  `aiTaskUpdated` GraphQL subscription); resume parsing (upload a PDF/DOCX via the
-  `parseResume` mutation, Pydantic AI agent traced in Langfuse, review, then
-  `importParsedResume` into the career library), with evals.
-- Next: job scraping, gap analysis, tailoring, memory.
-
-## Commands
-
-Run these from the repo root. `exec` runs inside an already-running container;
-`run --rm` starts a throwaway one (use it when the stack is down).
-
-### Whole stack
+Run commands from the repository root. Commands using `exec` require the relevant
+container to be running; `run --rm` creates a temporary container.
 
 | Task | Command |
-| ---- | ------- |
-| Start (detached) | `docker compose up -d` |
-| Stop gracefully (keeps data) | `docker compose down` |
-| Stop without removing containers | `docker compose stop` |
-| Status | `docker compose ps` |
-| Follow all logs | `docker compose logs -f` |
-| Follow one service's logs | `docker compose logs -f <service>` |
-| Restart one service | `docker compose restart <service>` |
+| --- | --- |
+| Start in the background | `docker compose up -d` |
+| Stop services and retain database data | `docker compose down` |
+| Follow service logs | `docker compose logs -f <service>` |
 | Rebuild after dependency changes | `docker compose up --build -V` |
-| Reset database (deletes all local data) | `docker compose down -v` |
+| Run API tests | `docker compose run --rm api bundle exec rspec` |
+| Run AI worker tests | `docker compose run --rm ai pytest` |
+| Run frontend tests | `docker compose exec web npm test` |
+| Check frontend types | `docker compose exec web npm run typecheck` |
+| Lint the frontend | `docker compose exec web npm run lint` |
+| Run database migrations | `docker compose run --rm api bin/rails db:migrate` |
+| Open the Rails console | `docker compose exec api bin/rails console` |
+| Export the GraphQL schema | `docker compose run --rm api bin/rails graphql:schema:dump` |
+| Generate frontend GraphQL types | `docker compose exec web npm run codegen` |
 
-### api (Rails)
+After GraphQL changes, export the schema and regenerate frontend types. Restart the
+workers after changing code they load:
 
-| Task | Command |
-| ---- | ------- |
-| Shell | `docker compose exec api bash` |
-| Rails console | `docker compose exec api bin/rails console` |
-| Specs | `docker compose run --rm api bundle exec rspec` |
-| One spec file | `docker compose run --rm api bundle exec rspec spec/path/to_spec.rb` |
-| Migrate | `docker compose run --rm api bin/rails db:migrate` |
-| Generate a migration | `docker compose run --rm api bin/rails g migration <Name>` |
-| Install gems (after editing `Gemfile`) | `docker compose run --rm api bundle install` |
-| Dump GraphQL schema (after any GraphQL change) | `docker compose run --rm api bin/rails graphql:schema:dump` |
-| Routes | `docker compose run --rm api bin/rails routes` |
+```bash
+docker compose restart api-results-worker ai
+```
 
-`api-results-worker` shares the api image and gems; restart it after changing code it
-loads: `docker compose restart api-results-worker`.
+To remove local database data and other named volumes, run `docker compose down -v`.
 
-### ai (Python worker)
+## Documentation
 
-| Task | Command |
-| ---- | ------- |
-| Shell | `docker compose exec ai bash` |
-| Tests | `docker compose run --rm ai pytest` |
-| One test file | `docker compose run --rm ai pytest tests/path/to_test.py` |
-| Resume parsing evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_resume_parsing_evals` |
-| Add a package | `docker compose run --rm ai uv add <package>`, then `docker compose up --build -V -d ai` |
-| Restart after code changes | `docker compose restart ai` |
-| Tailoring evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_tailoring_evals` |
-| Library retrieval evals (real OpenAI calls) | `docker compose run --rm ai python -m evals.run_library_retrieval_evals` |
+- [Architecture](docs/architecture.md) — service boundaries, data flow, and queue behavior.
+- [Repository conventions](AGENTS.md) — code organization and contribution guidelines.
 
-### web (React)
-
-| Task | Command |
-| ---- | ------- |
-| Shell | `docker compose exec web sh` |
-| Tests | `docker compose exec web npm test` |
-| Type check | `docker compose exec web npm run typecheck` |
-| Lint | `docker compose exec web npm run lint` |
-| GraphQL codegen (after schema dump or operation changes) | `docker compose exec web npm run codegen` |
-| Add a package | `docker compose run --rm --no-deps web npm install <package>`, then `docker compose up --build -V -d web` |
-| Add a shadcn/ui component | `docker compose exec -T web npx shadcn@latest add <name> -y` |
-
-### db (Postgres)
-
-| Task | Command |
-| ---- | ------- |
-| psql (dev database) | `docker compose exec db psql -U postgres api_development` |
-| List databases | `docker compose exec db psql -U postgres -c '\l'` |
-
-docker compose logs -f --tail=100 api
-docker compose logs -f --tail=100 api-results-worker
-docker compose logs -f --tail=100 ai
-docker compose logs -f --tail=100 web
-
-
-docker compose up -d db sqs s3 landing
-docker compose up api api-results-worker ai web
+Keep credentials in the ignored environment files. Commit environment templates without secrets.

@@ -5,6 +5,9 @@ module InterviewPrep
   class ApplyQuestionsService < ApplicationService
     CATEGORIES = %w[introduction strengths development goals behavioral].freeze
     TECHNICAL_CATEGORIES = %w[work_overview tools_methods decisions_tradeoffs problem_solving improvement_quality].freeze
+    KNOWLEDGE_CATEGORIES = %w[concepts mechanisms application reasoning limitations].freeze
+    CATEGORIES_BY_TYPE = { "general" => CATEGORIES, "technical" => TECHNICAL_CATEGORIES,
+                           "knowledge" => KNOWLEDGE_CATEGORIES }.freeze
     STALE_MESSAGE = "These questions are out of date. Request generation again.".freeze
     INVALID_MESSAGE = "We couldn't save valid, distinct interview questions. Try again.".freeze
 
@@ -75,7 +78,8 @@ module InterviewPrep
 
       drafts = @result["interview_questions"]["questions"]
       count = @task.generate_interview_questions? ? 5 : 1
-      categories = @task.input.fetch("set_type", "general") == "technical" ? TECHNICAL_CATEGORIES : CATEGORIES
+      categories = CATEGORIES_BY_TYPE[@task.input.fetch("set_type", "general")]
+      return unless categories
       return unless drafts.is_a?(Array) && drafts.length == count
       return unless drafts.all? do |draft|
         draft.is_a?(Hash) && draft["question_text"].is_a?(String) &&

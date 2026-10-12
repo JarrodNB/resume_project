@@ -32,6 +32,7 @@ Ordered Rails migrations for domain persistence.
 - `20261010020000_add_certification_date_precision.rb`
 - `20261010030000_create_interview_question_sets.rb`
 - `20261012010000_add_set_type_to_interview_question_sets.rb` — required general/technical type with legacy default and database constraint.
+- `20261012020000_allow_knowledge_interview_question_sets.rb` — expands the constraint to knowledge without rewriting existing scopes.
 
 ## Local Rules
 

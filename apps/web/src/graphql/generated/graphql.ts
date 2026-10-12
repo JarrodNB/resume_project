@@ -53,6 +53,7 @@ export type ExperienceAttributesInput = {
 
 export type InterviewQuestionSetTypeEnum =
   | 'GENERAL'
+  | 'KNOWLEDGE'
   | 'TECHNICAL';
 
 export type JobAttributesInput = {

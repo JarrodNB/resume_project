@@ -30,7 +30,7 @@ GraphQL output/input types, enums, and root operation fields.
 - `experience_highlight_type.rb`
 - `experience_type.rb`
 - `interview_question_set_type.rb`
-- `interview_question_set_type_enum.rb` — validated general/technical scopes from the model constant.
+- `interview_question_set_type_enum.rb` — validated general/technical/knowledge scopes from the model constant.
 - `interview_question_type.rb`
 - `job_attributes_input.rb`
 - `job_gap_response_type.rb`

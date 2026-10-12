@@ -45,5 +45,6 @@ definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
 - `interview_questions.py` — question drafts, category/evidence metadata, and generation constraints. Results use `interview_questions: {questions: [...]}`; Rails `InterviewPrep::ApplyQuestionsService` validates and persists them.
+- `InterviewSetType` accepts general, technical, and knowledge; knowledge categories are exactly `concepts`, `mechanisms`, `application`, `reasoning`, and `limitations` across Python and Rails.
 
-- `interview_feedback.py` — strengths, improvements, example answer, evidence quotes, and trusted source context; results use `interview_feedback`.
+- `interview_feedback.py` — strengths, improvements, scope-aware example descriptions, evidence quotes, and trusted source context; results use `interview_feedback`. Knowledge examples may correct subject facts without personal-fact placeholders; all scopes forbid invented personal experience.

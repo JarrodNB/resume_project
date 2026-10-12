@@ -41,7 +41,7 @@ def dependencies(task_dependencies, monkeypatch):
     return replace(task_dependencies, read_career_library=lambda user: CareerLibrary())
 
 
-@pytest.mark.parametrize("set_type", [None, "general", "technical"])
+@pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
 def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, monkeypatch):
     """Sparse context still gives grounded feedback; snapshot remains unchanged."""
     request = task()
@@ -64,6 +64,25 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
     assert result.result["interview_feedback"] == output()
     assert len(result.usage) == 2
     assert request.model_dump() == original
+
+
+def test_knowledge_correction_need_not_copy_incorrect_answer(dependencies):
+    """Subject corrections use new vocabulary without mutating saved input or inventing evidence."""
+    request = task()
+    request.input.update(set_type="knowledge", question_text="How do lists and tuples differ?",
+                         answer_text="Lists are immutable but tuples can be appended to.")
+    original = request.model_dump()
+    draft = {"strengths": ["You compare the two types."],
+             "improvements": ["Reverse the mutability claim.", "Explain what mutability means."],
+             "example_answer": "Lists are mutable: their elements can change and new items can be appended. "
+                               "Tuples are immutable: their sequence cannot change after creation.",
+             "evidence_quotes": []}
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == "completed"
+    assert result.result["interview_feedback"] == draft
+    assert request.model_dump() == original
+    assert len(result.usage) == 2
 
 
 def test_example_can_paraphrase_without_source_vocabulary(dependencies):
@@ -156,6 +175,46 @@ def test_excessive_placeholders_fail_with_billed_usage(dependencies):
     assert result.status == "failed"
     assert "answer is saved" in result.error_message
     assert sum(entry.output_tokens for entry in result.usage) > 0
+
+
+def test_knowledge_example_word_limit_retries_with_usage(dependencies):
+    """Knowledge subject explanations cannot exceed the concise 120-word contract."""
+    request = task()
+    request.input["set_type"] = "knowledge"
+    draft = output()
+    draft["example_answer"] = "word " * 121
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == "failed"
+    assert "answer is saved" in result.error_message
+    assert sum(entry.output_tokens for entry in result.usage) > 0
+
+
+def test_knowledge_example_retry_accepts_concise_correction(dependencies):
+    """A too-long subject answer sends a real retry, then accepts a concise corrected response."""
+    from pydantic_ai.messages import ModelResponse, RetryPromptPart, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    calls = []
+    concise = "Lists are mutable sequences; tuples are immutable sequences."
+
+    def respond(messages, info):
+        """Returns an overlong draft first and a concise correction after the validator retries."""
+        calls.append(messages)
+        draft = output()
+        draft["example_answer"] = "word " * 121 if len(calls) == 1 else concise
+        draft["evidence_quotes"] = []
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, draft)])
+
+    request = task()
+    request.input["set_type"] = "knowledge"
+    with interview_feedback_agent.override(model=FunctionModel(respond)):
+        result = handle_ai_task(request, dependencies)
+    assert result.status == "completed"
+    assert result.result["interview_feedback"]["example_answer"] == concise
+    assert len(calls) == 2
+    assert any(isinstance(part, RetryPromptPart) and "at most 120 words" in part.content
+               for message in calls[-1] for part in message.parts)
 
 
 def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypatch):

@@ -1,9 +1,10 @@
 """
-Description: Generates grounded coaching with nonblank/placeholder checks and normalized evidence.
+Description: Selects scope-specific coaching with nonblank checks and normalized evidence.
 Index:
     - interview_feedback_agent / check_labels: agent and output validation
     - InterviewFeedbackRun / generate_interview_feedback: bounded run and billed usage
     - source_excerpt: removes presentation quotes only when the contents match source text
+    - interview_feedback_instructions: selects trusted scope-specific instructions
 """
 import asyncio
 import re
@@ -17,6 +18,9 @@ from pydantic_ai_harness import InputGuardrail
 from prompts.interview_feedback_instructions import (
     INTERVIEW_FEEDBACK_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_PROMPT_VERSION,
+)
+from prompts.interview_knowledge_feedback_instructions import (
+    INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS,
 )
 from schemas.interview_feedback import (
     InterviewFeedback,
@@ -33,11 +37,18 @@ interview_feedback_agent = Agent(
     name="interview_feedback_agent",
     deps_type=InterviewFeedbackContext,
     output_type=InterviewFeedback,
-    instructions=INTERVIEW_FEEDBACK_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
     capabilities=[InputGuardrail(guard=screen_prompt)],
 )
+
+
+@interview_feedback_agent.instructions
+def interview_feedback_instructions(context: RunContext[InterviewFeedbackContext]) -> str:
+    """Keeps subject corrections separate from general/technical personal-fact scaffolds."""
+    if context.deps is not None and context.deps.set_type == "knowledge":
+        return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS
+    return INTERVIEW_FEEDBACK_INSTRUCTIONS
 
 
 @interview_feedback_agent.output_validator
@@ -47,6 +58,8 @@ def check_labels(context: RunContext[InterviewFeedbackContext], analysis: Interv
         raise ModelRetry("Use nonblank strengths, improvements, and an illustrative example answer.")
     if len(re.findall(r"\[[^\[\]]*\]", analysis.example_answer)) > 2:
         raise ModelRetry("Use at most two focused square-bracket placeholders. Omit optional missing details.")
+    if context.deps.set_type == "knowledge" and len(analysis.example_answer.split()) > 120:
+        raise ModelRetry("Keep the corrected knowledge example to at most 120 words while answering every question part.")
     excerpts = [source_excerpt(quote, context.deps.source_text) for quote in analysis.evidence_quotes]
     # Evidence is auxiliary metadata, so discard invalid excerpts without retrying prose.
     analysis.evidence_quotes = [quote for quote in excerpts if quote is not None]

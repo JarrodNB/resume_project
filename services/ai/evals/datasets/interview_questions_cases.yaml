@@ -47,3 +47,26 @@ cases:
         - "What decisions do you make when checking oven temperature?"
         - "Tell me about a problem you encountered while recording batch details."
         - "How do you check the appearance of products for quality?"
+  - name: knowledge-python-subjects
+    inputs:
+      set_type: knowledge
+      library: "Python engineer. Skills: Python and PostgreSQL."
+  - name: knowledge-nontechnology-food-safety
+    inputs:
+      set_type: knowledge
+      library: "Catering assistant. Completed food safety training. Skills: safe food storage and allergen awareness."
+  - name: knowledge-sparse-source-comparison
+    inputs:
+      set_type: knowledge
+      library: "Skills: historical source comparison."
+  - name: knowledge-replacement-distinct-subject
+    inputs:
+      set_type: knowledge
+      count: 1
+      library: "Skills: Python."
+      excluded:
+        - "What is the difference between a Python list and a tuple?"
+        - "How does Python's name binding relate to mutable objects?"
+        - "How would you use a dictionary to count words?"
+        - "Why does changing a mutable default argument affect later calls?"
+        - "What limitations does the global interpreter lock impose on CPU-bound threads?"

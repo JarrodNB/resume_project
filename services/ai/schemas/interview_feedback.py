@@ -18,7 +18,10 @@ class InterviewFeedback(BaseModel):
                                description="Observations supported by the actual answer, not library facts omitted from it.")
     improvements: list[str] = Field(min_length=1, max_length=5)
     example_answer: str = Field(min_length=1, max_length=1000, description=(
-        "A clearer first-person version of ONLY personal facts explicitly stated in the answer or library. "
+        "For knowledge scope: a concise corrected subject answer using general subject knowledge, "
+        "even when absent from source text or contradicting an incorrect answer. No invented personal "
+        "experience or placeholders for subject facts. For general/technical scope ONLY: "
+        "a clearer first-person version of ONLY personal facts explicitly stated in the answer or library. "
         "Do not invent or infer methods, actions, intentions, reasons, events or outcomes. "
         "Writing a test does NOT establish that it passed or confirmed a result. A skill does NOT supply "
         "its usual techniques or hands-on experience. Put ENTIRE missing details in at most TWO "

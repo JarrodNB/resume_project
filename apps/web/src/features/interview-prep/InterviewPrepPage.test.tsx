@@ -55,6 +55,22 @@ it('deliberately selects technical practice and submits that type', async () => 
   expect(await screen.findByText('Technical set queued')).toBeInTheDocument()
 })
 
+it('selects knowledge practice and submits its persisted scope', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Knowledge set queued</p> }], mocks: [listMock([]), {
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'KNOWLEDGE' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'knowledge-task', input: { question_set_id: 'knowledge-set', set_type: 'knowledge' } } } } },
+  }] })
+  fireEvent.click(screen.getByRole('radio', { name: 'Knowledge' }))
+  expect(screen.getByRole('radio', { name: 'Knowledge' })).toBeChecked()
+  fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
+  expect(await screen.findByText('Knowledge set queued')).toBeInTheDocument()
+})
+
+it('labels reloaded knowledge sets independently of the generation selector', async () => {
+  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock([{ ...setFixture(3), setType: 'KNOWLEDGE' }])] })
+  expect(await screen.findByRole('link', { name: /Set 3 · Knowledge/ })).toHaveAttribute('href', '/interview-prep/set-3')
+  expect(screen.getByRole('radio', { name: 'General' })).toBeChecked()
+})
+
 it('requires confirmation, cancels safely, and retains a set when deletion fails', async () => {
   const result = vi.fn(() => ({ data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: ['Please try again.'] } } }))
   renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [listMock(), { request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }] })

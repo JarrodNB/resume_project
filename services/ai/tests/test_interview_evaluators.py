@@ -5,6 +5,7 @@ Index:
     - test_feedback_structure: blank coaching, invented evidence and missing placeholders
     - test_reporting_errors: runner fails and flushes on case or judge errors
 """
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -21,10 +22,28 @@ from schemas.interview_questions import (
 )
 
 
+def test_knowledge_accuracy_skips_other_scopes(monkeypatch):
+    """Nonknowledge cases cannot be misgraded by the subject-accuracy model judge."""
+    seen = []
+
+    async def judge(self, context):
+        """Records applicable model judgments without making a provider request."""
+        seen.append(context.inputs.set_type)
+        return {"knowledge_accuracy": 0.5}
+
+    monkeypatch.setattr(interview_eval_reporting.LLMJudge, "evaluate", judge)
+    evaluator = interview_eval_reporting.KnowledgeAccuracyJudge(rubric="Subject correctness")
+    for set_type in ("general", "technical", "knowledge"):
+        context = SimpleNamespace(inputs=SimpleNamespace(set_type=set_type))
+        scores = asyncio.run(evaluator.evaluate(context))
+        assert scores == ({"knowledge_accuracy": 0.5} if set_type == "knowledge" else {})
+    assert seen == ["knowledge"]
+
+
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 9
+    assert len(dataset.cases) == 13
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
@@ -49,7 +68,7 @@ def test_question_structure() -> None:
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 9
+    assert len(dataset.cases) == 13
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],

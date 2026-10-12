@@ -1,7 +1,7 @@
 """
 Description: Read-only handlers for interview set generation and single-question replacement.
 Index:
-    - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical scope
+    - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical/knowledge scope
     - _library_evidence_text: original library strings for excerpt validation
     - handle_interview_questions_task: screens notes, checks context size, generates questions
 """

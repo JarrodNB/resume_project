@@ -12,6 +12,7 @@ import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { DeleteInterviewSetButton } from './DeleteInterviewSetButton'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { interviewSetDate } from './interviewSetDate'
+import { interviewSetTypeLabel } from './interviewSetTypeLabel'
 import { useInterviewSet } from './useInterviewPrep'
 
 /** Restores generation after reload and displays the saved questions after completion. */
@@ -34,7 +35,7 @@ export function InterviewSetPage() {
     {!questionSet && loading && <p>Loading…</p>}
     {questionSet && <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold tracking-tight">Set {questionSet.number} · {questionSet.setType === 'TECHNICAL' ? 'Technical' : 'General'} · {interviewSetDate(questionSet.createdAt)}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Set {questionSet.number} · {interviewSetTypeLabel(questionSet.setType)} · {interviewSetDate(questionSet.createdAt)}</h1>
         <DeleteInterviewSetButton id={id} number={questionSet.number} onDeleted={() => { flushSync(() => setDirtyAnswers({})); navigate('/interview-prep') }} />
       </div>
       {questionSet.latestTask && <InterviewTaskStatus key={questionSet.latestTask.id} task={questionSet.latestTask} onFinished={refetch} />}

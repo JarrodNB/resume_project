@@ -72,6 +72,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   bar does not count as a block
 - `test_tracing.py` — exporter privacy after context exit, nested agent/embedding prompt versions,
   environment labels, numeric eval scores and bounded failure flushes
+- `test_telemetry_flush.py` — blocked exporters respect caller deadlines; repeated calls
+  share one background attempt without an unbounded queue
 - `test_tracing_integration.py` — production task/configuration instrumentation, task identity,
   real synthetic Pydantic Evals cases and exception flushing
 - `test_contact_mask.py` — known name, email, and phone become placeholders on a model

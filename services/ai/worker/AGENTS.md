@@ -46,6 +46,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `tracing.py` — `configure_tracing` (Logfire + `Agent.instrument_all()` +
   `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`,
   `record_prompt_version` (stamps one prompt's version on that run's spans)
+- `telemetry_flush.py` — shares one daemon SDK flush with a five-second caller wait and
+  no queued work when an exporter stalls
 - `telemetry_privacy.py` — synchronously masks span/log attributes, names, events,
   exceptions and status before asynchronous export; captures per-task contact at span start
 - `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`

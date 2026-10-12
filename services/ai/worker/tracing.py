@@ -4,7 +4,7 @@ Index:
     - configure_tracing: configures env-based export and connected instrumentation
     - trace_ai_task: groups one task and always flushes with bounded waiting
     - record_prompt_version: labels each nested model call with its prompt version
-    - flush_tracing: waits at most five seconds for queued telemetry
+    - flush_tracing: waits at most five seconds for one shared background flush
 """
 
 import os
@@ -17,7 +17,10 @@ from pydantic_ai import Agent, Embedder, InstrumentationSettings
 
 from worker.contact_mask import install_contact_hooks, using_known_contact
 from worker.queue_messages import AiTaskMessage
+from worker.telemetry_flush import BoundedTelemetryFlush
 from worker.telemetry_privacy import ContactLogProcessor, ContactSpanProcessor, telemetry_scope
+
+_flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
 
 
 def configure_tracing() -> None:
@@ -39,7 +42,7 @@ def configure_tracing() -> None:
 
 def flush_tracing() -> None:
     """Bounds flushing so an unavailable telemetry backend does not stall the worker."""
-    logfire.force_flush(timeout_millis=5000)
+    _flush.flush()
 
 
 @contextmanager

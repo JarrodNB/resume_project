@@ -6,6 +6,7 @@ Index:
     - test_flush_runs_on_failures: bounded flush in finally
 """
 
+import json
 from threading import Thread
 
 import logfire
@@ -48,17 +49,18 @@ def exporters():
     logfire.force_flush(timeout_millis=1000)
 
 
-def test_export_masks_completed_span_after_contact_scope_exits(exporters):
+@pytest.mark.parametrize("name", ["Alex Rivera", 'Dana "Dee" Smith', "Dana\\Smith\nRivera"])
+def test_export_masks_completed_span_after_contact_scope_exits(exporters, name):
     """Exports after scope exit; restored values and exception details remain masked."""
     spans, logs = exporters
-    secret = "Alex Rivera alex@example.test +1 555 123 4567"
+    secret = f"{name} alex@example.test +1 555 123 4567"
     contact = KnownContact.from_values(
-        names=["Alex Rivera"], emails=["alex@example.test"], phones=["+1 555 123 4567"]
+        names=[name], emails=["alex@example.test"], phones=["+1 555 123 4567"]
     )
     with (  # noqa: SIM117 — preserve parent and child spans
         contact_scope(contact),
         telemetry_scope(ai_task_id="42", user_id="7", task_type="parse_resume"),
-        logfire.span("task", input={"text": secret}),
+        logfire.span("task", input={"text": secret, name: [name, 42, True, None]}),
     ):
         with trace.get_tracer("test").start_as_current_span("restored " + secret) as span:
             span.set_attribute("response", secret)
@@ -80,7 +82,12 @@ def test_export_masks_completed_span_after_contact_scope_exits(exporters):
             for record in logs.get_finished_logs()
         ]
     )
-    for value in ("Alex Rivera", "alex@example.test", "+1 555 123 4567"):
+    parent = next(span for span in spans.get_finished_spans() if span.name == "task")
+    assert json.loads(parent.attributes["input"]) == {
+        "text": "«name» «email» «phone»",
+        "«name»": ["«name»", 42, True, None],
+    }
+    for value in (name, "alex@example.test", "+1 555 123 4567"):
         assert value not in rendered
     assert "«name»" in rendered
     assert all(span.attributes["ai_task_id"] == "42" for span in spans.get_finished_spans())

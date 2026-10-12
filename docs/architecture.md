@@ -367,7 +367,8 @@ tailoring) instead of sending everything.
 - **Logfire telemetry configured through environment variables.** `LOGFIRE_TOKEN` enables
   remote export; without a token the worker and evals run without remote tracing or login.
   `LOGFIRE_ENVIRONMENT` labels environments. Each task and eval run flushes in a `finally`
-  block with a five-second bound. Known contact is captured at span creation and masked
+  block with a five-second total caller wait. One daemon flush runs at a time, with no
+  queued attempts if an exporter stalls. Known contact is captured at span creation and masked
   synchronously before export, including attributes, events, exception text, and status.
   Model requests and search queries use contact placeholders; application responses restore
   contact values. Other resume content can still leave the app when remote export is enabled.

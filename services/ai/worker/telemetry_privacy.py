@@ -6,6 +6,7 @@ Index:
     - telemetry_scope: attaches task or prompt metadata to all nested spans
 """
 
+import json
 from contextlib import contextmanager
 from contextvars import ContextVar
 from threading import Lock
@@ -30,12 +31,21 @@ def telemetry_scope(**attributes):
 
 
 def _mask(value, contact):
-    """Masks strings and keys in nested telemetry values."""
+    """Masks nested values, decoding serialized JSON before replacing known contact."""
     if isinstance(value, str):
+        try:
+            decoded = json.loads(value)
+        except (ValueError, RecursionError):
+            return contact.mask(value)
+        masked = _mask(decoded, contact)
+        if masked != decoded:
+            return json.dumps(masked, ensure_ascii=False)
         return contact.mask(value)
     if isinstance(value, dict):
         return {_mask(key, contact): _mask(item, contact) for key, item in value.items()}
-    if isinstance(value, (tuple, list)):
+    if isinstance(value, list):
+        return [_mask(item, contact) for item in value]
+    if isinstance(value, tuple):
         return tuple(_mask(item, contact) for item in value)
     return value
 

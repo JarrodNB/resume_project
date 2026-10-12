@@ -3,10 +3,12 @@
 ## Purpose
 
 Pydantic Evals datasets, evaluators, and runners that measure agent quality against the real
-model. Each run is one Langfuse trace (agent calls nested inside) with the average of every
+model. Each run is one Logfire trace (agent calls nested inside) with the average of every
 score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
+
+- `telemetry.py` — native Logfire eval context, always-flushed runs and numeric aggregate scores
 
 - `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through
   the official InputGuardrail capability, with a fake generative model. Measures allow/block
@@ -76,7 +78,7 @@ score attached, so runs can be compared across prompt and model changes.
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
   five question cases and six feedback cases for full sets/replacement, complete/incomplete answers, and introductions.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
-- `interview_eval_reporting.py` — input-aware Pydantic Evals LLM judges and Langfuse scores;
+- `interview_eval_reporting.py` — input-aware Pydantic Evals LLM judges and Logfire scores;
   judges use the evaluated agent's configured model. Case errors make the runner fail.
   Reports include raw output JSON so bracket placeholders can be checked without terminal
   markup. Feedback placeholder expectations live in metadata, outside agent/judge inputs;

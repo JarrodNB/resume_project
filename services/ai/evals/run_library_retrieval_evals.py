@@ -1,6 +1,6 @@
 """
 Description: Ranks synthetic library texts with the production hybrid ranker and reports
-average retrieval scores to Langfuse. Documents are embedded the way Rails stores them;
+average retrieval scores to Logfire. Documents are embedded the way Rails stores them;
 the query is the same text the worker searches with. Cosine order is fused with BM25
 the same way database/library_embedding_search.py does (no Postgres).
 Run: docker compose run --rm ai python -m evals.run_library_retrieval_evals
@@ -12,7 +12,6 @@ Index:
 
 from pathlib import Path
 
-from langfuse import get_client, propagate_attributes
 from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingSettings
 from pydantic_evals import Dataset
@@ -23,6 +22,7 @@ from evals.library_retrieval_evaluators import (
     RetrievalEvalInput,
     RetrievalEvalLabels,
 )
+from evals.telemetry import eval_run, record_score
 from memory.embed_search_query import embed_search_query
 from memory.hybrid_rank import hybrid_order
 from tailoring.retrieve_for_section import section_query
@@ -60,10 +60,9 @@ def rank_library(case: RetrievalEvalInput, model: str, dimensions: int) -> Ranke
 
 
 def run_library_retrieval_evals() -> None:
-    """Evaluates retrieval on every case and records the average scores in Langfuse."""
+    """Evaluates retrieval on every case and records the average scores in Logfire."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.embedding_model
     dimensions = settings.embedding_dimensions
 
@@ -71,20 +70,18 @@ def run_library_retrieval_evals() -> None:
         """The task under evaluation: one section query against its library."""
         return rank_library(case, model, dimensions)
 
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME, metadata={"model": model, "dimensions": dimensions}
-        ),
-        propagate_attributes(trace_name=TRACE_NAME, tags=["eval", "library_retrieval", model]),
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={"model": model, "dimensions": dimensions},
+        tags=["eval", "library_retrieval", model],
     ):
         report = load_library_retrieval_dataset().evaluate_sync(
             rank_case, name=f"library_retrieval:{model}", max_concurrency=2
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:

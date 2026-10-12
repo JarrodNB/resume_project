@@ -7,7 +7,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 ## Contents
 
 - `main.py` — entry point and polling loop (`python -m worker.main`); `process_task_message`
-  wraps each task in a Langfuse trace and publishes the result before the task message may be
+  wraps each task in a Logfire trace and publishes the result before the task message may be
   deleted; `poll_until_stopped` logs and retries errors (5s pause) instead of exiting
 - `queue_messages.py` — Pydantic models for `ai_tasks` and `ai_results` messages (keep them in
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
@@ -43,15 +43,17 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
-- `tracing.py` — `configure_tracing` (Langfuse + `Agent.instrument_all()` +
+- `tracing.py` — `configure_tracing` (Logfire + `Agent.instrument_all()` +
   `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`,
   `record_prompt_version` (stamps one prompt's version on that run's spans)
+- `telemetry_privacy.py` — synchronously masks span/log attributes, names, events,
+  exceptions and status before asynchronous export; captures per-task contact at span start
 - `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
   when `generative_fallback_model` names a different model. Provider errors switch; output
   validation retries do not. Jev does not use it
 - `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
   to «name», «email», and «phone»
-- `contact_mask.py` — applies that map on the model request, the Langfuse payload, and
+- `contact_mask.py` — applies that map on the model request, telemetry export, and
   `mask_outbound` (search-query embeddings). The model response is restored before the app
   sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the

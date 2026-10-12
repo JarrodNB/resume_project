@@ -1,5 +1,5 @@
 """
-Description: Runs the Jev user-text screen evals and reports average scores to Langfuse.
+Description: Runs the Jev user-text screen evals and reports average scores to Logfire.
 The task is the Jev call itself (screen_user_message), not the phrase list in front of it.
 Run: docker compose run --rm ai python -m evals.run_user_text_screen_evals
 Index:
@@ -9,10 +9,10 @@ Index:
 
 from pathlib import Path
 
-from langfuse import get_client, propagate_attributes
 from pydantic_evals import Dataset
 
 from agents.user_text_screen_agent import screen_user_message
+from evals.telemetry import eval_run, record_score
 from evals.user_text_screen_evaluators import (
     USER_TEXT_SCREEN_EVALUATORS,
     UserTextScreenEvalInput,
@@ -37,10 +37,9 @@ def load_user_text_screen_dataset() -> Dataset[
 
 
 def run_user_text_screen_evals() -> None:
-    """Evaluates Jev on every case and records the average scores in Langfuse."""
+    """Evaluates Jev on every case and records the average scores in Logfire."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.user_text_screen_model
 
     def judge_case(case: UserTextScreenEvalInput) -> UserTextScreenEvalOutput:
@@ -50,25 +49,19 @@ def run_user_text_screen_evals() -> None:
         )
         return UserTextScreenEvalOutput(screen=run.screen, confidence=run.confidence)
 
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME,
-            metadata={"model": model, "prompt_version": USER_TEXT_SCREEN_PROMPT_VERSION},
-        ),
-        propagate_attributes(
-            trace_name=TRACE_NAME,
-            version=USER_TEXT_SCREEN_PROMPT_VERSION,
-            tags=["eval", "user_text_screen", model],
-        ),
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={"model": model, "prompt_version": USER_TEXT_SCREEN_PROMPT_VERSION},
+        version=USER_TEXT_SCREEN_PROMPT_VERSION,
+        tags=["eval", "user_text_screen", model],
     ):
         report = load_user_text_screen_dataset().evaluate_sync(
             judge_case, name=f"user_text_screen:{model}", max_concurrency=4
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 if __name__ == "__main__":

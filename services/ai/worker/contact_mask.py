@@ -1,11 +1,11 @@
 """
 Description: Replaces the user's known name, contact email, and phone with placeholders
-before a model call, an embedding, or a Langfuse trace, and puts them back on the model
+before a model call, an embedding, or a telemetry export, and puts them back on the model
 response. Values come from the profile (and a tailoring snapshot).
 Index:
     - contact_scope: applies a KnownContact to the current task
     - using_known_contact: loads the profile and applies it for one task
-    - mask_langfuse_payload: Langfuse mask callback
+    - current_known_contact: contact captured before asynchronous telemetry export
     - mask_outbound: masks one string with the current task's contact
     - install_contact_hook: adds the model-request hook to one agent
     - install_contact_hooks: adds it to every worker agent
@@ -39,12 +39,9 @@ def mask_outbound(text: str) -> str:
     return contact.mask(text)
 
 
-def mask_langfuse_payload(*, data: Any, **_kwargs: Any) -> Any:
-    """Langfuse mask callback. Observation input is masked when a task contact is active."""
-    contact = _current.get(None)
-    if contact is None or not contact.pairs:
-        return data
-    return _map_strings(data, contact.mask)
+def current_known_contact() -> KnownContact:
+    """Returns the immutable contact map for synchronous telemetry capture."""
+    return _current.get(KnownContact())
 
 
 @contextmanager

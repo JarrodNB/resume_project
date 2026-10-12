@@ -5,7 +5,7 @@ Index:
     - test_replaces_known_contact_and_leaves_other_words
     - test_longer_known_value_wins
     - test_model_request_is_masked_and_the_response_is_restored
-    - test_langfuse_payload_is_masked
+    - test_telemetry_payload_is_masked
     - test_search_query_uses_the_same_placeholders
 """
 
@@ -18,9 +18,10 @@ from pydantic_ai.models.function import FunctionModel
 
 from memory.embed_search_query import embed_search_query
 from worker.contact_mask import (
+    _map_strings,
     contact_scope,
+    current_known_contact,
     install_contact_hook,
-    mask_langfuse_payload,
     mask_outbound,
 )
 from worker.known_contact import KnownContact
@@ -76,7 +77,7 @@ def test_model_request_is_masked_and_the_response_is_restored() -> None:
     assert result.output == "Hello Jane Doe at Ada@Example.com"
 
 
-def test_langfuse_payload_is_masked() -> None:
+def test_telemetry_payload_is_masked() -> None:
     """Trace input keeps location and links, and hides the known contact."""
     payload = {
         "contact": {
@@ -87,9 +88,9 @@ def test_langfuse_payload_is_masked() -> None:
         }
     }
 
-    assert mask_langfuse_payload(data=payload) == payload
+    assert _map_strings(payload, current_known_contact().mask) == payload
     with contact_scope(_contact()):
-        masked = mask_langfuse_payload(data=payload)
+        masked = _map_strings(payload, current_known_contact().mask)
 
     assert masked["contact"]["full_name"] == "«name»"
     assert masked["contact"]["email"] == "«email»"

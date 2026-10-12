@@ -50,7 +50,7 @@ unsupported output; users review generated content before using it.
 ### Evaluations
 
 [Pydantic Evals suites](services/ai/evals/) use synthetic, labelled datasets and task-specific
-evaluators. Runs attach scores to Langfuse traces for comparison across prompt and model changes.
+evaluators. Runs attach scores to Logfire traces for comparison across prompt and model changes.
 
 | Area | Evaluation focus |
 | --- | --- |
@@ -68,7 +68,7 @@ Subjective judge scores serve as review signals. Evaluator unit tests check scor
 
 ### Observability and reliability
 
-Langfuse instruments agents and embeddings, with contact masking in traces. Workers enforce
+Logfire instruments agents and embeddings, with contact masking in traces. Workers enforce
 request, token, and execution-time limits, and use a fallback model for transient provider
 failures. Rails applies queue results with duplicate-delivery and stale-generation checks,
 tracks model usage, and enforces per-user AI budgets and task limits.
@@ -81,7 +81,7 @@ authentication and domain data, and Python workers for asynchronous AI tasks.
 Rails publishes tasks to an SQS queue. Python workers process them and return results
 through a separate queue, while GraphQL subscriptions deliver updates to the frontend.
 PostgreSQL stores application data and pgvector supports career library retrieval.
-AI workflows use Pydantic AI, with tracing through Langfuse.
+AI workflows use Pydantic AI, with tracing through Logfire.
 
 | Directory | Purpose |
 | --- | --- |
@@ -106,8 +106,8 @@ Application runtimes and dependencies run inside containers.
    ```
 
 2. Configure the environment files using the comments in each template. AI features use
-   OpenAI credentials; user-text screening uses a TypeSafe API key. Configure Langfuse
-   credentials to enable tracing. Local database, queue, and storage connections are
+   OpenAI credentials; user-text screening uses a TypeSafe API key. Set the optional `LOGFIRE_TOKEN` write token to enable remote tracing
+   and eval reporting. Without it, startup remains noninteractive. Local database, queue, and storage connections are
    supplied by Docker Compose.
 
 3. Build and start the services:

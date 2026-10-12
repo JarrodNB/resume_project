@@ -1,5 +1,5 @@
 """
-Description: Shared pytest setup. Blocks real LLM requests and Langfuse exports, and provides
+Description: Shared pytest setup. Blocks real LLM requests and Logfire exports, and provides
 fake task dependencies.
 Index:
     - fake_file_storage: an empty FakeFileStorage
@@ -12,7 +12,8 @@ Index:
 
 import os
 
-os.environ["LANGFUSE_TRACING_ENABLED"] = "false"
+os.environ["LOGFIRE_SEND_TO_LOGFIRE"] = "false"
+os.environ.pop("LOGFIRE_TOKEN", None)
 
 import pytest
 from pydantic_ai import models

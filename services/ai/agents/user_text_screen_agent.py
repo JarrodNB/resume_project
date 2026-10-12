@@ -5,6 +5,7 @@ Index:
     - user_text_screen_agent: the agent (model chosen per run; output UserTextScreen)
     - UserTextScreenRun: the judgement, the response's model name, and token usage
     - screen_user_message: runs the agent within a time limit
+    - screen_user_message_async: same bounded run for async input guardrails
 """
 
 import asyncio
@@ -48,10 +49,10 @@ def screen_user_message(text: str, model: str, timeout_seconds: float) -> UserTe
     """Asks Jev about `text`. Raises if the call fails, times out, or passes its request,
     tool-call, or token cap. A provider failure is fail-closed in the caller; a run limit
     fails the task."""
-    return asyncio.run(_run_with_deadline(text, model, timeout_seconds))
+    return asyncio.run(screen_user_message_async(text, model, timeout_seconds))
 
 
-async def _run_with_deadline(text: str, model: str, timeout_seconds: float) -> UserTextScreenRun:
+async def screen_user_message_async(text: str, model: str, timeout_seconds: float) -> UserTextScreenRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
     async with asyncio.timeout(timeout_seconds):
         with record_prompt_version(USER_TEXT_SCREEN_PROMPT_VERSION):

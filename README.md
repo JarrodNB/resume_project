@@ -32,12 +32,14 @@ and falls back to the full library when no matching embeddings exist.
 
 ### Prompt injection defenses and grounded outputs
 
-[Input screening](services/ai/screening/screen_user_text.py) checks user-written text before
-it reaches generation prompts. A phrase check catches obvious instruction overrides;
-TypeSafe Jev provides model-based screening with a confidence threshold. Uploaded resumes
-use model screening without the phrase check. Missing credentials or screening errors
-block the text from proceeding. Adversarial eval cases cover embedded instructions and
-legitimate security-related content to test both blocking and false positives.
+[Input guardrails](services/ai/screening/prompt_guardrail.py) are registered on every
+generative agent through Pydantic AI's `capabilities` parameter, using the official Harness
+`InputGuardrail`. TypeSafe Jev screens the complete assembled prompt—including uploaded,
+scraped, saved, and retrieved content—before the first generative model request. The guard
+runs sequentially; missing credentials, screening errors, or rejected input stop generation.
+Supplied user/tool history is also screened. Earlier field checks support targeted feedback;
+the final guard checks the remaining context. Jev itself is excluded to avoid recursion.
+Adversarial eval cases cover embedded instructions and legitimate security-related content.
 
 Pydantic schemas constrain model output. Resume parsing applies
 [source-faithfulness checks](services/ai/documents/enforce_source_faithfulness.py), while
@@ -56,10 +58,12 @@ evaluators. Runs attach scores to Langfuse traces for comparison across prompt a
 | Resume parsing and tailoring | Source faithfulness, section recall, relevance, and embedded instructions |
 | Job extraction and gap analysis | Field accuracy, verbatim requirements, verdict accuracy, and evidence validity |
 | Input screening | Screening decisions and classifier answers on benign and adversarial inputs |
+| Input capabilities | Allow/block decisions on assembled context, including stored and retrieved attacks |
 | Interview preparation | Deterministic structure/evidence checks and input-aware LLM judges |
 
-Retrieval evals exercise embeddings and ranking without PostgreSQL. Interview evals use
-trusted synthetic inputs; handler tests cover screening and failure behavior separately.
+Retrieval evals exercise embeddings and ranking without PostgreSQL. Generative agent evals
+also run the input capability and require TypeSafe credentials; blocked cases stop before
+generation. Capability tests use fake providers to verify rejection before any generative call.
 Subjective judge scores serve as review signals. Evaluator unit tests check scoring logic.
 
 ### Observability and reliability
@@ -131,6 +135,7 @@ Run a model evaluation, for example retrieval or input screening:
 ```bash
 docker compose run --rm ai python -m evals.run_library_retrieval_evals
 docker compose run --rm ai python -m evals.run_user_text_screen_evals
+docker compose run --rm ai python -m evals.run_prompt_guardrail_evals
 ```
 
 Evaluations call external model APIs and incur usage charges; unit tests use test doubles.

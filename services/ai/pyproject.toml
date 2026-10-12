@@ -1,4 +1,5 @@
 # Description: Python project definition for the AI worker service (dependencies and tooling).
+# Index: runtime dependencies, development dependencies, uv, Ruff, and pytest configuration.
 [project]
 name = "ai-worker"
 version = "0.1.0"
@@ -12,6 +13,7 @@ dependencies = [
     "pgvector>=0.5.0",
     "psycopg[binary]>=3.3.6",
     "pydantic",
+    "pydantic-ai-harness==0.53.0",
     "pydantic-ai-slim[openai,typesafe]==2.53.0",
     "pydantic-settings",
     "pypdf>=6.19.0",
@@ -33,4 +35,7 @@ line-length = 100
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-markers = ["db: needs the compose Postgres (skipped when it isn't reachable)"]
+markers = [
+    "db: needs the compose Postgres (skipped when it isn't reachable)",
+    "real_guardrail: exercises capability screening with fake providers without the default classifier mock",
+]

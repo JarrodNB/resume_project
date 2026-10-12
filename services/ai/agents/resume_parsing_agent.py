@@ -14,12 +14,14 @@ from typing import NamedTuple
 from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
+from pydantic_ai_harness import InputGuardrail
 
 from prompts.resume_parsing_instructions import (
     RESUME_PARSING_INSTRUCTIONS,
     RESUME_PARSING_PROMPT_VERSION,
 )
 from schemas.parsed_resume import ParsedResume
+from screening.prompt_guardrail import screen_prompt
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -42,6 +44,7 @@ resume_parsing_agent = Agent(
     output_type=ParsedResume,
     instructions=RESUME_PARSING_INSTRUCTIONS,
     defer_model_check=True,
+    capabilities=[InputGuardrail(guard=screen_prompt)],
 )
 
 

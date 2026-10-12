@@ -6,6 +6,12 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_prompt_guardrail.py` — real capability policy with fake providers: every generative
+  agent blocks before a provider call, allowed flow, history coverage, caps and fail-closed.
+  The `real_guardrail` marker opts out of the default fake capability classifier.
+- `test_guardrail_task_results.py` — SQS results retain capability usage on success/block,
+  preserve tailoring generation, and isolate usage between tasks.
+- Non-database tests mock profile-contact loading to keep task tracing independent of Postgres.
 - `conftest.py` — disables Langfuse export and real model requests; `task_dependencies`,
   `fake_file_storage`, `fake_job_site`, `fake_context_reader` fixtures
 - `fakes.py` — `FakeFileStorage`, `build_docx_bytes`, `FakeJobSite` (httpx.MockTransport),

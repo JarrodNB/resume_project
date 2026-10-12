@@ -65,6 +65,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 ## Local Rules
 
+- `process_task_message` collects capability screening usage even when the guard blocks.
+  `InputBlocked` publishes a failed task with the safe error message and tailoring generation.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
   tools in `tools/`, prompts in `prompts/` (sibling folders).
 - Handlers take `(task, dependencies)` and return an `AiResultMessage`. Return a `failed`

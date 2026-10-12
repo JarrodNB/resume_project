@@ -8,6 +8,13 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
 
+- `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through
+  the official InputGuardrail capability, with a fake generative model. Measures allow/block
+  decisions on assembled prompts and the parsing dataset's `expects_input_block` cases.
+  Outages fail evaluation rather than scoring as successful attack detection.
+  Run `docker compose run --rm ai python -m evals.run_prompt_guardrail_evals`.
+- Parsing quality runs exclude expected input blocks; the fixtures remain for deterministic
+  evaluator tests and the dedicated capability suite. No production screening bypass exists.
 - `datasets/resume_parsing_cases.yaml` — 7 synthetic, hand-labelled resumes (clean, year-only
   dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,

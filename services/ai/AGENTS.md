@@ -45,7 +45,10 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 - **User-written text is screened by Jev before it enters a prompt** (`screening/`), including
   an uploaded resume before it is parsed. A missing `TYPESAFE_API_KEY` or a Jev error omits
   the text; a blocked resume fails the import. Career-library entries copied from a resume
-  are not screened again. Jev usage is reported on the task result.
+  also enter the final assembled-prompt screen. Every generative agent declares an official
+  Harness `InputGuardrail` through `capabilities`; its async Jev guard runs sequentially before
+  the first provider request, including direct agent calls. The screening agent is exempt
+  from recursive screening. Jev usage is reported on the task result, including blocks.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).

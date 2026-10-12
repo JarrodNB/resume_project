@@ -1,6 +1,6 @@
 """
 Description: Runs the pasted job-ad parse evals (the real parse agent, then the same posting
-builder the handler uses) and reports the average of each score to Langfuse.
+builder the handler uses) and reports the average of each score to Logfire.
 Run: docker compose run --rm ai python -m evals.run_job_posting_parse_evals
 Index:
     - load_job_posting_parse_dataset: reads the YAML cases with the custom evaluators
@@ -10,11 +10,11 @@ Index:
 from pathlib import Path
 from typing import Any
 
-from langfuse import get_client, propagate_attributes
 from pydantic_evals import Dataset
 
 from agents.parse_job_posting_agent import parse_job_posting
 from evals.job_posting_parse_evaluators import JOB_POSTING_PARSE_EVALUATORS
+from evals.telemetry import eval_run, record_score
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
@@ -33,10 +33,9 @@ def load_job_posting_parse_dataset() -> Dataset[dict[str, Any], ScrapedJobPostin
 
 
 def run_job_posting_parse_evals() -> None:
-    """Evaluates parsing on every case and records the average scores in Langfuse."""
+    """Evaluates parsing on every case and records the average scores in Logfire."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.job_posting_parse_model
     thinking = settings.job_posting_parse_thinking
 
@@ -52,20 +51,15 @@ def run_job_posting_parse_evals() -> None:
         ).parsed
         return posting_from_parsed_job(text, parsed)
 
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME,
-            metadata={
-                "model": model,
-                "thinking": thinking,
-                "prompt_version": PARSE_JOB_POSTING_PROMPT_VERSION,
-            },
-        ),
-        propagate_attributes(
-            trace_name=TRACE_NAME,
-            version=PARSE_JOB_POSTING_PROMPT_VERSION,
-            tags=["eval", "parse_job_posting", model, f"thinking:{thinking}"],
-        ),
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={
+            "model": model,
+            "thinking": thinking,
+            "prompt_version": PARSE_JOB_POSTING_PROMPT_VERSION,
+        },
+        version=PARSE_JOB_POSTING_PROMPT_VERSION,
+        tags=["eval", "parse_job_posting", model, f"thinking:{thinking}"],
     ):
         report = load_job_posting_parse_dataset().evaluate_sync(
             parse_case,
@@ -73,10 +67,9 @@ def run_job_posting_parse_evals() -> None:
             max_concurrency=4,
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 if __name__ == "__main__":

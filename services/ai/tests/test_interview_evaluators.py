@@ -5,12 +5,11 @@ Index:
     - test_feedback_structure: blank coaching, invented evidence and missing placeholders
     - test_reporting_errors: runner fails and flushes on case or judge errors
 """
-from contextlib import nullcontext
 from types import SimpleNamespace
 
 import pytest
 
-from evals import interview_eval_reporting
+from evals import interview_eval_reporting, telemetry
 from evals.interview_evaluators import FeedbackStructure, QuestionStructure
 from evals.run_interview_feedback_evals import load_interview_feedback_dataset
 from evals.run_interview_questions_evals import load_interview_questions_dataset
@@ -83,11 +82,6 @@ def test_reporting_errors(monkeypatch, failure_kind) -> None:
     """Case and judge failures cannot silently yield a successful run; traces always flush."""
     scores = []
     flushed = []
-    client = SimpleNamespace(
-        start_as_current_observation=lambda **kwargs: nullcontext(),
-        score_current_trace=lambda **kwargs: scores.append(kwargs),
-        flush=lambda: flushed.append(True),
-    )
     report = SimpleNamespace(
         failures=["error"] if failure_kind == "case" else [],
         report_evaluator_failures=["error"] if failure_kind == "report" else [],
@@ -101,8 +95,9 @@ def test_reporting_errors(monkeypatch, failure_kind) -> None:
     )
     dataset = SimpleNamespace(evaluate_sync=lambda *args, **kwargs: report)
     monkeypatch.setattr(interview_eval_reporting, "configure_tracing", lambda: None)
-    monkeypatch.setattr(interview_eval_reporting, "get_client", lambda: client)
-    monkeypatch.setattr(interview_eval_reporting, "propagate_attributes", lambda **kwargs: nullcontext())
+    monkeypatch.setattr(interview_eval_reporting, "record_score",
+                        lambda **kwargs: scores.append(kwargs))
+    monkeypatch.setattr(telemetry, "flush_tracing", lambda: flushed.append(True))
     if failure_kind == "none":
         interview_eval_reporting.report_interview_evals(dataset, None, "test", "test", "v1", {})
     else:

@@ -21,7 +21,7 @@ Index:
                                        SQS ▼ │ SQS
                                     ┌──────────────┐
                                     │ services/ai  │──▶ OpenAI
-                                    │   (Python    │──▶ Langfuse
+                                    │   (Python    │──▶ Logfire
                                     │   workers)   │
                                     └──────────────┘
  Lambda (scheduled) ──▶ daily goal emails, weekly summaries, periodic job searches
@@ -31,7 +31,7 @@ Index:
 
 1. The user triggers an action (e.g. "analyze this job against my resume").
 2. Rails creates an `AiTask` record (`status: queued`) and publishes a message to `ai_tasks`.
-3. An AI worker runs the matching Pydantic AI agent, traced in Langfuse.
+3. An AI worker runs the matching Pydantic AI agent, traced in Logfire.
 4. The worker publishes to `ai_results` with one of:
    - `completed` + structured payload (the agent's Pydantic `output_type`)
    - `needs_user_input` + question(s) + serialized agent message history
@@ -161,7 +161,7 @@ Question generation requires usable library content; feedback can use an empty l
 handlers screen saved library-fact responses and omit job-derived requirement fields from
 prompts and grounding evidence. Feedback also screens the submitted answer and fails closed
 on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
-Pydantic AI runs, versioned prompts, and Langfuse tracing apply. Exact evidence checks and a
+Pydantic AI runs, versioned prompts, and Logfire tracing apply. Exact evidence checks and a
 conservative feedback vocabulary guard supplement the prompts; semantic grounding still
 requires quality evaluations. Run both interview eval runners after prompt/model/agent changes
 (commands in `services/ai/evals/AGENTS.md`); finite, stochastic passes are not a universal
@@ -243,7 +243,7 @@ tailoring) instead of sending everything.
   deletes rows whose entry is gone, so running it twice is harmless and any run repairs drift.
   `bin/rails career_library:sync_embeddings` backfills all users (e.g. after a model change).
 - **Reading (worker):** `memory/embed_search_query.py` embeds the query through Pydantic AI's
-  `Embedder` (traced in Langfuse). `database/library_embedding_search.py` loads that user's
+  `Embedder` (traced in Logfire). `database/library_embedding_search.py` loads that user's
   rows for the stored model in cosine order (HNSW iterative scans, so the user filter does
   not drop a row). `memory/hybrid_rank.py` then fuses that order with BM25 over the same
   texts (reciprocal rank fusion, k=60). Tailoring queries it once per written section.
@@ -302,7 +302,7 @@ tailoring) instead of sending everything.
   database role (weakens "Rails owns writes"), and returning smaller, packed vectors split
   across several result messages (more moving parts for no product gain). The cost is a few
   hundredths of a cent per library, so embeddings don't count toward the per-user AI budget,
-  and Rails' embedding calls aren't traced in Langfuse. The sync runs as a background job, so
+  and Rails' embedding calls aren't traced in Logfire. The sync runs as a background job, so
   an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
   through Pydantic AI, so those calls are traced.
 - **Rails-owned auth** (Devise + JWT).
@@ -310,8 +310,8 @@ tailoring) instead of sending everything.
   call `gpt-5-mini` and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
   A failed output check retries the same model. Jev stays a single pinned model and fails closed.
 - **Prompt versions are stamped on traces.** Each prompt module has a version constant. The
-  agent run records it on the Langfuse spans for that call, so a task that screens text and
-  then generates still shows which prompt produced which call. `LANGFUSE_TRACING_ENVIRONMENT`
+  agent run records it on the Logfire spans for that call, so a task that screens text and
+  then generates still shows which prompt produced which call. `LOGFIRE_ENVIRONMENT`
   labels the trace with the environment.
 - **An agent run stops at a modest cap, and the task fails.** Each run allows 6 model requests
   (the first answer, two output-validator retries, and the same three after a switch to the
@@ -326,7 +326,7 @@ tailoring) instead of sending everything.
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
   dependency injection, and switching LLM providers is a config change. Its deferred
   tools match our SQS pause/resume flow, and its OpenTelemetry instrumentation sends
-  traces to Langfuse without a custom wrapper.
+  traces to Logfire without a custom wrapper.
 - **The career library is the base; there is no base resume.** Importing a resume fills the
   library and the user's profile (contact details, summary) instead of also creating a base
   resume. A copied base resume would drift from the library as soon as the library was edited
@@ -361,15 +361,17 @@ tailoring) instead of sending everything.
   rather than rendering fully open.
 - **File history in git**, not in file headers.
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
-  them locally and in CI. Scores go to Langfuse for comparison across prompt and model
+  them locally and in CI. Scores go to Logfire for comparison across prompt and model
   versions. Faithfulness (no invented experience) is the top metric, because it's the
   product's core promise.
-- **Langfuse Cloud (free tier) for now.** Self-hosting needs ClickHouse, Redis, and S3-compatible
-  storage, which is too heavy for local dev. Revisit self-hosting (on the k8s cluster) if
-  free-tier limits or data-privacy needs require it, since traces contain resume content.
-  Known name, contact email, and phone are replaced with «name», «email», and «phone» before
-  they reach a model, an embedding API, or Langfuse. Location stays. The rest of the resume
-  still leaves the app; self-hosting Langfuse is the option for that.
+- **Logfire telemetry configured through environment variables.** `LOGFIRE_TOKEN` enables
+  remote export; without a token the worker and evals run without remote tracing or login.
+  `LOGFIRE_ENVIRONMENT` labels environments. Each task and eval run flushes in a `finally`
+  block with a five-second total caller wait. One daemon flush runs at a time, with no
+  queued attempts if an exporter stalls. Known contact is captured at span creation and masked
+  synchronously before export, including attributes, events, exception text, and status.
+  Model requests and search queries use contact placeholders; application responses restore
+  contact values. Other resume content can still leave the app when remote export is enabled.
 - **GraphQL subscriptions for live UI updates.** graphql-ruby subscriptions over ActionCable,
   using the Solid Cable adapter (Postgres-backed, so there's no Redis to run). The web app
   subscribes with Apollo over an ActionCable link, passing the JWT as the `token` query
@@ -429,7 +431,7 @@ tailoring) instead of sending everything.
 - **Tailoring pauses once per section, in code, not via `ask_user`.** Contact is copied from
   the user profile with no model call. Rails snapshots contact, the gap analysis, and gap
   responses into the task input. The worker reads `name`, `contact_email`, and `phone` and
-  replaces those known values with placeholders before a model call or a Langfuse trace. Then one
+  replaces those known values with placeholders before a model call or a Logfire trace. Then one
   agent run writes summary, experience, projects, education, and skills, in that order. The model selects,
   orders, and rewrites toward the job, and must not invent employers, titles, tools, dates,
   metrics, or responsibilities. Each bullet cites library, gap-response, or approved-section
@@ -500,9 +502,6 @@ tailoring) instead of sending everything.
   showing any scraper warnings, e.g. "AI sorted the requirements"). This is the exception to
   "AI results are reviewed before they change user data". Creating the Job inside
   `ApplyAiResultService`'s row lock keeps redelivered results from creating it twice.
-- **Langfuse reading APIs:** new Langfuse Cloud organisations can only read data through
-  `GET /api/public/v2/observations` and `GET /api/public/v3/scores`; the older trace and
-  score endpoints return 410. Ingestion via OpenTelemetry is unaffected.
 - **AI budget checked before queuing, recorded after.** A task's cost is only known once it
   finishes, so the check can't reserve an exact amount. The in-flight cap bounds the overshoot
   to a couple of tasks, which is simpler than estimating and reserving costs up front. Spend is

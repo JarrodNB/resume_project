@@ -16,7 +16,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `apps/web/`          | React (Vite + TypeScript) app, Apollo GraphQL client           |
 | `apps/landing/`      | Marketing landing page that redirects into the app             |
 | `services/api/`      | Rails API: GraphQL, auth, core domain, service objects         |
-| `services/ai/`       | Python SQS workers: OpenAI calls, scraping, memory, Langfuse   |
+| `services/ai/`       | Python SQS workers: OpenAI calls, scraping, memory, Logfire   |
 | `infra/`             | Terraform (AWS), Kubernetes manifests, local ElasticMQ config  |
 | `docs/`              | Architecture, MVP plan, decisions                              |
 | `.github/workflows/` | CI and automated deployment (created when first needed)        |
@@ -46,7 +46,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 - SQS can deliver a message more than once. Every handler on either side of the queue must
   be safe to run twice (see "Duplicate Messages" in `docs/architecture.md`).
 - Long-running AI work goes through SQS (ElasticMQ locally), never synchronous HTTP.
-- All LLM calls go through the AI service and are traced in Langfuse. One exception: Rails
+- All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries itself (OpenAI embeddings API, `CareerLibrary::SyncLibraryEmbeddingsJob`),
  because embeddings are derived data with no prompt and are too large to return over SQS. The
  AI service embeds search queries through Pydantic AI as usual.

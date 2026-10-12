@@ -1,6 +1,6 @@
 """
 Description: Runs the resume parsing evals against the real model and reports the average of
-each score to Langfuse (one trace per run, agent calls nested inside).
+each score to Logfire (one trace per run, agent calls nested inside).
 Run: docker compose run --rm ai python -m evals.run_resume_parsing_evals
 Index:
     - load_resume_parsing_dataset: reads the YAML cases with the custom evaluators
@@ -10,11 +10,11 @@ Index:
 from pathlib import Path
 from typing import Any
 
-from langfuse import get_client, propagate_attributes
 from pydantic_evals import Dataset
 
 from agents.resume_parsing_agent import parse_resume_text
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
+from evals.telemetry import eval_run, record_score
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
 from worker.settings import load_settings
@@ -35,7 +35,6 @@ def run_resume_parsing_evals() -> None:
     """Evaluates allowed parsing cases; expected blocks run in the guardrail suite."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.resume_parsing_model
     thinking = settings.resume_parsing_thinking
 
@@ -51,31 +50,26 @@ def run_resume_parsing_evals() -> None:
 
     dataset = load_resume_parsing_dataset()
     # Expected rejections are measured by run_prompt_guardrail_evals, never bypassed here.
-    dataset.cases = [case for case in dataset.cases
-                     if not (case.metadata or {}).get("expects_input_block")]
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME,
-            metadata={
-                "model": model,
-                "thinking": thinking,
-                "prompt_version": RESUME_PARSING_PROMPT_VERSION,
-            },
-        ),
-        propagate_attributes(
-            trace_name=TRACE_NAME,
-            version=RESUME_PARSING_PROMPT_VERSION,
-            tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
-        ),
+    dataset.cases = [
+        case for case in dataset.cases if not (case.metadata or {}).get("expects_input_block")
+    ]
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={
+            "model": model,
+            "thinking": thinking,
+            "prompt_version": RESUME_PARSING_PROMPT_VERSION,
+        },
+        version=RESUME_PARSING_PROMPT_VERSION,
+        tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
     ):
         report = dataset.evaluate_sync(
             parse_case, name=f"resume_parsing:{model}:thinking={thinking}", max_concurrency=5
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 if __name__ == "__main__":

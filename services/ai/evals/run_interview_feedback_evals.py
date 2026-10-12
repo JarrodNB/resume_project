@@ -3,7 +3,7 @@ Description: Evaluates real coaching and grounded examples on synthetic saved an
 Run: docker compose run --rm ai python -m evals.run_interview_feedback_evals
 Index:
     - load_interview_feedback_dataset: loads cases and deterministic checks
-    - run_interview_feedback_evals: runs agent and judges, reports to Langfuse
+    - run_interview_feedback_evals: runs agent and judges, reports to Logfire
 """
 from pathlib import Path
 

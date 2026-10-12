@@ -1,6 +1,6 @@
 """
 Description: Runs the job posting extraction evals (heading split, plus the real requirements
-sorting agent where headings don't match) and reports the average of each score to Langfuse.
+sorting agent where headings don't match) and reports the average of each score to Logfire.
 Run: docker compose run --rm ai python -m evals.run_job_posting_extraction_evals
 Index:
     - load_job_posting_extraction_dataset: reads the YAML cases with the custom evaluators
@@ -11,11 +11,11 @@ Index:
 from pathlib import Path
 from typing import Any
 
-from langfuse import get_client, propagate_attributes
 from pydantic_evals import Dataset
 
 from agents.job_requirements_sorting_agent import sort_job_requirement_bullets
 from evals.job_posting_extraction_evaluators import JOB_POSTING_EXTRACTION_EVALUATORS
+from evals.telemetry import eval_run, record_score
 from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
 from prompts.job_requirements_sorting_instructions import JOB_REQUIREMENTS_SORTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
@@ -51,10 +51,9 @@ def linkedin_case_to_page(inputs: dict[str, Any]) -> JobPage:
 
 
 def run_job_posting_extraction_evals() -> None:
-    """Evaluates extraction on every case and records the average scores in Langfuse."""
+    """Evaluates extraction on every case and records the average scores in Logfire."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.job_requirements_sorting_model
     thinking = settings.job_requirements_sorting_thinking
 
@@ -72,20 +71,15 @@ def run_job_posting_extraction_evals() -> None:
         """The task under evaluation."""
         return extract_job_posting(linkedin_case_to_page(inputs), sort_bullets).posting
 
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME,
-            metadata={
-                "model": model,
-                "thinking": thinking,
-                "prompt_version": JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
-            },
-        ),
-        propagate_attributes(
-            trace_name=TRACE_NAME,
-            version=JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
-            tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
-        ),
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={
+            "model": model,
+            "thinking": thinking,
+            "prompt_version": JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
+        },
+        version=JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
+        tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
     ):
         report = load_job_posting_extraction_dataset().evaluate_sync(
             extract_case,
@@ -93,10 +87,9 @@ def run_job_posting_extraction_evals() -> None:
             max_concurrency=5,
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 if __name__ == "__main__":

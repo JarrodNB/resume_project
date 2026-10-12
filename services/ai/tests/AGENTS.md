@@ -12,7 +12,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_guardrail_task_results.py` — SQS results retain capability usage on success/block,
   preserve tailoring generation, and isolate usage between tasks.
 - Non-database tests mock profile-contact loading to keep task tracing independent of Postgres.
-- `conftest.py` — disables Langfuse export and real model requests; `task_dependencies`,
+- `conftest.py` — disables Logfire export and real model requests; `task_dependencies`,
   `fake_file_storage`, `fake_job_site`, `fake_context_reader` fixtures
 - `fakes.py` — `FakeFileStorage`, `build_docx_bytes`, `FakeJobSite` (httpx.MockTransport),
   `build_gap_analysis_context`, `FakeGapAnalysisContextReader`
@@ -70,12 +70,18 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block
+- `test_tracing.py` — exporter privacy after context exit, nested agent/embedding prompt versions,
+  environment labels, numeric eval scores and bounded failure flushes
+- `test_telemetry_flush.py` — blocked exporters respect caller deadlines; repeated calls
+  share one background attempt without an unbounded queue
+- `test_tracing_integration.py` — production task/configuration instrumentation, task identity,
+  real synthetic Pydantic Evals cases and exception flushing
 - `test_contact_mask.py` — known name, email, and phone become placeholders on a model
-  request, a Langfuse payload, and a search-query embedding; the model response is restored
+  request, a Logfire payload, and a search-query embedding; the model response is restored
 
 ## Local Rules
 
-- Never call real SQS, S3, OpenAI, Langfuse, or job sites from tests; pass fakes and override
+- Never call real SQS, S3, OpenAI, Logfire, or job sites from tests; pass fakes and override
   agents with `TestModel`.
 - Only `db`-marked tests touch Postgres (the compose `db` service); they roll back everything
   they write. Skip them with `pytest -m "not db"`.

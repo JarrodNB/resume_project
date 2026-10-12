@@ -1,6 +1,6 @@
 """
 Description: Runs the tailoring evals for one section at a time and reports average scores
-to Langfuse.
+to Logfire.
 Run: docker compose run --rm ai python -m evals.run_tailoring_evals
 Index:
     - load_tailoring_dataset: reads the YAML cases
@@ -10,11 +10,11 @@ Index:
 from datetime import date
 from pathlib import Path
 
-from langfuse import get_client, propagate_attributes
 from pydantic_evals import Dataset
 
 from agents.resume_tailoring_agent import write_resume_section
 from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, TailorEvalLabels
+from evals.telemetry import eval_run, record_score
 from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
 from schemas.tailored_section import TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
@@ -33,17 +33,23 @@ def load_tailoring_dataset() -> Dataset[TailorEvalInput, TailoredSectionDraft, T
 
 
 def run_tailoring_evals() -> None:
-    """Evaluates the agent on every case and records the average scores in Langfuse."""
+    """Evaluates the agent on every case and records the average scores in Logfire."""
     settings = load_settings()
     configure_tracing()
-    langfuse = get_client()
     model = settings.resume_tailoring_model
     thinking = settings.resume_tailoring_thinking
 
     def write_case(case: TailorEvalInput) -> TailoredSectionDraft:
         """The task under evaluation: one section, the whole library as sources."""
         prompt = build_section_prompt(
-            case.section_type, case.context, [], [], None, write_anyway=False, gap_analysis=None, today=date(2026, 10, 1)
+            case.section_type,
+            case.context,
+            [],
+            [],
+            None,
+            write_anyway=False,
+            gap_analysis=None,
+            today=date(2026, 10, 1),
         )
         return write_resume_section(
             prompt,
@@ -53,25 +59,19 @@ def run_tailoring_evals() -> None:
             fallback_model=settings.generative_fallback_model,
         ).draft
 
-    with (
-        langfuse.start_as_current_observation(
-            name=TRACE_NAME,
-            metadata={"model": model, "prompt_version": RESUME_TAILORING_PROMPT_VERSION},
-        ),
-        propagate_attributes(
-            trace_name=TRACE_NAME,
-            version=RESUME_TAILORING_PROMPT_VERSION,
-            tags=["eval", "tailor_resume", model],
-        ),
+    with eval_run(
+        name=TRACE_NAME,
+        metadata={"model": model, "prompt_version": RESUME_TAILORING_PROMPT_VERSION},
+        version=RESUME_TAILORING_PROMPT_VERSION,
+        tags=["eval", "tailor_resume", model],
     ):
         report = load_tailoring_dataset().evaluate_sync(
             write_case, name=f"tailoring:{model}", max_concurrency=2
         )
         for score_name, average in report.averages().scores.items():
-            langfuse.score_current_trace(name=score_name, value=average)
+            record_score(name=score_name, value=average)
 
     report.print(include_input=False, include_output=False, include_durations=True)
-    langfuse.flush()
 
 
 if __name__ == "__main__":

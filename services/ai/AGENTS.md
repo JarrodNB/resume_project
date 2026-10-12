@@ -3,12 +3,12 @@
 ## Purpose
 
 All LLM work: resume parsing, job URL scraping and pasted job ads into structured profiles, gap analysis,
-resume tailoring, interview questions and answer coaching, and long-term user memory. Traced in Langfuse.
+resume tailoring, interview questions and answer coaching, and long-term user memory. Traced in Logfire.
 
 ## Stack
 
 Python SQS workers (no web framework; ElasticMQ locally), boto3, Pydantic, Pydantic AI
-(agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Langfuse, pgvector for memory
+(agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
 retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 
 ## Local Rules
@@ -28,12 +28,13 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   - Workers inject per-task context (user ID, retrieved memories) through the agent's `deps`.
 - Instructions/system prompts live in their own files (`prompts/`), one per file, with a header describing inputs/outputs.
 - Use Pydantic models for every queue message and every structured LLM output.
-- **Langfuse tracing** comes from Pydantic AI's OpenTelemetry instrumentation
+- **Logfire tracing** comes from Pydantic AI's OpenTelemetry instrumentation
   (`Agent.instrument_all()` at worker startup). Tag traces with the user ID and task ID,
   and flush at the end of each task. Known name, contact email, and phone are placeholders
   on the trace and on the provider request; the model response is restored before the result
-  is published. Langfuse Cloud (free tier) is used in all environments
-  for now; its API keys go in `services/ai/.env` (copied from `.env.example`, never committed).
+  is published. Remote export is enabled only when
+  `LOGFIRE_TOKEN` is set in `services/ai/.env` (copied from `.env.example`, never committed).
+  `LOGFIRE_ENVIRONMENT` labels environments; export does not prompt for login.
 - **Human-in-the-loop uses Pydantic AI deferred tools.** When an agent needs information
   from the user, it calls an external `ask_user` tool and the run ends with
   `DeferredToolRequests`. The worker publishes a `needs_user_input` result containing the
@@ -55,7 +56,7 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   - Use deterministic evaluators where possible; use LLM-as-judge only for subjective
     checks (relevance, question quality, faithfulness).
   - Test data is synthetic or anonymized. Never commit real user resumes.
-  - Report results to Langfuse. Run evals after any prompt, model, or agent change:
+  - Report results to Logfire. Run evals after any prompt, model, or agent change:
     `docker compose run --rm ai python -m evals.run_tailoring_evals` (Jev screen:
     `docker compose run --rm ai python -m evals.run_user_text_screen_evals`).
     Interview agents: `docker compose run --rm ai python -m evals.run_interview_questions_evals`
@@ -79,7 +80,7 @@ Every function and class gets a docstring describing what it does.
 ## Contents
 
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
-  clients, Langfuse tracing (see `worker/AGENTS.md`)
+  clients, Logfire tracing (see `worker/AGENTS.md`)
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
   `job_requirements_sorting_agent.py`,
   `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,

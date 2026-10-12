@@ -28,7 +28,7 @@ over feature breadth or market positioning.
 6. **Memory** — gap responses and facts are saved and reused in future tailoring.
 7. **Job board** — saved jobs with stages: unapplied, applied, interviewing, rejected, offer.
 8. **Export** — PDF export of a tailored resume.
-9. **Observability** — every LLM call traced in Langfuse.
+9. **Observability** — every LLM call traced in Logfire.
 10. **Evaluations** — a test set and scoring for each agent, so prompt and model changes are
     measured instead of guessed:
 
@@ -40,7 +40,7 @@ over feature breadth or market positioning.
     | Tailoring       | **Faithfulness**: no invented experience, skills, or numbers (the library and gap responses are the only sources); relevance to the job |
 
     Deterministic checks where possible, LLM-as-judge for subjective ones. Results are
-    tracked in Langfuse so runs can be compared over time.
+    tracked in Logfire so runs can be compared over time.
 
 ## Out of Scope (Later)
 

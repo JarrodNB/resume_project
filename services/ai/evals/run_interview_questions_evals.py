@@ -3,7 +3,7 @@ Description: Evaluates real interview generation/replacement with synthetic evid
 Run: docker compose run --rm ai python -m evals.run_interview_questions_evals
 Index:
     - load_interview_questions_dataset: loads synthetic cases and deterministic checks
-    - run_interview_questions_evals: runs agent and quality judges, reports to Langfuse
+    - run_interview_questions_evals: runs agent and quality judges, reports to Logfire
 """
 from pathlib import Path
 

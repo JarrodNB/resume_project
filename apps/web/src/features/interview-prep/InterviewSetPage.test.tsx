@@ -7,7 +7,7 @@ import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { InterviewSetPage } from './InterviewSetPage'
-import { INTERVIEW_SET_QUERY } from './interviewPrepOperations'
+import { GENERATE_INTERVIEW_SET, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
 
 /** Supplies the shared subscription's full task shape. */
 function taskFixture(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
@@ -27,6 +27,7 @@ it('restores a queued task on reload and fetches five saved cards on live comple
     result: { data: { aiTaskUpdated: taskFixture('COMPLETED') } },
   }, setMock('COMPLETED')] })
   expect(await screen.findByRole('status')).toHaveTextContent('Generating your questions…')
+  expect(screen.queryByRole('button', { name: 'Generate questions again' })).not.toBeInTheDocument()
   expect(await screen.findByRole('button', { name: 'Question 1' })).toBeInTheDocument()
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Technical')
@@ -42,6 +43,7 @@ it('restores failure details and keeps deletion available', async () => {
   expect(await screen.findByText('Add more career library details.')).toBeInTheDocument()
   expect(screen.queryByRole('status')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Delete set 1' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Generate questions again' })).toBeEnabled()
 })
 
 it('shows the persisted knowledge type and saved cards on reload', async () => {
@@ -50,4 +52,27 @@ it('shows the persisted knowledge type and saved cards on reload', async () => {
   renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [mock] })
   expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Knowledge')
   expect(screen.getAllByRole('button', { name: /Question \d/ })).toHaveLength(5)
+  expect(screen.queryByRole('button', { name: 'Generate questions again' })).not.toBeInTheDocument()
+})
+
+it('generates a fresh knowledge set from a failed empty set', async () => {
+  const mock = setMock('FAILED')
+  mock.result.data.interviewQuestionSet.setType = 'KNOWLEDGE'
+  const { router } = renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, extraRoutes: [{ path: '/interview-prep/new-set', element: <p>New knowledge set</p> }], mocks: [mock, {
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'KNOWLEDGE' } },
+    result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'new-task', input: { question_set_id: 'new-set' } } } } },
+  }] })
+  fireEvent.click(await screen.findByRole('button', { name: 'Generate questions again' }))
+  expect(await screen.findByText('New knowledge set')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/interview-prep/new-set')
+})
+
+it('keeps an empty set retryable when generation is refused', async () => {
+  renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [setMock('FAILED'), {
+    request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'TECHNICAL' } },
+    result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
+  }] })
+  fireEvent.click(await screen.findByRole('button', { name: 'Generate questions again' }))
+  expect(await screen.findByText('Monthly AI usage limit reached.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate questions again' })).toBeEnabled()
 })

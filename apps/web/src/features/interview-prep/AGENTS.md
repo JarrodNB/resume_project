@@ -12,7 +12,7 @@ Persistent interview preparation sets at `/interview-prep` and `/interview-prep/
 - `InterviewPrepPage.tsx` — numbered/date list and generation.
 - List and detail labels show the persisted general/technical/knowledge type; local General/Technical/Knowledge tabs filter saved sets and choose the generation type, defaulting to general.
 - `interviewSetTypeLabel.ts` — shared human-readable persisted scope labels.
-- `InterviewSetPage.tsx` — ordered cards, omission warnings, and unsaved-answer navigation protection.
+- `InterviewSetPage.tsx` — ordered cards, omission warnings, unsaved-answer navigation protection, and generation of a fresh same-type set from failed/idle empty sets.
 - `InterviewQuestionCard.tsx` — persistent drafts, save/feedback controls, and confirmed replacement.
 - `useInterviewAnswer.ts` — answer/feedback/replacement mutations and retryable errors.
 - `InterviewFeedback.tsx` — coaching and examples with explicit highlighted placeholders.

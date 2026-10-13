@@ -13,13 +13,20 @@ import { DeleteInterviewSetButton } from './DeleteInterviewSetButton'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { interviewSetDate } from './interviewSetDate'
 import { interviewSetTypeLabel } from './interviewSetTypeLabel'
-import { useInterviewSet } from './useInterviewPrep'
+import { useGenerateInterviewSet, useInterviewSet } from './useInterviewPrep'
 
 /** Restores generation after reload and displays the saved questions after completion. */
 export function InterviewSetPage() {
   const { id = '' } = useParams()
   const { questionSet, loading, error, refetch } = useInterviewSet(id)
+  const generation = useGenerateInterviewSet()
   const navigate = useNavigate()
+  /** Starts a fresh set of the same scope after an empty set's generation has stopped. */
+  async function generateAgain() {
+    if (!questionSet) return
+    const newId = await generation.generate(questionSet.setType)
+    if (newId) void navigate(`/interview-prep/${newId}`)
+  }
   const [dirtyAnswers, setDirtyAnswers] = useState<Record<string, boolean>>({})
   const dirty = questionSet?.questions.some((question) => dirtyAnswers[question.id]) ?? false
   const blocker = useBlocker(dirty)
@@ -39,6 +46,12 @@ export function InterviewSetPage() {
         <DeleteInterviewSetButton id={id} number={questionSet.number} onDeleted={() => { flushSync(() => setDirtyAnswers({})); navigate('/interview-prep') }} />
       </div>
       {questionSet.latestTask && <InterviewTaskStatus key={questionSet.latestTask.id} task={questionSet.latestTask} onFinished={refetch} />}
+      {questionSet.questions.length === 0 && !loading && (!questionSet.latestTask || ['FAILED', 'COMPLETED'].includes(questionSet.latestTask.status)) && <div className="grid justify-items-start gap-3 rounded-lg border p-5">
+        <p className="font-medium">This set has no questions.</p>
+        <p className="text-sm text-muted-foreground">Generate a new {interviewSetTypeLabel(questionSet.setType).toLowerCase()} set to try again.</p>
+        <Button disabled={generation.loading} onClick={() => void generateAgain()}>{generation.loading ? 'Starting…' : 'Generate questions again'}</Button>
+        <ErrorAlert title="Couldn't generate questions" messages={generation.errors} />
+      </div>}
       {warnings.length > 0 && <div className="grid gap-1 text-sm text-muted-foreground"><p>Some library notes were omitted:</p><ul className="list-disc pl-5">{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul></div>}
       {questionSet.questions.slice().sort((a, b) => a.position - b.position).map((question) => <InterviewQuestionCard key={question.id} question={question} setId={id} refetch={refetch} onDirty={onDirty} />)}
     </>}

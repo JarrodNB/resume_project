@@ -18,9 +18,13 @@ RSpec.describe User, type: :model do
       create(:ai_task, user: user, cost_microdollars: 250_001, created_at: Time.utc(2026, 10, 1))
       create(:ai_task, user: user, cost_microdollars: 500_000, status: "failed")
       create(:ai_task, cost_microdollars: 9_000_000)
+      user.embedding_usages.create!(model: "text-embedding-3-small", input_tokens: 100, cost_microdollars: 2)
+      user.embedding_usages.create!(model: "text-embedding-3-small", input_tokens: 100, cost_microdollars: 2,
+                                   created_at: Time.utc(2026, 9, 30))
+      create(:user).embedding_usages.create!(model: "text-embedding-3-small", input_tokens: 100, cost_microdollars: 2)
 
-      expect(user.total_ai_cost_usd).to eq(2.000001)
-      expect(user.monthly_ai_cost_usd).to eq(0.750001)
+      expect(user.total_ai_cost_usd).to eq(2.000005)
+      expect(user.monthly_ai_cost_usd).to eq(0.750003)
     end
   end
 end

@@ -5,6 +5,7 @@
 #     library_facts (answers the user added from gap analysis, by created_at)
 #   - jobs, resumes, ai_tasks, interview_question_sets
 #   - library_embeddings: vectors of the career library entries (derived data)
+#   - embedding_usages: billed embedding API batches
 #   - total_ai_cost_usd, monthly_ai_cost_usd: recorded AI spend in USD
 class User < ApplicationRecord
   devise :database_authenticatable, :registerable, :validatable,
@@ -21,14 +22,15 @@ class User < ApplicationRecord
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_tasks, dependent: :destroy
   has_many :library_embeddings, dependent: :delete_all
+  has_many :embedding_usages, dependent: :destroy
 
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
   validates :summary, length: { maximum: TextLimits::PROSE }
   validate :links_within_limits
 
-  # Returns the estimated AI cost across all of this user's tasks in USD.
+  # Returns estimated task and library embedding costs for this user in USD.
   def total_ai_cost_usd
-    ai_tasks.sum(:cost_microdollars) / 1_000_000.0
+    (ai_tasks.sum(:cost_microdollars) + embedding_usages.sum(:cost_microdollars)) / 1_000_000.0
   end
 
   # Returns this UTC calendar month's estimated AI cost through the usage service.

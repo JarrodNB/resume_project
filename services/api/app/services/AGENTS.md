@@ -64,6 +64,7 @@ All business logic, as service objects grouped by domain folder.
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time
+  (includes Rails embedding batches)
 - `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
 - `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into

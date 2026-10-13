@@ -6,12 +6,14 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `embedding_usage.rb` — billed Rails embedding batches; user totals and monthly budgets include them.
+
 - `user.rb` — account (Devise + JWT); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. Nullable
   `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
   the global AI usage limits. `total_ai_cost_usd` and `monthly_ai_cost_usd` expose recorded
-  task spend in USD; monthly accounting delegates to the AI usage service.
+  task and embedding spend in USD; monthly accounting delegates to the AI usage service.
 - `jwt_denylist.rb` — revoked tokens (sign-out)
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_12_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -99,6 +99,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_educations_on_user_id"
+  end
+
+  create_table "embedding_usages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "model", null: false
+    t.bigint "input_tokens", null: false
+    t.bigint "cost_microdollars", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "created_at"], name: "index_embedding_usages_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_embedding_usages_on_user_id"
+    t.check_constraint "input_tokens >= 0 AND cost_microdollars >= 0", name: "embedding_usage_nonnegative"
   end
 
   create_table "experience_highlights", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -290,6 +302,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_12_020000) do
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "certifications", "users"
   add_foreign_key "educations", "users"
+  add_foreign_key "embedding_usages", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
   add_foreign_key "interview_question_sets", "users"

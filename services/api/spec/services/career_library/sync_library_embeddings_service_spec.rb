@@ -34,6 +34,19 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
     expect(sync.value).to eq(embedded: 0, deleted: 0)
     expect(client.embedded_texts).to eq([ "Ruby" ])
+    expect(user.embedding_usages.sole).to have_attributes(input_tokens: 100, cost_microdollars: 2)
+  end
+
+  it "retains billed usage if storing vectors fails and charges a new request on retry" do
+    create_skill("Ruby")
+    allow(LibraryEmbedding).to receive(:upsert_all).and_raise("save failed")
+
+    expect { sync }.to raise_error("save failed")
+    expect(user.embedding_usages.sum(:cost_microdollars)).to eq(2)
+    allow(LibraryEmbedding).to receive(:upsert_all).and_call_original
+
+    expect(sync.value).to eq(embedded: 1, deleted: 0)
+    expect(user.embedding_usages.sum(:cost_microdollars)).to eq(4)
   end
 
   it "re-embeds an entry whose text changed" do
@@ -53,6 +66,7 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
     expect(sync.value).to eq(embedded: 0, deleted: 2)
     expect(user.library_embeddings).to be_empty
+    expect(user.embedding_usages.count).to eq(1)
   end
 
   it "re-embeds everything when the model changes" do

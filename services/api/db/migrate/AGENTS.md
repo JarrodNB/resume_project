@@ -6,6 +6,8 @@ Ordered Rails migrations for domain persistence.
 
 ## Contents
 
+- `20261013040000_create_embedding_usages.rb` — user-owned per-batch embedding accounting.
+
 - `20261001072829_devise_create_users.rb`
 - `20261001072901_create_jwt_denylists.rb`
 - `20261001072932_create_experiences.rb`

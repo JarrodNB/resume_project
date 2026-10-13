@@ -1,5 +1,5 @@
 # Description: A user's estimated AI spend this calendar month (UTC) against their budget.
-# Spend is the sum of the costs the AI worker reported on the user's tasks created this month.
+# Spend includes worker task costs and Rails embedding requests created this month.
 # Index:
 #   - MonthlyAiUsage: spent_microdollars, budget_microdollars, resets_at, exhausted?
 #   - call: returns a MonthlyAiUsage for the user
@@ -20,6 +20,7 @@ module AiUsage
     def call
       month_start = Time.now.utc.beginning_of_month
       spent = @user.ai_tasks.where(created_at: month_start..).sum(:cost_microdollars)
+      spent += @user.embedding_usages.where(created_at: month_start..).sum(:cost_microdollars)
       budget = @user.monthly_ai_budget_microdollars || DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS
       success(MonthlyAiUsage.new(spent_microdollars: spent, budget_microdollars: budget, resets_at: month_start.next_month))
     end

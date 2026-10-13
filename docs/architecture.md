@@ -340,8 +340,9 @@ tailoring) instead of sending everything.
   alternatives were rejected: letting the worker write embeddings through a second, narrow
   database role (weakens "Rails owns writes"), and returning smaller, packed vectors split
   across several result messages (more moving parts for no product gain). The cost is a few
-  hundredths of a cent per library, so embeddings don't count toward the per-user AI budget,
-  and Rails' embedding calls aren't traced in Logfire. The sync runs as a background job, so
+  hundredths of a cent per library. Each successful API batch records its reported input tokens,
+  model, and estimated micro-dollar cost in `embedding_usages`; user totals and monthly budgets
+  include these records. Rails' embedding calls aren't traced in Logfire. The sync runs as a background job, so
   an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
   through Pydantic AI, so those calls are traced.
 - **Rails-owned auth** (Devise + JWT).
@@ -544,12 +545,16 @@ tailoring) instead of sending everything.
 - **AI budget checked before queuing, recorded after.** A task's cost is only known once it
   finishes, so the check can't reserve an exact amount. The in-flight cap bounds the overshoot
   to a couple of tasks, which is simpler than estimating and reserving costs up front. Spend is
-  summed from `ai_tasks` instead of kept in a counter, so it can't drift, and a redelivered
+  summed from `ai_tasks` and `embedding_usages` instead of kept in a counter, so it can't drift, and a redelivered
   result assigns (never adds) its usage, except a `tailor_resume` task, which is requeued once
   per section and adds each generation's usage once (`usage_generation` on the task). Costs are integer micro-dollars because one resume
   parse costs well under a cent. Usage from a crashed or timed-out run isn't reported; the
   hourly and in-flight caps limit that gap. The price table lives in the worker, which knows
   the models; a configured model without a price fails a test instead of counting as free.
+  Rails has a separate embedding price table and records each returned batch before saving vectors,
+  under a session advisory lock. Successful batches remain charged if a later request or save fails;
+  a retry that calls the provider again incurs another charge. Unchanged libraries make no API calls.
+  Historical embedding costs were not captured and cannot be reconstructed from current vectors.
 - **Rack::Attack on Rails.cache for request throttling.** No Redis: the dev memory store and
   production Solid Cache are enough at this scale.
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.

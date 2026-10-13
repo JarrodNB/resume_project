@@ -30,10 +30,11 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   skill, and library fact, with context ("Senior Engineer at Acme: Cut deploy time 40%",
   "Languages: Ruby", "Fact: Kubernetes: Used it at Acme for two years"); job-only gap responses
   are not included; queries the tables directly so a sync never sees stale loaded associations
-- `sync_library_embeddings_service.rb` — under a per-user advisory lock, embeds entries whose
+- `sync_library_embeddings_service.rb` — under a per-user session advisory lock, embeds entries whose
   SHA-256(model + masked text) digest changed, upserts them into `library_embeddings`, and
   deletes rows whose entry is gone; the API receives placeholders and the stored text stays
-  original; returns `{ embedded:, deleted: }`. Idempotent; run by
+  original; records each billed batch in `embedding_usages` before saving vectors, so failed
+  saves or later batches retain incurred costs. Returns `{ embedded:, deleted: }`. Idempotent; run by
   `SyncLibraryEmbeddingsJob` and the `career_library:sync_embeddings` backfill
 
 ## Local Rules

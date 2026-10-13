@@ -15,6 +15,14 @@ RSpec.describe AiUsage::CheckAiTaskAllowanceService do
   end
 
   describe "monthly budget" do
+    it "includes embedding costs without counting embedding requests as hourly AI tasks" do
+      user.update!(monthly_ai_budget_microdollars: 2)
+      user.embedding_usages.create!(model: "text-embedding-3-small", input_tokens: 100, cost_microdollars: 2)
+
+      expect(described_class.call(user: user)).not_to be_success
+      expect(user.ai_tasks.count).to eq(0)
+    end
+
     it "refuses once this month's spend reaches the default budget" do
       travel_to Time.utc(2026, 10, 15) do
         create_finished_task(cost_microdollars: DEFAULT_MONTHLY_AI_BUDGET_MICRODOLLARS)

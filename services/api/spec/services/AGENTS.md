@@ -11,6 +11,7 @@ Service behavior tests grouped by domain.
 - `career_library` — subfolder; inherits these rules unless overridden locally.
 - `certifications` — subfolder; inherits these rules unless overridden locally.
 - `experiences` — subfolder; inherits these rules unless overridden locally.
+- `embeddings` — embedding API batch usage and partial failure accounting.
 - `gap_analysis` — subfolder; inherits these rules unless overridden locally.
 - `gap_responses` — subfolder; inherits these rules unless overridden locally.
 - `interview_prep` — subfolder; inherits these rules unless overridden locally.

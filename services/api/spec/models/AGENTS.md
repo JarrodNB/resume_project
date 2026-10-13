@@ -11,6 +11,7 @@ RSpec model validation, associations, ordering, and deletion coverage.
 - `most_recent_first_spec.rb`
 - `resume_spec.rb`
 - `text_limits_spec.rb`
+- `user_spec.rb` — user-scoped total and UTC monthly AI spend in USD
 
 ## Local Rules
 

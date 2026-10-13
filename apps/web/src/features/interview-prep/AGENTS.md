@@ -10,13 +10,13 @@ Persistent interview preparation sets at `/interview-prep` and `/interview-prep/
 - `useInterviewPrep.ts` — data fetching, newest-first sorting, and mutation errors.
 - `interviewSetDate.ts` — shared locale-aware creation date formatting.
 - `InterviewPrepPage.tsx` — numbered/date list and generation.
-- List and detail labels show the persisted general/technical/knowledge type; generation uses an explicit selector defaulting to general.
+- List and detail labels show the persisted general/technical/knowledge type; local General/Technical/Knowledge tabs filter saved sets and choose the generation type, defaulting to general.
 - `interviewSetTypeLabel.ts` — shared human-readable persisted scope labels.
 - `InterviewSetPage.tsx` — ordered cards, omission warnings, and unsaved-answer navigation protection.
 - `InterviewQuestionCard.tsx` — persistent drafts, save/feedback controls, and confirmed replacement.
 - `useInterviewAnswer.ts` — answer/feedback/replacement mutations and retryable errors.
 - `InterviewFeedback.tsx` — coaching and examples with explicit highlighted placeholders.
-- `InterviewTaskStatus.tsx` — persisted task restoration and shared subscription updates.
+- `InterviewTaskStatus.tsx` — persisted task restoration, visible generation progress, and shared subscription updates.
 - `DeleteInterviewSetButton.tsx` — confirmed deletion with retryable error display.
 - `InterviewPrepPage.test.tsx`, `InterviewSetPage.test.tsx`, `InterviewAnswers.test.tsx` — page and answer workflow coverage.
 

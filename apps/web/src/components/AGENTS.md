@@ -18,6 +18,7 @@ Shared UI used by more than one feature.
   collapse it until opened
 - `sectionTones.ts` — per-section classes (card stripe, header band, icon, entry tint) and icon
 - `dnd/` — drag-and-drop building blocks (see `dnd/AGENTS.md`)
+- `ui/tabs.tsx` — accessible tabs used to group interview question sets by type.
 - `ui/` — generated shadcn/ui components (exempt from the header rule and lint)
 
 ## Local Rules

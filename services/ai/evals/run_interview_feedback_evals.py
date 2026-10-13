@@ -20,6 +20,7 @@ from evals.interview_evaluators import (
     FeedbackStructure,
     feedback_context,
 )
+from evals.report_capture import override_settings
 from prompts.interview_feedback_instructions import INTERVIEW_FEEDBACK_PROMPT_VERSION
 from schemas.interview_feedback import InterviewFeedback
 from worker.settings import load_settings
@@ -42,9 +43,9 @@ def load_interview_feedback_dataset() -> Dataset[FeedbackEvalInput, InterviewFee
     )
 
 
-def run_interview_feedback_evals() -> None:
+def run_interview_feedback_evals(model_override: str | None = None) -> None:
     """Runs production feedback settings and subjective quality evaluation."""
-    settings = load_settings()
+    settings = override_settings(load_settings(), "interview_feedback_model", model_override)
 
     def review(case: FeedbackEvalInput) -> InterviewFeedback:
         """Runs coaching with production limits and source validation."""

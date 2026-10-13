@@ -9,6 +9,7 @@ from contextlib import contextmanager
 
 import logfire
 
+from evals.report_capture import capture_metadata
 from worker.telemetry_privacy import telemetry_scope
 from worker.tracing import flush_tracing
 
@@ -17,6 +18,7 @@ from worker.tracing import flush_tracing
 def eval_run(name, metadata=None, tags=None, version=None):
     """Preserves run/model context and flushes even if evaluation raises."""
     attributes = {"eval_name": name, **(metadata or {})}
+    capture_metadata(attributes)
     if version:
         attributes["prompt_version"] = version
     try:

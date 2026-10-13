@@ -7,6 +7,7 @@ Index:
 
 from pydantic_evals.evaluators import LLMJudge
 
+from evals.report_capture import capture_report
 from evals.telemetry import eval_run, record_score
 from worker.tracing import configure_tracing
 
@@ -39,11 +40,14 @@ def report_interview_evals(
         )
     with eval_run(
         name=name,
-        metadata={"model": model, "judge_model": model, "prompt_version": version},
+        metadata={"model": model, "judge_model": model, "prompt_version": version,
+                  "judge_rubrics": rubrics, "judge_include_input": True,
+                  "judge_include_reason": True},
         version=version,
         tags=["eval", name, model],
     ):
         report = dataset.evaluate_sync(task, name=f"{name}:{model}", max_concurrency=2)
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
         errors = len(report.failures) + len(report.report_evaluator_failures)

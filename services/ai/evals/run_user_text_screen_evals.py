@@ -12,6 +12,7 @@ from pathlib import Path
 from pydantic_evals import Dataset
 
 from agents.user_text_screen_agent import screen_user_message
+from evals.report_capture import capture_report, override_settings
 from evals.telemetry import eval_run, record_score
 from evals.user_text_screen_evaluators import (
     USER_TEXT_SCREEN_EVALUATORS,
@@ -36,9 +37,9 @@ def load_user_text_screen_dataset() -> Dataset[
     ].from_file(DATASET_PATH, custom_evaluator_types=USER_TEXT_SCREEN_EVALUATORS)
 
 
-def run_user_text_screen_evals() -> None:
+def run_user_text_screen_evals(model_override: str | None = None) -> None:
     """Evaluates Jev on every case and records the average scores in Logfire."""
-    settings = load_settings()
+    settings = override_settings(load_settings(), "user_text_screen_model", model_override)
     configure_tracing()
     model = settings.user_text_screen_model
 
@@ -58,6 +59,7 @@ def run_user_text_screen_evals() -> None:
         report = load_user_text_screen_dataset().evaluate_sync(
             judge_case, name=f"user_text_screen:{model}", max_concurrency=4
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

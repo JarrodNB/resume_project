@@ -16,6 +16,7 @@ from pydantic_evals import Dataset
 
 from agents.gap_analysis_agent import analyze_gaps
 from evals.gap_analysis_evaluators import GAP_ANALYSIS_EVALUATORS, GapAnalysisLabels
+from evals.report_capture import capture_report, override_settings
 from evals.telemetry import eval_run, record_score
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
@@ -39,9 +40,9 @@ def load_gap_analysis_dataset() -> Dataset[
     )
 
 
-def run_gap_analysis_evals() -> None:
+def run_gap_analysis_evals(model_override: str | None = None) -> None:
     """Evaluates the agent on every case and records the average scores in Logfire."""
-    settings = load_settings()
+    settings = override_settings(load_settings(), "gap_analysis_model", model_override)
     configure_tracing()
     model = settings.gap_analysis_model
     thinking = settings.gap_analysis_thinking
@@ -71,6 +72,7 @@ def run_gap_analysis_evals() -> None:
         report = load_gap_analysis_dataset().evaluate_sync(
             analyze_case, name=f"gap_analysis:{model}:thinking={thinking}", max_concurrency=5
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

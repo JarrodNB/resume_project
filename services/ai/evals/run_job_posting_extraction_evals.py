@@ -15,6 +15,7 @@ from pydantic_evals import Dataset
 
 from agents.job_requirements_sorting_agent import sort_job_requirement_bullets
 from evals.job_posting_extraction_evaluators import JOB_POSTING_EXTRACTION_EVALUATORS
+from evals.report_capture import capture_report, override_settings
 from evals.telemetry import eval_run, record_score
 from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
 from prompts.job_requirements_sorting_instructions import JOB_REQUIREMENTS_SORTING_PROMPT_VERSION
@@ -50,9 +51,9 @@ def linkedin_case_to_page(inputs: dict[str, Any]) -> JobPage:
     )
 
 
-def run_job_posting_extraction_evals() -> None:
+def run_job_posting_extraction_evals(model_override: str | None = None) -> None:
     """Evaluates extraction on every case and records the average scores in Logfire."""
-    settings = load_settings()
+    settings = override_settings(load_settings(), "job_requirements_sorting_model", model_override)
     configure_tracing()
     model = settings.job_requirements_sorting_model
     thinking = settings.job_requirements_sorting_thinking
@@ -86,6 +87,7 @@ def run_job_posting_extraction_evals() -> None:
             name=f"job_posting_extraction:{model}:thinking={thinking}",
             max_concurrency=5,
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

@@ -14,6 +14,7 @@ from pydantic_ai_harness import InputBlocked, InputGuardrail
 from pydantic_evals import Case, Dataset
 
 from agents.resume_parsing_agent import format_resume_user_prompt
+from evals.report_capture import capture_report
 from evals.run_resume_parsing_evals import load_resume_parsing_dataset
 from evals.telemetry import eval_run, record_score
 from screening.prompt_guardrail import BLOCKED_MESSAGE, screen_prompt
@@ -59,6 +60,7 @@ def run_prompt_guardrail_evals() -> None:
         metadata={"screening_model": load_settings().user_text_screen_model},
     ):
         report = load_prompt_guardrail_dataset().evaluate_sync(check_case, max_concurrency=3)
+        capture_report(report)
         errors = len(report.failures) + sum(len(case.evaluator_failures) for case in report.cases)
         matched = sum(case.output == case.expected_output for case in report.cases)
         accuracy = matched / len(report.cases) if report.cases else 0.0

@@ -12,6 +12,7 @@ from pydantic_ai.models.test import TestModel
 import text_limits
 from agents.interview_questions_agent import interview_questions_agent
 from schemas.gap_analysis_context import CareerLibrary, LibraryFact, LibrarySkill
+from schemas.interview_questions import QUESTION_CATEGORIES
 from screening.screen_user_text import ScreenOutcome
 from worker import interview_questions_handler
 from worker.queue_messages import AiTaskMessage
@@ -40,9 +41,7 @@ def _output(count=5, set_type="general"):
         "How would you like Python to fit your career goals?",
         "Can you describe an experience learning or using Python?",
     ]
-    categories = ["introduction", "strengths", "development", "goals", "behavioral"]
-    if set_type == "technical":
-        categories = ["work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"]
+    categories = QUESTION_CATEGORIES[set_type]
     return {"questions": [{"question_text": text, "category": category,
                             "evidence_quotes": ["Python"]}
         for text, category in zip(questions[:count],
@@ -50,7 +49,7 @@ def _output(count=5, set_type="general"):
 
 
 @pytest.mark.parametrize("replacement", [False, True])
-@pytest.mark.parametrize("set_type", [None, "general", "technical"])
+@pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
 def test_sparse_library_generates_questions(task_dependencies, replacement, set_type, monkeypatch):
     """One stated skill suffices, and both task types report billed usage."""
     library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")])
@@ -71,7 +70,9 @@ def test_sparse_library_generates_questions(task_dependencies, replacement, set_
     assert result.usage
 
 
-@pytest.mark.parametrize("set_type, output_type", [("technical", "general"), ("general", "technical")])
+@pytest.mark.parametrize("set_type, output_type", [("technical", "general"), ("general", "technical"),
+                                                 ("knowledge", "technical"), ("knowledge", "general"),
+                                                 ("general", "knowledge"), ("technical", "knowledge")])
 def test_wrong_scope_categories_fail(task_dependencies, set_type, output_type):
     """Five distinct but wrong-scope categories cannot be persisted."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
@@ -81,7 +82,7 @@ def test_wrong_scope_categories_fail(task_dependencies, set_type, output_type):
     assert result.usage
 
 
-@pytest.mark.parametrize("set_type", ["general", "technical"])
+@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
 def test_category_prefix_is_not_question_text(task_dependencies, set_type):
     """Internal category labels remain metadata instead of leaking into displayed questions."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
@@ -95,16 +96,17 @@ def test_category_prefix_is_not_question_text(task_dependencies, set_type):
 
 
 @pytest.mark.parametrize("replacement", [False, True])
-def test_technical_nonsoftware_skill_suffices(task_dependencies, replacement):
-    """Practical practice has no software or technical-evidence gate."""
+@pytest.mark.parametrize("set_type", ["technical", "knowledge"])
+def test_nonsoftware_skill_suffices(task_dependencies, replacement, set_type):
+    """Practical and knowledge practice accept sparse nontechnology skills."""
     deps = replace(task_dependencies, read_career_library=lambda user_id:
                    CareerLibrary(skills=[LibrarySkill(id="skill", name="Stock checking")]))
-    draft = _output(1 if replacement else 5, "technical")
+    draft = _output(1 if replacement else 5, set_type)
     for question in draft["questions"]:
         question["question_text"] = question["question_text"].replace("Python", "stock checking")
         question["evidence_quotes"] = ["Stock checking"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
-        assert handle_ai_task(_task(replacement, "technical"), deps).status == "completed"
+        assert handle_ai_task(_task(replacement, set_type), deps).status == "completed"
 
 
 @pytest.mark.parametrize("library", [CareerLibrary(), CareerLibrary(summary="  ")])
@@ -115,11 +117,12 @@ def test_empty_context_fails_before_model(task_dependencies, library):
 
 
 @pytest.mark.parametrize("problem", ["duplicate", "unsupported_quote", "wrong_count", "old_question"])
-def test_invalid_output_fails_cleanly(task_dependencies, problem):
+@pytest.mark.parametrize("set_type", ["general", "knowledge"])
+def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     """Exhausted validation retries produce an actionable failure."""
     deps = replace(task_dependencies, read_career_library=lambda user_id:
         CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
-    output = _output()
+    output = _output(set_type=set_type)
     replacement = problem == "old_question"
     if problem == "duplicate":
         output["questions"][1] = output["questions"][0]
@@ -128,10 +131,10 @@ def test_invalid_output_fails_cleanly(task_dependencies, problem):
     elif problem == "wrong_count":
         output["questions"].pop()
     else:
-        output = _output(1)
+        output = _output(1, set_type)
         output["questions"][0]["question_text"] = _task(True).input["question_text"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
-        result = handle_ai_task(_task(replacement), deps)
+        result = handle_ai_task(_task(replacement, set_type), deps)
     assert result.status == "failed"
     assert "valid, distinct" in result.error_message
     assert result.usage

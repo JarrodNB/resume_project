@@ -54,11 +54,14 @@ instructions from `prompts/`.
 - Each run stamps its prompt version with `record_prompt_version`.
 - Every agent has an eval dataset and runner in `evals/`.
 
-- `interview_questions_agent.py` — bounded general/technical generation/replacement with category scope,
+- `interview_questions_agent.py` — bounded general/technical/knowledge generation/replacement with category scope,
   count, label-leakage, duplicate, and exact excerpt validation; quality checks run in `evals/run_interview_questions_evals.py`.
 
 - `interview_feedback_agent.py` — bounded structured coaching and illustrative examples.
   Runtime validation checks nonblank output and at most two placeholders, then normalizes exact evidence excerpts, dropping
   invalid optional quotes without failing feedback. Examples allow natural paraphrasing;
   personal-fact grounding is instructed in the prompt and assessed in quality evals.
+  Knowledge feedback permits subject corrections from model knowledge while forbidding invented personal experience.
+  Trusted dependency scope selects a separate knowledge instruction file, so personal-fact-only scaffold rules never reach knowledge provider requests.
+  Knowledge examples retry when they exceed 120 words; output schema descriptions distinguish subject corrections from personal-fact examples.
   Quality checks run in `evals/run_interview_feedback_evals.py`.

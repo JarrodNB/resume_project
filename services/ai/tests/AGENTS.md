@@ -14,6 +14,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - Non-database tests mock profile-contact loading to keep task tracing independent of Postgres.
 - `conftest.py` — disables Logfire export and real model requests; `task_dependencies`,
   `fake_file_storage`, `fake_job_site`, `fake_context_reader` fixtures
+- `test_interview_feedback_instructions.py` — FunctionModel captures actual requests to verify trusted scope selects exclusively subject-correction or personal-fact coaching policies.
 - `fakes.py` — `FakeFileStorage`, `build_docx_bytes`, `FakeJobSite` (httpx.MockTransport),
   `build_gap_analysis_context`, `FakeGapAnalysisContextReader`
 - `test_career_library_reader.py` — marked `db`: reads as `ai_reader` from the dev database

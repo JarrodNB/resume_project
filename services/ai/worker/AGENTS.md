@@ -89,5 +89,7 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 
 - `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Fact responses are used; job-derived requirement fields are excluded from screening, prompts, and grounding evidence.
+  Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
 
 - `interview_feedback_handler.py` — screens saved answers before model use, screens library notes, excludes job requirements, and reports coaching plus usage without writes.
+  Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.

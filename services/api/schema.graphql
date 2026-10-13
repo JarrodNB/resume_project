@@ -709,6 +709,7 @@ type InterviewQuestionSet {
 
 enum InterviewQuestionSetTypeEnum {
   GENERAL
+  KNOWLEDGE
   TECHNICAL
 }
 

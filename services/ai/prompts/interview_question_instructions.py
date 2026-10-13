@@ -4,10 +4,10 @@ output is InterviewQuestions with categories and supporting verbatim excerpts.
 Index:
     - INTERVIEW_QUESTIONS_PROMPT_VERSION / INTERVIEW_QUESTIONS_INSTRUCTIONS
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v7"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v8"
 INTERVIEW_QUESTIONS_INSTRUCTIONS = """
 Write English interview practice questions for this person's career background and requested
-set type (general or technical).
+set type (general, technical, or knowledge).
 Do NOT require the person to tell a story about an unstated event. Questions must remain
 answerable with the background actually supplied, including education/skills only. Asking
 'tell me about a time' does not turn an invented event into a grounded question.
@@ -22,6 +22,18 @@ warehousing, hospitality, teaching, trades, administration, and software. Explor
 tasks, methods/tools, decisions and tradeoffs, solving problems, and checking or improving
 quality. Ask experience-based discussion questions, never knowledge quizzes, coding tasks,
 technical trivia, hypothetical design exercises, or questions targeted to a particular job.
+For a KNOWLEDGE set of five questions, return exactly one of EACH category: concepts,
+mechanisms, application, reasoning, limitations. Test understanding of career-relevant
+subject matter explicitly identified by the library: for example Python for a Python
+engineer, food safety for a catering worker, or source comparison for a history graduate.
+This applies to ALL occupations and sparse skills/education-only libraries. Select topics
+using exact library excerpts; those excerpts establish relevance, NOT factual answers.
+Use your subject knowledge to ask clear, answerable questions about definitions, how things
+work, applying principles to a clearly hypothetical scenario, explaining reasoning, and
+limitations or common misconceptions. Do not require personal stories or assume hands-on
+experience. Do not assume specialized expertise beyond the stated subject or introduce
+unrelated topics. Vary the actual focus, not merely the category label. Do not give answers,
+assign coding execution tasks, target a job, or require external knowledge ingestion.
 Use those exact category values for the requested type, each once, with different focuses.
 Categories belong ONLY in the category metadata field. Never prefix question_text with a
 category identifier or label such as 'work_overview:', 'Tools and methods:' or 'Introduction:'.
@@ -41,7 +53,12 @@ practical focus for technical replacements; for general replacements consider pr
 to change, learning from feedback, or judgment, anchored in stated career context. Do not infer
 that the person has experienced any particular challenge; ask an open question instead.
 For general sets keep the general career and behavioral interview themes.
-Every stated fact or premise must be explicitly supported by the library. Do not assume leadership,
+For knowledge replacements choose an unasked subject concept or principle within the
+library's topics, avoiding every excluded intent. All personal facts or premises must be
+explicitly supported by the library; knowledge questions may use general subject knowledge
+and explicitly hypothetical examples without suggesting the person experienced them.
+The following personal-experience constraints apply to GENERAL and TECHNICAL sets:
+Every stated personal fact or premise must be explicitly supported by the library. Do not assume leadership,
 conflict, success, failure, metrics, motivation, weaknesses, goals, or a career change. Ask open
 questions (for example what they want to develop), rather than asserting missing facts. Sparse
 libraries are valid: anchor questions in stated skills or education without inventing experiences.
@@ -71,6 +88,8 @@ Copy the excerpt's original capitalization and punctuation verbatim, without par
 adding quotation marks, ellipses, or joining separate passages. The same real excerpt may support
 more than one category in sparse libraries. Do not use excluded questions as evidence.
 Those excerpts must support your framing;
-a matching excerpt alone does not justify new assumptions. Do not expose quotes or internal IDs
+a matching excerpt alone does not justify new personal assumptions. For knowledge questions,
+excerpts justify the subject's relevance, not the correctness of a subject-matter answer.
+Do not expose quotes or internal IDs
 in question text. Do not answer the questions or mention screening. Keep questions distinct.
 """

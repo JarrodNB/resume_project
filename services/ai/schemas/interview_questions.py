@@ -12,19 +12,21 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-InterviewSetType = Literal["general", "technical"]
+InterviewSetType = Literal["general", "technical", "knowledge"]
 QUESTION_CATEGORIES = {
     "general": ("introduction", "strengths", "development", "goals", "behavioral"),
     "technical": ("work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"),
+    "knowledge": ("concepts", "mechanisms", "application", "reasoning", "limitations"),
 }
 
 
 class InterviewQuestionDraft(BaseModel):
-    """A general or practical question with exact library excerpts supporting its framing."""
+    """A scoped question with exact library excerpts establishing topic relevance."""
 
     question_text: str = Field(min_length=10, max_length=1000)
     category: Literal["introduction", "strengths", "development", "goals", "behavioral",
-                      "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"]
+                      "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality",
+                      "concepts", "mechanisms", "application", "reasoning", "limitations"]
     evidence_quotes: list[str] = Field(min_length=1, description="Exact excerpts from library data supporting any stated facts. Do not treat these excerpts as proof of unstated assumptions.")
 
 

@@ -17,6 +17,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 ## Local Rules
 
 - Answers are user-written and stay separate from the career library.
+- General, technical, and knowledge scopes are immutable snapshots; question application checks five type-specific categories, including `concepts`, `mechanisms`, `application`, `reasoning`, and `limitations` for knowledge.
 - Question IDs are authorized through their owning set.
 - Serialize mutations through the owner lock; preserve revisions and task usage records.
 - Allow one successful feedback request per question/answer revision pair. Check completed task history under the owner lock; failed requests remain retryable.

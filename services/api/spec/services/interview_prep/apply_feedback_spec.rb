@@ -25,21 +25,46 @@ RSpec.describe "Applying interview answer feedback" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
-  context "with a technical set" do
-    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "technical") }
+  %w[technical knowledge].each do |set_type|
+    context "with a #{set_type} set" do
+      let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
 
-    it "stores coaching once while preserving the typed answer" do
-      task.update!(input: task.input.merge("set_type" => "technical"))
-      2.times { apply }
-      expect(task.reload).to be_completed
-      expect(question.reload).to have_attributes(answer_text: "I organized a workshop.", feedback: feedback)
+      it "stores coaching once while preserving the typed answer" do
+        task.update!(input: task.input.merge("set_type" => set_type))
+        2.times { apply }
+        expect(task.reload).to be_completed
+        expect(question.reload).to have_attributes(answer_text: "I organized a workshop.", feedback: feedback)
+      end
+
+      it "rejects mismatched type snapshots without replacing prior coaching" do
+        original = question.attributes
+        apply
+        expect(task.reload).to be_failed
+        expect(question.reload.attributes).to eq(original)
+      end
+    end
+  end
+
+  context "with knowledge corrections" do
+    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "knowledge") }
+    let(:question) do
+      question_set.questions.create!(position: 1, question_text: "How do lists and tuples differ?",
+        answer_text: "Lists are immutable, but tuples can be appended to.", answer_revision: 1)
+    end
+    let(:feedback) do
+      { "strengths" => [ "You compare the types." ], "improvements" => [ "Reverse your mutability claim." ],
+        "example_answer" => "Lists are mutable; tuples are immutable sequences.", "evidence_quotes" => [] }
     end
 
-    it "rejects mismatched type snapshots without replacing prior coaching" do
-      original = question.attributes
-      apply
-      expect(task.reload).to be_failed
-      expect(question.reload.attributes).to eq(original)
+    it "stores corrected subject explanations separately from the incorrect typed answer" do
+      original_answer = question.answer_text
+      task.update!(input: task.input.merge("set_type" => "knowledge"))
+      2.times { apply }
+      expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 30)
+      expect(question.reload).to have_attributes(answer_text: original_answer, answer_revision: 1,
+        feedback: feedback, feedback_answer_revision: 1, feedback_question_revision: 1)
+      expect(user.library_facts).to be_empty
+      expect(ApiSchema.subscriptions).to have_received(:trigger).once
     end
   end
 

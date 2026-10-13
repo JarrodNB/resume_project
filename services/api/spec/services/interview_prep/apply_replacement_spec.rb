@@ -25,25 +25,38 @@ RSpec.describe "Applying an interview question replacement" do
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
-  context "with a technical set" do
-    let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: "technical") }
+  %w[technical knowledge].each do |set_type|
+    context "with a #{set_type} set" do
+      let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
 
-    it "keeps the set type and clears only the selected answer after success" do
-      originals = questions.drop(1).map(&:attributes)
-      task.update!(input: task.input.merge("set_type" => "technical"))
-      message["result"]["interview_questions"]["questions"][0]["category"] = "problem_solving"
-      2.times { apply }
-      expect(task.reload).to be_completed
-      expect(question_set.reload.set_type).to eq("technical")
-      expect(question.reload.answer_text).to eq("")
-      expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(originals)
-    end
+      it "keeps the set type and clears only the selected answer after success" do
+        originals = questions.drop(1).map(&:attributes)
+        task.update!(input: task.input.merge("set_type" => set_type))
+        message["result"]["interview_questions"]["questions"][0]["category"] = set_type == "knowledge" ? "reasoning" : "problem_solving"
+        2.times { apply }
+        expect(task.reload).to be_completed
+        expect(question_set.reload.set_type).to eq(set_type)
+        expect(question.reload.answer_text).to eq("")
+        expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(originals)
+      end
 
-    it "rejects a mismatched type snapshot and preserves content" do
-      original = question.attributes
-      apply
-      expect(task.reload).to be_failed
-      expect(question.reload.attributes).to eq(original)
+      it "rejects a mismatched type snapshot and preserves content" do
+        original = question.attributes
+        apply
+        expect(task.reload).to be_failed
+        expect(question.reload.attributes).to eq(original)
+      end
+
+      it "rejects a same-scope replacement that duplicates another saved question" do
+        original = question.attributes
+        task.update!(input: task.input.merge("set_type" => set_type))
+        draft = message["result"]["interview_questions"]["questions"][0]
+        draft["category"] = set_type == "knowledge" ? "reasoning" : "problem_solving"
+        draft["question_text"] = questions.last.question_text.upcase.gsub("?", "!")
+        apply
+        expect(task.reload).to be_failed
+        expect(question.reload.attributes).to eq(original)
+      end
     end
   end
 

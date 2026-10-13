@@ -40,3 +40,11 @@ it('restores failure details and keeps deletion available', async () => {
   expect(await screen.findByText('Add more career library details.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Delete set 1' })).toBeEnabled()
 })
+
+it('shows the persisted knowledge type and saved cards on reload', async () => {
+  const mock = setMock('COMPLETED')
+  mock.result.data.interviewQuestionSet.setType = 'KNOWLEDGE'
+  renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [mock] })
+  expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Knowledge')
+  expect(screen.getAllByRole('button', { name: /Question \d/ })).toHaveLength(5)
+})

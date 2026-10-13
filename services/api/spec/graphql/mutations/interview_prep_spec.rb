@@ -24,17 +24,19 @@ RSpec.describe "Interview practice mutations" do
     expect(payload["aiTask"]["input"]["set_type"]).to eq("general")
   end
 
-  it "generates a technical set exposed on subsequent queries" do
-    result = execute_graphql(<<~GQL, user: user)
-      mutation { generateInterviewQuestionSet(input: {setType: TECHNICAL}) { aiTask { input } errors } }
-    GQL
-    expect(result.dig("data", "generateInterviewQuestionSet", "errors")).to eq([])
-    id = result.dig("data", "generateInterviewQuestionSet", "aiTask", "input", "question_set_id")
-    detail = execute_graphql(<<~GQL, user: user, variables: { id: id })
-      query($id: ID!) { interviewQuestionSet(id: $id) { setType } interviewQuestionSets { setType } }
-    GQL
-    expect(detail.dig("data", "interviewQuestionSet", "setType")).to eq("TECHNICAL")
-    expect(detail.dig("data", "interviewQuestionSets").first["setType"]).to eq("TECHNICAL")
+  %w[TECHNICAL KNOWLEDGE].each do |set_type|
+    it "generates a #{set_type.downcase} set exposed on subsequent queries" do
+      result = execute_graphql(<<~GQL, user: user)
+        mutation { generateInterviewQuestionSet(input: {setType: #{set_type}}) { aiTask { input } errors } }
+      GQL
+      expect(result.dig("data", "generateInterviewQuestionSet", "errors")).to eq([])
+      id = result.dig("data", "generateInterviewQuestionSet", "aiTask", "input", "question_set_id")
+      detail = execute_graphql(<<~GQL, user: user, variables: { id: id })
+        query($id: ID!) { interviewQuestionSet(id: $id) { setType } interviewQuestionSets { setType } }
+      GQL
+      expect(detail.dig("data", "interviewQuestionSet", "setType")).to eq(set_type)
+      expect(detail.dig("data", "interviewQuestionSets").first["setType"]).to eq(set_type)
+    end
   end
 
   it "rejects invalid and explicit null types without creating sets" do

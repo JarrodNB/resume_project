@@ -1,4 +1,4 @@
-# Description: Synthetic coaching cases; missing facts must stay explicit placeholders.
+# Description: Synthetic personal coaching and subject corrections without invented experience.
 evaluators:
   - FeedbackStructure
 cases:
@@ -59,3 +59,27 @@ cases:
       library: "Recent history graduate. Skills: archival research and source comparison."
     metadata:
       needs_placeholder: true
+  - name: knowledge-python-incorrect-mutability
+    inputs:
+      set_type: knowledge
+      question: "How do Python lists and tuples differ in mutability?"
+      answer: "Lists cannot change after creation, but tuples let you append new values."
+      library: "Skills: Python."
+  - name: knowledge-nontechnology-allergen-misconception
+    inputs:
+      set_type: knowledge
+      question: "Why is removing visible nuts from prepared food insufficient to make it safe for someone with a nut allergy?"
+      answer: "Removing all visible nuts makes the food safe because only the pieces cause reactions."
+      library: "Catering assistant. Completed food safety training and allergen awareness."
+  - name: knowledge-sparse-history-incomplete-understanding
+    inputs:
+      set_type: knowledge
+      question: "What should you consider when comparing conflicting historical sources?"
+      answer: "I would pick the older source because older sources are always more reliable."
+      library: "Skills: historical source comparison."
+  - name: knowledge-accurate-answer-with-omission
+    inputs:
+      set_type: knowledge
+      question: "How does a database transaction support atomicity, and what does atomicity not guarantee?"
+      answer: "Atomicity means a transaction's changes either all commit or all roll back."
+      library: "Python engineer. Skills: PostgreSQL."

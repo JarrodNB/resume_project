@@ -11,20 +11,22 @@ RSpec.describe "Interview practice services" do
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
-  it "snapshots technical type for generation, replacement and feedback with sparse context" do
-    result = InterviewPrep::StartQuestionSetService.call(user: user, set_type: "technical")
-    expect(result).to be_success
-    expect(result.value.subject.set_type).to eq("technical")
-    expect(result.value.input["set_type"]).to eq("technical")
-    technical_question = result.value.subject.questions.create!(position: 1, question_text: "Describe your work methods?")
-    %w[regenerate_interview_question review_interview_answer].each do |operation|
-      queued = InterviewPrep::StartQuestionTaskService.call(user: user, question: technical_question,
-        task_type: operation, answer_text: "I use a checklist.")
-      expect(queued).to be_success
-      expect(queued.value.input["set_type"]).to eq("technical")
-      queued.value.update!(status: "failed")
+  %w[technical knowledge].each do |set_type|
+    it "snapshots #{set_type} type for generation, replacement and feedback with sparse context" do
+      result = InterviewPrep::StartQuestionSetService.call(user: user, set_type: set_type)
+      expect(result).to be_success
+      expect(result.value.subject.set_type).to eq(set_type)
+      expect(result.value.input["set_type"]).to eq(set_type)
+      scope_question = result.value.subject.questions.create!(position: 1, question_text: "Describe your work methods?")
+      %w[regenerate_interview_question review_interview_answer].each do |operation|
+        queued = InterviewPrep::StartQuestionTaskService.call(user: user, question: scope_question,
+          task_type: operation, answer_text: "I use a checklist.")
+        expect(queued).to be_success
+        expect(queued.value.input["set_type"]).to eq(set_type)
+        queued.value.update!(status: "failed")
+      end
+      expect(scope_question.reload.answer_text).to eq("I use a checklist.")
     end
-    expect(technical_question.reload.answer_text).to eq("I use a checklist.")
   end
 
   it "rejects unknown types before allocating sets or billing tasks" do

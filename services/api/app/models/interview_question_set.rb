@@ -2,9 +2,9 @@
 # Index:
 #   - questions: five ordered question slots, populated atomically by generation
 #   - ai_tasks: generation tasks retained for usage accounting after deletion
-#   - set_type: immutable general or practical technical scope (legacy default: general)
+#   - set_type: immutable general, practical technical, or knowledge scope (legacy default: general)
 class InterviewQuestionSet < ApplicationRecord
-  SET_TYPES = %w[general technical].freeze
+  SET_TYPES = %w[general technical knowledge].freeze
   enum :set_type, SET_TYPES.index_with(&:itself), validate: true
   attr_readonly :set_type
 

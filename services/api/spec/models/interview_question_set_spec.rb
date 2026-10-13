@@ -13,6 +13,19 @@ RSpec.describe InterviewQuestionSet do
     technical = user.interview_question_sets.create!(number: 2, set_type: "technical")
     expect { technical.update!(set_type: "general") }.to raise_error(ActiveRecord::ReadonlyAttributeError)
     expect(technical.reload.set_type).to eq("technical")
+    knowledge = user.interview_question_sets.create!(number: 3, set_type: "knowledge")
+    expect { knowledge.update!(set_type: "technical") }.to raise_error(ActiveRecord::ReadonlyAttributeError)
+    expect(knowledge.reload.set_type).to eq("knowledge")
+  end
+
+  it "rejects unsupported scopes at the database boundary" do
+    question_set
+    expect do
+      InterviewQuestionSet.transaction(requires_new: true) do
+        InterviewQuestionSet.where(id: question_set.id).update_all(set_type: "quiz")
+      end
+    end.to raise_error(ActiveRecord::StatementInvalid)
+    expect(question_set.reload.set_type).to eq("general")
   end
 
   # Builds a question within the user's practice set.

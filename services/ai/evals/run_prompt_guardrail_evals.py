@@ -14,7 +14,7 @@ from pydantic_ai_harness import InputBlocked, InputGuardrail
 from pydantic_evals import Case, Dataset
 
 from agents.resume_parsing_agent import format_resume_user_prompt
-from evals.report_capture import capture_report
+from evals.report_capture import capture_report, report_span_processors
 from evals.run_resume_parsing_evals import load_resume_parsing_dataset
 from evals.telemetry import eval_run, record_score
 from screening.prompt_guardrail import BLOCKED_MESSAGE, screen_prompt
@@ -41,7 +41,7 @@ def load_prompt_guardrail_dataset() -> Dataset[str, bool, None]:
 
 def run_prompt_guardrail_evals() -> None:
     """Exercises the production capability and fails on wrong decisions or screening outages."""
-    configure_tracing()
+    configure_tracing(additional_span_processors=report_span_processors())
     agent = Agent(TestModel(), capabilities=[InputGuardrail(guard=screen_prompt)])
 
     def check_case(prompt: str) -> bool:

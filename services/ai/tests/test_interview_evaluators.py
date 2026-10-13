@@ -117,7 +117,7 @@ def test_reporting_errors(monkeypatch, failure_kind) -> None:
         print=lambda **kwargs: None,
     )
     dataset = SimpleNamespace(evaluate_sync=lambda *args, **kwargs: report)
-    monkeypatch.setattr(interview_eval_reporting, "configure_tracing", lambda: None)
+    monkeypatch.setattr(interview_eval_reporting, "configure_tracing", lambda **kwargs: None)
     monkeypatch.setattr(interview_eval_reporting, "record_score",
                         lambda **kwargs: scores.append(kwargs))
     monkeypatch.setattr(telemetry, "flush_tracing", lambda: flushed.append(True))

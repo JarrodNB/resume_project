@@ -11,6 +11,9 @@ from html import escape
 
 from pydantic import BaseModel
 
+from evals.report_cost_markdown import render_cost_comparison, render_costs
+from evals.report_costs import ReportCosts
+
 
 def _json_default(value):
     """Serializes structured agent outputs and native report dataclasses faithfully."""
@@ -67,6 +70,7 @@ def render_report(suite, runs, created):
         report = run["report"]
         lines += [f"## Run {index}: {run['model']}", "", "Configuration:", "",
                   "```json", _json(run["configuration"]), "```", ""]
+        lines += render_costs(run.get("costs", ReportCosts()))
         if run["error"]:
             lines += ["Run error:", "", "```text", run["error"], "```", ""]
         if report is None:
@@ -84,6 +88,9 @@ def render_report(suite, runs, created):
         mappings.append({case.name: case for case in report.cases + report.failures}
                         if report else {})
     names = dict.fromkeys(name for mapping in mappings for name in mapping)
+    # Place costs before case score rows, keeping each comparison table contiguous.
+    table_start = lines.index("## Case comparison")
+    lines[table_start:table_start] = render_cost_comparison(runs, names)
     for name in names:
         cells = []
         for mapping in mappings:

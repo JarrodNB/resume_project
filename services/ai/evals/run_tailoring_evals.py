@@ -13,7 +13,7 @@ from pathlib import Path
 from pydantic_evals import Dataset
 
 from agents.resume_tailoring_agent import write_resume_section
-from evals.report_capture import capture_report, override_settings
+from evals.report_capture import capture_report, override_settings, report_span_processors
 from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, TailorEvalLabels
 from evals.telemetry import eval_run, record_score
 from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
@@ -36,7 +36,7 @@ def load_tailoring_dataset() -> Dataset[TailorEvalInput, TailoredSectionDraft, T
 def run_tailoring_evals(model_override: str | None = None) -> None:
     """Evaluates the agent on every case and records the average scores in Logfire."""
     settings = override_settings(load_settings(), "resume_tailoring_model", model_override)
-    configure_tracing()
+    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.resume_tailoring_model
     thinking = settings.resume_tailoring_thinking
 

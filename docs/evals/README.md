@@ -1,5 +1,5 @@
 <!-- Description: Running and interpreting optional AI evaluation reports.
-Index: commands, supported suites, comparison configuration, artifacts and failures. -->
+Index: commands, supported suites, comparison configuration, costs, artifacts and failures. -->
 
 # Evaluation reports
 
@@ -39,5 +39,23 @@ the container destination; use a bind-mounted location to retain reports after c
 Task/evaluator errors produce a saved report and nonzero exit status, including all-case
 failure runs. Low subjective scores are review signals, not new pass gates. The prompt
 guardrail's existing decision gate remains in force. Inspect local reports before committing
-or sharing them: full synthetic inputs and outputs are included. No cost estimate is added.
+or sharing them: full synthetic inputs and outputs are included.
 Live eval runs call paid providers and require the usual configured credentials.
+
+Reports include estimated USD costs for the whole run and each aligned case, plus
+per-provider-model input, cached input and output tokens. The total includes captured
+generation, Jev screening, LLM judges, embeddings and validation retries, even if a later
+step fails. Cached input is part of the input count; its discounted rate is applied once.
+Fake models are excluded. Prices come from `services/ai/worker/model_prices.py`, using
+standard rates and rounding up to a microdollar per request. These are estimates, not invoices.
+
+Unknown prices or missing provider token usage produce an **incomplete known subtotal**.
+No captured provider calls means **unavailable**, never an assumed free run. Provider
+errors may incur charges without returning usage; those calls remain unknown. Capture
+uses synchronous native request spans and requires recording instrumentation; sampling
+or disabled instrumentation can omit calls. Whole-run costs include calls outside a case.
+Differing configured fallback models also make the estimate incomplete: the SDK can hide
+failed intermediate attempts within one request span. Explicit `--model` disables fallback.
+Case estimates include tasks and their evaluators. Existing reports have no retrospective
+costs: rerun the optional CLI to capture usage. Standalone runners and production billing
+retain their existing behavior.

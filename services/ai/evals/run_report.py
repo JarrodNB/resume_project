@@ -73,8 +73,11 @@ def run_suite(suite, model=None):
         except Exception as exception:  # noqa: BLE001 -- persist failures from any suite/provider
             error = f"{type(exception).__name__}: {exception}"
     configuration.update(capture.metadata)
+    if configuration.get("fallback_model", configured_model) != configured_model:
+        capture.costs.coverage_issues.append(
+            "Fallback enabled: SDK request spans may omit failed intermediate attempts")
     return {"model": configured_model, "configuration": configuration,
-            "report": capture.report, "error": error}
+            "report": capture.report, "error": error, "costs": capture.costs}
 
 
 def main(argv=None):

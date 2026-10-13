@@ -5,12 +5,15 @@ Index:
     - capture_run: isolates report capture from standalone runner calls
     - capture_report / capture_metadata: retain the native report and trace configuration
     - override_settings: copies settings for an explicit eval-only model choice
+    - report_span_processors: attaches cost collection only to an active report
 """
 
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
+
+from evals.report_costs import ReportCostProcessor, ReportCosts
 
 
 @dataclass
@@ -19,9 +22,17 @@ class ReportCapture:
 
     report: Any = None
     metadata: dict = field(default_factory=dict)
+    costs: ReportCosts = field(default_factory=ReportCosts)
 
 
 _ACTIVE: ContextVar[ReportCapture | None] = ContextVar("eval_report_capture", default=None)
+
+
+def report_span_processors():
+    """Returns one scoped synchronous usage collector, or none for standalone evals."""
+    capture = _ACTIVE.get()
+    return ([ReportCostProcessor(capture.costs, lambda: _ACTIVE.get() is capture)]
+            if capture is not None else [])
 
 
 @contextmanager

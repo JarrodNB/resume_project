@@ -7,6 +7,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 ## Contents
 
 - `test_eval_reports.py` — offline comparison alignment, failure persistence, compatibility and model isolation.
+- `test_eval_report_costs.py` — native provider usage, cached costs, auxiliary calls and incomplete estimates.
+- `test_eval_report_cost_edges.py` — validation retries, response model prices and absent usage.
 
 - `test_prompt_guardrail.py` — real capability policy with fake providers: every generative
   agent blocks before a provider call, allowed flow, history coverage, caps and fail-closed.

@@ -99,7 +99,7 @@ Certification tests cover year/month/day precision, leap-month expiry boundaries
 unknown expiration within partially stated periods.
 
 
-- `test_interview_questions_handler.py` — generation/replacement, sparse/empty context, duplicate/excerpt/count checks, limits, and fail-closed notes. The database reader suite verifies job-independent ownership.
+- `test_interview_questions_handler.py` — generation/replacement, sparse/empty context, duplicate/evidence-ID/count checks and exact original-text resolution, limits, and fail-closed notes. The database reader suite verifies job-independent ownership.
 
 - `test_interview_feedback_handler.py` — feedback screening failures, sparse context, invalid
   output usage and illustrative paraphrasing, prompt cap, and excluded requirements/notes.

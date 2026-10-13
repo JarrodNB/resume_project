@@ -42,7 +42,7 @@ definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
 - `interview_question_instructions.py` — versioned English general, practical technical, or subject knowledge questions for every occupation;
-  explicit category/quote rules and semantic comparison for replacement exclusions.
+  explicit category/evidence-ID rules and semantic comparison for replacement exclusions.
 
 - `interview_feedback_instructions.py` — versioned English coaching and freely paraphrased illustrative examples,
   with placeholders for missing personal facts and optional exact evidence quotes.

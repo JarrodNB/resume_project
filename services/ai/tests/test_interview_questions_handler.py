@@ -43,7 +43,7 @@ def _output(count=5, set_type="general"):
     ]
     categories = QUESTION_CATEGORIES[set_type]
     return {"questions": [{"question_text": text, "category": category,
-                            "evidence_quotes": ["Python"]}
+                            "evidence_ids": ["E1"]}
         for text, category in zip(questions[:count],
             categories)]}
 
@@ -68,6 +68,9 @@ def test_sparse_library_generates_questions(task_dependencies, replacement, set_
     assert result.status == "completed"
     assert len(result.result["interview_questions"]["questions"]) == (1 if replacement else 5)
     assert result.usage
+    for question in result.result["interview_questions"]["questions"]:
+        assert question["evidence_quotes"] == ["Python"]
+        assert "evidence_ids" not in question
 
 
 @pytest.mark.parametrize("set_type, output_type", [("technical", "general"), ("general", "technical"),
@@ -104,7 +107,7 @@ def test_nonsoftware_skill_suffices(task_dependencies, replacement, set_type):
     draft = _output(1 if replacement else 5, set_type)
     for question in draft["questions"]:
         question["question_text"] = question["question_text"].replace("Python", "stock checking")
-        question["evidence_quotes"] = ["Stock checking"]
+        question["evidence_ids"] = ["E1"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
         assert handle_ai_task(_task(replacement, set_type), deps).status == "completed"
 
@@ -116,8 +119,8 @@ def test_empty_context_fails_before_model(task_dependencies, library):
     assert "Add usable" in handle_ai_task(_task(), deps).error_message
 
 
-@pytest.mark.parametrize("problem", ["duplicate", "unsupported_quote", "wrong_count", "old_question"])
-@pytest.mark.parametrize("set_type", ["general", "knowledge"])
+@pytest.mark.parametrize("problem", ["duplicate", "unsupported_id", "empty_ids", "wrong_count", "old_question"])
+@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
 def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     """Exhausted validation retries produce an actionable failure."""
     deps = replace(task_dependencies, read_career_library=lambda user_id:
@@ -126,8 +129,10 @@ def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     replacement = problem == "old_question"
     if problem == "duplicate":
         output["questions"][1] = output["questions"][0]
-    elif problem == "unsupported_quote":
-        output["questions"][0]["evidence_quotes"] = ["Led a team"]
+    elif problem == "unsupported_id":
+        output["questions"][0]["evidence_ids"] = ["E999"]
+    elif problem == "empty_ids":
+        output["questions"][0]["evidence_ids"] = []
     elif problem == "wrong_count":
         output["questions"].pop()
     else:
@@ -186,9 +191,29 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_prompt)
     output = _output(1 if replacement else 5)
     if cite_requirement:
-        output["questions"][0]["evidence_quotes"] = [requirement]
+        output["questions"][0]["evidence_ids"] = ["E999"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
     assert screened and all(text.strip() == "Python" for text in screened)
     assert library.facts[0].requirement == requirement
+
+
+@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+@pytest.mark.parametrize("replacement", [False, True])
+def test_evidence_resolution_preserves_original_text(task_dependencies, set_type, replacement):
+    """IDs preserve punctuation, Unicode, quotes, and whitespace without model copying."""
+    original = '  Built “RAG” on Qdrant; Python → Rails.  '
+    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary=original))
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1 if replacement else 5, set_type))):
+        result = handle_ai_task(_task(replacement, set_type), deps)
+    assert result.status == "completed"
+    assert all(question["evidence_quotes"] == [original] for question in result.result["interview_questions"]["questions"])
+
+
+def test_evidence_catalog_counts_toward_prompt_limit(task_dependencies, monkeypatch):
+    """Duplicated evidence context cannot bypass the assembled-prompt cap."""
+    original = 'Python knowledge and practice. ' * 50
+    monkeypatch.setattr(text_limits, "MAX_PROMPT_TEXT", len(original) + 500)
+    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary=original))
+    assert "too long" in handle_ai_task(_task(), deps).error_message

@@ -85,10 +85,10 @@ def handle_interview_questions_task(
     text = f"Generate {count} {snapshot.set_type} questions.\nLibrary JSON data:\n{library_text}"
     if excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
-    if text_limits.prompt_is_too_long(text):
+    prompt = InterviewQuestionContext(text, _library_evidence_text(content), count, tuple(excluded), snapshot.set_type)
+    if text_limits.prompt_is_too_long(prompt.text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Your career library is too long for interview questions. Shorten its entries and try again.")
-    prompt = InterviewQuestionContext(text, _library_evidence_text(content), count, tuple(excluded), snapshot.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_questions(prompt, model=settings.interview_questions_model,

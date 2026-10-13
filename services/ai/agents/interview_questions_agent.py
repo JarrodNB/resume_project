@@ -1,5 +1,5 @@
 """
-Description: Generates scope-specific distinct questions with excerpt and category-label checks.
+Description: Generates scope-specific distinct questions with evidence-ID and category-label checks.
 Index:
     - interview_questions_agent / check_labels: agent and output validation
     - InterviewQuestionsRun / generate_interview_questions: bounded run and billed usage
@@ -20,7 +20,9 @@ from prompts.interview_question_instructions import (
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
     InterviewQuestionContext,
+    InterviewQuestionDraft,
     InterviewQuestions,
+    InterviewQuestionSelections,
     normalize_question,
 )
 from screening.prompt_guardrail import screen_prompt
@@ -33,7 +35,7 @@ from worker.tracing import record_prompt_version
 interview_questions_agent = Agent(
     name="interview_questions_agent",
     deps_type=InterviewQuestionContext,
-    output_type=InterviewQuestions,
+    output_type=InterviewQuestionSelections,
     instructions=INTERVIEW_QUESTIONS_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
@@ -42,8 +44,8 @@ interview_questions_agent = Agent(
 
 
 @interview_questions_agent.output_validator
-def check_labels(context: RunContext[InterviewQuestionContext], analysis: InterviewQuestions) -> InterviewQuestions:
-    """Retries incorrect scope/count, exposed category labels, duplicates, or unsupported excerpts."""
+def check_labels(context: RunContext[InterviewQuestionContext], analysis: InterviewQuestionSelections) -> InterviewQuestionSelections:
+    """Retries incorrect scope/count, exposed category labels, duplicates, or unknown evidence IDs."""
     problems = []
     categories = QUESTION_CATEGORIES[context.deps.set_type]
     if any(q.category not in categories for q in analysis.questions):
@@ -61,8 +63,8 @@ def check_labels(context: RunContext[InterviewQuestionContext], analysis: Interv
         if key in seen:
             problems.append("Questions must be distinct from one another and excluded questions.")
         seen.add(key)
-        if any(not quote.strip() or quote not in context.deps.library_text for quote in question.evidence_quotes):
-            problems.append("Evidence quotes must be exact nonblank excerpts of the library.")
+        if any(evidence_id not in context.deps.evidence for evidence_id in question.evidence_ids):
+            problems.append("Evidence IDs must exist in the supplied evidence catalog.")
     if problems:
         raise ModelRetry("Fix these problems and answer again:\n- " + "\n- ".join(problems))
     return analysis
@@ -107,7 +109,10 @@ async def _run_with_deadline(
                 usage_limits=agent_usage_limits(load_settings()),
             )
     return InterviewQuestionsRun(
-        questions=result.output,
+        questions=InterviewQuestions(questions=[InterviewQuestionDraft(
+            question_text=question.question_text, category=question.category,
+            evidence_quotes=[prompt.evidence[evidence_id] for evidence_id in question.evidence_ids],
+        ) for question in result.output.questions]),
         usage=result.usage,
         model=reported_model_name(result.response.model_name or model, model),
     )

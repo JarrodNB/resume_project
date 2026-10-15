@@ -6,6 +6,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
+
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
   finalized reports are immutable and independent of task outcome/generation.
 

@@ -6,6 +6,11 @@ Test interview practice service behavior without external AI or queue calls.
 
 ## Contents
 
+- `embedding_lifecycle_spec.rb` — save enqueueing, combined/masked text, edit/clear invalidation, invalid-save preservation.
+- `embedding_save_spec.rb` — all practice types, unchanged-save eligibility, feedback allowance/publication failures.
+- `embedding_sync_spec.rb` — duplicate jobs, ownership, late results, provider failure, and library isolation.
+- `embedding_transactions_spec.rb` — actual commits/rollbacks and separate connections prove lock release and duplicate serialization.
+
 - `question_operations_spec.rb` — generation, answers, feedback snapshots, replacement, limits, and deletion.
 - Also covers freshness after formatting-only changes and unverified feedback snapshots.
 

@@ -6,6 +6,8 @@ RSpec model validation, associations, ordering, and deletion coverage.
 
 ## Contents
 
+- `interview_question_embedding_spec.rb` — real database uniqueness and question/set/user cascade cleanup.
+
 - `library_embedding_spec.rb` — library-fact source validation and rejection of unrelated types.
 - `interview_question_set_spec.rb`
 - `job_spec.rb`

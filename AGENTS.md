@@ -49,9 +49,11 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
   be safe to run twice (see "Duplicate Messages" in `docs/architecture.md`).
 - Long-running AI work goes through SQS (ElasticMQ locally), never synchronous HTTP.
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
- embeds career library entries itself (OpenAI embeddings API, `CareerLibrary::SyncLibraryEmbeddingsJob`),
+ embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,
+ `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),
  because embeddings are derived data with no prompt and are too large to return over SQS. The
- AI service embeds search queries through Pydantic AI as usual.
+ AI service embeds search queries through Pydantic AI as usual. These independent Rails
+ jobs are outside AI-task budgets/attempt reports and Logfire tracing; they still incur provider costs.
 - Secrets come from environment variables; never commit them. Each service has its own
   `.env` (copied from its `.env.example`).
 

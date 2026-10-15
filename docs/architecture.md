@@ -342,7 +342,7 @@ tailoring) instead of sending everything.
   both lists rank well over a row that is first on only one. Ties break toward the smaller
   cosine distance. The user and model filters run in SQL before either rank. The
   library-retrieval eval calls the same fusion and reports recall@k, precision@k, and MRR.
-- **Rails computes career library embeddings itself (an exception to "all LLM calls go through
+- **Rails computes career-library and saved interview Q&A embeddings itself (an exception to "all LLM calls go through
   the AI service").** Embeddings are derived data that Rails can rebuild at any time, and they
   contain no prompt. They are also too large for the result queue: one 1536-dimension vector is
   roughly 8–20 KB as JSON, so a resume import's worth won't fit in a 256 KB SQS message. Two
@@ -353,6 +353,18 @@ tailoring) instead of sending everything.
   and Rails' embedding calls aren't traced in Logfire. The sync runs as a background job, so
   an OpenAI outage never blocks an import or an edit. The worker still embeds search queries
   through Pydantic AI, so those calls are traced.
+- **Interview Q&A vectors remain separate from career-library evidence.** Future successful
+  nonblank answer saves (including unchanged saves and feedback saves) enqueue a question-specific
+  `InterviewPrep::SyncQuestionEmbeddingJob` after commit. `interview_question_embeddings` stores
+  original combined Q&A, a model/masked-text digest, source revisions, and a 1536-dimension vector.
+  Contact is masked only for the provider. A unique question foreign key cascades deletion;
+  edits/clears and successful replacements invalidate vectors in the source transaction.
+  The service snapshots and rechecks ownership, content, and revisions under the owner lock,
+  releasing it during HTTP. A question advisory lock serializes duplicate jobs. Late results
+  cannot restore obsolete content. There is no backfill, search index/interface, library
+  promotion, or AI-reader grant. Temporary errors retry; missing configuration logs and skips.
+  These independent Rails calls incur provider costs outside AI-task budgets/attempt reports
+  and Logfire tracing, like library syncs; feedback tasks do not absorb their costs.
 - **Rails-owned auth** (Devise + JWT).
 - **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring)
   call `gpt-5-mini` and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
@@ -565,7 +577,7 @@ tailoring) instead of sending everything.
   tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
   not independently block work. The existing hourly and in-flight caps remain in place.
   Deploy the Rails migration/consumer before the new worker message format. This accounting
-  covers queued AI tasks and their query embeddings; independent Rails career-library
+  covers queued AI tasks and their query embeddings; independent Rails career-library/interview Q&A
   embedding syncs and paid eval runs retain their separate existing execution paths.
 - **Rack::Attack on Rails.cache for request throttling.** No Redis: the dev memory store and
   production Solid Cache are enough at this scale.

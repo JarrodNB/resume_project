@@ -100,3 +100,5 @@ No standalone prefactoring: existing seams suffice. Tickets published after expl
 Worktree attachment remains unavailable because Windows Git reports dubious ownership; WSL Git checkout is usable after worktree repair.
 
 Published tickets: issues/01-grouped-transcripts.md; issues/02-reliable-transcripts.md. Both ready-for-agent, 02 blocked by 01.
+
+Ticket 01 implemented at 90ecfe8; independent Docker verification: 46 passed. Ticket 02 released and in-progress.

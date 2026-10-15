@@ -4,7 +4,7 @@
 
 **Blocked by:** 01: Grouped local conversation transcripts
 
-**Status:** ready-for-agent
+**Status:** in-progress
 
 - [ ] Request/error blocks survive provider failure; unavailable responses are identified truthfully.
 - [ ] Nested screening, fallback, repeated deliveries and tailoring generations are distinguishable and retained.
@@ -14,3 +14,5 @@
 
 ## Progress
 Branch/worktree, commits, red/green evidence, verification and blockers: pending.
+
+Assigned isolated TDD worker; ticket 01 integrated and independently verified.

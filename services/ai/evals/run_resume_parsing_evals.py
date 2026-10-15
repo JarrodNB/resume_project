@@ -11,15 +11,15 @@ from pathlib import Path
 from typing import Any
 
 from pydantic_evals import Dataset
+from pydantic_evals.reporting import EvaluationReport
 
 from agents.resume_parsing_agent import parse_resume_text
-from evals.report_capture import capture_report, override_settings, report_span_processors
+from evals.report_capture import override_settings
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
-from evals.telemetry import eval_run, record_score
+from evals.telemetry import evaluate_dataset
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
 from worker.settings import load_settings
-from worker.tracing import configure_tracing
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "resume_parsing_cases.yaml"
 TRACE_NAME = "evals.resume_parsing"
@@ -32,10 +32,9 @@ def load_resume_parsing_dataset() -> Dataset[str, ParsedResume, dict[str, Any]]:
     )
 
 
-def run_resume_parsing_evals(model_override: str | None = None) -> None:
+def run_resume_parsing_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates allowed parsing cases; expected blocks run in the guardrail suite."""
     settings = override_settings(load_settings(), "resume_parsing_model", model_override)
-    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.resume_parsing_model
     thinking = settings.resume_parsing_thinking
 
@@ -54,7 +53,9 @@ def run_resume_parsing_evals(model_override: str | None = None) -> None:
     dataset.cases = [
         case for case in dataset.cases if not (case.metadata or {}).get("expects_input_block")
     ]
-    with eval_run(
+    return evaluate_dataset(
+        lambda: dataset,
+        parse_case,
         name=TRACE_NAME,
         metadata={
             "model": model,
@@ -63,15 +64,9 @@ def run_resume_parsing_evals(model_override: str | None = None) -> None:
         },
         version=RESUME_PARSING_PROMPT_VERSION,
         tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
-    ):
-        report = dataset.evaluate_sync(
-            parse_case, name=f"resume_parsing:{model}:thinking={thinking}", max_concurrency=5
-        )
-        capture_report(report)
-        for score_name, average in report.averages().scores.items():
-            record_score(name=score_name, value=average)
-
-    report.print(include_input=False, include_output=False, include_durations=True)
+        evaluation_name=f"resume_parsing:{model}:thinking={thinking}",
+        max_concurrency=5,
+    )
 
 
 if __name__ == "__main__":

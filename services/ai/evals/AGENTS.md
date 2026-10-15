@@ -14,7 +14,9 @@ score attached, so runs can be compared across prompt and model changes.
 - `report_costs.py` — report-scoped per-request usage capture and local price estimates.
 - `report_cost_markdown.py` — per-model token costs, coverage and aligned comparisons.
 
-- `telemetry.py` — native Logfire eval context, always-flushed runs and numeric aggregate scores
+- `telemetry.py` — shared ordinary-suite evaluation/report lifecycle, native Logfire eval
+  context, always-flushed runs and numeric aggregate scores. Capture completed reports before
+  aggregation or printing; preserve suite failure policies and native report objects.
 
 - `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through
   the official InputGuardrail capability, with a fake generative model. Measures allow/block

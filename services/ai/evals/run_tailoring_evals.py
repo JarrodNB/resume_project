@@ -11,16 +11,16 @@ from datetime import date
 from pathlib import Path
 
 from pydantic_evals import Dataset
+from pydantic_evals.reporting import EvaluationReport
 
 from agents.resume_tailoring_agent import write_resume_section
-from evals.report_capture import capture_report, override_settings, report_span_processors
+from evals.report_capture import override_settings
 from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, TailorEvalLabels
-from evals.telemetry import eval_run, record_score
+from evals.telemetry import evaluate_dataset
 from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
 from schemas.tailored_section import TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from worker.settings import load_settings
-from worker.tracing import configure_tracing
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "tailoring_cases.yaml"
 TRACE_NAME = "evals.tailoring"
@@ -33,10 +33,9 @@ def load_tailoring_dataset() -> Dataset[TailorEvalInput, TailoredSectionDraft, T
     )
 
 
-def run_tailoring_evals(model_override: str | None = None) -> None:
+def run_tailoring_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates the agent on every case and records the average scores in Logfire."""
     settings = override_settings(load_settings(), "resume_tailoring_model", model_override)
-    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.resume_tailoring_model
     thinking = settings.resume_tailoring_thinking
 
@@ -60,20 +59,16 @@ def run_tailoring_evals(model_override: str | None = None) -> None:
             fallback_model=settings.generative_fallback_model,
         ).draft
 
-    with eval_run(
+    return evaluate_dataset(
+        load_tailoring_dataset,
+        write_case,
         name=TRACE_NAME,
         metadata={"model": model, "prompt_version": RESUME_TAILORING_PROMPT_VERSION},
         version=RESUME_TAILORING_PROMPT_VERSION,
         tags=["eval", "tailor_resume", model],
-    ):
-        report = load_tailoring_dataset().evaluate_sync(
-            write_case, name=f"tailoring:{model}", max_concurrency=2
-        )
-        capture_report(report)
-        for score_name, average in report.averages().scores.items():
-            record_score(name=score_name, value=average)
-
-    report.print(include_input=False, include_output=False, include_durations=True)
+        evaluation_name=f"tailoring:{model}",
+        max_concurrency=2,
+    )
 
 
 if __name__ == "__main__":

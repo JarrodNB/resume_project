@@ -19,6 +19,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `services/ai/`       | Python SQS workers: OpenAI calls, scraping, memory, Logfire   |
 | `infra/`             | Terraform (AWS), Kubernetes manifests, local ElasticMQ config  |
 | `docs/`              | Architecture, MVP plan, decisions                              |
+| `GLOSSARY.md`        | Shared domain terms                                            |
 | `.github/workflows/` | CI and automated deployment (created when first needed)        |
 
 ## Code Conventions

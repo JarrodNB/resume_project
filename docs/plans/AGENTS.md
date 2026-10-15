@@ -6,6 +6,8 @@ Feature implementation plans split into reviewable phases and tasks.
 
 ## Contents
 
+- `vectorize-question-and-answers/` — approved interview Q&A embedding plan and delivery state.
+
 - `paste_job_ad.md` — pasted job advertisement extraction plan.
 - `llm_engineering_rules_done.md` — already applied LLM engineering work.
 - `interview_prep.md` — personalized interview practice plan and verification progress.

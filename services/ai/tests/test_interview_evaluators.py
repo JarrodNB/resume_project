@@ -1,6 +1,8 @@
 """
 Description: Exercises interview dataset checks offline with good and deliberately bad output.
 Index:
+    - test_knowledge_accuracy_skips_other_scopes: knowledge-only judge selection
+    - test_feedback_focus_limits: focused coaching and concise examples
     - test_question_structure: counts, variety, exclusions and unsupported quotes
     - test_feedback_structure: blank coaching, invented evidence and missing placeholders
     - test_reporting_errors: runner fails and flushes on case or judge errors
@@ -110,19 +112,26 @@ def test_reporting_errors(monkeypatch, failure_kind, capsys) -> None:
     from evals.report_capture import capture_run
 
     class Quality(Evaluator):
+        """Supply zero scores or a native judge failure."""
+
         def evaluate(self, context):
+            """Keep low quality distinct from evaluator errors."""
             if failure_kind == "judge":
                 raise ValueError("judge failed")
             return 0.0
 
     class BrokenReport(ReportEvaluator):
+        """Supply a native report evaluator failure."""
+
         def evaluate(self, context):
+            """Raise the report error used by the policy check."""
             raise ValueError("report evaluator failed")
 
     output = InterviewFeedback(strengths=["Clear theme"], improvements=["Add details"],
                                example_answer="[Add actual details]")
 
     def task(value):
+        """Return synthetic feedback or simulate a failed task."""
         if value == "fail":
             raise ValueError("task failed")
         return output

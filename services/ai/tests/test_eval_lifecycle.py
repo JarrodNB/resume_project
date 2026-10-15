@@ -1,4 +1,16 @@
-"""Exercise the shared evaluation lifecycle with native offline reports."""
+"""
+Description: Exercise the shared evaluation lifecycle with native offline reports.
+Index:
+    - Quality: supplies deterministic numeric scores
+    - test_lifecycle_returns_native_report_and_scores: native capture, metadata and scores
+    - test_completed_report_survives_reporting_errors: retention after reporting errors
+    - test_evaluation_exception_propagates_and_flushes: failed evaluation cleanup
+    - test_ordinary_print_options_and_case_failure_policy: ordinary suite behavior
+    - test_all_failed_cases_preserve_existing_aggregation_failure: native outage behavior
+    - test_dataset_load_failure_keeps_metadata_and_flushes: fixture failure cleanup
+    - test_custom_scores_replace_averages_and_print_after_flush: specialized scoring
+    - test_guardrail_native_failure_policy: native guardrail errors and decisions
+"""
 
 import pytest
 from pydantic_evals import Case, Dataset
@@ -143,6 +155,7 @@ def test_custom_scores_replace_averages_and_print_after_flush(monkeypatch):
     monkeypatch.setattr(EvaluationReport, "print", lambda self, **kwargs: events.append(kwargs))
     with capture_run() as capture:
         def score(report):
+            """Check retained report scoring inside the active trace."""
             from opentelemetry import trace
 
             assert trace.get_current_span().get_span_context().is_valid
@@ -168,11 +181,17 @@ def test_guardrail_native_failure_policy(monkeypatch, failure_kind):
     from evals import run_prompt_guardrail_evals as guardrail
 
     class BrokenCase(Evaluator):
+        """Simulate a native case evaluator outage."""
+
         def evaluate(self, context):
+            """Raise a deterministic case evaluation error."""
             raise ValueError("case evaluator failed")
 
     class BrokenReport(ReportEvaluator):
+        """Simulate a native report evaluator outage."""
+
         def evaluate(self, context):
+            """Raise a deterministic report evaluation error."""
             raise ValueError("report evaluator failed")
 
     dataset = Dataset(
@@ -183,6 +202,7 @@ def test_guardrail_native_failure_policy(monkeypatch, failure_kind):
     )
 
     def generate(self, prompt):
+        """Simulate an allowed prompt or a screening outage."""
         if failure_kind == "outage":
             raise RuntimeError("screening outage")
 

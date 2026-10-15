@@ -6,6 +6,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_conversation_logging.py` — real task/model transcript capture, user/job/set/task
+  grouping, local gating, synthetic tool/retry parts, masked response and nonfatal disk errors.
+
 - `test_task_usage_accounting.py` — costs through task execution: run limits, SQS retries
   and output-validation failures.
 - `test_task_usage_providers.py` — fallback, screening, query embeddings and unknown prices.

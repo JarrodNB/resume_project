@@ -5,6 +5,7 @@ Index:
       and reasoning effort, the generative fallback model, the embedding model for career
       library search, and the request, tool-call, and token caps on a run
     - load_settings: builds WorkerSettings from the environment
+    - worker_environment / conversation_logging_enabled: explicit local transcript gate
 """
 
 from pydantic_ai.settings import ThinkingEffort
@@ -15,6 +16,8 @@ class WorkerSettings(BaseSettings):
     """Typed worker settings. Each field maps to an upper-case environment variable."""
 
     aws_region: str = "us-east-1"
+    worker_environment: str = ""
+    conversation_logging_enabled: bool = True
     sqs_endpoint_url: str | None = None
     ai_tasks_queue_name: str = "ai_tasks"
     ai_results_queue_name: str = "ai_results"

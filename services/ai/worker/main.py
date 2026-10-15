@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai_harness import InputBlocked
 
+from conversation_logging import conversation_scope
 from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
@@ -66,7 +67,10 @@ def process_task_message(
     task_usage = TaskUsage()
     _publish_usage(task, task_usage, result_queue, finished=False)
     try:
-        with collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task):
+        with (
+            conversation_scope(task, dependencies.settings, task_usage.attempt_id, receive_count),
+            collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
+        ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
         result = AiResultMessage(

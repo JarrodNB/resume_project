@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
+import { AiUsageSummary } from '@/features/ai-tasks/AiUsageSummary'
 
 const NAV_ITEMS = [
   { to: '/library', label: 'Career library' },
@@ -51,6 +52,7 @@ export function AppLayout() {
             </Button>
           </div>
         </div>
+        <div className="mx-auto max-w-5xl px-6 pb-2"><AiUsageSummary /></div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">
         <Outlet />

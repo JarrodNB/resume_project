@@ -122,7 +122,7 @@ def test_keeps_polling_after_a_queue_error(
 
     assert completing_handler_without_backoff == [main.POLL_ERROR_BACKOFF_SECONDS]
     assert task_queue.deleted_receipts == ["next"]
-    assert len(result_queue.sent_bodies) == 1
+    assert len(result_queue.sent_bodies) == 2
 
 
 def test_stops_when_asked(task_dependencies: TaskDependencies) -> None:

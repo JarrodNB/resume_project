@@ -30,6 +30,7 @@ from worker.settings import load_settings
 from worker.sqs_queue_client import SqsQueueClient
 from worker.task_dependencies import TaskDependencies, build_http_client
 from worker.task_handlers import handle_ai_task
+from worker.task_usage import TaskUsage, collect_task_usage
 from worker.tracing import configure_tracing, trace_ai_task
 
 logger = logging.getLogger(__name__)
@@ -45,10 +46,10 @@ def process_task_message(
 ) -> bool:
     """Handles one raw task message and publishes its result.
 
-    Returns True once a result is published, so the task message can be deleted. Returns False
-    (publish nothing, keep the message) for an invalid message, which SQS then moves to the
-    dead-letter queue, and for a temporary failure (see is_retryable_error) before the last
-    attempt, so SQS redelivers it. A run that hits its request, tool-call, or token cap fails
+    Returns True once a final result is published, so the task message can be deleted. Invalid
+    messages publish nothing and stay for the dead-letter queue. A temporary failure before
+    the last attempt publishes usage only and returns False so SQS redelivers the task.
+    Every valid execution first publishes an unknown-cost marker. A run cap fails
     immediately, with no partial result and no retry. Other handler errors, and temporary ones
     on the last attempt, publish a "failed" result. If publishing itself fails, the error
     propagates and the task is redelivered.
@@ -62,8 +63,10 @@ def process_task_message(
         return False
 
     guardrail_usage: list[ModelUsage] = []
+    task_usage = TaskUsage()
+    _publish_usage(task, task_usage, result_queue, finished=False)
     try:
-        with collect_guardrail_usage(guardrail_usage), trace_ai_task(task):
+        with collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
         result = AiResultMessage(
@@ -83,16 +86,30 @@ def process_task_message(
                 receive_count,
                 exc_info=True,
             )
+            _publish_usage(task, task_usage, result_queue)
             return False
         logger.exception("Task %s failed on attempt %d", task.ai_task_id, receive_count)
         result = AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message="The AI task failed"
         )
 
-    result.usage.extend(guardrail_usage)
+    result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
+    result.attempt_id = task_usage.attempt_id
+    result.usage_incomplete = task_usage.incomplete
+    if task.task_type == "tailor_resume":
+        result.generation = task.input.get("generation")
     result_queue.send_message(result.model_dump_json())
     logger.info("Published %s result for task %s", result.status, task.ai_task_id)
     return True
+
+
+def _publish_usage(task, usage, queue, *, finished=True):
+    """Persists an unfinished marker or retry charges without changing task status."""
+    queue.send_message(AiResultMessage(
+        ai_task_id=task.ai_task_id, status="usage", attempt_id=usage.attempt_id,
+        usage=usage.entries, usage_incomplete=usage.incomplete or not finished,
+        attempt_finished=finished,
+    ).model_dump_json())
 
 
 def poll_task_queue_once(

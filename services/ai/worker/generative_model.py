@@ -7,6 +7,8 @@ Index:
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 
+from worker.task_usage import accounted_model
+
 
 def generative_model(primary: str, fallback: str) -> Model | str:
     """Returns the primary model, or a FallbackModel when fallback names a different model.
@@ -16,5 +18,5 @@ def generative_model(primary: str, fallback: str) -> Model | str:
     both skips the fallback so one model is not called twice.
     """
     if fallback == primary:
-        return primary
-    return FallbackModel(primary, fallback)
+        return accounted_model(primary)
+    return FallbackModel(accounted_model(primary), accounted_model(fallback))

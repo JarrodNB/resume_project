@@ -48,6 +48,8 @@ def test_task_reports_guardrail_costs_and_generation(blocked, monkeypatch, task_
         assert main.process_task_message(body, 1, queue, task_dependencies)
     for raw in queue.sent_bodies:
         result = json.loads(raw)
+        if not result["attempt_finished"]:
+            continue
         assert result["status"] == ("failed" if blocked else "completed")
         assert len(result["usage"]) == 1
         assert result["usage"][0]["model"] == "jev-1.13.0"

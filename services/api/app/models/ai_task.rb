@@ -4,9 +4,10 @@
 #     tailor_resume, generate_interview_questions, regenerate_interview_question, review_interview_answer
 #   - STATUSES / status enum: queued, needs_user_input, completed, failed
 #   - source_file: the uploaded file a task reads (e.g. the resume for parse_resume)
-#   - finished?: true once completed or failed (later results for it are ignored)
+#   - finished?: true once completed or failed (late usage is still counted)
 #   - accepted?: true once the user has accepted the result into their data
 #   - generation / usage_generation: the tailor step in progress, and the step already billed
+#   - ai_usage_attempts: execution reports, including retry charges and unknown costs
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
                   generate_interview_questions regenerate_interview_question review_interview_answer].freeze
@@ -15,6 +16,7 @@ class AiTask < ApplicationRecord
   belongs_to :user
   belongs_to :subject, polymorphic: true, optional: true
   has_one_attached :source_file
+  has_many :ai_usage_attempts, dependent: :destroy
 
   enum :task_type, TASK_TYPES.index_with(&:itself), validate: true
   enum :status, STATUSES.index_with(&:itself), validate: true

@@ -4,6 +4,18 @@ require "rails_helper"
 RSpec.describe AiUsage::SummarizeMonthlyAiUsageService do
   let(:user) { create(:user) }
 
+  it "flags incomplete accounting without blocking work below the known-spend budget" do
+    task = create(:ai_task, user: user, cost_microdollars: 35)
+    AiUsageAttempt.create!(ai_task: task, attempt_id: SecureRandom.uuid, incomplete: true)
+    other = create(:ai_task)
+    AiUsageAttempt.create!(ai_task: other, attempt_id: SecureRandom.uuid, incomplete: true)
+    usage = described_class.call(user: user).value
+    expect(usage.incomplete_attempts).to eq(1)
+    expect(usage.spent_microdollars).to eq(35)
+    expect(usage).not_to be_exhausted
+    expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).to be_success
+  end
+
   it "sums this month's task costs, with the default budget and next reset" do
     travel_to Time.utc(2026, 10, 15) do
       create(:ai_task, user: user, cost_microdollars: 1_500)

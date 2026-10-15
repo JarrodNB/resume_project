@@ -22,6 +22,7 @@ from prompts.user_text_screen_instructions import (
 from schemas.user_text_screen import UserTextScreen
 from worker.run_limits import agent_usage_limits
 from worker.settings import load_settings
+from worker.task_usage import accounted_model
 from worker.tracing import record_prompt_version
 
 # The default bar. yes_probability() recovers P(yes) from this and the reported margin.
@@ -58,7 +59,7 @@ async def screen_user_message_async(text: str, model: str, timeout_seconds: floa
         with record_prompt_version(USER_TEXT_SCREEN_PROMPT_VERSION):
             result = await user_text_screen_agent.run(
                 text,
-                model=model,
+                model=accounted_model(model),
                 model_settings=DecisionModelSettings(decision_boolean_threshold=BOOLEAN_THRESHOLD),
                 usage_limits=agent_usage_limits(load_settings()),
             )

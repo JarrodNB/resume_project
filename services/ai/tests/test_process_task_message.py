@@ -63,7 +63,11 @@ def test_publishes_handler_result_and_allows_delete(task_dependencies: TaskDepen
 
     assert process_task_message(task_body, 1, result_queue, task_dependencies) is True
 
-    [published] = [json.loads(body) for body in result_queue.sent_bodies]
+    started, published = [json.loads(body) for body in result_queue.sent_bodies]
+    assert started["status"] == "usage"
+    assert not started["attempt_finished"]
+    assert started["usage_incomplete"]
+    assert started["attempt_id"] == published["attempt_id"]
     assert published["ai_task_id"] == json.loads(task_body)["ai_task_id"]
     assert published["status"] == "completed"
     assert published["result"] == {"job_id": "abc"}
@@ -80,8 +84,9 @@ def test_running_the_same_task_twice_publishes_the_same_result(
     process_task_message(task_body, 1, result_queue, task_dependencies)
     process_task_message(task_body, 1, result_queue, task_dependencies)
 
-    first, second = result_queue.sent_bodies
-    assert json.loads(first) == json.loads(second)
+    first, second = [json.loads(body) for body in result_queue.sent_bodies if json.loads(body)["attempt_finished"]]
+    assert first.pop("attempt_id") != second.pop("attempt_id")
+    assert first == second
 
 
 def test_invalid_message_is_not_deleted_and_publishes_nothing(
@@ -110,7 +115,7 @@ def test_handler_error_publishes_failed_result(
 
     assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is True
 
-    published = json.loads(result_queue.sent_bodies[0])
+    published = json.loads(result_queue.sent_bodies[-1])
     assert published["status"] == "failed"
     assert published["error_message"] == "The AI task failed"
 
@@ -124,6 +129,26 @@ def test_publish_failure_propagates_so_task_is_not_deleted(
         process_task_message(
             build_task_body(), 1, FakeResultQueue(fail_on_send=True), task_dependencies
         )
+
+
+def test_unfinished_marker_precedes_work_and_survives_an_interrupted_execution(
+    monkeypatch: pytest.MonkeyPatch, task_dependencies: TaskDependencies,
+) -> None:
+    """An interrupted execution leaves durable uncertainty instead of disappearing as free."""
+    queue = FakeResultQueue()
+
+    def interrupted_handler(task, dependencies):
+        """Checks that accounting was published before work, then simulates worker shutdown."""
+        [started] = [json.loads(body) for body in queue.sent_bodies]
+        assert started["status"] == "usage"
+        assert not started["attempt_finished"]
+        assert started["usage_incomplete"]
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(main, "handle_ai_task", interrupted_handler)
+    with pytest.raises(KeyboardInterrupt):
+        process_task_message(build_task_body(), 1, queue, task_dependencies)
+    assert len(queue.sent_bodies) == 1
 
 
 @pytest.fixture
@@ -141,11 +166,14 @@ def rate_limited_handler(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_temporary_error_before_last_attempt_is_left_for_retry(
     task_dependencies: TaskDependencies,
 ) -> None:
-    """A rate limit publishes nothing and keeps the message, so SQS redelivers it."""
+    """A rate limit reports this attempt's usage and keeps the task for redelivery."""
     result_queue = FakeResultQueue()
 
     assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is False
-    assert result_queue.sent_bodies == []
+    started, report = [json.loads(body) for body in result_queue.sent_bodies]
+    assert not started["attempt_finished"]
+    assert report["status"] == "usage"
+    assert report["attempt_id"]
 
 
 def test_run_limit_fails_on_the_first_attempt(
@@ -162,7 +190,7 @@ def test_run_limit_fails_on_the_first_attempt(
 
     assert process_task_message(build_task_body(), 1, result_queue, task_dependencies) is True
 
-    published = json.loads(result_queue.sent_bodies[0])
+    published = json.loads(result_queue.sent_bodies[-1])
     assert published["status"] == "failed"
     assert published["error_message"] == RUN_LIMIT_MESSAGE
 
@@ -177,4 +205,4 @@ def test_temporary_error_on_last_attempt_publishes_failed(
 
     assert process_task_message(build_task_body(), last_attempt, result_queue, task_dependencies)
 
-    assert json.loads(result_queue.sent_bodies[0])["status"] == "failed"
+    assert json.loads(result_queue.sent_bodies[-1])["status"] == "failed"

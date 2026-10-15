@@ -45,11 +45,12 @@ All business logic, as service objects grouped by domain folder.
   queued AiTask under a user row lock (optionally attaching its `source_file` blob), then
   publishes it to `ai_tasks`
 - `ai_tasks/apply_ai_result_service.rb` — applies an `ai_results` message (idempotent, row
-  lock), stores its token usage and cost, and triggers the `aiTaskUpdated` subscription; a
+  lock), delegates attempt accounting to `record_attempt_usage_service.rb`, and triggers task
+  and owner usage subscriptions separately; a
   completed `scrape_job` saves its Job in the same locked transaction (task `subject`), or the
   task fails if the Job can't be saved. A `tailor_resume` result whose `generation` doesn't
-  match the task is ignored; matching generations add usage once (`usage_generation`) and copy
-  approved sections onto the task input
+  match the task keeps its old outcome while new attempt charges are still counted. Matching
+  generations copy approved sections onto the task input; legacy usage remains generation-deduplicated
 - `ai_tasks/republish_ai_task_service.rb` — publishes an existing task again (tailoring, one
   section per message) without creating a row or re-checking the hourly limit
 - `resume_tailoring/start_resume_tailoring_service.rb` — queues `tailor_resume`, or returns the

@@ -70,6 +70,11 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 ## Local Rules
 
+- `task_usage.py` owns request-level accounting for one execution, independent of telemetry.
+  Concrete generative/fallback and screening models use its adapter; query embeddings record
+  their returned usage there. `main.py` publishes an unfinished usage marker before execution
+  and a final report even when retrying. Never add handler aggregate usage to observed requests.
+
 - `process_task_message` collects capability screening usage even when the guard blocks.
   `InputBlocked` publishes a failed task with the safe error message and tailoring generation.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,

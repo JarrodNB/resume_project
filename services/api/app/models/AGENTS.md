@@ -6,6 +6,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
+  finalized reports are immutable and independent of task outcome/generation.
+
 - `user.rb` — account (Devise + JWT); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. Nullable

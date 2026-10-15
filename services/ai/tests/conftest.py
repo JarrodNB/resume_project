@@ -8,6 +8,7 @@ Index:
     - task_dependencies: TaskDependencies backed by fakes
     - fake_prompt_screen: synthetic allowed screening for unrelated unit tests
     - fake_known_contact: prevents unit task traces from querying PostgreSQL
+    - offline_model_resolution: supplies fake provider models beneath production accounting
 """
 
 import os
@@ -23,6 +24,29 @@ from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
 
 models.ALLOW_MODEL_REQUESTS = False
+
+
+@pytest.fixture
+def offline_model_resolution(monkeypatch):
+    """Replaces SDK model resolution while preserving the production model adapters."""
+    from pydantic_ai.models import wrapper
+
+    original = models.infer_model
+    providers = {}
+
+    def resolve(model, *args, **kwargs):
+        """Resolves registered provider names to ordinary offline models."""
+        if isinstance(model, str) and model in providers:
+            return providers[model]
+        return original(model, *args, **kwargs)
+
+    def register(name, model):
+        """Registers a synthetic provider without installing task-accounting behavior."""
+        providers[name] = model
+
+    monkeypatch.setattr(models, "infer_model", resolve)
+    monkeypatch.setattr(wrapper, "infer_model", resolve)
+    return register
 
 
 @pytest.fixture(autouse=True)

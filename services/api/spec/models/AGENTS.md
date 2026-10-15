@@ -6,6 +6,7 @@ RSpec model validation, associations, ordering, and deletion coverage.
 
 ## Contents
 
+- `library_embedding_spec.rb` — library-fact source validation and rejection of unrelated types.
 - `interview_question_set_spec.rb`
 - `job_spec.rb`
 - `most_recent_first_spec.rb`

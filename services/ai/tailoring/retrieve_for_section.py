@@ -27,6 +27,18 @@ _FOCUS = {
     "skills": "skills and tools",
 }
 _LIMIT = 8
+# Preserve mixed career evidence for summary/experience; new types require an explicit choice.
+_SOURCE_TYPES = frozenset(
+    {
+        "Experience",
+        "ExperienceHighlight",
+        "Project",
+        "Education",
+        "Certification",
+        "Skill",
+        "LibraryFact",
+    }
+)
 
 
 def section_query(section_type: str, job: JobToAnalyze) -> str:
@@ -51,6 +63,7 @@ def retrieve_source_keys(
             query,
             stored_embedding_model_name(settings.embedding_model),
             limit=_LIMIT,
+            source_types=_SOURCE_TYPES,
         )
     if not matches:
         return None, usage

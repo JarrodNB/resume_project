@@ -13,6 +13,7 @@ from typing import Any
 from pydantic_evals import Dataset
 
 from agents.resume_parsing_agent import parse_resume_text
+from evals.report_capture import capture_report, override_settings, report_span_processors
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import eval_run, record_score
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
@@ -31,10 +32,10 @@ def load_resume_parsing_dataset() -> Dataset[str, ParsedResume, dict[str, Any]]:
     )
 
 
-def run_resume_parsing_evals() -> None:
+def run_resume_parsing_evals(model_override: str | None = None) -> None:
     """Evaluates allowed parsing cases; expected blocks run in the guardrail suite."""
-    settings = load_settings()
-    configure_tracing()
+    settings = override_settings(load_settings(), "resume_parsing_model", model_override)
+    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.resume_parsing_model
     thinking = settings.resume_parsing_thinking
 
@@ -66,6 +67,7 @@ def run_resume_parsing_evals() -> None:
         report = dataset.evaluate_sync(
             parse_case, name=f"resume_parsing:{model}:thinking={thinking}", max_concurrency=5
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

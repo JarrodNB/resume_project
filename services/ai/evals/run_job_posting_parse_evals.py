@@ -14,6 +14,7 @@ from pydantic_evals import Dataset
 
 from agents.parse_job_posting_agent import parse_job_posting
 from evals.job_posting_parse_evaluators import JOB_POSTING_PARSE_EVALUATORS
+from evals.report_capture import capture_report, override_settings, report_span_processors
 from evals.telemetry import eval_run, record_score
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_PROMPT_VERSION
@@ -32,10 +33,10 @@ def load_job_posting_parse_dataset() -> Dataset[dict[str, Any], ScrapedJobPostin
     )
 
 
-def run_job_posting_parse_evals() -> None:
+def run_job_posting_parse_evals(model_override: str | None = None) -> None:
     """Evaluates parsing on every case and records the average scores in Logfire."""
-    settings = load_settings()
-    configure_tracing()
+    settings = override_settings(load_settings(), "job_posting_parse_model", model_override)
+    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.job_posting_parse_model
     thinking = settings.job_posting_parse_thinking
 
@@ -66,6 +67,7 @@ def run_job_posting_parse_evals() -> None:
             name=f"job_posting_parse:{model}:thinking={thinking}",
             max_concurrency=4,
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

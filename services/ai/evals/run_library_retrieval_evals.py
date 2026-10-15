@@ -22,6 +22,7 @@ from evals.library_retrieval_evaluators import (
     RetrievalEvalInput,
     RetrievalEvalLabels,
 )
+from evals.report_capture import capture_report, override_settings, report_span_processors
 from evals.telemetry import eval_run, record_score
 from memory.embed_search_query import embed_search_query
 from memory.hybrid_rank import hybrid_order
@@ -59,10 +60,10 @@ def rank_library(case: RetrievalEvalInput, model: str, dimensions: int) -> Ranke
     return RankedLibrary(ids=[doc_id for doc_id, _score in ordered])
 
 
-def run_library_retrieval_evals() -> None:
+def run_library_retrieval_evals(model_override: str | None = None) -> None:
     """Evaluates retrieval on every case and records the average scores in Logfire."""
-    settings = load_settings()
-    configure_tracing()
+    settings = override_settings(load_settings(), "embedding_model", model_override)
+    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.embedding_model
     dimensions = settings.embedding_dimensions
 
@@ -78,6 +79,7 @@ def run_library_retrieval_evals() -> None:
         report = load_library_retrieval_dataset().evaluate_sync(
             rank_case, name=f"library_retrieval:{model}", max_concurrency=2
         )
+        capture_report(report)
         for score_name, average in report.averages().scores.items():
             record_score(name=score_name, value=average)
 

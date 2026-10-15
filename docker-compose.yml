@@ -126,6 +126,7 @@ services:
       LOGFIRE_ENVIRONMENT: development
     volumes:
       - ./services/ai:/app
+      - ./docs/evals:/docs/evals
     depends_on:
       db:
         condition: service_healthy

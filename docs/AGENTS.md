@@ -6,6 +6,8 @@ Project-level documentation that spans services.
 
 ## Contents
 
+- `evals/` — optional timestamped AI quality reports and reporting CLI usage.
+
 - `architecture.md` — services, data flow, queue design, key decisions
 - `mvp_plan.md` — first milestone scope and build order
 - `plans/` — feature plans with phases and tasks; work stops for review after each task.

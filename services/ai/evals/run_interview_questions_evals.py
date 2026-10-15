@@ -12,6 +12,7 @@ from pydantic_evals import Dataset
 from agents.interview_questions_agent import generate_interview_questions
 from evals.interview_eval_reporting import report_interview_evals
 from evals.interview_evaluators import QuestionEvalInput, QuestionStructure, question_context
+from evals.report_capture import override_settings
 from prompts.interview_question_instructions import INTERVIEW_QUESTIONS_PROMPT_VERSION
 from schemas.interview_questions import InterviewQuestions
 from worker.settings import load_settings
@@ -32,9 +33,9 @@ def load_interview_questions_dataset() -> Dataset[QuestionEvalInput, InterviewQu
     )
 
 
-def run_interview_questions_evals() -> None:
+def run_interview_questions_evals(model_override: str | None = None) -> None:
     """Runs configured production agent settings and subjective quality evaluation."""
-    settings = load_settings()
+    settings = override_settings(load_settings(), "interview_questions_model", model_override)
 
     def generate(case: QuestionEvalInput) -> InterviewQuestions:
         """Runs generation or replacement with production limits and validation."""

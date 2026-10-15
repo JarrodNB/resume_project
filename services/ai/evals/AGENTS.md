@@ -8,6 +8,12 @@ score attached, so runs can be compared across prompt and model changes.
 
 ## Contents
 
+- `run_report.py` — optional report CLI for every suite; one model or aligned two-model comparison.
+- `report_capture.py` — isolated native report capture and eval-only model settings copies.
+- `report_markdown.py` — readable aggregates, aligned outputs/reasons and failure artifacts.
+- `report_costs.py` — report-scoped per-request usage capture and local price estimates.
+- `report_cost_markdown.py` — per-model token costs, coverage and aligned comparisons.
+
 - `telemetry.py` — native Logfire eval context, always-flushed runs and numeric aggregate scores
 
 - `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through

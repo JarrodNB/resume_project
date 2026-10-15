@@ -23,15 +23,15 @@ from worker.telemetry_privacy import ContactLogProcessor, ContactSpanProcessor, 
 _flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
 
 
-def configure_tracing() -> None:
-    """Configures noninteractive export only when an environment token is present."""
+def configure_tracing(additional_span_processors=()) -> None:
+    """Configures env-based export and optional caller-owned synchronous span collectors."""
     logfire.configure(
         send_to_logfire=bool(os.getenv("LOGFIRE_TOKEN", "").strip()),
         service_name="careergrind-ai",
         console=False,
         metrics=False,
         inspect_arguments=False,
-        additional_span_processors=[ContactSpanProcessor()],
+        additional_span_processors=[ContactSpanProcessor(), *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),
     )
     instrumentation = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())

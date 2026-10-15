@@ -250,9 +250,9 @@ before a task is queued (under a lock on the user row, so concurrent requests ca
 - **Tasks in flight** (default 2, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
-Nullable columns on `users` override each default. `me { aiUsage }` exposes known monthly spend
-and `incompleteAttempts`. The signed-in header follows the owner-authorized `aiUsageUpdated`
-stream, which sends current totals on subscription and pushes updates without polling.
+Nullable columns on `users` override each default. The existing `me { aiUsage }` query exposes
+known monthly spend. The backend monthly summary also retains the incomplete-attempt count;
+no new user-facing spend display or usage subscription is added.
 
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
 IP and by email, sign-up by IP, and `/graphql` by user (JWT `sub`) and by IP. Throttled

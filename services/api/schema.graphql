@@ -46,10 +46,6 @@ enum AiTaskTypeEnum {
 }
 
 type AiUsage {
-  """
-  Executions with missing provider usage or pricing; spend may be higher.
-  """
-  incompleteAttempts: Int!
   monthlyBudgetUsd: Float!
 
   """
@@ -1741,7 +1737,6 @@ type SubmitTailoredSectionPayload {
 
 type Subscription {
   aiTaskUpdated(id: ID!): AiTask!
-  aiUsageUpdated(userId: ID!): AiUsage!
 }
 
 """

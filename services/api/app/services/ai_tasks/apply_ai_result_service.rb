@@ -27,25 +27,19 @@ module AiTasks
       ai_task = AiTask.find_by(id: @message["ai_task_id"])
       return failure([ "AI task not found: #{@message['ai_task_id'].inspect}" ]) unless ai_task
 
-      usage_changed = false
       applied = with_result_lock(ai_task) do
-        recorded = if @message["attempt_id"].present?
-          RecordAttemptUsageService.call(ai_task: ai_task, message: @message).value
+        if @message["attempt_id"].present?
+          RecordAttemptUsageService.call(ai_task: ai_task, message: @message)
         end
-        usage_changed = recorded
         next false if status == "usage" || ai_task.finished? || stale_generation?(ai_task)
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes(ai_task)) unless @message["attempt_id"].present?
-        usage_changed ||= @message["attempt_id"].blank? && Array(@message["usage"]).any?
         attributes.merge!(tailor_input_attributes(ai_task)) if ai_task.tailor_resume?
         attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
         ai_task.update!(attributes)
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if applied
-      if usage_changed
-        ApiSchema.subscriptions.trigger(:ai_usage_updated, { user_id: ai_task.user_id }, ai_task.user)
-      end
       success(ai_task)
     end
 

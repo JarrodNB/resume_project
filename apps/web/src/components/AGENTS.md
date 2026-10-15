@@ -7,7 +7,7 @@ Shared UI used by more than one feature.
 ## Contents
 
 - `AppLayout.tsx` — signed-in layout: header (Career library, Import resume, Jobs, Resumes, Interview prep,
-  `ThemeToggle`, sign out), live monthly AI cost summary and routed page
+  `ThemeToggle`, sign out) and routed page
 - `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
 - `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.

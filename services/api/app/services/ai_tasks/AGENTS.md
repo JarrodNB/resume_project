@@ -17,4 +17,4 @@ Shared AI enqueue, result application, and task republication.
 Enqueue preparation runs under the owner lock after allowance checks; publish after commit.
 Interview results acquire the owner lock before the task lock. Finished tasks keep their
 outcome, but new usage attempts are still recorded. Usage-only messages never change task
-status or trigger task-state subscriptions; they trigger the separate owner usage stream.
+status or trigger task-state subscriptions.

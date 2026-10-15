@@ -48,8 +48,6 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(task.cached_input_tokens).to eq(60)
     expect(ApiSchema.subscriptions).to have_received(:trigger)
       .with(:ai_task_updated, { id: task.id }, task).once
-    expect(ApiSchema.subscriptions).to have_received(:trigger)
-      .with(:ai_usage_updated, { user_id: task.user_id }, task.user).exactly(3).times
   end
 
   it "counts separate executions of an old tailoring generation without changing its draft" do

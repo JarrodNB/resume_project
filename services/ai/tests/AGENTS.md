@@ -6,6 +6,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_schema_dependencies.py` — schemas cannot import worker, agent, database, or evaluation implementation.
+
 - `test_task_usage_accounting.py` — costs through task execution: run limits, SQS retries
   and output-validation failures.
 - `test_task_usage_providers.py` — fallback, screening, query embeddings and unknown prices.
@@ -46,7 +48,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_analyze_gaps_handler.py` — analyze_gaps end to end on `TestModel`, retry on a bad
   output (`FunctionModel`), deleted job / empty library / no requirements failures
 - `test_gap_analysis_evaluators.py` — eval labels score 1.0
-- `fixtures/linkedin/` — synthetic LinkedIn guest job pages (see `fixtures/AGENTS.md`)
+- `fixtures/linkedin/` — synthetic LinkedIn guest job pages (synthetic data only)
 - `test_parse_linkedin_job_url.py` — LinkedIn job link forms, rejected URLs, site registry
 - `test_linkedin_description_to_html.py` — `<br>` lines to paragraphs, bold headings split
 - `test_split_description_sections.py` — heading classification, bullet filing, plain-text

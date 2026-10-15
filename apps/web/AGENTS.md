@@ -30,11 +30,10 @@ Testing Library, oxlint.
   an ActionCable link in Apollo. Don't poll.
 - Organize by feature (`src/features/resumes/`, `src/features/jobs/`), with shared UI in `src/components/`.
 - Use shadcn/ui components from `src/components/ui/` (add more with
-  `docker compose exec -T web npx shadcn@latest add <name> -y`); they are generated and exempt
-  from the header rule and lint.
+  `docker compose exec -T web npx shadcn@latest add <name> -y`); they are generated and excluded from lint. Regenerate rather than hand-editing them.
 - Tests sit next to the code they test (`Thing.test.tsx`). Page tests use `renderPage` from
   `src/test/` (memory router + Apollo `MockedProvider`; mocks must include `__typename`).
-- File header format: see `apps/AGENTS.md`.
+- Follow the root documentation rules; use JSDoc for public contracts and non-obvious behavior.
 
 ## Contents
 

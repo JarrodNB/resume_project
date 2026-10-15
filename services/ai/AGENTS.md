@@ -24,9 +24,9 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   handlers must be safe to run twice, because SQS can redeliver.
 - **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
   - One agent per file (`agents/gap_analysis_agent.py`), with a Pydantic model as its `output_type`.
-  - Tools live in their own files (`tools/`) and are registered on the agents that need them.
+  - Keep related tools together in their domain and register them on the agents that need them.
   - Workers inject per-task context (user ID, retrieved memories) through the agent's `deps`.
-- Instructions/system prompts live in their own files (`prompts/`), one per file, with a header describing inputs/outputs.
+- Instructions/system prompts live in their own files (`prompts/`), one per file, with descriptions of non-obvious inputs/outputs.
 - Use Pydantic models for every queue message and every structured LLM output.
 - **Logfire tracing** comes from Pydantic AI's OpenTelemetry instrumentation
   (`Agent.instrument_all()` at worker startup). Tag traces with the user ID and task ID,
@@ -62,20 +62,11 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
     Interview agents: `docker compose run --rm ai python -m evals.run_interview_questions_evals`
     and `docker compose run --rm ai python -m evals.run_interview_feedback_evals`.
 
-## File Header Format
+## Documentation
 
-Every Python file starts with a module docstring:
-
-```python
-"""
-Description: Compares resume content to a job profile and returns matches and gaps.
-Index:
-    - analyze_resume_against_job: main entry point
-    - extract_requirement_gaps: lists requirements with no supporting evidence
-"""
-```
-
-Every function and class gets a docstring describing what it does.
+Use docstrings for public interfaces, LLM tools, and non-obvious behavior or side effects.
+Tool descriptions and model field descriptions are model-facing contracts: keep them precise.
+Module docstrings are useful for architectural restrictions; export indexes are not required.
 
 ## Contents
 

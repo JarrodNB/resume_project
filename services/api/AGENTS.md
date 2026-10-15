@@ -19,7 +19,7 @@ for GraphQL subscriptions, the official `openai` gem for career-library and inte
 - **Every read goes through `current_user`** (`current_user.jobs.find(id)`), never
   `Job.find(id)`. That is the entire authorization model; a missing record and someone
   else's record both return "Record not found".
-- Every change ships with specs (RSpec + FactoryBot). Run: `docker compose run --rm api bundle exec rspec`.
+- Behavior changes ship with specs (RSpec + FactoryBot). Run: `docker compose run --rm api bundle exec rspec`.
 - Models hold associations, validations, and scopes only.
 - `ai_results` consumers must be idempotent: finished tasks keep their outcome. Usage reports
   are deduplicated by execution identity and may still add late charges to finished tasks.
@@ -27,24 +27,15 @@ for GraphQL subscriptions, the official `openai` gem for career-library and inte
   (e.g. `Schema.subscriptions.trigger(:ai_task_updated, ...)`) after state changes;
   subscriptions authorize the user the same way queries do.
 
-## File Header Format
+## Documentation
 
-Every Ruby file starts with:
-
-```ruby
-# Description: Tailors a resume to a job profile by selecting and rewriting sections.
-# Index:
-#   - call: runs the tailoring flow and returns a TailoredResume
-#   - select_relevant_sections: picks sections matching job requirements
-```
-
-Every method gets a one-line YARD-style comment describing what it does.
+Use YARD comments for public service contracts, side effects, and non-obvious rules.
+File descriptions are optional when the filename and code already explain the purpose.
 
 ## Contents
 
-Rails 8.1 API-mode app. Each folder must have its own `AGENTS.md`; parent instructions
-still apply. Generated boilerplate is exempt only from file headers until first edited,
-not from the folder documentation requirement.
+Rails 8.1 API-mode app. Nested guides add domain-specific rules; parent instructions apply.
+Configuration must work in Docker development and production. Preserve owned data and AI usage records.
 
 - `app/models/` — domain models (career library, resumes, jobs, AI tasks, interview practice sets/questions)
 - `app/services/` — service objects (all business logic)

@@ -4,6 +4,7 @@ Description: Service boundaries, AI queue contracts, persistence, and architectu
 
 Index:
 - Services
+- Code navigation and dependency directions
 - AI Task Flow and Queue Messages
 - Interview Prep
 - Duplicate Messages and Retrying Temporary Failures
@@ -26,6 +27,34 @@ Index:
                                     └──────────────┘
  Lambda (scheduled) ──▶ daily goal emails, weekly summaries, periodic job searches
 ```
+
+## Code navigation and dependency directions
+
+Start with the module responsible for the behavior; read detailed docs only as needed.
+
+| Concern | Entry points and ownership |
+| --- | --- |
+| UI behavior | `apps/web/src/features/<feature>/`; hooks call GraphQL, shared UI lives in `components/` |
+| Domain mutations | Rails `app/graphql/` authorizes and calls `app/services/<domain>/`; models hold persistence rules |
+| Queued AI work | Python `worker/` dispatches tasks and coordinates domain helpers, agents, and queue results |
+| Model behavior | `agents/` registers prompts, tools, and structured outputs; `prompts/` owns instructions |
+| Read-only retrieval | `database/` owns SQL scoped to the task user; `memory/` owns retrieval and query embeddings |
+| Shared AI data shapes | `schemas/` owns structured models and pure validation; Rails and web consumers mirror queue results |
+| Verification | API `spec/`, AI `tests/` and `evals/`, colocated frontend tests; see [testing.md](testing.md) |
+
+Keep shared schemas independent of runtime orchestration: they may depend on other schemas
+and external validation libraries, but must not import other first-party AI modules.
+`tests/test_schema_dependencies.py` enforces this direction using Python's syntax tree,
+including imports inside functions and type-checking blocks. It checks static imports;
+dynamic imports and runtime side effects require review. This lets workers, agents,
+retrieval, and offline evaluations share contracts without importing one another through
+the schemas. Other dependency directions above remain review rules, not automated checks.
+
+Prefer cohesive modules with small public interfaces. Split by responsibility or distinct
+dependencies rather than a fixed line limit. Keep useful contract comments and model-facing
+tool descriptions; routine export indexes and comments repeating method names add maintenance.
+Nested `AGENTS.md` files are for additional local constraints, not exhaustive file inventories.
+Domain-specific guides remain useful where they record ownership, retry, privacy, or UI rules.
 
 ## AI Task Flow
 

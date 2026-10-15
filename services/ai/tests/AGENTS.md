@@ -19,6 +19,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_library_search_scope.py` — rejects missing, empty, malformed, and unsupported type scopes.
 - `test_library_embedding_search.py` — database-backed type/user/model filtering and hybrid ranking.
 - `test_eval_reports.py` — offline comparison alignment, failure persistence, compatibility and model isolation.
+- `test_eval_lifecycle.py` — native offline report retention, scores, metadata, output and failure flushing.
 - `test_eval_report_costs.py` — native provider usage, cached costs, auxiliary calls and incomplete estimates.
 - `test_eval_report_cost_edges.py` — validation retries, response model prices and absent usage.
 

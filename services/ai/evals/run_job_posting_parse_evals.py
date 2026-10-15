@@ -11,16 +11,16 @@ from pathlib import Path
 from typing import Any
 
 from pydantic_evals import Dataset
+from pydantic_evals.reporting import EvaluationReport
 
 from agents.parse_job_posting_agent import parse_job_posting
 from evals.job_posting_parse_evaluators import JOB_POSTING_PARSE_EVALUATORS
-from evals.report_capture import capture_report, override_settings, report_span_processors
-from evals.telemetry import eval_run, record_score
+from evals.report_capture import override_settings
+from evals.telemetry import evaluate_dataset
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
 from worker.settings import load_settings
-from worker.tracing import configure_tracing
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "job_posting_parse_cases.yaml"
 TRACE_NAME = "evals.job_posting_parse"
@@ -33,10 +33,9 @@ def load_job_posting_parse_dataset() -> Dataset[dict[str, Any], ScrapedJobPostin
     )
 
 
-def run_job_posting_parse_evals(model_override: str | None = None) -> None:
+def run_job_posting_parse_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates parsing on every case and records the average scores in Logfire."""
     settings = override_settings(load_settings(), "job_posting_parse_model", model_override)
-    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.job_posting_parse_model
     thinking = settings.job_posting_parse_thinking
 
@@ -52,7 +51,9 @@ def run_job_posting_parse_evals(model_override: str | None = None) -> None:
         ).parsed
         return posting_from_parsed_job(text, parsed)
 
-    with eval_run(
+    return evaluate_dataset(
+        load_job_posting_parse_dataset,
+        parse_case,
         name=TRACE_NAME,
         metadata={
             "model": model,
@@ -61,17 +62,9 @@ def run_job_posting_parse_evals(model_override: str | None = None) -> None:
         },
         version=PARSE_JOB_POSTING_PROMPT_VERSION,
         tags=["eval", "parse_job_posting", model, f"thinking:{thinking}"],
-    ):
-        report = load_job_posting_parse_dataset().evaluate_sync(
-            parse_case,
-            name=f"job_posting_parse:{model}:thinking={thinking}",
-            max_concurrency=4,
-        )
-        capture_report(report)
-        for score_name, average in report.averages().scores.items():
-            record_score(name=score_name, value=average)
-
-    report.print(include_input=False, include_output=False, include_durations=True)
+        evaluation_name=f"job_posting_parse:{model}:thinking={thinking}",
+        max_concurrency=4,
+    )
 
 
 if __name__ == "__main__":

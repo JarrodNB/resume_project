@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import Any
 
 from pydantic_evals import Dataset
+from pydantic_evals.reporting import EvaluationReport
 
 from agents.job_requirements_sorting_agent import sort_job_requirement_bullets
 from evals.job_posting_extraction_evaluators import JOB_POSTING_EXTRACTION_EVALUATORS
-from evals.report_capture import capture_report, override_settings, report_span_processors
-from evals.telemetry import eval_run, record_score
+from evals.report_capture import override_settings
+from evals.telemetry import evaluate_dataset
 from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
 from prompts.job_requirements_sorting_instructions import JOB_REQUIREMENTS_SORTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
@@ -24,7 +25,6 @@ from scrapers.job_page import JobPage
 from scrapers.linkedin.linkedin_description_to_html import linkedin_description_to_html
 from scrapers.linkedin.parse_linkedin_job_url import linkedin_job_url
 from worker.settings import load_settings
-from worker.tracing import configure_tracing
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "job_posting_extraction_cases.yaml"
 TRACE_NAME = "evals.job_posting_extraction"
@@ -51,10 +51,9 @@ def linkedin_case_to_page(inputs: dict[str, Any]) -> JobPage:
     )
 
 
-def run_job_posting_extraction_evals(model_override: str | None = None) -> None:
+def run_job_posting_extraction_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates extraction on every case and records the average scores in Logfire."""
     settings = override_settings(load_settings(), "job_requirements_sorting_model", model_override)
-    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.job_requirements_sorting_model
     thinking = settings.job_requirements_sorting_thinking
 
@@ -72,7 +71,9 @@ def run_job_posting_extraction_evals(model_override: str | None = None) -> None:
         """The task under evaluation."""
         return extract_job_posting(linkedin_case_to_page(inputs), sort_bullets).posting
 
-    with eval_run(
+    return evaluate_dataset(
+        load_job_posting_extraction_dataset,
+        extract_case,
         name=TRACE_NAME,
         metadata={
             "model": model,
@@ -81,17 +82,9 @@ def run_job_posting_extraction_evals(model_override: str | None = None) -> None:
         },
         version=JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
         tags=["eval", "scrape_job", model, f"thinking:{thinking}"],
-    ):
-        report = load_job_posting_extraction_dataset().evaluate_sync(
-            extract_case,
-            name=f"job_posting_extraction:{model}:thinking={thinking}",
-            max_concurrency=5,
-        )
-        capture_report(report)
-        for score_name, average in report.averages().scores.items():
-            record_score(name=score_name, value=average)
-
-    report.print(include_input=False, include_output=False, include_durations=True)
+        evaluation_name=f"job_posting_extraction:{model}:thinking={thinking}",
+        max_concurrency=5,
+    )
 
 
 if __name__ == "__main__":

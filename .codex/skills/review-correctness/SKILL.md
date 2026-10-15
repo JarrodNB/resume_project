@@ -19,7 +19,7 @@ Review the supplied base/head snapshot independently. Read repository instructio
 - Authentication/authorization, tenant isolation, unsafe input handling, secret exposure, and trust boundaries.
 - Transactions, races, retries, duplicate queue delivery, partial failures, and resource handling relevant to the diff.
 - Repository cross-service invariants: Rails owns domain writes, long-running AI work uses queues, handlers are safe under duplicate delivery, and LLM/embedding calls follow repository rules.
-- Missing tests where a concrete unprotected behavior creates credible bug risk. Do not invent product requirements.
+- Missing tests where a concrete unprotected behavior creates credible bug risk. Do not invent product requirements. Ensure you check for edge cases.
 
 Trace suspected defects to a concrete input or execution path. Inspect surrounding code before reporting. Focus on problems introduced or materially worsened by the diff; distinguish demonstrated failures from inference.
 

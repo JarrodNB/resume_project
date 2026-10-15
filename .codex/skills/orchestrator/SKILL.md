@@ -5,7 +5,7 @@ description: Coordinate a Careergrind Kanban item through planning, approved tic
 
 # Orchestrator
 
-Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; local Markdown files hold plans and implementation tickets. This skill describes the process without Plane or a temporary workflow document.
+Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; local Markdown files hold plans and implementation tickets. This skill describes the process without Plane or a temporary workflow document. All work should be done in a worktree.
 
 ## Select and resume
 
@@ -37,7 +37,7 @@ For a research-only item, read and use `research`. Give its background agent the
 
 ## Break down and approve
 
-1. After plan approval, create/resume the integration branch and record its base commit for review and PR scope.
+1. After plan approval, create/resume the integration branch and record its base commit for review and PR scope. Ensure that you are branching off of master and that master is current.
 2. Read/use `to-tickets`, configured to publish local files at the issues path above instead of `.scratch/`. Each normal ticket delivers a narrow, complete, independently verifiable behavior through necessary layers and fits a fresh agent context. Follow its prefactoring and expand–contract guidance where applicable.
 3. Present the proposed tickets, delivered behaviors, and blocking edges. Wait for human breakdown approval before publishing tickets or implementing. Plan approval does not imply breakdown approval.
 4. Publish individual tickets using the skill's local template, extended with progress, branch/worktree, resulting commits, test evidence, and blockers. Record the dependency graph in the plan. Keep implementation tickets off the overall Kanban list.

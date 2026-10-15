@@ -130,3 +130,78 @@ def test_dataset_load_failure_keeps_metadata_and_flushes(monkeypatch):
         assert capture.report is None
         assert capture.metadata == {"eval_name": "evals.offline", "model": "offline"}
     assert flushes == [True]
+
+
+def test_custom_scores_replace_averages_and_print_after_flush(monkeypatch):
+    """Specialized suites score a retained native report inside the trace."""
+    from pydantic_evals.reporting import EvaluationReport
+
+    events = []
+    dataset = Dataset(name="native-default", cases=[Case(inputs="hello")], evaluators=[Quality()])
+    monkeypatch.setattr(telemetry, "flush_tracing", lambda: events.append("flush"))
+    monkeypatch.setattr(telemetry, "record_score", lambda **kwargs: events.append("ordinary-score"))
+    monkeypatch.setattr(EvaluationReport, "print", lambda self, **kwargs: events.append(kwargs))
+    with capture_run() as capture:
+        def score(report):
+            from opentelemetry import trace
+
+            assert trace.get_current_span().get_span_context().is_valid
+            assert capture.report is report
+            events.append("custom-score")
+
+        report = telemetry.evaluate_dataset(
+            lambda: dataset, str, name="custom", max_concurrency=3,
+            prepare=lambda: events.append("prepare"), score_report=score,
+            print_options={"include_input": False, "include_output": True},
+        )
+    assert report.name == "str"
+    assert events == ["prepare", "custom-score", "flush",
+                      {"include_input": False, "include_output": True}]
+
+
+@pytest.mark.parametrize("failure_kind", ["none", "wrong", "outage", "judge", "report"])
+def test_guardrail_native_failure_policy(monkeypatch, failure_kind):
+    """Guardrail scores decisions only and preserves its narrower error gate."""
+    from pydantic_ai import Agent
+    from pydantic_evals.evaluators import ReportEvaluator
+
+    from evals import run_prompt_guardrail_evals as guardrail
+
+    class BrokenCase(Evaluator):
+        def evaluate(self, context):
+            raise ValueError("case evaluator failed")
+
+    class BrokenReport(ReportEvaluator):
+        def evaluate(self, context):
+            raise ValueError("report evaluator failed")
+
+    dataset = Dataset(
+        name="guardrail",
+        cases=[Case(inputs="hello", expected_output=failure_kind != "wrong")],
+        evaluators=[BrokenCase()] if failure_kind == "judge" else [Quality()],
+        report_evaluators=[BrokenReport()] if failure_kind == "report" else [],
+    )
+
+    def generate(self, prompt):
+        if failure_kind == "outage":
+            raise RuntimeError("screening outage")
+
+    monkeypatch.setattr(Agent, "run_sync", generate)
+    monkeypatch.setattr(guardrail, "load_prompt_guardrail_dataset", lambda: dataset)
+    scores, flushed = [], []
+    monkeypatch.setattr(guardrail, "record_score", lambda **kwargs: scores.append(kwargs))
+    monkeypatch.setattr(telemetry, "record_score", lambda **kwargs: pytest.fail("ordinary average"))
+    monkeypatch.setattr(telemetry, "flush_tracing", lambda: flushed.append(True))
+    with capture_run() as capture:
+        if failure_kind in {"none", "report"}:
+            guardrail.run_prompt_guardrail_evals()
+        else:
+            with pytest.raises(RuntimeError, match="errors or incorrect decisions"):
+                guardrail.run_prompt_guardrail_evals()
+        assert capture.report.name == "check_case"
+        assert len(capture.report.report_evaluator_failures) == int(failure_kind == "report")
+    assert flushed == [True]
+    assert scores == [
+        {"name": "decision_accuracy", "value": float(failure_kind not in {"wrong", "outage"})},
+        {"name": "case_errors", "value": int(failure_kind in {"outage", "judge"})},
+    ]

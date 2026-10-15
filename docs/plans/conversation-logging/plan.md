@@ -4,7 +4,7 @@ Index: specification, acceptance criteria, verification, delivery state.
 
 ## Delivery state
 - Source: KANBAN.md, Conversation logging.
-- Phase: implementation verified and blind reviews clean; preparing PR for human QA.
+- Phase: PR open; awaiting human review and manual QA.
 - Next: PR and human manual QA. Do not merge, deploy or remove Kanban item.
 - Current checkout inspected: work/vectorize-question-and-answers at 15dcb27653aa2590a49a081a5d131d015749da23.
 - Integration branch: work/conversation-logging, created from master at 413d4bcc5a70d50a40614c348cdab0bff6c72c92. Worktree: /mnt/c/Users/Jarrod/.codex/worktrees/conversation-logging/resume_project. No implementation tickets or code changes.
@@ -125,4 +125,4 @@ Fresh isolated reviewers, no inherited conversation, identical base/head above; 
 - Limitations: no live providers, browser or database integration. Human manual QA pending.
 
 ## PR/manual-QA handoff
-PR pending creation. Follow docs/conversation_logging.md for output location, opt-out and manual cleanup. Human QA follows the outline above. Keep Kanban item, do not merge or deploy.
+PR: https://github.com/JarrodNB/resume_project/pull/11. Branch work/conversation-logging. Follow docs/conversation_logging.md for output location, opt-out and manual cleanup. Human QA follows the outline above. Keep Kanban item, do not merge or deploy.

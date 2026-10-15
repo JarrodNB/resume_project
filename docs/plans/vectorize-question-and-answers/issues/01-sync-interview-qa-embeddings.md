@@ -53,4 +53,8 @@ successful replacement, or deletion. Saving and feedback keep their existing beh
   assertion. Two initial mutation-runner setup failures were corrected and are not red evidence.
 - Final integrated `docker compose run --rm --no-deps api bundle exec rspec`:
   423 examples, 0 failures. Changed concurrency spec RuboCop: 1 file, no offenses.
-- Fresh blind round 2 and human QA remain pending; implemented is not human acceptance.
+- Review-driven test fix: `0b3230a`. Fresh blind round 2 inspected the complete diff from
+  `413d4bc` through `0b3230a`: correctness and design both clean. Correctness reran 107
+  examples, 0 failures; design RuboCop checked 15 changed Ruby files, no offenses.
+- [PR #8](https://github.com/JarrodNB/resume_project/pull/8) ready for human review/manual QA.
+  No merge or deployment. Implemented is not human acceptance.

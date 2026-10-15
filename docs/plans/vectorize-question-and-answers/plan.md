@@ -7,10 +7,11 @@ implementation decisions, testing decisions, acceptance criteria, scope, and han
 
 - Source: top KANBAN.md item, “Vectorize question and answers.” Leave it on the board.
 - Feature slug: `vectorize-question-and-answers`.
-- Phase: blind review; next action: validate both reviews, fix supported findings, then prepare PR.
+- Phase: ready for human review/manual QA; next action: human review of PR #8 and QA below.
 - Integration branch: `work/vectorize-question-and-answers`.
 - Integration base: `413d4bcc5a70d50a40614c348cdab0bff6c72c92`.
-- Candidate/review HEAD: `991897c`; both blind reviewers inspect this same snapshot.
+- Final code/test review HEAD: `0b3230a771f53d079e59a8d54d1afd03ae17f4e6`;
+  final reviewers inspected the same full diff from the integration base.
 - Branch created after retrying a timed-out automatic permission review.
 - Plan approval: user said “ok continue then” after the revised-plan handoff, accepting
   the plan including test seams and the proposed Rails embedding exception.
@@ -26,8 +27,11 @@ implementation decisions, testing decisions, acceptance criteria, scope, and han
 - Reviews: round 1 correctness clean (107 checks passed); design identified insufficient
   synchronization in the duplicate-worker test. Strengthened the test to prove overlapping
   workers through PostgreSQL blocking evidence; it passes and detects removed serialization
-  in an in-memory mutation run. Fresh round 2 reviewers are required for the final full diff.
-- PR: not created yet. No merge or deployment authorized.
+  in an in-memory mutation run. Fresh round 2 correctness and design reviews both found no
+  actionable findings. Correctness independently ran 107 passing examples; design ran
+  RuboCop on 15 changed Ruby files with no offenses. No dismissed findings remain.
+- PR: [#8 — Vectorize saved interview questions and answers](https://github.com/JarrodNB/resume_project/pull/8).
+  Branch published. Human QA/acceptance pending. No merge or deployment authorized.
 
 ### Search compatibility update — 2026-10-15
 
@@ -200,7 +204,9 @@ Ticket published and delegated in its isolated branch/worktree. Worker commit `9
 was inspected and integrated as `991897c`. Orchestrator independently checked all nine
 acceptance criteria against code and test evidence and ran the integrated focused suite.
 Integration excluded unrelated shared-database schema drift and local research/skill edits.
-Two blind reviews and PR/manual-QA handoff remain orchestrator responsibilities.
+Two rounds of blind reviews completed, with the supported test-coverage fix committed as
+`0b3230a`. Final handoff-only documentation edits do not change source/tests/schema; another
+review round is unnecessary. Local research and skill modifications remain uncommitted.
 
 ## Out of Scope
 
@@ -213,5 +219,6 @@ vectors, backfills, feedback vectorization, model migration tooling, and merge/d
   replace a question, and delete a set. Confirm normal UI behavior and inspect stored vectors
   after background work; there is deliberately no vector UI. Simulate a provider failure and
   verify the answer remains saved. Confirm an older untouched answer stays unembedded.
-- PR/manual-QA handoff: pending implementation, checks, and blind reviews. Keep the Kanban
-  item until the human explicitly confirms completion.
+- PR/manual-QA handoff: [PR #8](https://github.com/JarrodNB/resume_project/pull/8) is ready.
+  Tests use simulated provider responses; live OpenAI and production Solid Queue execution
+  were not verified. Run human QA above; keep the Kanban item until explicit acceptance.

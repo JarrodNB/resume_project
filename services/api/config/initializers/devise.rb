@@ -2,6 +2,7 @@
 
 # Description: Devise config. Mostly generated defaults; the "API-only + JWT" block at the
 # bottom configures token auth (secret from DEVISE_JWT_SECRET_KEY, 1-day expiry).
+# Index: Devise.setup configures authentication defaults and API-only JWT behavior.
 #
 # Assuming you have not yet modified this file, each configuration option below
 # is set to its default value. Note that some are commented out while others
@@ -17,7 +18,7 @@ Devise.setup do |config|
   # confirmation, reset password and unlock tokens in the database.
   # Devise will use the `secret_key_base` as its `secret_key`
   # by default. You can change it below and use your own secret key.
-  # config.secret_key = '9097f551f85f29932d11b963b4ecc0753de6ce1a436314e7fbdb074a44bf7e260097de1ed1e2236cc03c9b9172bab3db1b27fc1e876ccb35f77021fa9ed99944'
+  # Set config.secret_key from an environment variable if overriding the Rails default.
 
   # ==> Controller configuration
   # Configure the parent class to the devise controllers.

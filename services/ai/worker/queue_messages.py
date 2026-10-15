@@ -3,7 +3,7 @@ Description: Pydantic models for the two SQS message formats shared with service
 Index:
     - TaskType: task types, mirroring AiTask::TASK_TYPES in Rails
     - AiTaskMessage: a task read from ai_tasks (published by AiTasks::EnqueueAiTaskService)
-    - ModelUsage: tokens and estimated cost of one agent run, reported with a result
+    - ModelUsage: tokens and known estimated cost of one provider response
     - AiResultMessage: a result written to ai_results (applied by AiTasks::ApplyAiResultService)
 """
 
@@ -28,26 +28,29 @@ class AiTaskMessage(BaseModel):
 
 
 class ModelUsage(BaseModel):
-    """Token counts and estimated cost of one agent run. `input_tokens` includes the cached
-    ones."""
+    """One response's token counts and estimated cost; None means its price is unknown.
+    `input_tokens` includes cached tokens."""
 
     model: str
-    input_tokens: int
-    cached_input_tokens: int
-    output_tokens: int
-    cost_microdollars: int
+    input_tokens: int = Field(ge=0)
+    cached_input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    cost_microdollars: int | None = Field(default=None, ge=0)
 
 
 class AiResultMessage(BaseModel):
-    """The outcome of one task. Which optional fields are set depends on `status`."""
+    """An outcome or usage-only report. Attempt identity deduplicates accounting, not execution."""
 
     ai_task_id: UUID
-    status: Literal["completed", "needs_user_input", "failed"]
+    status: Literal["completed", "needs_user_input", "failed", "usage"]
     result: dict[str, Any] | None = None
     pending_questions: list[dict[str, Any]] = Field(default_factory=list)
     message_history: list[dict[str, Any]] = Field(default_factory=list)
     error_message: str | None = None
     usage: list[ModelUsage] = Field(default_factory=list)
+    attempt_id: UUID | None = None
+    usage_incomplete: bool = False
+    attempt_finished: bool = True
     # Set on tailor_resume results. ApplyAiResultService ignores a result whose generation is
     # not the task's current one, so a redelivered earlier section cannot rewind the draft.
     generation: int | None = None

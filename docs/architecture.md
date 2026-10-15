@@ -52,9 +52,15 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage}`, where `status` is `completed`, `needs_user_input`, or
-  `failed`, and `usage` lists one `{model, input_tokens, cached_input_tokens, output_tokens,
-  cost_microdollars}` entry per agent run (`input_tokens` includes the cached ones)
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete}`.
+  `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
+  `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
+  per received provider response (`input_tokens` includes cached tokens; unknown prices are
+  null). Each actual execution gets a fresh UUID, independent of SQS receive count and
+  tailoring generation. The worker publishes an unfinished, incomplete usage marker before
+  execution and one final accounting report with its result, or usage-only before retrying.
+  Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
+  report. Usage-only messages never change task status. A missing final report remains unknown.
 
 Per task type:
 
@@ -236,14 +242,17 @@ LLM calls cost money, so each user has limits, checked by `AiUsage::CheckAiTaskA
 before a task is queued (under a lock on the user row, so concurrent requests can't both pass):
 
 - **Monthly budget** (default $2.00, `AI_MONTHLY_BUDGET_USD`): the sum of `ai_tasks.cost_microdollars`
-  for tasks created this calendar month (UTC). The worker estimates each run's cost from its
+  for tasks created this calendar month (UTC). The worker estimates each request's cost from its
   token usage and a per-model price table (`services/ai/worker/model_prices.py`) and reports it
-  with the result.
+  with attempt reports, including unsuccessful attempts. Missing provider usage or prices
+  makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
 - **Tasks per hour** (default 10, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
 - **Tasks in flight** (default 2, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
-Nullable columns on `users` override each default. `me { aiUsage }` exposes the month's spend.
+Nullable columns on `users` override each default. The existing `me { aiUsage }` query exposes
+known monthly spend. The backend monthly summary also retains the incomplete-attempt count;
+no new user-facing spend display or usage subscription is added.
 
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
 IP and by email, sign-up by IP, and `/graphql` by user (JWT `sub`) and by IP. Throttled
@@ -541,15 +550,23 @@ tailoring) instead of sending everything.
   showing any scraper warnings, e.g. "AI sorted the requirements"). This is the exception to
   "AI results are reviewed before they change user data". Creating the Job inside
   `ApplyAiResultService`'s row lock keeps redelivered results from creating it twice.
-- **AI budget checked before queuing, recorded after.** A task's cost is only known once it
-  finishes, so the check can't reserve an exact amount. The in-flight cap bounds the overshoot
-  to a couple of tasks, which is simpler than estimating and reserving costs up front. Spend is
-  summed from `ai_tasks` instead of kept in a counter, so it can't drift, and a redelivered
-  result assigns (never adds) its usage, except a `tailor_resume` task, which is requeued once
-  per section and adds each generation's usage once (`usage_generation` on the task). Costs are integer micro-dollars because one resume
-  parse costs well under a cent. Usage from a crashed or timed-out run isn't reported; the
-  hourly and in-flight caps limit that gap. The price table lives in the worker, which knows
-  the models; a configured model without a price fails a test instead of counting as free.
+- **AI budget uses known costs, including unsuccessful attempts.** The worker collects
+  screening, generation and query-embedding responses at their request seam, before output
+  validation, run limits or later failures can discard usage. Each concrete fallback model
+  is observed separately. Accounting does not depend on telemetry export. Costs use the
+  worker's local price table and integer micro-dollars; provider charges without usage or
+  pricing stay unknown rather than being estimated as zero. An unfinished report is sent
+  before execution, so a stopped worker or failed final publication leaves an unknown marker.
+  Exact charges for such attempts require provider reconciliation, which is not automated.
+  `ai_usage_attempts` records each execution independently of task outcome and generation.
+  Under the task lock, final reports add known totals once, including retries and late or
+  stale-generation reports. Finished tasks keep their outcome. Legacy messages without an
+  attempt identity retain the previous assignment/generation rules. Monthly totals still use
+  tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
+  not independently block work. The existing hourly and in-flight caps remain in place.
+  Deploy the Rails migration/consumer before the new worker message format. This accounting
+  covers queued AI tasks and their query embeddings; independent Rails career-library
+  embedding syncs and paid eval runs retain their separate existing execution paths.
 - **Rack::Attack on Rails.cache for request throttling.** No Redis: the dev memory store and
   production Solid Cache are enough at this scale.
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.

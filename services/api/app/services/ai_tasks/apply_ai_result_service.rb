@@ -1,14 +1,14 @@
 # Description: Applies one ai_results message to its AiTask and notifies subscribers.
-# Idempotent: results for a finished (completed/failed) task are ignored, and the row lock
-# stops two copies of the same message from both applying. The message's token usage and cost
-# are stored on the task (they count toward the user's monthly AI budget). A completed scrape_job
+# Idempotent: finished tasks keep their outcome; independently deduplicated usage can arrive late.
+# The row lock stops two copies of the same report from both adding token usage and cost.
+# Costs stored on the task count toward the user's monthly AI budget. A completed scrape_job
 # or parse_job_posting also saves its Job in the same locked transaction. Interview question
 # results acquire the owner lock before the task lock and persist in that transaction.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
 module AiTasks
   class ApplyAiResultService < ApplicationService
-    RESULT_STATUSES = %w[completed needs_user_input failed].freeze
+    RESULT_STATUSES = %w[completed needs_user_input failed usage].freeze
     USAGE_COLUMNS = %w[input_tokens cached_input_tokens output_tokens cost_microdollars].freeze
 
     # @param message [Hash] parsed result message with string keys
@@ -20,15 +20,21 @@ module AiTasks
     def call
       status = @message["status"]
       return failure([ "Unknown result status: #{status.inspect}" ]) unless RESULT_STATUSES.include?(status)
+      if status == "usage" && @message["attempt_id"].blank?
+        return failure([ "Usage reports require an attempt_id" ])
+      end
 
       ai_task = AiTask.find_by(id: @message["ai_task_id"])
       return failure([ "AI task not found: #{@message['ai_task_id'].inspect}" ]) unless ai_task
 
       applied = with_result_lock(ai_task) do
-        next false if ai_task.finished?
-        next false if stale_generation?(ai_task)
+        if @message["attempt_id"].present?
+          RecordAttemptUsageService.call(ai_task: ai_task, message: @message)
+        end
+        next false if status == "usage" || ai_task.finished? || stale_generation?(ai_task)
 
-        attributes = attributes_for(status).merge(usage_attributes(ai_task))
+        attributes = attributes_for(status)
+        attributes.merge!(usage_attributes(ai_task)) unless @message["attempt_id"].present?
         attributes.merge!(tailor_input_attributes(ai_task)) if ai_task.tailor_resume?
         attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
         ai_task.update!(attributes)

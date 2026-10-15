@@ -21,8 +21,8 @@ for GraphQL subscriptions, the official `openai` gem for career library embeddin
   else's record both return "Record not found".
 - Every change ships with specs (RSpec + FactoryBot). Run: `docker compose run --rm api bundle exec rspec`.
 - Models hold associations, validations, and scopes only.
-- `ai_results` consumers must be idempotent: look up the `AiTask` by `ai_task_id` and ignore
-  results for tasks that are already `completed` or `failed`.
+- `ai_results` consumers must be idempotent: finished tasks keep their outcome. Usage reports
+  are deduplicated by execution identity and may still add late charges to finished tasks.
 - Live UI updates go through GraphQL subscriptions. Services trigger them
   (e.g. `Schema.subscriptions.trigger(:ai_task_updated, ...)`) after state changes;
   subscriptions authorize the user the same way queries do.

@@ -6,6 +6,14 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_task_usage_accounting.py` — costs through task execution: run limits, SQS retries
+  and output-validation failures.
+- `test_task_usage_providers.py` — fallback, screening, query embeddings and unknown prices.
+- `test_task_usage_guardrails.py` — composed pre-screen, capability guard and generation
+  count once each, with cached tokens and no duplicate legacy aggregates.
+- `offline_model_resolution` supplies fake providers through SDK model resolution; accounting
+  tests must let production entry points install their own adapters.
+
 - `test_library_search_scope.py` — rejects missing, empty, malformed, and unsupported type scopes.
 - `test_library_embedding_search.py` — database-backed type/user/model filtering and hybrid ranking.
 - `test_eval_reports.py` — offline comparison alignment, failure persistence, compatibility and model isolation.

@@ -46,11 +46,35 @@ RSpec.describe "Concurrent interview results" do
   it "applies duplicate deliveries only once across separate connections" do
     task = create(:ai_task, user: user, task_type: "generate_interview_questions", subject: question_set,
                   input: { "question_set_id" => question_set.id })
-    message = message_for(task, drafts)
+    message = message_for(task, drafts).merge("attempt_id" => SecureRandom.uuid)
     expect(apply_concurrently([ message, message ])).to all(be_success)
     expect(question_set.questions.count).to eq(5)
     expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 30)
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(task.ai_usage_attempts.count).to eq(1)
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
+  end
+
+  it "adds distinct concurrent retry charges without changing task status" do
+    task = create(:ai_task, user: user)
+    messages = Array.new(2) do
+      { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,
+        "usage" => [ { "cost_microdollars" => 30 } ] }
+    end
+    expect(apply_concurrently(messages)).to all(be_success)
+    expect(task.reload).to have_attributes(status: "queued", cost_microdollars: 60)
+    expect(task.ai_usage_attempts.count).to eq(2)
+  end
+
+  it "resolves concurrent start and final reports without resurrecting uncertainty" do
+    task = create(:ai_task, user: user)
+    started = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,
+                "attempt_finished" => false, "usage_incomplete" => true }
+    finished = started.merge("attempt_finished" => true, "usage_incomplete" => false,
+                             "usage" => [ { "cost_microdollars" => 30 } ])
+    expect(apply_concurrently([ started, finished ])).to all(be_success)
+    expect(task.reload.cost_microdollars).to eq(30)
+    expect(task.ai_usage_attempts.count).to eq(1)
+    expect(task.ai_usage_attempts.first).to have_attributes(finalized: true, incomplete: false)
   end
 
   it "serializes replacements on different slots to prevent a duplicate question" do

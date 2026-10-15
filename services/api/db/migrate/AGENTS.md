@@ -6,6 +6,9 @@ Ordered Rails migrations for domain persistence.
 
 ## Contents
 
+- `20261015010000_create_ai_usage_attempts.rb` — execution-level usage identity and uncertainty.
+- `20261015010100_add_finalized_to_ai_usage_attempts.rb` — unfinished/final report ordering.
+
 - `20261001072829_devise_create_users.rb`
 - `20261001072901_create_jwt_denylists.rb`
 - `20261001072932_create_experiences.rb`

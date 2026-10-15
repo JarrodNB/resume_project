@@ -15,6 +15,7 @@ from pydantic_ai.embeddings import EmbeddingModel, EmbeddingSettings
 from pydantic_ai.usage import RequestUsage
 
 from worker.contact_mask import mask_outbound
+from worker.task_usage import current_task_usage
 
 
 class QueryEmbedding(NamedTuple):
@@ -29,7 +30,16 @@ def embed_search_query(text: str, model: EmbeddingModel | str, dimensions: int) 
     Rails uses for library rows. Pass `WorkerSettings.embedding_model` and
     `embedding_dimensions` (tests pass a TestEmbeddingModel)."""
     embedder = Embedder(model, settings=EmbeddingSettings(dimensions=dimensions))
-    result = embedder.embed_query_sync(mask_outbound(text))
+    usage = current_task_usage()
+    try:
+        result = embedder.embed_query_sync(mask_outbound(text))
+    except BaseException:
+        if usage is not None:
+            usage.incomplete = True
+        raise
+    if usage is not None:
+        model_name = model if isinstance(model, str) else f"{model.system}:{model.model_name}"
+        usage.record(model_name, result.usage)
     return QueryEmbedding(vector=list(result.embeddings[0]), usage=result.usage)
 
 

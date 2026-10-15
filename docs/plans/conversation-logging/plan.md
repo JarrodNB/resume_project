@@ -4,8 +4,8 @@ Index: specification, acceptance criteria, verification, delivery state.
 
 ## Delivery state
 - Source: KANBAN.md, Conversation logging.
-- Phase: implementation; ticket 01 ready for assignment.
-- Next: implement and verify 01, then release 02.
+- Phase: implementation verified and blind reviews clean; preparing PR for human QA.
+- Next: PR and human manual QA. Do not merge, deploy or remove Kanban item.
 - Current checkout inspected: work/vectorize-question-and-answers at 15dcb27653aa2590a49a081a5d131d015749da23.
 - Integration branch: work/conversation-logging, created from master at 413d4bcc5a70d50a40614c348cdab0bff6c72c92. Worktree: /mnt/c/Users/Jarrod/.codex/worktrees/conversation-logging/resume_project. No implementation tickets or code changes.
 - Requirements decisions: human replies accepted full exchanges, Markdown, automatic local-dev logging with opt-out, grouping by existing IDs, model-visible contact placeholders, retained failed runs, manual deletion, and nonfatal logging errors. Human additionally requires minimal changes to existing code and a dedicated module.
@@ -102,3 +102,27 @@ Worktree attachment remains unavailable because Windows Git reports dubious owne
 Published tickets: issues/01-grouped-transcripts.md; issues/02-reliable-transcripts.md. Both ready-for-agent, 02 blocked by 01.
 
 Ticket 01 implemented at 90ecfe8; independent Docker verification: 46 passed. Ticket 02 released and in-progress.
+
+
+## Final verification and acceptance
+Implementation candidate: base 413d4bcc5a70d50a40614c348cdab0bff6c72c92, head be616565dd1e769ffda3486ab783d1fde08990c8. Both tickets implemented and integrated.
+- Ticket 01 integration command: docker compose run --rm --no-deps ai pytest -q tests/test_conversation_logging.py tests/test_process_task_message.py tests/test_task_usage_accounting.py tests/test_task_usage_providers.py tests/test_task_usage_guardrails.py tests/test_contact_mask.py tests/test_prompt_guardrail.py. Result: 46 passed.
+- Worker 02 checks: transcript/reliability/task/accounting/contact/guardrail/tracing integration and task results: 57 passed.
+- Full offline integration command: docker compose run --rm --no-deps -e OPENAI_API_KEY=offline-test-placeholder ai pytest -q -m "not db" --tb=short. Result: 398 passed, 9 deselected, 1 Logfire configuration warning. Real requests disabled by fixtures.
+- First full-suite attempt lacked provider-construction key: 79 failed, 319 passed, 9 deselected. Failures were missing-key setup; corrected with dummy value, no real key or external calls.
+- git diff --check against base: passed. Worker 01 Ruff: passed.
+- Acceptance 1/7/9: Compose explicit local gate, default enabled, opt-out, ignored host bind directory, retention/manual cleanup documented and tested.
+- Acceptance 2/5: validated user/job/question-set/task grouping; attempt/request IDs, task type, model, generation, receive count and timestamps verified.
+- Acceptance 3/4: full model message parts and request parameters, structured-output/function tools/retries and original masked request/raw response tests.
+- Acceptance 6/8: pre-request append, provider errors, missing-response label, queue delivery outcomes, original exception identity, incomplete accounting, formatting/disk failures, nested fallback and redelivery tests.
+- Acceptance 10: capture, grouping, rendering, file append locks and outcomes are in conversation_logging package. Existing changes limited to shared task/model seams, settings, configuration, indexes and docs. No handler, queue schema, domain permission or agent prompt changes.
+
+## Blind reviews
+Fresh isolated reviewers, no inherited conversation, identical base/head above; no planning artifacts, implementation rationale, PR discussion or commit messages provided.
+- Correctness: no actionable findings. Docker subset: 33 passed. Traced capture, masking/restoration, grouping, fallback, accounting, retries and publication.
+- Design: no actionable findings. Docker subset: 24 passed. Verified module locality, minimal hooks and meaningful interface/concurrency/failure tests.
+- No review fixes required; no further implementation changes after reviewed head. Later delivery-state documentation changes do not affect reviewed code.
+- Limitations: no live providers, browser or database integration. Human manual QA pending.
+
+## PR/manual-QA handoff
+PR pending creation. Follow docs/conversation_logging.md for output location, opt-out and manual cleanup. Human QA follows the outline above. Keep Kanban item, do not merge or deploy.

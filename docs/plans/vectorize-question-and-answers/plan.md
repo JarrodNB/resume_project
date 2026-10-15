@@ -7,9 +7,10 @@ implementation decisions, testing decisions, acceptance criteria, scope, and han
 
 - Source: top KANBAN.md item, “Vectorize question and answers.” Leave it on the board.
 - Feature slug: `vectorize-question-and-answers`.
-- Phase: implementation; next action: delegate approved ticket 01, then integrate and verify.
+- Phase: blind review; next action: validate both reviews, fix supported findings, then prepare PR.
 - Integration branch: `work/vectorize-question-and-answers`.
-- Integration base/current HEAD: `413d4bcc5a70d50a40614c348cdab0bff6c72c92`.
+- Integration base: `413d4bcc5a70d50a40614c348cdab0bff6c72c92`.
+- Candidate/review HEAD: `991897c`; both blind reviewers inspect this same snapshot.
 - Branch created after retrying a timed-out automatic permission review.
 - Plan approval: user said “ok continue then” after the revised-plan handoff, accepting
   the plan including test seams and the proposed Rails embedding exception.
@@ -17,10 +18,16 @@ implementation decisions, testing decisions, acceptance criteria, scope, and han
 - Breakdown approval: user said “continue” after the single-ticket proposal.
   Approved breakdown is recorded in plan SHA-256
   `c5e75fef1664ee255a35f9fe350cb3ecbc773913240ec366c116a159aca2d364`.
-- Ticket [01](issues/01-sync-interview-qa-embeddings.md): in-progress, no blockers.
+- Ticket [01](issues/01-sync-interview-qa-embeddings.md): implemented and verified, no blockers.
 - Worker branch: `work/vectorize-question-and-answers-01-sync-interview-qa-embeddings`;
   isolated worktree: `/tmp/careergrind-interview-qa-01`, base matches integration base.
-- Verification: code inspection only; no implementation checks run. Reviews and PR: not started.
+- Verification: integrated focused suite 107 examples passing, final full API suite 423 passing,
+  AI search regressions 23 passing. Detailed evidence is recorded on ticket 01.
+- Reviews: round 1 correctness clean (107 checks passed); design identified insufficient
+  synchronization in the duplicate-worker test. Strengthened the test to prove overlapping
+  workers through PostgreSQL blocking evidence; it passes and detects removed serialization
+  in an in-memory mutation run. Fresh round 2 reviewers are required for the final full diff.
+- PR: not created yet. No merge or deployment authorized.
 
 ### Search compatibility update — 2026-10-15
 
@@ -169,11 +176,9 @@ embedding provider availability. General, technical, and knowledge practice are 
   `docker compose run --rm ai pytest tests/test_library_search_scope.py tests/test_library_embedding_search.py tests/test_tailor_resume_handler.py -q`.
   These paths include the PostgreSQL checks; skipped database tests do not count as passed.
 - Migration check: `docker compose run --rm api bin/rails db:migrate` plus schema inspection.
-- Record actual commands/results per ticket; none of these checks has run yet.
-  Prior PR #6 results are recorded in the research delivery plan; they are not verification
-  of the future Q&A implementation. This plan update was checked against the source at
-  `e390c24` and refreshed against `413d4bc`, including merged search filtering and queued-task
-  accounting. No runtime tests were run for these documentation-only updates.
+- Actual commands/results are recorded on ticket 01. Migration, integrated focused Rails
+  checks, full worker Rails regression checks, and search regression checks passed.
+  Prior PR #6 results are not counted as verification of this implementation.
 - After implementation: independently check every criterion, then two fresh blind reviewers
   inspect the same fixed full diff. Record findings, fixes, and any repeated review rounds.
 
@@ -191,9 +196,11 @@ This is one cohesive question-level behavior, sized for one fresh implementation
 Its lifecycle and race handling share the same save/replace/delete paths; splitting storage,
 job wiring, or tests into separate tickets would not yield complete observable behaviors.
 No prefactoring or expand–contract migration is needed. Dependency graph: `01` only.
-After breakdown approval, publish `issues/01-sync-interview-qa-embeddings.md` and delegate
-implementation in an isolated branch/worktree. Integration, checks, two blind reviews,
-and PR/manual-QA handoff remain orchestrator responsibilities.
+Ticket published and delegated in its isolated branch/worktree. Worker commit `93a9ef9`
+was inspected and integrated as `991897c`. Orchestrator independently checked all nine
+acceptance criteria against code and test evidence and ran the integrated focused suite.
+Integration excluded unrelated shared-database schema drift and local research/skill edits.
+Two blind reviews and PR/manual-QA handoff remain orchestrator responsibilities.
 
 ## Out of Scope
 

@@ -16,10 +16,11 @@ RSpec.describe "Interview embedding transactions" do
   after { user.destroy! if User.exists?(user.id) }
 
   # Synchronizes through a separate connection with independent record instances.
-  def background_sync
+  def background_sync(backend_pids: nil)
     owner_id, question_id = user.id, question.id
     Thread.new do
-      ActiveRecord::Base.connection_pool.with_connection do
+      ActiveRecord::Base.connection_pool.with_connection do |connection|
+        backend_pids << connection.select_value("SELECT pg_backend_pid()") if backend_pids
         InterviewPrep::SyncQuestionEmbeddingService.call(user: User.find(owner_id), question_id: question_id,
           embedding_client: client)
       end
@@ -66,14 +67,24 @@ RSpec.describe "Interview embedding transactions" do
 
   it "serializes duplicate provider work without duplicate rows" do
     entered, release = Queue.new, Queue.new
+    backend_pids = Queue.new
     allow(client).to receive(:embed_texts).and_wrap_original do |original, texts|
       entered << true
       release.pop
       original.call(texts)
     end
-    first = background_sync
+    first = background_sync(backend_pids: backend_pids)
+    first_pid = Timeout.timeout(5) { backend_pids.pop }
     Timeout.timeout(5) { entered.pop }
-    second = background_sync
+    second = background_sync(backend_pids: backend_pids)
+    second_pid = Timeout.timeout(5) { backend_pids.pop }
+    Timeout.timeout(5) do
+      connection = ActiveRecord::Base.connection
+      until connection.select_value("SELECT #{first_pid.to_i} = ANY(pg_blocking_pids(#{second_pid.to_i}))")
+        Thread.pass
+      end
+    end
+    expect(entered).to be_empty
     release << true
     Timeout.timeout(5) { [ first, second ].each(&:value) }
     expect(client.embedded_texts.size).to eq(1)

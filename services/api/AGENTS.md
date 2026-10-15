@@ -30,7 +30,8 @@ for GraphQL subscriptions, the official `openai` gem for career-library and inte
 ## Documentation
 
 Use YARD comments for public service contracts, side effects, and non-obvious rules.
-File descriptions are optional when the filename and code already explain the purpose.
+Start handwritten Ruby files with a short plain-English `#` header following the root
+guidance; tiny, self-explanatory files and generated code can skip it.
 
 ## Contents
 

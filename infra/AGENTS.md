@@ -21,7 +21,8 @@ Infrastructure as code and local dev infrastructure.
 ## Documentation
 
 Explain non-obvious infrastructure constraints and operational side effects in comments.
-Routine description headers and resource indexes are not required.
+Use short plain-English headers for handwritten infrastructure code following the root
+guidance. Resource indexes are not required.
 
 ## Contents
 

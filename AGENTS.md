@@ -29,10 +29,12 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
    dependencies, or reasons to change diverge, not solely because of line count.
 2. **Use descriptive names** that support code search. Prefer `tailor_resume_for_job` over
    `process`; avoid unexplained abbreviations.
-3. **Document important contracts.** Use module headers and docstrings for public interfaces,
-   LLM tools, side effects, and non-obvious business or authorization rules. Skip comments
-   that repeat the name or implementation. Export indexes and routine method comments are
-   not required. Keep existing useful documentation; avoid bulk comment-only cleanup.
+3. **Explain files for humans.** By default, start handwritten code files with a short,
+   plain-English header explaining what the file helps do, where it fits, and any important
+   limits or side effects. Aim for an ELI5 explanation without losing accuracy. Tiny,
+   self-explanatory files and generated code can skip it. See the example below.
+   Document public interfaces, LLM tools, and non-obvious business or authorization rules
+   where needed. Export indexes and comments on every method are not required.
 4. **Keep instructions scoped.** Root rules apply everywhere; nested `AGENTS.md` files add
    local constraints. Do not create a guide for every folder or maintain exhaustive file
    inventories. Update affected guidance when its rules or navigation change.
@@ -50,6 +52,24 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 10. **History lives in git**, not file headers. Do not hand-edit generated code; use its
     generator. Generated files do not need added metadata headers.
 11. **Keep language simple.** Write like you are talking to a college student.
+
+## Human-friendly file headers
+
+Use a few sentences rather than a function inventory. Explain the job in everyday language;
+include important limits when they matter. Use the language's normal comment syntax
+(Python module docstrings, Ruby `#` comments, TypeScript `/** ... */`). Keep required
+language directives first. For example:
+
+```python
+"""Find career examples that could help answer an interview question.
+
+Searches only the current user's saved career library. Returns evidence
+for the writing agent; it does not write or save an answer.
+"""
+```
+
+Apply this when adding or meaningfully editing a file. Preserve useful existing details,
+keep headers accurate as behavior changes, and avoid a repository-wide header rewrite.
 
 ## Cross-Service Rules
 

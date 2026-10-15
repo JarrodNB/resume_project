@@ -66,7 +66,9 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 
 Use docstrings for public interfaces, LLM tools, and non-obvious behavior or side effects.
 Tool descriptions and model field descriptions are model-facing contracts: keep them precise.
-Module docstrings are useful for architectural restrictions; export indexes are not required.
+Use a short plain-English module docstring following the root file-header guidance;
+explain the job and important limits. Tiny, self-explanatory files and generated code can
+skip it. Export indexes are not required.
 
 ## Contents
 

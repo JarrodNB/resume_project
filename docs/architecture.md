@@ -51,8 +51,11 @@ retrieval, and offline evaluations share contracts without importing one another
 the schemas. Other dependency directions above remain review rules, not automated checks.
 
 Prefer cohesive modules with small public interfaces. Split by responsibility or distinct
-dependencies rather than a fixed line limit. Keep useful contract comments and model-facing
-tool descriptions; routine export indexes and comments repeating method names add maintenance.
+dependencies rather than a fixed line limit. By default, give handwritten code files a short,
+plain-English header explaining their job, place in the workflow, and important limits;
+tiny, self-explanatory files and generated code can skip it. Keep useful contract comments
+and model-facing tool descriptions; export indexes and comments repeating method names
+add maintenance. Apply header improvements as files are meaningfully edited.
 Nested `AGENTS.md` files are for additional local constraints, not exhaustive file inventories.
 Domain-specific guides remain useful where they record ownership, retry, privacy, or UI rules.
 

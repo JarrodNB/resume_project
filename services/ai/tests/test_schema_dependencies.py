@@ -1,4 +1,8 @@
-"""Keep shared data contracts independent of runtime orchestration and infrastructure."""
+"""Check that shared data shapes can be used without loading the worker or its tools.
+
+Reads Python imports without running the files. Fails when a schema imports another
+part of our AI service, so a change to shared data cannot pull in task execution.
+"""
 
 import ast
 from pathlib import Path

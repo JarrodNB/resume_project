@@ -75,7 +75,7 @@ it('preserves a draft reverted to the previous saved text while saving', async (
 it('requires saving before feedback and disables feedback again after editing', async () => {
   renderPage({ path: '/interview-prep/:id', url: '/interview-prep/s1', element: <InterviewSetPage />, mocks: [detail(''), { request: { query: SAVE_INTERVIEW_ANSWER, variables: { questionSetId: 's1', questionId: 'q1', answerText: 'Typed for feedback' } }, result: { data: { saveInterviewAnswer: { __typename: 'SaveInterviewAnswerPayload', errors: [], question: { __typename: 'InterviewQuestion', id: 'q1', answerText: 'Typed for feedback', answerRevision: 2, feedbackOutdated: true } } } } }, detail('Typed for feedback')] })
   const textarea = await openAnswer()
-  expect(textarea).toHaveAttribute('maxlength', '1000')
+  expect(textarea).toHaveAttribute('maxlength', '2000')
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
   fireEvent.change(textarea, { target: { value: 'Typed for feedback' } })
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()

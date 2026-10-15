@@ -18,4 +18,4 @@ Authentication, queue wiring, usage limits, text caps, and middleware initialize
 
 ## Local Rules
 
-TextLimits::INTERVIEW_ANSWER is 1,000 and must match Python and web caps. Keep defaults and credentials separate; secrets come from the environment.
+TextLimits::INTERVIEW_ANSWER is 2,000 and must match Python and web caps. Keep defaults and credentials separate; secrets come from the environment.

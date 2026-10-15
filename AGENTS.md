@@ -38,6 +38,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 9. **History lives in git**, not in file headers. Write clear commit messages.
 10. **Generated framework boilerplate** (from `rails new`, `create-vite`, etc.) is exempt from
     the header rule until we edit it. Add the header the first time a generated file is changed.
+11. **Keep language simple** I do not want to talk to a PHD, write like you are talking to a college student.
 
 ## Cross-Service Rules
 

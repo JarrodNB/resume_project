@@ -27,7 +27,7 @@ Persistent interview preparation sets at `/interview-prep` and `/interview-prep/
 - Feedback requests save typed answers even when allowance/queueing fails; refresh persisted state without replacing newer drafts.
 - Existing feedback is outdated for local unsaved edits as well as persisted revision changes.
 - Capitalization and whitespace edits preserve feedback freshness; exact edits still require saving and retain navigation protection.
-- Enable feedback only for a nonblank saved answer with no unsaved edits and within the 1,000-character cap.
+- Enable feedback only for a nonblank saved answer with no unsaved edits and within the 2,000-character cap.
 - Disable feedback after success for the current question/answer revisions; saving a changed answer enables another request. Failed requests remain retryable.
 - Show feedback progress beside the answer controls from request submission until the queued task finishes.
 - Feedback never fills the answer field; examples remain separate and visibly mark missing facts.

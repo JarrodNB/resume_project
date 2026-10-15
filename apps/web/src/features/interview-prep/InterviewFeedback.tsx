@@ -7,7 +7,7 @@ export function InterviewFeedback({ feedback, outdated, unsavedChanges = false }
   const value = feedback && typeof feedback === 'object' ? feedback as Record<string, unknown> : {}
   const strengths = Array.isArray(value.strengths) ? value.strengths.filter((item): item is string => typeof item === 'string') : []
   const improvements = Array.isArray(value.improvements) ? value.improvements.filter((item): item is string => typeof item === 'string') : []
-  if (!strengths.length && !improvements.length && typeof value.example_answer !== 'string') return <p className="text-sm text-muted-foreground">Save or request feedback when your answer is ready.</p>
+  if (!strengths.length && !improvements.length && typeof value.example_answer !== 'string') return <p className="text-sm text-muted-foreground">Save your answer first, then request feedback when you’re ready.</p>
   return <aside className="grid min-w-0 content-start gap-3 break-words rounded-md border bg-muted/30 p-4" aria-label="Answer feedback">
     <h3 className="font-medium">Feedback</h3>
     {outdated && <p role="status" className="text-sm font-medium">{unsavedChanges ? 'Outdated feedback — you have unsaved answer changes. Save them and request feedback again.' : 'Outdated feedback — this reviews an earlier saved answer. Request feedback again for your current answer.'}</p>}

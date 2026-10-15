@@ -13,5 +13,5 @@ export const SHORT_TEXT = 200
 export const BULLET_TEXT = 1000
 export const PROSE_TEXT = 4000
 export const JOB_DESCRIPTION_TEXT = 20_000
-export const INTERVIEW_ANSWER_TEXT = 1_000
+export const INTERVIEW_ANSWER_TEXT = 2_000
 export const MAX_LINKS = 20

@@ -20,4 +20,4 @@ Shared formatting, configuration, theme state, and text limits.
 
 ## Local Rules
 
-Keep helpers independent of feature pages. INTERVIEW_ANSWER_TEXT is 1,000 and must match Rails TextLimits::INTERVIEW_ANSWER and Python MAX_INTERVIEW_ANSWER.
+Keep helpers independent of feature pages. INTERVIEW_ANSWER_TEXT is 2,000 and must match Rails TextLimits::INTERVIEW_ANSWER and Python MAX_INTERVIEW_ANSWER.

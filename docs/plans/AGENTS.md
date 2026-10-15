@@ -12,6 +12,6 @@ Feature implementation plans split into reviewable phases and tasks.
 
 ## Local Rules
 
-- Stop after each task for human review before beginning the next task.
+- For Kanban delivery, follow `.codex/skills/orchestrator/SKILL.md`: obtain human approval of the plan and ticket breakdown, then proceed through implementation tickets without mandatory per-task human review. Hand off for human review and manual QA after implementation and AI review.
 - Record task progress and actual verification results in the relevant plan.
 - Keep completed engineering rules from being implemented again.

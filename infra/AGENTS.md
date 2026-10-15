@@ -16,18 +16,13 @@ Infrastructure as code and local dev infrastructure.
 
 - One Terraform module per concern; no monolithic `main.tf`.
 - No secrets in code; use variables plus AWS Secrets Manager / SSM.
-- Each subfolder gets its own `AGENTS.md` when created.
+- Add nested instructions only for distinct operational constraints.
 
-## File Header Format
+## Documentation
 
-Every Terraform (`.tf`) and Kubernetes YAML file starts with:
-
-```hcl
-# Description: SQS queues for AI tasks and AI results, with dead-letter queues.
-# Index:
-#   - aws_sqs_queue.ai_tasks: tasks published by the Rails API
-#   - aws_sqs_queue.ai_results: results published by the AI workers
-```
+Explain non-obvious infrastructure constraints and operational side effects in comments.
+Use short plain-English headers for handwritten infrastructure code following the root
+guidance. Resource indexes are not required.
 
 ## Contents
 

@@ -12,7 +12,7 @@ Vite + React + TypeScript (static build), same tooling as `apps/web`.
 
 - Static only: no auth, no API calls beyond an optional waitlist form.
 - Keep it fast and simple.
-- File header format: see `apps/AGENTS.md`.
+- Follow the root documentation rules; use JSDoc for public contracts and non-obvious behavior.
 
 ## Contents
 

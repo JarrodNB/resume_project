@@ -1,7 +1,8 @@
 # AGENTS.md — Root
 
 Guidance for LLM agents (and humans) working anywhere in this monorepo.
-Every folder has its own `AGENTS.md` with local rules; read the nearest one before editing.
+Read applicable ancestor `AGENTS.md` files and any local instructions before editing.
+Add nested instructions only where a module needs rules beyond its parent.
 
 ## Project Summary
 
@@ -24,22 +25,51 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 
 ## Code Conventions
 
-1. **Small, modular, reusable files.** One responsibility per file. If a file grows past
-   ~150 lines, look for a split.
-2. **Descriptive names** for files, classes, methods, and variables. Prefer
-   `tailor_resume_for_job` over `process`. No unexplained abbreviations.
-3. **Every file starts with a header** containing a description and an index of its
-   public methods/exports. The exact format for each language is in the folder's `AGENTS.md`.
-4. **Every method/function has a short description** (docstring, YARD, or JSDoc).
-5. **Do not overcomplicate.** Pick the simplest thing that works; no speculative abstractions.
-6. **Ask for clarification** when requirements are ambiguous instead of guessing.
-7. **Every folder has an `AGENTS.md`** describing its purpose, contents, and local rules. Update it when you add, rename, or remove files.
-8. **Rails business logic lives in service objects** (`services/api/app/services/`), not in
+1. **Prefer cohesive modules.** Keep related behavior together. Split when responsibilities,
+   dependencies, or reasons to change diverge, not solely because of line count.
+2. **Use descriptive names** that support code search. Prefer `tailor_resume_for_job` over
+   `process`; avoid unexplained abbreviations.
+3. **Explain files for humans.** By default, start handwritten code files with a short,
+   plain-English header explaining what the file helps do, where it fits, and any important
+   limits or side effects. Aim for an ELI5 explanation without losing accuracy. Tiny,
+   self-explanatory files and generated code can skip it. See the example below.
+   Document public interfaces, LLM tools, and non-obvious business or authorization rules
+   where needed. Export indexes and comments on every method are not required.
+4. **Keep instructions scoped.** Root rules apply everywhere; nested `AGENTS.md` files add
+   local constraints. Do not create a guide for every folder or maintain exhaustive file
+   inventories. Update affected guidance when its rules or navigation change.
+5. **Keep designs simple.** Follow established patterns; avoid speculative abstractions.
+   Keep orchestration separate from business logic and preserve dependency directions.
+6. **Inspect relevant code first.** Ask when requirements are ambiguous. Keep changes focused.
+7. **Rails business logic lives in service objects** (`services/api/app/services/`), not in
    controllers, resolvers, or models.
-9. **History lives in git**, not in file headers. Write clear commit messages.
-10. **Generated framework boilerplate** (from `rails new`, `create-vite`, etc.) is exempt from
-    the header rule until we edit it. Add the header the first time a generated file is changed.
-11. **Keep language simple** I do not want to talk to a PHD, write like you are talking to a college student.
+8. **Read docs on demand.** See `docs/architecture.md` for ownership, queue contracts, and
+   dependency directions; consult it before changing those contracts. Use `GLOSSARY.md`
+   for domain terms. Update affected docs when behavior or design changes; avoid duplication.
+9. **Verify changes.** Follow `docs/testing.md` for focused tests, lint, schema generation,
+   and offline vs. paid eval commands. Test changed behavior through observable interfaces.
+   Report checks and limitations.
+10. **History lives in git**, not file headers. Do not hand-edit generated code; use its
+    generator. Generated files do not need added metadata headers.
+11. **Keep language simple.** Write like you are talking to a college student.
+
+## Human-friendly file headers
+
+Use a few sentences rather than a function inventory. Explain the job in everyday language;
+include important limits when they matter. Use the language's normal comment syntax
+(Python module docstrings, Ruby `#` comments, TypeScript `/** ... */`). Keep required
+language directives first. For example:
+
+```python
+"""Find career examples that could help answer an interview question.
+
+Searches only the current user's saved career library. Returns evidence
+for the writing agent; it does not write or save an answer.
+"""
+```
+
+Apply this when adding or meaningfully editing a file. Preserve useful existing details,
+keep headers accurate as behavior changes, and avoid a repository-wide header rewrite.
 
 ## Cross-Service Rules
 

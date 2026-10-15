@@ -6,6 +6,8 @@ Ordered Rails migrations for domain persistence.
 
 ## Contents
 
+- `20261015020000_create_interview_question_embeddings.rb` — unique current Q&A vectors with question foreign-key cascade, without search indexes or reader grants.
+
 - `20261015010000_create_ai_usage_attempts.rb` — execution-level usage identity and uncertainty.
 - `20261015010100_add_finalized_to_ai_usage_attempts.rb` — unfinished/final report ordering.
 

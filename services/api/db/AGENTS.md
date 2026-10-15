@@ -6,6 +6,8 @@ Database migrations and the generated schema.
 
 ## Contents
 
+- `interview_question_embeddings` — derived vectors created by migration; one per question with cascading deletion, no historical migration/backfill.
+
 - `migrate/` — migrations (each starts with a `# Description:` header)
 - `schema.rb` — generated; never edit by hand
 - `cache_schema.rb`, `queue_schema.rb`, `cable_schema.rb` — generated Solid* schemas (production only)

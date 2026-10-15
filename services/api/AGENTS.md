@@ -9,7 +9,7 @@ applications, interviews, contacts, goals.
 
 Rails (API mode), PostgreSQL (RDS) with pgvector (`neighbor` gem), graphql-ruby, Devise + JWT
 auth, Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
-for GraphQL subscriptions, the official `openai` gem for career library embeddings only.
+for GraphQL subscriptions, the official `openai` gem for career-library and interview Q&A embeddings only.
 
 ## Local Rules
 
@@ -52,7 +52,7 @@ not from the folder documentation requirement.
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
 - `app/channels/` — ActionCable: JWT-authenticated WebSocket at `/cable`, GraphQL channel
 - `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
-- `app/jobs/` — Active Job background jobs (career library embedding sync)
+- `app/jobs/` — Active Job background jobs (career-library and question-specific interview embedding sync)
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
 - `config/routes.rb` — `/auth/*` (REST, JWT), `/graphql`, `/up`
@@ -101,5 +101,9 @@ Every service that changes career library text must enqueue
 `CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(user_id)` (it runs after commit, and an
 extra sync is harmless). `OPENAI_API_KEY` must be set in `services/api/.env` for embeddings;
 without it the sync is skipped.
+
+Future successful nonblank interview answer saves enqueue `InterviewPrep::SyncQuestionEmbeddingJob`
+after commit. Vectors remain separate from the career library and AI reader grants. Rails embedding
+jobs incur provider costs outside queued-task budgets/attempt reports and Logfire tracing.
 
 Not added yet: resume mutations (follow the jobs/experiences pattern).

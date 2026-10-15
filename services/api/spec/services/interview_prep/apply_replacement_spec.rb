@@ -74,6 +74,8 @@ RSpec.describe "Applying an interview question replacement" do
   end
 
   it "replaces only the selected question, clears its answer/feedback, and advances revisions once" do
+    InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
+      embedding_client: FakeEmbeddingClient.new)
     other_attributes = questions.drop(1).map(&:attributes)
     2.times { apply }
     expect(task.reload).to be_completed
@@ -82,14 +84,18 @@ RSpec.describe "Applying an interview question replacement" do
       feedback_question_revision: nil, feedback_answer_revision: nil)
     expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(other_attributes)
     expect(task.cost_microdollars).to eq(30)
+    expect(question.embedding).to be_nil
   end
 
   it "preserves question, answer, and feedback on worker failure" do
+    InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
+      embedding_client: FakeEmbeddingClient.new)
     original = question.attributes
     apply(message.merge("status" => "failed", "error_message" => "Unavailable"))
     apply
     expect(question.reload.attributes).to eq(original)
     expect(task.reload).to be_failed
+    expect(question.embedding).to be_present
   end
 
   it "rejects changes to either revision, question text, or snapshot identity" do

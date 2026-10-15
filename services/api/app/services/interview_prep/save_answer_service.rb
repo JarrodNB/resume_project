@@ -16,9 +16,16 @@ module InterviewPrep
         if @question.ai_tasks.where(task_type: "regenerate_interview_question", status: "queued").exists?
           next failure([ "Wait for question regeneration to finish before editing the answer." ])
         end
-        @question.answer_revision += 1 if @question.answer_text != @answer_text
+        changed = @question.answer_text != @answer_text
+        @question.answer_revision += 1 if changed
         @question.answer_text = @answer_text
-        @question.save ? success(@question) : failure(@question.errors)
+        if @question.save
+          @question.embedding&.destroy! if changed
+          SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if @question.answer_text.present?
+          success(@question)
+        else
+          failure(@question.errors)
+        end
       end
     end
   end

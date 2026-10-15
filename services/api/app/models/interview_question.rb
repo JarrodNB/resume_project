@@ -2,9 +2,11 @@
 # Index:
 #   - interview_question_set: the owning user's practice set
 #   - ai_tasks: question operations retained for usage accounting after deletion
+#   - embedding: derived current Q&A vector, deleted with its question
 class InterviewQuestion < ApplicationRecord
   belongs_to :interview_question_set, inverse_of: :questions
   has_many :ai_tasks, as: :subject, dependent: :nullify
+  has_one :embedding, class_name: "InterviewQuestionEmbedding", dependent: :delete
 
   validates :position, inclusion: { in: 1..5 }, uniqueness: { scope: :interview_question_set_id }
   validates :question_text, presence: true

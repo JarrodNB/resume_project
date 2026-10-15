@@ -2,8 +2,10 @@
 Description: Local transcript capture independent of provider accounting.
 Index:
     - conversation_scope: task identity and validated file grouping
-    - observe_request: masked model exchange capture
+    - observe_request: masked model exchange and provider error capture
+    - publish_result / record_outcome: nonfatal task delivery outcomes
 """
+import fcntl
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -28,7 +30,9 @@ class Transcript:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as stream:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX)
                 stream.write(text + "\n\n")
+                stream.flush()
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation transcript could not be written")
 
@@ -88,7 +92,16 @@ async def observe_request(model, messages, model_settings, parameters):
                               + render_messages(messages, parameters) + render_parameters(parameters))
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation request could not be rendered")
-    response = await model.request(messages, model_settings, parameters)
+    try:
+        response = await model.request(messages, model_settings, parameters)
+    except BaseException as error:
+        # Provider exception text can contain restored contact values or arbitrary payloads.
+        try:
+            transcript.append(f"{prefix} - Provider error: {type(error).__name__} - {_timestamp()}\n\n"
+                              "Partial response unavailable: the provider returned no response object.")
+        except Exception:
+            logger.warning("Conversation provider error could not be rendered")
+        raise
     if transcript:
         try:
             transcript.append(f"{prefix} — Response — {_timestamp()}\n\nModel: {response.model_name or model.model_id}\n\n"
@@ -96,3 +109,26 @@ async def observe_request(model, messages, model_settings, parameters):
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation response could not be rendered")
     return response
+
+
+def publish_result(queue, result):
+    """Publishes unchanged queue data and records only observable delivery outcomes."""
+    try:
+        queue.send_message(result.model_dump_json())
+    except BaseException as error:
+        record_outcome(f"{result.status} result publication failed ({type(error).__name__}); task will redeliver")
+        raise
+    if result.status != "usage":
+        record_outcome(f"{result.status} result published")
+    elif result.attempt_finished:
+        record_outcome("retry pending; usage published")
+
+
+def record_outcome(outcome):
+    """Records lifecycle outcomes without changing queue or accounting behavior."""
+    try:
+        transcript = _current.get()
+        if transcript:
+            transcript.append(f"### Attempt {transcript.attempt} - {_timestamp()}\n\nOutcome: {outcome}")
+    except Exception:
+        logger.warning("Conversation outcome could not be rendered")

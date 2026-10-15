@@ -145,3 +145,22 @@ def test_masked_exchange_and_nonfatal_write_failure(monkeypatch, task_dependenci
         text = next(tmp_path.glob("conversation_logs/**/*.md")).read_text()
         assert "Hello «name»" in text and "Reply for «name»" in text
         assert "Synthetic Person" not in text
+
+def test_provider_failure_retains_request_and_truthful_outcome(monkeypatch, task_dependencies, tmp_path):
+    """Provider failures retain requests and identify unavailable responses."""
+    monkeypatch.chdir(tmp_path)
+    task_dependencies.settings.worker_environment = "local"
+    def fail(messages, info):
+        """Fails at the provider seam."""
+        raise ValueError("synthetic provider failure")
+    def handler(task, dependencies):
+        """Runs the production request adapter."""
+        model = FunctionModel(fail, model_name="failing-model")
+        Agent(generative_model(model, model)).run_sync("retained request")
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    assert main.process_task_message(build_task_body(), 1, FakeResultQueue(), task_dependencies)
+    text = next(tmp_path.glob("conversation_logs/**/*.md")).read_text()
+    assert "retained request" in text
+    assert "Provider error: ValueError" in text
+    assert "Partial response unavailable" in text
+    assert "Outcome: failed result published" in text

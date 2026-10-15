@@ -6,6 +6,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_conversation_logging_reliability.py` — nested/fallback calls, generations, redelivery,
+  original publication errors, logging isolation and independent-process append integrity.
 - `test_conversation_logging.py` — real task/model transcript capture, user/job/set/task
   grouping, local gating, synthetic tool/retry parts, masked response and nonfatal disk errors.
 

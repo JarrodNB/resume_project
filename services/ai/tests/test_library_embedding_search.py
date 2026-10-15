@@ -8,6 +8,8 @@ Index:
     - test_returns_the_users_entries_nearest_first
     - test_keyword_match_outranks_a_nearer_vector
     - test_ignores_other_users_and_other_models
+    - test_filters_source_types_before_ranking: scopes candidates before applying the limit
+    - test_returns_empty_for_a_type_without_entries: never falls back to other types
 """
 
 import os
@@ -71,16 +73,17 @@ def _insert_embedding(
     content: str,
     vector: list[float],
     model: str = MODEL,
+    source_type: str = "Skill",
 ) -> UUID:
-    """Inserts one skill embedding and returns its source id."""
+    """Inserts one typed embedding and returns its source id."""
     source_id = uuid4()
     connection.execute(
         """
         INSERT INTO library_embeddings (id, user_id, source_type, source_id, content,
             content_digest, model, embedding, created_at, updated_at)
-        VALUES (%s, %s, 'Skill', %s, %s, 'digest', %s, %s, now(), now())
+        VALUES (%s, %s, %s, %s, %s, 'digest', %s, %s, now(), now())
         """,
-        [uuid4(), user_id, source_id, content, model, Vector(vector)],
+        [uuid4(), user_id, source_type, source_id, content, model, Vector(vector)],
     )
     return source_id
 
@@ -99,7 +102,13 @@ def test_returns_the_users_entries_nearest_first(
     query[2] = 0.3
 
     matches = search_career_library(
-        admin_connection, user_id, query, "Kubernetes clusters", MODEL, limit=2
+        admin_connection,
+        user_id,
+        query,
+        "Kubernetes clusters",
+        MODEL,
+        source_types={"Skill"},
+        limit=2,
     )
 
     assert [match.content for match in matches] == ["Kubernetes", "Docker"]
@@ -120,7 +129,13 @@ def test_keyword_match_outranks_a_nearer_vector(
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
     matches = search_career_library(
-        admin_connection, user_id, _axis_vector(1), "Ruby programming", MODEL, limit=2
+        admin_connection,
+        user_id,
+        _axis_vector(1),
+        "Ruby programming",
+        MODEL,
+        source_types={"Skill"},
+        limit=2,
     )
 
     assert matches[0].content == "Ruby"
@@ -141,6 +156,58 @@ def test_ignores_other_users_and_other_models(
     )
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
-    matches = search_career_library(admin_connection, user_id, _axis_vector(1), "Theirs", MODEL)
+    matches = search_career_library(
+        admin_connection, user_id, _axis_vector(1), "Theirs", MODEL, source_types={"Skill"}
+    )
 
     assert [match.content for match in matches] == ["Mine"]
+
+
+def test_filters_source_types_before_ranking(admin_connection: psycopg.Connection[DictRow]) -> None:
+    """Excluded nearest/keyword matches cannot consume the scoped result limit."""
+    user_id = _insert_user(admin_connection)
+    _insert_embedding(admin_connection, user_id, "Ruby", _axis_vector(1))
+    project_id = _insert_embedding(
+        admin_connection, user_id, "Portfolio", _axis_vector(2), source_type="Project"
+    )
+    fact_id = _insert_embedding(
+        admin_connection, user_id, "Ruby knowledge", _axis_vector(3), source_type="LibraryFact"
+    )
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+
+    matches = search_career_library(
+        admin_connection,
+        user_id,
+        _axis_vector(1),
+        "Ruby",
+        MODEL,
+        source_types={"Project"},
+        limit=1,
+    )
+    assert [match.source_id for match in matches] == [str(project_id)]
+
+    mixed = search_career_library(
+        admin_connection,
+        user_id,
+        _axis_vector(1),
+        "Ruby",
+        MODEL,
+        source_types={"Project", "LibraryFact"},
+    )
+    assert {match.source_id for match in mixed} == {str(project_id), str(fact_id)}
+
+
+def test_returns_empty_for_a_type_without_entries(
+    admin_connection: psycopg.Connection[DictRow],
+) -> None:
+    """No entries of the selected type produces no matches despite other library rows."""
+    user_id = _insert_user(admin_connection)
+    _insert_embedding(admin_connection, user_id, "Ruby", _axis_vector(1))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+
+    assert (
+        search_career_library(
+            admin_connection, user_id, _axis_vector(1), "Ruby", MODEL, source_types={"Education"}
+        )
+        == []
+    )

@@ -127,7 +127,7 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 
 ## Delivery Record
 
-- Phase: implementation and blind reviews complete; preparing PR for human QA.
+- Phase: ready for human QA. PR 14 is open; no merge or deployment.
 - Human behavior decisions: agreed in chat on 2026-10-17, as recorded above.
 - Plan approval: user replied "confirmed" on 2026-10-17 to the written plan approval request.
   Approved file SHA-256 before recording approval:
@@ -139,7 +139,7 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Integration base: e47b1787c2cbf649b785d57ef3ff9d284f93b422. Branch: work/job-from-pasting-add-issue.
 - Ticket 01 worker: work/job-from-pasting-add-issue-01-optional-company; worktree at /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-01.
 - Verification: completed checks and limitations are recorded below.
-- Reviews: both blind reviews clean; PR preparation in progress; human QA pending.
+- Reviews: both blind reviews clean; PR 14 open; human QA pending.
 - Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,
   explicitly stage only this feature's plan and tickets for the required planning commit;
   leave the repository-wide ignore rule unchanged.
@@ -212,3 +212,11 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Residual limitations: four preexisting full-AI-lint violations in untouched conversation
   logging files; DB-marked Python tests not run; no browser QA or deployment. Migration
   ordering and safe rollback requirements remain as described above.
+
+### Human handoff
+
+- PR: https://github.com/JarrodNB/resume_project/pull/14
+- Branch: work/job-from-pasting-add-issue. Reviewed code head: 1d1f602; subsequent commits
+  contain delivery records only. PR base: master (origin master was current at handoff).
+- Next action: human QA using the steps in the PR and this plan. No merge or deployment.
+- Kanban item remains on the board pending explicit human completion confirmation.

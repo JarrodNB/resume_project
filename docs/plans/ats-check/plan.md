@@ -215,3 +215,16 @@ the Kanban item until explicit human acceptance.
   explicitly added for the workflow-required planning commit.
 - Verification: planning-only files; no application checks run. Ticket approval remains
   required before implementation under the requested workflow.
+
+### Ticket 01 integration
+
+- Worker c19e79f integrated as 836c612; immutable inputs, content checks, report subscription,
+  after-commit dispatch/recovery, evidence validation and scoring implemented.
+- Root verification on integration: 59 Rails examples passed (ATS, resume tailoring,
+  AI results, schema dump); 23 ATS/schema AI tests passed. Worker broader focused checks:
+  74 Rails, 41 AI passed; Ruby/Python lint clean; schema and types generated.
+- Paid synthetic evaluation: 3 cases; requirement assertions 100%; supported suggestions
+  1.00 each. Reported cost about USD 0.01822; earlier exploratory costs not fully recorded.
+- Tickets 02 and 03 started from 836c612 in isolated worktrees /home/jarrod/ats-check-02
+  and /home/jarrod/ats-check-03. Ticket 04 remains dependent on both.
+- Pending dispatch recovery command is documented; full suites and blind reviews remain.

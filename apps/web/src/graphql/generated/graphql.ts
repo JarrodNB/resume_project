@@ -397,14 +397,14 @@ export type RegenerateInterviewQuestionMutation = { regenerateInterviewQuestion:
 export type JobsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type JobsQuery = { jobs: Array<{ id: string, title: string, company: string, location: string | null, stage: JobStageEnum, createdAt: string }> };
+export type JobsQuery = { jobs: Array<{ id: string, title: string, company: string | null, location: string | null, stage: JobStageEnum, createdAt: string }> };
 
 export type JobQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type JobQuery = { job: { id: string, title: string, company: string, location: string | null, stage: JobStageEnum, url: string | null, description: string | null, notes: string | null, appliedAt: string | null, requirements: Array<string>, responsibilities: Array<string>, niceToHaves: Array<string>, gapResponses: Array<{ id: string, requirement: string, body: string, libraryFact: { id: string } | null }>, latestGapAnalysis: { id: string, status: AiTaskStatusEnum, result: unknown, errorMessage: string | null, createdAt: string } | null, resume: { id: string } | null } };
+export type JobQuery = { job: { id: string, title: string, company: string | null, location: string | null, stage: JobStageEnum, url: string | null, description: string | null, notes: string | null, appliedAt: string | null, requirements: Array<string>, responsibilities: Array<string>, niceToHaves: Array<string>, gapResponses: Array<{ id: string, requirement: string, body: string, libraryFact: { id: string } | null }>, latestGapAnalysis: { id: string, status: AiTaskStatusEnum, result: unknown, errorMessage: string | null, createdAt: string } | null, resume: { id: string } | null } };
 
 export type CreateJobMutationVariables = Exact<{
   attributes: JobAttributesInput;
@@ -470,7 +470,7 @@ export type TailorJobQueryVariables = Exact<{
 }>;
 
 
-export type TailorJobQuery = { job: { id: string, title: string, company: string, resume: { id: string, title: string, sections: Array<{ id: string, sectionType: ResumeSectionTypeEnum, title: string, position: number, content: unknown }> } | null, latestTailoring: { id: string, status: AiTaskStatusEnum, acceptedAt: string | null, input: unknown, pendingQuestions: unknown, result: unknown, errorMessage: string | null } | null } };
+export type TailorJobQuery = { job: { id: string, title: string, company: string | null, resume: { id: string, title: string, sections: Array<{ id: string, sectionType: ResumeSectionTypeEnum, title: string, position: number, content: unknown }> } | null, latestTailoring: { id: string, status: AiTaskStatusEnum, acceptedAt: string | null, input: unknown, pendingQuestions: unknown, result: unknown, errorMessage: string | null } | null } };
 
 export type StartResumeTailoringMutationVariables = Exact<{
   jobId: string | number;
@@ -508,14 +508,14 @@ export type UpdateResumeMutation = { updateResume: { errors: Array<string>, resu
 export type ResumesQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type ResumesQuery = { resumes: Array<{ id: string, title: string, updatedAt: string, job: { id: string, title: string, company: string } | null }> };
+export type ResumesQuery = { resumes: Array<{ id: string, title: string, updatedAt: string, job: { id: string, title: string, company: string | null } | null }> };
 
 export type ResumeQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type ResumeQuery = { resume: { id: string, title: string, job: { id: string, title: string, company: string } | null, sections: Array<{ id: string, sectionType: ResumeSectionTypeEnum, title: string, position: number, content: unknown }> } };
+export type ResumeQuery = { resume: { id: string, title: string, job: { id: string, title: string, company: string | null } | null, sections: Array<{ id: string, sectionType: ResumeSectionTypeEnum, title: string, position: number, content: unknown }> } };
 
 
 export const AiTaskUpdatedDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"subscription","name":{"kind":"Name","value":"AiTaskUpdated"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"aiTaskUpdated"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"taskType"}},{"kind":"Field","name":{"kind":"Name","value":"status"}},{"kind":"Field","name":{"kind":"Name","value":"result"}},{"kind":"Field","name":{"kind":"Name","value":"input"}},{"kind":"Field","name":{"kind":"Name","value":"pendingQuestions"}},{"kind":"Field","name":{"kind":"Name","value":"errorMessage"}},{"kind":"Field","name":{"kind":"Name","value":"acceptedAt"}},{"kind":"Field","name":{"kind":"Name","value":"createdAt"}},{"kind":"Field","name":{"kind":"Name","value":"job"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}}]}}]}}]}}]} as unknown as DocumentNode<AiTaskUpdatedSubscription, AiTaskUpdatedSubscriptionVariables>;

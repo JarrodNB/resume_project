@@ -65,7 +65,7 @@ export function JobsPage() {
                     <div className="grid gap-0.5">
                       <p className="font-medium">{job.title}</p>
                       <p className="text-sm text-muted-foreground">
-                        {[job.company, job.location].filter(Boolean).join(' · ')}
+                        {[job.company ?? 'Unknown company', job.location].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                     <Badge variant="secondary">{JOB_STAGE_LABELS[job.stage]}</Badge>

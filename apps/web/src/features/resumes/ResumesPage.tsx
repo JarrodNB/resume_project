@@ -40,7 +40,7 @@ export function ResumesPage() {
                 <Card className="transition-colors hover:bg-accent/40">
                   <CardContent className="grid gap-0.5">
                     <p className="font-medium">{resume.title}</p>
-                    <p className="text-sm text-muted-foreground">{resume.job ? `${resume.job.title} at ${resume.job.company}` : 'The job for this resume was removed.'}</p>
+                    <p className="text-sm text-muted-foreground">{resume.job ? `${resume.job.title} at ${resume.job.company ?? 'Unknown company'}` : 'The job for this resume was removed.'}</p>
                   </CardContent>
                 </Card>
               </Link>

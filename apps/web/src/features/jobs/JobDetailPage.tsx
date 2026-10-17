@@ -62,7 +62,7 @@ export function JobDetailPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-1">
               <h1 className="text-2xl font-semibold tracking-tight">{job.title}</h1>
-              <p className="text-muted-foreground">{[job.company, job.location].filter(Boolean).join(' · ')}</p>
+              <p className="text-muted-foreground">{[job.company ?? 'Unknown company', job.location].filter(Boolean).join(' · ')}</p>
               {job.appliedAt && <p className="text-sm text-muted-foreground">Applied {new Date(job.appliedAt).toLocaleDateString()}</p>}
             </div>
             <div className="flex flex-wrap items-end gap-2">

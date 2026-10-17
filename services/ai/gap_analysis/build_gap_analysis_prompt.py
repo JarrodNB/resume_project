@@ -64,7 +64,7 @@ def build_gap_analysis_prompt(
     lines = [
         f"Today's date: {today.isoformat()}",
         "",
-        f"# Job: {screened.job.title} at {screened.job.company}",
+        f"# Job: {screened.job.title} at {screened.job.company or 'Unknown company'}",
     ]
     lines += _requirement_lines(prompt, "required", "R", "Requirements", screened.job.requirements)
     lines += _requirement_lines(

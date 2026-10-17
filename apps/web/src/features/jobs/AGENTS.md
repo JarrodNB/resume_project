@@ -45,5 +45,7 @@ application stages, and deleted.
 
 - Stage changes go through `moveJobToStage`, which records `appliedAt` the first time a job
   leaves Not applied. Editing a requirement's wording does not rewrite saved answers.
+- A job requires a title. Company is nullable: show **Unknown company** in saved-job labels,
+  leave its edit input empty, and send null when the field is cleared.
 - Deleting a job removes its answers. A tailored resume written for it stays, unlinked.
 - The task page must work on reload: the subscription sends the task's current state first.

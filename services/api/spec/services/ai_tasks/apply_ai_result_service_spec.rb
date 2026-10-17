@@ -142,6 +142,16 @@ RSpec.describe AiTasks::ApplyAiResultService do
       expect(ai_task.subject).to eq(job)
     end
 
+    it "applies an unknown-company result once and keeps it owned by the task's user" do
+      other_user = create(:user)
+      posting = scraped_job.merge("company" => nil)
+      2.times { described_class.call(message: result_message("completed", result: { "scraped_job" => posting })) }
+
+      expect(ai_task.reload).to be_completed
+      expect(ai_task.user.jobs.sole).to have_attributes(company: nil, title: "AI Engineer")
+      expect(other_user.jobs).to be_empty
+    end
+
     it "fails the task when the job can't be saved" do
       described_class.call(
         message: result_message("completed", result: { "scraped_job" => scraped_job.merge("title" => "") })

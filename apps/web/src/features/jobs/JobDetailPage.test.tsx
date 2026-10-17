@@ -73,21 +73,48 @@ it('saves an edit and clears an optional field', async () => {
   expect(screen.queryByText('Remote')).not.toBeInTheDocument()
 })
 
-it('keeps the dialog open when company is blank', async () => {
+it('clears the company and displays Unknown company', async () => {
   const user = userEvent.setup()
   renderPage({
     path: '/jobs/:id',
     url: '/jobs/job-1',
     element: <JobDetailPage />,
-    mocks: [jobQuery(job())],
+    mocks: [
+      jobQuery(job()),
+      {
+        request: { query: UPDATE_JOB_MUTATION, variables: { id: 'job-1', attributes: { ...savedAttributes, title: 'Engineer', company: null, location: 'Remote' } } },
+        result: { data: { updateJob: { __typename: 'UpdateJobPayload', errors: [] } } },
+      },
+      jobQuery(job({ company: null })),
+    ],
   })
 
   await user.click(await screen.findByRole('button', { name: 'Edit' }))
   await user.clear(screen.getByLabelText('Company'))
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
-  expect(screen.getByRole('heading', { name: 'Edit job' })).toBeInTheDocument()
-  expect(screen.getByLabelText('Company')).toBeInvalid()
+  expect(await screen.findByText('Unknown company · Remote')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Edit job' })).not.toBeInTheDocument()
+})
+
+it('opens an unknown company as an empty field and lets the user add it', async () => {
+  const user = userEvent.setup()
+  renderPage({
+    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+    mocks: [
+      jobQuery(job({ company: null })),
+      {
+        request: { query: UPDATE_JOB_MUTATION, variables: { id: 'job-1', attributes: { ...savedAttributes, title: 'Engineer', location: 'Remote' } } },
+        result: { data: { updateJob: { __typename: 'UpdateJobPayload', errors: [] } } },
+      },
+      jobQuery(job()),
+    ],
+  })
+  await user.click(await screen.findByRole('button', { name: 'Edit' }))
+  expect(screen.getByLabelText('Company')).toHaveValue('')
+  await user.type(screen.getByLabelText('Company'), 'Acme')
+  await user.click(screen.getByRole('button', { name: 'Save' }))
+  expect(await screen.findByText('Acme · Remote')).toBeInTheDocument()
 })
 
 it('moves the job to a new stage', async () => {

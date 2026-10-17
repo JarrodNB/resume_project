@@ -10,7 +10,7 @@ module Types
   class JobType < Types::BaseObject
     field :id, ID, null: false
     field :title, String, null: false
-    field :company, String, null: false
+    field :company, String, null: true
     field :location, String
     field :url, String
     field :description, String

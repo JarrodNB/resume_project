@@ -132,7 +132,12 @@ Detected names/emails/phones embedded in other text still require masking.
 - Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
   assigned to the PII module agent at the planning base.
 - Integration head: planning base until ticket 01 passes. Reviews and PR pending.
-- Actual verification: code inspection only; no application changes or tests run.
+- Baseline verification: offline Docker tests `test_task_handlers.py`,
+  `test_contact_mask.py`, `test_tracing.py`, and `test_process_task_message.py`: 32 passed.
+  Used existing `resume_project-ai:latest`, an explicit integration-worktree mount,
+  `--network none`, and dummy `OPENAI_API_KEY=offline-test-key`. The first run without
+  that dummy key had 5 provider-construction failures and 27 passes; rerun passed all.
+  No paid requests or application changes were involved in the baseline.
 - Preserve unrelated existing edit: `.codex/skills/workflow/SKILL.md`.
 - Planning files are ignored by `/docs/plans/` in `.gitignore`; force-add only the
   approved feature artifacts when committing after breakdown approval.

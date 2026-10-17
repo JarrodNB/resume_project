@@ -9,6 +9,7 @@ from collections.abc import Callable
 
 from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.ats_content_handler import handle_ats_content_task
+from worker.ats_pdf_handler import handle_ats_pdf_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_questions_handler import handle_interview_questions_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
@@ -21,6 +22,7 @@ from worker.task_dependencies import TaskDependencies
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
+    "check_resume_pdf": handle_ats_pdf_task,
     "check_resume_content": handle_ats_content_task,
     "review_interview_answer": handle_interview_feedback_task,
     "generate_interview_questions": handle_interview_questions_task,

@@ -64,6 +64,7 @@ class Assessment(StrictModel):
 
 
 class Snapshot(StrictModel):
+    pdf_result: dict = Field(default_factory=dict)
     resume_id: str
     content_snapshot: list[dict]
     job_snapshot: dict | None

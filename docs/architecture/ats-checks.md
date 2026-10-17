@@ -84,3 +84,47 @@ cases through the production masked/screened handler. Requirement coverage is co
 with hand labels; a source-aware model judge checks that suggestions invent no career facts.
 Evidence and ten-key completeness are enforced by the production validator; Rails specs
 verify weighted scoring and duplicate-result consistency.
+
+## Exported PDF lifecycle
+
+`submitResumeAtsPdf(input: {resumeId, runId, contentFingerprint, rendererVersion, file})`
+accepts a multipart Upload for the currently owned, saved run. The renderer is
+`resume-pdf-v1`; unsupported renderers and stale saved fingerprints require refresh.
+Both declared length and actual bytes are capped at 5 MB, and MIME detection ignores
+client filenames. The upload is attached directly to its owned `check_resume_pdf` task;
+clients cannot select an arbitrary existing blob. SHA-256 binds the exact exported bytes.
+Identical queued exports reuse the current task under owner/resume/run locks. A new
+export replaces only the independent PDF slot. Existing allowance checks run before
+storing bytes or creating a new task.
+
+The queue carries run/resume IDs, saved content fingerprint, rubric/renderer versions,
+digest and source-file key/type. It never carries expected resume text or extracted PDF
+text. The worker reads saved sections and current PDF metadata from `ats_check_runs`
+with both owner and run IDs, checks task identity, downloads the attached export and
+verifies its SHA-256. Expected visible content is derived locally from the immutable
+server snapshot, mirroring `buildResumePdfModel` for the pinned renderer. No PDF bytes,
+extracted text or PDF findings are sent to any model, including later content checks.
+
+The local inspector uses pypdf text and transformed text-fragment coordinates, bounded
+by existing PDF page/text caps. It reports five ratios: usable extraction (1 for a usable
+text layer); expected word multiset coverage; saved chunk order and physical backward
+reading jumps; normalized character multiset coverage; and complete recoverable visible
+chunks (section titles, entry fields and body paragraphs). Case, Unicode compatibility
+ligatures, punctuation, ordinary whitespace and line-end hyphen wrapping are normalized.
+Word boundaries and repeated-word counts remain significant. Coordinates identify page,
+x/y and excerpt; missing saved text is named in `absence_reason` with nearby page evidence.
+Physical upward jumps greater than 1.5 times the adjacent font size reduce reading order.
+Each ratio is pass at >=0.98, partial at >=0.90, otherwise fail. Rails awards 1/0.5/0 of
+each equally weighted 20-point check and computes the integer category total. Ratios stay
+visible for explanation; they do not silently change the approved pass/partial/fail rubric.
+Corruption, encryption, missing text and resource caps fail visibly without publishing a
+zero or completed score. Results repeat every identity field and must include all five
+unique checks; malformed output fails only PDF inspection. Late/duplicate tasks cannot
+replace another export or change terminal outcomes.
+
+Terminal processing purges the task upload while retaining digest, renderer, metadata,
+findings and deductions. Start failures also purge uploads. A delayed cleanup job expires
+abandoned PDF tasks after 24 hours; operations should periodically run
+`bin/rails ats_checks:cleanup_pdfs` as recovery when scheduling/process failures prevent
+that job from being created. Cleanup is idempotent. Retrying after cleanup requires a
+new export. Editing/saving/preview never creates a PDF task.

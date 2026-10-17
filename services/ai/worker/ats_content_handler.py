@@ -54,7 +54,7 @@ def _assess_task(task, dependencies, privacy):
             status="failed",
             error_message="This resume check snapshot is unavailable.",
         )
-    source = privacy.prepare(snapshot.model_dump_json())
+    source = privacy.prepare(snapshot.model_dump_json(exclude={"pdf_result"}))
     masked_snapshot = Snapshot.model_validate_json(source)
     if text_limits.prompt_is_too_long(source):
         raise InputBlocked(TOO_LONG_MESSAGE)

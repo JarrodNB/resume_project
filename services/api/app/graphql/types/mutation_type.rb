@@ -75,6 +75,7 @@ module Types
     field :submit_tailored_section, mutation: Mutations::ResumeTailoring::SubmitTailoredSection
     field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
     field :rerun_resume_ats_check, mutation: Mutations::AtsChecks::RerunResumeAtsCheck
+    field :submit_resume_ats_pdf, mutation: Mutations::AtsChecks::SubmitResumeAtsPdf
     field :update_resume, mutation: Mutations::ResumeTailoring::UpdateResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse

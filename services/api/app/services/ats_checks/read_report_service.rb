@@ -21,14 +21,14 @@ module AtsChecks
       alignment = { "status" => "unavailable", "reason" => "No usable job requirements.", "assessments" => [] } if job["requirements"].empty?
       quality = quality.merge("status" => "outdated", "score" => nil) if content_changed
       pdf = run.pdf_result.presence || { "status" => "awaiting_export", "reason" => "Export the saved resume to check its PDF." }
-      pdf = pdf.merge("status" => "outdated", "score" => nil) if content_changed && run.pdf_result.present?
+      pdf = pdf.merge("status" => "outdated", "score" => nil) if run.pdf_result.present? && (content_changed || run.pdf_result["renderer_version"] != StartPdfCheckService::RENDERER_VERSION)
       categories = [ alignment, quality, pdf ].reject { |c| c["status"] == "unavailable" }
       overall = if categories.any? && categories.all? { |c| c["status"] == "completed" && c["score"].is_a?(Numeric) }
         (categories.sum { |c| c["score"] }.to_f / categories.size).round
       end
       success({ id: run.id, run_id: run.id, content_fingerprint: run.content_fingerprint,
                 job_fingerprint: run.job_fingerprint, rubric_version: run.rubric_version,
-                outdated: content_changed || job_changed, ai_task: run.ai_task,
+                outdated: [ alignment, quality, pdf ].any? { |category| category["status"] == "outdated" }, ai_task: run.ai_task,
                 created_at: run.created_at, job_alignment: alignment, content_quality: quality,
                 pdf_readability: pdf, overall_score: overall })
     end

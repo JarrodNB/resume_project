@@ -119,7 +119,7 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: review finding fixed and verified; next: fresh blind review pair on final diff.
+- Phase: implementation, verification, and blind reviews complete; next: PR and human QA.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
@@ -157,6 +157,14 @@ Detected names/emails/phones embedded in other text still require masking.
   passed. Final full suite: 520 passed, 9 database tests deselected, one existing warning.
 - Final synthetic real-provider evaluation repeated after the guard fix: six cases,
   no errors, all reported scores 1.0. Changed-file Ruff and diff checks pass.
+- Review round 2: fresh reviewers, original base
+  `f69499bfdf3d143168ed775ca036fd8f5c93369d` through final candidate
+  `6604aa755cc98dcd342cf8c44c6a252312982ae7`. Correctness: no actionable findings;
+  90 focused tests and independent full offline suite (520 passed, 9 deselected).
+  Design: no actionable findings; 89 focused tests and changed-file Ruff passed.
+- All plan acceptance criteria checked through source and observable tests; detector
+  limitations remain documented. Only editorial delivery/PR records change after review;
+  no new code review round is needed for those records.
 - PR pending. Manual QA remains the plan's synthetic empty-profile,
   differing-profile, and second-user import checks; no browser QA performed.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,

@@ -124,6 +124,7 @@ services:
       DB_USERNAME: ai_reader
       DB_PASSWORD: ai_reader
       LOGFIRE_ENVIRONMENT: development
+      WORKER_ENVIRONMENT: local
     volumes:
       - ./services/ai:/app
       - ./docs/evals:/docs/evals

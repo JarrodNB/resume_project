@@ -8,6 +8,7 @@ Project-level documentation that spans services.
 
 - `evals/` — optional timestamped AI quality reports and reporting CLI usage.
 
+- `conversation_logging.md` — local transcript location, controls, interpretation and cleanup.
 - `architecture.md` — services, dependency directions, data flow, queue design, key decisions
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
 - `mvp_plan.md` — first milestone scope and build order

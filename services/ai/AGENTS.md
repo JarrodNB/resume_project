@@ -72,6 +72,9 @@ skip it. Export indexes are not required.
 
 ## Contents
 
+- `conversation_logging/` — local-only readable Markdown exchanges grouped by user and
+  job, interview question set, or import task; concrete requests are captured after masking.
+
 - `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
   clients, Logfire tracing (see `worker/AGENTS.md`)
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,

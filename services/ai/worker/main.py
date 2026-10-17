@@ -17,6 +17,7 @@ from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai_harness import InputBlocked
 
+from conversation_logging import conversation_scope, publish_result
 from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
@@ -64,9 +65,17 @@ def process_task_message(
 
     guardrail_usage: list[ModelUsage] = []
     task_usage = TaskUsage()
+    with conversation_scope(task, dependencies.settings, task_usage.attempt_id, receive_count):
+        return _execute_task(task, receive_count, result_queue, dependencies, task_usage, guardrail_usage)
+
+
+def _execute_task(task, receive_count, result_queue, dependencies, task_usage, guardrail_usage):
+    """Runs the existing accounting and delivery lifecycle inside transcript capture."""
     _publish_usage(task, task_usage, result_queue, finished=False)
     try:
-        with collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task):
+        with (
+            collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
+        ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
         result = AiResultMessage(
@@ -98,18 +107,18 @@ def process_task_message(
     result.usage_incomplete = task_usage.incomplete
     if task.task_type == "tailor_resume":
         result.generation = task.input.get("generation")
-    result_queue.send_message(result.model_dump_json())
+    publish_result(result_queue, result)
     logger.info("Published %s result for task %s", result.status, task.ai_task_id)
     return True
 
 
 def _publish_usage(task, usage, queue, *, finished=True):
     """Persists an unfinished marker or retry charges without changing task status."""
-    queue.send_message(AiResultMessage(
+    publish_result(queue, AiResultMessage(
         ai_task_id=task.ai_task_id, status="usage", attempt_id=usage.attempt_id,
         usage=usage.entries, usage_incomplete=usage.incomplete or not finished,
         attempt_finished=finished,
-    ).model_dump_json())
+    ))
 
 
 def poll_task_queue_once(

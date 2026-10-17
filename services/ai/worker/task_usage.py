@@ -5,6 +5,7 @@ Index:
     - collect_task_usage: owns known charges and missing-usage flags for one execution
     - accounted_model: observes each concrete model request, including fallback attempts
     - current_task_usage: active attempt, or None outside task execution
+    - Concrete requests delegate optional transcript capture to conversation_logging
 """
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -18,6 +19,7 @@ from pydantic_ai.models.wrapper import WrapperModel
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage, RunUsage
 
+from conversation_logging import observe_request
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import ModelUsage
 
@@ -75,7 +77,7 @@ class AccountedModel(WrapperModel):
         """Records each received response or flags a request whose usage never arrived."""
         usage = current_task_usage()
         try:
-            response = await self.wrapped.request(messages, model_settings, model_request_parameters)
+            response = await observe_request(self.wrapped, messages, model_settings, model_request_parameters)
         except BaseException:
             if usage is not None:
                 usage.incomplete = True

@@ -83,15 +83,15 @@ ingestion in docs/architecture/career-library.md and update affected local guida
 
 ## Observable Acceptance Criteria
 
-- [ ] A valid titled ad without an employer imports with company null.
-- [ ] Null company causes no validation retry for an otherwise valid model response.
-- [ ] Supplied companies must still appear in the ad; named-company imports still work.
-- [ ] A missing title remains invalid.
-- [ ] Job list/detail show Unknown company; users can add or clear the company in the form.
-- [ ] GraphQL returns null successfully and generated types reflect that contract.
-- [ ] Existing AI job workflows accept null company without company-related failures.
-- [ ] Duplicate completion delivery still creates only one job.
-- [ ] Focused checks and eval results are recorded, including limitations.
+- [x] A valid titled ad without an employer imports with company null.
+- [x] Null company causes no validation retry for an otherwise valid model response.
+- [x] Supplied companies must still appear in the ad; named-company imports still work.
+- [x] A missing title remains invalid.
+- [x] Job list/detail show Unknown company; users can add or clear the company in the form.
+- [x] GraphQL returns null successfully and generated types reflect that contract.
+- [x] Existing AI job workflows accept null company without company-related failures.
+- [x] Duplicate completion delivery still creates only one job.
+- [x] Focused checks and eval results are recorded, including limitations.
 
 ## Dependencies and Verification
 
@@ -127,7 +127,7 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 
 ## Delivery Record
 
-- Phase: Ticket 01 in progress in its isolated worker worktree.
+- Phase: implementation and blind reviews complete; preparing PR for human QA.
 - Human behavior decisions: agreed in chat on 2026-10-17, as recorded above.
 - Plan approval: user replied "confirmed" on 2026-10-17 to the written plan approval request.
   Approved file SHA-256 before recording approval:
@@ -138,8 +138,8 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Planning commit: e47b1787c2cbf649b785d57ef3ff9d284f93b422 on master.
 - Integration base: e47b1787c2cbf649b785d57ef3ff9d284f93b422. Branch: work/job-from-pasting-add-issue.
 - Ticket 01 worker: work/job-from-pasting-add-issue-01-optional-company; worktree at /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-01.
-- Verification: code/document inspection only; no application checks run.
-- Reviews, PR, and human QA: not started.
+- Verification: completed checks and limitations are recorded below.
+- Reviews: both blind reviews clean; PR preparation in progress; human QA pending.
 - Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,
   explicitly stage only this feature's plan and tickets for the required planning commit;
   leave the repository-wide ignore rule unchanged.
@@ -174,3 +174,41 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
   PrecisionAtK 0.125 (existing dataset measure, not a new regression pass threshold).
 - These quality runs supplement deterministic null-company regressions; they do not
   replace them. Final pasted-ad eval still pending Ticket 02 integration.
+
+### Final implementation and review snapshot
+
+- Ticket 02 worker: 25215c635232483e0aa2604f9082b2f51dc2bcc4; integrated as
+  1d1f60223ffea59f236c85249eb03715bc10ce1b. Both tickets implemented and verified.
+- Real agent red/green: null-company response failed before the schema fix, then completed
+  with exactly one parse-model request. Supplied-name and required-title checks still pass.
+- Worker final checks: full offline AI 526 passed, 9 DB tests deselected; jobs UI 26 passed;
+  changed task-copy rerun 3 passed; frontend types/lint and changed Python Ruff passed.
+- Coordinator final integrated parser/context suite: 43 passed. Earlier integrated API suite:
+  71 examples, 0 failures. No Rails code changed in Ticket 02.
+- Correctness blind review: base e47b1787c2cbf649b785d57ef3ff9d284f93b422 to head
+  1d1f60223ffea59f236c85249eb03715bc10ce1b; no actionable findings; 30 offline AI tests
+  passed; caller/schema, migration, ownership, authorization and idempotency inspected.
+- Design blind review: same base/head; no actionable findings; 38 offline AI tests and
+  16 frontend tests passed; interface ownership and observable test coverage inspected.
+- No review fixes required. Subsequent changes are delivery records/evaluation evidence;
+  no production/test change after the reviewed snapshot, so another review pair is unnecessary.
+- All automated acceptance criteria checked. Human visual/manual QA remains pending and
+  does not follow from passing tests/reviews. Keep the Kanban item until human completion.
+
+### Final parser quality evaluation
+
+- Live parse runner completed exit 0 with the new unnamed-employer fixture. Every metric
+  on that fixture scored 1.00. Each case had one Jev request and one parse-model request;
+  the reported two requests include screening, not a parse retry.
+- Initial five-case average posting_fields 0.800; extraction precision/recall 0.800;
+  verbatim bullets 1.00. Investigated nonperfect older-case scores against original base.
+- Original four-case baseline: fields 0.833; extraction precision/recall 0.750; verbatim 1.00.
+- Detailed final rerun: fields 0.867; extraction precision/recall 0.800; verbatim 1.00;
+  zero task/evaluator errors. On the four shared cases, these match baseline aggregates.
+- Remaining mismatches concern full-sentence versus labelled subspan extraction, one title
+  including the employer, and a location period; they are outside this missing-company fix.
+  The initial extra field mismatch varied on rerun; do not claim deterministic model quality.
+- Detailed synthetic report retained locally under evals/job_posting_parse-20261017T132150Z-a404728eb480493896dc7d8a5fb0dfeb.md.
+- Residual limitations: four preexisting full-AI-lint violations in untouched conversation
+  logging files; DB-marked Python tests not run; no browser QA or deployment. Migration
+  ordering and safe rollback requirements remain as described above.

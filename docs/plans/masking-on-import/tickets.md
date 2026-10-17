@@ -78,7 +78,7 @@ and source checks. The PII module owns replacement decisions. Existing hooks and
 telemetry adapters consume the session without duplicating detection. Preserve other
 task types' known-contact behavior and existing queue/domain ownership.
 
-**Status:** implemented.
+**Status:** in-progress.
 
 **Acceptance Criteria:**
 
@@ -137,6 +137,10 @@ branch `work/masking-on-import-02-import-lifecycle`, base `6c5af29` after verifi
 Worker commits `f29a030`, `2760d94`, and `6a52ad3`, integrated as `c0776e0`, `d83e9f7`,
 and `d33c24b`. Root prompt refinement `cfc3080`; detector worker follow-up `fc2cac7`
 integrated as `5a9b563`. All acceptance criteria verified in code/tests; human QA pending.
+Round 1 correctness review then reproduced a valid-size import failing the separate
+120,000-character generative cap after masking expansion. Reopened 02 for a real-guard
+regression and scoped original-length check. Fix branch `work/masking-on-import-length-fix`,
+worktree `.worktrees/masking-length-fix`, base `9c034d2`. Full final diff requires new reviews.
 Coordinator integrates and checks all plan acceptance criteria, then runs two fresh blind
 reviews against a fixed base/head before opening the PR for human QA. Manual QA follows
 the plan. Keep the Kanban item until explicit human acceptance.

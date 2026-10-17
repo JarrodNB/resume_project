@@ -119,14 +119,14 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: implementation and acceptance checks complete; next: two fresh blind reviews.
+- Phase: first blind review complete; fixing the confirmed import length regression.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
   before this approval-record update.
 - Breakdown approval: user “confirmed.” Approved tickets SHA-256:
   `0727a6fb9c83e17419c85331477ba17d553a2ccee079ea75a2109a17bc0b0085`.
-- Tickets: 01 and 02 implemented; human acceptance remains pending.
+- Tickets: 01 implemented; 02 reopened for a confirmed review fix. Human acceptance pending.
 - Planning commit and integration base: `6722f8a1245711e62da66ae30e2cf38dcc2e415b`.
 - Integration: `work/masking-on-import`, `.worktrees/masking-integration`.
 - Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
@@ -142,7 +142,16 @@ Detected names/emails/phones embedded in other text still require masking.
   scores 1.0. Initial failures and resulting refinements are recorded in tickets.
 - Review base: remote master `f69499bfdf3d143168ed775ca036fd8f5c93369d` (fetched and
   verified unchanged). Review candidate: this verification-record commit; see Git.
-- Reviews and PR pending. Manual QA remains the plan's synthetic empty-profile,
+- Review round 1: base `f69499bfdf3d143168ed775ca036fd8f5c93369d`, candidate
+  `9c034d2dfa95e76e7110a51be01f70af780cb1d8`. Fresh correctness reviewer reproduced P2:
+  62,500 original characters expand to a 155,019-character prompt, failing the unchanged
+  120,000-character generative guard after screening. Finding accepted; scoped fix and
+  real-guard regression assigned in `.worktrees/masking-length-fix` at that candidate.
+- Round 1 design reviewer: no actionable findings; 95 independent focused tests and
+  changed-file lint passed. Correctness reviewer: 79 focused tests passed plus reproduced
+  the length failure. Both read-only; four pre-existing full-Ruff findings unchanged.
+- A fresh pair will review the full final diff after the behavior fix and checks.
+- PR pending. Manual QA remains the plan's synthetic empty-profile,
   differing-profile, and second-user import checks; no browser QA performed.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,
   `test_contact_mask.py`, `test_tracing.py`, and `test_process_task_message.py`: 32 passed.

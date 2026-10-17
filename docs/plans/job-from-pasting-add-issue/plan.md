@@ -127,7 +127,7 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 
 ## Delivery Record
 
-- Phase: plan and breakdown approved; next action: commit planning and implement Ticket 01.
+- Phase: Ticket 01 in progress in its isolated worker worktree.
 - Human behavior decisions: agreed in chat on 2026-10-17, as recorded above.
 - Plan approval: user replied "confirmed" on 2026-10-17 to the written plan approval request.
   Approved file SHA-256 before recording approval:
@@ -135,8 +135,9 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Breakdown approval: user replied "confirmed" on 2026-10-17 to the breakdown approval request.
   Approved tickets.md SHA-256: 11a4c8c77ba3f5e01af8bdbd1749792ffb596712649bae1b4a4a1068eba3e657.
   Tickets 01 and 02 are sequential, with 02 blocked by 01.
-- Planning commit: pending approvals. Starting checkout: master, clean.
-- Integration base/head and worker branches: not created.
+- Planning commit: e47b1787c2cbf649b785d57ef3ff9d284f93b422 on master.
+- Integration base: e47b1787c2cbf649b785d57ef3ff9d284f93b422. Branch: work/job-from-pasting-add-issue.
+- Ticket 01 worker: work/job-from-pasting-add-issue-01-optional-company; worktree at /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-01.
 - Verification: code/document inspection only; no application checks run.
 - Reviews, PR, and human QA: not started.
 - Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,

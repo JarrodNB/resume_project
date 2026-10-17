@@ -22,7 +22,7 @@ in its existing schemas and consumers; do not change career-library employer fie
 Test through services, GraphQL, task result application, React interactions, and existing
 AI context/prompt seams. Do not introduce a new orchestration abstraction.
 
-**Status:** ready-for-agent
+**Status:** in-progress
 
 **Acceptance Criteria:**
 

@@ -14,13 +14,13 @@ RequirementsSortedBy = Literal["headings", "llm", "none"]
 
 
 class ScrapedJobPosting(BaseModel):
-    """A job posting scraped from a supported site. Every requirement, responsibility, and
-    nice-to-have is a bullet copied verbatim from the posting."""
+    """A scraped or pasted posting; company is null when unstated. Every requirement,
+    responsibility, and nice-to-have is copied verbatim from the posting."""
 
     source: str
     source_url: str
     title: str
-    company: str
+    company: str | None = None
     location: str | None = None
     description: str = Field(default="", description="The posting's description as plain text.")
     requirements: list[str] = Field(default_factory=list)

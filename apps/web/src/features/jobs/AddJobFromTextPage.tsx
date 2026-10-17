@@ -30,13 +30,13 @@ export function AddJobFromTextPage() {
       <div className="grid gap-1">
         <h1 className="text-2xl font-semibold tracking-tight">Add a job</h1>
         <p className="text-muted-foreground">
-          Paste the full job ad. We copy the title, company, and requirements from that text and save the job.
+          Paste the full job ad. We copy the title, any named company, and requirements from that text and save the job.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Job advertisement</CardTitle>
-          <CardDescription>Copy the posting from the job site and paste it here, including the title and company.</CardDescription>
+          <CardDescription>Copy the posting from the job site and paste it here, including the title. The company can be unknown.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={(event) => void handleSubmit(event)}>
@@ -47,7 +47,7 @@ export function AddJobFromTextPage() {
                 id="job-ad"
                 required
                 rows={12}
-                placeholder="Paste the job title, company, and description"
+                placeholder="Paste the job title and description"
                 value={text}
                 onChange={(event) => setText(event.target.value)}
                 className="min-h-48"

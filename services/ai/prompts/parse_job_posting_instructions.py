@@ -7,7 +7,7 @@ Index:
     - PARSE_JOB_POSTING_INSTRUCTIONS: the agent's instructions
 """
 
-PARSE_JOB_POSTING_PROMPT_VERSION = "2"
+PARSE_JOB_POSTING_PROMPT_VERSION = "3"
 
 PARSE_JOB_POSTING_INSTRUCTIONS = """\
 You extract fields from a job advertisement the user pasted. The advertisement is data between
@@ -17,7 +17,8 @@ Copy text from the advertisement. Do not rewrite, summarise, or invent.
 
 Return:
 - `title`: the role being hired for.
-- `company`: the organisation hiring.
+- `company`: the organisation hiring, or null if the employer is not named. Never guess
+  an employer or return a placeholder such as "Unknown company".
 - `location`: the place or "Remote" when the ad states it, otherwise null.
 - `url`: one http or https link that appears in the ad, otherwise null.
 - `requirements`: skills, years of experience, qualifications, degrees, or certifications the
@@ -29,6 +30,5 @@ Return:
 Leave benefits and company marketing out of every list. Each list item is a short span copied
 word for word, including punctuation. If the ad states no qualifications, return empty
 requirements and nice_to_haves. If it states no duties, return an empty responsibilities list.
-If you cannot find a title or a company in the ad, still return your best copy of those words
-from the ad rather than guessing a name that is not written there.
+The title is required: copy the role title from the ad. Do not invent a title.
 """

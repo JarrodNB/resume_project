@@ -59,6 +59,28 @@ def test_a_title_missing_from_the_ad_is_rejected() -> None:
     assert problems == ["title must be copied from the advertisement"]
 
 
+def test_null_company_stays_null_in_posting() -> None:
+    """An unnamed employer stays absent through conversion and saved-length fitting."""
+    text = AD.replace("Acme\n", "")
+    parsed = _parsed(company=None)
+    assert find_parsed_job_problems(parsed, text) == []
+    assert posting_from_parsed_job(text, parsed).model_dump()["company"] is None
+
+
+def test_invented_company_is_rejected() -> None:
+    """Optional companies still need evidence when supplied."""
+    assert find_parsed_job_problems(_parsed(company="Invented Ltd"), AD) == [
+        "company must be copied from the advertisement"
+    ]
+
+
+def test_blank_title_is_rejected_even_without_company() -> None:
+    """A nullable company does not relax the required title."""
+    assert find_parsed_job_problems(_parsed(title="", company=None), AD) == [
+        "title must be copied from the advertisement"
+    ]
+
+
 def test_an_invented_bullet_is_rejected() -> None:
     """A requirement that is not in the ad is sent back to the model."""
     problems = find_parsed_job_problems(_parsed(requirements=["10 years of COBOL"]), AD)

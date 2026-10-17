@@ -56,7 +56,10 @@ def trace_ai_task(task: AiTaskMessage) -> Iterator[None]:
                 ai_task_id=str(task.ai_task_id),
                 task_type=task.task_type,
             ),
-            logfire.span(f"ai_task.{task.task_type}", input=task.input),
+            # Import filenames can themselves contain undiscovered contact. Pending
+            # spans may export before extraction; only record the task's type here.
+            logfire.span(f"ai_task.{task.task_type}",
+                         input={} if task.task_type == "parse_resume" else task.input),
         ):
             yield
     finally:

@@ -83,7 +83,9 @@ def test_parse_resume_returns_parsed_resume(
     assert result.status == "completed"
     ParsedResume.model_validate(result.result["parsed_resume"])
     [user_prompt] = [part for part in messages[0].parts if isinstance(part, UserPromptPart)]
-    assert user_prompt.content == "<resume>\nJane Doe\nEngineer at Acme\n</resume>"
+    assert user_prompt.content.startswith("<resume>\n«pii:")
+    assert "Jane Doe" not in user_prompt.content
+    assert user_prompt.content.endswith(" at Acme\n</resume>")
 
 
 def test_parse_resume_removes_highlights_not_in_the_file(

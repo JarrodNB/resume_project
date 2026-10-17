@@ -44,12 +44,16 @@ class ScreenOutcome(NamedTuple):
 
 
 def screen_user_text(
-    text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True
+    text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True,
+    max_characters: int = MAX_SCREENED_TEXT,
 ) -> ScreenOutcome:
     """Returns whether `text` may be put in a prompt. A Jev outage returns unchecked and does
     not raise. A request, tool-call, or token cap raises UsageLimitExceeded so the task fails.
-    `check_phrases` is for a short note. A whole resume skips it and lets Jev decide."""
-    screening = _screen_pass(text, model, timeout_seconds, check_phrases, MAX_SCREENED_TEXT)
+    `check_phrases` is for a short note. A whole resume skips it and lets Jev decide.
+    Trusted import code may adjust `max_characters` after validating original text:
+    privacy placeholders expand the protected text, but every character is still screened.
+    """
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
     try:
         chunk, timeout = next(screening)
         while True:

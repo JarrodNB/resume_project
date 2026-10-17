@@ -6,6 +6,15 @@ The session masks discovered values in other strings with `mask`, and restores
 strings, lists, tuples, dictionaries (including keys), and Pydantic models with
 `restore`. `unmask` restores one string. Unknown generated privacy tokens fail with
 `PiiRestorationError`; detector failures raise a content-free `PiiDetectionError`.
+Incomplete generated token fragments also fail; literal token-looking source strings
+round-trip safely. Repeated masking leaves generated tokens intact, including when a
+contact value matches a token marker. Matching elsewhere is case-insensitive; exact
+source variants have their own tokens so restoration preserves the document's case.
+
+`TaskPrivacy` retains that session for the complete worker execution. Provider and
+telemetry adapters delegate to it; import response hooks leave tokens in place until
+the handler restores the complete structured output. Known profile values, even when
+absent from the document, share the same namespace after preparation.
 
 Keep the session only in task memory, including telemetry callbacks that finish after
 the import scope exits. Its representation omits the replacement map and pickling is

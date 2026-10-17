@@ -75,6 +75,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   cap, and a Jev cap that is not treated as unchecked
 - `test_task_handlers.py` — dispatch and the parse_resume handler (agent on `TestModel`), incl.
   the resume fence, a blocked screen, and reported usage
+- `test_import_privacy.py` — real local detector with fake screening/parsing providers,
+  restoration before source checks, retry/fallback transcripts, duplicate/other-user
+  isolation, detector failure, limits, late telemetry, and exception logging
 - `test_model_prices.py` — cost math, unknown models, every configured model has a price
 - `test_generative_model.py` — fallback is skipped when the names match, and a priced response
   model is what a resume parse bills

@@ -31,8 +31,10 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
 - **Logfire tracing** comes from Pydantic AI's OpenTelemetry instrumentation
   (`Agent.instrument_all()` at worker startup). Tag traces with the user ID and task ID,
   and flush at the end of each task. Known name, contact email, and phone are placeholders
-  on the trace and on the provider request; the model response is restored before the result
-  is published. Remote export is enabled only when
+  on the trace and on the provider request. Resume imports also detect names, emails,
+  and phones locally with `pii/` before screening; structured output is restored before
+  source checks. Detection is probabilistic, especially for unfamiliar names. Keep task
+  privacy active through parent span completion and exception logging. Remote export is enabled only when
   `LOGFIRE_TOKEN` is set in `services/ai/.env` (copied from `.env.example`, never committed).
   `LOGFIRE_ENVIRONMENT` labels environments; export does not prompt for login.
 - **Human-in-the-loop uses Pydantic AI deferred tools.** When an agent needs information
@@ -102,6 +104,8 @@ skip it. Export indexes are not required.
 - `tailoring/` — section order, retrieval, labeled sources, the section prompt, the
   faithfulness check, and turning the agent's draft into resume section JSON
 - `documents/` — PDF/DOCX text extraction
+- `pii/` — local import contact detection, opaque task-local replacements, and restoration;
+  bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README
 - `scrapers/` — deterministic per-site job posting scrapers (LinkedIn so far), no LLM
 - `job_postings/` — job description to plain text and requirement bullets (headings first,
   sorting agent as fallback)

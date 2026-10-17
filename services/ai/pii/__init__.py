@@ -14,7 +14,7 @@ from uuid import uuid4
 from pydantic import BaseModel
 
 _TOKEN = re.compile(r"«pii:[^«»\s]+»")
-_SOURCE_TOKEN = re.compile(r"«(?:pii:[^«»\s]+|(?:name|email|phone)(?:-\d+)?)»")
+_SOURCE_TOKEN = re.compile(r"«(?:pii:[^«»\s]*(?:»|(?=\s|$))|(?:name|email|phone)(?:-\d+)?»)")
 _ENTITY_TYPES = ("PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER")
 
 
@@ -63,16 +63,17 @@ def _analyzer():
 class MaskingSession:
     """Opaque reversible replacements for one import; safe to retain through span export."""
 
-    __slots__ = ("__pattern", "__replacements")
+    __slots__ = ("__folded", "__pattern", "__replacements")
 
     def __init__(self, replacements: dict[str, str]):
         self.__replacements = replacements
+        self.__folded = {value.casefold(): token for value, token in replacements.items()}
         self.__pattern = (
-            re.compile("|".join(
+            re.compile(_TOKEN.pattern + "|" + "|".join(
                 re.escape(value) if _SOURCE_TOKEN.fullmatch(value)
                 else rf"(?<!\w){re.escape(value)}(?!\w)"
                 for value in sorted(replacements, key=len, reverse=True)
-            ))
+            ), re.IGNORECASE)
             if replacements else None
         )
 
@@ -86,10 +87,19 @@ class MaskingSession:
         """Protect already discovered values in requests, responses, and telemetry."""
         if self.__pattern is None:
             return text
-        return self.__pattern.sub(lambda match: self.__replacements[match.group()], text)
+        def replacement(match):
+            value = match.group()
+            # Protect generated tokens from subsequent hooks and marker-like names.
+            if _TOKEN.fullmatch(value):
+                return self.__replacements.get(value, value)
+            return self.__replacements.get(value, self.__folded.get(value.casefold(), value))
+
+        return self.__pattern.sub(replacement, text)
 
     def unmask(self, text: str) -> str:
         """Restore one string, rejecting unknown generated placeholders."""
+        if "«pii:" in _TOKEN.sub("", text):
+            raise PiiRestorationError("Result contains an unresolved privacy placeholder")
         originals = {token: value for value, token in self.__replacements.items()}
 
         def original(match):
@@ -132,9 +142,11 @@ def prepare_document(
     try:
         matches = _analyzer().analyze(text=text, language="en", entities=list(_ENTITY_TYPES))
         spans = [(match.start, match.end, match.entity_type) for match in matches]
+        profile_values = []
         for entity, values in zip(_ENTITY_TYPES, (names, emails, phones), strict=True):
             for value in values:
                 if isinstance(value, str) and value.strip():
+                    profile_values.append((value.strip(), entity))
                     spans.extend(
                         (match.start(), match.end(), entity)
                         for match in re.finditer(
@@ -147,6 +159,7 @@ def prepare_document(
             if not any(start < old_end and end > old_start for old_start, old_end, _ in chosen):
                 chosen.append((start, end, entity))
         values = {(text[start:end], entity) for start, end, entity in chosen}
+        values.update(profile_values)
         values.update((match.group(), "LITERAL") for match in _SOURCE_TOKEN.finditer(text))
         namespace = uuid4().hex
         while namespace in text:

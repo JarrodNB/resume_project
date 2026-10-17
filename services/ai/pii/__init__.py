@@ -13,8 +13,10 @@ from uuid import uuid4
 
 from pydantic import BaseModel
 
-_TOKEN = re.compile(r"«pii:[^«»\s]+»")
-_SOURCE_TOKEN = re.compile(r"«(?:pii:[^«»\s]*(?:»|(?=\s|$))|(?:name|email|phone)(?:-\d+)?»)")
+_TOKEN = re.compile(r"«pii:[^«»\s]+»", re.IGNORECASE)
+_SOURCE_TOKEN = re.compile(
+    r"«(?:pii:[^«»\s]*(?:»|(?=\s|$))|(?:name|email|phone)(?:-\d+)?»)", re.IGNORECASE
+)
 _ENTITY_TYPES = ("PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER")
 
 
@@ -98,7 +100,7 @@ class MaskingSession:
 
     def unmask(self, text: str) -> str:
         """Restore one string, rejecting unknown generated placeholders."""
-        if "«pii:" in _TOKEN.sub("", text):
+        if "«pii:" in _TOKEN.sub("", text).casefold():
             raise PiiRestorationError("Result contains an unresolved privacy placeholder")
         originals = {token: value for value, token in self.__replacements.items()}
 

@@ -116,7 +116,10 @@ def test_resume_handler_screens_source_once_then_generates(task_dependencies, fa
     with resume_parsing_agent.override(model=TestModel()):
         result = handle_ai_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
-    assert classifier == ["Jane Doe\nEngineer at Acme"]
+    assert len(classifier) == 1
+    assert "Jane Doe" not in classifier[0]
+    assert "«pii:" in classifier[0] and "Acme" in classifier[0]
+    assert "<resume>" not in classifier[0]
     assert sum(item.input_tokens for item in result.usage if "jev" in item.model) == 10
 
 

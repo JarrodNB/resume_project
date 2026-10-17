@@ -114,11 +114,19 @@ def test_original_limit_precedes_detection(monkeypatch, task_dependencies, fake_
 
 
 def test_incomplete_generated_tokens_fail_but_source_literals_round_trip():
-    original = "Literal «name» «pii:source:PERSON:1» and «pii:partial"
+    original = "Literal «name» «pii:source:PERSON:1» «PII:SOURCE:PERSON:2» and «PII:partial"
     masked, session = prepare_document(original)
     assert session.restore(masked) == original
     with pytest.raises(PiiRestorationError):
         session.restore("Generated «pii:unknown:PERSON:1")
+    with pytest.raises(PiiRestorationError):
+        session.restore("Generated «PII:unknown:PERSON:1")
+
+
+def test_changed_generated_token_case_is_rejected():
+    masked, session = prepare_document("Jane Doe", names=["Jane Doe"])
+    with pytest.raises(PiiRestorationError):
+        session.restore(masked.upper())
 
 
 def test_masking_preserves_exact_source_case_and_tokens_when_name_matches_marker():

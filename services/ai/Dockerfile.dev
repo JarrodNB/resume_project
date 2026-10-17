@@ -11,4 +11,8 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen
 
+# The pinned model is installed by uv, never fetched while processing a resume.
+# Fail the build if the local English NLP assets cannot load on this Python version.
+RUN python -c "import spacy; spacy.load('en_core_web_sm')"
+
 CMD ["python", "-m", "worker.main"]

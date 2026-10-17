@@ -78,7 +78,7 @@ and source checks. The PII module owns replacement decisions. Existing hooks and
 telemetry adapters consume the session without duplicating detection. Preserve other
 task types' known-contact behavior and existing queue/domain ownership.
 
-**Status:** ready-for-agent.
+**Status:** in-progress.
 
 **Acceptance Criteria:**
 
@@ -115,8 +115,8 @@ task types' known-contact behavior and existing queue/domain ownership.
   inputs and report actual paid-provider results or limitations per `docs/testing.md`.
 - Actual results: not run; implementation has not started.
 
-**Progress:** No assigned branch/worktree/base/commits yet. Planned worker branch:
-`work/masking-on-import-02-import-lifecycle`, based on integration head after 01 passes.
+**Progress:** Assigned to lifecycle agent in `.worktrees/masking-import-lifecycle`,
+branch `work/masking-on-import-02-import-lifecycle`, base `6c5af29` after verified 01.
 Coordinator integrates and checks all plan acceptance criteria, then runs two fresh blind
 reviews against a fixed base/head before opening the PR for human QA. Manual QA follows
 the plan. Keep the Kanban item until explicit human acceptance.

@@ -28,6 +28,15 @@ before masking so they survive a round trip and cannot collide with profile toke
 Email recognition keeps Presidio's structural pattern without online public-suffix
 validation, protecting private/test domains too. No detector-time network is needed.
 
+Person recognition runs separately on each extracted line and column (tabs or at least
+two spaces separate columns). Bullet prefixes are omitted from NER input. This keeps
+names from consuming adjacent email addresses, headings, titles, or skills. Structured
+email/phone spans take priority over overlapping person guesses. Month/year ranges such
+as `08/2017 - 12/2020` are excluded from phone matches; Presidio's default VALID phone
+leniency otherwise accepts this date range as a regional phone number. Employers can
+still be mislabeled PERSON, so callers must retain tokens according to source layout
+and restore them rather than assume the label guarantees the semantic field.
+
 ## Assets and limits
 
 The lockfile pins Presidio Analyzer 2.2.362, spaCy 3.8.11, and the English
@@ -39,14 +48,14 @@ does not install it. The image build loads the installed model as a smoke check.
 
 This English model can miss names, especially unfamiliar or multilingual names, and
 can mistake other resume text for names. Phone coverage depends on format and context.
-On eight synthetic name headers, it masked every component of seven: John Smith,
+The initial detector probe on eight synthetic name headers masked every component of seven: John Smith,
 Maria Garcia, David Chen, Wei Zhang, Aarav Patel, José García, and Fatima Al-Hassan.
 It missed components of Nguyễn Văn An. This is a small coverage probe, not an accuracy
 guarantee. Tests cover US, UK, Singapore, and India international-format phones and
 preservation of Python/API facts, Microsoft, and dates. Detection does not cover
 addresses, general URLs, or all possible PII.
 
-An offline probe in `careergrind-pii-ai:latest` used `docker run --rm --network none`
+An initial offline probe in `careergrind-pii-ai:latest` used `docker run --rm --network none`
 with this checkout bind-mounted at `/app`. Cold preparation (imports, model loading,
 and first analysis) took 1.886 seconds; subsequent short resumes took 0.005–0.017
 seconds on the development host. The development image was approximately 884 MB.

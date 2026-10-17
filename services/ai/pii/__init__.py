@@ -18,6 +18,10 @@ _SOURCE_TOKEN = re.compile(
     r"«(?:pii:[^«»\s]*(?:»|(?=\s|$))|(?:name|email|phone)(?:-\d+)?»)", re.IGNORECASE
 )
 _ENTITY_TYPES = ("PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER")
+_MONTH_RANGE = re.compile(
+    r"(?:0?[1-9]|1[0-2])[/.-](?:19|20)\d{2}\s*[-–—]\s*"
+    r"(?:0?[1-9]|1[0-2])[/.-](?:19|20)\d{2}"
+)
 
 
 class PiiDetectionError(RuntimeError):
@@ -128,6 +132,35 @@ class MaskingSession:
         return value
 
 
+def _detect_spans(text: str) -> list[tuple[int, int, str]]:
+    """Keep contact types distinct and keep resume layout out of person spans."""
+    analyzer = _analyzer()
+    matches = analyzer.analyze(
+        text=text, language="en", entities=["EMAIL_ADDRESS", "PHONE_NUMBER"]
+    )
+    spans = [
+        (match.start, match.end, match.entity_type)
+        for match in matches
+        if not (
+            match.entity_type == "PHONE_NUMBER"
+            and _MONTH_RANGE.fullmatch(text[match.start:match.end])
+        )
+    ]
+    # NLP can merge a name with the next line or column. Names are recognized in
+    # each layout segment; structured contacts retain priority over person guesses.
+    for segment in re.finditer(r"[^\r\n]+", text):
+        for column in re.finditer(r"\S.*?(?=\s{2,}|\t|$)", segment.group()):
+            value = column.group().rstrip()
+            offset = segment.start() + column.start()
+            without_bullet = re.sub(r"^[•●▪◦*-]\s*", "", value)
+            offset += len(value) - len(without_bullet)
+            for match in analyzer.analyze(text=without_bullet, language="en", entities=["PERSON"]):
+                start, end = offset + match.start, offset + match.end
+                if not any(start < old_end and end > old_start for old_start, old_end, _ in spans):
+                    spans.append((start, end, "PERSON"))
+    return spans
+
+
 def prepare_document(
     text: str,
     *,
@@ -142,8 +175,7 @@ def prepare_document(
     deliberately omit detector messages and source text.
     """
     try:
-        matches = _analyzer().analyze(text=text, language="en", entities=list(_ENTITY_TYPES))
-        spans = [(match.start, match.end, match.entity_type) for match in matches]
+        spans = _detect_spans(text)
         profile_values = []
         for entity, values in zip(_ENTITY_TYPES, (names, emails, phones), strict=True):
             for value in values:

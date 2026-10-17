@@ -130,3 +130,62 @@ def test_private_domain_email_addresses_stay_private():
     masked, session = prepare_document("Email: alex@example.test")
     assert "alex@example.test" not in masked
     assert session.restore(masked) == "Email: alex@example.test"
+
+
+def test_adjacent_name_and_email_remain_separate_semantic_fields():
+    text = "Priya Natarajan\npriya.n@example.org\nSoftware Engineer"
+    masked, session = prepare_document(text)
+    lines = masked.splitlines()
+    assert len(lines) == 3
+    assert ":PERSON:" in lines[0]
+    assert ":EMAIL_ADDRESS:" in lines[1]
+    assert lines[2] == "Software Engineer"
+    assert session.restore(masked) == text
+
+
+def test_two_column_headers_and_bullet_text_keep_resume_facts():
+    text = (
+        "JORDAN LEE      SKILLS\nProduct Designer       Figma\n"
+        "• Shipped design systems for 20 product teams."
+    )
+    masked, session = prepare_document(text)
+    assert "JORDAN LEE" not in masked
+    for fact in ("SKILLS", "Product Designer", "Figma", "• Shipped"):
+        assert fact in masked
+    assert session.restore(masked) == text
+
+
+def test_employment_month_ranges_are_not_phone_numbers():
+    text = "Software Engineer\n08/2017 - 12/2020\nPhone: +44 20 7946 0958"
+    masked, session = prepare_document(text)
+    assert "08/2017 - 12/2020" in masked
+    assert "+44 20 7946 0958" not in masked
+    assert session.restore(masked) == text
+
+
+def test_two_column_eval_preserves_employers_titles_and_bullet_verbs():
+    text = (
+        "JORDAN LEE                                   SKILLS\n"
+        "Product Designer                             Figma, Sketch, user research,\n"
+        "jordan.lee@example.net                       prototyping, HTML/CSS\n"
+        "Portland, OR\nEXPERIENCE\n"
+        "Brightline Studio | Senior Product Designer | 01/2021 - Present\n"
+        "• Redesigned the onboarding flow for a fitness app, increasing week-one\n"
+        "retention from 31% to 45%.\n"
+        "• Ran 40+ moderated usability sessions and turned findings into a\n"
+        "shared research repository.\n"
+        "Pixel & Co. | Product Designer | 08/2017 - 12/2020\n"
+        "• Shipped a design system adopted across 5 product teams.\n"
+        "EDUCATION\nOregon State University, BFA Graphic Design, 2013-2017"
+    )
+    masked, session = prepare_document(text)
+    for secret in ("JORDAN LEE", "jordan.lee@example.net"):
+        assert secret not in masked
+    for fact in (
+        "SKILLS", "Product Designer", "Figma", "• Shipped",
+        "08/2017 - 12/2020", "01/2021 - Present", "Oregon State University",
+    ):
+        assert fact in masked
+    employer_field = masked.splitlines()[5].split(" | ")[0]
+    assert session.restore(employer_field) == "Brightline Studio"
+    assert session.restore(masked) == text

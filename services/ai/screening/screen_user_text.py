@@ -12,8 +12,9 @@ Index:
 
 import logging
 import os
+from collections.abc import Awaitable, Callable, Generator
 from time import monotonic
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import RunUsage
@@ -48,14 +49,58 @@ def screen_user_text(
     """Returns whether `text` may be put in a prompt. A Jev outage returns unchecked and does
     not raise. A request, tool-call, or token cap raises UsageLimitExceeded so the task fails.
     `check_phrases` is for a short note. A whole resume skips it and lets Jev decide."""
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, MAX_SCREENED_TEXT)
+    try:
+        chunk, timeout = next(screening)
+        while True:
+            try:
+                run = screen_user_message(chunk, model=model, timeout_seconds=timeout)
+            except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
+                chunk, timeout = screening.throw(error)
+            else:
+                chunk, timeout = screening.send(run)
+    except StopIteration as done:
+        return done.value
+
+
+async def screen_user_text_async(
+    text: str, model: str, timeout_seconds: float, *, check_phrases: bool = False,
+    max_characters: int = MAX_SCREENED_TEXT,
+    classify: Callable[[str, str, float], Awaitable[Any]],
+) -> ScreenOutcome:
+    """Apply the same policy without blocking an agent's running event loop.
+
+    The classifier is a provider seam, not an approval: every returned decision still
+    goes through confidence, fail-closed, cap, cache, and usage processing below.
+    """
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
+    try:
+        chunk, timeout = next(screening)
+        while True:
+            try:
+                run = await classify(chunk, model, timeout)
+            except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
+                chunk, timeout = screening.throw(error)
+            else:
+                chunk, timeout = screening.send(run)
+    except StopIteration as done:
+        return done.value
+
+
+def _screen_pass(
+    text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
+) -> Generator[tuple[str, float], Any, ScreenOutcome]:
+    """Own one shared policy; sync and async drivers only execute yielded provider work."""
     text = mask_outbound(text)
     size = load_settings().user_text_screen_chunk_size
     session = current_session()
-    key = (text, model, check_phrases, size)
+    key = (text, model, check_phrases, size, max_characters)
     if session is not None and key in session.decisions:
         # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None)
-    outcome = _screen_chunks(text, model, timeout_seconds, check_phrases, size)
+    outcome = yield from _screen_chunks(
+        text, model, timeout_seconds, check_phrases, size, max_characters,
+    )
     if session is not None:
         session.decisions[key] = outcome
         if outcome.allowed:
@@ -63,11 +108,11 @@ def screen_user_text(
     return outcome
 
 
-def _screen_chunks(text, model, timeout_seconds, check_phrases, size) -> ScreenOutcome:
+def _screen_chunks(text, model, timeout_seconds, check_phrases, size, max_characters):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
     if not text.strip():
         return ScreenOutcome(allowed=True)
-    if len(text) > MAX_SCREENED_TEXT:
+    if len(text) > max_characters:
         return ScreenOutcome(allowed=False, too_long=True)
     if check_phrases and has_obvious_instruction_override(text):
         return ScreenOutcome(allowed=False)
@@ -84,7 +129,7 @@ def _screen_chunks(text, model, timeout_seconds, check_phrases, size) -> ScreenO
             remaining = deadline - monotonic()
             if remaining <= 0:
                 raise TimeoutError("Screening deadline exceeded")
-            run = screen_user_message(text[start:start + size], model=model, timeout_seconds=remaining)
+            run = yield text[start:start + size], remaining
         except UsageLimitExceeded:
             raise
         except Exception:

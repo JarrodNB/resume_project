@@ -78,7 +78,7 @@ and source checks. The PII module owns replacement decisions. Existing hooks and
 telemetry adapters consume the session without duplicating detection. Preserve other
 task types' known-contact behavior and existing queue/domain ownership.
 
-**Status:** in-progress.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -113,10 +113,30 @@ task types' known-contact behavior and existing queue/domain ownership.
 - `git diff --check`
 - If prompts/agent behavior change, use the existing parsing eval runner with synthetic
   inputs and report actual paid-provider results or limitations per `docs/testing.md`.
-- Actual results: not run; implementation has not started.
+- Actual: worker focused lifecycle run 82 passed; follow-up privacy/screening run 43
+  passed. Coordinator final offline full suite: 515 passed, 9 database tests deselected,
+  one existing Logfire-not-configured warning. Used `docker run --rm --network none
+  -e OPENAI_API_KEY=offline-test-key` with this integration checkout mounted at `/app`
+  and `careergrind-pii-ai:latest`, running `pytest -m "not db"`.
+- Every changed Python file passes scoped Ruff; `git diff --check` passes. Full Ruff's
+  four existing errors were reproduced in untouched master (two BLE001 in transcript
+  logging; I001/SIM117 in its reliability test). No unrelated lint fixes included.
+- Paid synthetic `python -m evals.run_resume_parsing_evals` ran using the existing AI
+  environment file with remote Logfire export disabled. Initial evaluation exposed a
+  combined name/email span and a date mistaken for phone, plus one fail-safe unresolved
+  token error. Added detector regressions and prompt version 7 to preserve fields by
+  layout. Final six-case evaluation completed without errors; all reported scores 1.0.
+- Detector-refinement TDD: three observed regressions failed before the fix; final
+  20 detector plus 14 import tests passed. PERSON detection now respects lines/columns;
+  structured contact spans take priority and month/year date ranges are preserved.
+- Additional behavioral red/green evidence: provider-boundary masking, case-altered
+  tokens failing safely. Tests inspect exported events/status and late exception logs.
 
 **Progress:** Assigned to lifecycle agent in `.worktrees/masking-import-lifecycle`,
 branch `work/masking-on-import-02-import-lifecycle`, base `6c5af29` after verified 01.
+Worker commits `f29a030`, `2760d94`, and `6a52ad3`, integrated as `c0776e0`, `d83e9f7`,
+and `d33c24b`. Root prompt refinement `cfc3080`; detector worker follow-up `fc2cac7`
+integrated as `5a9b563`. All acceptance criteria verified in code/tests; human QA pending.
 Coordinator integrates and checks all plan acceptance criteria, then runs two fresh blind
 reviews against a fixed base/head before opening the PR for human QA. Manual QA follows
 the plan. Keep the Kanban item until explicit human acceptance.

@@ -119,14 +119,14 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: ticket 02 in progress; next: integrate and verify the complete import lifecycle.
+- Phase: implementation and acceptance checks complete; next: two fresh blind reviews.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
   before this approval-record update.
 - Breakdown approval: user “confirmed.” Approved tickets SHA-256:
   `0727a6fb9c83e17419c85331477ba17d553a2ccee079ea75a2109a17bc0b0085`.
-- Tickets: 01 implemented; 02 in-progress.
+- Tickets: 01 and 02 implemented; human acceptance remains pending.
 - Planning commit and integration base: `6722f8a1245711e62da66ae30e2cf38dcc2e415b`.
 - Integration: `work/masking-on-import`, `.worktrees/masking-integration`.
 - Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
@@ -134,7 +134,16 @@ Detected names/emails/phones embedded in other text still require masking.
 - Ticket 01 worker commit `83ec5c0`, integrated as `f1592c5`; 21 focused offline tests pass.
 - Worker 02: `work/masking-on-import-02-import-lifecycle`,
   `.worktrees/masking-import-lifecycle`, base `6c5af29`; assigned to lifecycle agent.
-- Integration head: see Git; reviews and PR pending.
+- Ticket 02 integrated as `c0776e0`, follow-ups `d83e9f7` and `d33c24b`;
+  prompt refinement `cfc3080`, detector refinement `5a9b563`.
+- Final verification: 515 offline tests passed, 9 database tests deselected; changed-file
+  Ruff and diff checks pass. Four existing full-Ruff errors reproduced in untouched master.
+- Final real-provider synthetic parsing evaluation: six cases, no errors, all reported
+  scores 1.0. Initial failures and resulting refinements are recorded in tickets.
+- Review base: remote master `f69499bfdf3d143168ed775ca036fd8f5c93369d` (fetched and
+  verified unchanged). Review candidate: this verification-record commit; see Git.
+- Reviews and PR pending. Manual QA remains the plan's synthetic empty-profile,
+  differing-profile, and second-user import checks; no browser QA performed.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,
   `test_contact_mask.py`, `test_tracing.py`, and `test_process_task_message.py`: 32 passed.
   Used existing `resume_project-ai:latest`, an explicit integration-worktree mount,

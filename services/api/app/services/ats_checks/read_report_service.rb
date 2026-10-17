@@ -14,7 +14,7 @@ module AtsChecks
       job = Snapshot.job(@resume)
       job_changed = Snapshot.fingerprint(job) != run.job_fingerprint
       state = run.ai_task&.failed? ? "failed" : run.status
-      state = "queued" if state == "pending"
+      state = run.error_message.present? ? "failed" : "queued" if state == "pending"
       reason = run.error_message.presence || run.ai_task&.error_message
       alignment = run.content_result["job_alignment"] || { "status" => state, "reason" => reason }
       quality = run.content_result["content_quality"] || { "status" => state, "reason" => reason }

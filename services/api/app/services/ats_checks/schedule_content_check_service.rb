@@ -34,10 +34,18 @@ module AtsChecks
       ActiveRecord.after_all_transactions_commit do
         begin
           AtsChecks::DispatchContentCheckJob.perform_later(run.id)
+          run.with_lock do
+            if run.status == "pending" && run.error_message.present?
+              run.update!(error_message: nil)
+              NotifyReportService.call(resume: run.resume)
+            end
+          end
         rescue StandardError => error
           Rails.logger.error("ATS scheduling remains pending for #{run.id}: #{error.class}")
           begin
-            run.update_columns(error_message: "Could not schedule the check. Please retry.")
+            run.with_lock do
+              run.update!(error_message: "Could not schedule the check. Please retry.") if run.status == "pending"
+            end
             NotifyReportService.call(resume: run.resume)
           rescue ActiveRecord::ActiveRecordError
             # The saved pending row can still be recovered by ats_checks:recover_pending.

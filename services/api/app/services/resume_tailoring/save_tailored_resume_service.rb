@@ -26,6 +26,8 @@ module ResumeTailoring
 
         resume = create_resume(sections)
         AtsChecks::ScheduleContentCheckService.call(resume: resume)
+        # Keep these exact saved sections for GraphQL response identity after the lock ends.
+        resume.sections.reload.load
         @ai_task.update!(accepted_at: Time.current)
         success(resume)
       end

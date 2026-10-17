@@ -107,3 +107,22 @@ it('follows scheduling updates without a task and ignores a late report for an o
   expect(screen.getByText('Content quality: completed — previous score 80/100')).toBeInTheDocument()
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Engineer typing')
 })
+
+it('lets a scheduling failure recover the same pending report through an explicit retry', async () => {
+  const failed = { ...report, stateVersion: '1', jobAlignment: { ...category, status: 'failed', reason: 'Could not schedule the check. Please retry.' },
+    contentQuality: { ...category, status: 'failed', reason: 'Could not schedule the check. Please retry.' } }
+  const queued = { ...report, stateVersion: '2' }
+  const retry = vi.fn(() => ({ data: { rerunResumeAtsCheck: { __typename: 'RerunResumeAtsCheckPayload', report: queued, errors: [] } } }))
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" />, mocks: [
+    ...atsMocks(failed),
+    { request: { query: RERUN_ATS_CHECK_MUTATION, variables: { resumeId: 'resume' } }, result: retry },
+  ] })
+  await userEvent.click(screen.getByRole('button', { name: /ATS check/ }))
+  expect(await screen.findByText('Content quality: failed')).toBeInTheDocument()
+  const button = screen.getByRole('button', { name: 'Rerun content check' })
+  expect(button).toBeEnabled()
+  await userEvent.click(button)
+  await waitFor(() => expect(retry).toHaveBeenCalledOnce())
+  expect(await screen.findByText('Content quality: queued')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Checking saved resume…' })).toBeDisabled()
+})

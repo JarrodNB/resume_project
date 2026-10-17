@@ -24,8 +24,10 @@ module ResumeTailoring
         changed = updates.any? { |update| known[update[:id]].content != update[:content] }
         updates.each { |update| known[update[:id]].update!(content: update[:content]) }
         AtsChecks::ScheduleContentCheckService.call(resume: @resume) if changed
+        # Keep these exact saved sections for GraphQL response identity after the lock ends.
+        @resume.sections.reload.load
       end
-      success(@resume.reload)
+      success(@resume)
     rescue ActiveRecord::RecordInvalid => error
       failure(error.record.errors)
     end

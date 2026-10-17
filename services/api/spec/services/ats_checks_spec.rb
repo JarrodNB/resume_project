@@ -164,9 +164,16 @@ RSpec.describe "ATS content checks" do
     allow(AtsChecks::DispatchContentCheckJob).to receive(:perform_later).and_raise(IOError, "offline")
     run = schedule
     expect(run.reload.error_message).to include("retry")
+    failed = AtsChecks::ReadReportService.call(resume: resume).value
+    expect(failed[:content_quality]["status"]).to eq("failed")
+    failed_version = failed[:state_version].to_i
     allow(AtsChecks::DispatchContentCheckJob).to receive(:perform_later).and_return(true)
     retry_result = AtsChecks::ScheduleContentCheckService.call(resume: resume, force: true)
     expect(retry_result.value.id).to eq(run.id)
+    recovered = AtsChecks::ReadReportService.call(resume: resume).value
+    expect(recovered[:content_quality]["status"]).to eq("queued")
+    expect(recovered[:content_quality]["reason"]).to be_nil
+    expect(recovered[:state_version].to_i).to be > failed_version
     expect(AtsChecks::DispatchContentCheckJob).to have_received(:perform_later).with(run.id).twice
   end
 

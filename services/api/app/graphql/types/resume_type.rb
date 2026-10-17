@@ -7,8 +7,25 @@ module Types
     field :ats_report, Types::AtsReportType
     field :ats_content_fingerprint, String, null: false
 
+    def initialize(object, context)
+      super
+      # Save services materialize this association while holding the save lock.
+      # Retain it before another field (such as atsReport) reloads the record.
+      if object.association(:sections).loaded?
+        @section_snapshot = AtsChecks::Snapshot.serialize_sections(object.sections)
+      end
+    end
+
     def ats_content_fingerprint
-      AtsChecks::Snapshot.fingerprint(AtsChecks::Snapshot.content(object))
+      AtsChecks::Snapshot.fingerprint(section_snapshot)
+    end
+
+    def sections
+      section_snapshot
+    end
+
+    def section_snapshot
+      @section_snapshot ||= AtsChecks::Snapshot.content(object)
     end
 
     def ats_report

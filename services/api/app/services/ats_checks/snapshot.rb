@@ -7,8 +7,12 @@ module AtsChecks
     module_function
 
     def content(resume)
-      resume.sections.reload.map do |section|
-        section.attributes.slice("id", "section_type", "title", "position", "content")
+      serialize_sections(resume.sections.reload)
+    end
+
+    def serialize_sections(sections)
+      sections.map do |section|
+        section.attributes.slice("id", "section_type", "title", "position", "content").deep_dup
       end
     end
 

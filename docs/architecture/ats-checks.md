@@ -128,3 +128,15 @@ abandoned PDF tasks after 24 hours; operations should periodically run
 `bin/rails ats_checks:cleanup_pdfs` as recovery when scheduling/process failures prevent
 that job from being created. Cleanup is idempotent. Retrying after cleanup requires a
 new export. Editing/saving/preview never creates a PDF task.
+
+## Delivery ordering
+
+Report consumers compare run creation time (ISO 8601 with six fractional digits), then
+run id for equal creation times, matching server selection. Within a run, stateVersion
+is the persisted Rails optimistic lock_version serialized as a decimal string. Compare
+it numerically; each normal report update advances it even if timestamps are identical.
+At equal stateVersion, observedAt orders observations of live resume/job freshness.
+It is captured before report assembly and serialized with six fractional digits.
+This permits a later job edit to invalidate alignment without requiring a report write,
+while delayed queued responses cannot replace a completed persisted revision.
+Queries, subscriptions, reruns and PDF submissions all use the same winner rule.

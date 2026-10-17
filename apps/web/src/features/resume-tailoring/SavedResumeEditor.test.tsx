@@ -12,7 +12,7 @@ import type { AtsReportFieldsFragment } from '@/graphql/generated/graphql'
 
 vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: () => <div>PDF preview</div> }))
 const category: AtsReportFieldsFragment['contentQuality'] & { __typename: string } = { __typename: 'AtsCategory', status: 'queued', score: null, reason: null, assessments: [], deductions: [] }
-const report: AtsReportFieldsFragment & { __typename: string } = { __typename: 'AtsReport', id: 'run', runId: 'run', contentFingerprint: 'content', jobFingerprint: 'job', rubricVersion: 'ats-v1', createdAt: '2026-10-17T00:00:00Z', outdated: false, overallScore: null, jobAlignment: category, contentQuality: category, pdfReadability: { ...category, status: 'awaiting_export' } }
+const report: AtsReportFieldsFragment & { __typename: string } = { __typename: 'AtsReport', id: 'run', runId: 'run', contentFingerprint: 'content', jobFingerprint: 'job', rubricVersion: 'ats-v1', stateVersion: '0', observedAt: '2026-10-17T00:00:00.000000Z', createdAt: '2026-10-17T00:00:00Z', outdated: false, overallScore: null, jobAlignment: category, contentQuality: category, pdfReadability: { ...category, status: 'awaiting_export' } }
 export const sections = [{ id: 'section', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Engineer' } }]
 export function atsMocks(value = report) { return [
   { request: { query: ATS_REPORT_QUERY, variables: { id: 'resume' } }, result: { data: { resume: { __typename: 'Resume', id: 'resume', atsReport: value } } } },

@@ -3,7 +3,7 @@ import { graphql } from '@/graphql/generated'
 
 export const ATS_REPORT_FRAGMENT = graphql(`
   fragment AtsReportFields on AtsReport {
-    id runId contentFingerprint jobFingerprint rubricVersion createdAt outdated overallScore
+    id runId contentFingerprint jobFingerprint rubricVersion createdAt stateVersion observedAt outdated overallScore
     jobAlignment { status score reason assessments deductions }
     contentQuality { status score reason assessments deductions }
     pdfReadability { status score reason assessments deductions }

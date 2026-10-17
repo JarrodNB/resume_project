@@ -180,4 +180,20 @@ RSpec.describe "ATS content checks" do
     other = create(:user)
     expect(execute_graphql(subscription, user: other, variables: { id: resume.id })["errors"][0]["message"]).to eq("Record not found")
   end
+
+  it "orders persisted changes even when the clock does not advance" do
+    travel_to(Time.utc(2026, 10, 17, 10, 0, 0)) do
+      run = schedule
+      before = AtsChecks::ReadReportService.call(resume: resume).value
+      run.update!(error_message: "Retrying dispatch")
+      after = AtsChecks::ReadReportService.call(resume: resume).value
+      expect(after[:state_version].to_i).to be > before[:state_version].to_i
+      expect(after[:observed_at]).to eq(before[:observed_at])
+      expect(after[:created_at]).to end_with(".000000Z")
+      job.update!(requirements: ["Changed requirement"])
+      changed = AtsChecks::ReadReportService.call(resume: resume).value
+      expect(changed[:state_version]).to eq(after[:state_version])
+      expect(changed[:job_alignment]["status"]).to eq("outdated")
+    end
+  end
 end

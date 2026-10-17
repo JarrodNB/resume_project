@@ -101,15 +101,17 @@ type AtsReport {
   aiTask: AiTask
   contentFingerprint: String!
   contentQuality: AtsCategory!
-  createdAt: ISO8601DateTime!
+  createdAt: String!
   id: ID!
   jobAlignment: AtsCategory!
   jobFingerprint: String!
+  observedAt: String!
   outdated: Boolean!
   overallScore: Int
   pdfReadability: AtsCategory!
   rubricVersion: String!
   runId: ID!
+  stateVersion: String!
 }
 
 type Certification {

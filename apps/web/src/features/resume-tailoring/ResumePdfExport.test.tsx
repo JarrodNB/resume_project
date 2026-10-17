@@ -15,7 +15,7 @@ vi.mock('@react-pdf/renderer', () => ({
 vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: () => <div>Preview document</div> }))
 
 const category: AtsReportFieldsFragment['contentQuality'] & { __typename: string } = { __typename: 'AtsCategory', status: 'completed', score: 90, reason: null, assessments: [], deductions: [] }
-const report: AtsReportFieldsFragment & { __typename: string } = { __typename: 'AtsReport', id: 'run', runId: 'run', contentFingerprint: 'saved-fingerprint', jobFingerprint: 'job', rubricVersion: 'ats-v1', createdAt: '2026-10-17T00:00:00Z', outdated: false, overallScore: null, jobAlignment: category, contentQuality: category, pdfReadability: { ...category, status: 'awaiting_export', score: null } }
+const report: AtsReportFieldsFragment & { __typename: string } = { __typename: 'AtsReport', id: 'run', runId: 'run', contentFingerprint: 'saved-fingerprint', jobFingerprint: 'job', rubricVersion: 'ats-v1', stateVersion: '0', observedAt: '2026-10-17T00:00:00.000000Z', createdAt: '2026-10-17T00:00:00Z', outdated: false, overallScore: null, jobAlignment: category, contentQuality: category, pdfReadability: { ...category, status: 'awaiting_export', score: null } }
 const sections = [{ id: 'section', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Engineer' } }]
 
 beforeEach(() => {
@@ -154,7 +154,7 @@ it('does not download or upload when rendering fails', async () => {
 it('shows PDF results from the report subscription without regenerating the file', async () => {
   const { publish } = setup()
   await userEvent.click(screen.getByRole('button', { name: /ATS check/ }))
-  await act(async () => { publish({ ...report, overallScore: 90, pdfReadability: { ...category, assessments: [{ key: 'reading_order', status: 'partial', ratio: 0.95, severity: 'warning', explanation: 'Check page order.', suggested_action: 'Review the PDF.', evidence: [{ page: 2, excerpt: 'Engineer' }] }] } }) })
+  await act(async () => { publish({ ...report, stateVersion: "1", overallScore: 90, pdfReadability: { ...category, assessments: [{ key: 'reading_order', status: 'partial', ratio: 0.95, severity: 'warning', explanation: 'Check page order.', suggested_action: 'Review the PDF.', evidence: [{ page: 2, excerpt: 'Engineer' }] }] } }) })
   expect(screen.getByText('Page 2: “Engineer”')).toBeInTheDocument()
   expect(screen.getByText('Overall score: 90/100')).toBeInTheDocument()
   expect(renderer.pdf).not.toHaveBeenCalled()

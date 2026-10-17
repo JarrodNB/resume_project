@@ -7,7 +7,9 @@ module Types
     field :job_fingerprint, String, null: false
     field :rubric_version, String, null: false
     field :outdated, Boolean, null: false
-    field :created_at, GraphQL::Types::ISO8601DateTime, null: false
+    field :created_at, String, null: false
+    field :state_version, String, null: false
+    field :observed_at, String, null: false
     field :ai_task, AiTaskType
     field :job_alignment, AtsCategoryType, null: false
     field :content_quality, AtsCategoryType, null: false

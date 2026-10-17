@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -97,6 +97,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.jsonb "pdf_result", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "lock_version", default: 0, null: false
     t.index ["ai_task_id"], name: "index_ats_check_runs_on_ai_task_id"
     t.index ["resume_id", "created_at"], name: "index_ats_check_runs_on_resume_id_and_created_at"
     t.index ["resume_id"], name: "index_ats_check_runs_on_resume_id"

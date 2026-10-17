@@ -6,6 +6,7 @@ module AtsChecks
     end
 
     def call
+      observed_at = Time.current
       run = @run || @resume.ats_check_runs.order(created_at: :desc, id: :desc).first
       return success(nil) unless run
       content_changed = Snapshot.fingerprint(Snapshot.content(@resume)) != run.content_fingerprint ||
@@ -29,7 +30,7 @@ module AtsChecks
       success({ id: run.id, run_id: run.id, content_fingerprint: run.content_fingerprint,
                 job_fingerprint: run.job_fingerprint, rubric_version: run.rubric_version,
                 outdated: [ alignment, quality, pdf ].any? { |category| category["status"] == "outdated" }, ai_task: run.ai_task,
-                created_at: run.created_at, job_alignment: alignment, content_quality: quality,
+                created_at: run.created_at.iso8601(6), state_version: run.lock_version.to_s, observed_at: observed_at.iso8601(6), job_alignment: alignment, content_quality: quality,
                 pdf_readability: pdf, overall_score: overall })
     end
   end

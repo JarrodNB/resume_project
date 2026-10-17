@@ -1,5 +1,6 @@
 /**
- * Description: The resume PDF. A later download uses this same document.
+ * The letter-size PDF shared by preview and export. A preserved separator after
+ * the name keeps PDF text extraction from merging it with contact details.
  * Index:
  *   - ResumePdfDocument: one letter-size page
  */
@@ -35,7 +36,7 @@ export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
   return (
     <Document title={model.name || 'Resume'}>
       <Page size="LETTER" style={styles.page}>
-        {model.name ? <Text style={styles.name}>{model.name}</Text> : null}
+        {model.name ? <Text style={styles.name}>{model.name}{'\u00a0'}</Text> : null}
         {model.contactLine ? <Text style={styles.contact}>{model.contactLine}</Text> : null}
         {model.links.length > 0 ? (
           <Text style={styles.contact}>

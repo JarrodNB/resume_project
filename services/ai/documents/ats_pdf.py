@@ -182,7 +182,14 @@ def inspect_pdf(file_bytes, sections):
     found = 0
     for chunk in chunks:
         needle = " " + " ".join(_tokens(chunk)) + " "
-        pos = joined.find(needle, occurrences.get(needle, 0))
+        # Prefer a later occurrence: a year such as 2022 can also appear in
+        # an earlier role or project. Fall back to an earlier occurrence only
+        # when none follows, so genuinely reversed chunks still reduce order.
+        used_start = occurrences.get(needle, 0)
+        forward_start = max(used_start, positions[-1] + 1 if positions else 0)
+        pos = joined.find(needle, forward_start)
+        if pos < 0:
+            pos = joined.find(needle, used_start)
         if pos >= 0:
             occurrences[needle] = pos + len(needle) - 1
         if pos >= 0:

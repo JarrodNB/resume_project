@@ -66,3 +66,17 @@ docker run --rm --network none -v "$PWD/services/ai:/app" -w /app \
 ```
 
 Rebuild the image if its dependencies differ from the checkout's lockfile.
+
+## Production resume PDF inspection
+
+The paired tests generate synthetic files with the actual React PDF document and inspect
+those bytes with the Python ATS comparator. No browser or provider requests are involved.
+Ordinary pytest skips the two cross-container cases unless the fixture directory is set.
+Run from the checkout under test:
+
+    mkdir -p tmp/ats-pdf
+    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "/home/jarrod/ats-check-04-fixtures/tmp/ats-pdf:/fixtures" web npm test -- src/features/resume-tailoring/ResumePdfExport.integration.test.tsx
+    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "/home/jarrod/ats-check-04-fixtures/tmp/ats-pdf:/fixtures:ro" ai pytest tests/test_production_resume_pdf.py tests/test_ats_pdf.py
+
+Fixtures include every section, contact links, exact and partial certification dates,
+repeated years, wrapping and multi-page output. They remain in ignored tmp storage.

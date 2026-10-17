@@ -170,7 +170,7 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
 ## Delivery Record
 
 - Source: Upload resume double calls Jev, in KANBAN.md.
-- Phase: implementation, verification, and blind reviews complete; PR/human-QA handoff next.
+- Phase: ready for human review and QA; implementation, checks, reviews, and PR complete.
 - Plan approved in conversation on 2026-10-17, with final live Jev testing requested.
   Approved plan SHA-256 before recording approval:
   `afb4f533177bd51ff51f813550f4ce756dce5062a93eb4757cf65994076447f4`.
@@ -229,5 +229,8 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
 - Post-review changes are editorial only: test EOF whitespace, guard documentation wording,
   final verification and workflow records. No behavior/interface/test coverage changes;
   full review repeat is unnecessary for these changes.
-- PR link pending creation. Do not merge, deploy, or remove the Kanban item; human QA
+- PR: https://github.com/JarrodNB/resume_project/pull/12, branch
+  `work/upload-resume-double-calls-jev`; final reviewed-code candidate `4c8879a`,
+  editorial verification record `0e1d314`. Manual-QA steps are in the PR body.
+  Do not merge, deploy, or remove the Kanban item; human QA
   and explicit acceptance are still required.

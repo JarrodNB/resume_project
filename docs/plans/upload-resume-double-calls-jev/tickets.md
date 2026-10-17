@@ -224,5 +224,6 @@ actual delivery pending the final acceptance audit.
 All full suites excluded 9 database tests. All-migration integrated offline suite:
 463 passed, 9 deselected. Final suite: 481 passed, 9 deselected. Actual red/green,
 live outcomes, reviewed snapshots, and limitations are recorded in plan.md and the
-verification report. Both blind reviews returned no actionable findings. PR handoff
-is next; browser QA and human acceptance remain outstanding.
+verification report. Both blind reviews returned no actionable findings. PR handoff:
+https://github.com/JarrodNB/resume_project/pull/12. Browser QA and human acceptance
+remain outstanding.

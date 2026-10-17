@@ -33,7 +33,10 @@ Preview opens the current draft as a large PDF.
   exists). The editor supplies unsaved state and refreshes after successful saving;
   these modules never generate or upload a PDF.
 - `resumePdfModel.ts` — saved sections to the plain structure the PDF draws (`ResumePdfDocument.tsx`
-  is that document; a later download uses it). `resumePdfModel.test.ts`
+  is that document, used by preview and export). `resumePdfModel.test.ts`
+- `useResumePdfExport.tsx` — explicit export renders one Blob, downloads it immediately,
+  then uploads the same bytes with the saved report identity. Download errors and check
+  errors are separate from save errors. Retrying PDF inspection means exporting again.
 - `TailorResumePage.test.tsx` — queued, editor, blocked, nothing-fits, save, saved resume.
   The PDF preview is mocked; jsdom cannot draw it
 
@@ -44,5 +47,8 @@ Preview opens the current draft as a large PDF.
 - Reopening a section sends `reopen`; the worker discards every section after it.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current draft, including edits that are not saved yet.
+- Export requires a saved draft and waits for an active save/report refresh to finish.
+  Editing, saving, preview and report updates never start PDF inspection. A legacy saved
+  resume can create its report during explicit export; content checks need not finish first.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

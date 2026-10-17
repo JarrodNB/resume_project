@@ -14,6 +14,7 @@ import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } f
 import { useUpdateResume } from './useUpdateResume'
 import { AtsReport } from './AtsReport'
 import { useAtsReport } from './useAtsReport'
+import { useResumePdfExport } from './useResumePdfExport'
 
 interface SavedResumeSection {
   id: string
@@ -31,6 +32,7 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
   const [refreshingReport, setRefreshingReport] = useState(false)
   const dirty = JSON.stringify(drafts) !== savedDrafts
   const ats = useAtsReport(resumeId)
+  const pdfExport = useResumePdfExport(resumeId, ats.receive)
   const [previewOpen, setPreviewOpen] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
   const model = buildResumePdfModel(
@@ -53,11 +55,17 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
 
   return (
     <div className="grid gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
           Preview
         </Button>
+        <Button type="button" disabled={dirty || pending || refreshingReport || pdfExport.pending} onClick={() => { if (!dirty && !pending && !refreshingReport) void pdfExport.exportPdf(model, ats.report) }}>
+          {pdfExport.pending ? 'Exporting PDF…' : 'Export PDF'}
+        </Button>
       </div>
+      {(dirty || pending || refreshingReport) && <p>Save resume before exporting. Wait for saving to finish.</p>}
+      {pdfExport.status && <p role="status">{pdfExport.status}</p>}
+      <ErrorAlert messages={pdfExport.errors} title="PDF export or check needs attention" />
       {editable.map((section, index) => (
         <section key={section.id} className="grid gap-3 rounded-lg border p-4">
           <h2 className="font-medium">{section.title}</h2>

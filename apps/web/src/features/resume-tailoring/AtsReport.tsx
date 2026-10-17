@@ -23,6 +23,7 @@ export function AtsReport({ resumeId, dirty, report, pending, errors, onRerun }:
       {!report && <p>No assessment yet. Run a check on the saved resume.</p>}
       {report && <>
         <p>Rubric: {report.rubricVersion}. Job requirements and responsibilities have weight 2; preferred requirements have weight 1. Covered / partial / missing earn 100% / 50% / 0%. Applicable content checks have equal weight. The overall score averages applicable categories after all checks finish.</p>
+        <p>PDF readability has five equally weighted checks: usable text extraction, word coverage, reading order, character coverage and recoverable content chunks. Each earns 20 points for pass, 10 for partial and 0 for fail. Ratios of at least 98% pass; at least 90% are partial; lower ratios fail. A processing failure leaves the score pending.</p>
         <p>{outdated ? 'Previous overall score' : 'Overall score'}: {outdated || report.overallScore == null ? 'pending' : `${report.overallScore}/100`}</p>
         <CategoryReport title="Job alignment" category={report.jobAlignment} outdated={dirty || report.jobAlignment.status === 'outdated'} />
         <CategoryReport title="Content quality" category={report.contentQuality} outdated={dirty || report.contentQuality.status === 'outdated'} />
@@ -43,11 +44,13 @@ function CategoryReport({ title, category, outdated }: { title: string; category
     {findings.map((finding, index) => <article key={index} className="grid gap-1 rounded border p-3">
       <h4>{label(finding.key ?? finding.requirement_id)} — {label(finding.severity)} ({label(finding.status)})</h4>
       <p>{label(finding.explanation)}</p>
-      {records(finding.evidence).map((evidence, position) => <blockquote key={position}>Section {label(evidence.section_id)}: “{label(evidence.excerpt)}”</blockquote>)}
+      {typeof finding.ratio === 'number' && <p>Measured ratio: {(finding.ratio * 100).toFixed(1)}%</p>}
+      {records(finding.evidence).map((evidence, position) => <blockquote key={position}>{evidence.page != null ? `Page ${label(evidence.page)}` : `Section ${label(evidence.section_id)}`}: “{label(evidence.excerpt)}”</blockquote>)}
       {finding.absence_reason != null && <p>{label(finding.absence_reason)}</p>}
       {finding.suggested_action != null && <p>{label(finding.suggested_action)}</p>}
     </article>)}
     {records(category.deductions).length > 0 && <ul aria-label={`${title} deductions`}>{records(category.deductions).map((deduction, index) => <li key={index}>{label(deduction.key)}: −{label(deduction.points)} percentage points</li>)}</ul>}
+    {title === 'PDF readability' && category.status === 'failed' && <p>Export the saved resume again to retry its PDF check.</p>}
   </section>
 }
 

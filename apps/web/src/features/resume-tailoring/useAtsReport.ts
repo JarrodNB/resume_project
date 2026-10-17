@@ -69,5 +69,5 @@ export function useAtsReport(resumeId: string) {
     contentQuality: { ...report.contentQuality, status: 'outdated' },
     pdfReadability: { ...report.pdfReadability, status: report.pdfReadability.status === 'awaiting_export' ? 'awaiting_export' : 'outdated' },
   } : report
-  return { report: visible, errors: [...errors, ...connectionErrors], pending, rerun, refresh }
+  return { report: visible, errors: [...errors, ...connectionErrors], pending, rerun, refresh, receive }
 }

@@ -18,3 +18,12 @@ export const ATS_REPORT_UPDATED_SUBSCRIPTION = graphql(`
 export const RERUN_ATS_CHECK_MUTATION = graphql(`
   mutation RerunResumeAtsCheck($resumeId: ID!) { rerunResumeAtsCheck(input: {resumeId: $resumeId}) { report { ...AtsReportFields } errors } }
 `)
+
+export const SUBMIT_ATS_PDF_MUTATION = graphql(`
+  mutation SubmitResumeAtsPdf($resumeId: ID!, $runId: ID!, $contentFingerprint: String!, $rendererVersion: String!, $file: Upload!) {
+    submitResumeAtsPdf(input: {resumeId: $resumeId, runId: $runId, contentFingerprint: $contentFingerprint, rendererVersion: $rendererVersion, file: $file}) {
+      report { ...AtsReportFields }
+      errors
+    }
+  }
+`)

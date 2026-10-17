@@ -54,7 +54,7 @@ class ContactSpanProcessor(SpanProcessor):
     """Captures contact on start; sanitizes the shared readable span before exporters."""
 
     def __init__(self):
-        """Keeps immutable contact maps only for active spans."""
+        """Retains each task's privacy object only while its spans are active."""
         self.contacts = {}
         self.lock = Lock()
 

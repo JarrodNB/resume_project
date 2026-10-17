@@ -17,6 +17,7 @@ from screening.guardrail_usage import record_guardrail_usage
 from screening.screen_user_text import screen_user_text_async
 from screening.session import prompt_is_covered, screening_session
 from text_limits import MAX_PROMPT_TEXT
+from worker.contact_mask import covered_prompt_length
 from worker.settings import load_settings
 
 BLOCKED_MESSAGE = "This content could not pass the input safety check. Revise it and try again."
@@ -32,7 +33,11 @@ async def screen_prompt(ctx: RunContext[Any], prompt: str) -> bool:
     depends on a test model or tracing being enabled.
     """
     inputs = _input_parts(ctx, prompt)
-    if len("\n\n".join(inputs)) > MAX_PROMPT_TEXT:
+    # Only an exact screened import prompt may discount opaque token expansion.
+    # Unknown history and every other task retain their actual character counts.
+    length = sum(covered_prompt_length(text) if prompt_is_covered(text) else len(text)
+                 for text in inputs) + max(0, len(inputs) - 1) * 2
+    if length > MAX_PROMPT_TEXT:
         raise InputBlocked(TOO_LONG_MESSAGE)
     settings = load_settings()
     async def classify(text: str, model: str, timeout: float) -> Any:

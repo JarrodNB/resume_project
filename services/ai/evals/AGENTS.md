@@ -35,7 +35,9 @@ score attached, so runs can be compared across prompt and model changes.
   `documents/text_matching.py`, shared with the production faithfulness guard; evals score the
   raw agent output, before that guard runs)
 - `run_resume_parsing_evals.py` — runner:
-  `docker compose run --rm ai python -m evals.run_resume_parsing_evals`
+  `docker compose run --rm ai python -m evals.run_resume_parsing_evals`; prepares local
+  contact masking before screening/parsing and restores raw structured outputs before
+  evaluator scoring, without applying the source-faithfulness guard
 - `datasets/job_posting_extraction_cases.yaml` — 8 synthetic LinkedIn postings written in
   LinkedIn's description markup (bold and colon headings; curly apostrophes; plain-text
   sub-headings; minimum vs preferred; "what you should have" / "bonus points"; nested lists; no

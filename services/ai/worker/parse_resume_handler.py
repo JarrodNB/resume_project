@@ -1,7 +1,7 @@
 """
-Description: Handles parse_resume tasks: downloads the uploaded file, extracts its text, screens
-it, runs the resume parsing agent, and checks its output against the text. Safe to run twice
-(it only reads).
+Description: Imports a resume without sending detected contact to screening or parsing.
+Downloads and extracts locally, validates original limits, prepares opaque PII replacements,
+then restores structured output before source checks. Safe to run twice (it only reads).
 Index:
     - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
     - handle_parse_resume_task: returns a completed result with the faithfulness-checked
@@ -17,9 +17,11 @@ from documents.extract_document_text import (
     UnsupportedDocumentError,
     extract_document_text,
 )
+from pii import PiiDetectionError, PiiRestorationError
 from screening.screen_user_text import ScreenOutcome, screen_user_text
 from screening.session import within_screening_session
-from text_limits import RESUME_TOO_LONG_MESSAGE
+from text_limits import MAX_RESUME_TEXT, RESUME_TOO_LONG_MESSAGE
+from worker.contact_mask import import_privacy_scope
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
@@ -31,6 +33,7 @@ BLOCKED_RESUME_MESSAGE = (
     "This resume was deemed unsafe, so it wasn't imported. Please edit the resume and try again."
 )
 RESUME_UNCHECKED_MESSAGE = "We couldn't check this resume, so it wasn't imported. Please try again."
+RESUME_PRIVACY_MESSAGE = "We couldn't protect this resume's contact details, so it wasn't imported. Please try again."
 
 
 class SourceFile(BaseModel):
@@ -52,6 +55,17 @@ def handle_parse_resume_task(
     task: AiTaskMessage, dependencies: TaskDependencies
 ) -> AiResultMessage:
     """Parses the uploaded resume into a ParsedResume."""
+    with import_privacy_scope() as privacy:
+        try:
+            return _parse_resume(task, dependencies, privacy)
+        except (PiiDetectionError, PiiRestorationError):
+            return AiResultMessage(
+                ai_task_id=task.ai_task_id, status="failed", error_message=RESUME_PRIVACY_MESSAGE
+            )
+
+
+def _parse_resume(task, dependencies, privacy):
+    """Coordinate local extraction, protected calls, restoration, and source checks."""
     task_input = ParseResumeInput.model_validate(task.input)
     file_bytes = dependencies.file_storage.download_file(task_input.source_file.key)
 
@@ -67,8 +81,13 @@ def handle_parse_resume_task(
         )
 
     settings = dependencies.settings
+    if len(resume_text) > MAX_RESUME_TEXT:
+        return AiResultMessage(
+            ai_task_id=task.ai_task_id, status="failed", error_message=RESUME_TOO_LONG_MESSAGE
+        )
+    masked_text = privacy.prepare(resume_text)
     screen = _screen_resume_text(
-        resume_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
+        masked_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
     )
     screen_usage = _screen_usage(screen)
     if not screen.allowed:
@@ -81,18 +100,24 @@ def handle_parse_resume_task(
 
     model = settings.resume_parsing_model
     parsing_run = parse_resume_text(
-        resume_text,
+        masked_text,
         model=model,
         thinking=settings.resume_parsing_thinking,
         timeout_seconds=settings.llm_run_timeout_seconds,
         fallback_model=settings.generative_fallback_model,
     )
-    parsed_resume = enforce_source_faithfulness(parsing_run.parsed_resume, resume_text)
+    usage = [build_model_usage(parsing_run.model or model, parsing_run.usage), *screen_usage]
+    try:
+        restored = privacy.restore(parsing_run.parsed_resume)
+    except PiiRestorationError:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                               error_message=RESUME_PRIVACY_MESSAGE, usage=usage)
+    parsed_resume = enforce_source_faithfulness(restored, resume_text)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
         result={"parsed_resume": parsed_resume.model_dump(mode="json")},
-        usage=[build_model_usage(parsing_run.model or model, parsing_run.usage), *screen_usage],
+        usage=usage,
     )
 
 
@@ -108,7 +133,9 @@ def _screen_failure_message(screen: ScreenOutcome) -> str:
 def _screen_resume_text(text: str, model: str, timeout_seconds: float) -> ScreenOutcome:
     """Screens the extracted resume before it can enter the parsing prompt. The phrase list
     is for one note; Jev judges the whole file."""
-    return screen_user_text(text, model=model, timeout_seconds=timeout_seconds, check_phrases=False)
+    # The original extract was capped before preparation; opaque tokens can expand it.
+    return screen_user_text(text, model=model, timeout_seconds=timeout_seconds,
+                            check_phrases=False, max_characters=len(text))
 
 
 def _screen_usage(screen: ScreenOutcome) -> list[ModelUsage]:

@@ -12,6 +12,7 @@ import logging
 import signal
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 
 from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
@@ -24,6 +25,7 @@ from database.career_library_reader import (
 )
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
+from worker.contact_mask import using_known_contact
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.retryable_errors import is_retryable_error
 from worker.run_limits import RUN_LIMIT_MESSAGE
@@ -72,8 +74,18 @@ def process_task_message(
 
 def _execute_task(task, receive_count, result_queue, dependencies, task_usage, guardrail_usage):
     """Runs the existing accounting and delivery lifecycle inside transcript capture."""
+    with ExitStack() as privacy_stack:
+        return _execute_with_privacy(
+            task, receive_count, result_queue, dependencies, task_usage, guardrail_usage, privacy_stack
+        )
+
+
+def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_usage,
+                          guardrail_usage, privacy_stack):
+    """Retain privacy through exception logging, publication, and parent span completion."""
     _publish_usage(task, task_usage, result_queue, finished=False)
     try:
+        privacy_stack.enter_context(using_known_contact(task))
         with (
             collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
             screening_session(dependencies.settings.llm_run_timeout_seconds),

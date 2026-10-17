@@ -103,6 +103,14 @@ Per task type:
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
   `AiTask#accepted_at`.
+  The AI worker validates the original extracted text limits, then `services/ai/pii/`
+  detects names, emails, and phones locally using bundled Presidio/spaCy assets.
+  Both Jev screening and parsing receive reversible typed placeholders, even when
+  profile contact is empty or different. Structured output is restored before source
+  checks and publication. Detector failures stop before either provider; unresolved
+  generated tokens fail the import. Maps stay in one attempt's memory. English name
+  detection is probabilistic and can miss names or mistake other text for names;
+  addresses and general URLs are outside this boundary. See `services/ai/pii/README.md`.
 - `scrape_job`: input `{url}` (the canonical `https://www.linkedin.com/jobs/view/<id>/` form of
   the link the user pasted; `Jobs::StartJobScrapingService` only accepts LinkedIn job links for
   jobs the user hasn't saved yet). The completed result is
@@ -460,10 +468,14 @@ tailoring) instead of sending everything.
   remote export; without a token the worker and evals run without remote tracing or login.
   `LOGFIRE_ENVIRONMENT` labels environments. Each task and eval run flushes in a `finally`
   block with a five-second total caller wait. One daemon flush runs at a time, with no
-  queued attempts if an exporter stalls. Known contact is captured at span creation and masked
+  queued attempts if an exporter stalls. Task privacy is captured at span creation and masked
   synchronously before export, including attributes, events, exception text, and status.
   Model requests and search queries use contact placeholders; application responses restore
-  contact values. Other resume content can still leave the app when remote export is enabled.
+  contact values. Imports attach detected contact to the same object before their first
+  screen; it remains active through exception logging and parent span completion.
+  Import spans omit task input metadata before detection because filenames can contain PII.
+  Concrete request transcripts contain masked requests. Other resume content and missed
+  contact can still leave the app when remote export is enabled.
 - **GraphQL subscriptions for live UI updates.** graphql-ruby subscriptions over ActionCable,
   using the Solid Cable adapter (Postgres-backed, so there's no Redis to run). The web app
   subscribes with Apollo over an ActionCable link, passing the JWT as the `token` query

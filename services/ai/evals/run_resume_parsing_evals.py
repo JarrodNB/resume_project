@@ -19,6 +19,9 @@ from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import evaluate_dataset
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
+from screening.screen_user_text import screen_user_text
+from screening.session import screening_session
+from worker.contact_mask import import_privacy_scope
 from worker.settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "resume_parsing_cases.yaml"
@@ -40,13 +43,23 @@ def run_resume_parsing_evals(model_override: str | None = None) -> EvaluationRep
 
     def parse_case(resume_text: str) -> ParsedResume:
         """The task under evaluation."""
-        return parse_resume_text(
-            resume_text,
-            model=model,
-            thinking=thinking,
-            timeout_seconds=settings.llm_run_timeout_seconds,
-            fallback_model=settings.generative_fallback_model,
-        ).parsed_resume
+        with import_privacy_scope() as privacy, screening_session(settings.llm_run_timeout_seconds):
+            masked_text = privacy.prepare(resume_text)
+            screen = screen_user_text(
+                masked_text, model=settings.user_text_screen_model,
+                timeout_seconds=settings.llm_run_timeout_seconds,
+                check_phrases=False, max_characters=len(masked_text),
+            )
+            if not screen.allowed:
+                raise RuntimeError("Synthetic resume was not approved for parsing")
+            run = parse_resume_text(
+                masked_text,
+                model=model,
+                thinking=thinking,
+                timeout_seconds=settings.llm_run_timeout_seconds,
+                fallback_model=settings.generative_fallback_model,
+            )
+            return privacy.restore(run.parsed_resume)
 
     dataset = load_resume_parsing_dataset()
     # Expected rejections are measured by run_prompt_guardrail_evals, never bypassed here.

@@ -17,7 +17,10 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types
   without a handler yet return a "not supported yet" failure
-- `parse_resume_handler.py` — downloads the upload, extracts text, screens it (a block fails
+- `parse_resume_handler.py` — downloads the upload, extracts text, validates original limits,
+  prepares local `pii/` masking before screening and parsing, restores structured output
+  before source checks, and fails closed when privacy preparation/restoration fails;
+  screens it (a block fails
   the import; an extract over the text or page cap fails as too long, not unsafe; a screen
   that does not run fails as unchecked, not unsafe; the phrase list is not applied to the
   whole file), runs the
@@ -54,13 +57,14 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `telemetry_flush.py` — shares one daemon SDK flush with a five-second caller wait and
   no queued work when an exporter stalls
 - `telemetry_privacy.py` — synchronously masks span/log attributes, names, events,
-  exceptions and status before asynchronous export; captures per-task contact at span start
+  exceptions and status before asynchronous export; retains task privacy at span start,
+  including later detected import contact. Import task spans omit pre-detection input metadata
 - `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
   when `generative_fallback_model` names a different model. Provider errors switch; output
   validation retries do not. Jev does not use it
 - `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
   to «name», «email», and «phone»
-- `contact_mask.py` — applies that map on the model request, telemetry export, and
+- `contact_mask.py` — adapts known-contact and opaque import privacy sessions on model requests, telemetry export, and
   `mask_outbound` (search-query embeddings). The model response is restored before the app
   sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the

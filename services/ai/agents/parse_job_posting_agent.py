@@ -23,6 +23,7 @@ from prompts.parse_job_posting_instructions import (
 )
 from schemas.parsed_job_posting import ParsedJobPosting
 from screening.prompt_guardrail import screen_prompt
+from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -69,6 +70,7 @@ class JobPostingParseRun(NamedTuple):
     model: str = ""
 
 
+@within_screening_session
 def parse_job_posting(
     text: str,
     model: str,
@@ -90,10 +92,10 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> JobPostingParseRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(PARSE_JOB_POSTING_PROMPT_VERSION):
             result = await parse_job_posting_agent.run(
-                fence_job_ad(text),
+                bind_screened_prompt([text], lambda sources: fence_job_ad(sources[0])),
                 deps=text,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),

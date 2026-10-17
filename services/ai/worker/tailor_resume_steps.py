@@ -1,9 +1,9 @@
 """
 Description: The pieces of one tailor_resume step that are not the model call: folding the
-user's decision, screening gap responses, copying contact, and pausing or failing.
+user's decision, screening sources, copying contact, and pausing or failing.
 Index:
     - apply_pending: approve, omit, reopen, or reject a blocked edit
-    - screened_gap_responses: gap responses that passed the screen
+    - screen_tailoring_text: source decisions and newly billed usage
     - contact_content: profile contact with no model call
     - pause_for_section: a needs_user_input result for one section
     - failed_result: a failed result with a user-facing message
@@ -12,8 +12,7 @@ Index:
 from typing import Any
 
 import text_limits
-from gap_analysis.screen_library_facts import LIBRARY_FACT_OMITTED_WARNING
-from screening.screen_user_text import screen_user_text
+from screening.screen_user_text import ScreenOutcome, screen_user_text
 from tailoring.section_catalog import SECTION_TITLES, sections_before
 from tailoring.tailor_resume_input import (
     ApprovedSection,
@@ -43,13 +42,10 @@ def apply_pending(
         return approved, None, None
     if pending.action == "write_anyway":
         return approved, None, None
-    outcome = screen_user_text(
-        section_plain_text(pending.content),
-        model=dependencies.settings.user_text_screen_model,
-        timeout_seconds=dependencies.settings.llm_run_timeout_seconds,
+    outcome = screen_tailoring_text(
+        f"{SECTION_TITLES[pending.section_type]}: {section_plain_text(pending.content)}",
+        dependencies, usage,
     )
-    if outcome.usage is not None and outcome.model is not None:
-        usage.append(build_model_usage(outcome.model, outcome.usage))
     if not outcome.allowed:
         message = text_limits.SECTION_TOO_LONG_MESSAGE if outcome.too_long else None
         return approved, pending.content, message
@@ -57,37 +53,17 @@ def apply_pending(
     return approved, None, None
 
 
-def screened_gap_responses(
-    responses: list[dict[str, str]],
-    dependencies: TaskDependencies,
-    usage: list[ModelUsage],
-    warnings: list[str],
-) -> list[dict[str, str]]:
-    """Drops a gap response whose body fails the screen, and warns once for safety and once
-    for length."""
-    kept: list[dict[str, str]] = []
-    omitted = False
-    too_long = False
-    settings = dependencies.settings
-    for response in responses:
-        outcome = screen_user_text(
-            response.get("body", ""),
-            model=settings.user_text_screen_model,
-            timeout_seconds=settings.llm_run_timeout_seconds,
-        )
-        if outcome.usage is not None and outcome.model is not None:
-            usage.append(build_model_usage(outcome.model, outcome.usage))
-        if outcome.allowed:
-            kept.append(response)
-        elif outcome.too_long:
-            too_long = True
-        else:
-            omitted = True
-    if omitted:
-        warnings.append(LIBRARY_FACT_OMITTED_WARNING)
-    if too_long:
-        warnings.append(text_limits.NOTE_TOO_LONG_WARNING)
-    return kept
+def screen_tailoring_text(
+    text: str, dependencies: TaskDependencies, usage: list[ModelUsage],
+) -> ScreenOutcome:
+    """Screen a source and report only newly billed calls in this execution."""
+    outcome = screen_user_text(
+        text, model=dependencies.settings.user_text_screen_model,
+        timeout_seconds=dependencies.settings.llm_run_timeout_seconds,
+    )
+    if outcome.usage is not None and outcome.model is not None:
+        usage.append(build_model_usage(outcome.model, outcome.usage))
+    return outcome
 
 
 def contact_content(contact: dict[str, Any]) -> dict[str, Any]:

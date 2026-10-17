@@ -15,6 +15,7 @@ from agents.parse_job_posting_agent import parse_job_posting
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from screening.screen_user_text import ScreenOutcome, screen_user_text
+from screening.session import within_screening_session
 from text_limits import SECTION_TOO_LONG_MESSAGE
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
@@ -31,6 +32,7 @@ class ParseJobPostingInput(BaseModel):
     text: str
 
 
+@within_screening_session
 def handle_parse_job_posting_task(
     task: AiTaskMessage, dependencies: TaskDependencies
 ) -> AiResultMessage:

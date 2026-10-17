@@ -58,6 +58,15 @@ VALID_OUTPUT = {
 }
 
 
+@pytest.fixture(autouse=True)
+def allow_gap_sources(monkeypatch):
+    """Keep handler unit cases offline; request-boundary cases live in gap context tests."""
+    monkeypatch.setattr(
+        "worker.analyze_gaps_handler._screen_fact",
+        lambda *_args, **_kwargs: ScreenOutcome(allowed=True),
+    )
+
+
 def build_analyze_gaps_task() -> AiTaskMessage:
     """An analyze_gaps task for USER_ID's job JOB_ID."""
     return AiTaskMessage(
@@ -199,12 +208,12 @@ def test_omits_a_blocked_library_fact_and_reports_jev_usage(
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
     monkeypatch.setattr(
         "worker.analyze_gaps_handler._screen_fact",
-        lambda *_args, **_kwargs: ScreenOutcome(allowed=False),
+        lambda text, *_args, **_kwargs: ScreenOutcome(allowed="fact-1" not in text),
     )
 
     with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT)):
         result = handle_ai_task(build_analyze_gaps_task(), task_dependencies)
 
     assert result.status == "completed"
-    assert result.result["warnings"] == ["One of your notes was left out."]
+    assert result.result["warnings"] == ["One of your career library entries was left out."]
     assert result.usage[0].model == task_dependencies.settings.gap_analysis_model

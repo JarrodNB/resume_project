@@ -13,7 +13,8 @@ import text_limits
 from agents.resume_tailoring_agent import write_resume_section
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.tailored_section import ChosenEntry, TailoredSectionDraft
-from tailoring.build_section_prompt import build_section_prompt
+from screening.session import within_screening_session
+from tailoring.build_section_prompt import build_section_prompt, job_context_text
 from tailoring.labeled_sources import LabeledSources
 from tailoring.materialize_section import materialize_section
 from tailoring.retrieve_for_section import retrieve_source_keys
@@ -26,7 +27,7 @@ from worker.tailor_resume_steps import (
     contact_content,
     failed_result,
     pause_for_section,
-    screened_gap_responses,
+    screen_tailoring_text,
 )
 from worker.task_dependencies import TaskDependencies
 
@@ -37,6 +38,7 @@ SECTION_BLOCKED_MESSAGE = "That edit can't be used. Change it and try again."
 _LIBRARY_SECTIONS = ("projects", "education", "certifications", "skills")
 
 
+@within_screening_session
 def handle_tailor_resume_task(
     task: AiTaskMessage, dependencies: TaskDependencies
 ) -> AiResultMessage:
@@ -132,7 +134,12 @@ def _write_section(
     section_type: str,
 ) -> AiResultMessage:
     """Writes one section that has library entries, and pauses for approval."""
-    responses = screened_gap_responses(data.gap_responses, dependencies, usage, warnings)
+    def allow_text(text):
+        return screen_tailoring_text(text, dependencies, usage)
+
+    # Retrieval embeds job text too, so reject an unchecked job before that call.
+    if not allow_text(job_context_text(context)).allowed:
+        return failed_result(task, "The job context could not be screened. Please try again.", usage, data.generation)
     if section_type in _LIBRARY_SECTIONS:
         retrieved: set[tuple[str, str]] | None = set()
         embedding_usage = None
@@ -146,11 +153,13 @@ def _write_section(
     prompt = build_section_prompt(
         section_type,
         context,
-        responses,
+        data.gap_responses,
         [section.model_dump(mode="json") for section in approved],
         retrieved,
         write_anyway=force and data.pending_section.section_type == section_type,
         gap_analysis=data.gap_analysis,
+        allow_text=allow_text,
+        warnings=warnings,
     )
     if text_limits.prompt_is_too_long(prompt.text):
         return failed_result(

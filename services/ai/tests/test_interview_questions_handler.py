@@ -19,6 +19,13 @@ from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
 
 
+@pytest.fixture(autouse=True)
+def allow_source_screening(monkeypatch):
+    """Keep handler structure tests offline; provider-boundary tests live in their own suite."""
+    monkeypatch.setattr("worker.interview_questions_handler.screen_user_text",
+                        lambda *args, **kwargs: ScreenOutcome(allowed=True))
+
+
 def _task(replacement=False, set_type=None):
     """Builds a valid Rails-shaped question task."""
     data = {"question_set_id": str(uuid4())}
@@ -190,5 +197,8 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
-    assert screened and all(text.strip() == "Python" for text in screened)
+    assert screened and all(requirement not in text for text in screened)
+    assert any('"response":"Python"' in text for text in screened)
+    if replacement:
+        assert _task(True).input["question_text"] in screened
     assert library.facts[0].requirement == requirement

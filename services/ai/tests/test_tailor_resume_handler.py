@@ -50,6 +50,18 @@ def _base_input(**extra: object) -> dict:
 
 
 @pytest.fixture
+def benign_sources(monkeypatch: pytest.MonkeyPatch):
+    """These orchestration tests keep classification at its existing fake seam."""
+    monkeypatch.setattr("worker.tailor_resume_steps.screen_user_text",
+                        lambda *_args, **_kwargs: ScreenOutcome(allowed=True))
+
+
+@pytest.fixture(autouse=True)
+def source_screening(benign_sources):
+    """All sources are allowed unless the test explicitly rejects one."""
+
+
+@pytest.fixture
 def stored_context(fake_context_reader: FakeGapAnalysisContextReader) -> None:
     """The fake database holds one job and library for USER_ID."""
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()

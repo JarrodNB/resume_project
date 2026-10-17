@@ -1,25 +1,25 @@
-"""
-Description: Handles analyze_gaps tasks: reads the job and the user's career library from the
-database (read-only, scoped to the task's user), runs the gap analysis agent, and swaps its
-evidence labels for library text. Safe to run twice (it only reads).
-Index:
-    - AnalyzeGapsInput: the task's `input`, sent by Rails
-    - JOB_NOT_FOUND_MESSAGE / EMPTY_LIBRARY_MESSAGE / NO_REQUIREMENTS_MESSAGE: user-facing
-      failure messages
-    - handle_analyze_gaps_task: returns a completed result with the GapAnalysisResult and the
-      agent's usage, or a failed result when there is nothing to compare
+"""Compare a saved job with the user's screened career library without database writes.
+
+The required job must pass screening. Unsafe optional library entries are omitted before
+labels and evidence maps are built. Only the exact prompt rendered from retained sources
+can reuse those screening decisions within this execution.
 """
 
 from datetime import UTC, datetime
 from uuid import UUID
 
 from pydantic import BaseModel
+from pydantic_ai_harness import InputBlocked
 
 import text_limits
 from agents.gap_analysis_agent import analyze_gaps
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
+from schemas.gap_analysis_context import GapAnalysisContext, JobToAnalyze
+from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import ScreenOutcome, screen_user_text
+from screening.session import bind_screened_prompt, within_screening_session
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
@@ -37,6 +37,7 @@ class AnalyzeGapsInput(BaseModel):
     job_id: UUID
 
 
+@within_screening_session
 def handle_analyze_gaps_task(
     task: AiTaskMessage, dependencies: TaskDependencies
 ) -> AiResultMessage:
@@ -55,8 +56,8 @@ def handle_analyze_gaps_task(
     model = settings.gap_analysis_model
     screen_usage: list[ModelUsage] = []
 
-    def allow_fact(text: str) -> ScreenOutcome:
-        """Screens one library fact and keeps its Jev usage for the monthly budget."""
+    def allow_input(text: str) -> ScreenOutcome:
+        """Screen a cohesive source and retain billed usage, including rejected inputs."""
         outcome = _screen_fact(
             text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
         )
@@ -64,9 +65,29 @@ def handle_analyze_gaps_task(
             screen_usage.append(build_model_usage(outcome.model, outcome.usage))
         return outcome
 
-    prompt = build_gap_analysis_prompt(
-        context, today=datetime.now(UTC).date(), allow_fact=allow_fact
-    )
+    job_source = context.job.model_dump_json(exclude_none=True)
+    job_decision = allow_input(job_source)
+    if not job_decision.allowed:
+        message = TOO_LONG_MESSAGE if job_decision.too_long else (
+            UNCHECKED_MESSAGE if job_decision.unchecked else BLOCKED_MESSAGE
+        )
+        raise InputBlocked(message)
+    selected = screen_library_inputs(context.career_library, allow_input)
+    today = datetime.now(UTC).date()
+    layout = selected.fields
+    prompt = None
+
+    def render(values):
+        nonlocal prompt
+        screened_context = GapAnalysisContext(
+            job=JobToAnalyze.model_validate_json(values[0]),
+            career_library=rebuild_library(values[1:], layout),
+        )
+        prompt = build_gap_analysis_prompt(screened_context, today=today)
+        return prompt.text
+
+    bind_screened_prompt((job_source, *selected.sources), render)
+    prompt.warnings.extend(selected.warnings)
     if text_limits.prompt_is_too_long(prompt.text):
         return AiResultMessage(
             ai_task_id=task.ai_task_id,
@@ -91,7 +112,7 @@ def handle_analyze_gaps_task(
 
 
 def _screen_fact(text: str, model: str, timeout_seconds: float) -> ScreenOutcome:
-    """One Jev screen of a library fact. Split out so tests can replace it."""
+    """Screen one source. Kept as the handler's replaceable classifier seam."""
     return screen_user_text(text, model=model, timeout_seconds=timeout_seconds)
 
 

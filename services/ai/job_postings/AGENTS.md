@@ -30,6 +30,12 @@ are passed in or live in `agents/`.
 
 ## Local Rules
 
+- Pasted ads share execution-local screening coverage with their fenced parsing prompt.
+  Scraped sorting screens the exact numbered bullet source in overlapping chunks, then
+  binds that same source at the agent boundary. Only text consumed by generation needs
+  screening: deterministic heading extraction makes no Jev request. Both agent wrappers
+  retain the input guard for direct calls without established source coverage.
+
 - Requirements, responsibilities, and nice-to-haves are always bullets copied verbatim from the posting. For a
   scraped page the LLM may only choose among them by number. For a pasted ad the parse agent
   copies spans, and `find_parsed_job_problems` rejects any that are not in the text.

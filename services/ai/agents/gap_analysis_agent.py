@@ -22,6 +22,7 @@ from gap_analysis.find_gap_analysis_problems import find_gap_analysis_problems
 from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS, GAP_ANALYSIS_PROMPT_VERSION
 from schemas.gap_analysis import GapAnalysis
 from screening.prompt_guardrail import screen_prompt
+from screening.session import remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -56,6 +57,7 @@ class GapAnalysisRun(NamedTuple):
     model: str = ""
 
 
+@within_screening_session
 def analyze_gaps(
     prompt: GapAnalysisPrompt,
     model: str,
@@ -77,7 +79,7 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> GapAnalysisRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(GAP_ANALYSIS_PROMPT_VERSION):
             result = await gap_analysis_agent.run(
                 prompt.text,

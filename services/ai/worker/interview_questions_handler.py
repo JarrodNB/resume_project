@@ -3,7 +3,7 @@ Description: Read-only handlers for interview set generation and single-question
 Index:
     - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical/knowledge scope
     - _library_evidence_text: original library strings for excerpt validation
-    - handle_interview_questions_task: screens notes, checks context size, generates questions
+    - handle_interview_questions_task: screens source inputs once, then generates questions
 """
 import json
 from uuid import UUID
@@ -16,9 +16,10 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
-from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
+from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
+from screening.session import bind_screened_prompt, within_screening_session
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -36,6 +37,7 @@ class InterviewQuestionsInput(BaseModel):
     answer_revision: int | None = None
 
 
+@within_screening_session
 def handle_interview_questions_task(
     task: AiTaskMessage, dependencies: TaskDependencies,
 ) -> AiResultMessage:
@@ -61,8 +63,9 @@ def handle_interview_questions_task(
         return outcome
 
     # A fact's requirement came from a job posting; only the saved response is career evidence.
-    library.facts = [fact.model_copy(update={"requirement": ""}) for fact in library.facts]
-    library.facts, warnings = select_screened_facts(library.facts, screen_note)
+    selected = screen_library_inputs(library, screen_note, include_fact_requirements=False)
+    library = selected.library
+    warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.
     content = library.model_dump(mode="json", exclude_none=True,
                                  exclude={"facts": {"__all__": {"requirement"}}})
@@ -79,12 +82,16 @@ def handle_interview_questions_task(
     if not usable:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
-    library_text = json.dumps(content, ensure_ascii=False)
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
+    for question in excluded:
+        if not screen_note(question).allowed:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                error_message="We couldn't check these questions. Reload the set and try again.")
     count = 1 if replacement else 5
-    text = f"Generate {count} {snapshot.set_type} questions.\nLibrary JSON data:\n{library_text}"
-    if excluded:
-        text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
+    text = bind_screened_prompt(
+        [*selected.sources, *excluded],
+        lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type),
+    )
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Your career library is too long for interview questions. Shorten its entries and try again.")
@@ -109,6 +116,18 @@ def handle_interview_questions_task(
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
         result={"interview_questions": run.questions.model_dump(mode="json"), "warnings": warnings},
         usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
+
+
+def _question_prompt_text(values, fields, count, set_type):
+    """Render only checked library and excluded-question values with trusted scope."""
+    library = rebuild_library(values[:len(fields)], fields)
+    content = library.model_dump(mode="json", exclude_none=True,
+        exclude={"facts": {"__all__": {"requirement"}}})
+    text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
+    excluded = values[len(fields):]
+    if excluded:
+        text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
+    return text
 
 
 def _library_evidence_text(value: object) -> str:

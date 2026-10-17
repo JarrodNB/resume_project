@@ -37,8 +37,10 @@ instructions from `prompts/`.
 ## Local Rules
 
 - Every generative agent declares `capabilities=[InputGuardrail(guard=screen_prompt)]` in its
-  constructor. The official Harness input guard checks complete assembled context before
-  generation. Keep existing structured-output validators. Jev is exempt to prevent recursion.
+  constructor. The guard enforces current-execution coverage before generation. Trusted
+  builders bind exact prompts to screened source values; unknown direct input and history
+  are screened, while approved sources do not incur a second assembled-prompt pass.
+  Keep existing structured-output validators. Jev is exempt to prevent recursion.
 - Create agents with `defer_model_check=True` and pass the model per run (from
   `WorkerSettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.

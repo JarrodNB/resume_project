@@ -15,8 +15,12 @@ can't be invented.
   background, not a citable label. `allow_fact` screens each
   library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt
   carries one warning. A fact over the screen cap uses a separate "too long" warning. `None`
-  keeps every fact (evals). Resume-copied entries are not screened. A prompt over 120,000
-  characters fails the task before the agent runs
+  keeps every fact (evals). Production handlers screen the required job context and every
+  optional cohesive library entry before calling the builder; each experience includes
+  its highlights. Rejected optional entries are omitted with warnings. The handler binds
+  the prompt rendered exclusively from retained sources to execution-local coverage, so
+  generation does not screen the assembled prompt again. Direct unknown agent prompts
+  remain guarded. A prompt over 120,000 characters fails before the agent runs
 - `screen_library_facts.py` — `select_screened_facts`; `LIBRARY_FACT_OMITTED_WARNING`
 - `find_gap_analysis_problems.py` — `find_gap_analysis_problems(analysis, prompt)`: missing,
   repeated, or unknown requirement labels, unknown evidence labels, met/partial without

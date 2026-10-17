@@ -62,7 +62,7 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert result.result["interview_feedback"] == output()
-    assert len(result.usage) == 2
+    assert len(result.usage) == 3
     assert request.model_dump() == original
 
 
@@ -82,7 +82,7 @@ def test_knowledge_correction_need_not_copy_incorrect_answer(dependencies):
     assert result.status == "completed"
     assert result.result["interview_feedback"] == draft
     assert request.model_dump() == original
-    assert len(result.usage) == 2
+    assert len(result.usage) == 3
 
 
 def test_example_can_paraphrase_without_source_vocabulary(dependencies):
@@ -163,7 +163,7 @@ def test_prompt_limit_prevents_generation(dependencies, monkeypatch):
     result = handle_ai_task(task(), dependencies)
     assert result.status == "failed"
     assert "Shorten" in result.error_message
-    assert len(result.usage) == 1
+    assert len(result.usage) == 2
 
 
 def test_excessive_placeholders_fail_with_billed_usage(dependencies):
@@ -223,7 +223,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     def screen(text, **kwargs):
         """Allows the answer while rejecting career notes."""
         screened.append(text)
-        return ScreenOutcome(allowed=text == task().input["answer_text"])
+        return ScreenOutcome(allowed=text in (task().input["answer_text"], task().input["question_text"]))
     monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text", screen)
     library = CareerLibrary(facts=[LibraryFact(id="f", requirement="Managed 20 people", response="Private note")])
     draft = output()
@@ -232,7 +232,8 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
         result = handle_ai_task(task(), replace(dependencies, read_career_library=lambda user: library))
     assert result.status == "completed"
     assert result.result["interview_feedback"]["evidence_quotes"] == []
-    assert [text.strip() for text in screened] == [task().input["answer_text"], "Private note"]
+    assert screened[:2] == [task().input["answer_text"], task().input["question_text"]]
+    assert "Private note" in screened[2] and "Managed 20 people" not in screened[2]
     assert library.facts[0].requirement == "Managed 20 people"
 
 

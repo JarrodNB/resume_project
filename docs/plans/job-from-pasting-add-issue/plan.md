@@ -1,0 +1,144 @@
+# Pasted job ads with an unknown company
+
+## Problem Statement
+
+An ad without an employer name can cause another LLM request because the parsing schema
+and source checks require company text. Rails, the database, GraphQL, and downstream AI
+job contexts also require a company. A parser-only fix would leave imported jobs unusable.
+
+## Human Decisions
+
+On 2026-10-17 the user agreed to store a missing company as null, display **Unknown
+company**, allow adding it later through the job form, and keep the job title required.
+These decisions are settled. The user approved the written plan in chat with
+"confirmed" on 2026-10-17; the exact approved revision is recorded below.
+
+## User Stories
+
+- Save a pasted ad without a named employer without a retry caused by its absence.
+- See that the employer is unknown and add its name later.
+- Continue using the saved job for gap analysis, tailoring, and interview preparation.
+
+## Solution
+
+Allow company to be null throughout the saved-job workflow. The parser returns null
+when the employer is unstated. A supplied company must still appear in the source ad;
+title and bullet validation stay in place. Store null rather than a placeholder string.
+Show Unknown company on job lists/details and leave the edit field empty. Allow manual
+entry and editing without a company because they share the same Job contract.
+
+## Implementation Decisions
+
+- Update ParsedJobPosting, its prompt, source checks, posting conversion, and
+  ScrapedJobPosting. Handle nullable values in length-limit normalization.
+- Permit null on jobs.company through a migration and remove company presence
+  validation. Retain required title and existing text limits. Career-library employers
+  are unaffected.
+- Normalize blank company input to null in Rails job services for create/update/import.
+- Make GraphQL Job.company nullable; regenerate the schema and frontend types using
+  their generators. The existing input argument already accepts null.
+- Update the form, its values, import guidance, and errors that say company is required.
+- Audit database readers, gap_analysis_context, screening, prompts, tailoring, interview
+  preparation, and transcript labels. Accept absent company in job contexts and use
+  readable missing-value text when needed, without writing that label as domain data.
+- Keep behavior in the existing owning modules; no new orchestration layer is needed.
+
+## Testing Decisions
+
+Use synthetic ads and existing public test seams. Follow red-green-refactor for behavior
+changes. A handler mock alone cannot establish that agent validation avoids retries.
+
+- Exercise real parse-agent output validation with a fake provider returning null company;
+  assert success with one model request. Keep invented-company and missing-title checks.
+- Test posting conversion and task handling with null company, plus named-company cases.
+- Test Rails import/result application, GraphQL reads and create/update: save null, add a
+  name, clear it, and reject missing title. Preserve duplicate-result and tenant isolation
+  behavior through existing application seams.
+- Test downstream job context construction and affected prompt builders with null company.
+- Test Unknown company in list/detail and optional company editing through React tests.
+- Add a missing-company parse-eval case and adjust evaluators that assume strings.
+
+Starting seams include AI tests/test_parse_job_posting_handler.py,
+tests/test_posting_from_parsed_job.py, tests/test_job_posting_parse_evaluators.py, Rails
+spec/services/jobs/create_job_from_pasted_posting_service_spec.rb, and the jobs UI tests.
+Inspect existing agent tests and all applicable local instructions before implementation.
+
+## Architecture Decisions
+
+Rails remains the source of truth. Long-running work and results still use SQS.
+scraped_job.company becomes nullable; GraphQL and downstream read models mirror it.
+Preserve duplicate-delivery handling. Record the optional-company meaning beside job
+ingestion in docs/architecture/career-library.md and update affected local guidance.
+
+## Rollout Risks and Other Risks
+
+- Apply the database migration and tolerant consumers before emitting null from the AI
+  producer. Older consumers may reject the expanded contract.
+- Reinstating the database constraint requires handling existing nulls explicitly; never
+  delete jobs or invent employers to make rollback work.
+- This removes retries caused by an absent company; other validation and provider errors
+  still follow existing behavior.
+- Prompt changes require the existing paid parse eval. Record credential or execution
+  blockers honestly; offline tests do not establish model quality.
+
+## Observable Acceptance Criteria
+
+- [ ] A valid titled ad without an employer imports with company null.
+- [ ] Null company causes no validation retry for an otherwise valid model response.
+- [ ] Supplied companies must still appear in the ad; named-company imports still work.
+- [ ] A missing title remains invalid.
+- [ ] Job list/detail show Unknown company; users can add or clear the company in the form.
+- [ ] GraphQL returns null successfully and generated types reflect that contract.
+- [ ] Existing AI job workflows accept null company without company-related failures.
+- [ ] Duplicate completion delivery still creates only one job.
+- [ ] Focused checks and eval results are recorded, including limitations.
+
+## Dependencies and Verification
+
+Follow docs/testing.md in the implementation worktree. Intended checks:
+
+```bash
+docker compose run --rm api bin/rails db:migrate
+docker compose run --rm api bundle exec rspec spec/services/jobs spec/models/job_spec.rb
+docker compose run --rm api bin/rails graphql:schema:dump
+docker compose run --rm --no-deps web npm run codegen
+docker compose run --rm ai pytest -m "not db" tests/test_parse_job_posting_handler.py tests/test_posting_from_parsed_job.py tests/test_job_posting_parse_evaluators.py tests/test_schema_dependencies.py
+docker compose run --rm ai ruff check .
+docker compose run --rm ai python -m evals.run_job_posting_parse_evals
+docker compose run --rm --no-deps web npm test -- src/features/jobs
+docker compose run --rm --no-deps web npm run typecheck
+docker compose run --rm --no-deps web npm run lint
+```
+
+Add focused agent, GraphQL, result-application, and downstream checks based on actual
+changes. Record actual commands and results. Human QA: paste a titled ad without an
+employer, verify the saved job and label, add and clear its employer, and exercise normal
+downstream workflows. Verify named-employer and missing-title behavior. No agent browser QA.
+
+## Out of Scope
+
+Optional titles, employer guessing, career-library employer changes, scraping redesign,
+broad retry changes, unrelated UI changes, merge, and deployment.
+
+## Additional Notes
+
+Source item: **Job from pasting add issue**. Leave it on KANBAN.md until explicit human
+completion confirmation. Use work/job-from-pasting-add-issue for approved implementation.
+
+## Delivery Record
+
+- Phase: plan and breakdown approved; next action: commit planning and implement Ticket 01.
+- Human behavior decisions: agreed in chat on 2026-10-17, as recorded above.
+- Plan approval: user replied "confirmed" on 2026-10-17 to the written plan approval request.
+  Approved file SHA-256 before recording approval:
+  c508527025f1fa7bd5986e0f6009aa8129420f00b405148e422ff03203b2c6d4.
+- Breakdown approval: user replied "confirmed" on 2026-10-17 to the breakdown approval request.
+  Approved tickets.md SHA-256: 11a4c8c77ba3f5e01af8bdbd1749792ffb596712649bae1b4a4a1068eba3e657.
+  Tickets 01 and 02 are sequential, with 02 blocked by 01.
+- Planning commit: pending approvals. Starting checkout: master, clean.
+- Integration base/head and worker branches: not created.
+- Verification: code/document inspection only; no application checks run.
+- Reviews, PR, and human QA: not started.
+- Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,
+  explicitly stage only this feature's plan and tickets for the required planning commit;
+  leave the repository-wide ignore rule unchanged.

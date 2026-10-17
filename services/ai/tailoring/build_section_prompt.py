@@ -6,11 +6,13 @@ Index:
     - build_section_prompt: builds it, including a write-anyway note when the user asked
 """
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
+from screening.session import bind_screened_prompt
 from tailoring.labeled_sources import LabeledSources, label_sources
 from tailoring.section_catalog import SECTION_TITLES
 
@@ -45,14 +47,23 @@ def build_section_prompt(
     write_anyway: bool,
     gap_analysis: dict[str, object] | None,
     today: date | None = None,
+    allow_text: Callable[[str], object] | None = None,
+    warnings: list[str] | None = None,
 ) -> SectionPrompt:
     """Builds the prompt for one section. Retrieval narrows the library; gap responses and
-    approved sections are always listed."""
+    approved sections are considered even when retrieval narrows the library. Rejected
+    optional sources are omitted; required job context fails closed."""
     sources = label_sources(context, gap_responses, approved_sections, retrieved, section_type)
+    if allow_text is not None:
+        sources.records = {
+            label: record for label, record in sources.records.items()
+            if _allowed(record.text, allow_text, warnings)
+        }
     today = today or datetime.now(UTC).date()
     expiry_statuses = [
-        f"{item.name}: {certification_expiry_status(item.expiry_date, item.expiry_date_precision, today)}"
-        for item in context.career_library.certifications
+        f"C{number}: {certification_expiry_status(item.expiry_date, item.expiry_date_precision, today)}"
+        for number, item in enumerate(context.career_library.certifications, start=1)
+        if f"C{number}" in sources.records
     ]
     lines = [
         f"Today's date: {today.isoformat()}",
@@ -61,19 +72,58 @@ def build_section_prompt(
         _SECTION_NOTE.get(section_type, ""),
         _WRITE_ANYWAY if write_anyway else "",
         "",
-        f"# Job: {context.job.title} at {context.job.company}",
-        *_bullets("Requirements", context.job.requirements),
-        *_bullets("Nice to have", context.job.nice_to_haves),
-        *_gap_analysis_lines(gap_analysis),
-        "",
-        "# Sources",
-        *_source_lines(sources),
     ]
+    job_text = job_context_text(context)
+    if allow_text is not None and not getattr(allow_text(job_text), "allowed", False):
+        raise ValueError("The job context could not be screened. Please try again.")
+    summary = (gap_analysis or {}).get("summary")
+    summary = summary.strip() if isinstance(summary, str) else ""
+    if summary and allow_text is not None and not _allowed(summary, allow_text, warnings):
+        summary = ""
+    values = [job_text, *([summary] if summary else []), *[record.text for record in sources.records.values()]]
+    labels = list(sources.records)
+    has_summary = bool(summary)
+
+    def render(approved_values: Sequence[str]) -> str:
+        """Only supplied approved values contribute user-controlled prompt text."""
+        offset = 1
+        result = [*lines, approved_values[0]]
+        if has_summary:
+            result.extend(["", "## How the library matches this job", approved_values[1]])
+            offset += 1
+        result.extend(["", "# Sources"])
+        result.extend(f"[{label}] {value}" for label, value in zip(labels, approved_values[offset:], strict=True))
+        return "\n".join(result)
+
     return SectionPrompt(
-        text="\n".join(line for line in lines if line is not None),
+        text=bind_screened_prompt(values, render) if allow_text is not None else render(values),
         sources=sources,
         section_type=section_type,
     )
+
+
+def job_context_text(context: GapAnalysisContext) -> str:
+    """The exact job input shared by retrieval screening and generation."""
+    return "\n".join([
+        f"# Job: {context.job.title} at {context.job.company}",
+        *_bullets("Requirements", context.job.requirements),
+        *_bullets("Nice to have", context.job.nice_to_haves),
+    ])
+
+
+def _allowed(text: str, allow_text: Callable[[str], object], warnings: list[str] | None) -> bool:
+    """Omit unsafe optional evidence, keeping one warning per reason."""
+    outcome = allow_text(text)
+    if getattr(outcome, "allowed", False):
+        return True
+    if warnings is not None:
+        import text_limits
+        from gap_analysis.screen_library_facts import LIBRARY_FACT_OMITTED_WARNING
+
+        warning = text_limits.NOTE_TOO_LONG_WARNING if getattr(outcome, "too_long", False) else LIBRARY_FACT_OMITTED_WARNING
+        if warning not in warnings:
+            warnings.append(warning)
+    return False
 
 
 def _bullets(heading: str, items: list[str]) -> list[str]:
@@ -81,20 +131,3 @@ def _bullets(heading: str, items: list[str]) -> list[str]:
     if not items:
         return []
     return ["", f"## {heading}", *[f"- {item}" for item in items]]
-
-
-def _gap_analysis_lines(gap_analysis: dict[str, object] | None) -> list[str]:
-    """The comparison's summary, when the task carried one."""
-    if not gap_analysis:
-        return []
-    summary = gap_analysis.get("summary")
-    if not isinstance(summary, str) or not summary.strip():
-        return []
-    return ["", "## How the library matches this job", summary.strip()]
-
-
-def _source_lines(sources: LabeledSources) -> list[str]:
-    """One line per label, in label order."""
-    if not sources.records:
-        return ["(none)"]
-    return [f"[{label}] {record.text}" for label, record in sources.records.items()]

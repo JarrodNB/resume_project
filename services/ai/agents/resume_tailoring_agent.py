@@ -21,6 +21,7 @@ from prompts.resume_tailoring_instructions import (
 )
 from schemas.tailored_section import TailoredSectionDraft
 from screening.prompt_guardrail import screen_prompt
+from screening.session import remaining_timeout, within_screening_session
 from tailoring.build_section_prompt import SectionPrompt
 from tailoring.check_section_faithfulness import find_section_problems
 from worker.generative_model import generative_model
@@ -59,6 +60,7 @@ class TailoringRun(NamedTuple):
     model: str = ""
 
 
+@within_screening_session
 def write_resume_section(
     prompt: SectionPrompt,
     model: str,
@@ -80,7 +82,7 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> TailoringRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(RESUME_TAILORING_PROMPT_VERSION):
             result = await resume_tailoring_agent.run(
                 prompt.text,

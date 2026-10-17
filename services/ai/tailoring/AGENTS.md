@@ -25,7 +25,11 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 
 - Contact is copied in the handler with no model call.
 - The checker never substitutes library text for a rejected rewrite.
-- Gap-response bodies are screened before they are labeled; resume-copied entries are not.
+- Screen each selected labeled source (including library entries, gap-response requirements
+  and bodies, and approved titles/content), the job context, and optional gap summary once
+  per execution. Unsafe optional sources are omitted with warnings. The job must pass
+  before retrieval embeds it. Bind the exact rendered prompt to those approvals; direct
+  unknown writer prompts retain the capability guard.
 
 ## Certification support
 

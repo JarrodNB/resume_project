@@ -122,4 +122,18 @@ RSpec.describe "ATS PDF checks" do
     expect(report[:outdated]).to be(false)
     expect(report[:overall_score]).to eq(90)
   end
+
+  it "fails mixed rubric key types atomically and cleans the upload" do
+    submit
+    task = user.ai_tasks.find(run.reload.pdf_result["task_id"])
+    findings = [ { "key" => "coverage" }, { "key" => 7 }, { "key" => nil } ]
+    result = task.input.except("source_file").merge("checks" => findings)
+    expect do
+      AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => result })
+    end.not_to raise_error
+    expect(task.reload).to be_failed
+    expect(run.reload.pdf_result["status"]).to eq("failed")
+    expect(run.pdf_result["score"]).to be_nil
+    expect(task.source_file).not_to be_attached
+  end
 end

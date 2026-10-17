@@ -16,7 +16,7 @@ module AtsChecks
           return failure([ "Invalid PDF inspection identity. Export again." ])
         end
         checks = @result["checks"]
-        unless checks.is_a?(Array) && checks.all? { |c| c.is_a?(Hash) } && checks.map { |c| c["key"] }.sort == KEYS.sort && checks.all? { |c| valid_check?(c) }
+        unless checks.is_a?(Array) && checks.all? { |c| c.is_a?(Hash) && c["key"].is_a?(String) } && checks.map { |c| c["key"] }.sort == KEYS.sort && checks.all? { |c| valid_check?(c) }
           return failure([ "Invalid PDF inspection findings. Export again." ])
         end
         assessments = checks.map do |check|

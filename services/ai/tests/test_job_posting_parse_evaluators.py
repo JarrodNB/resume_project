@@ -6,7 +6,7 @@ Index:
     - test_invented_bullet_fails_verbatim_check: an extra bullet scores below 1
 """
 
-from evals.job_posting_parse_evaluators import PastedVerbatim
+from evals.job_posting_parse_evaluators import PastedFieldMatch, PastedVerbatim
 from evals.run_job_posting_parse_evals import load_job_posting_parse_dataset
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from schemas.parsed_job_posting import ParsedJobPosting
@@ -61,6 +61,20 @@ def test_invented_bullet_fails_verbatim_check() -> None:
     score = PastedVerbatim().evaluate(context)  # type: ignore[arg-type]
 
     assert score["verbatim_bullets"] == 0.0
+
+
+def test_null_company_label_rejects_an_invented_employer() -> None:
+    """Null matches null, while a guessed name loses the company field score."""
+    dataset = load_job_posting_parse_dataset()
+    case = next(case for case in dataset.cases if case.name == "unnamed_employer")
+    expected = case.expected_output
+    assert isinstance(expected, ScrapedJobPosting)
+    context = type("Context", (), {
+        "inputs": case.inputs, "output": expected, "expected_output": expected,
+    })()
+    assert PastedFieldMatch().evaluate(context)["posting_fields"] == 1.0
+    context.output = expected.model_copy(update={"company": "Invented Ltd"})
+    assert PastedFieldMatch().evaluate(context)["posting_fields"] == 2 / 3
 
 
 def _label(dataset: object, inputs: dict[str, object]) -> ScrapedJobPosting | None:

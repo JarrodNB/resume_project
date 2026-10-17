@@ -1,7 +1,5 @@
-# Description: Creates a job profile for a user (manual entry; scraped jobs are saved by
-# Jobs::CreateJobFromScrapedPostingService).
-# Index:
-#   - call: saves the job; returns it, or validation errors
+# Saves a manually entered job for its owner. An unstated company is stored as null;
+# imported jobs use the corresponding posting service.
 module Jobs
   class CreateJobService < ApplicationService
     def initialize(user:, attributes:)
@@ -11,7 +9,9 @@ module Jobs
 
     # Saves the job.
     def call
-      job = @user.jobs.new(@attributes)
+      attributes = @attributes.to_h.symbolize_keys
+      attributes[:company] = attributes[:company].presence
+      job = @user.jobs.new(attributes)
       job.save ? success(job) : failure(job.errors)
     end
   end

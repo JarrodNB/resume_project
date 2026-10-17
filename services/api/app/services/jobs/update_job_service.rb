@@ -1,6 +1,5 @@
-# Description: Updates a job's profile fields. Stage changes go through MoveJobToStageService.
-# Index:
-#   - call: applies the attributes; returns the job, or validation errors
+# Updates a job's profile, keeping a cleared company as null. Unsubmitted fields stay
+# unchanged. Stage changes go through MoveJobToStageService.
 module Jobs
   class UpdateJobService < ApplicationService
     def initialize(job:, attributes:)
@@ -10,7 +9,9 @@ module Jobs
 
     # Applies the attributes.
     def call
-      @job.update(@attributes) ? success(@job) : failure(@job.errors)
+      attributes = @attributes.to_h.symbolize_keys
+      attributes[:company] = attributes[:company].presence if attributes.key?(:company)
+      @job.update(attributes) ? success(@job) : failure(@job.errors)
     end
   end
 end

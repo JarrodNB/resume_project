@@ -83,15 +83,15 @@ ingestion in docs/architecture/career-library.md and update affected local guida
 
 ## Observable Acceptance Criteria
 
-- [ ] A valid titled ad without an employer imports with company null.
-- [ ] Null company causes no validation retry for an otherwise valid model response.
-- [ ] Supplied companies must still appear in the ad; named-company imports still work.
-- [ ] A missing title remains invalid.
-- [ ] Job list/detail show Unknown company; users can add or clear the company in the form.
-- [ ] GraphQL returns null successfully and generated types reflect that contract.
-- [ ] Existing AI job workflows accept null company without company-related failures.
-- [ ] Duplicate completion delivery still creates only one job.
-- [ ] Focused checks and eval results are recorded, including limitations.
+- [x] A valid titled ad without an employer imports with company null.
+- [x] Null company causes no validation retry for an otherwise valid model response.
+- [x] Supplied companies must still appear in the ad; named-company imports still work.
+- [x] A missing title remains invalid.
+- [x] Job list/detail show Unknown company; users can add or clear the company in the form.
+- [x] GraphQL returns null successfully and generated types reflect that contract.
+- [x] Existing AI job workflows accept null company without company-related failures.
+- [x] Duplicate completion delivery still creates only one job.
+- [x] Focused checks and eval results are recorded, including limitations.
 
 ## Dependencies and Verification
 
@@ -127,7 +127,7 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 
 ## Delivery Record
 
-- Phase: plan and breakdown approved; next action: commit planning and implement Ticket 01.
+- Phase: ready for human QA. PR 14 is open; no merge or deployment.
 - Human behavior decisions: agreed in chat on 2026-10-17, as recorded above.
 - Plan approval: user replied "confirmed" on 2026-10-17 to the written plan approval request.
   Approved file SHA-256 before recording approval:
@@ -135,10 +135,88 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Breakdown approval: user replied "confirmed" on 2026-10-17 to the breakdown approval request.
   Approved tickets.md SHA-256: 11a4c8c77ba3f5e01af8bdbd1749792ffb596712649bae1b4a4a1068eba3e657.
   Tickets 01 and 02 are sequential, with 02 blocked by 01.
-- Planning commit: pending approvals. Starting checkout: master, clean.
-- Integration base/head and worker branches: not created.
-- Verification: code/document inspection only; no application checks run.
-- Reviews, PR, and human QA: not started.
+- Planning commit: e47b1787c2cbf649b785d57ef3ff9d284f93b422 on master.
+- Integration base: e47b1787c2cbf649b785d57ef3ff9d284f93b422. Branch: work/job-from-pasting-add-issue.
+- Ticket 01 worker: work/job-from-pasting-add-issue-01-optional-company; worktree at /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-01.
+- Verification: completed checks and limitations are recorded below.
+- Reviews: both blind reviews clean; PR 14 open; human QA pending.
 - Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,
   explicitly stage only this feature's plan and tickets for the required planning commit;
   leave the repository-wide ignore rule unchanged.
+
+### Ticket 01 integration
+
+- Worker commit: 00da44f96c6cb4c0af0000a7f96e18924c1f546e.
+- Integrated commit: c25ec1628a5aeebc72c69ebfa5268cc718ebab33.
+- Coordinator inspected changes and independently ran nullable-context/schema tests: 14 passed.
+- Worker verification: API 71 examples passed; AI 106 passed; UI 38 tests passed;
+  schema export/codegen, frontend types/lint, changed-AI lint, and diff checks passed.
+- Red evidence: missing company rejected by Rails; original AI schema rejected None;
+  original jobs view lacked Unknown company. Each regression passed after restoration.
+- Full AI lint has four existing conversation-logging violations; not changed here.
+- Ticket 01 implemented. Ticket 02 started from c25ec16 in isolated worktree
+  /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-02 on
+  work/job-from-pasting-add-issue-02-parse-unknown-company.
+- Current phase: Ticket 02 implementation. Paid evals and final blind reviews pending.
+
+### Coordinator integration verification
+
+- API acceptance suite rerun against integration c25ec16: 71 examples, 0 failures.
+  Docker used isolated unknown-company-01 network/database and read-only development
+  bundle volume, with integration services/api mounted at /rails.
+- Live synthetic evals completed with exit 0 using careergrind-pii-ai:latest, integration
+  services/ai mounted at /app, and the ignored main development env file passed directly
+  to Docker. No credentials were copied into worktrees or recorded.
+- python -m evals.run_gap_analysis_evals: verdict_accuracy/met_agreement 0.935;
+  evidence_validity, evidence_recall, and gap_recall 1.00.
+- python -m evals.run_tailoring_evals: faithfulness, relevance, omission scores 1.00.
+- python -m evals.run_library_retrieval_evals: HitAt1, RecallAtK, MRR 1.00;
+  PrecisionAtK 0.125 (existing dataset measure, not a new regression pass threshold).
+- These quality runs supplement deterministic null-company regressions; they do not
+  replace them. Final pasted-ad eval still pending Ticket 02 integration.
+
+### Final implementation and review snapshot
+
+- Ticket 02 worker: 25215c635232483e0aa2604f9082b2f51dc2bcc4; integrated as
+  1d1f60223ffea59f236c85249eb03715bc10ce1b. Both tickets implemented and verified.
+- Real agent red/green: null-company response failed before the schema fix, then completed
+  with exactly one parse-model request. Supplied-name and required-title checks still pass.
+- Worker final checks: full offline AI 526 passed, 9 DB tests deselected; jobs UI 26 passed;
+  changed task-copy rerun 3 passed; frontend types/lint and changed Python Ruff passed.
+- Coordinator final integrated parser/context suite: 43 passed. Earlier integrated API suite:
+  71 examples, 0 failures. No Rails code changed in Ticket 02.
+- Correctness blind review: base e47b1787c2cbf649b785d57ef3ff9d284f93b422 to head
+  1d1f60223ffea59f236c85249eb03715bc10ce1b; no actionable findings; 30 offline AI tests
+  passed; caller/schema, migration, ownership, authorization and idempotency inspected.
+- Design blind review: same base/head; no actionable findings; 38 offline AI tests and
+  16 frontend tests passed; interface ownership and observable test coverage inspected.
+- No review fixes required. Subsequent changes are delivery records/evaluation evidence;
+  no production/test change after the reviewed snapshot, so another review pair is unnecessary.
+- All automated acceptance criteria checked. Human visual/manual QA remains pending and
+  does not follow from passing tests/reviews. Keep the Kanban item until human completion.
+
+### Final parser quality evaluation
+
+- Live parse runner completed exit 0 with the new unnamed-employer fixture. Every metric
+  on that fixture scored 1.00. Each case had one Jev request and one parse-model request;
+  the reported two requests include screening, not a parse retry.
+- Initial five-case average posting_fields 0.800; extraction precision/recall 0.800;
+  verbatim bullets 1.00. Investigated nonperfect older-case scores against original base.
+- Original four-case baseline: fields 0.833; extraction precision/recall 0.750; verbatim 1.00.
+- Detailed final rerun: fields 0.867; extraction precision/recall 0.800; verbatim 1.00;
+  zero task/evaluator errors. On the four shared cases, these match baseline aggregates.
+- Remaining mismatches concern full-sentence versus labelled subspan extraction, one title
+  including the employer, and a location period; they are outside this missing-company fix.
+  The initial extra field mismatch varied on rerun; do not claim deterministic model quality.
+- Detailed synthetic report retained locally under evals/job_posting_parse-20261017T132150Z-a404728eb480493896dc7d8a5fb0dfeb.md.
+- Residual limitations: four preexisting full-AI-lint violations in untouched conversation
+  logging files; DB-marked Python tests not run; no browser QA or deployment. Migration
+  ordering and safe rollback requirements remain as described above.
+
+### Human handoff
+
+- PR: https://github.com/JarrodNB/resume_project/pull/14
+- Branch: work/job-from-pasting-add-issue. Reviewed code head: 1d1f602; subsequent commits
+  contain delivery records only. PR base: master (origin master was current at handoff).
+- Next action: human QA using the steps in the PR and this plan. No merge or deployment.
+- Kanban item remains on the board pending explicit human completion confirmation.

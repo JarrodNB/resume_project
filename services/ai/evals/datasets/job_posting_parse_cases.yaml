@@ -132,6 +132,38 @@ cases:
         - Experience with spreadsheets
       nice_to_haves: []
       requirements_sorted_by: llm
+  - name: unnamed_employer
+    inputs:
+      text: |
+        Backend Engineer
+        Location: Remote
+
+        Requirements
+        - 4 years of Python
+
+        Responsibilities
+        - Build payment APIs
+    expected_output:
+      source: pasted_text
+      source_url: ""
+      title: Backend Engineer
+      company: null
+      location: Remote
+      description: |
+        Backend Engineer
+        Location: Remote
+
+        Requirements
+        - 4 years of Python
+
+        Responsibilities
+        - Build payment APIs
+      requirements:
+        - 4 years of Python
+      responsibilities:
+        - Build payment APIs
+      nice_to_haves: []
+      requirements_sorted_by: llm
 evaluators:
   - PastedFieldMatch
   - PastedRequirementMatch

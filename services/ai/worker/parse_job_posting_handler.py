@@ -5,7 +5,7 @@ Index:
     - ParseJobPostingInput: the task's `input`, sent by Rails
     - BLOCKED_AD_MESSAGE / UNCHECKED_AD_MESSAGE / COULD_NOT_READ_MESSAGE: user-facing failures
     - handle_parse_job_posting_task: a completed result, or a failed result when the ad is
-      blocked or has no title and company that appear in the text
+      blocked or has a title, supplied company, or bullet unsupported by the text
 """
 
 from pydantic import BaseModel, ValidationError
@@ -23,7 +23,7 @@ from worker.task_dependencies import TaskDependencies
 
 BLOCKED_AD_MESSAGE = "This text was deemed unsafe, so it wasn't used. Edit it and try again."
 UNCHECKED_AD_MESSAGE = "We couldn't check this job ad, so it wasn't used. Please try again."
-COULD_NOT_READ_MESSAGE = "We couldn't find a job title and company in that text. Paste the full ad, or add the job manually."
+COULD_NOT_READ_MESSAGE = "We couldn't read a faithful job title and details from that text. Paste the full ad, or add the job manually."
 
 
 class ParseJobPostingInput(BaseModel):

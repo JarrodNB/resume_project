@@ -44,7 +44,7 @@ _SOURCE_TYPES = frozenset(
 def section_query(section_type: str, job: JobToAnalyze) -> str:
     """The search text for one section: its focus, the role, and the job's requirements."""
     requirements = "\n".join([*job.requirements, *job.nice_to_haves])
-    return f"{_FOCUS[section_type]}\n{job.title} at {job.company}\n{requirements}"
+    return f"{_FOCUS[section_type]}\n{job.title} at {job.company or 'Unknown company'}\n{requirements}"
 
 
 def retrieve_source_keys(

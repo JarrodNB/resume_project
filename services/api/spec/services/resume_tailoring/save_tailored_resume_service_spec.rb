@@ -35,6 +35,13 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(resume.sections.count).to eq(2)
   end
 
+  it "names a resume when the employer is unknown" do
+    job.update!(company: nil)
+    result = described_class.call(ai_task: ai_task, sections: sections)
+    expect(result).to be_success
+    expect(result.value.title).to eq("Backend Engineer at Unknown company")
+  end
+
   it "refuses a second save" do
     described_class.call(ai_task: ai_task, sections: sections)
 

@@ -140,3 +140,8 @@ It is captured before report assembly and serialized with six fractional digits.
 This permits a later job edit to invalidate alignment without requiring a report write,
 while delayed queued responses cannot replace a completed persisted revision.
 Queries, subscriptions, reruns and PDF submissions all use the same winner rule.
+
+Exporters capture Resume.atsContentFingerprint alongside the section data used to render
+and retain it until explicit saving replaces the editor baseline. Legacy resumes without
+reports must also match that captured identity before upload; creating a new run cannot
+relabel an older tab's content as the current saved version.

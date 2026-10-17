@@ -251,3 +251,20 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
 - Final04 reliability work in isolated branches: bind legacy exports to the fingerprint
   captured alongside rendered sections; prevent same-run older payloads downgrading reports.
 - Full blind reviews and human manual QA remain pending.
+
+### Final candidate and acceptance audit
+
+- Candidate: 7e3bb7e017b38deb4cdbde37d3fbbe0bc0d7a831.
+- Review base: 4cbf898d2f992f1b468bc96df1675d0414572d24.
+- Final full Rails suite: 454 passed. Final full web suite: 166 passed. Typecheck,
+  frontend lint, schema dump and client code generation passed.
+- Final reliability commits: ae675e9 captured export identity; 0ae9ac4 malformed PDF
+  keys; 7e3bb7e report revision/observation ordering.
+- Coordinator acceptance audit: criteria 1-2 covered by save/result/GraphQL and report
+  tests; 3-4 by 11 export tests plus actual production renderer/inspector tests and
+  corrupt/loss/order fixtures; 5 by deterministic scoring/job-deletion tests; 6 by
+  cross-tab identity and 4 response-ordering tests; 7-8 by ownership, duplicate, late
+  and malformed results, allowance and cleanup specs. No browser/manual QA performed.
+- All four tickets integrated and verified. Fresh blind correctness/design reviewers
+  started on identical fixed snapshots without planning context. Results pending.
+- User acceptance remains pending and the Kanban item remains on the board.

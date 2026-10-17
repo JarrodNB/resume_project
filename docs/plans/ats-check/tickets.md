@@ -65,7 +65,7 @@ workflow's red-green-refactor instructions; record actual commands and failures.
 - **Modularity:** A cohesive ATS feature owns report presentation and task subscriptions.
   Reuse established error and collapsible section patterns. Editor provides dirty state;
   it does not calculate server scores or coordinate report internals.
-- **Status:** ready-for-agent.
+- **Status:** implemented.
 - **Acceptance Criteria:**
   - Show queued/running/completed/failed/unavailable categories and awaiting-export PDF
     state. Show findings with severity, location, evidence, explanation and suggested action.
@@ -97,7 +97,7 @@ workflow's red-green-refactor instructions; record actual commands and failures.
   inspection interface. Local deterministic extraction/comparison owns normalization and
   tolerances; shared schemas do not depend on orchestration. Reuse Active Storage and
   task publication rather than introducing a second upload/queue system.
-- **Status:** ready-for-agent.
+- **Status:** implemented.
 - **Acceptance Criteria:**
   - Submission validates ownership, saved version and attachment association server-side,
     plus byte-detected PDF type and size. Stale submissions return a refresh error.
@@ -133,7 +133,7 @@ workflow's red-green-refactor instructions; record actual commands and failures.
 - **Modularity:** Reuse `ResumePdfDocument` and `buildResumePdfModel`. Export owns generating
   one blob and coordinating download/submission through the ATS API. Report components
   consume category state, not extraction internals. Keep preview independent of checks.
-- **Status:** ready-for-agent.
+- **Status:** implemented.
 - **Acceptance Criteria:**
   - Add Export PDF for the saved resume. Unsaved edits require explicit saving first.
   - Generate once and use the same blob for download and upload. Download does not wait
@@ -175,3 +175,10 @@ human review; do not merge, deploy or clear the Kanban item.
 02 in-progress on work/ats-check-02-content-report at /home/jarrod/ats-check-02.
 03 in-progress on work/ats-check-03-pdf-inspection at /home/jarrod/ats-check-03.
 Both start at 836c612. 04 awaits both. Verification details are in the plan delivery record.
+
+### Final implementation state
+
+All four tickets implemented and verified on candidate 7e3bb7e. Ticket 02 integrated
+93787fb; 03 integrated b98fce1; 04 integrated de6c5cf plus production PDF and identity/
+ordering regressions. Actual verification and acceptance audit are in plan.md.
+Blind review results, PR and human manual QA remain pending.

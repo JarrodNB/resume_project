@@ -22,7 +22,7 @@ in its existing schemas and consumers; do not change career-library employer fie
 Test through services, GraphQL, task result application, React interactions, and existing
 AI context/prompt seams. Do not introduce a new orchestration abstraction.
 
-**Status:** in-progress
+**Status:** implemented
 
 **Acceptance Criteria:**
 
@@ -63,7 +63,7 @@ and worker boundaries. Nullable company is a data contract, not an invented empl
 Use a fake provider through real agent output validation to observe request count; do not
 mock away the validator in the no-retry regression test.
 
-**Status:** ready-for-agent
+**Status:** in-progress
 
 **Acceptance Criteria:**
 

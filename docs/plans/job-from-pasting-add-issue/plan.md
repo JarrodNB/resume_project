@@ -143,3 +143,18 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
 - Planning artifacts are ignored by /docs/plans/ in .gitignore. After breakdown approval,
   explicitly stage only this feature's plan and tickets for the required planning commit;
   leave the repository-wide ignore rule unchanged.
+
+### Ticket 01 integration
+
+- Worker commit: 00da44f96c6cb4c0af0000a7f96e18924c1f546e.
+- Integrated commit: c25ec1628a5aeebc72c69ebfa5268cc718ebab33.
+- Coordinator inspected changes and independently ran nullable-context/schema tests: 14 passed.
+- Worker verification: API 71 examples passed; AI 106 passed; UI 38 tests passed;
+  schema export/codegen, frontend types/lint, changed-AI lint, and diff checks passed.
+- Red evidence: missing company rejected by Rails; original AI schema rejected None;
+  original jobs view lacked Unknown company. Each regression passed after restoration.
+- Full AI lint has four existing conversation-logging violations; not changed here.
+- Ticket 01 implemented. Ticket 02 started from c25ec16 in isolated worktree
+  /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-02 on
+  work/job-from-pasting-add-issue-02-parse-unknown-company.
+- Current phase: Ticket 02 implementation. Paid evals and final blind reviews pending.

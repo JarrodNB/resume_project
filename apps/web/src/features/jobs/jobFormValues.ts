@@ -9,7 +9,7 @@
 export interface JobDraft {
   id: string
   title: string
-  company: string
+  company: string | null
   location: string | null
   url: string | null
   notes: string | null
@@ -42,7 +42,7 @@ export function jobAttributes(values: JobFormFields) {
   const lines = (items: string[]) => items.map((item) => item.trim()).filter(Boolean)
   return {
     title: values.title.trim(),
-    company: values.company.trim(),
+    company: blankToNull(values.company),
     location: blankToNull(values.location),
     url: blankToNull(values.url),
     notes: blankToNull(values.notes),

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# Description: Editable job profile fields. All optional so it serves both create and update
-# (model validations enforce title and company).
+# Editable job fields shared by create and update. The model requires a title;
+# a missing company is allowed, and services normalize blank companies to null.
 module Types
   class JobAttributesInput < Types::BaseInputObject
     argument :title, String, required: false

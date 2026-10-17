@@ -133,7 +133,7 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
         return kept
 
     title = shorten(posting.title, text_limits.MAX_SHORT_TEXT) or ""
-    company = shorten(posting.company, text_limits.MAX_SHORT_TEXT) or ""
+    company = shorten(posting.company, text_limits.MAX_SHORT_TEXT)
     location = shorten(posting.location, text_limits.MAX_SHORT_TEXT)
     description = shorten(posting.description, text_limits.MAX_JOB_DESCRIPTION) or ""
     requirements = keep_items(posting.requirements)

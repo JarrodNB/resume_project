@@ -3,6 +3,7 @@
 # lock, so a redelivered result can't create the job twice. The Job's url is the posting's
 # source_url when that is present. A blank url is stored as nil and is not used to find an
 # existing job.
+# An absent or blank company is stored as null; the title is still required.
 # Index:
 #   - call: validates the posting's shape and saves the Job; returns it, or error messages
 module Jobs
@@ -67,6 +68,7 @@ module Jobs
     # Maps the posting onto Job columns. A blank link is stored as nil.
     def job_attributes
       @scraped_job.slice(*TEXT_FIELDS).merge(
+        "company" => @scraped_job["company"].presence,
         "url" => url,
         "requirements" => @scraped_job.fetch("requirements", []),
         "responsibilities" => @scraped_job.fetch("responsibilities", []),

@@ -720,7 +720,7 @@ scalar JSON
 
 type Job {
   appliedAt: ISO8601DateTime
-  company: String!
+  company: String
   createdAt: ISO8601DateTime!
   description: String
 

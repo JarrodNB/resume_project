@@ -50,9 +50,21 @@ RSpec.describe Jobs::CreateJobFromPastedPostingService do
     expect(result.errors).to eq([ "Pasted job must be an object" ])
   end
 
-  it "returns validation errors for a posting without a company" do
-    result = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("company" => ""))
+  it "saves a missing company as null" do
+    result = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("company" => nil))
 
-    expect(result.errors).to eq([ "Company can't be blank" ])
+    expect(result).to be_success
+    expect(result.value.reload.company).to be_nil
+  end
+
+  it "normalizes blank companies without relaxing the title or text limits" do
+    result = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("company" => " \t"))
+    expect(result).to be_success
+    expect(result.value.reload.company).to be_nil
+
+    missing_title = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("source_url" => nil, "title" => nil))
+    expect(missing_title.errors).to include("Title can't be blank")
+    oversized = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("source_url" => nil, "company" => "a" * (TextLimits::SHORT + 1)))
+    expect(oversized).not_to be_success
   end
 end

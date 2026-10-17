@@ -17,8 +17,8 @@ DROPPED_URL_WARNING = "The link wasn't in the ad, so it was left off."
 
 
 def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> ScrapedJobPosting:
-    """Builds a pasted_text posting. Title, company, and bullets are kept as the model
-    returned them; call this only after find_parsed_job_problems is empty."""
+    """Builds a pasted_text posting, keeping an unstated company null. Supplied text
+    stays as returned; call this only after find_parsed_job_problems is empty."""
     warnings: list[str] = []
     location = _kept_optional(parsed.location, source_text, DROPPED_LOCATION_WARNING, warnings)
     url = _kept_url(parsed.url, source_text, warnings)
@@ -32,7 +32,7 @@ def posting_from_parsed_job(source_text: str, parsed: ParsedJobPosting) -> Scrap
         source="pasted_text",
         source_url=url or "",
         title=parsed.title.strip(),
-        company=parsed.company.strip(),
+        company=parsed.company.strip() if parsed.company is not None else None,
         location=location,
         description=source_text.strip(),
         requirements=requirements,

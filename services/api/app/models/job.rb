@@ -1,4 +1,5 @@
 # Description: A structured job profile the user tracks through application stages.
+# The title is required; company may be unknown and stored as null.
 # Index:
 #   - STAGES / stage enum: unapplied, applied, interviewing, rejected, offer
 #   - resumes: tailored resumes written for this job
@@ -17,7 +18,7 @@ class Job < ApplicationRecord
 
   enum :stage, STAGES.index_with(&:itself), validate: true
 
-  validates :title, :company, presence: true
+  validates :title, presence: true
   validates :title, :company, :location, :url, length: { maximum: TextLimits::SHORT }
   validates :description, length: { maximum: TextLimits::JOB_DESCRIPTION }
   validates :notes, length: { maximum: TextLimits::PROSE }

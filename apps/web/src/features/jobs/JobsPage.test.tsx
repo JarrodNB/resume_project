@@ -12,7 +12,7 @@ function jobsMock(jobs: Record<string, unknown>[]) {
   return { request: { query: JOBS_QUERY }, result: { data: { jobs } } }
 }
 
-it('lists saved jobs with their stage', async () => {
+it.each(['Acme', null])('lists saved jobs with their stage and company %s', async (company) => {
   renderPage({
     path: '/jobs',
     url: '/jobs',
@@ -23,7 +23,7 @@ it('lists saved jobs with their stage', async () => {
           __typename: 'Job',
           id: 'job-1',
           title: 'AI Engineer',
-          company: 'Acme',
+          company,
           location: 'Remote',
           stage: 'UNAPPLIED',
           createdAt: '2026-10-01T00:00:00Z',
@@ -33,7 +33,7 @@ it('lists saved jobs with their stage', async () => {
   })
 
   expect(await screen.findByText('AI Engineer')).toBeInTheDocument()
-  expect(screen.getByText('Acme · Remote')).toBeInTheDocument()
+  expect(screen.getByText(`${company ?? 'Unknown company'} · Remote`)).toBeInTheDocument()
   expect(screen.getByText('Not applied')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /AI Engineer/ })).toHaveAttribute('href', '/jobs/job-1')
 })
@@ -46,7 +46,7 @@ it('invites the user to add a job when there are none', async () => {
   expect(screen.getByRole('link', { name: 'Paste a job ad' })).toHaveAttribute('href', '/jobs/paste')
 })
 
-it('adds a job manually and opens it', async () => {
+it.each(['Acme', null])('adds a job manually with company %s and opens it', async (company) => {
   const user = userEvent.setup()
   const { router } = renderPage({
     path: '/jobs',
@@ -61,7 +61,7 @@ it('adds a job manually and opens it', async () => {
           variables: {
             attributes: {
               title: 'Engineer',
-              company: 'Acme',
+              company,
               location: null,
               url: null,
               notes: null,
@@ -88,7 +88,7 @@ it('adds a job manually and opens it', async () => {
 
   await user.click(await screen.findByRole('button', { name: 'Add manually' }))
   await user.type(screen.getByLabelText('Title'), 'Engineer')
-  await user.type(screen.getByLabelText('Company'), 'Acme')
+  if (company) await user.type(screen.getByLabelText('Company'), company)
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-9'))

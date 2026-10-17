@@ -28,15 +28,16 @@ beforeEach(() => {
   vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(renderer.download)
 })
 
-function setup({ legacy = false, uploadError = false, readError = false, businessError = '' } = {}) {
+function setup({ legacy = false, uploadError = false, readError = false, businessError = '', displayedFingerprint = 'saved-fingerprint' } = {}) {
   const upload = vi.fn()
   const rerun = vi.fn()
+  let currentReport = report
   let publish: (value: typeof report) => void = () => {}
   const link = new ApolloLink((operation) => new Observable((observer) => {
     switch (operation.operationName) {
       case 'ResumeAtsReport':
         if (readError) observer.error(new Error('Report read failed'))
-        else observer.next({ data: { resume: { __typename: 'Resume', id: 'resume', atsReport: legacy ? null : report } } })
+        else observer.next({ data: { resume: { __typename: 'Resume', id: 'resume', atsReport: legacy ? null : currentReport } } })
         observer.complete()
         break
       case 'ResumeAtsReportUpdated': publish = (value) => observer.next({ data: { atsReportUpdated: value } }); break
@@ -45,16 +46,24 @@ function setup({ legacy = false, uploadError = false, readError = false, busines
         observer.next({ data: { rerunResumeAtsCheck: { __typename: 'RerunResumeAtsCheckPayload', report, errors: [] } } })
         observer.complete()
         break
+      case 'UpdateResume':
+        currentReport = { ...report, id: 'new-run', runId: 'new-run', contentFingerprint: 'new-fingerprint', createdAt: '2026-10-17T01:00:00Z' }
+        observer.next({ data: { updateResume: { __typename: 'UpdateResumePayload', errors: [], resume: {
+          __typename: 'Resume', id: 'resume', title: 'Resume', atsContentFingerprint: currentReport.contentFingerprint,
+          sections: [{ __typename: 'ResumeSection', ...sections[0], content: operation.variables.sections[0].content }],
+        } } } })
+        observer.complete()
+        break
       case 'SubmitResumeAtsPdf':
         upload(operation.variables)
         if (uploadError) observer.error(new Error('Upload unavailable'))
-        else observer.next({ data: { submitResumeAtsPdf: { __typename: 'SubmitResumeAtsPdfPayload', report: businessError ? null : { ...report, pdfReadability: { ...category, status: 'queued', score: null } }, errors: businessError ? [businessError] : [] } } })
+        else observer.next({ data: { submitResumeAtsPdf: { __typename: 'SubmitResumeAtsPdfPayload', report: businessError ? null : { ...currentReport, pdfReadability: { ...category, status: 'queued', score: null } }, errors: businessError ? [businessError] : [] } } })
         observer.complete()
         break
       default: observer.error(new Error(`Unexpected operation ${operation.operationName}`))
     }
   }))
-  render(<MockedProvider link={link}><SavedResumeEditor resumeId="resume" sections={sections} /></MockedProvider>)
+  render(<MockedProvider link={link}><SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint={displayedFingerprint} /></MockedProvider>)
   return { upload, rerun, publish: (value: typeof report) => publish(value) }
 }
 
@@ -83,6 +92,19 @@ it('requires saving dirty edits and leaves preview independent from ATS exports'
   expect(upload).not.toHaveBeenCalled()
 })
 
+it('saves without PDF work and exports using the new saved draft identity', async () => {
+  const { upload } = setup()
+  await userEvent.type(screen.getByRole('textbox', { name: 'Summary' }), ' updated')
+  await userEvent.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Export PDF' })).toBeEnabled())
+  expect(renderer.pdf).not.toHaveBeenCalled()
+  expect(upload).not.toHaveBeenCalled()
+  await userEvent.click(screen.getByRole('button', { name: 'Export PDF' }))
+  await waitFor(() => expect(upload).toHaveBeenCalledOnce())
+  expect(upload.mock.calls[0][0]).toMatchObject({ runId: 'new-run', contentFingerprint: 'new-fingerprint' })
+  expect(renderer.pdf.mock.calls[0][0].props.model.blocks[0].text).toBe('Engineer updated')
+})
+
 it('preserves the download when upload fails and explains exporting again to retry', async () => {
   setup({ uploadError: true })
   await userEvent.click(await screen.findByRole('button', { name: 'Export PDF' }))
@@ -96,6 +118,14 @@ it('creates a report for a legacy saved resume after downloading', async () => {
   await waitFor(() => expect(upload).toHaveBeenCalledOnce())
   expect(rerun).toHaveBeenCalledOnce()
   expect(renderer.download.mock.invocationCallOrder[0]).toBeLessThan(rerun.mock.invocationCallOrder[0])
+})
+
+it.each([true, false])('does not relabel an older displayed PDF with another tab’s report (legacy=%s)', async (legacy) => {
+  const { upload } = setup({ legacy, displayedFingerprint: 'older-displayed-content' })
+  await userEvent.click(await screen.findByRole('button', { name: 'Export PDF' }))
+  expect(await screen.findByText(/Reload this resume before exporting again/)).toBeInTheDocument()
+  expect(renderer.download).toHaveBeenCalledOnce()
+  expect(upload).not.toHaveBeenCalled()
 })
 
 it('keeps a successful download and shows the server reason for rejecting stale bytes', async () => {

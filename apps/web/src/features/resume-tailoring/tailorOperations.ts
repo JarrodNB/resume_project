@@ -17,6 +17,7 @@ export const TAILOR_JOB_QUERY = graphql(`
       resume {
         id
         title
+        atsContentFingerprint
         sections {
           id
           sectionType
@@ -80,6 +81,7 @@ export const UPDATE_RESUME_MUTATION = graphql(`
       resume {
         id
         title
+        atsContentFingerprint
         sections {
           id
           sectionType

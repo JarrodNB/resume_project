@@ -20,7 +20,7 @@ export function useUpdateResume(resumeId: string) {
     try {
       const { data } = await update({ variables: { id: resumeId, sections } })
       const payload = data?.updateResume
-      if (payload?.resume && payload.errors.length === 0) return true
+      if (payload?.resume && payload.errors.length === 0) return payload.resume
       setErrors(payload?.errors.length ? payload.errors : ["Couldn't save this resume. Please try again."])
     } catch (error) {
       setErrors([requestErrorMessage(error, "Couldn't save this resume. Check your connection and try again.")])

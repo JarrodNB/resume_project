@@ -19,7 +19,7 @@ export function useResumePdfExport(resumeId: string, onReport: (report: AtsRepor
   const [status, setStatus] = useState('')
   const inFlight = useRef(false)
 
-  async function exportPdf(model: ResumePdfModel, savedReport: AtsReportFieldsFragment | null) {
+  async function exportPdf(model: ResumePdfModel, savedReport: AtsReportFieldsFragment | null, savedFingerprint: string) {
     if (inFlight.current) return
     inFlight.current = true
     setPending(true)
@@ -42,6 +42,9 @@ export function useResumePdfExport(resumeId: string, onReport: (report: AtsRepor
         if (payload?.errors.length || !payload?.report) throw new PdfCheckError(payload?.errors.join(' ') || 'Could not create an ATS report.')
         report = payload.report
         onReport(report)
+      }
+      if (!savedFingerprint || report.contentFingerprint !== savedFingerprint) {
+        throw new PdfCheckError('The saved resume changed since this editor was loaded. Reload this resume before exporting again.')
       }
       const result = await submit({ variables: {
         resumeId, runId: report.runId, contentFingerprint: report.contentFingerprint,

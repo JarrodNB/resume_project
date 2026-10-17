@@ -50,5 +50,8 @@ Preview opens the current draft as a large PDF.
 - Export requires a saved draft and waits for an active save/report refresh to finish.
   Editing, saving, preview and report updates never start PDF inspection. A legacy saved
   resume can create its report during explicit export; content checks need not finish first.
+- Keep `Resume.atsContentFingerprint` paired with the sections loaded into the editor.
+  Only a successful explicit save updates the local saved identity. A newer live report
+  may describe another tab's changes; it cannot relabel the PDF generated from this draft.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

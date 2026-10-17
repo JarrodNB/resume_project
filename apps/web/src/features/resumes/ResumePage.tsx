@@ -39,7 +39,7 @@ export function ResumePage() {
       </div>
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
       {!resume && loading && <p className="text-muted-foreground">Loading…</p>}
-      {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} sections={resume.sections} />}
+      {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} sections={resume.sections} atsContentFingerprint={resume.atsContentFingerprint} />}
     </div>
   )
 }

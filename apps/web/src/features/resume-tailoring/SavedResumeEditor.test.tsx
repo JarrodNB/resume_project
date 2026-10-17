@@ -20,7 +20,7 @@ export function atsMocks(value = report) { return [
 ] }
 
 it('marks feedback outdated immediately and restores freshness when the draft is reverted', async () => {
-  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} />, mocks: atsMocks() })
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" />, mocks: atsMocks() })
   await userEvent.click(await screen.findByRole('button', { name: /ATS check/ }))
   const field = screen.getByRole('textbox', { name: 'Summary' })
   await userEvent.type(field, ' edited')
@@ -35,7 +35,7 @@ const completed = { ...report, jobAlignment: { ...category, status: 'completed',
 
 it('requires explicit saving before rerun and keeps save failures separate', async () => {
   const rerun = vi.fn(() => ({ data: { rerunResumeAtsCheck: { __typename: 'RerunResumeAtsCheckPayload', report: null, errors: ['Check allowance exhausted.'] } } }))
-  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} />, mocks: [
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" />, mocks: [
     ...atsMocks(completed),
     { request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume', sections: [{ id: 'section', content: { text: 'Engineer edited' } }] } }, result: { data: { updateResume: { __typename: 'UpdateResumePayload', resume: null, errors: ['Save rejected.'] } } } },
     { request: { query: RERUN_ATS_CHECK_MUTATION, variables: { resumeId: 'resume' } }, result: rerun },
@@ -56,9 +56,9 @@ it('requires explicit saving before rerun and keeps save failures separate', asy
 
 it('follows the new saved report and preserves edits typed during saving', async () => {
   const next = { ...report, id: 'new-run', runId: 'new-run', contentFingerprint: 'new', createdAt: '2026-10-17T01:00:00Z' }
-  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} />, mocks: [
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" />, mocks: [
     ...atsMocks(completed),
-    { request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume', sections: [{ id: 'section', content: { text: 'Engineer edited' } }] } }, delay: 120, result: { data: { updateResume: { __typename: 'UpdateResumePayload', errors: [], resume: { __typename: 'Resume', id: 'resume', title: 'Resume', sections: [{ __typename: 'ResumeSection', ...sections[0], content: { text: 'Engineer edited' } }] } } } } },
+    { request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume', sections: [{ id: 'section', content: { text: 'Engineer edited' } }] } }, delay: 120, result: { data: { updateResume: { __typename: 'UpdateResumePayload', errors: [], resume: { __typename: 'Resume', id: 'resume', title: 'Resume', atsContentFingerprint: 'new', sections: [{ __typename: 'ResumeSection', ...sections[0], content: { text: 'Engineer edited' } }] } } } } },
     { request: { query: ATS_REPORT_QUERY, variables: { id: 'resume' } }, result: { data: { resume: { __typename: 'Resume', id: 'resume', atsReport: next } } } },
   ] })
   await userEvent.click(screen.getByRole('button', { name: /ATS check/ }))
@@ -73,9 +73,9 @@ it('follows the new saved report and preserves edits typed during saving', async
 })
 
 it('keeps earlier feedback outdated if refreshing after a successful save fails', async () => {
-  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} />, mocks: [
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" />, mocks: [
     ...atsMocks(completed),
-    { request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume', sections: [{ id: 'section', content: { text: 'Engineer edited' } }] } }, result: { data: { updateResume: { __typename: 'UpdateResumePayload', errors: [], resume: { __typename: 'Resume', id: 'resume', title: 'Resume', sections: [{ __typename: 'ResumeSection', ...sections[0], content: { text: 'Engineer edited' } }] } } } } },
+    { request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume', sections: [{ id: 'section', content: { text: 'Engineer edited' } }] } }, result: { data: { updateResume: { __typename: 'UpdateResumePayload', errors: [], resume: { __typename: 'Resume', id: 'resume', title: 'Resume', atsContentFingerprint: 'new', sections: [{ __typename: 'ResumeSection', ...sections[0], content: { text: 'Engineer edited' } }] } } } } },
     { request: { query: ATS_REPORT_QUERY, variables: { id: 'resume' } }, error: new Error('Refresh unavailable') },
   ] })
   await userEvent.click(screen.getByRole('button', { name: /ATS check/ }))
@@ -96,7 +96,7 @@ it('follows scheduling updates without a task and ignores a late report for an o
       observer.complete()
     }
   }))
-  render(<MockedProvider link={link}><SavedResumeEditor resumeId="resume" sections={sections} /></MockedProvider>)
+  render(<MockedProvider link={link}><SavedResumeEditor resumeId="resume" sections={sections} atsContentFingerprint="content" /></MockedProvider>)
   await userEvent.click(screen.getByRole('button', { name: /ATS check/ }))
   expect(await screen.findByText('Content quality: queued')).toBeInTheDocument()
   const next = { ...completed, id: 'new', runId: 'new', createdAt: '2026-10-17T01:00:00Z' }

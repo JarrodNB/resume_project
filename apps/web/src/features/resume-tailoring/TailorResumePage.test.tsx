@@ -184,7 +184,7 @@ it('saves the finished draft', async () => {
       },
       result: { data: { saveTailoredResume: { __typename: 'SaveTailoredResumePayload', resume: { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme' }, errors: [] } } },
     },
-    jobMock(null, { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', sections: [] }),
+    jobMock(null, { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', atsContentFingerprint: 'saved-fingerprint', sections: [] }),
   ])
 
   await user.click(await screen.findByRole('button', { name: 'Save resume' }))
@@ -197,6 +197,7 @@ it('edits a resume that was already saved and shows the preview', async () => {
     jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), {
       __typename: 'Resume',
       id: 'resume-1',
+      atsContentFingerprint: 'saved-fingerprint',
       title: 'Engineer at Acme',
       sections: [
         { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Backend engineer.' } },
@@ -214,6 +215,7 @@ it('edits a resume that was already saved and shows the preview', async () => {
             resume: {
               __typename: 'Resume',
               id: 'resume-1',
+              atsContentFingerprint: 'new-fingerprint',
               title: 'Engineer at Acme',
               sections: [
                 {

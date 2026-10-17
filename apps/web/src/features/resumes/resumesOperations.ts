@@ -26,6 +26,7 @@ export const RESUME_QUERY = graphql(`
     resume(id: $id) {
       id
       title
+      atsContentFingerprint
       job {
         id
         title

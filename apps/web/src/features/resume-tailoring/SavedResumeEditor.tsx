@@ -25,10 +25,11 @@ interface SavedResumeSection {
 }
 
 /** Edits one saved resume. Preview shows the current draft at actual size. */
-export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; sections: SavedResumeSection[] }) {
+export function SavedResumeEditor({ resumeId, sections, atsContentFingerprint }: { resumeId: string; sections: SavedResumeSection[]; atsContentFingerprint: string }) {
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
   const [savedDrafts, setSavedDrafts] = useState(() => JSON.stringify(drafts))
+  const [savedFingerprint, setSavedFingerprint] = useState(atsContentFingerprint)
   const [refreshingReport, setRefreshingReport] = useState(false)
   const dirty = JSON.stringify(drafts) !== savedDrafts
   const ats = useAtsReport(resumeId)
@@ -45,8 +46,10 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
 
   async function save() {
     const submittedDrafts = JSON.stringify(drafts)
-    if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))) {
+    const saved = await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))
+    if (saved) {
       setSavedDrafts(submittedDrafts)
+      setSavedFingerprint(saved.atsContentFingerprint)
       setRefreshingReport(true)
       await ats.refresh()
       setRefreshingReport(false)
@@ -59,7 +62,7 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
         <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
           Preview
         </Button>
-        <Button type="button" disabled={dirty || pending || refreshingReport || pdfExport.pending} onClick={() => { if (!dirty && !pending && !refreshingReport) void pdfExport.exportPdf(model, ats.report) }}>
+        <Button type="button" disabled={dirty || pending || refreshingReport || pdfExport.pending} onClick={() => { if (!dirty && !pending && !refreshingReport) void pdfExport.exportPdf(model, ats.report, savedFingerprint) }}>
           {pdfExport.pending ? 'Exporting PDF…' : 'Export PDF'}
         </Button>
       </div>

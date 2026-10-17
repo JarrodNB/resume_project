@@ -21,6 +21,7 @@ function resumeQuery(job: Record<string, unknown> | null) {
         resume: {
           __typename: 'Resume',
           id: 'resume-1',
+          atsContentFingerprint: 'saved-fingerprint',
           title: 'Engineer at Acme',
           job,
           sections: [

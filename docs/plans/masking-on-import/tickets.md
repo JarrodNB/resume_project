@@ -19,7 +19,7 @@ masked text and a per-import session with masking/restoration operations. Keep P
 and spaCy details private. The provider and telemetry adapters in 02 must be able to use
 the session without inspecting replacement pairs. Avoid moving unrelated task behavior.
 
-**Status:** in-progress.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -47,10 +47,17 @@ the session without inspecting replacement pairs. Avoid moving unrelated task be
 - `docker compose run --rm --no-deps ai ruff check .`
 - Verify real analysis with networking disabled using the built image and synthetic
   text; record the actual image/command plus model loading time and image size.
-- Actual results: not run; implementation has not started.
+- Actual: worker real-detector suite 16 passed; integration verification of
+  `tests/test_pii.py tests/test_contact_mask.py` in `careergrind-pii-ai:latest`
+  with network disabled and dummy API key: 21 passed. Scoped Ruff and diff checks pass.
+  Red/green regressions cover session serialization and private-domain emails.
+  Python 3.13.11 image build/model-load passed, image about 884 MB; cold preparation
+  1.886s and warm short-document preparation 0.005–0.017s. Full Ruff has four existing
+  errors outside the ticket. Detection limits and licenses are in `pii/README.md`.
 
 **Progress:** Assigned to PII module agent in `.worktrees/masking-on-import`, branch
-`work/masking-on-import-01-local-pii`, base `6722f8a`. No implementation commit yet.
+`work/masking-on-import-01-local-pii`, base `6722f8a`. Worker commit `83ec5c0`,
+integrated as `f1592c5` and verified before releasing 02.
 Dependency setup problems must be reported rather
 than silently replacing the approved detector. Ready for 02 only after integration and
 verification on the integration branch.
@@ -71,7 +78,7 @@ and source checks. The PII module owns replacement decisions. Existing hooks and
 telemetry adapters consume the session without duplicating detection. Preserve other
 task types' known-contact behavior and existing queue/domain ownership.
 
-**Status:** blocked.
+**Status:** ready-for-agent.
 
 **Acceptance Criteria:**
 

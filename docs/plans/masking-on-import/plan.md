@@ -119,19 +119,20 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: ticket 01 in progress in an isolated worktree; 02 awaits verified integration.
+- Phase: ticket 01 integrated and verified; next: ticket 02 import lifecycle integration.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
   before this approval-record update.
 - Breakdown approval: user “confirmed.” Approved tickets SHA-256:
   `0727a6fb9c83e17419c85331477ba17d553a2ccee079ea75a2109a17bc0b0085`.
-- Tickets: 01 in-progress; 02 blocked by 01.
+- Tickets: 01 implemented; 02 ready-for-agent.
 - Planning commit and integration base: `6722f8a1245711e62da66ae30e2cf38dcc2e415b`.
 - Integration: `work/masking-on-import`, `.worktrees/masking-integration`.
 - Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
   assigned to the PII module agent at the planning base.
-- Integration head: planning base until ticket 01 passes. Reviews and PR pending.
+- Ticket 01 worker commit `83ec5c0`, integrated as `f1592c5`; 21 focused offline tests pass.
+- Integration head: see Git; reviews and PR pending.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,
   `test_contact_mask.py`, `test_tracing.py`, and `test_process_task_message.py`: 32 passed.
   Used existing `resume_project-ai:latest`, an explicit integration-worktree mount,

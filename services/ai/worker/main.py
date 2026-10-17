@@ -19,6 +19,7 @@ from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai_harness import InputBlocked
 
 from conversation_logging import conversation_scope, publish_result
+from database.ats_snapshot_reader import build_ats_snapshot_reader
 from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
@@ -179,6 +180,7 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        read_ats_snapshot=build_ats_snapshot_reader(settings),
     )
 
     stop_requested = False

@@ -33,13 +33,23 @@ module AiTasks
         end
         next false if status == "usage" || ai_task.finished? || stale_generation?(ai_task)
 
-        attributes = attributes_for(status)
+        attributes = if ai_task.check_resume_content? && status == "needs_user_input"
+          { status: "failed", result: nil, error_message: "Invalid check response. Please retry.", completed_at: Time.current }
+        else
+          attributes_for(status)
+        end
         attributes.merge!(usage_attributes(ai_task)) unless @message["attempt_id"].present?
         attributes.merge!(tailor_input_attributes(ai_task)) if ai_task.tailor_resume?
         attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
+        if ai_task.check_resume_content? && attributes[:status] == "failed"
+          ai_task.user.ats_check_runs.find_by(ai_task_id: ai_task.id)&.update!(status: "failed", error_message: attributes[:error_message])
+        end
         ai_task.update!(attributes)
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if applied
+      if applied && ai_task.check_resume_content? && ai_task.subject.is_a?(Resume)
+        AtsChecks::NotifyReportService.call(resume: ai_task.subject)
+      end
       success(ai_task)
     end
 
@@ -47,7 +57,7 @@ module AiTasks
 
     # Interview writes share the owner lock with enqueue/save/delete; acquire it before the task.
     def with_result_lock(ai_task, &block)
-      if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+      if ai_task.check_resume_content? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
         ai_task.with_lock(&block)
@@ -72,6 +82,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.check_resume_content?
+        result = AtsChecks::ApplyContentResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         service = ai_task.review_interview_answer? ? InterviewPrep::ApplyFeedbackService : InterviewPrep::ApplyQuestionsService
         result = service.call(ai_task: ai_task, result: @message["result"])

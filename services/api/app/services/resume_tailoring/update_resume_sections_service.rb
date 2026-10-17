@@ -19,8 +19,11 @@ module ResumeTailoring
       known = @resume.sections.index_by(&:id)
       return failure([ UNKNOWN_SECTION ]) if updates.any? { |update| !known.key?(update[:id]) }
 
-      Resume.transaction do
+      @resume.with_lock do
+        known = @resume.sections.reload.index_by(&:id)
+        changed = updates.any? { |update| known[update[:id]].content != update[:content] }
         updates.each { |update| known[update[:id]].update!(content: update[:content]) }
+        AtsChecks::ScheduleContentCheckService.call(resume: @resume) if changed
       end
       success(@resume.reload)
     rescue ActiveRecord::RecordInvalid => error

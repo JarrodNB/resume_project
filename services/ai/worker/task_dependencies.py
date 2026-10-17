@@ -39,6 +39,7 @@ class TaskDependencies:
     http_client: httpx.Client
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
+    read_ats_snapshot: Callable | None = None
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
 
 

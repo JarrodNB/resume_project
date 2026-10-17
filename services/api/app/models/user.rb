@@ -18,6 +18,7 @@ class User < ApplicationRecord
   has_many :jobs, dependent: :destroy
   has_many :resumes, dependent: :destroy
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
+  has_many :ats_check_runs, dependent: :destroy
   has_many :ai_tasks, dependent: :destroy
   has_many :library_embeddings, dependent: :delete_all
 

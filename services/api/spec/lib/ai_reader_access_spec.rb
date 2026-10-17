@@ -59,6 +59,15 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
+  it "reads immutable ATS snapshots but cannot modify them" do
+    resume = create(:resume)
+    run = AtsChecks::ScheduleContentCheckService.call(resume: resume).value
+    expect(select_as_ai_reader("SELECT id, content_snapshot FROM ats_check_runs")).to eq(
+      [{ "id" => run.id, "content_snapshot" => "[]" }])
+    expect { select_as_ai_reader("UPDATE ats_check_runs SET status = 'completed'") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
   it "can't write" do
     create(:job)
 

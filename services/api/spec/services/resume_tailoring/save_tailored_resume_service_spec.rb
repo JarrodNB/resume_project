@@ -23,6 +23,8 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(resume.title).to eq("Backend Engineer at Northwind")
     expect(resume.sections.order(:position).map(&:section_type)).to eq(%w[contact summary])
     expect(ai_task.reload).to be_accepted
+    expect(resume.ats_check_runs.count).to eq(1)
+    expect(resume.ats_check_runs.first.status).to eq("pending")
   end
 
   it "keeps the resume when the job is deleted" do

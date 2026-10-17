@@ -120,3 +120,6 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
 
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.
   Decide before the deploy phase whether to use EKS or a cheaper k8s setup.
+
+Saved resume assessments and their versioned content/PDF category contract are described in
+[ATS checks](architecture/ats-checks.md).

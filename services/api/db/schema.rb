@@ -1,5 +1,3 @@
-# Description: Generated database structure for Rails domain storage.
-# Index: ActiveRecord schema definition, tables, indexes, and foreign keys.
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -12,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -82,6 +80,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_020000) do
     t.boolean "finalized", default: true, null: false
     t.index ["ai_task_id"], name: "index_ai_usage_attempts_on_ai_task_id"
     t.index ["attempt_id"], name: "index_ai_usage_attempts_on_attempt_id", unique: true
+  end
+
+  create_table "ats_check_runs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "resume_id", null: false
+    t.uuid "ai_task_id"
+    t.jsonb "content_snapshot", default: [], null: false
+    t.jsonb "job_snapshot", default: {}, null: false
+    t.string "content_fingerprint", null: false
+    t.string "job_fingerprint", null: false
+    t.string "rubric_version", null: false
+    t.string "status", default: "pending", null: false
+    t.string "error_message"
+    t.jsonb "content_result", default: {}, null: false
+    t.jsonb "pdf_result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_ats_check_runs_on_ai_task_id"
+    t.index ["resume_id", "created_at"], name: "index_ats_check_runs_on_resume_id_and_created_at"
+    t.index ["resume_id"], name: "index_ats_check_runs_on_resume_id"
+    t.index ["user_id"], name: "index_ats_check_runs_on_user_id"
   end
 
   create_table "certifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -161,7 +180,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_020000) do
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -317,6 +336,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_020000) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
+  add_foreign_key "ats_check_runs", "ai_tasks", on_delete: :nullify
+  add_foreign_key "ats_check_runs", "resumes"
+  add_foreign_key "ats_check_runs", "users"
   add_foreign_key "certifications", "users"
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade

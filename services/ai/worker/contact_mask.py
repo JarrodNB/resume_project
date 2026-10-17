@@ -72,7 +72,7 @@ def using_known_contact(task: AiTaskMessage) -> Iterator[None]:
         yield
         return
     contact = _load_known_contact(task)
-    if task.task_type == "parse_resume":
+    if task.task_type in {"parse_resume", "check_resume_content"}:
         with import_privacy_scope(contact):
             yield
         return

@@ -3,6 +3,8 @@
 # Index:
 #   - sections: ordered sections with JSON content snapshots
 class Resume < ApplicationRecord
+  has_many :ats_check_runs, dependent: :destroy
+  has_many :ai_tasks, as: :subject, dependent: :nullify
   belongs_to :user
   belongs_to :job, optional: true
   has_many :sections, -> { order(:position) },

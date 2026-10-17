@@ -25,6 +25,7 @@ module ResumeTailoring
         return failure([ NOT_READY_MESSAGE ]) if sections.empty?
 
         resume = create_resume(sections)
+        AtsChecks::ScheduleContentCheckService.call(resume: resume)
         @ai_task.update!(accepted_at: Time.current)
         success(resume)
       end

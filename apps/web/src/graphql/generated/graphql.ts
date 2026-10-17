@@ -12,6 +12,7 @@ export type AiTaskStatusEnum =
 
 export type AiTaskTypeEnum =
   | 'ANALYZE_GAPS'
+  | 'CHECK_RESUME_CONTENT'
   | 'GENERATE_INTERVIEW_QUESTIONS'
   | 'PARSE_JOB_POSTING'
   | 'PARSE_RESUME'

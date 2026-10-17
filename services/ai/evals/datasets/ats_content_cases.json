@@ -1,0 +1,102 @@
+[
+  {
+    "name": "supported-and-missing",
+    "inputs": {
+      "resume_id": "00000000-0000-0000-0000-000000000001",
+      "content_snapshot": [
+        {
+          "id": "s1",
+          "type": "skills",
+          "content": {
+            "text": "Python and SQL"
+          },
+          "section_type": "skills",
+          "title": "Skills"
+        }
+      ],
+      "job_snapshot": {
+        "requirements": [
+          {
+            "id": "r1",
+            "text": "Python",
+            "required": true
+          },
+          {
+            "id": "r2",
+            "text": "Kubernetes",
+            "required": false
+          }
+        ]
+      },
+      "content_fingerprint": "synthetic",
+      "job_fingerprint": "synthetic-job",
+      "rubric_version": "1"
+    },
+    "expected_output": {
+      "r1": "covered",
+      "r2": "missing"
+    }
+  },
+  {
+    "name": "adjacent-is-partial",
+    "inputs": {
+      "resume_id": "00000000-0000-0000-0000-000000000001",
+      "content_snapshot": [
+        {
+          "id": "s1",
+          "section_type": "summary",
+          "title": "Summary",
+          "content": {
+            "text": "Built internal API prototypes during a university Python project. No production deployment experience."
+          }
+        }
+      ],
+      "job_snapshot": {
+        "requirements": [
+          {
+            "id": "r1",
+            "text": "Professional production Python API development experience",
+            "required": true
+          }
+        ]
+      },
+      "content_fingerprint": "synthetic",
+      "job_fingerprint": "synthetic-job",
+      "rubric_version": "1"
+    },
+    "expected_output": {
+      "r1": "partial"
+    }
+  },
+  {
+    "name": "missing-is-not-invented",
+    "inputs": {
+      "resume_id": "00000000-0000-0000-0000-000000000001",
+      "content_snapshot": [
+        {
+          "id": "s1",
+          "section_type": "summary",
+          "title": "Summary",
+          "content": {
+            "text": "Coordinated weekly community volunteering events and maintained participant records."
+          }
+        }
+      ],
+      "job_snapshot": {
+        "requirements": [
+          {
+            "id": "r1",
+            "text": "Professional production Python API development experience",
+            "required": true
+          }
+        ]
+      },
+      "content_fingerprint": "synthetic",
+      "job_fingerprint": "synthetic-job",
+      "rubric_version": "1"
+    },
+    "expected_output": {
+      "r1": "missing"
+    }
+  }
+]

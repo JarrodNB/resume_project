@@ -49,6 +49,7 @@ Write the plan with these sections, scaled to actual scope:
 - Implementation Decisions
 - Testing Decisions
 - Architecture Decisions
+- Rollout Risks and Other Risks
 - Observable Acceptance Criteria
 - Dependencies and Verification
 - Out of Scope

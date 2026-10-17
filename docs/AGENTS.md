@@ -9,7 +9,7 @@ Project-level documentation that spans services.
 - `evals/` — optional timestamped AI quality reports and reporting CLI usage.
 
 - `conversation_logging.md` — local transcript location, controls, interpretation and cleanup.
-- `architecture.md` — services, dependency directions, data flow, queue design, key decisions
+- `architecture.md` — service overview, dependency directions, and links to focused guides in `architecture/`
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
 - `mvp_plan.md` — first milestone scope and build order
 - `plans/` — feature plans and implementation tickets; the `orchestrator` skill describes Kanban delivery, approvals, and review.
@@ -19,6 +19,6 @@ Project-level documentation that spans services.
 
 ## Local Rules
 
-- Record significant decisions in `architecture.md` under "Decisions", with the reasoning.
+- Record significant decisions with their reasoning beside the relevant behavior in `architecture/`; system-wide decisions belong in `architecture.md` under "System decisions".
 
 - `plans/interview_prep.md` — phased interview practice plan and task verification progress.

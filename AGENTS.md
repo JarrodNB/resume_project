@@ -76,7 +76,7 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 - Rails is the source of truth for domain data. The AI service connects with a read-only
   database role and returns everything it produces via the `ai_results` queue.
 - SQS can deliver a message more than once. Every handler on either side of the queue must
-  be safe to run twice (see "Duplicate Messages" in `docs/architecture.md`).
+  be safe to run twice (see [Duplicate Messages](docs/architecture/ai-tasks.md#duplicate-messages)).
 - Long-running AI work goes through SQS (ElasticMQ locally), never synchronous HTTP.
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,

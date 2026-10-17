@@ -99,6 +99,19 @@ queue contracts remain unchanged. No approvals in Rails, task messages, or globa
 Keep agent capabilities as enforcement where useful, replacing their duplicate Jev pass
 with coverage enforcement and checks of previously unseen inputs.
 
+## Rollout Risks and Other Risks
+
+- Smaller chunks add requests and may lose context; overlap and live comparisons measure
+  the tradeoff rather than assuming improved detection. Report results on synthetic cases
+  as limited evidence, not a guarantee for all inputs.
+- Input-level screening no longer asks Jev to evaluate combined inputs. Trusted builders
+  must cover every untrusted source; exact rendered-prompt binding and history tests guard
+  against accidentally skipping new inputs.
+- Screening plus generation must fit the worker visibility deadline. Bound the entire
+  execution and retain charges when a late chunk or provider request fails.
+- During migration retain the old guard for unmigrated callers. New guidance and code
+  must agree before final verification.
+
 ## Observable Acceptance Criteria
 
 1. A short allowed resume or pasted ad makes one Jev screening request before parsing,

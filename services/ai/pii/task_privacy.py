@@ -46,3 +46,11 @@ class TaskPrivacy:
         if self._session is None:
             raise RuntimeError("Document privacy has not been prepared")
         return self._session.restore(value)
+
+    def original_length(self, text: str) -> int:
+        """Measure an approved import prompt without counting replacement expansion.
+
+        Callers must establish exact screening coverage before using this measurement.
+        Unknown or malformed tokens still fail restoration; provider text stays masked.
+        """
+        return len(text) if self._session is None else len(self._session.unmask(text))

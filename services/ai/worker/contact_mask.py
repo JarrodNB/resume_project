@@ -46,6 +46,15 @@ def current_known_contact() -> KnownContact | TaskPrivacy:
     return _current.get(KnownContact())
 
 
+def covered_prompt_length(text: str) -> int:
+    """Measure exact screened import prompts using original text; others use plain length.
+
+    The screening caller owns coverage verification. No unmasked text leaves this adapter.
+    """
+    privacy = _current.get(None)
+    return privacy.original_length(text) if isinstance(privacy, TaskPrivacy) else len(text)
+
+
 @contextmanager
 def contact_scope(contact: KnownContact | TaskPrivacy) -> Iterator[None]:
     """Applies `contact` until the block exits."""

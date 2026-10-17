@@ -23,7 +23,7 @@ workflow's red-green-refactor instructions; record actual commands and failures.
   immutable snapshots. Use existing task, allowance, subscription and accounting seams.
   Establish independent category state so PDF results can be added without changing the
   content-check lifecycle. Generate schema/types; never hand-edit generated files.
-- **Status:** in-progress.
+- **Status:** implemented.
 - **Acceptance Criteria:**
   - First/changed saves schedule after commit; unchanged saves do not. A failed save
     schedules nothing. Dispatch or allowance failure cannot undo successful saving.
@@ -168,3 +168,10 @@ head IDs. Run fresh blind correctness and design reviewers concurrently as speci
 the workflow. Resolve supported findings with TDD and repeat fresh reviews after substantial
 fixes. Then create/attach the PR with actual checks, limitations and manual QA. Stop for
 human review; do not merge, deploy or clear the Kanban item.
+
+### Coordinator status after ticket 01
+
+01 implemented and verified on integration as 836c612 (worker c19e79f).
+02 in-progress on work/ats-check-02-content-report at /home/jarrod/ats-check-02.
+03 in-progress on work/ats-check-03-pdf-inspection at /home/jarrod/ats-check-03.
+Both start at 836c612. 04 awaits both. Verification details are in the plan delivery record.

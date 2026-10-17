@@ -158,3 +158,19 @@ completion confirmation. Use work/job-from-pasting-add-issue for approved implem
   /home/jarrod/resume_project_worktrees/job-from-pasting-add-issue-02 on
   work/job-from-pasting-add-issue-02-parse-unknown-company.
 - Current phase: Ticket 02 implementation. Paid evals and final blind reviews pending.
+
+### Coordinator integration verification
+
+- API acceptance suite rerun against integration c25ec16: 71 examples, 0 failures.
+  Docker used isolated unknown-company-01 network/database and read-only development
+  bundle volume, with integration services/api mounted at /rails.
+- Live synthetic evals completed with exit 0 using careergrind-pii-ai:latest, integration
+  services/ai mounted at /app, and the ignored main development env file passed directly
+  to Docker. No credentials were copied into worktrees or recorded.
+- python -m evals.run_gap_analysis_evals: verdict_accuracy/met_agreement 0.935;
+  evidence_validity, evidence_recall, and gap_recall 1.00.
+- python -m evals.run_tailoring_evals: faithfulness, relevance, omission scores 1.00.
+- python -m evals.run_library_retrieval_evals: HitAt1, RecallAtK, MRR 1.00;
+  PrecisionAtK 0.125 (existing dataset measure, not a new regression pass threshold).
+- These quality runs supplement deterministic null-company regressions; they do not
+  replace them. Final pasted-ad eval still pending Ticket 02 integration.

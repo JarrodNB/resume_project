@@ -1,6 +1,8 @@
 """
 Description: Exercises interview dataset checks offline with good and deliberately bad output.
 Index:
+    - test_knowledge_accuracy_skips_other_scopes: knowledge-only judge selection
+    - test_feedback_focus_limits: focused coaching and concise examples
     - test_question_structure: counts, variety, exclusions and unsupported quotes
     - test_feedback_structure: blank coaching, invented evidence and missing placeholders
     - test_reporting_errors: runner fails and flushes on case or judge errors
@@ -100,31 +102,58 @@ def test_feedback_focus_limits(field, value, score) -> None:
     assert not FeedbackStructure().evaluate(context)[score]
 
 
+
 @pytest.mark.parametrize("failure_kind", ["case", "judge", "report", "none"])
-def test_reporting_errors(monkeypatch, failure_kind) -> None:
-    """Case and judge failures cannot silently yield a successful run; traces always flush."""
-    scores = []
-    flushed = []
-    report = SimpleNamespace(
-        failures=["error"] if failure_kind == "case" else [],
-        report_evaluator_failures=["error"] if failure_kind == "report" else [],
-        cases=[SimpleNamespace(
-            name="synthetic", output=InterviewFeedback(strengths=["Clear theme"],
-                improvements=["Add details"], example_answer="[Add actual details]"),
-            evaluator_failures=["error"] if failure_kind == "judge" else [],
-        )],
-        averages=lambda: SimpleNamespace(scores={"quality": 0.8}),
-        print=lambda **kwargs: None,
-    )
-    dataset = SimpleNamespace(evaluate_sync=lambda *args, **kwargs: report)
-    monkeypatch.setattr(interview_eval_reporting, "configure_tracing", lambda **kwargs: None)
+def test_reporting_errors(monkeypatch, failure_kind, capsys) -> None:
+    """Native task and evaluator errors fail after capture; low scores do not."""
+    from pydantic_evals import Case, Dataset
+    from pydantic_evals.evaluators import Evaluator, ReportEvaluator
+
+    from evals.report_capture import capture_run
+
+    class Quality(Evaluator):
+        """Supply zero scores or a native judge failure."""
+
+        def evaluate(self, context):
+            """Keep low quality distinct from evaluator errors."""
+            if failure_kind == "judge":
+                raise ValueError("judge failed")
+            return 0.0
+
+    class BrokenReport(ReportEvaluator):
+        """Supply a native report evaluator failure."""
+
+        def evaluate(self, context):
+            """Raise the report error used by the policy check."""
+            raise ValueError("report evaluator failed")
+
+    output = InterviewFeedback(strengths=["Clear theme"], improvements=["Add details"],
+                               example_answer="[Add actual details]")
+
+    def task(value):
+        """Return synthetic feedback or simulate a failed task."""
+        if value == "fail":
+            raise ValueError("task failed")
+        return output
+
+    dataset = Dataset(name="offline",
+                      cases=[Case(name="synthetic", inputs="ok")]
+                            + ([Case(inputs="fail")] if failure_kind == "case" else []),
+                      evaluators=[Quality()],
+                      report_evaluators=[BrokenReport()] if failure_kind == "report" else [])
+    scores, flushed = [], []
     monkeypatch.setattr(interview_eval_reporting, "record_score",
                         lambda **kwargs: scores.append(kwargs))
     monkeypatch.setattr(telemetry, "flush_tracing", lambda: flushed.append(True))
-    if failure_kind == "none":
-        interview_eval_reporting.report_interview_evals(dataset, None, "test", "test", "v1", {})
-    else:
-        with pytest.raises(RuntimeError, match="1 interview case or evaluator errors"):
-            interview_eval_reporting.report_interview_evals(dataset, None, "test", "test", "v1", {})
+    with capture_run() as capture:
+        if failure_kind == "none":
+            interview_eval_reporting.report_interview_evals(dataset, task, "test", "test", "v1", {})
+        else:
+            with pytest.raises(RuntimeError, match="1 interview case or evaluator errors"):
+                interview_eval_reporting.report_interview_evals(
+                    dataset, task, "test", "test", "v1", {})
+        assert capture.report.name == "test:test"
+        assert capture.report.cases[0].output == output
     assert flushed == [True]
     assert {"name": "case_errors", "value": int(failure_kind != "none")} in scores
+    assert 'synthetic output JSON: {"strengths"' in capsys.readouterr().out

@@ -13,10 +13,13 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - `apply_questions_service.rb` — validates generation/replacement drafts and task identity/revisions, then persists atomically inside the owner/task transaction.
 - `apply_feedback_service.rb` — validates task ownership/identity and coaching shape; stores reviewed revisions while preserving answers.
 - `feedback_outdated_service.rb` — checks revision freshness against completed task snapshots, ignoring capitalization and whitespace edits.
+- `sync_question_embedding_service.rb` — embeds one owned saved Q&A, masks outbound contact, serializes duplicates, and rejects changed/deleted sources after provider work.
 
 ## Local Rules
 
 - Answers are user-written and stay separate from the career library.
+- Future nonblank saves enqueue question-specific embedding after commit, including unchanged saves and feedback saves. Actual edits and successful replacements delete obsolete vectors transactionally. Never backfill or scan other questions on a save.
+- Embedding provider work holds only a question advisory lock, never the owner row lock; snapshots and writes recheck ownership/revisions under the owner lock. Independent embedding costs are outside AI-task accounting.
 - General, technical, and knowledge scopes are immutable snapshots; question application checks five type-specific categories, including `concepts`, `mechanisms`, `application`, `reasoning`, and `limitations` for knowledge.
 - Question IDs are authorized through their owning set.
 - Serialize mutations through the owner lock; preserve revisions and task usage records.

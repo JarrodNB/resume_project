@@ -9,7 +9,8 @@ Project-level documentation that spans services.
 - `evals/` — optional timestamped AI quality reports and reporting CLI usage.
 
 - `conversation_logging.md` — local transcript location, controls, interpretation and cleanup.
-- `architecture.md` — services, data flow, queue design, key decisions
+- `architecture.md` — services, dependency directions, data flow, queue design, key decisions
+- `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
 - `mvp_plan.md` — first milestone scope and build order
 - `plans/` — feature plans and implementation tickets; the `orchestrator` skill describes Kanban delivery, approvals, and review.
   `plans/llm_engineering_rules_done.md` lists the LLM-engineering bullets already applied;

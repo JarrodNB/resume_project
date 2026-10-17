@@ -173,6 +173,7 @@ To remove local database data and other named volumes, run `docker compose down 
 ## Documentation
 
 - [Architecture](docs/architecture.md) — service boundaries, data flow, and queue behavior.
+- [Testing](docs/testing.md) — focused checks, isolated worktrees, and AI evals.
 - [Repository conventions](AGENTS.md) — code organization and contribution guidelines.
 
 Keep credentials in the ignored environment files. Commit environment templates without secrets.

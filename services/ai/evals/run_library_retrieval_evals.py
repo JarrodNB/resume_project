@@ -15,6 +15,7 @@ from pathlib import Path
 from pydantic_ai import Embedder
 from pydantic_ai.embeddings import EmbeddingSettings
 from pydantic_evals import Dataset
+from pydantic_evals.reporting import EvaluationReport
 
 from evals.library_retrieval_evaluators import (
     LIBRARY_RETRIEVAL_EVALUATORS,
@@ -22,13 +23,12 @@ from evals.library_retrieval_evaluators import (
     RetrievalEvalInput,
     RetrievalEvalLabels,
 )
-from evals.report_capture import capture_report, override_settings, report_span_processors
-from evals.telemetry import eval_run, record_score
+from evals.report_capture import override_settings
+from evals.telemetry import evaluate_dataset
 from memory.embed_search_query import embed_search_query
 from memory.hybrid_rank import hybrid_order
 from tailoring.retrieve_for_section import section_query
 from worker.settings import load_settings
-from worker.tracing import configure_tracing
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "library_retrieval_cases.yaml"
 TRACE_NAME = "evals.library_retrieval"
@@ -60,10 +60,9 @@ def rank_library(case: RetrievalEvalInput, model: str, dimensions: int) -> Ranke
     return RankedLibrary(ids=[doc_id for doc_id, _score in ordered])
 
 
-def run_library_retrieval_evals(model_override: str | None = None) -> None:
+def run_library_retrieval_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates retrieval on every case and records the average scores in Logfire."""
     settings = override_settings(load_settings(), "embedding_model", model_override)
-    configure_tracing(additional_span_processors=report_span_processors())
     model = settings.embedding_model
     dimensions = settings.embedding_dimensions
 
@@ -71,19 +70,15 @@ def run_library_retrieval_evals(model_override: str | None = None) -> None:
         """The task under evaluation: one section query against its library."""
         return rank_library(case, model, dimensions)
 
-    with eval_run(
+    return evaluate_dataset(
+        load_library_retrieval_dataset,
+        rank_case,
         name=TRACE_NAME,
         metadata={"model": model, "dimensions": dimensions},
         tags=["eval", "library_retrieval", model],
-    ):
-        report = load_library_retrieval_dataset().evaluate_sync(
-            rank_case, name=f"library_retrieval:{model}", max_concurrency=2
-        )
-        capture_report(report)
-        for score_name, average in report.averages().scores.items():
-            record_score(name=score_name, value=average)
-
-    report.print(include_input=False, include_output=False, include_durations=True)
+        evaluation_name=f"library_retrieval:{model}",
+        max_concurrency=2,
+    )
 
 
 def _cosine_similarity(left: list[float], right: list[float]) -> float:

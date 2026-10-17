@@ -18,7 +18,7 @@ Shared UI used by more than one feature.
   collapse it until opened
 - `sectionTones.ts` — per-section classes (card stripe, header band, icon, entry tint) and icon
 - `dnd/` — drag-and-drop building blocks (see `dnd/AGENTS.md`)
-- `ui/` — generated shadcn/ui components (exempt from the header rule and lint)
+- `ui/` — generated shadcn/ui components (generated; excluded from lint)
 
 ## Local Rules
 

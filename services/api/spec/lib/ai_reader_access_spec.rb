@@ -1,5 +1,7 @@
 # Description: The ai_reader role can read only the tables and user columns the AI worker needs.
 # Everything runs inside the spec's transaction (grants and SET ROLE roll back with it).
+# Index:
+#   - reader grants: allowed library reads and denial of private interview vectors
 require "rails_helper"
 
 RSpec.describe AiReaderAccess do
@@ -69,5 +71,18 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("UPDATE certifications SET name = 'Changed'") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
+end
 
+RSpec.describe "Interview embedding access" do
+  it "keeps Q&A vectors outside the AI reader role" do
+    connection = ActiveRecord::Base.connection
+    connection.execute("CREATE ROLE ai_reader NOLOGIN") unless AiReaderAccess.role_exists?(connection)
+    AiReaderAccess.grant(connection)
+    expect do
+      connection.transaction(requires_new: true) do
+        connection.execute("SET LOCAL ROLE ai_reader")
+        connection.select_all("SELECT content FROM interview_question_embeddings")
+      end
+    end.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
 end

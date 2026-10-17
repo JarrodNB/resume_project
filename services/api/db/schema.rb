@@ -1,3 +1,5 @@
+# Description: Generated database structure for Rails domain storage.
+# Index: ActiveRecord schema definition, tables, indexes, and foreign keys.
 # This file is auto-generated from the current state of the database. Instead
 # of editing this file, please use the migrations feature of Active Record to
 # incrementally modify your database, and then regenerate this schema definition.
@@ -10,7 +12,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_15_010100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_15_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -134,6 +136,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_010100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_experiences_on_user_id"
+  end
+
+  create_table "interview_question_embeddings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_question_id", null: false
+    t.text "content", null: false
+    t.string "content_digest", null: false
+    t.string "model", null: false
+    t.vector "embedding", limit: 1536, null: false
+    t.integer "question_revision", null: false
+    t.integer "answer_revision", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["interview_question_id"], name: "index_interview_question_embeddings_on_interview_question_id", unique: true
+    t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_embedding_revisions_valid"
   end
 
   create_table "interview_question_sets", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -305,6 +321,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_15_010100) do
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"
   add_foreign_key "interview_questions", "interview_question_sets"
   add_foreign_key "job_gap_responses", "jobs"

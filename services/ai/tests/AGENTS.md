@@ -10,6 +10,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   original publication errors, logging isolation and independent-process append integrity.
 - `test_conversation_logging.py` — real task/model transcript capture, user/job/set/task
   grouping, local gating, synthetic tool/retry parts, masked response and nonfatal disk errors.
+- `test_schema_dependencies.py` — schemas cannot import worker, agent, database, or evaluation implementation.
 
 - `test_task_usage_accounting.py` — costs through task execution: run limits, SQS retries
   and output-validation failures.
@@ -22,6 +23,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_library_search_scope.py` — rejects missing, empty, malformed, and unsupported type scopes.
 - `test_library_embedding_search.py` — database-backed type/user/model filtering and hybrid ranking.
 - `test_eval_reports.py` — offline comparison alignment, failure persistence, compatibility and model isolation.
+- `test_eval_lifecycle.py` — native offline report retention, scores, metadata, output and failure flushing.
 - `test_eval_report_costs.py` — native provider usage, cached costs, auxiliary calls and incomplete estimates.
 - `test_eval_report_cost_edges.py` — validation retries, response model prices and absent usage.
 
@@ -51,7 +53,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_analyze_gaps_handler.py` — analyze_gaps end to end on `TestModel`, retry on a bad
   output (`FunctionModel`), deleted job / empty library / no requirements failures
 - `test_gap_analysis_evaluators.py` — eval labels score 1.0
-- `fixtures/linkedin/` — synthetic LinkedIn guest job pages (see `fixtures/AGENTS.md`)
+- `fixtures/linkedin/` — synthetic LinkedIn guest job pages (synthetic data only)
 - `test_parse_linkedin_job_url.py` — LinkedIn job link forms, rejected URLs, site registry
 - `test_linkedin_description_to_html.py` — `<br>` lines to paragraphs, bold headings split
 - `test_split_description_sections.py` — heading classification, bullet filing, plain-text

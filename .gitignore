@@ -76,5 +76,6 @@ crash.*.log
 /running_notes.txt
 /docs/pydanticAI/
 /docs/evals/
+/docs/plans/
 Workflow.md
 KANBAN.md

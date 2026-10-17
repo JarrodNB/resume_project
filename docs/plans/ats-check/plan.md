@@ -228,3 +228,10 @@ the Kanban item until explicit human acceptance.
 - Tickets 02 and 03 started from 836c612 in isolated worktrees /home/jarrod/ats-check-02
   and /home/jarrod/ats-check-03. Ticket 04 remains dependent on both.
 - Pending dispatch recovery command is documented; full suites and blind reviews remain.
+
+### Focused PR history
+
+Integration history replayed onto origin/master (4cbf898) to exclude pre-existing unrelated
+planning commit e47b178; original checkout and worker branches remain intact. Planning
+commit is now b434666; content integration is now 7e55346. This changes history only, not
+application code. Worker 02/03 bases remain the already verified 836c612 code snapshot.

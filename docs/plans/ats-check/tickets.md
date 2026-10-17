@@ -24,7 +24,7 @@ workflow's red-green-refactor instructions; record actual commands and failures.
   immutable snapshots. Use existing task, allowance, subscription and accounting seams.
   Establish independent category state so PDF results can be added without changing the
   content-check lifecycle. Generate schema/types; never hand-edit generated files.
-- **Status:** ready-for-agent.
+- **Status:** in-progress.
 - **Acceptance Criteria:**
   - First/changed saves schedule after commit; unchanged saves do not. A failed save
     schedules nothing. Dispatch or allowance failure cannot undo successful saving.

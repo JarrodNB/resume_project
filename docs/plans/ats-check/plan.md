@@ -199,10 +199,10 @@ the Kanban item until explicit human acceptance.
   `E76E7C0ED6FECE44A758EFE348F9229C1914F542B11C1E31861CE13E0911471D`.
 - Breakdown approval: user said “confirmed” on 2026-10-17 after the four-ticket breakdown;
   approved tickets SHA-256: `73FF1159511AE65FBCFC2865E833CF01B985359E2598A297D4C1D43C248C69DC`.
-- Planning commit / integration base/head: not created.
+- Planning commit and integration base: 286247344dda72b3a0608f6279c10b387c229d90. Integration head starts at that commit.
 - Intended integration branch: `work/ats-check`; no implementation branches created.
 - Tickets: 01 content checking; 02 content report UI (blocked by 01); 03 PDF inspection
-  (blocked by 01); 04 export and complete report (blocked by 02 and 03). All ready-for-agent
+  (blocked by 01); 04 export and complete report (blocked by 02 and 03). 01 in-progress; others ready-for-agent
   subject to breakdown approval and dependency integration; implementation not started.
 - Checks, blind reviews and PR: not started.
 - Exploration: tailoring handler, save/update services, saved editor, PDF model/document/

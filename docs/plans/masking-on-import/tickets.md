@@ -150,6 +150,9 @@ Changed-file Ruff/diff checks pass. Fresh review pair on original base `f69499b`
 candidate `6604aa7`: correctness and design both report no actionable findings.
 Correctness independently ran 90 focused tests and all 520 offline tests; design ran
 89 focused tests and changed-file Ruff. Implemented and ready for human QA via PR.
+Handoff: https://github.com/JarrodNB/resume_project/pull/13, integration branch
+`work/masking-on-import`. Rebuild AI image, then perform the plan's human QA checks.
+Keep the Kanban item until explicit human acceptance.
 Coordinator integrates and checks all plan acceptance criteria, then runs two fresh blind
 reviews against a fixed base/head before opening the PR for human QA. Manual QA follows
 the plan. Keep the Kanban item until explicit human acceptance.

@@ -119,7 +119,7 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: implementation, verification, and blind reviews complete; next: PR and human QA.
+- Phase: ready for human review and QA.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
@@ -165,7 +165,10 @@ Detected names/emails/phones embedded in other text still require masking.
 - All plan acceptance criteria checked through source and observable tests; detector
   limitations remain documented. Only editorial delivery/PR records change after review;
   no new code review round is needed for those records.
-- PR pending. Manual QA remains the plan's synthetic empty-profile,
+- PR: https://github.com/JarrodNB/resume_project/pull/13 on `work/masking-on-import`.
+  Reviewed code candidate `6604aa7`; later commits update delivery records only.
+  Rebuild the AI development image for the bundled model before manual QA.
+- Manual QA remains the plan's synthetic empty-profile,
   differing-profile, and second-user import checks; no browser QA performed.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,
   `test_contact_mask.py`, `test_tracing.py`, and `test_process_task_message.py`: 32 passed.

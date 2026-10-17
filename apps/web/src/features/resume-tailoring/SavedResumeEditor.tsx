@@ -1,8 +1,6 @@
 /**
- * Description: The saved resume as editable section fields. Preview opens the current
- * draft as a PDF at actual size. Save writes that draft.
- * Index:
- *   - SavedResumeEditor: the editor and its preview dialog
+ * Edits saved sections and tracks whether feedback still describes the draft.
+ * Preview draws the current draft; only an explicit save writes it.
  */
 import { useMemo, useState } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -14,6 +12,8 @@ import { buildResumePdfModel } from './resumePdfModel'
 import { asSectionType, SECTION_TITLES } from './sectionOrder'
 import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } from './tailorDraft'
 import { useUpdateResume } from './useUpdateResume'
+import { AtsReport } from './AtsReport'
+import { useAtsReport } from './useAtsReport'
 
 interface SavedResumeSection {
   id: string
@@ -27,6 +27,10 @@ interface SavedResumeSection {
 export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; sections: SavedResumeSection[] }) {
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
+  const [savedDrafts, setSavedDrafts] = useState(() => JSON.stringify(drafts))
+  const [refreshingReport, setRefreshingReport] = useState(false)
+  const dirty = JSON.stringify(drafts) !== savedDrafts
+  const ats = useAtsReport(resumeId)
   const [previewOpen, setPreviewOpen] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
   const model = buildResumePdfModel(
@@ -37,8 +41,14 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
     })),
   )
 
-  function save() {
-    void saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))
+  async function save() {
+    const submittedDrafts = JSON.stringify(drafts)
+    if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))) {
+      setSavedDrafts(submittedDrafts)
+      setRefreshingReport(true)
+      await ats.refresh()
+      setRefreshingReport(false)
+    }
   }
 
   return (
@@ -61,6 +71,7 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
       <Button type="button" disabled={pending} onClick={save}>
         Save resume
       </Button>
+      <AtsReport resumeId={resumeId} dirty={dirty || refreshingReport} report={ats.report} pending={ats.pending || pending} errors={ats.errors} onRerun={() => { if (!dirty && !pending && !refreshingReport) void ats.rerun() }} />
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
           <DialogHeader className="w-full pr-8">

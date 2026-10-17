@@ -45,7 +45,7 @@ export function TailorResumePage() {
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
       <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
       {!job && loading && <p className="text-muted-foreground">Loading…</p>}
-      {job?.resume && <SavedResumeEditor resumeId={job.resume.id} sections={job.resume.sections} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} sections={job.resume.sections} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <>
           <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />

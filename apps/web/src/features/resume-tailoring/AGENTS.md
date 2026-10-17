@@ -28,6 +28,10 @@ Preview opens the current draft as a large PDF.
 - `useResumeTailoring.ts` — load, start when needed, follow `aiTaskUpdated`
 - `useTailorActions.ts` — submit one section or save the resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
+- `AtsReport.tsx`, `useAtsReport.ts`, `atsOperations.ts` — collapsed saved-input assessments,
+  deductions, explicit reruns and report subscriptions (including scheduling before a task
+  exists). The editor supplies unsaved state and refreshes after successful saving;
+  these modules never generate or upload a PDF.
 - `resumePdfModel.ts` — saved sections to the plain structure the PDF draws (`ResumePdfDocument.tsx`
   is that document; a later download uses it). `resumePdfModel.test.ts`
 - `TailorResumePage.test.tsx` — queued, editor, blocked, nothing-fits, save, saved resume.

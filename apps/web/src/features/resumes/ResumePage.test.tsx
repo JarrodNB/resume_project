@@ -5,6 +5,7 @@
 import { screen } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
+import { emptyAtsReportMocks } from '@/test/atsReportMocks'
 import { ResumePage } from './ResumePage'
 import { RESUME_QUERY } from './resumesOperations'
 
@@ -43,7 +44,7 @@ it('opens the resume and links to its job', async () => {
     path: '/resumes/:id',
     url: '/resumes/resume-1',
     element: <ResumePage />,
-    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' })],
+    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' }), ...emptyAtsReportMocks('resume-1')],
   })
 
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
@@ -58,7 +59,7 @@ it('points the breadcrumb at the job when opened from that job', async () => {
     url: '/resumes/resume-1',
     element: <ResumePage />,
     historyState: { fromJobId: 'job-1' },
-    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' })],
+    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' }), ...emptyAtsReportMocks('resume-1')],
   })
 
   expect(await screen.findByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
@@ -71,7 +72,7 @@ it('still opens a resume whose job was removed', async () => {
     path: '/resumes/:id',
     url: '/resumes/resume-1',
     element: <ResumePage />,
-    mocks: [resumeQuery(null)],
+    mocks: [resumeQuery(null), ...emptyAtsReportMocks('resume-1')],
   })
 
   expect(await screen.findByText('The job for this resume was removed.')).toBeInTheDocument()

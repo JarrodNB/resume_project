@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { renderPage } from '@/test/renderPage'
+import { emptyAtsReportMocks } from '@/test/atsReportMocks'
 import { TailorResumePage } from './TailorResumePage'
 import { SAVE_TAILORED_RESUME_MUTATION, SUBMIT_TAILORED_SECTION_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
@@ -74,7 +75,7 @@ function subscription(fields: Record<string, unknown>) {
 }
 
 function renderTailor(mocks: Parameters<typeof renderPage>[0]['mocks']) {
-  return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks })
+  return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks: [...mocks ?? [], ...emptyAtsReportMocks('resume-1')] })
 }
 
 it('shows which section is being written, including after the task is reloaded', async () => {

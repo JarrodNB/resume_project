@@ -61,6 +61,10 @@ type Documents = {
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseJobPostingDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": typeof types.ImportParsedResumeDocument,
+    "\n  fragment AtsReportFields on AtsReport {\n    id runId contentFingerprint jobFingerprint rubricVersion createdAt outdated overallScore\n    jobAlignment { status score reason assessments deductions }\n    contentQuality { status score reason assessments deductions }\n    pdfReadability { status score reason assessments deductions }\n  }\n": typeof types.AtsReportFieldsFragmentDoc,
+    "\n  query ResumeAtsReport($id: ID!) { resume(id: $id) { id atsReport { ...AtsReportFields } } }\n": typeof types.ResumeAtsReportDocument,
+    "\n  subscription ResumeAtsReportUpdated($resumeId: ID!) { atsReportUpdated(resumeId: $resumeId) { ...AtsReportFields } }\n": typeof types.ResumeAtsReportUpdatedDocument,
+    "\n  mutation RerunResumeAtsCheck($resumeId: ID!) { rerunResumeAtsCheck(input: {resumeId: $resumeId}) { report { ...AtsReportFields } errors } }\n": typeof types.RerunResumeAtsCheckDocument,
     "\n  query TailorJob($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      latestTailoring {\n        id\n        status\n        acceptedAt\n        input\n        pendingQuestions\n        result\n        errorMessage\n      }\n    }\n  }\n": typeof types.TailorJobDocument,
     "\n  mutation StartResumeTailoring($jobId: ID!) {\n    startResumeTailoring(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.StartResumeTailoringDocument,
     "\n  mutation SubmitTailoredSection($aiTaskId: ID!, $sectionType: String!, $action: String!, $content: JSON) {\n    submitTailoredSection(input: { aiTaskId: $aiTaskId, sectionType: $sectionType, action: $action, content: $content }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.SubmitTailoredSectionDocument,
@@ -117,6 +121,10 @@ const documents: Documents = {
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseJobPostingDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseResumeDocument,
     "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n": types.ImportParsedResumeDocument,
+    "\n  fragment AtsReportFields on AtsReport {\n    id runId contentFingerprint jobFingerprint rubricVersion createdAt outdated overallScore\n    jobAlignment { status score reason assessments deductions }\n    contentQuality { status score reason assessments deductions }\n    pdfReadability { status score reason assessments deductions }\n  }\n": types.AtsReportFieldsFragmentDoc,
+    "\n  query ResumeAtsReport($id: ID!) { resume(id: $id) { id atsReport { ...AtsReportFields } } }\n": types.ResumeAtsReportDocument,
+    "\n  subscription ResumeAtsReportUpdated($resumeId: ID!) { atsReportUpdated(resumeId: $resumeId) { ...AtsReportFields } }\n": types.ResumeAtsReportUpdatedDocument,
+    "\n  mutation RerunResumeAtsCheck($resumeId: ID!) { rerunResumeAtsCheck(input: {resumeId: $resumeId}) { report { ...AtsReportFields } errors } }\n": types.RerunResumeAtsCheckDocument,
     "\n  query TailorJob($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      resume {\n        id\n        title\n        sections {\n          id\n          sectionType\n          title\n          position\n          content\n        }\n      }\n      latestTailoring {\n        id\n        status\n        acceptedAt\n        input\n        pendingQuestions\n        result\n        errorMessage\n      }\n    }\n  }\n": types.TailorJobDocument,
     "\n  mutation StartResumeTailoring($jobId: ID!) {\n    startResumeTailoring(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.StartResumeTailoringDocument,
     "\n  mutation SubmitTailoredSection($aiTaskId: ID!, $sectionType: String!, $action: String!, $content: JSON) {\n    submitTailoredSection(input: { aiTaskId: $aiTaskId, sectionType: $sectionType, action: $action, content: $content }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.SubmitTailoredSectionDocument,
@@ -328,6 +336,22 @@ export function graphql(source: "\n  mutation ParseResume($file: Upload!) {\n   
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ImportParsedResume($aiTaskId: ID!, $parsedResume: JSON!) {\n    importParsedResume(input: { aiTaskId: $aiTaskId, parsedResume: $parsedResume }) {\n      aiTask {\n        id\n        acceptedAt\n        result\n      }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment AtsReportFields on AtsReport {\n    id runId contentFingerprint jobFingerprint rubricVersion createdAt outdated overallScore\n    jobAlignment { status score reason assessments deductions }\n    contentQuality { status score reason assessments deductions }\n    pdfReadability { status score reason assessments deductions }\n  }\n"): (typeof documents)["\n  fragment AtsReportFields on AtsReport {\n    id runId contentFingerprint jobFingerprint rubricVersion createdAt outdated overallScore\n    jobAlignment { status score reason assessments deductions }\n    contentQuality { status score reason assessments deductions }\n    pdfReadability { status score reason assessments deductions }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ResumeAtsReport($id: ID!) { resume(id: $id) { id atsReport { ...AtsReportFields } } }\n"): (typeof documents)["\n  query ResumeAtsReport($id: ID!) { resume(id: $id) { id atsReport { ...AtsReportFields } } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription ResumeAtsReportUpdated($resumeId: ID!) { atsReportUpdated(resumeId: $resumeId) { ...AtsReportFields } }\n"): (typeof documents)["\n  subscription ResumeAtsReportUpdated($resumeId: ID!) { atsReportUpdated(resumeId: $resumeId) { ...AtsReportFields } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RerunResumeAtsCheck($resumeId: ID!) { rerunResumeAtsCheck(input: {resumeId: $resumeId}) { report { ...AtsReportFields } errors } }\n"): (typeof documents)["\n  mutation RerunResumeAtsCheck($resumeId: ID!) { rerunResumeAtsCheck(input: {resumeId: $resumeId}) { report { ...AtsReportFields } errors } }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

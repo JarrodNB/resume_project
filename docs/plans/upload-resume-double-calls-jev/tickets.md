@@ -20,7 +20,7 @@ boundary owns session lifetime. Agent enforcement must cover direct calls and un
 history without a caller-controlled bypass. Keep unmigrated agents on their existing
 safe path until their migration; do not globally disable the final guard.
 
-**Status:** in-progress.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - An allowed resume fitting one chunk makes one actual Jev request, then generation.
@@ -54,7 +54,7 @@ screens the inputs it sends to the model without duplicate assembled-prompt chec
 **Modularity:** Reuse screening's source approval interface. Keep deterministic scraping
 independent of screening when no generative request occurs; cover sorting direct calls.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - Short allowed pasted ad: one Jev request before parsing; long inputs use shared chunks.
@@ -80,7 +80,7 @@ execution, preserving optional note omissions and warnings.
 **Modularity:** Establish cohesive source items and required/optional policy at context
 assembly. Screening owns approval and reuse; builders do not manage chunk state.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - Saved/imported/manual library fields and job context entering generation are covered.
@@ -107,7 +107,7 @@ section edits, and other untrusted section-writing context without duplicate pas
 **Modularity:** Use the shared screening session at source selection and enforce coverage
 at the writer boundary. Preserve retrieval ownership and section approval orchestration.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - Every source used by section generation is screened once in this execution.
@@ -134,7 +134,7 @@ for question generation/replacement and feedback with one pass per input.
 **Modularity:** Use the shared source approval interface. Keep answer persistence owned by
 Rails and category-specific generation/validation in existing interview modules.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - All untrusted library/question/answer inputs reaching either agent are covered once.
@@ -162,7 +162,7 @@ document the new policy, and verify the final behavior offline and against live 
 history, masking transformations, lifecycle and request usage integration. Do not leave
 production fallback paths that silently trust unproven approvals.
 
-**Status:** blocked.
+**Status:** in-progress.
 
 **Acceptance Criteria:**
 - All plan acceptance criteria pass across integrated flows; no duplicate final-prompt
@@ -200,7 +200,7 @@ screening and helper edits are coordinated; integrate them one at a time and ver
 06 depends on all migrations. Intermediate commits retain safe guards for unmigrated
 callers and must stay green. Integration/review/PR remain coordinator responsibilities.
 
-No implementation has started. Actual branch names use the workflow's
+Implementation uses isolated worktrees. Actual branch names use the workflow's
 `work/upload-resume-double-calls-jev-<NN>-<ticket-slug>` convention.
 The human approved the chunk comparison amendment and overall breakdown. Tickets 01–05
 can verify both candidate sizes without choosing a production

@@ -27,8 +27,10 @@ applies the threshold. This is not a second classifier and it does not choose al
 - `session.py` owns execution-local decisions and exact
   prompt coverage. The worker opens a fresh `screening_session` for every delivery;
   standalone handlers/wrappers use `within_screening_session` to reuse an enclosing scope.
-  `screen_user_text` checks overlapping chunks (300 characters); 2,000 and 4,000 are
-  configurable evaluation candidates, with a provisional 2,000 default pending live tests.
+  `screen_user_text` checks 4,000-character chunks with 300 characters of overlap by
+  default. The 2,000 candidate remains configurable for repeat evaluation. The live
+  synthetic comparison found identical decisions with fewer requests for 4,000;
+  it does not establish a general detection advantage over whole-document screening.
   `bind_screened_prompt(sources, render)` grants exact rendered-prompt coverage only when
   every supplied source has an allowed decision. Renderers are trusted application code:
   all untrusted values must come from the supplied source arguments, never closure state.

@@ -513,9 +513,11 @@ tailoring) instead of sending everything.
   checked once per execution. A blocked or unchecked optional entry is left out with a
   warning; a required input prevents generation. Imported, manually edited, retrieved, and
   scraped content follow this same rule when used in a generative request.
-  Large sources use overlapping chunks with 300 characters of overlap. The 2,000- and
-  4,000-character candidates are compared live against whole-resume screening before
-  choosing the production size. Boundary overlap is intentional repeated text, not a
+  Large sources use 4,000-character chunks with 300 characters of overlap by default.
+  A live synthetic comparison of 2,000, 4,000, and whole resumes found identical decisions
+  across 14 documents; 4,000 required 25 calls versus 48 for 2,000. This supports the lower
+  request count, not a claim of better detection than whole resumes. The 2,000 setting
+  remains available for repeat evaluation. Boundary overlap is intentional repeated text, not a
   second screening pass. All chunks must pass; a late rejection discards the entire item.
   Trusted builders bind exact assembled prompts to screened sources. Every generative
   agent retains an official input capability: it checks unknown direct input and user/tool

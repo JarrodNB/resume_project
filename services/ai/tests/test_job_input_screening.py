@@ -20,6 +20,7 @@ pytestmark = pytest.mark.real_guardrail
 @pytest.fixture
 def classifier(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
     seen = []
 
     def classify(messages, info):

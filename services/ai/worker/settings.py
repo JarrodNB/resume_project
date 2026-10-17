@@ -47,8 +47,9 @@ class WorkerSettings(BaseSettings):
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. Pinned; there is no generative fallback.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
-    # Provisional evaluation candidate; ticket 06 selects the production size with live Jev.
-    user_text_screen_chunk_size: int = 2000
+    # Live synthetic comparison: same decisions as 2000, with fewer requests and lower latency.
+    # Keep both sizes available for repeat evaluation; overlap is 300 characters.
+    user_text_screen_chunk_size: int = 4000
 
     @field_validator("user_text_screen_chunk_size")
     @classmethod

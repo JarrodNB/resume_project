@@ -35,6 +35,7 @@ pytestmark = pytest.mark.real_guardrail
 def providers(monkeypatch: pytest.MonkeyPatch):
     """Records classifier/generator calls; Jev flags the synthetic attack string."""
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
     seen = {"screen": [], "generation": []}
 
     def classify(messages, info):

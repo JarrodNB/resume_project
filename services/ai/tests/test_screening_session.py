@@ -16,6 +16,7 @@ pytestmark = pytest.mark.real_guardrail
 def classifier(monkeypatch):
     """Record real classifier requests and deterministically flag a synthetic attack."""
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
     seen = []
 
     def classify(messages, info):

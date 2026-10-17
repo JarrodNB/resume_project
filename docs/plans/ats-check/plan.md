@@ -235,3 +235,19 @@ Integration history replayed onto origin/master (4cbf898) to exclude pre-existin
 planning commit e47b178; original checkout and worker branches remain intact. Planning
 commit is now b434666; content integration is now 7e55346. This changes history only, not
 application code. Worker 02/03 bases remain the already verified 836c612 code snapshot.
+
+### Tickets 02–04 integration and broader verification
+
+- 02 worker803c13f integrated93787fb; root7 focused editor/report tests passed.
+- 03 workerbd423a6 integratedb98fce1; root25 Rails and33 AI/schema tests passed.
+- 04 export worker5f863bb integratedde6c5cf; production fixture workeraa268f6 integrated533a41f.
+- Real renderer tests2 passed and actual generated PDF inspector tests12 passed (including
+  existing corrupt/loss/order cases). Red found merged name/email and repeated-year false
+  order deduction; preserved separator and forward-first matching made both exports green.
+- Broader tests at533a41f: full Rails450 examples passed; offline AI540 passed,2 production
+  fixture cases skipped in ordinary run,9 database tests deselected; full web159 passed.
+  Production fixture cases were separately executed and passed. One unconfigured Logfire
+  warning in offline tests; no real model requests in pytest.
+- Final04 reliability work in isolated branches: bind legacy exports to the fingerprint
+  captured alongside rendered sections; prevent same-run older payloads downgrading reports.
+- Full blind reviews and human manual QA remain pending.

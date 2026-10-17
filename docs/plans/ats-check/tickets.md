@@ -1,7 +1,6 @@
 # ATS check tickets
 
-Implements the approved `plan.md`. Breakdown approval is pending. Do not implement or
-create the integration branch before approval and the planning commit. Status describes
+Implements the approved `plan.md`. Breakdown approved by the user on 2026-10-17. Planning commit: 286247344dda72b3a0608f6279c10b387c229d90. Integration branch created from that commit. Status describes
 delivery progress; dependencies and the approval gate determine whether work can start.
 
 The coordinator resolves WSL/Git access, verifies the checkout and unrelated changes,

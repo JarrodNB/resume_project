@@ -119,14 +119,14 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: first blind review complete; fixing the confirmed import length regression.
+- Phase: review finding fixed and verified; next: fresh blind review pair on final diff.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
   before this approval-record update.
 - Breakdown approval: user “confirmed.” Approved tickets SHA-256:
   `0727a6fb9c83e17419c85331477ba17d553a2ccee079ea75a2109a17bc0b0085`.
-- Tickets: 01 implemented; 02 reopened for a confirmed review fix. Human acceptance pending.
+- Tickets: 01 and 02 implemented. Human acceptance pending.
 - Planning commit and integration base: `6722f8a1245711e62da66ae30e2cf38dcc2e415b`.
 - Integration: `work/masking-on-import`, `.worktrees/masking-integration`.
 - Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
@@ -151,6 +151,12 @@ Detected names/emails/phones embedded in other text still require masking.
   changed-file lint passed. Correctness reviewer: 79 focused tests passed plus reproduced
   the length failure. Both read-only; four pre-existing full-Ruff findings unchanged.
 - A fresh pair will review the full final diff after the behavior fix and checks.
+- Length fix: worker `c7f8000`, integrated `5ac491b`. Exact covered import prompts use
+  original length; unknown input/history and other tasks keep their actual-length cap.
+  Five real-guard boundary tests pass (red/green for valid long import); 76 focused tests
+  passed. Final full suite: 520 passed, 9 database tests deselected, one existing warning.
+- Final synthetic real-provider evaluation repeated after the guard fix: six cases,
+  no errors, all reported scores 1.0. Changed-file Ruff and diff checks pass.
 - PR pending. Manual QA remains the plan's synthetic empty-profile,
   differing-profile, and second-user import checks; no browser QA performed.
 - Baseline verification: offline Docker tests `test_task_handlers.py`,

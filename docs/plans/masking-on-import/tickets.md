@@ -78,7 +78,7 @@ and source checks. The PII module owns replacement decisions. Existing hooks and
 telemetry adapters consume the session without duplicating detection. Preserve other
 task types' known-contact behavior and existing queue/domain ownership.
 
-**Status:** in-progress.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -141,6 +141,12 @@ Round 1 correctness review then reproduced a valid-size import failing the separ
 120,000-character generative cap after masking expansion. Reopened 02 for a real-guard
 regression and scoped original-length check. Fix branch `work/masking-on-import-length-fix`,
 worktree `.worktrees/masking-length-fix`, base `9c034d2`. Full final diff requires new reviews.
+Fixed by worker `c7f8000`, integrated as `5ac491b`. Valid long import fails before the
+fix and passes afterward through the real guard. Five boundary tests preserve raw,
+unknown-history, and other-task caps; 76 focused tests pass. Coordinator reran final
+full offline suite: 520 passed, 9 database tests deselected, one existing warning.
+Repeated final six-case real-provider evaluation: no errors, all reported scores 1.0.
+Changed-file Ruff/diff checks pass. New blind review pair pending.
 Coordinator integrates and checks all plan acceptance criteria, then runs two fresh blind
 reviews against a fixed base/head before opening the PR for human QA. Manual QA follows
 the plan. Keep the Kanban item until explicit human acceptance.

@@ -19,7 +19,7 @@ masked text and a per-import session with masking/restoration operations. Keep P
 and spaCy details private. The provider and telemetry adapters in 02 must be able to use
 the session without inspecting replacement pairs. Avoid moving unrelated task behavior.
 
-**Status:** ready-for-agent.
+**Status:** in-progress.
 
 **Acceptance Criteria:**
 
@@ -49,8 +49,9 @@ the session without inspecting replacement pairs. Avoid moving unrelated task be
   text; record the actual image/command plus model loading time and image size.
 - Actual results: not run; implementation has not started.
 
-**Progress:** No assigned branch/worktree/base/commits yet. Planned worker branch:
-`work/masking-on-import-01-local-pii`. Dependency setup problems must be reported rather
+**Progress:** Assigned to PII module agent in `.worktrees/masking-on-import`, branch
+`work/masking-on-import-01-local-pii`, base `6722f8a`. No implementation commit yet.
+Dependency setup problems must be reported rather
 than silently replacing the approved detector. Ready for 02 only after integration and
 verification on the integration branch.
 

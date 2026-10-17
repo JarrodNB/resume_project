@@ -119,15 +119,19 @@ Detected names/emails/phones embedded in other text still require masking.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “Masking on import”; keep until human acceptance.
-- Phase: breakdown approved; next: planning commit and isolated implementation.
+- Phase: ticket 01 in progress in an isolated worktree; 02 awaits verified integration.
 - Human scope decisions: imports first; names/email/phone; reversible; separate module.
 - Plan approval: user “Looks good to me,” approving the plan content with SHA-256
   `6bc3c7b02a5db56e2d253cfc4acd5b1b8f18d881318e2f7dab77399045971206`
   before this approval-record update.
 - Breakdown approval: user “confirmed.” Approved tickets SHA-256:
   `0727a6fb9c83e17419c85331477ba17d553a2ccee079ea75a2109a17bc0b0085`.
-- Tickets: 01 ready-for-agent; 02 blocked by 01. No implementation before approval.
-- Planning commit, integration base/head, branches, verification, reviews, PR: pending.
+- Tickets: 01 in-progress; 02 blocked by 01.
+- Planning commit and integration base: `6722f8a1245711e62da66ae30e2cf38dcc2e415b`.
+- Integration: `work/masking-on-import`, `.worktrees/masking-integration`.
+- Worker 01: `work/masking-on-import-01-local-pii`, `.worktrees/masking-on-import`;
+  assigned to the PII module agent at the planning base.
+- Integration head: planning base until ticket 01 passes. Reviews and PR pending.
 - Actual verification: code inspection only; no application changes or tests run.
 - Preserve unrelated existing edit: `.codex/skills/workflow/SKILL.md`.
 - Planning files are ignored by `/docs/plans/` in `.gitignore`; force-add only the

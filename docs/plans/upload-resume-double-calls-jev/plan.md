@@ -168,9 +168,17 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
   Amended plan SHA-256 before recording breakdown approval:
   `8f13db2c2748f3641b7513d48f5d5cc64763a51575a31dcd88f9eeb57f3299a0`.
 - Unrelated local modification to .codex/skills/workflow/SKILL.md is preserved and excluded.
-- No planning commit made or implementation started.
+- Planning commit: `8bcedd2`; integration base: `8bcedd2`.
+- Integration: `work/upload-resume-double-calls-jev`, checkout `.worktrees/jev-integration`.
+- Ticket 01 assigned to an isolated worker on
+  `work/upload-resume-double-calls-jev-01-resume-screening`, checkout `.worktrees/jev-01`.
 - Planning checkout: master, initially clean. Integration base/head and branches pending.
-- Verification: read-only code inspection only; tests/evals not run.
+- Verification baseline: offline pytest with a dummy SDK key and network disabled:
+  424 passed, 9 deselected. Initial run without dummy key had SDK initialization errors
+  (79 failed, 345 passed); those were setup errors, not behavior failures.
+- Baseline ruff has four pre-existing errors in conversation_logging/__init__.py and
+  tests/test_conversation_logging_reliability.py (BLE001 twice, I001, SIM117). Preserve
+  unrelated code and distinguish these from new lint findings.
 - Environment: WSL requires sandbox escalation; approved WSL commands work. WSL lacks
   rg, so inspection used grep/find.
 - Reviews and PR/manual-QA handoff pending implementation.

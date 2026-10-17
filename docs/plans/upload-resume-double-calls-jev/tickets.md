@@ -20,7 +20,7 @@ boundary owns session lifetime. Agent enforcement must cover direct calls and un
 history without a caller-controlled bypass. Keep unmigrated agents on their existing
 safe path until their migration; do not globally disable the final guard.
 
-**Status:** ready-for-agent.
+**Status:** in-progress.
 
 **Acceptance Criteria:**
 - An allowed resume fitting one chunk makes one actual Jev request, then generation.
@@ -38,7 +38,9 @@ task usage tests with fake providers. Add provider-boundary count assertions and
 for overlap, late-chunk blocks, unavailable checks, fresh executions, history, and isolation.
 Run affected lint and offline regressions. Record red/green evidence.
 
-**Progress:** Unassigned; branch/worktree, starting base, commits, actual results pending.
+**Progress:** Worker `resume_foundation`, branch
+`work/upload-resume-double-calls-jev-01-resume-screening`, worktree `.worktrees/jev-01`,
+starting base `8bcedd2`. Commits and actual results pending.
 
 ## 02 — Screen pasted and scraped job inputs once
 

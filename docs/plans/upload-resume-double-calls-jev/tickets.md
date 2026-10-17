@@ -205,3 +205,22 @@ No implementation has started. Actual branch names use the workflow's
 The human approved the chunk comparison amendment and overall breakdown. Tickets 01–05
 can verify both candidate sizes without choosing a production
 default; ticket 06 owns the live comparison, default selection, and final rechecks.
+
+## Actual integration checkpoint
+
+Tickets 01–05 are implemented and integrated; ticket 06 is in progress. The original
+per-ticket progress entries above describe planned assignment; this checkpoint records
+actual delivery pending the final acceptance audit.
+
+| Ticket | Integrated commit | Verification |
+| --- | --- | --- |
+| 01 | 783a759 | Full offline 437 passed, 9 deselected |
+| 02 | 036e6c8 | Integrated focused job suite 23 passed; worker full 446 passed |
+| 03 | aa20394 | Integrated focused suite 21 passed; worker full 442 passed |
+| 04 | 77a5fed | Worker full 442 passed; final integrated suite below |
+| 05 | ee1df6b (+ helper 83b8fdd) | Integrated focused 70 passed; worker full 444 passed |
+| 06 | pending | Shared guard and comparison runner in isolated worktrees |
+
+All full suites excluded 9 database tests. All-migration integrated offline suite:
+463 passed, 9 deselected. Actual red/green and environment limitations are recorded in
+plan.md. Live provider runs have not started. No PR or blind reviews yet.

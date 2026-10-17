@@ -29,14 +29,14 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages
 - `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
-  screens each library fact, builds the labeled prompt, runs the gap analysis agent, attaches
+  screens required job context and optional cohesive library entries, builds the labeled prompt, runs the gap analysis agent, attaches
   evidence text, and reports Jev usage; a deleted job, empty library, job without
   requirements, or prompt over the character cap fails with a user-facing message
 - `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
   summary, experience, projects, education, certifications, skills), pauses for approval, and echoes `generation`.
   A section with no library entries is left out with no model call. Projects, education, certifications, and
   skills are not narrowed by retrieval
-- `tailor_resume_steps.py` — folds the user's decision, screens gap responses, and builds the
+- `tailor_resume_steps.py` — folds the user's decision, screens section sources, and builds the
   pause or failure result. A section over the screen cap stays open with a length message
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
@@ -81,6 +81,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 - `process_task_message` collects capability screening usage even when the guard blocks.
   `InputBlocked` publishes a failed task with the safe error message and tailoring generation.
+- Every execution starts a fresh screening session. Source-selection calls share decisions
+  with exact bound prompts, but later tasks rescreen reused inputs. Standalone handlers
+  and agent wrappers establish a local session when no worker execution exists.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
   tools in `tools/`, prompts in `prompts/` (sibling folders).
 - Handlers take `(task, dependencies)` and return an `AiResultMessage`. Return a `failed`

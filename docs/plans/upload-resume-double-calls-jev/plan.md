@@ -170,7 +170,7 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
 ## Delivery Record
 
 - Source: Upload resume double calls Jev, in KANBAN.md.
-- Phase: implementation; next action: ticket 01 in an isolated worktree.
+- Phase: final integration and evaluation; tickets 01–05 implemented and verified.
 - Plan approved in conversation on 2026-10-17, with final live Jev testing requested.
   Approved plan SHA-256 before recording approval:
   `afb4f533177bd51ff51f813550f4ce756dce5062a93eb4757cf65994076447f4`.
@@ -185,6 +185,18 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
 - Integration: `work/upload-resume-double-calls-jev`, checkout `.worktrees/jev-integration`.
 - Ticket 01 assigned to an isolated worker on
   `work/upload-resume-double-calls-jev-01-resume-screening`, checkout `.worktrees/jev-01`.
+- Integrated code commits: 01 `783a759`, 02 `036e6c8`, shared library helper `83b8fdd`,
+  05 `ee1df6b`, 03 `aa20394`, 04 `77a5fed`. Worker worktrees jev-01 through jev-05
+  remain available. Integration after all migrations: 463 passed, 9 deselected offline.
+- Ticket 06 shared guard cleanup: worker resume_foundation in `.worktrees/jev-06`;
+  live comparison runner: worker gap_inputs in `.worktrees/jev-evals`; both base `77a5fed`.
+- Interview TDD: four new actual-provider-boundary regressions failed on original behavior,
+  then passed; final interview worker suite 444 passed, 9 deselected. Integrated interview
+  focused suite 70 passed. Integrated job focused suite 23 passed; gap focused suite 21 passed.
+- Tailoring's initial missing-keyword failure was test setup, not a valid red. The worker
+  later ran the handler request-count regression on baseline code (failed: 2 requests vs
+  10 required input checks), then verified current behavior green. Full worker suite 442
+  passed, 9 deselected; integrated all-flow suite above is the release checkpoint.
 - Planning checkout: master, initially clean. Integration base/head and branches pending.
 - Verification baseline: offline pytest with a dummy SDK key and network disabled:
   424 passed, 9 deselected. Initial run without dummy key had SDK initialization errors

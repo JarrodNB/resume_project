@@ -508,9 +508,21 @@ tailoring) instead of sending everything.
   is at least 0.7. Jev does not choose allow or block, and there is no generative fallback. A
   missing `TYPESAFE_API_KEY` or a Jev error omits the text (fail closed) and does not send it.
   A short phrase check blocks obvious instruction-override wording without a model call. The
-  first call site is library facts in the gap-analysis prompt (each fact on its own); a blocked
-  or unchecked fact is left out and the task result carries a warning. Career-library entries
-  copied from a resume are not screened. Text over a shared character cap is rejected before
+  screening unit is a cohesive untrusted source item: document, job context, library entry,
+  gap response, submitted answer, approved section, or reused interview question. Each is
+  checked once per execution. A blocked or unchecked optional entry is left out with a
+  warning; a required input prevents generation. Imported, manually edited, retrieved, and
+  scraped content follow this same rule when used in a generative request.
+  Large sources use overlapping chunks with 300 characters of overlap. The 2,000- and
+  4,000-character candidates are compared live against whole-resume screening before
+  choosing the production size. Boundary overlap is intentional repeated text, not a
+  second screening pass. All chunks must pass; a late rejection discards the entire item.
+  Trusted builders bind exact assembled prompts to screened sources. Every generative
+  agent retains an official input capability: it checks unknown direct input and user/tool
+  history without screening an already covered prompt again. Coverage never uses substring
+  removal or a caller boolean. Output-validation retries and provider fallback reuse the
+  execution's coverage; later deliveries and tasks start fresh. No approval is stored in
+  Rails or the queues. Text over a shared character cap is rejected before
   it is stored and again before a Jev or generative call (`TextLimits` in Rails,
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000

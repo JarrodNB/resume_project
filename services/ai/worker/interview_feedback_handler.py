@@ -15,10 +15,11 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
-from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
+from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
+from screening.session import bind_screened_prompt, within_screening_session
 from worker.interview_questions_handler import _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -37,6 +38,7 @@ class InterviewFeedbackInput(BaseModel):
     answer_revision: int = Field(ge=0)
 
 
+@within_screening_session
 def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDependencies) -> AiResultMessage:
     """Screens before model use; never writes the answer or career library."""
     snapshot = InterviewFeedbackInput.model_validate(task.input)
@@ -62,15 +64,20 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
+    if not screen(snapshot.question_text).allowed:
+        return fail("Your answer is saved. We couldn't check this question. Try requesting feedback again.")
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
-    library.facts = [fact.model_copy(update={"requirement": ""}) for fact in library.facts]
-    library.facts, warnings = select_screened_facts(library.facts, screen)
+    selected = screen_library_inputs(library, screen, include_fact_requirements=False)
+    library = selected.library
+    warnings = list(selected.warnings)
     content = library.model_dump(mode="json", exclude_none=True,
                                exclude={"facts": {"__all__": {"requirement"}}})
-    text = json.dumps({"set_type": snapshot.set_type, "question": snapshot.question_text, "answer": snapshot.answer_text,
-                       "career_library": content}, ensure_ascii=False)
+    text = bind_screened_prompt(
+        [snapshot.answer_text, snapshot.question_text, *selected.sources],
+        lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type),
+    )
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
     context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + _library_evidence_text(content), snapshot.set_type)
@@ -92,3 +99,12 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
         result={"interview_feedback": run.feedback.model_dump(mode="json"), "warnings": warnings},
         usage=[*usage, build_model_usage(run.model or settings.interview_feedback_model, run.usage)])
+
+
+def _feedback_prompt_text(values, fields, set_type):
+    """Render question, answer and library solely from supplied screened sources."""
+    library = rebuild_library(values[2:], fields)
+    content = library.model_dump(mode="json", exclude_none=True,
+        exclude={"facts": {"__all__": {"requirement"}}})
+    return json.dumps({"set_type": set_type, "question": values[1], "answer": values[0],
+        "career_library": content}, ensure_ascii=False)

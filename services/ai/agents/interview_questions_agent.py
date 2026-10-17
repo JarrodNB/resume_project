@@ -24,6 +24,7 @@ from schemas.interview_questions import (
     normalize_question,
 )
 from screening.prompt_guardrail import screen_prompt
+from screening.session import remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -76,6 +77,7 @@ class InterviewQuestionsRun(NamedTuple):
     model: str = ""
 
 
+@within_screening_session
 def generate_interview_questions(
     prompt: InterviewQuestionContext,
     model: str,
@@ -97,7 +99,7 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> InterviewQuestionsRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(INTERVIEW_QUESTIONS_PROMPT_VERSION):
             result = await interview_questions_agent.run(
                 prompt.text,

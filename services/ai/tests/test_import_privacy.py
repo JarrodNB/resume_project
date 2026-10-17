@@ -142,7 +142,9 @@ def test_import_privacy_survives_parent_spans_and_delayed_export(exporters):
         logfire.info("restored output", output=SOURCE)
     assert mask_outbound(SOURCE) == SOURCE
     logfire.force_flush(timeout_millis=1000)
-    rendered = repr([(s.name, s.attributes, s.events, s.status) for s in spans.get_finished_spans()])
+    rendered = repr([(s.name, dict(s.attributes),
+                      [(e.name, dict(e.attributes)) for e in s.events], s.status.description)
+                     for s in spans.get_finished_spans()])
     for secret in ("Jane Doe", "jane@example.test", "+1 415-555-2671", "PROFILE PERSON", "PROFILE@EXAMPLE.TEST"):
         assert secret not in rendered
     assert "«pii:" in rendered
@@ -161,12 +163,18 @@ def test_exception_logging_keeps_import_privacy_after_task_span(
         raise ValueError(SOURCE)
 
     monkeypatch.setattr(main, "handle_ai_task", crash)
+    # Forward ordinary task logging to the configured remote-telemetry seam while
+    # preserving the active exception. The catch runs after the root task span exits.
+    monkeypatch.setattr(main.logger, "exception", lambda *args: logfire.exception("task failed"))
     queue = FakeResultQueue()
     assert main.process_task_message(build_parse_resume_task().model_dump_json(), 1, queue, task_dependencies)
     assert json.loads(queue.sent_bodies[-1])["error_message"] == "The AI task failed"
     logfire.force_flush(timeout_millis=1000)
-    rendered = repr([(s.attributes, s.events, s.status) for s in spans.get_finished_spans()])
+    rendered = repr([(s.name, dict(s.attributes),
+                      [(e.name, dict(e.attributes)) for e in s.events], s.status.description)
+                     for s in spans.get_finished_spans()])
     rendered += repr([(r.log_record.body, r.log_record.attributes) for r in logs.get_finished_logs()])
+    assert "ValueError" in rendered
     for secret in ("Jane Doe", "jane@example.test", "+1 415-555-2671"):
         assert secret not in rendered
 

@@ -8,6 +8,7 @@ Index:
     - worker_environment / conversation_logging_enabled: explicit local transcript gate
 """
 
+from pydantic import field_validator
 from pydantic_ai.settings import ThinkingEffort
 from pydantic_settings import BaseSettings
 
@@ -46,6 +47,16 @@ class WorkerSettings(BaseSettings):
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. Pinned; there is no generative fallback.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
+    # Provisional evaluation candidate; ticket 06 selects the production size with live Jev.
+    user_text_screen_chunk_size: int = 2000
+
+    @field_validator("user_text_screen_chunk_size")
+    @classmethod
+    def screen_chunk_candidate(cls, value: int) -> int:
+        """Only the two candidates under evaluation are accepted."""
+        if value not in (2000, 4000):
+            raise ValueError("Screen chunk size must be 2000 or 4000")
+        return value
     resume_tailoring_model: str = "openai:gpt-5-mini"
     resume_tailoring_thinking: ThinkingEffort = "low"
     # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.

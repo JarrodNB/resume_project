@@ -22,6 +22,18 @@ applies the threshold. This is not a second classifier and it does not choose al
 
 ## Local Rules
 
+- Transitional resume migration: `session.py` owns execution-local decisions and exact
+  prompt coverage. The worker opens a fresh `screening_session` for every delivery;
+  standalone handlers/wrappers use `within_screening_session` to reuse an enclosing scope.
+  `screen_user_text` checks overlapping chunks (300 characters); 2,000 and 4,000 are
+  configurable evaluation candidates, with a provisional 2,000 default pending live tests.
+  `bind_screened_prompt(sources, render)` grants exact rendered-prompt coverage only when
+  every supplied source has an allowed decision. Renderers are trusted application code:
+  all untrusted values must come from the supplied source arguments, never closure state.
+  Empty sources cannot grant coverage. Unknown history and changed prompts remain guarded.
+  Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
+  Other agents retain the existing assembled-prompt screen until their migration.
+
 - Do not send the text when the screen cannot run.
 - Field-level screening provides early errors/omissions; the agent capability independently
   screens the final prompt, including imported, manually edited, retrieved, and scraped text.

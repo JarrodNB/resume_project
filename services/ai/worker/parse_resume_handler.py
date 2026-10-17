@@ -18,6 +18,7 @@ from documents.extract_document_text import (
     extract_document_text,
 )
 from screening.screen_user_text import ScreenOutcome, screen_user_text
+from screening.session import within_screening_session
 from text_limits import RESUME_TOO_LONG_MESSAGE
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
@@ -46,6 +47,7 @@ class ParseResumeInput(BaseModel):
     source_file: SourceFile
 
 
+@within_screening_session
 def handle_parse_resume_task(
     task: AiTaskMessage, dependencies: TaskDependencies
 ) -> AiResultMessage:

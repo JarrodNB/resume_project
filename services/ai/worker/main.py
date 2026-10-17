@@ -23,6 +23,7 @@ from database.career_library_reader import (
     build_database_library_reader,
 )
 from screening.guardrail_usage import collect_guardrail_usage
+from screening.session import screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.retryable_errors import is_retryable_error
 from worker.run_limits import RUN_LIMIT_MESSAGE
@@ -75,6 +76,7 @@ def _execute_task(task, receive_count, result_queue, dependencies, task_usage, g
     try:
         with (
             collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
+            screening_session(dependencies.settings.llm_run_timeout_seconds),
         ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:

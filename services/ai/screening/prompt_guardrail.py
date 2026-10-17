@@ -17,6 +17,7 @@ from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 from pydantic_ai_harness import InputBlocked
 
 from screening.guardrail_usage import record_guardrail_usage
+from screening.session import prompt_is_covered
 from screening.yes_confidence import blocks_on_yes_confidence
 from text_limits import MAX_PROMPT_TEXT
 from worker.settings import load_settings
@@ -35,11 +36,11 @@ async def screen_prompt(ctx: RunContext[Any], prompt: str) -> bool:
     Subsequent output-validation retries reuse this checked input. No production bypass
     depends on a test model or tracing being enabled.
     """
+    if len(_input_text(ctx, prompt, exclude_covered=False)) > MAX_PROMPT_TEXT:
+        raise InputBlocked(TOO_LONG_MESSAGE)
     text = _input_text(ctx, prompt)
     if not text.strip():
         return True
-    if len(text) > MAX_PROMPT_TEXT:
-        raise InputBlocked(TOO_LONG_MESSAGE)
     if not os.environ.get("TYPESAFE_API_KEY", "").strip():
         raise InputBlocked(UNCHECKED_MESSAGE)
     settings = load_settings()
@@ -65,7 +66,7 @@ async def _screen_prompt_text(text: str, model: str, timeout_seconds: float) -> 
     return await screen_user_message_async(text, model, timeout_seconds)
 
 
-def _input_text(ctx: RunContext[Any], prompt: str) -> str:
+def _input_text(ctx: RunContext[Any], prompt: str, *, exclude_covered: bool = True) -> str:
     """Includes prior user/tool input so a supplied history cannot bypass the guard.
 
     System instructions are application-owned. Current agents accept text only; unknown
@@ -90,4 +91,4 @@ def _input_text(ctx: RunContext[Any], prompt: str) -> str:
         # InputGuardrail supplies the final prompt after message-transforming hooks.
         # Replace its original version rather than screening both masked and raw copies.
         texts[prompt_index] = prompt
-    return "\n\n".join(texts)
+    return "\n\n".join(text for text in texts if not exclude_covered or not prompt_is_covered(text))

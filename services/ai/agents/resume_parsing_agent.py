@@ -22,6 +22,7 @@ from prompts.resume_parsing_instructions import (
 )
 from schemas.parsed_resume import ParsedResume
 from screening.prompt_guardrail import screen_prompt
+from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -56,6 +57,7 @@ class ResumeParsingRun(NamedTuple):
     model: str = ""
 
 
+@within_screening_session
 def parse_resume_text(
     resume_text: str,
     model: str,
@@ -67,8 +69,9 @@ def parse_resume_text(
     effort. Raises TimeoutError if the whole run (including the provider's own retries) takes
     longer than timeout_seconds. Raises UsageLimitExceeded when the run passes its request,
     tool-call, or token cap. A provider error tries fallback_model."""
+    prompt = bind_screened_prompt([resume_text], lambda sources: format_resume_user_prompt(sources[0]))
     return asyncio.run(
-        _run_with_deadline(resume_text, model, thinking, timeout_seconds, fallback_model)
+        _run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model)
     )
 
 
@@ -80,10 +83,10 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> ResumeParsingRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(RESUME_PARSING_PROMPT_VERSION):
             result = await resume_parsing_agent.run(
-                format_resume_user_prompt(resume_text),
+                resume_text,
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
                 usage_limits=agent_usage_limits(load_settings()),

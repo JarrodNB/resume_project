@@ -75,8 +75,8 @@ Ordinary pytest skips the two cross-container cases unless the fixture directory
 Run from the checkout under test:
 
     mkdir -p tmp/ats-pdf
-    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "/home/jarrod/ats-check-04-fixtures/tmp/ats-pdf:/fixtures" web npm test -- src/features/resume-tailoring/ResumePdfExport.integration.test.tsx
-    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "/home/jarrod/ats-check-04-fixtures/tmp/ats-pdf:/fixtures:ro" ai pytest tests/test_production_resume_pdf.py tests/test_ats_pdf.py
+    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "$PWD/tmp/ats-pdf:/fixtures" web npm test -- src/features/resume-tailoring/ResumePdfExport.integration.test.tsx
+    docker compose run --rm --no-deps -e ATS_EXPORT_FIXTURES=/fixtures -v "$PWD/tmp/ats-pdf:/fixtures:ro" ai pytest tests/test_production_resume_pdf.py tests/test_ats_pdf.py
 
 Fixtures include every section, contact links, exact and partial certification dates,
 repeated years, wrapping and multi-page output. They remain in ignored tmp storage.

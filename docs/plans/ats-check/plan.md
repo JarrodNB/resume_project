@@ -268,3 +268,17 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
 - All four tickets integrated and verified. Fresh blind correctness/design reviewers
   started on identical fixed snapshots without planning context. Results pending.
 - User acceptance remains pending and the Kanban item remains on the board.
+
+### Blind review round 1
+
+- Both reviewed base 4cbf898d2f992f1b468bc96df1675d0414572d24 to head
+  7e3bb7e017b38deb4cdbde37d3fbbe0bc0d7a831 with no planning context.
+- Correctness: P2 scheduling failure renders queued and disables manual retry; P2
+  concurrent saves can pair submitted draft A with fingerprint B resolved after A unlocks.
+  Both accepted for regression-driven repair in work/ats-check-review-fixes.
+- Design: no actionable code design issues; P3 hardcoded worktree in production PDF
+  verification commands accepted and corrected to checkout-relative host mounts.
+- Correctness checks: 18 offline AI passed, 2 production cases skipped without fixtures;
+  22 web passed. Design checks: 18 AI, 22 web, 2 actual renderer and 2 actual PDF checks passed.
+- Neither reviewer ran Rails DB tests or paid evaluations. Review changes require a fresh
+  pair against the revised full code diff before the PR handoff.

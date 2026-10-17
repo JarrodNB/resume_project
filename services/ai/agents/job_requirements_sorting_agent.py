@@ -21,6 +21,7 @@ from prompts.job_requirements_sorting_instructions import (
 )
 from schemas.sorted_requirement_bullets import SortedRequirementBullets
 from screening.prompt_guardrail import screen_prompt
+from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -41,6 +42,7 @@ def format_numbered_bullets(bullets: list[str]) -> str:
     return "\n".join(f"{number}. {bullet}" for number, bullet in enumerate(bullets, start=1))
 
 
+@within_screening_session
 def sort_job_requirement_bullets(
     bullets: list[str],
     model: str,
@@ -64,10 +66,10 @@ async def _run_with_deadline(
     fallback_model: str,
 ) -> BulletSortingRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         with record_prompt_version(JOB_REQUIREMENTS_SORTING_PROMPT_VERSION):
             result = await job_requirements_sorting_agent.run(
-                format_numbered_bullets(bullets),
+                bind_screened_prompt([format_numbered_bullets(bullets)], lambda sources: sources[0]),
                 model=generative_model(model, fallback_model),
                 model_settings=ModelSettings(thinking=thinking),
                 usage_limits=agent_usage_limits(load_settings()),

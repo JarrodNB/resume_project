@@ -77,13 +77,16 @@ def test_scrapes_a_posting_with_headings(
 
 
 def test_sorts_bullets_with_the_agent_when_headings_are_missing(
-    task_dependencies: TaskDependencies, fake_job_site: FakeJobSite
+    task_dependencies: TaskDependencies, fake_job_site: FakeJobSite, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The agent sees numbered bullets; its numbers choose the bullets, and its usage is reported."""
     fake_job_site.pages[GUEST_JOB_URL.format(job_id="4002")] = load_linkedin_fixture(
         "job_without_headings"
     )
     agent_output = {"requirement_numbers": [2], "nice_to_have_numbers": [3]}
+    from screening.screen_user_text import ScreenOutcome
+
+    monkeypatch.setattr("worker.scrape_job_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
 
     with (
         capture_run_messages() as messages,

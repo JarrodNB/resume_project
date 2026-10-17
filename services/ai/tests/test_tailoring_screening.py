@@ -132,4 +132,3 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     assert second.status == "needs_user_input"
     assert len(calls) == 2 * (len(sources.records) + 1)
     assert len(generation) == 2
-

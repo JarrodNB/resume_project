@@ -1,7 +1,7 @@
 """
-Description: Sequential InputGuardrail policy for every generative agent's complete prompt.
-Screening uses Jev without a recursive guardrail; a block raises rather than returning prose
-to a caller expecting structured output. Existing field checks provide earlier user feedback.
+Description: Enforces input coverage before every generative agent's first provider request.
+Exact prompts built from screened sources reuse their decisions; unknown user/tool inputs
+receive chunked Jev checks. A block raises rather than returning prose to a structured caller.
 Index:
     - screen_prompt: checks assembled input and supplied history before generation
 """
@@ -25,7 +25,7 @@ TOO_LONG_MESSAGE = "This content is too long to screen. Shorten it and try again
 
 
 async def screen_prompt(ctx: RunContext[Any], prompt: str) -> bool:
-    """Screens the complete assembled prompt, including stored/retrieved data and history.
+    """Check unknown input and history while reusing exact approved prompt coverage.
 
     InputGuardrail runs once before the first request, including direct agent/eval calls.
     Subsequent output-validation retries reuse this checked input. No production bypass

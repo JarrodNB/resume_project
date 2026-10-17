@@ -19,6 +19,9 @@ near the beginning/middle/end, and attacks spanning both chunk grids.
 Full initial evidence is in `chunk-comparison.json`. The 4,000 setting used fewer requests
 and less time than 2,000 at equal observed decisions, so it is the selected chunk size.
 Whole resumes were faster. This experiment does not show that chunking improves detection.
+The complete comparison was repeated after selecting the production setting: again zero
+missed attacks, false positives, or errors for all configurations, with the same request
+counts. Mean document latency was 4.20s (2,000), 2.03s (4,000), and 1.34s (whole).
 
 The sample is small, hand-labelled, synthetic, and uses one attack template. Configurations
 run sequentially and stop at the first rejection, so latency and cost depend on attack

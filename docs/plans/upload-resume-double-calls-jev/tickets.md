@@ -162,7 +162,7 @@ document the new policy, and verify the final behavior offline and against live 
 history, masking transformations, lifecycle and request usage integration. Do not leave
 production fallback paths that silently trust unproven approvals.
 
-**Status:** in-progress.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 - All plan acceptance criteria pass across integrated flows; no duplicate final-prompt
@@ -208,7 +208,7 @@ default; ticket 06 owns the live comparison, default selection, and final rechec
 
 ## Actual integration checkpoint
 
-Tickets 01–05 are implemented and integrated; ticket 06 is in progress. The original
+Tickets 01–06 are implemented and integrated. The original
 per-ticket progress entries above describe planned assignment; this checkpoint records
 actual delivery pending the final acceptance audit.
 
@@ -219,8 +219,10 @@ actual delivery pending the final acceptance audit.
 | 03 | aa20394 | Integrated focused suite 21 passed; worker full 442 passed |
 | 04 | 77a5fed | Worker full 442 passed; final integrated suite below |
 | 05 | ee1df6b (+ helper 83b8fdd) | Integrated focused 70 passed; worker full 444 passed |
-| 06 | pending | Shared guard and comparison runner in isolated worktrees |
+| 06 | 198eb34, 651bd51, 4c8879a | Full offline 481 passed; repeated live comparisons and both Jev suites passed |
 
 All full suites excluded 9 database tests. All-migration integrated offline suite:
-463 passed, 9 deselected. Actual red/green and environment limitations are recorded in
-plan.md. Live provider runs have not started. No PR or blind reviews yet.
+463 passed, 9 deselected. Final suite: 481 passed, 9 deselected. Actual red/green,
+live outcomes, reviewed snapshots, and limitations are recorded in plan.md and the
+verification report. Both blind reviews returned no actionable findings. PR handoff
+is next; browser QA and human acceptance remain outstanding.

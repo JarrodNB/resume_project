@@ -170,7 +170,7 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
 ## Delivery Record
 
 - Source: Upload resume double calls Jev, in KANBAN.md.
-- Phase: final integration and evaluation; tickets 01–05 implemented and verified.
+- Phase: implementation, verification, and blind reviews complete; PR/human-QA handoff next.
 - Plan approved in conversation on 2026-10-17, with final live Jev testing requested.
   Approved plan SHA-256 before recording approval:
   `afb4f533177bd51ff51f813550f4ce756dce5062a93eb4757cf65994076447f4`.
@@ -206,4 +206,28 @@ sorting needs coverage in the audit despite differing from pasted job parsing.
   unrelated code and distinguish these from new lint findings.
 - Environment: WSL requires sandbox escalation; approved WSL commands work. WSL lacks
   rg, so inspection used grep/find.
-- Reviews and PR/manual-QA handoff pending implementation.
+- Ticket 06 integrated shared guard `198eb34` and comparison runner `651bd51`.
+  Selected configuration/code candidate: `4c8879a45c11bc384413a2c03a8c0985eb027353`.
+- Final default: 4,000 characters, 300 overlap. Both initial and repeated live comparisons
+  passed all 42 assessments (14 documents x 3 settings), with zero misses, false positives,
+  or provider errors. Calls: 48 for 2,000; 25 for 4,000; 14 whole. Whole was faster;
+  no claim that chunking improved detection. See docs/evals/jev-screening-20261017/report.md.
+- Final selected-default offline suite: 481 passed, 9 deselected. Full lint unchanged:
+  four baseline findings; changed Python files pass. Final full-diff whitespace checked.
+- Both existing live Jev suites passed, then passed again with explicit 4,000 setting.
+  All seven affected generative eval runners exited 0. Non-perfect quality scores and
+  telemetry warnings are recorded in the verification report; no unrelated tuning performed.
+- Acceptance audit: all eight criteria checked against integrated source and provider-boundary
+  tests. Full input coverage includes saved/retrieved/manual/imported/job/question inputs;
+  current-execution reuse, fresh executions, chunks, failure/omission behavior, masking,
+  usage and no persisted bypass are covered. Human browser QA remains outstanding.
+- Blind correctness and design reviews independently reviewed base
+  `8bcedd255d1ad5ac4427a33389814347b37a3e7d` through candidate
+  `4c8879a45c11bc384413a2c03a8c0985eb027353`: no actionable findings.
+  Both ran full offline suite: 481 passed, 9 excluded. Correctness focused 73 passed;
+  design changed-file lint passed and identified the extra EOF blank line, now removed.
+- Post-review changes are editorial only: test EOF whitespace, guard documentation wording,
+  final verification and workflow records. No behavior/interface/test coverage changes;
+  full review repeat is unnecessary for these changes.
+- PR link pending creation. Do not merge, deploy, or remove the Kanban item; human QA
+  and explicit acceptance are still required.

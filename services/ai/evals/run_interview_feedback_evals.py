@@ -66,7 +66,7 @@ def run_interview_feedback_evals(model_override: str | None = None) -> None:
 
     report_interview_evals(load_interview_feedback_dataset(), review,
                           "evals.interview_feedback", settings.interview_feedback_model,
-                          INTERVIEW_FEEDBACK_PROMPT_VERSION, RUBRICS)
+                          INTERVIEW_FEEDBACK_PROMPT_VERSION, RUBRICS, settings=settings)
 
 
 if __name__ == "__main__":

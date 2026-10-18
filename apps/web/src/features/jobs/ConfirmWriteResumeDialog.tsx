@@ -5,16 +5,18 @@
  *   - ConfirmWriteResumeDialog: recommends a comparison, or continues to writing
  */
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 interface ConfirmWriteResumeDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onWriteAnyway: () => void
+  onCompare: () => void
+  busy: boolean
 }
 
-/** Recommends comparing the job first. Compare first stays on the page; writing continues to tailoring. */
-export function ConfirmWriteResumeDialog({ open, onOpenChange, onWriteAnyway }: ConfirmWriteResumeDialogProps) {
+/** Recommends comparing the job first. Compare first starts the comparison and stays on the page; writing continues to tailoring. */
+export function ConfirmWriteResumeDialog({ open, onOpenChange, onWriteAnyway, onCompare, busy }: ConfirmWriteResumeDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -25,10 +27,8 @@ export function ConfirmWriteResumeDialog({ open, onOpenChange, onWriteAnyway }: 
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="outline">Compare first</Button>
-          </DialogClose>
-          <Button onClick={onWriteAnyway}>Write resume anyway</Button>
+          <Button variant="outline" disabled={busy} onClick={onCompare}>Compare first</Button>
+          <Button disabled={busy} onClick={onWriteAnyway}>Write resume anyway</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

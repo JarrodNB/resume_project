@@ -19,7 +19,7 @@ card and resume action. The dialog requests an action through a callback. Preser
 GraphQL/queue contracts. Test through the job page's real controls and Apollo mocks, keeping
 the existing comparison card and gap-response coverage meaningful.
 
-**Status:** ready-for-agent (dispatch only after breakdown approval and planning commit).
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -57,18 +57,53 @@ git diff --check
 ```
 
 Include any new focused test files in the first command. No browser automation or paid evals.
-Actual red/green and broader check results: not run; implementation pending approval.
+Actual checks used the compatible local Docker image without network, mounting the worker
+or integration checkout's apps/web at /app with an anonymous /app/node_modules volume:
+
+```bash
+docker run --rm --network none -v "$PWD/apps/web:/app" -v /app/node_modules -w /app resume_project-web:latest npm test -- src/features/jobs/JobDetailPage.test.tsx src/features/gap-analysis/GapAnalysisCard.test.tsx --maxWorkers=1
+docker run --rm --network none -v "$PWD/apps/web:/app" -v /app/node_modules -w /app resume_project-web:latest npm test -- --maxWorkers=1
+docker run --rm --network none -v "$PWD/apps/web:/app" -v /app/node_modules -w /app resume_project-web:latest npm run typecheck
+docker run --rm --network none -v "$PWD/apps/web:/app" -v /app/node_modules -w /app resume_project-web:latest npm run lint
+```
+
+- Red: changed dialog regression failed because Write resume remained enabled after
+  Compare first; eight other page tests passed.
+- Green: initial focused page/card run passed 18 tests; expanded final focused run passed
+  26 tests, independently rerun on the integrated candidate by the coordinator.
+- Broader: final serial full suite passed 154 tests across 35 files (exit 0, 163 seconds).
+  Initial default concurrent run failed six tests under resource load, including a new
+  assertion before Apollo broadcast; added waitFor for that actual UI update. Final run
+  passed all previously failing files. No test timeout settings changed.
+- Typecheck, lint (0 errors/warnings), and git diff --check passed.
 
 **Progress:**
 
 - Planned worker branch: work/write-resume-compare-first-01-comparison-flow.
-- Worktree, starting base, resulting commits: not assigned; coordinator will record actuals.
+- Worktree: .worktrees/compare-first-01; starting base `9a8616f`; worker commit `16b68c1`.
+  Integrated as `c34d4ac` after rebasing integration planning onto remote master to exclude
+  unrelated local planning artifacts.
 - Coordinator integrates and verifies the complete behavior before marking implemented.
 - Two fresh blind reviews of the final full diff and coordinator acceptance checks follow
   integration; review fixes remain within this ticket unless material scope changes.
-- Blockers: human breakdown approval and approved planning commit pending.
+- Blockers: none; approvals recorded and planning committed as `9a8616f`.
 - Concerns: stale task state after live updates; the interval before a task ID arrives;
   preserving existing standalone card tests while moving lifecycle ownership.
+- Round 1 correctness review: supported P2 where locally started task A permanently masks
+  newer task B returned by a job refetch. Fix and regression assigned to the worker; final
+  integration verification and fresh blind reviews completed below. Design review had no findings.
+- Review fix red: reproduced stale direct-writing link after real Apollo start/completion
+  of A followed by queued B in refreshed job cache. Green: 27 focused tests passed, including
+  B progress, disabled writing, and B live completion. Worker commit `875349f`, integrated
+  as `a33ac6f`; typecheck/lint/diff checks passed.
+- Fresh review round 2: correctness and design found no actionable findings against the full
+  original-base-to-`a33ac6f` application diff. Each independently passed 27 focused tests.
+  Coordinator final integrated typecheck/lint passed; no production changes after reviews.
+- Post-fix full serial suite: 154 passed, 1 failed across 35 files. The sole failure was
+  unchanged InterviewSetPage.test.tsx queued/live subscription behavior; isolated rerun
+  passed all 3 tests. Final comparison-focused checks: 27 passed. No unrelated code fixes.
+- PR publication blocked by automatic approval review of the push to the configured GitHub
+  origin; reviewed branch and prepared PR description are ready for explicit publishing approval.
 
 ## Delivery shape
 

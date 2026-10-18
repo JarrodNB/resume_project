@@ -132,15 +132,72 @@ explicitly accepts completion. No existing plan or tickets for this item were fo
 ## Delivery Record
 
 - Source: write resume -> compare first should do the comparison when clicked.
-- Phase: plan and breakdown approved; preparing implementation.
+- Phase: reviewed branch ready; human explicitly authorized GitHub publication and worktree cleanup.
 - Requirements: confirmed in chat, including optional comparison and active-task blocking.
 - Plan approval: human replied "confirmed" to revision 1 in chat on 2026-10-18.
   Approved plan SHA-256 before this delivery-record update:
   `3a5ad6fad2b896051bbc55be1aa54c9b90361f89d87b5df2cc6fd21d4d80fb70`.
 - Breakdown approval: human replied "approved" in chat on 2026-10-18 to tickets revision 1,
   SHA-256 `4e77a9b08e2752ad4b9dc26918b330130f2dc73d41140d6143f7414213301f29`.
-- Planning commit: pending both approvals. Current checkout: master; initially clean.
-- Intended integration branch: work/write-resume-compare-first; not created.
-- Integration base/head, worker branches, ticket statuses: not assigned.
-- Verification: code and existing tests inspected; application checks not yet run.
-- Reviews, PR, manual QA, human acceptance: pending.
+- Original planning commit: `9a8616f`, committed on master. For a focused PR, the isolated
+  integration branch was rebased onto remote master `6930b8e`, excluding an unrelated local
+  planning commit. Equivalent planning commit: `5b3a717`.
+- Integration branch: work/write-resume-compare-first, worktree .worktrees/compare-first-integration.
+- Ticket 01: implemented; worker branch work/write-resume-compare-first-01-comparison-flow,
+  worktree .worktrees/compare-first-01, starting base `9a8616f`, worker commit `16b68c1`,
+  integrated as `c34d4ac`.
+- Verification: coordinator Docker focused run passed 26 tests; typecheck and lint passed
+  (0 warnings/errors). Worker final Docker full suite with --maxWorkers=1 passed 154 tests
+  in 35 files. git diff --check passed. Initial default concurrent suite had six failures
+  (timing contention and one test needing an Apollo-broadcast wait); final serial run passed
+  after fixing that synchronization. No application timeout changes.
+- Coordinator acceptance check: criteria 1–6 covered by page controls, real Apollo mutation
+  and live subscription tests; criterion 7 covered by preserved card/result/response tests.
+  No schema or worker changes. No browser QA performed.
+- Review snapshot: base `6930b8e9273648494e564ee920b2fb8a6770ff3e`,
+  head `c34d4ace089cc5bad2282590d49f30a892dd370a`. Both reviewers independently passed
+  26 focused Docker tests. Design: no actionable findings. Correctness: P2, local started
+  task ID permanently overrides a newer task returned by a job refetch, permitting writing
+  while that newer comparison is active. Supported by code inspection; worker assigned a
+  real-Apollo regression and correction. A fresh review pair is required after the fix.
+- P2 resolution: regression reproduced enabled direct-writing link after locally completed
+  A was superseded by queued B in refreshed job cache. Worker fix `875349f`, integrated
+  `a33ac6f`, limits the local task override to the interval before the job acknowledges a
+  new task identity. New test also verifies B's live completion unlocks writing. Focused
+  Docker tests: 27 passed; worker typecheck/lint/diff checks passed. Post-fix full serial
+  suite: 154/155 passed in 35 files; sole failure was unchanged InterviewSetPage queued/live
+  test. Isolated rerun of that file passed all 3 tests (exit 0). No unrelated source changes.
+- Round 2 snapshot: original base `6930b8e9273648494e564ee920b2fb8a6770ff3e`,
+  head `a33ac6fd7b76873696157a040d3f1c4ef6a22fdb`; both fresh reviewers report no
+  actionable findings and independently passed 27 focused Docker tests and diff checks.
+  Coordinator final integrated typecheck/lint passed (0 warnings/errors). Only delivery
+  records changed after this review snapshot; no additional source review is needed for
+  these editorial progress updates.
+- PR blocked: automatic approval review rejected git push to origin
+  https://github.com/JarrodNB/resume_project.git, stating that external destination/payload
+  were not explicitly authorized. No push or PR creation occurred. Human approval needed
+  to publish work/write-resume-compare-first and create its PR targeting master there.
+- Publishing authorization: human said "Push the PR and free up the worktree" in chat.
+  Git HTTPS push then failed because no credentials were configured. The authenticated
+  GitHub connector is available; publishing the same reviewed file snapshot through it,
+  with a tree-equality check before removing clean task worktrees. Local review commits
+  remain in git history; source files have not changed since review round 2.
+- Manual QA and human acceptance pending. Board item retained. Root checkout remains on
+  master with the planning commit; implementation is in .worktrees/compare-first-integration.
+
+### Prepared PR description
+
+Title: Start comparison from the resume prompt and pause writing while it runs
+
+Compare first previously only dismissed the resume prompt. It now starts the job comparison
+and shows progress/results on the job page. Writing without comparison remains available;
+Write resume is disabled only while comparison is starting or active. Both entry points,
+reloads, newer tasks, live completion/failure, and saved-resume navigation share task state.
+
+Validation: 27 focused frontend tests, typecheck, and lint pass. Two final blind reviews
+have no actionable findings. Initial full serial suite passed 154 tests; after the review
+fix the expanded suite passed 154/155, with an unchanged interview subscription test passing
+on isolated rerun (3/3 in that file). No browser QA performed.
+
+Human QA: try Compare first, compare from the card, reload during comparison, retry after
+failure where available, write without comparing, and open an already saved resume.

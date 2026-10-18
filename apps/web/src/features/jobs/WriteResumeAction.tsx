@@ -1,6 +1,6 @@
 /**
  * Description: The job page's resume action. A saved resume opens directly. A finished
- * comparison goes straight to tailoring. Otherwise a dialog recommends comparing first.
+ * comparison goes straight to tailoring. Otherwise a dialog recommends comparing first. Active comparisons disable writing.
  * Index:
  *   - WriteResumeAction: the header button
  */
@@ -13,10 +13,12 @@ interface WriteResumeActionProps {
   jobId: string
   resumeId: string | null
   comparisonFinished: boolean
+  comparisonBusy: boolean
+  onCompare: () => void
 }
 
 /** Opens the saved resume, or starts writing one, asking first when no comparison has finished. */
-export function WriteResumeAction({ jobId, resumeId, comparisonFinished }: WriteResumeActionProps) {
+export function WriteResumeAction({ jobId, resumeId, comparisonFinished, comparisonBusy, onCompare }: WriteResumeActionProps) {
   const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
 
@@ -30,7 +32,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished }: Write
     )
   }
 
-  if (comparisonFinished) {
+  if (comparisonFinished && !comparisonBusy) {
     return (
       <Button asChild size="sm">
         <Link to={`/jobs/${jobId}/tailor`}>Write resume</Link>
@@ -40,13 +42,21 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished }: Write
 
   return (
     <>
-      <Button size="sm" onClick={() => setConfirming(true)}>
+      <Button size="sm" disabled={comparisonBusy} onClick={() => setConfirming(true)}>
         Write resume
       </Button>
       <ConfirmWriteResumeDialog
         open={confirming}
         onOpenChange={setConfirming}
-        onWriteAnyway={() => navigate(`/jobs/${jobId}/tailor`)}
+        busy={comparisonBusy}
+        onCompare={() => {
+          if (comparisonBusy) return
+          setConfirming(false)
+          onCompare()
+        }}
+        onWriteAnyway={() => {
+          if (!comparisonBusy) navigate(`/jobs/${jobId}/tailor`)
+        }}
       />
     </>
   )

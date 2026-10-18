@@ -27,6 +27,9 @@ output in addition to the usual Description/Index.
 - `resume_tailoring_instructions.py` — `RESUME_TAILORING_PROMPT_VERSION`, `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
   from the labeled library only; cite labels; say when nothing fits)
 
+- `user_text_fallback_instructions.py` — versioned safety classifier instructions; untrusted
+  input is data, and either positive boolean blocks.
+
 ## Local Rules
 
 - Bump that file's prompt version when the instructions change, then rerun the agent's evals.

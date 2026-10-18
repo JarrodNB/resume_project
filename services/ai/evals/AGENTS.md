@@ -87,6 +87,10 @@ score attached, so runs can be compared across prompt and model changes.
   (each yes/no bool)
 - `run_user_text_screen_evals.py` — runner (the Jev call itself, not the phrase list):
   `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
+- `run_user_text_fallback_evals.py` — dedicated Nano boolean classifier quality run on the
+  shared synthetic screening cases. Uses production boolean policy, never JEV margins.
+  Outages are errors and wrong decisions fail the runner. Run
+  `docker compose run --rm ai python -m evals.run_user_text_fallback_evals`.
 - `run_screen_chunk_comparison.py` — 14 synthetic ordinary, long, and security-career
   resumes, including attacks at the beginning/middle/end and across both candidate chunk
   grids. Compares the production 2,000/4,000-character screens with 300-character overlap

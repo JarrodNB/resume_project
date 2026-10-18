@@ -58,8 +58,7 @@ def handle_interview_questions_task(
         """Screens user-authored facts and retains their billed Jev usage."""
         outcome = screen_user_text(text, model=settings.user_text_screen_model,
                                    timeout_seconds=settings.llm_run_timeout_seconds)
-        if outcome.usage is not None and outcome.model is not None:
-            usage.append(build_model_usage(outcome.model, outcome.usage))
+        usage.extend(outcome.model_usages)
         return outcome
 
     # A fact's requirement came from a job posting; only the saved response is career evidence.

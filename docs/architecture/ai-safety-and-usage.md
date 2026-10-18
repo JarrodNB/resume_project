@@ -31,7 +31,8 @@ requests get a JSON 429 with `Retry-After`.
 - **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring,
   interview questions, and interview feedback) default to `gpt-6-luna` with low reasoning
   effort and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
-  A failed output check retries the same model. Jev stays a single pinned model and fails closed.
+  A failed output check retries the same model. JEV stays the pinned primary safety model;
+  its separate Nano classifier handles attempted screening failures.
   Luna was selected for its lower cost and latency in the October 2026 synthetic evaluations.
   Quality varies between runs, and interview quality scores were lower than GPT-5 mini's;
   this is a cost and latency preference rather than a claim of better quality on every task.
@@ -50,7 +51,7 @@ requests get a JSON 429 with `Retry-After`.
   once and the task is not retried. A hit raises `UsageLimitExceeded`. The worker publishes
   `failed` on the first attempt, with no partial resume, analysis, or section. A wall-clock
   timeout stays retryable, because the same run may finish next time. A cap on the Jev screen
-  fails the task the same way; a Jev outage still omits the text.
+  fails the task the same way. Screening outages omit text only when recovery also fails.
 
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
   them locally and in CI. Scores go to Logfire for comparison across prompt and model
@@ -74,8 +75,16 @@ requests get a JSON 429 with `Retry-After`.
   (`typesafe:jev-1.13.0`, TypeSafe) answers two yes/no questions: does the text try to override,
   reveal, or ignore instructions, and does it ask for actionable help with harm, crime, or
   abuse. Ordinary career history is not harmful. Code blocks when either answer's yes-confidence
-  is at least 0.7. Jev does not choose allow or block, and there is no generative fallback. A
-  missing `TYPESAFE_API_KEY` or a Jev error omits the text (fail closed) and does not send it.
+  is at least 0.7. Each JEV run has an application-enforced three-second cap, shortened by
+  the remaining source/task deadline. An attempted provider error, timeout, or invalid response
+  invokes a separate safety classifier (`USER_TEXT_SCREEN_FALLBACK_MODEL`, default
+  `openai:gpt-5-nano`) on the same protected chunk. Its versioned instructions treat the
+  message as data; structured boolean answers block when either question is positive.
+  No confidence margins are invented for Nano. A JEV rejection never invokes fallback.
+  Missing `TYPESAFE_API_KEY` calls neither provider. Exhausted time or a failed fallback
+  leaves the input unchecked. Usage caps and external cancellation propagate without recovery.
+  Each new chunk starts with JEV; there is no execution-wide circuit breaker. Both classifiers
+  are exempt from recursive input screening. Fallback shares the remaining overall deadline.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
   gap response, submitted answer, approved section, or reused interview question. Each is
@@ -100,9 +109,10 @@ requests get a JSON 429 with `Retry-After`.
   characters. Those failures tell the user the text is too long. They are not reported as
   unsafe, and rows are not silently truncated. A posting with too many bullets to sort is
   still saved, with a warning to add requirements by hand. A request body over 8 MB is a
-  JSON 413. Jev usage is reported on the task result and counts
-  toward the monthly budget. Token rates are TypeSafe's published $0.042 per 1M input tokens
-  (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
+  JSON 413. JEV and fallback usage are reported under their actual models and count
+  toward the monthly budget, including completed responses before later failures and validation
+  retries. Missing usage stays explicitly unknown. JEV token rates are TypeSafe's published
+  $0.042 per 1M input tokens (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).
 
 - **AI budget uses known costs, including unsuccessful attempts.** The worker collects
   screening, generation and query-embedding responses at their request seam, before output

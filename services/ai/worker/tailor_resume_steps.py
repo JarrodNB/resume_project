@@ -20,7 +20,6 @@ from tailoring.tailor_resume_input import (
     section_plain_text,
     section_snapshot,
 )
-from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
 
@@ -61,8 +60,7 @@ def screen_tailoring_text(
         text, model=dependencies.settings.user_text_screen_model,
         timeout_seconds=dependencies.settings.llm_run_timeout_seconds,
     )
-    if outcome.usage is not None and outcome.model is not None:
-        usage.append(build_model_usage(outcome.model, outcome.usage))
+    usage.extend(outcome.model_usages)
     return outcome
 
 

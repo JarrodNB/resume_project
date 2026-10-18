@@ -14,7 +14,6 @@ from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobT
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt
-from worker.model_prices import build_model_usage
 from worker.queue_messages import ModelUsage
 
 
@@ -53,8 +52,7 @@ def prepare_gap_analysis(
         outcome = screen_user_text(
             source, model=screen_model, timeout_seconds=timeout_seconds, check_phrases=False,
         )
-        if outcome.usage is not None and outcome.model is not None:
-            usage.append(build_model_usage(outcome.model, outcome.usage))
+        usage.extend(outcome.model_usages)
         if not outcome.allowed:
             message = TOO_LONG_MESSAGE if outcome.too_long else (
                 UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE

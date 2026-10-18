@@ -370,3 +370,5 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
 - Synthetic report: /home/jarrod/ats-marker-retry/tmp/ats-content-fixed-evaluation.md; prior 2/3 failure retained as ats-content-v6-before-retry-correction.md in the same directory. No real resume content was committed or stored in test fixtures.
 - Synthetic review exports were moved into ignored tmp/ats-pdf/final-review. The user's unrelated generated schema formatting change remains uncommitted and preserved.
 - Ticket 02 is implemented and verified again. Phase returns to human review and QA. Update PR 15 with these recovery commits; retain the board item and do not merge or deploy without human instruction.
+
+- Publication completed: all QA recovery commits and records are pushed to work/ats-check, and PR 15 is updated and attached to this chat. The installed gh pr edit command failed on deprecated projectCards; the authenticated GitHub REST update succeeded and the open PR head was verified. No publication blocker remains. Human QA/acceptance is the next action; no merge or deployment performed.

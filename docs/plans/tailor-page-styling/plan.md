@@ -247,9 +247,13 @@ human completion confirmation. The workflow ends at a reviewed PR and human QA.
 - Master advanced to `1b1379b5eb2fa253730021f7f21e4d237f667ca1` during publication.
   Local integration merged it as `0b8215d`; incoming changes are only `.gitignore` and
   unrelated lower-screen-calls planning records. Application source/tests remain the
-  reviewed candidate. Publish a matching merge tree with both remote parents to resolve
-  the initial snapshot's add/add planning-record conflict. No behavioral review or test
-  rerun required for this editorial reconciliation; full diff inspected.
+  reviewed candidate. Published reconciliation commit
+  `05ed441563e00ab25c6681f77dbfdeae0569e70e` with both remote parents resolved the initial
+  snapshot's add/add planning-record conflict. Its tree
+  `d005673e50cb6b1ee30d4528d693c6bd8ec142b0` matched local `5f2bd70` exactly; fetched remote
+  diff was empty and current master is an ancestor of the PR head. No behavioral review
+  or test rerun required for this editorial reconciliation; full diff inspected.
+  Subsequent handoff-record commit changes only this delivery record.
 - Next: human QA using the checklist above and in the PR. Retain board item until explicit
   completion confirmation. No further implementation or review is needed unless the
   candidate changes materially.

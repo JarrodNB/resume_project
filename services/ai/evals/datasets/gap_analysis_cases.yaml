@@ -13,6 +13,8 @@ cases:
         id: job-1
         title: Senior Backend Engineer
         company: Northwind Payments
+        responsibilities:
+          - Lead weekly team planning and coordinate releases
         requirements:
           - 5+ years of professional Python development
           - Experience with PostgreSQL

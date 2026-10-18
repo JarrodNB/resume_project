@@ -19,7 +19,7 @@ Narrow the Python/TypeScript result kind together; audit tailoring consumers. Do
 saved-job responsibilities or extraction. Use service, handler/provider, and rendered result
 interfaces as test seams.
 
-**Status:** ready-for-agent.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -41,12 +41,19 @@ docker compose run --rm --no-deps web npm test -- src/features/gap-analysis
 docker compose run --rm --no-deps web npm run typecheck
 ```
 
-Run affected evidence/tailoring tests identified by caller inspection. Coordinator runs paid
-gap evals against the final integrated candidate in ticket 03. Actual red/green and broader
-results: not run.
+Worker confirmed red failures for D1 inclusion, duty-only enqueue/screening, and frontend
+acceptance of duty/unknown kinds, then green. Worker final: 64 focused AI tests, 20 Rails
+specs (including tailoring start), 12 frontend tests, typecheck and frontend lint passed.
+Coordinator reran the same 64 AI tests and 12 frontend tests on integration head `cd7d659`:
+all passed. Commands used network-disabled `docker run` with worktree source mounts and
+existing development images, as allowed by `docs/testing.md`. Paid eval deferred to 03.
+Full AI Ruff has four pre-existing findings in conversation logging files; changed-file
+Ruff passes. An initially mistyped test path was corrected before the successful run.
 
-**Progress:** Unassigned. Branch/worktree/base/commits: pending breakdown approval and planning
-commit. Concern: removing a result kind requires coordinated consumer updates.
+**Progress:** Assigned to `qualifications`; branch
+`work/gap-analysis-requirements-only-01-qualifications`, worktree `.worktrees/gap-analysis-01`,
+base `25d45c5911f3eaf2b4ff3079ab18e73a6544a00b`. Worker commit `64e1c3c`, integrated as `cd7d659`.
+Concern: removing a result kind requires coordinated consumer updates.
 
 ## 02 — Screen the complete library through one preparation interface
 
@@ -67,7 +74,7 @@ and usage or a typed failure retaining usage; callers must not sequence internal
 Reuse shared screening/session policy rather than copying it. Preserve existing interview
 entry-selection behavior. Remove gap-only obsolete hooks only after inspecting all callers.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -96,12 +103,18 @@ docker compose run --rm ai pytest -m "not db" tests/test_gap_context_screening.p
 docker compose run --rm ai ruff check .
 ```
 
-Add the new module's focused tests and existing shared-screening, evidence, usage/privacy,
-and interview regression tests discovered during inspection. Actual results: not run.
+Worker confirmed red: 14 screen calls rather than four over two deliveries; blocked library
+incorrectly proceeded to generation. Green: 23 focused, then 88 broader tests. Full offline
+suite: 542 passed, nine DB tests deselected, one unconfigured-Logfire warning (127.35 s).
+Coordinator verified the integrated module/handler/screen/evidence/schema/queue-usage/interview
+selection/session checks: 89 passed, one same warning (39.38 s), via network-disabled Docker
+with integration source mounted. Changed-file Ruff and diff checks passed; full Ruff still
+has only four baseline conversation-logging findings.
 
-**Progress:** Unassigned. Branch/worktree/base/commits: pending. Dependents release only after
-01 is integrated and verified. Concern: exact whole-source coverage must not implicitly
-approve arbitrary entry strings or discard usage on failure.
+**Progress:** Worker `library_screening`, branch
+`work/gap-analysis-requirements-only-02-library-screening`, worktree `.worktrees/gap-analysis-02`,
+base `ccfe3c4957ef0c8da397db7cc4c6302abdcac1cd`. Worker `e7dfb39` integrated as `3c95613`.
+Exact binding and retained usage verified; no unresolved concern.
 
 ## 03 — Verify integrated behavior and quantify reduced screening work
 
@@ -120,7 +133,7 @@ boundaries. Keep measurement scaffolding out of the production handler. Use the 
 synthetic fixtures/configuration on the original base and final candidate. Do not treat
 the existing generation-only eval runner as a worker-screening benchmark.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -139,12 +152,20 @@ the existing generation-only eval runner as a worker-screening benchmark.
 **Verification:** Run the commands in the plan, including
 `docker compose run --rm ai python -m evals.run_gap_analysis_evals`, AI lint/schema dependency
 checks, frontend typecheck/lint, focused regressions, and synthetic comparisons. Use existing
-static checks for documentation; do not invent red tests for reporting edits. Actual results:
-not run.
+static checks for documentation; do not invent red tests for reporting edits. Actual results
+are in `verification/verification.md` and raw reports/reproducers. Screening requests fell
+19→2, 87→3, 87→5. One live sample reduced screening 91.325→7.852 s and total
+106.642→20.726 s, one generation request each. Final paid eval: nine completed, zero
+execution errors; coverage/evidence/gap recall 1.0, verdict/met agreement 0.9444. Original
+eval had one screening outage and successful isolated retry; both versions show the same
+two verdict mismatches. Final Python-tenure prose also contains a model arithmetic error,
+disclosed for QA. No quality gain is claimed.
 
-**Progress:** Unassigned. Branch/worktree/base/commits: pending. Capture any baseline needed
-from the original integration base before changing production behavior. Credentials may
-limit live timing/evals; report such limits rather than counting them as passed.
+**Progress:** Worker `verification`, worktree `.worktrees/gap-analysis-03`, branch
+`work/gap-analysis-requirements-only-03-verification`, base `a9b3a32`. Worker commits
+`82962bc`, `f0a2c78`, `9214343` integrated as `723c2df`, `8017a1f`, `b698490`.
+Reporting-only diff inspected; two stale phrases corrected editorially. No production
+changes after the reviewed source snapshot. Measurements are single observations.
 
 ## Coordinator handoff after ticket integration
 

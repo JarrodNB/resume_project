@@ -33,7 +33,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   agent only when headings don't label requirements), reports usage only if the agent ran;
   unsupported URLs and missing postings fail with user-facing messages
 - `analyze_gaps_handler.py` — reads the job and career library (scoped to the task's user),
-  screens required job context and optional cohesive library entries, builds the labeled prompt, runs the gap analysis agent, attaches
+  delegates required job and complete-library screening and prompt building to gap-analysis
+  preparation, runs the gap analysis agent, attaches
   evidence text, and reports Jev usage; a deleted job, empty library, job without
   requirements, or prompt over the character cap fails with a user-facing message
 - `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then

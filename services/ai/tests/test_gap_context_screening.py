@@ -10,7 +10,6 @@ from pydantic_ai_harness import InputBlocked
 from agents.gap_analysis_agent import analyze_gaps, gap_analysis_agent
 from agents.user_text_screen_agent import user_text_screen_agent
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
-from screening.library_inputs import LIBRARY_INPUT_OMITTED_WARNING
 from tests.fakes import build_gap_analysis_context
 from tests.test_analyze_gaps_handler import JOB_ID, USER_ID, VALID_OUTPUT, build_analyze_gaps_task
 from worker.analyze_gaps_handler import handle_analyze_gaps_task
@@ -48,49 +47,41 @@ def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dep
         for _delivery in range(2):
             result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
             assert result.status == "completed"
-    # One job, summary, experience (including highlights), project, education, two skills.
-    assert len(requests) == 14
-    assert requests[:7] == requests[7:]
-    assert sum("Built Python APIs" in text for text in requests[:7]) == 1
-    assert sum("Platform Engineer" in text for text in requests[:7]) == 1
-    assert sum(usage.input_tokens for usage in result.usage[1:]) == 700
+    # One job and one complete library source in each fresh delivery.
+    assert len(requests) == 4
+    assert requests[:2] == requests[2:]
+    assert sum("Built Python APIs" in text for text in requests[:2]) == 1
+    assert sum("Platform Engineer" in text for text in requests[:2]) == 1
+    assert sum(usage.input_tokens for usage in result.usage[1:]) == 200
 
 
 def test_required_gap_job_block_prevents_generation(task_dependencies, fake_context_reader):
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
 
     requests = []
-    with user_text_screen_agent.override(model=jev_model(requests, blocked_text="Platform Engineer")), pytest.raises(InputBlocked):
-        handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+    with user_text_screen_agent.override(model=jev_model(requests, blocked_text="Platform Engineer")):
+        result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+    assert result.status == "failed"
     assert len(requests) == 1
 
 
-def test_optional_entry_omission_removes_its_evidence(task_dependencies, fake_context_reader):
-    context = build_gap_analysis_context()
-    fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
+def test_blocked_library_stops_analysis_and_retains_usage(task_dependencies, fake_context_reader):
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
     requests = []
-    output = VALID_OUTPUT | {"assessments": [
-        VALID_OUTPUT["assessments"][0] | {"evidence_refs": ["S1"]},
-        VALID_OUTPUT["assessments"][1] | {"evidence_refs": ["S2"]},
-        VALID_OUTPUT["assessments"][2],
-    ]}
-    with (
-        user_text_screen_agent.override(model=jev_model(requests, blocked_text="Built Python APIs")),
-        gap_analysis_agent.override(model=TestModel(custom_output_args=output)),
-    ):
+    with user_text_screen_agent.override(model=jev_model(requests, blocked_text="Built Python APIs")):
         result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
-    assert result.status == "completed"
-    assert result.result["warnings"] == [LIBRARY_INPUT_OMITTED_WARNING]
-    evidence = [item for assessment in result.result["gap_analysis"]["assessments"] for item in assessment["evidence"]]
-    assert {item["kind"] for item in evidence} == {"skill"}
-    assert len(requests) == 7
+    assert result.status == "failed"
+    assert result.result is None
+    assert len(requests) == 2
+    assert sum(item.input_tokens for item in result.usage) == 200
 
 
 def test_unavailable_required_job_fails_closed(monkeypatch, task_dependencies, fake_context_reader):
     monkeypatch.delenv("TYPESAFE_API_KEY")
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
-    with pytest.raises(InputBlocked, match="unavailable"):
-        handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+    result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+    assert result.status == "failed"
+    assert "unavailable" in result.error_message
 
 
 def test_direct_gap_call_still_screens_unknown_prompt(monkeypatch):
@@ -107,3 +98,35 @@ def test_direct_gap_call_still_screens_unknown_prompt(monkeypatch):
     with pytest.raises(InputBlocked, match="unavailable"):
         analyze_gaps(prompt, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
     assert calls == [prompt.text]
+
+
+@pytest.mark.parametrize("failure", ["block", "outage", "limit"])
+def test_queued_library_failure_reports_real_usage_once(
+    monkeypatch, task_dependencies, fake_context_reader, offline_model_resolution, failure,
+):
+    """Real queue publication keeps earlier charges even when preparation cannot finish."""
+    import json
+
+    from pydantic_ai.exceptions import UsageLimitExceeded
+
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = build_gap_analysis_context()
+    requests = []
+    model = jev_model(requests, blocked_text="Built Python APIs" if failure == "block" else None)
+
+    def respond(messages, info):
+        if requests and failure == "outage":
+            raise RuntimeError("Synthetic library screening outage")
+        if requests and failure == "limit":
+            raise UsageLimitExceeded("Synthetic usage cap")
+        return model.function(messages, info)
+
+    offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(respond, model_name="jev-1.13.0"))
+    queue = FakeResultQueue()
+    assert process_task_message(build_analyze_gaps_task().model_dump_json(), 1, queue, task_dependencies)
+    result = json.loads(queue.sent_bodies[-1])
+    assert result["status"] == "failed"
+    assert result["result"] is None
+    assert sum(item["input_tokens"] for item in result["usage"]) == (200 if failure == "block" else 100)

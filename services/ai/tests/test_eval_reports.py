@@ -73,8 +73,15 @@ def test_every_existing_runner_captures_native_report(monkeypatch, suite):
 
         text: str
 
+    class SafetyScore(Evaluator):
+        """Provide the successful native score required by the safety suite."""
+
+        def evaluate(self, context):
+            return {"decision_match": 1.0}
+
     native = Dataset(name="offline", cases=[Case(name="same", inputs="input",
-                     expected_output=Output(text="input"))]).evaluate_sync(
+                     expected_output=Output(text="input"))],
+                     evaluators=[SafetyScore()] if suite == "user_text_screen" else []).evaluate_sync(
         lambda value: Output(text=value))
     monkeypatch.setattr(Dataset, "evaluate_sync", lambda *args, **kwargs: native)
     run = run_report.run_suite(suite)

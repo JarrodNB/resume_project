@@ -94,10 +94,8 @@ def _screen_failure_message(screen: ScreenOutcome) -> str:
 
 
 def _screen_usage(screen: ScreenOutcome) -> list[ModelUsage]:
-    """Jev usage to report when a call was made."""
-    if screen.usage is None or screen.model is None:
-        return []
-    return [build_model_usage(screen.model, screen.usage)]
+    """Classifier usage to report when a call was made."""
+    return screen.model_usages
 
 
 def _failed(

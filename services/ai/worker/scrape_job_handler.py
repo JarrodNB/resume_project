@@ -73,8 +73,7 @@ def handle_scrape_job_task(task: AiTaskMessage, dependencies: TaskDependencies) 
             format_numbered_bullets(bullets), model=settings.user_text_screen_model,
             timeout_seconds=settings.llm_run_timeout_seconds, check_phrases=False,
         )
-        if screen.usage is not None and screen.model is not None:
-            screen_usage.append(build_model_usage(screen.model, screen.usage))
+        screen_usage.extend(screen.model_usages)
         if not screen.allowed:
             raise InputBlocked(
                 TOO_LONG_MESSAGE if screen.too_long else UNCHECKED_MESSAGE if screen.unchecked else BLOCKED_MESSAGE

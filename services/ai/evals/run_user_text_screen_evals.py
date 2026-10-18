@@ -14,7 +14,7 @@ from pydantic_evals.reporting import EvaluationReport
 
 from agents.user_text_screen_agent import screen_user_message
 from evals.report_capture import override_settings
-from evals.telemetry import evaluate_dataset
+from evals.telemetry import evaluate_dataset, record_average_scores, record_score
 from evals.user_text_screen_evaluators import (
     USER_TEXT_SCREEN_EVALUATORS,
     UserTextScreenEvalInput,
@@ -49,7 +49,13 @@ def run_user_text_screen_evals(model_override: str | None = None) -> EvaluationR
         )
         return UserTextScreenEvalOutput(screen=run.screen, confidence=run.confidence)
 
-    return evaluate_dataset(
+    def score_report(report):
+        """Keep outages visible even when no successful cases can produce averages."""
+        if report.cases:
+            record_average_scores(report)
+        record_score(name="case_errors", value=len(report.failures))
+
+    report = evaluate_dataset(
         load_user_text_screen_dataset,
         judge_case,
         name=TRACE_NAME,
@@ -57,8 +63,15 @@ def run_user_text_screen_evals(model_override: str | None = None) -> EvaluationR
         version=USER_TEXT_SCREEN_PROMPT_VERSION,
         tags=["eval", "user_text_screen", model],
         evaluation_name=f"user_text_screen:{model}",
-        max_concurrency=4,
+        max_concurrency=4, score_report=score_report,
     )
+    if report.failures or any(
+        case.evaluator_failures or "decision_match" not in case.scores
+        or case.scores["decision_match"].value < 1
+        for case in report.cases
+    ):
+        raise RuntimeError("JEV screening evaluation contained errors or incorrect decisions")
+    return report
 
 
 if __name__ == "__main__":

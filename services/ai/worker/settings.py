@@ -49,8 +49,9 @@ class WorkerSettings(BaseSettings):
     eval_judge_model: str = "openai:gpt-6.1-sol"
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingEffort = "low"
-    # Jev screens one user-written message at a time. Pinned; there is no generative fallback.
+    # JEV remains primary; its separate safety fallback only runs after an attempted failure.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
+    user_text_screen_fallback_model: str = "openai:gpt-5-nano"
     # Live synthetic comparison: same decisions as 2000, with fewer requests and lower latency.
     # Keep both sizes available for repeat evaluation; overlap is 300 characters.
     user_text_screen_chunk_size: int = 4000

@@ -13,7 +13,6 @@ from pydantic_ai import RunContext
 from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 from pydantic_ai_harness import InputBlocked
 
-from screening.guardrail_usage import record_guardrail_usage
 from screening.screen_user_text import screen_user_text_async
 from screening.session import prompt_is_covered, screening_session
 from text_limits import MAX_PROMPT_TEXT
@@ -41,11 +40,10 @@ async def screen_prompt(ctx: RunContext[Any], prompt: str) -> bool:
         raise InputBlocked(TOO_LONG_MESSAGE)
     settings = load_settings()
     async def classify(text: str, model: str, timeout: float) -> Any:
-        """Record each completed call immediately, including partial passes that raise."""
+        """Run the primary provider seam; shared screening owns recovery and usage."""
         run = await _screen_prompt_text(
             text, model, timeout,
         )
-        record_guardrail_usage(run.model_name, model, run.usage)
         return run
 
     with screening_session(settings.llm_run_timeout_seconds, reuse=True):

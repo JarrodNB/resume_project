@@ -63,14 +63,14 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   including later detected import contact. Import task spans omit pre-detection input metadata
 - `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
   when `generative_fallback_model` names a different model. Provider errors switch; output
-  validation retries do not. Jev does not use it
+  validation retries do not. Safety classifiers do not use it; screening owns a separate fallback policy
 - `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
   to «name», «email», and «phone»
 - `contact_mask.py` — adapts known-contact and opaque import privacy sessions on model requests, telemetry export, and
   `mask_outbound` (search-query embeddings). The model response is restored before the app
   sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
-  pinned Jev model, `generative_fallback_model`, the
+  pinned JEV model, `user_text_screen_fallback_model`, `generative_fallback_model`, the
   embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
   read-only database connection (`DB_*`), `llm_run_timeout_seconds` (must stay below the
   `ai_tasks` visibility timeout), and the request, tool-call, and token caps

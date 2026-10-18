@@ -104,7 +104,7 @@ def test_pasted_ad_failure_prevents_generation_and_keeps_partial_usage(
     assert result.status == "failed"
     if failure == "attack":
         assert "unsafe" in result.error_message
-        assert result.usage[0].input_tokens == 20
+        assert sum(entry.input_tokens for entry in result.usage) == 20
     elif failure == "outage":
         assert "couldn't check" in result.error_message
         assert result.usage[0].input_tokens == 10

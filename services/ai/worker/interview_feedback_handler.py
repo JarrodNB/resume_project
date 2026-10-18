@@ -50,11 +50,10 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=message, usage=usage)
 
     def screen(text):
-        """Screens user text and records Jev usage."""
+        """Screens user text and records classifier usage."""
         outcome = screen_user_text(text, model=settings.user_text_screen_model,
                                    timeout_seconds=settings.llm_run_timeout_seconds)
-        if outcome.usage is not None and outcome.model is not None:
-            usage.append(build_model_usage(outcome.model, outcome.usage))
+        usage.extend(outcome.model_usages)
         return outcome
 
     if not snapshot.answer_text.strip():

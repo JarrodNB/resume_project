@@ -29,6 +29,9 @@ the `result` sent to Rails, so changes must be mirrored there.
   copied from the library (kind `fact` is a library fact); mirrored by
   `apps/web/src/features/gap-analysis/parseGapAnalysisResult.ts`
 
+- `user_text_fallback.py` — strict boolean safety answers; `blocked` owns the fallback
+  decision policy without JEV confidence metadata.
+
 ## Local Rules
 
 - Give fields `description`s when the model needs guidance; they are sent to the LLM.

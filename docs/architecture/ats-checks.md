@@ -145,3 +145,14 @@ Exporters capture Resume.atsContentFingerprint alongside the section data used t
 and retain it until explicit saving replaces the editor baseline. Legacy resumes without
 reports must also match that captured identity before upload; creating a new run cannot
 relabel an older tab's content as the current saved version.
+
+## Structured contact privacy
+
+ATS preparation runs local detection on each natural title/content/requirement text value,
+not on serialized JSON. A single in-memory privacy session retains discoveries from every
+field plus known profile contact. Values are masked before JSON serialization; section and
+requirement ids, schema keys, fingerprints, versions and PDF metadata remain outside detection.
+The task retains that same session through screening, generation and trace completion.
+Repeated masking of a complete ATS JSON snapshot uses the same value-only policy, so a
+detected contact matching a key or identity string cannot alter the input contract.
+The generic resume import path still prepares its single extracted document as before.

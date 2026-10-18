@@ -4,16 +4,17 @@ Spans retain this opaque object before extraction; preparation adds detected con
 that same object. Other task types continue using their existing profile protection.
 """
 
+import json
 from collections.abc import Callable
 from typing import Any
 
-from pii import MaskingSession, prepare_document
+from pii import MaskingSession, prepare_document, prepare_text_values
 
 
 class TaskPrivacy:
     """Task-local adapter; maps and profile callbacks never leave memory."""
 
-    __slots__ = ("_mask_known", "_profile", "_session", "_unmask_known")
+    __slots__ = ("_json_mask", "_mask_known", "_profile", "_session", "_unmask_known")
 
     def __init__(self, mask_known: Callable[[str], str], unmask_known: Callable[[str], str],
                  *, names=(), emails=(), phones=()):
@@ -21,6 +22,7 @@ class TaskPrivacy:
         self._unmask_known = unmask_known
         self._profile = {"names": names, "emails": emails, "phones": phones}
         self._session: MaskingSession | None = None
+        self._json_mask = None
 
     def __repr__(self):
         return "TaskPrivacy()"
@@ -30,11 +32,27 @@ class TaskPrivacy:
 
     def prepare(self, text: str) -> str:
         """Attach local detection before either provider sees document text."""
+        self._json_mask = None
         masked, self._session = prepare_document(text, **self._profile)
+        return masked
+
+    def prepare_values(self, values, *, json_mask=None):
+        """Protect separate natural fields with one map; optionally preserve structured JSON."""
+        masked, self._session = prepare_text_values(values, **self._profile)
+        self._json_mask = json_mask
         return masked
 
     def mask(self, text: str) -> str:
         """Mask discovered values, or known profile contact before preparation."""
+        if self._session is not None and self._json_mask is not None:
+            try:
+                value = json.loads(text)
+            except (ValueError, TypeError):
+                pass
+            else:
+                protected = self._json_mask(value, self._session.mask)
+                if protected is not None:
+                    return json.dumps(protected, ensure_ascii=False, separators=(",", ":"))
         return self._session.mask(text) if self._session is not None else self._mask_known(text)
 
     def unmask(self, text: str) -> str:

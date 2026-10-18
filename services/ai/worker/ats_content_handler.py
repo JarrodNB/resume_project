@@ -10,10 +10,11 @@ import text_limits
 from agents.ats_content_agent import assess_content
 from pii import PiiDetectionError, PiiRestorationError
 from schemas.ats_contact import contact_usability
-from schemas.ats_content import Snapshot, validate_assessment
+from schemas.ats_content import validate_assessment
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
+from worker.ats_content_privacy import prepare_ats_snapshot
 from worker.contact_mask import import_privacy_scope
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage
@@ -54,8 +55,8 @@ def _assess_task(task, dependencies, privacy):
             status="failed",
             error_message="This resume check snapshot is unavailable.",
         )
-    source = privacy.prepare(snapshot.model_dump_json(exclude={"pdf_result"}))
-    masked_snapshot = Snapshot.model_validate_json(source)
+    masked_snapshot = prepare_ats_snapshot(snapshot, privacy)
+    source = masked_snapshot.model_dump_json(exclude={"pdf_result"})
     if text_limits.prompt_is_too_long(source):
         raise InputBlocked(TOO_LONG_MESSAGE)
     settings = dependencies.settings

@@ -174,35 +174,50 @@ def prepare_document(
     variants get separate tokens, preserving capitalization on restoration. Exceptions
     deliberately omit detector messages and source text.
     """
+    masked, session = prepare_text_values([text], names=names, emails=emails, phones=phones)
+    return masked[0], session
+
+
+def prepare_text_values(
+    texts: Iterable[str], *, names: Iterable[str] = (), emails: Iterable[str] = (),
+    phones: Iterable[str] = (),
+) -> tuple[list[str], MaskingSession]:
+    """Detect each natural text value independently and retain one shared contact map.
+
+    Separate fields never become one NLP span. All discoveries and profile contact remain
+    available when masking any field, including occurrences discovered in a later field.
+    """
     try:
-        spans = _detect_spans(text)
+        texts = list(texts)
         profile_values = []
         for entity, values in zip(_ENTITY_TYPES, (names, emails, phones), strict=True):
             for value in values:
                 if isinstance(value, str) and value.strip():
                     profile_values.append((value.strip(), entity))
-                    spans.extend(
-                        (match.start(), match.end(), entity)
-                        for match in re.finditer(
-                            rf"(?<!\w){re.escape(value.strip())}(?!\w)", text, re.IGNORECASE
-                        )
+        values = set(profile_values)
+        for text in texts:
+            spans = _detect_spans(text)
+            for value, entity in profile_values:
+                spans.extend(
+                    (match.start(), match.end(), entity)
+                    for match in re.finditer(
+                        rf"(?<!\w){re.escape(value)}(?!\w)", text, re.IGNORECASE
                     )
-        # Prefer larger spans so a name inside an email cannot split that email.
-        chosen = []
-        for start, end, entity in sorted(spans, key=lambda span: (-(span[1] - span[0]), span[0])):
-            if not any(start < old_end and end > old_start for old_start, old_end, _ in chosen):
-                chosen.append((start, end, entity))
-        values = {(text[start:end], entity) for start, end, entity in chosen}
-        values.update(profile_values)
-        values.update((match.group(), "LITERAL") for match in _SOURCE_TOKEN.finditer(text))
+                )
+            chosen = []
+            for start, end, entity in sorted(spans, key=lambda span: (-(span[1] - span[0]), span[0])):
+                if not any(start < old_end and end > old_start for old_start, old_end, _ in chosen):
+                    chosen.append((start, end, entity))
+            values.update((text[start:end], entity) for start, end, entity in chosen)
+            values.update((match.group(), "LITERAL") for match in _SOURCE_TOKEN.finditer(text))
         namespace = uuid4().hex
-        while namespace in text:
+        while any(namespace in text for text in texts):
             namespace = uuid4().hex
         replacements = {
             value: f"«pii:{namespace}:{entity}:{index}»"
             for index, (value, entity) in enumerate(sorted(values), start=1)
         }
         session = MaskingSession(replacements)
-        return session.mask(text), session
+        return [session.mask(text) for text in texts], session
     except Exception:  # noqa: BLE001 -- third-party errors must never expose source text
         raise PiiDetectionError("Local contact detection is unavailable") from None

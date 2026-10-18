@@ -176,3 +176,102 @@ def test_covered_requirement_needs_evidence():
          "explanation": "No text", "suggested_action": ""} for key in CHECK_KEYS])
     with pytest.raises(ValueError, match="require evidence"):
         validate_assessment(output, [], [{"id": "r1"}])
+
+def test_handler_masks_natural_values_without_corrupting_json(task_dependencies, monkeypatch):
+    import json
+    from dataclasses import replace
+
+    from pydantic_ai import capture_run_messages
+    from pydantic_ai.models.test import TestModel
+
+    from screening.screen_user_text import ScreenOutcome
+    from worker.contact_mask import mask_outbound
+
+    detected = []
+    def detect(text):
+        detected.append(text)
+        if '"content_snapshot"' in text:
+            # Simulate an NLP name span extending across the serialized value's closing quote.
+            start = text.index('Ada Lovelace')
+            return [(start, len(text), "PERSON")]
+        return [(text.index(name), text.index(name) + len(name), "PERSON")
+                for name in ("Ada Lovelace", "Morgan Chen", "content") if name in text]
+    monkeypatch.setattr("pii._detect_spans", detect)
+    text = 'Ada Lovelace wrote "content" with {braces}, a backslash \\ and\nMorgan Chen reviewed it.'
+    snapshot = Snapshot(resume_id=str(uuid4()),
+        content_snapshot=[{"id": "content", "section_type": "summary", "position": 0,
+                           "title": "Summary", "content": {"text": text}},
+                          {"id": "second", "section_type": "custom", "position": 1,
+                           "title": "Review", "content": {"text": "Morgan Chen checked Ada Lovelace"}}],
+        job_snapshot={"requirements": [{"id": "content", "text": "Collaborate with Morgan Chen", "required": True}]},
+        content_fingerprint="content", job_fingerprint="content", rubric_version="content")
+    screened = []
+    def screen(source, **kwargs):
+        parsed = json.loads(source)
+        repeated = mask_outbound(source)
+        assert json.loads(repeated) == parsed
+        assert parsed["content_fingerprint"] == "content"
+        assert parsed["rubric_version"] == "content"
+        assert parsed["content_snapshot"][0]["id"] == "content"
+        assert parsed["job_snapshot"]["requirements"][0]["id"] == "content"
+        assert "Ada Lovelace" not in source and "Morgan Chen" not in source
+        screened.append(source)
+        return ScreenOutcome(allowed=True)
+    monkeypatch.setattr("worker.ats_content_handler.screen_user_text", screen)
+    def model(*args):
+        parsed = json.loads(screened[-1])
+        excerpt = parsed["content_snapshot"][0]["content"]["text"]
+        evidence = [{"section_id": "content", "excerpt": excerpt}]
+        output = {"requirements": [{"requirement_id": "content", "status": "covered",
+            "evidence": evidence, "explanation": "Supported", "suggested_action": ""}],
+            "checks": [{"key": key, "status": "pass", "evidence": evidence,
+                        "explanation": "Supported", "suggested_action": ""} for key in CHECK_KEYS]}
+        return TestModel(custom_output_args=output)
+    monkeypatch.setattr("agents.ats_content_agent.generative_model", model)
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="check_resume_content",
+        input={"run_id": str(uuid4()), "resume_id": snapshot.resume_id,
+               "content_fingerprint": "content", "job_fingerprint": "content", "rubric_version": "content"})
+    dependencies = replace(task_dependencies, read_ats_snapshot=lambda *_: snapshot)
+    with capture_run_messages() as messages:
+        result = handle_ats_content_task(task, dependencies)
+    assert result.status == "completed"
+    assert result.result["requirements"][0]["evidence"][0]["excerpt"] == text
+    assert result.result["content_fingerprint"] == "content"
+    provider_prompts = [part.content for message in messages for part in message.parts
+                        if getattr(part, "part_kind", "") == "user-prompt"]
+    assert screened[0] in provider_prompts
+    assert all("Ada Lovelace" not in prompt and "Morgan Chen" not in prompt for prompt in provider_prompts)
+    assert all('"content_snapshot"' not in text for text in detected)
+    assert "Summary" in detected and "Review" in detected
+    assert snapshot.content_snapshot[0]["content"]["text"] == text
+
+def test_snapshot_preparation_keeps_field_discoveries_and_profile_in_one_session(monkeypatch):
+    from worker.ats_content_privacy import prepare_ats_snapshot
+    from worker.contact_mask import import_privacy_scope
+    from worker.known_contact import KnownContact
+
+    seen = []
+    def detect(text):
+        seen.append(text)
+        # A flattened detector would swallow a cross-field name that neither leaf contains.
+        if "Ada Lovelace\nMorgan Chen" in text:
+            start = text.index("Ada Lovelace")
+            return [(start, start + len("Ada Lovelace\nMorgan Chen"), "PERSON")]
+        if text in ("Ada Lovelace", "Morgan Chen"):
+            return [(0, len(text), "PERSON")]
+        return []
+    monkeypatch.setattr("pii._detect_spans", detect)
+    snapshot = Snapshot(resume_id=str(uuid4()), content_snapshot=[
+        {"id": "s1", "section_type": "summary", "title": "Ada Lovelace",
+         "content": {"text": "Morgan Chen", "other": "Morgan Chen and Casey Nguyen reviewed Ada Lovelace"}}
+    ], job_snapshot=None, content_fingerprint="identity", job_fingerprint=None, rubric_version="v1")
+    contact = KnownContact.from_values(names=["Casey Nguyen"])
+    with import_privacy_scope(contact) as privacy:
+        protected = prepare_ats_snapshot(snapshot, privacy)
+        source = protected.model_dump_json()
+        for name in ("Ada Lovelace", "Morgan Chen", "Casey Nguyen"):
+            assert name not in source
+            assert name not in privacy.mask("Contact " + name)
+        assert privacy.restore(protected) == snapshot
+    assert "Ada Lovelace" in seen and "Morgan Chen" in seen
+    assert not any("Ada Lovelace\nMorgan Chen" in text for text in seen)

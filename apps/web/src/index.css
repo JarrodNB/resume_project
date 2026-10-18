@@ -1,7 +1,7 @@
 /* Description: App theme, section tones, and shared styles. Index: theme tokens; light/dark palettes; base styles. */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import "./shadcn-tailwind.css";
 @import "@fontsource-variable/geist";
 
 @custom-variant dark (&:is(.dark *));

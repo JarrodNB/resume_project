@@ -10,20 +10,25 @@ module AiTasks
     #   to the task so it stays linked to the upload
     # @param prepare_task [#call, nil] prepares input/subject under the user lock after allowance
     #   checks, returning a ServiceResult; queue publication occurs after the lock commits
-    def initialize(user:, task_type:, input: {}, subject: nil, source_file: nil, prepare_task: nil)
+    # @param resolve_existing [#call, nil] checks for reusable work under the user lock before
+    #   allowance checks. Return a ServiceResult to stop (without publishing), or nil to enqueue.
+    def initialize(user:, task_type:, input: {}, subject: nil, source_file: nil, prepare_task: nil, resolve_existing: nil)
       @user = user
       @task_type = task_type
       @input = input
       @subject = subject
       @source_file = source_file
       @prepare_task = prepare_task
+      @resolve_existing = resolve_existing
     end
 
     # Checks the user's AI usage limits, saves the task, then publishes it. A task that can't be
     # published is marked failed.
     def call
+      @resolved_existing = false
       result = create_task_within_limits
       return result unless result.success?
+      return result if @resolved_existing
 
       ai_task = result.value
       publish(ai_task)
@@ -40,6 +45,10 @@ module AiTasks
     # requests can't both pass the check. Publishing happens after the lock is released.
     def create_task_within_limits
       @user.with_lock do
+        if @resolve_existing && (existing = @resolve_existing.call)
+          @resolved_existing = true
+          next existing
+        end
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
         next allowance unless allowance.success?
 

@@ -21,7 +21,7 @@ Keep editable state above collapsed panels. Use stable resume-specific saved-sec
 Prefer editor-local styling over changing shared import fields. Test page/editor behavior
 through existing Testing Library seams; mock only the PDF rendering boundary.
 
-**Status:** ready-for-agent
+**Status:** implemented
 
 **Acceptance Criteria:**
 
@@ -43,11 +43,20 @@ docker compose run --rm --no-deps web npm run typecheck
 docker compose run --rm --no-deps web npm run lint
 ```
 
-Actual red/green and broader results: not run. Human visual QA remains pending for theme,
-viewport, spacing, and control appearance; no browser automation.
+Actual: worker red failed because saved sections had no Summary toggle; green passed
+after adding remembered collapse with parent-owned drafts. Worker broader check: 22 tests
+in 5 files passed; typecheck and lint passed (0 warnings/errors). Coordinator reran the
+same 22 tests on integrated commit `9641a89`: all passed. Actual test command used an
+existing Docker image with explicit checkout mounting (no network or environment files):
+`docker run --rm --network none -v <worktree>/apps/web:/app -v /app/node_modules -w /app resume_project-web:latest npm test -- src/features/resume-tailoring src/features/resumes`.
+Worker typecheck/lint used the same image/mount pattern with their npm scripts.
+Human visual QA remains pending for theme, viewport, spacing, and control appearance;
+no browser automation.
 
-**Progress:** Unassigned. Intended branch `work/tailor-page-styling-01-editor-presentation`.
-Separate worktree, starting integration head, resulting commits: pending. No known blocker.
+**Progress:** Worker `presentation`; branch `work/tailor-page-styling-01-editor-presentation`,
+worktree `.worktrees/tailor-page-styling-01`, base `19623f0`. Worker commit `3bfb8a6`,
+integrated as `9641a89`. Coordinator inspected the integrated presentation diff. Saved
+state stays above unmounted panels; draft inclusion and existing keys remain intact.
 
 ## Ticket 02 — Owned deletion and fresh tailoring after deletion
 
@@ -66,7 +75,7 @@ snapshots through existing model ownership. Keep task acceptance/history and usa
 Inspect start/save locking and preserve the existing single-save invariant. Test services
 and public GraphQL operations with factories, fake queues, and no provider calls.
 
-**Status:** ready-for-agent
+**Status:** implemented
 
 **Acceptance Criteria:**
 
@@ -92,11 +101,23 @@ docker compose run --rm --no-deps web npm run codegen
 docker compose run --rm --no-deps web npm run typecheck
 ```
 
-Include any new deletion spec paths and focused Rails lint. Actual red/green and broader
-results: not run. No live AI evals required.
+Actual: deletion red failed on missing mutation (3 examples), then green 3/3. Start/save
+guard red had 3 expected failures among 30 examples; combined green 45 passed. Accepted
+repeat-save and usage-cap resumption already passed and remain regression coverage.
+Worker final suite: 159 examples, 0 failures, including all intended Rails paths plus
+deletion request auth, AI-task services, interview-prep services, and schema freshness.
+Focused RuboCop: 12 files clean. Schema dump, web codegen and web typecheck passed.
+Coordinator integrated rerun: 151 examples passed (same scope except existing
+`spec/graphql/mutations/resume_tailoring_spec.rb`; covered by worker final suite).
+Actual new specs: `spec/graphql/mutations/delete_resume_spec.rb` and
+`spec/requests/delete_resume_spec.rb`. Checks used Docker image `resume_project-api:latest`
+with explicit worktree `/rails` mount, test env and isolated `tailor02_default` database;
+see plan for reusable command. No live AI evals required.
 
-**Progress:** Unassigned. Intended branch `work/tailor-page-styling-02-delete-contract`.
-Separate worktree, starting integration head, resulting commits: pending. No known blocker.
+**Progress:** Worker `delete_contract`; branch `work/tailor-page-styling-02-delete-contract`,
+worktree `.worktrees/tailor-page-styling-02`, base `19623f0`. Worker commit `d6498a4`,
+integrated as `d45f63e`. Coordinator inspected mutation/service/schema/generated diffs.
+Existing destruction service is sufficient; no redundant deletion service added.
 
 ## Ticket 03 — Confirmed deletion on both saved-editor routes
 
@@ -114,7 +135,7 @@ from it. Let routes own return destinations. Reuse the shared saved-editor actio
 Update tailoring restoration/start logic to treat accepted tasks without a saved resume
 as history, never as an unsaved draft. Preserve non-deleted saved and resumable draft flows.
 
-**Status:** ready-for-agent
+**Status:** implemented
 
 **Acceptance Criteria:**
 
@@ -138,11 +159,23 @@ docker compose run --rm --no-deps web npm run typecheck
 docker compose run --rm --no-deps web npm run lint
 ```
 
-Actual red/green and broader results: not run. Human visual/manual QA remains pending.
+Actual: first red failed because Delete resume control was missing (4 existing tests
+passed); green passed after hook/dialog/action integration. Final worker focused suite:
+46 tests across 6 files passed, including both destinations, orphan deletion,
+cancel/network/payload errors, edit retention, pending duplicate prevention, cache cleanup,
+no auto-start during deletion, accepted-history replacement and start-failure retry.
+Worker typecheck and lint passed with 0 warnings/errors. Commands used
+`docker run --rm --network none -v <worktree>/apps/web:/app -v /app/node_modules -w /app resume_project-web:latest`
+with the intended npm scripts. Coordinator production build (includes TypeScript) and
+lint passed; bounded full frontend suite passed 166 tests across 35 files. The first
+unbounded run had one unchanged interview-prep timeout; isolated test and bounded rerun
+passed without code changes (details in plan).
+Human visual/manual QA remains pending; no browser automation.
 
-**Progress:** Unassigned. Intended branch `work/tailor-page-styling-03-delete-flow`.
-Separate worktree, starting integration head, resulting commits: pending. Waiting for
-Tickets 01 and 02 to be integrated and verified before assignment.
+**Progress:** Worker `delete_flow`; branch `work/tailor-page-styling-03-delete-flow`,
+worktree `.worktrees/tailor-page-styling-03`, base `8b9c439`. Tickets 01 and 02 integrated
+and verified before assignment. Worker commit `40eaa0b`, integrated as `69f9c4d`.
+Coordinator inspected hook/cache/route/start-history changes before broader verification.
 
 ## Coordinator integration and handoff
 

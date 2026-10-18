@@ -6,7 +6,7 @@
  *   - ResumePage: page component
  */
 import { ArrowLeft } from 'lucide-react'
-import { Link, useLocation, useParams } from 'react-router'
+import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { SavedResumeEditor } from '@/features/resume-tailoring/SavedResumeEditor'
@@ -16,6 +16,7 @@ import { useResume } from './useResumes'
 /** Opens one saved resume for editing. The breadcrumb follows where the user came from. */
 export function ResumePage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const fromJob = cameFromJob(useLocation().state)
   const { resume, loading, error } = useResume(id)
   const backToJob = Boolean(resume?.job && fromJob === resume.job.id)
@@ -39,7 +40,7 @@ export function ResumePage() {
       </div>
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
       {!resume && loading && <p className="text-muted-foreground">Loading…</p>}
-      {resume && <SavedResumeEditor resumeId={resume.id} sections={resume.sections} />}
+      {resume && <SavedResumeEditor resumeId={resume.id} sections={resume.sections} jobId={resume.job?.id} onDeleted={() => void navigate('/resumes')} />}
     </div>
   )
 }

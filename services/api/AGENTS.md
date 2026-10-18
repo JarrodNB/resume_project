@@ -98,4 +98,5 @@ Future successful nonblank interview answer saves enqueue `InterviewPrep::SyncQu
 after commit. Vectors remain separate from the career library and AI reader grants. Rails embedding
 jobs incur provider costs outside queued-task budgets/attempt reports and Logfire tracing.
 
-Not added yet: resume mutations (follow the jobs/experiences pattern).
+Resume tailoring mutations support start, save, section updates, and owned deletion.
+Deletion removes saved sections while keeping the job, library, and accepted task history.

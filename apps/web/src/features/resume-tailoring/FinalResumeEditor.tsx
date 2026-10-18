@@ -3,11 +3,16 @@
  * Their edits and inclusion choices stay together here so hiding a section never loses work.
  */
 import { useState } from 'react'
+import { CircleAlert } from 'lucide-react'
 import { CollapseToggle } from '@/components/CollapseToggle'
-import { ErrorAlert } from '@/components/ErrorAlert'
+import { SECTION_TONES } from '@/components/sectionTones'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { cn } from '@/lib/utils'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ResumeEditorActions } from './ResumeEditorActions'
 import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
@@ -46,14 +51,14 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
 
   return (
     <div className="grid gap-4">
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" disabled={selected.length === 0} onClick={() => setPreviewOpen(true)}>Preview</Button>
-      </div>
-      {warnings.map((warning) => (
-        <p key={warning} className="text-sm text-muted-foreground">
-          {warning}
-        </p>
-      ))}
+      <ResumeEditorActions pending={pending} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={save} />
+      {warnings.length > 0 && (
+        <Alert>
+          <CircleAlert aria-hidden />
+          <AlertTitle>Draft notes</AlertTitle>
+          <AlertDescription>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</AlertDescription>
+        </Alert>
+      )}
       {drafts.map((section, index) => (
         <FinalSection
           key={section.sectionType}
@@ -66,10 +71,6 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
         />
       ))}
       {selected.length === 0 && <p className="text-sm text-muted-foreground">Include at least one section to preview or save your resume.</p>}
-      <ErrorAlert messages={errors} title="Couldn't save this resume" />
-      <Button type="button" disabled={pending || selected.length === 0} onClick={save}>
-        Save resume
-      </Button>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
           <DialogHeader className="w-full pr-8">
@@ -100,25 +101,29 @@ function FinalSection({
   onChange: (next: SectionDraft) => void
 }) {
   const { open, toggle, panelId } = useOpenSection(sectionId)
+  const tone = SECTION_TONES[draft.kind]
 
   return (
-    <section className="grid gap-3 rounded-lg border p-4">
-      <div className="flex items-center gap-3">
-        {included ? (
-          <CollapseToggle open={open} panelId={panelId} onToggle={toggle}>
-            <h2 className="font-medium">{title}</h2>
-          </CollapseToggle>
-        ) : <h2 className="flex-1 font-medium">{title}</h2>}
-        <Button type="button" variant="outline" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
-          {included ? 'Exclude' : 'Include'}
-        </Button>
-      </div>
-      {!included && <p className="text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}
-      {included && open && (
-        <div id={panelId}>
-          <SectionFields draft={draft} onChange={onChange} />
+    <Card className={cn('pt-0', tone.card)}>
+      <CardHeader className={cn('py-3', tone.header, included && open && 'border-b')}>
+        <div className="flex flex-wrap items-center gap-3">
+          {included ? (
+            <CollapseToggle className="min-w-0 flex-1 basis-40" open={open} panelId={panelId} onToggle={toggle}>
+              <tone.Icon className={cn('size-4 shrink-0', tone.icon)} aria-hidden />
+              <h2 className="text-lg font-semibold">{title}</h2>
+            </CollapseToggle>
+          ) : <h2 className="flex-1 font-medium">{title}</h2>}
+          <Button type="button" variant="outline" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
+            {included ? 'Exclude' : 'Include'}
+          </Button>
         </div>
+      </CardHeader>
+      {!included && <p className="px-4 text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}
+      {included && open && (
+        <CardContent id={panelId}>
+          <SectionFields draft={draft} onChange={onChange} />
+        </CardContent>
       )}
-    </section>
+    </Card>
   )
 }

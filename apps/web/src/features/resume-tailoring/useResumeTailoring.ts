@@ -1,6 +1,7 @@
 /**
  * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
- * follows it live. A saved resume is returned as-is and no task is started.
+ * follows it live. Accepted tasks are history, not editable drafts. A saved resume
+ * prevents generation for this visit, including when deletion removes its cached link.
  * Index:
  *   - TailorTaskView: the task fields the page renders
  *   - useResumeTailoring: job, task, start errors, and retry
@@ -29,7 +30,7 @@ export function useResumeTailoring(jobId: string) {
   const started = useRef(false)
   const job = data?.job ?? null
   const existing = job?.latestTailoring ?? null
-  const followExisting = Boolean(existing && existing.status !== 'FAILED' && !job?.resume)
+  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && !job?.resume)
   const taskId = startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
@@ -49,7 +50,9 @@ export function useResumeTailoring(jobId: string) {
   }, [jobId, startTailoring])
 
   useEffect(() => {
-    if (loading || !job || job.resume || job.latestTailoring || started.current) return
+    // Deleting the saved resume must not turn this visit into a generation request.
+    if (job?.resume) started.current = true
+    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt) || started.current) return
     started.current = true
     void begin()
   }, [loading, job, begin])
@@ -60,7 +63,7 @@ export function useResumeTailoring(jobId: string) {
     void begin()
   }
 
-  const task = (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing)
+  const task = (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
   return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
 }
 

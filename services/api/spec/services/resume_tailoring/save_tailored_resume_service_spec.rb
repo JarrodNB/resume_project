@@ -80,6 +80,28 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(user.resumes.count).to eq(1)
   end
 
+  it "never saves an accepted task again after its resume was deleted" do
+    resume = described_class.call(ai_task: ai_task).value
+    accepted_at = ai_task.reload.accepted_at
+    Records::DestroyRecordService.call(record: resume)
+
+    result = described_class.call(ai_task: ai_task.reload)
+
+    expect(result.errors).to eq([ described_class::ALREADY_SAVED_MESSAGE ])
+    expect(user.resumes).to be_empty
+    expect(ai_task.reload.accepted_at).to eq(accepted_at)
+  end
+
+  it "rejects another completed draft when the job already has a saved resume" do
+    create(:resume, user: user, job: job)
+
+    result = described_class.call(ai_task: ai_task)
+
+    expect(result.errors).to eq([ described_class::ALREADY_SAVED_MESSAGE ])
+    expect(user.resumes.count).to eq(1)
+    expect(ai_task.reload).not_to be_accepted
+  end
+
   it "refuses a draft that is not finished" do
     ai_task.update!(status: "needs_user_input")
 

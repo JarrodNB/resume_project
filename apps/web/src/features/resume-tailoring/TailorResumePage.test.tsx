@@ -3,11 +3,12 @@
  * and preserves editing, exclusion, saving, and saved-resume editing.
  * The PDF preview is mocked.
  */
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { renderPage } from '@/test/renderPage'
+import { DELETE_RESUME_MUTATION } from '@/features/resumes/resumesOperations'
 import { TailorResumePage } from './TailorResumePage'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
@@ -216,7 +217,8 @@ it('edits a resume that was already saved and shows the preview', async () => {
     },
   ])
 
-  const summary = await screen.findByRole('textbox', { name: 'Summary' })
+  await user.click(await screen.findByRole('button', { name: 'Summary' }))
+  const summary = screen.getByRole('textbox', { name: 'Summary' })
   expect(summary).toHaveValue('Backend engineer.')
   expect(screen.queryByTitle('Resume preview')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Preview' }))
@@ -273,4 +275,49 @@ it('shows a live generation failure without exposing partial sections for saving
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Summary' })).not.toBeInTheDocument()
+})
+
+it('starts fresh from accepted history without exposing the old editable draft', async () => {
+  const oldResult = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old accepted draft.' } }] }
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const oldSubscription = subscription({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })
+  const oldResultReceived = vi.fn(() => oldSubscription.result)
+  const nextSubscription = subscription({ id: 'task-2' })
+  nextSubscription.request.variables.id = 'task-2'
+  renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start, delay: 200 }, nextSubscription,
+    { ...oldSubscription, result: oldResultReceived }])
+  await screen.findByRole('heading', { name: 'Write resume' })
+  expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+  expect(oldResultReceived).not.toHaveBeenCalled()
+})
+
+it('allows retry when starting after accepted history fails', async () => {
+  const user = userEvent.setup()
+  renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } } },
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } } },
+    subscription({}),
+  ])
+  expect(await screen.findByText('Queue unavailable.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+})
+
+it('deletes from tailoring and returns to the job without starting another task', async () => {
+  const user = userEvent.setup()
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
+  const { router } = renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />,
+    extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job</p> }],
+    mocks: [jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [] }),
+      { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },
+      { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start }],
+  })
+  await user.click(await screen.findByRole('button', { name: 'Delete resume' }))
+  await user.click(screen.getByRole('button', { name: 'Delete' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1'))
+  expect(start).not.toHaveBeenCalled()
 })

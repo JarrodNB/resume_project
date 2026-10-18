@@ -135,9 +135,11 @@ tailoring) instead of sending everything.
   The result stays on the task as ordered section snapshots and warnings. There is no
   tailoring `needs_user_input`, generation counter, submit-section mutation, or reopening
   state. Users edit or exclude sections, preview, then explicitly save once. Save holds the
-  owned task lock and records `accepted_at`, creating `Resume` and `ResumeSection` snapshots
+  owner-then-task locks and records `accepted_at`, creating `Resume` and `ResumeSection` snapshots
   without changing the library. Explicitly excluding every section is rejected. Saved
-  resume edits change snapshots; deleting the job keeps the resume. Existing paused
+  resume edits change snapshots; deleting the job keeps the resume. Deleting a saved resume
+  removes only its snapshots and leaves acceptance/history intact. Starting again after
+  deletion creates a fresh task; an accepted task can never be saved twice. Existing paused
   development tasks have no compatibility path and are not deleted by this change.
 
 - **AI results are reviewed before they change user data.** A parsed resume is stored on the

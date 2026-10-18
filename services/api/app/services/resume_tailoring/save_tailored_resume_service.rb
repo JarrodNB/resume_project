@@ -1,7 +1,6 @@
-# Description: Creates the Resume and ResumeSection snapshots from a finished tailoring draft,
-# once. Deleting the job later keeps the resume (the job is optional after create).
-# Index:
-#   - call: saves the resume and stamps accepted_at under a row lock
+# Saves a completed draft and its sections once. Acceptance stays recorded after deletion.
+# The owner lock serializes saves with new tailoring starts; the task lock keeps acceptance
+# atomic. Deleting the job later keeps these saved snapshots.
 module ResumeTailoring
   class SaveTailoredResumeService < ApplicationService
     NOT_READY_MESSAGE = "Finish the resume before saving it.".freeze
@@ -18,15 +17,17 @@ module ResumeTailoring
 
       return failure([ "This job no longer exists." ]) unless @ai_task.subject.is_a?(Job)
 
-      @ai_task.with_lock do
-        return failure([ ALREADY_SAVED_MESSAGE ]) if @ai_task.accepted?
+      @ai_task.user.with_lock do
+        @ai_task.with_lock do
+          return failure([ ALREADY_SAVED_MESSAGE ]) if @ai_task.accepted? || @ai_task.user.resumes.exists?(job_id: @ai_task.subject_id)
 
-        sections = normalized_sections
-        return failure([ NOT_READY_MESSAGE ]) if sections.empty?
+          sections = normalized_sections
+          return failure([ NOT_READY_MESSAGE ]) if sections.empty?
 
-        resume = create_resume(sections)
-        @ai_task.update!(accepted_at: Time.current)
-        success(resume)
+          resume = create_resume(sections)
+          @ai_task.update!(accepted_at: Time.current)
+          success(resume)
+        end
       end
     rescue ActiveRecord::RecordInvalid => error
       failure(error.record.errors)

@@ -52,4 +52,26 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     expect(ai_task).to be_failed
     expect(ai_task.completed_at).to be_present
   end
+
+  it "returns resolved work before limits without saving or publishing another task" do
+    existing = create(:ai_task, user: user)
+    user.update!(max_in_flight_ai_tasks: 1)
+    resolver = -> { ServiceResult.new(success: true, value: existing, errors: []) }
+
+    result = described_class.call(user: user, task_type: "analyze_gaps", resolve_existing: resolver)
+
+    expect(result.value).to eq(existing)
+    expect(user.ai_tasks.count).to eq(1)
+    expect(queue).not_to have_received(:send_message)
+  end
+
+  it "returns a resolution failure without creating or publishing work" do
+    resolver = -> { ServiceResult.new(success: false, value: nil, errors: [ "Already saved" ]) }
+
+    result = described_class.call(user: user, task_type: "analyze_gaps", resolve_existing: resolver)
+
+    expect(result.errors).to eq([ "Already saved" ])
+    expect(user.ai_tasks).to be_empty
+    expect(queue).not_to have_received(:send_message)
+  end
 end

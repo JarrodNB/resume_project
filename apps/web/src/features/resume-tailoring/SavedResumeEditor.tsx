@@ -1,13 +1,14 @@
-/**
- * Description: The saved resume as editable section fields. Preview opens the current
- * draft as a PDF at actual size. Save writes that draft.
- * Index:
- *   - SavedResumeEditor: the editor and its preview dialog
+/** Edit saved resume sections and preview their current content before saving.
+ * Drafts live above collapsible cards so closing a section keeps unsaved edits.
+ * Deletion requires confirmation; the route chooses where to return afterward.
  */
 import { useMemo, useState } from 'react'
-import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
+import { DeleteResumeDialog } from '@/features/resumes/DeleteResumeDialog'
+import { useDeleteResume } from '@/features/resumes/useDeleteResume'
+import { SectionCard } from '@/components/SectionCard'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ResumeEditorActions } from './ResumeEditorActions'
 import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
@@ -24,11 +25,17 @@ interface SavedResumeSection {
 }
 
 /** Edits one saved resume. Preview shows the current draft at actual size. */
-export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; sections: SavedResumeSection[] }) {
+export function SavedResumeEditor({ resumeId, sections, jobId, onDeleted }: { resumeId: string; sections: SavedResumeSection[]; jobId?: string; onDeleted: () => void }) {
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
   const [previewOpen, setPreviewOpen] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deletion = useDeleteResume(resumeId, jobId)
+
+  async function confirmDelete() {
+    if (await deletion.deleteResume()) onDeleted()
+  }
   const model = buildResumePdfModel(
     editable.map((section, index) => ({
       sectionType: section.sectionType,
@@ -43,24 +50,18 @@ export function SavedResumeEditor({ resumeId, sections }: { resumeId: string; se
 
   return (
     <div className="grid gap-4">
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
-          Preview
-        </Button>
-      </div>
+      <ResumeEditorActions pending={pending} disabled={deletion.pending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={save}>
+        <Button type="button" variant="destructive" disabled={pending || deletion.pending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
+      </ResumeEditorActions>
+      <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
       {editable.map((section, index) => (
-        <section key={section.id} className="grid gap-3 rounded-lg border p-4">
-          <h2 className="font-medium">{section.title}</h2>
+        <SectionCard key={section.id} tone={section.sectionType} title={section.title} sectionId={`saved-resume.${resumeId}.${section.id}`}>
           <SectionFields
             draft={drafts[index]}
             onChange={(next) => setDrafts(drafts.map((draft, position) => (position === index ? next : draft)))}
           />
-        </section>
+        </SectionCard>
       ))}
-      <ErrorAlert messages={errors} title="Couldn't save this resume" />
-      <Button type="button" disabled={pending} onClick={save}>
-        Save resume
-      </Button>
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
           <DialogHeader className="w-full pr-8">

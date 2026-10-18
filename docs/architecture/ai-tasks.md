@@ -94,8 +94,13 @@ Per task type:
   experience/project/skill writers overlap, and the summary uses selected content afterward.
   The task completes or fails without section approvals or a generation counter. Failure
   never publishes a partial draft. Users review, edit or exclude sections, preview, then
-  `saveTailoredResume` creates snapshots once under the owned task lock (`accepted_at`).
-  Later `updateResume` changes the saved resume only. See
+  `saveTailoredResume` creates snapshots once under owner-then-task locks (`accepted_at`).
+  Starting tailoring checks saved resumes and resumable tasks under the same owner lock;
+  queue publication follows commit. Existing work can be resumed even at usage limits.
+  Later `updateResume` changes the saved resume only. `deleteResume` removes the owned resume
+  and sections, including resumes whose job is gone, while keeping job/library/task history.
+  An accepted task stays accepted and cannot be saved again after deletion. A remaining saved
+  resume blocks new generation; after deletion, an explicit start creates a fresh task. See
   [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
 
 - `generate_interview_questions`: input `{question_set_id, set_number, set_type}`; the subject is an

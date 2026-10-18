@@ -13,6 +13,10 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
 - `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor; preview and save use the same included content in draft order
+- `SavedResumeEditor.tsx` — saved sections use tone-colored cards and remembered collapse IDs
+  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels. Confirmed
+  deletion uses the resumes hook/dialog and the route's success destination.
+- `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback
 - `SectionFields.tsx` — resume-import review fields for one section
 - `sectionOrder.ts` — section names and display titles
 - `tailorDraft.ts` — section JSON to and from the review-field draft
@@ -31,6 +35,8 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
 
 - Reload reads `Job.latestTailoring`; live status and completed results come from
   `aiTaskUpdated`. There is no token streaming or per-section approval flow.
+- An accepted task without a saved resume is history. A new tailor-page visit starts a
+  fresh task; removing a saved resume during the current visit never starts one.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current included draft, including unsaved edits.
 - Excluded sections keep their edits and can be restored before saving. Empty selection

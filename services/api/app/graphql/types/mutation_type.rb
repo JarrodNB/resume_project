@@ -74,6 +74,7 @@ module Types
     field :start_resume_tailoring, mutation: Mutations::ResumeTailoring::StartResumeTailoring
     field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
     field :update_resume, mutation: Mutations::ResumeTailoring::UpdateResume
+    field :delete_resume, mutation: Mutations::ResumeTailoring::DeleteResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
     field :clear_career_library, mutation: Mutations::CareerLibrary::ClearCareerLibrary

@@ -69,10 +69,48 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   end
 
   it "refuses once the resume has been saved" do
+    create(:resume, user: user, job: job)
     create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", accepted_at: Time.current)
 
     result = described_class.call(user: user, job: job)
 
     expect(result.errors).to eq([ described_class::ALREADY_SAVED_MESSAGE ])
+  end
+
+  it "starts fresh after deletion without changing the accepted task" do
+    accepted = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", accepted_at: Time.current)
+    accepted_at = accepted.accepted_at
+    resume = create(:resume, user: user, job: job)
+    Records::DestroyRecordService.call(record: resume)
+
+    result = described_class.call(user: user, job: job)
+
+    expect(result).to be_success
+    expect(result.value.id).not_to eq(accepted.id)
+    expect(result.value).to be_queued
+    expect(accepted.reload.accepted_at).to eq(accepted_at)
+    expect(queue).to have_received(:send_message).once
+  end
+
+  it "blocks generation for a saved resume even when the latest task is not accepted" do
+    create(:resume, user: user, job: job)
+    create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "failed")
+
+    result = described_class.call(user: user, job: job)
+
+    expect(result.errors).to eq([ described_class::ALREADY_SAVED_MESSAGE ])
+    expect(queue).not_to have_received(:send_message)
+  end
+
+  it "resumes at the usage cap and publishes no duplicate task" do
+    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "queued")
+    user.update!(ai_tasks_per_hour_limit: 1)
+
+    2.times do
+      expect(described_class.call(user: user.reload, job: job.reload).value).to eq(existing)
+    end
+
+    expect(job.ai_tasks.tailor_resume.count).to eq(1)
+    expect(queue).not_to have_received(:send_message)
   end
 end

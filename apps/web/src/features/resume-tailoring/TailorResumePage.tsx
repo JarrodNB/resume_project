@@ -2,8 +2,9 @@
  * Later visits edit the saved resume. Live task status arrives over a subscription.
  */
 import { ArrowLeft, LoaderCircle } from 'lucide-react'
-import { Link, useParams } from 'react-router'
+import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { FinalResumeEditor } from './FinalResumeEditor'
@@ -15,6 +16,7 @@ import { useTailorActions } from './useTailorActions'
 /** Follows tailoring for one job, or shows the resume already saved for it. */
 export function TailorResumePage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id)
   const actions = useTailorActions(task?.id ?? '', () => void refetch())
 
@@ -39,20 +41,29 @@ export function TailorResumePage() {
       {job && !job.resume && startErrors.length > 0 && !task && (
         <Button type="button" variant="outline" onClick={retry}>Try again</Button>
       )}
-      {!job && loading && <p className="text-muted-foreground">Loading…</p>}
-      {job?.resume && <SavedResumeEditor resumeId={job.resume.id} sections={job.resume.sections} />}
+      {!job && loading && (
+        <Card>
+          <CardContent>
+            <p role="status" className="flex items-center gap-2 text-muted-foreground">
+              <LoaderCircle className="size-4 animate-spin" aria-hidden /> Loading…
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {job?.resume && <SavedResumeEditor resumeId={job.resume.id} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
-        <>
-          <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />
-          <Button type="button" variant="outline" onClick={retry}>
-            Try again
-          </Button>
-        </>
+        <Card>
+          <CardContent className="grid gap-4">
+            <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />
+            <Button type="button" variant="outline" className="justify-self-start" onClick={retry}>
+              Try again
+            </Button>
+          </CardContent>
+        </Card>
       )}
       {job && !job.resume && task && task.status !== 'FAILED' && task.acceptedAt === null && (
         <TailorProgress jobId={id} task={task} actions={actions} />
       )}
-
     </div>
   )
 }
@@ -82,8 +93,13 @@ function TailorProgress({
   }
 
   return (
-    <p className="flex items-center gap-2 text-muted-foreground" role="status">
-      <LoaderCircle className="size-4 animate-spin" /> Writing your complete draft…
-    </p>
+    <Card className="border-l-4 border-l-section-skills-accent bg-section-skills">
+      <CardContent className="grid gap-2">
+        <p className="flex items-center gap-2 font-medium" role="status">
+          <LoaderCircle className="size-4 animate-spin text-section-skills-accent" aria-hidden /> Writing your complete draft…
+        </p>
+        <p className="text-sm text-muted-foreground">Your sections will appear together when the draft is ready to review.</p>
+      </CardContent>
+    </Card>
   )
 }

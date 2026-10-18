@@ -22,7 +22,7 @@ rubrics without managing judge internals. Use Pydantic AI and structured Pydanti
 output; follow local instructions before editing. Keep deterministic checks and
 production generation behavior unchanged.
 
-**Status:** implemented.
+**Status:** ready-for-agent.
 
 **Acceptance Criteria:**
 
@@ -53,24 +53,11 @@ docker compose run --rm ai pytest tests/test_schema_dependencies.py
 docker compose run --rm ai ruff check .
 ```
 
-Actual red: original reporting made four provider calls and failed the new one-call
-question regression. Green: worker passed 80 tests; coordinator repeated the full
-focused command with `tests/test_interview_judge.py` and schema dependencies included:
-80 passed in 9.17s. HTTP success/429/500 each made one transport attempt. Changed-file
-Ruff and diff checks pass. Full Ruff has four pre-existing errors reproduced on base
-48195a0: BLE001 in conversation_logging/__init__.py:102,133, I001 and SIM117 in
-tests/test_conversation_logging_reliability.py. Initial setup failures were corrected
-and are not counted as red evidence.
+Include new focused test files in these checks. Actual red/green and broader results:
+not run.
 
-Review fix: pricing test reproduced 1 failure/4 passes, then 30 focused tests passed
-after explicitly limiting the price requirement to production billing models.
-Worker fix `d492b6e` integrated as `8adeb42`. Coordinator's final focused command
-including pricing: 85 passed in 9.52s (four dependency deprecation warnings).
-
-**Progress:** Assigned to `single_judge` on `work/llm-as-a-judge-01-single-judge`,
-worktree `/tmp/careergrind-llm-judge-01`, starting base `48195a0`. Worker commit
-`d2fc7c8` integrated as `cd5ef42`; acceptance criteria verified offline.
-Worker must not edit the combined tickets file,
+**Progress:** No worker assigned; branch/worktree, starting base, and resulting commits
+pending. No implementation started. Worker must not edit the combined tickets file,
 plan delivery record, Kanban board, integration branch, or PR.
 
 ## 02 — Validate consolidated judging against live interview cases
@@ -88,7 +75,7 @@ record updates and integration of evidence.
 Do not introduce another runner, duplicate judging logic, or change rubrics to improve
 scores. Material scope/design changes return for approval.
 
-**Status:** implemented.
+**Status:** ready-for-agent (waiting for dependency).
 
 **Acceptance Criteria:**
 
@@ -111,19 +98,10 @@ docker compose run --rm ai python -m evals.run_report interview_feedback
 
 Use the existing output directory convention and inspect actual saved evidence.
 Live provider charges are authorized by the confirmed scope. No browser automation.
-Actual commands used `docker run --rm --env-file` with the existing local AI environment,
-explicit `EVAL_JUDGE_MODEL=openai:gpt-6.1-sol`, and worker source/report mounts. Both
-CLI suites ran once. Questions exit 0: 13 generated cases, 13 judges, no errors.
-Feedback exit 1: 12 generated cases, 12 judges, no evaluator failures; one Jev timeout
-prevented generation and therefore judging. Knowledge accuracy appears only on the
-three successfully generated knowledge cases. Scores/reasons/metadata/usage retained.
-Unknown judge prices keep estimates incomplete. Existing rubric dictionary telemetry
-warnings recorded; report configuration retains rubrics. No reruns.
+Actual commands/results: not run.
 
-**Progress:** Assigned to `live_validation` on `work/llm-as-a-judge-02-live-validation`,
-worktree `/tmp/careergrind-llm-judge-02`, base `cd5ef42`. Worker report commit `5d40c7e`
-integrated as `54633dc`. Evidence: `docs/evals/llm-as-a-judge-20261018.md` and linked
-full synthetic reports. External limitation: one Jev timeout, not a judge failure.
+**Progress:** No worker assigned; branch/worktree, starting base, and resulting report
+commits pending. No implementation started. External blockers: none established.
 
 ## Integration and handoff
 

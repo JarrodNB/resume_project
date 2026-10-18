@@ -154,72 +154,16 @@ and ticket-breakdown approvals, before worktree implementation.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “LLM as a judge”; user supplied the same item in this chat.
-- Phase: PR created; awaiting human review and QA. User requested temporary worktree cleanup.
+- Phase: plan and breakdown approved; prepare planning commit and implement ticket 01.
 - Requirements: user selected one attempt/report failures and `gpt-6.1-sol`, then
   explicitly confirmed the full scope on 2026-10-18.
 - Plan approval: user said “approved” on 2026-10-18. Approved file SHA-256 before
   delivery-record updates: `b3cfa758ecb277fa3ca9fc88d7ab83cbffa8737c4ae692901ded14e6737d7a8a`.
 - Breakdown approval: user said “approved” on 2026-10-18. Approved tickets SHA-256:
   `718fa02bd3432e58d1ab253f518c3607621b24ede83a4041854350d8a2a5f78c`.
-- Planning commit and integration base: `48195a0`. Initial integration head: `48195a0`.
-- Integration branch: `work/llm-as-a-judge`, worktree `/tmp/careergrind-llm-judge`.
-- Ticket 01: implemented on `work/llm-as-a-judge-01-single-judge`, worktree
-  `/tmp/careergrind-llm-judge-01`, starting base `48195a0`; worker commit `d2fc7c8`
-  integrated as `cd5ef42`. All acceptance criteria verified offline.
-- Ticket 02: assigned to `live_validation`, branch `work/llm-as-a-judge-02-live-validation`,
-  worktree `/tmp/careergrind-llm-judge-02`, starting base `cd5ef42`; implemented.
-  Worker evidence `5d40c7e` integrated as `54633dc`.
-- Git and Docker require sandbox escalation; both authorized operations succeeded.
+- Planning commit: none. Integration base/head: not created.
+- Intended integration branch: `work/llm-as-a-judge`; worker branches not created.
 - Exploration: interview runners/reporting, settings, native telemetry/cost capture,
   report CLI, and relevant offline tests inspected. Checkout is `master`, initially clean.
-- Verification: baseline 51 tests passed. Integrated focused judge/report/lifecycle/cost
-  suites plus schema dependencies: 80 passed in 9.17s. Changed-file Ruff passes.
-  Full Ruff has four pre-existing findings reproduced on base `48195a0`; see tickets.
-  Pricing review fix `d492b6e` integrated as `8adeb42`; final focused suite including
-  pricing: 85 passed in 9.52s with four dependency deprecation warnings.
-- First blind review snapshot: base `48195a0`, head `cd5ef42`. Correctness: 80 tests
-  passed; `test_model_prices.py` reproduced one failure (4 pass), because its model
-  setting scan includes the new eval-only model. Supported P2 finding; test scope fix
-  delegated to the implementation worker. No other actionable correctness findings.
-  Design: 59 tests passed, diff check passed, no actionable findings.
-- Live questions: 13 cases, zero errors, exactly 13 judge calls. Feedback: 12 generated
-  cases, 12 judge calls, no evaluator errors; one Jev timeout before generation, CLI exit 1.
-  No reruns. Full evidence and limitations: `docs/evals/llm-as-a-judge-20261018.md`.
-- Coordinator acceptance check: criteria 1–3 verified through native report/provider
-  tests and live counts; criterion 4 through default/env/comparison tests and live metadata;
-  criterion 5 through native cost/report tests and saved live reports; criterion 6 through
-  unchanged generation/deterministic code and focused tests. Judge pricing remains unknown;
-  existing rubric-dictionary span warning affects telemetry attributes, not saved metadata.
-- Final blind review snapshot: original base `48195a0`, candidate `54633dc`; fresh
-  correctness reviewer: 85 tests passed, no actionable findings. Fresh design reviewer:
-  64 tests passed, no actionable findings. Both diff checks passed. No production behavior changed
-  since the live runs; only pricing test scope and report evidence were added.
-- Publication scope: remote master `6930b8e` is behind two unrelated local planning
-  commits (`25d45c5`, `9a8616f`). Rebase only this feature's commits onto remote master
-  before publishing, preserving local master and those unrelated plans. No code changes
-  result; original review snapshots remain recorded above.
-- Publication rebase completed: planning base `4593ce0`, implementation `dbe85b0`,
-  pricing fix `64027ad`, live evidence candidate `c87824d`, verification record `f78b478`.
-  `git diff --exit-code 54633dc HEAD -- services docs/evals` passed: reviewed code,
-  tests, configuration, and live evidence are byte-for-byte unchanged. Final remote-base
-  diff contains only intended feature files; diff whitespace check passes. No additional
-  review or test round is needed for the history-only rebase and delivery-record edits.
-- PR: https://github.com/JarrodNB/resume_project/pull/18, branch `work/llm-as-a-judge`,
-  targeting master. Human review and manual QA pending; no merge, deploy, or Kanban removal.
-- Publication blocker: automatic approval review rejected pushing the feature branch to
-  `https://github.com/JarrodNB/resume_project.git`, stating private code/eval artifacts
-  need trusted approval for this exact payload and destination. No push or PR occurred.
-  Ask the user to authorize uploading `work/llm-as-a-judge`, including the implementation,
-  tests, approved workflow records, and synthetic eval reports, and opening its PR.
-- User explicitly authorized PR creation and worktree cleanup on 2026-10-18. Git push
-  then failed because CLI HTTPS credentials are unavailable. Publishing the identical
-  reviewed file tree through the connected GitHub integration instead; verify remote
-  tree identity before removing this feature's temporary worktrees. Preserve branches.
-- Publication completed through GitHub: remote commit `ecb4f67` has tree
-  `991284a181f21667a609b25716d4fbb276ab8782`, exactly matching local commit `aa3753f`.
-  PR is attached to this chat. Current master advanced to `69dffe8`; a nonmutating
-  merge-tree check passed with no conflicts. Code review and test evidence remain unchanged.
-- Cleanup: remove only this feature's seven temporary integration, worker, and review
-  worktrees after verifying the updated PR tree. Preserve all branches and unrelated worktrees.
-  Manual QA: inspect the evidence summary and linked reports for score quality and the
-  recorded Jev screening failure. Human completion confirmation is still required.
+- Verification: documentation only so far; application tests and paid evals not run.
+- Blind reviews, PR, and manual QA: not started.

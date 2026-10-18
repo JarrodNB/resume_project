@@ -9,6 +9,7 @@ import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperatio
 import { JOB_QUERY } from '@/features/jobs/jobsOperations'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
+import { useGapAnalysis } from './useGapAnalysis'
 import { GapAnalysisCard, type GapAnalysisTask } from './GapAnalysisCard'
 import { ANALYZE_JOB_GAPS_MUTATION, SAVE_GAP_RESPONSE_MUTATION } from './gapAnalysisOperations'
 
@@ -95,6 +96,11 @@ function openGap(requirement: string) {
   setSectionOpen(`job.job-1.gap.${requirement}`, true)
 }
 
+function TestCard({ latestGapAnalysis }: { latestGapAnalysis: GapAnalysisTask | null }) {
+  const comparison = useGapAnalysis('job-1', latestGapAnalysis)
+  return <GapAnalysisCard jobId="job-1" comparison={comparison} gapResponses={[]} />
+}
+
 function renderCard(
   latestGapAnalysis: GapAnalysisTask | null,
   mocks: ReturnType<typeof startMock | typeof aiTaskUpdateMock>[] = [],
@@ -102,7 +108,7 @@ function renderCard(
   return renderPage({
     path: '/jobs/:id',
     url: '/jobs/job-1',
-    element: <GapAnalysisCard jobId="job-1" latestGapAnalysis={latestGapAnalysis} gapResponses={[]} />,
+    element: <TestCard latestGapAnalysis={latestGapAnalysis} />,
     mocks,
   })
 }
@@ -185,6 +191,7 @@ it('shows verdicts, evidence, and the nice-to-have section', () => {
   expect(within(pythonItem as HTMLElement).getByText('Met')).toBeInTheDocument()
   expect(within(pythonItem as HTMLElement).getByText(/Built Python APIs/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Nice to have' })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Responsibilities' })).not.toBeInTheDocument()
   expect(screen.getByText('Partly met')).toBeInTheDocument()
   expect(screen.getByText(/Compared on/)).toBeInTheDocument()
   const met = screen.getByText('5+ years of Python').closest('li') as HTMLElement
@@ -214,7 +221,7 @@ it('saves a response and can add it to the career library', async () => {
   renderPage({
     path: '/jobs/:id',
     url: '/jobs/job-1',
-    element: <GapAnalysisCard jobId="job-1" latestGapAnalysis={task({ result: COMPLETED_RESULT })} gapResponses={[]} />,
+    element: <TestCard latestGapAnalysis={task({ result: COMPLETED_RESULT })} />,
     mocks: [
       {
         request: {

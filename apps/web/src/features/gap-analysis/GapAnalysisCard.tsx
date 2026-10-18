@@ -1,49 +1,26 @@
-/**
- * Description: The job page's gap analysis card. Shows the job's latest analysis, starts a new one,
- * and follows a running one live over the aiTaskUpdated subscription (also after a reload).
- * Index:
- *   - GapAnalysisTask: the task fields the card needs
- *   - GapAnalysisCard: card component
- */
+/** Shows comparison progress, results, and retry controls using the job page’s shared lifecycle. */
 import { LoaderCircle, RefreshCw } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
-import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { GapAnalysisResultView } from './GapAnalysisResultView'
 import { parseGapAnalysisResult } from './parseGapAnalysisResult'
 import type { SavedGapResponse } from './savedGapResponse'
-import { useStartGapAnalysis } from './useStartGapAnalysis'
-
-export interface GapAnalysisTask {
-  id: string
-  status: AiTaskStatusEnum
-  result: unknown
-  errorMessage: string | null
-  createdAt: string
-}
+import type { GapAnalysisTask, useGapAnalysis } from './useGapAnalysis'
+export type { GapAnalysisTask } from './useGapAnalysis'
 
 interface GapAnalysisCardProps {
   jobId: string
-  latestGapAnalysis: GapAnalysisTask | null
+  comparison: ReturnType<typeof useGapAnalysis>
   gapResponses: SavedGapResponse[]
 }
 
-/** Compares the job with the career library on request and shows the outcome. */
-export function GapAnalysisCard({ jobId, latestGapAnalysis, gapResponses }: GapAnalysisCardProps) {
-  const { startGapAnalysis, starting, errors } = useStartGapAnalysis(jobId)
-  const [startedTaskId, setStartedTaskId] = useState<string | null>(null)
-  const followedTaskId = startedTaskId ?? (latestGapAnalysis?.status === 'QUEUED' ? latestGapAnalysis.id : null)
-
-  async function runAnalysis() {
-    const aiTaskId = await startGapAnalysis()
-    if (aiTaskId) setStartedTaskId(aiTaskId)
-  }
-
-  const runButton = (task: GapAnalysisTask | null) => (
-    <RunButton task={task} starting={starting} onRun={() => void runAnalysis()} />
+/** Displays the lifecycle owned by the page, so its writing controls see the same state. */
+export function GapAnalysisCard({ jobId, comparison, gapResponses }: GapAnalysisCardProps) {
+  const { task, starting, errors, subscriptionError, start } = comparison
+  const runButton = (currentTask: GapAnalysisTask | null) => (
+    <RunButton task={currentTask} starting={starting} onRun={() => void start()} />
   )
 
   return (
@@ -56,38 +33,11 @@ export function GapAnalysisCard({ jobId, latestGapAnalysis, gapResponses }: GapA
       </CardHeader>
       <CardContent className="grid gap-4">
         <ErrorAlert messages={errors} title="Couldn't start the comparison" />
-        {followedTaskId ? (
-          <FollowedGapAnalysis
-            key={followedTaskId}
-            aiTaskId={followedTaskId}
-            jobId={jobId}
-            gapResponses={gapResponses}
-            renderRunButton={runButton}
-          />
-        ) : (
-          <GapAnalysisTaskView task={latestGapAnalysis} jobId={jobId} gapResponses={gapResponses} renderRunButton={runButton} />
-        )}
+        {subscriptionError && <ErrorAlert title="Couldn't follow the comparison" messages={[subscriptionError.message]} />}
+        <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} renderRunButton={runButton} />
       </CardContent>
     </Card>
   )
-}
-
-/** Follows a task live; shows it as running until the first update arrives. */
-function FollowedGapAnalysis({
-  aiTaskId,
-  jobId,
-  gapResponses,
-  renderRunButton,
-}: {
-  aiTaskId: string
-  jobId: string
-  gapResponses: SavedGapResponse[]
-  renderRunButton: (task: GapAnalysisTask | null) => ReactNode
-}) {
-  const { aiTask, error } = useAiTaskUpdates(aiTaskId)
-  if (error) return <ErrorAlert title="Couldn't follow the comparison" messages={[error.message]} />
-  const task: GapAnalysisTask = aiTask ?? { id: aiTaskId, status: 'QUEUED', result: null, errorMessage: null, createdAt: '' }
-  return <GapAnalysisTaskView task={task} jobId={jobId} gapResponses={gapResponses} renderRunButton={renderRunButton} />
 }
 
 /** Renders a task by status: none yet, running, failed, or completed. */
@@ -104,7 +54,7 @@ function GapAnalysisTaskView({
 }) {
   if (!task) return renderRunButton(null)
 
-  if (task.status === 'QUEUED') {
+  if (task.status !== 'COMPLETED' && task.status !== 'FAILED') {
     return (
       <p className="flex items-center gap-2 text-muted-foreground">
         <LoaderCircle className="size-4 animate-spin" /> Comparing this job with your career library…

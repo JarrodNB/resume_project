@@ -27,9 +27,9 @@ module GapAnalysis
 
     private
 
-    # True when the job has no requirements, responsibilities, or nice-to-haves.
+    # True when the job has no requirements or nice-to-haves.
     def nothing_to_compare?
-      @job.requirements.empty? && @job.responsibilities.empty? && @job.nice_to_haves.empty?
+      @job.requirements.empty? && @job.nice_to_haves.empty?
     end
 
     # True when the user has no experiences, projects, educations, certifications, skills, or library facts.

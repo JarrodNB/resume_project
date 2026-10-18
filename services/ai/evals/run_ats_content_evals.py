@@ -13,6 +13,7 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, LLMJudge
 
 from evals.telemetry import evaluate_dataset
+from prompts.ats_content_instructions import ATS_CONTENT_PROMPT_VERSION
 from schemas.ats_content import Snapshot
 from worker.ats_content_handler import handle_ats_content_task
 from worker.queue_messages import AiTaskMessage
@@ -75,7 +76,7 @@ def run_ats_content_evals():
         lambda: dataset,
         assess,
         name="evals.ats_content",
-        version="1",
+        version=ATS_CONTENT_PROMPT_VERSION,
         tags=["eval", "ats_content"],
         max_concurrency=1,
     )

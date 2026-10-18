@@ -79,3 +79,6 @@ crash.*.log
 /docs/plans/
 Workflow.md
 KANBAN.md
+
+# Synthetic exports for the paired production PDF tests.
+/tmp/ats-pdf/

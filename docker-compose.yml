@@ -112,6 +112,8 @@ services:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
+    # Match the host user so bind-mounted logs and eval reports can be edited or deleted.
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     # The polling loop survives errors; this restarts it if startup fails (e.g. SQS not up yet).
     restart: unless-stopped
     env_file:

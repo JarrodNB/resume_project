@@ -5,6 +5,9 @@ Index: location, contents, controls, failures and cleanup.
 Docker Compose enables transcripts automatically for the AI worker. Open
 `services/ai/conversation_logs/<user UUID>/` in your editor. Files are Markdown
 plain text and are ignored by Git.
+The local AI container runs as UID/GID 1000 so generated reports and transcripts
+belong to the desktop user. If your host IDs differ, set `LOCAL_UID` and `LOCAL_GID`
+when running Docker Compose (check them with `id -u` and `id -g`).
 
 Analysis and tailoring share `job-<job UUID>.md`. Interview generation,
 replacement and feedback share `question_set-<set UUID>.md`. Imports use
@@ -18,6 +21,8 @@ does not mean a new user message. Models identify nested screening and fallback
 calls. Function tools, structured output tools and validation retries have
 separate labels. Requests contain the model-visible contact placeholders;
 responses are recorded before contact restoration.
+System instructions remain readable text. Request parameter dumps, tool definitions,
+and output JSON schemas are omitted to keep exchanges easy to read.
 
 A provider failure keeps its request and error type. Exception messages are
 omitted because provider errors can include arbitrary private payloads. No

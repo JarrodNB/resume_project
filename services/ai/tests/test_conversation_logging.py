@@ -34,7 +34,8 @@ def test_local_task_writes_exchange(monkeypatch, task_dependencies, tmp_path):
     def handler(task, dependencies):
         """Uses the existing request adapter through normal model resolution."""
         model = FunctionModel(respond, model_name="synthetic-model")
-        Agent(generative_model(model, model), system_prompt="system instructions").run_sync("synthetic question")
+        Agent(generative_model(model, model), system_prompt="system instructions",
+              instructions="additional instructions").run_sync("synthetic question")
         return AiResultMessage(ai_task_id=task.ai_task_id, status="completed")
 
     monkeypatch.setattr(main, "handle_ai_task", handler)
@@ -43,8 +44,10 @@ def test_local_task_writes_exchange(monkeypatch, task_dependencies, tmp_path):
     assert len(files) == 1
     text = files[0].read_text()
     for expected in ("system instructions", "synthetic question", "synthetic reply", "synthetic-model",
-                     "Request snapshot", "Attempt", "analyze_gaps"):
+                     "Request snapshot", "Attempt", "analyze_gaps", "additional instructions"):
         assert expected in text
+    for omitted in ("Model request parameters", '"function_tools"', '"output_tools"', '"output_object"'):
+        assert omitted not in text
 
 
 @pytest.mark.parametrize("environment,enabled", [("", True), ("production", True), ("local", False)])

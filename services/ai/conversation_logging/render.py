@@ -1,8 +1,8 @@
 """
-Description: Readable complete model message parts and request schemas.
+Description: Readable model messages and instructions for local transcripts.
 Index:
     - render_messages: roles, tool calls/results and validation retry labels
-    - render_parameters: model-visible tool/output definitions
+    - render_instructions: instruction text without request settings or schemas
 """
 import json
 import re
@@ -52,6 +52,9 @@ def render_messages(messages, parameters):
     return "".join(rendered)
 
 
-def render_parameters(parameters):
-    """Includes schemas and output instructions accompanying the messages."""
-    return "#### Model request parameters\n\n" + _block(_json(asdict(parameters)))
+def render_instructions(parameters):
+    """Keeps instructions supplied outside message history, without framework metadata."""
+    return "".join(
+        "#### System instructions\n\n" + _block(part.content, "text")
+        for part in (parameters.instruction_parts or [])
+    )

@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from conversation_logging.render import render_messages, render_parameters
+from conversation_logging.render import render_instructions, render_messages
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ async def observe_request(model, messages, model_settings, parameters):
     if transcript:
         try:
             transcript.append(f"{prefix} — Request snapshot — {_timestamp()}\n\nModel: {model.model_id}\n\n"
-                              + render_messages(messages, parameters) + render_parameters(parameters))
+                              + render_instructions(parameters) + render_messages(messages, parameters))
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation request could not be rendered")
     try:

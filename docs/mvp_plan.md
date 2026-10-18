@@ -50,7 +50,7 @@ employed-mode work journal.
 
 ## Build Order
 
-1. **Local dev foundation** — install Docker Desktop, root `docker-compose.yml`
+1. **Local dev foundation** — install Docker Engine and the Docker Compose plugin on Ubuntu, root `docker-compose.yml`
    (Postgres + pgvector, ElasticMQ for SQS, api, ai worker, web, landing), a Dockerfile per
    app, and scaffold all four apps with their `AGENTS.md` files.
 2. **Rails core** — auth, models (User, Resume, ResumeSection, Job, AiTask), GraphQL schema.
@@ -65,12 +65,15 @@ employed-mode work journal.
 7. **Deploy** — Terraform for AWS, k8s manifests, GitHub Actions CI/CD (including an eval
    run on changes to `services/ai`).
 
-## Prerequisites to Install (Windows)
+## Prerequisites to Install (Ubuntu)
 
-Everything runs in Docker, so the only local install needed is:
+Everything runs in Docker. The host setup needs:
 
-- Docker Desktop (WSL2 backend), with WSL integration enabled for an Ubuntu distro
-- The repo cloned inside that distro (not under `C:\`), opened in Cursor via WSL
+- Docker Engine and the Docker Compose plugin, accessible to your user
+- Git and a local checkout on the Ubuntu filesystem, opened directly in your editor
+
+Use bash and run commands from the checkout root. See the root README for setup and
+Docker access checks.
 
 Ruby, Node, and Python run inside containers; generators like `rails new` also run
 through Docker. Terraform, kubectl, and AWS CLI can run from containers later too.

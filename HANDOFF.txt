@@ -80,9 +80,9 @@ docker-compose.yml   db (pgvector/pg17; `vector` extension enabled, library_embe
 ==========================================================================================
 DECISIONS ALREADY MADE (details in docs/architecture.md "Decisions")
 ==========================================================================================
-- Everything runs in Docker; only Docker Desktop is installed on the host (Windows).
-  The repo lives in a WSL2 Ubuntu distro (~/resume_project), not on C:\ (bind mounts from
-  C:\ made every Rails request take 5+ seconds).
+- Everything runs in Docker on native Ubuntu, using Docker Engine and the Docker Compose
+  plugin. The current checkout is /home/jarrod/Desktop/resume_project on the local Linux
+  filesystem. Run application commands inside containers from the checkout root.
 - SQS for AI work. ElasticMQ locally (LocalStack now needs an account token, so dropped).
 - Rails owns all writes. The AI worker reads Postgres directly with the READ-ONLY role
   ai_reader (job + career library for gap analysis; later pgvector memory search), scoped by
@@ -140,7 +140,7 @@ docker compose run --rm --no-deps web npm install <pkg>   then: docker compose u
 ==========================================================================================
 GOTCHAS LEARNED
 ==========================================================================================
-- Shells (yours and agents') are bash inside WSL2 Ubuntu.
+- Shells (yours and agents') are bash on native Ubuntu.
 - If the Gemfile lists gems that aren't installed, the api container crash-loops; install with
   `docker compose run --rm --no-deps api bundle install`, not `exec`.
 - Long chained docker commands sometimes report "Aborted" but actually keep running;
@@ -153,7 +153,7 @@ GOTCHAS LEARNED
   service it calls, `docker compose restart api-results-worker`.
 - Dev Rails host authorization blocks `api:3000` (container hostname). Browsers use
   localhost:3000, so it only matters for container-to-container HTTP tests (use the IP).
-- Executable bits matter now (WSL2 is a real Linux filesystem): new scripts in
+- Executable bits matter on the Linux filesystem: new scripts in
   services/api/bin need `chmod +x` and `git add --chmod=+x`, or the api container fails with
   "Permission denied".
 - `uv add` in a `run --rm` container only updates pyproject/uv.lock; rebuild the ai image

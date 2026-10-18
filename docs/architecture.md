@@ -110,13 +110,12 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   transaction, so the job and library are a consistent snapshot.
 
 - **Docker for everything.** Local dev runs through docker compose, and the same images
-  deploy to Kubernetes. This avoids Windows toolchain issues (especially for Ruby) and keeps
+  deploy to Kubernetes. Application runtimes and dependencies stay in containers to keep
   dev and prod consistent.
 
-- **On Windows, the repo lives in WSL2, not on `C:\`.** Bind mounts from the Windows
-  filesystem were slow enough that Rails' per-request reload check took ~5s (a 20 ms GraphQL
-  query took 6–12s end to end), and file-change events didn't reach containers, so Vite had to
-  poll. From the WSL2 filesystem, both work natively.
+- **Native Ubuntu development.** The host uses bash, Docker Engine, and the Docker Compose
+  plugin. Keep the checkout on the local Linux filesystem for bind mounts and file-change
+  events used by Rails and Vite. See the root README for setup commands.
 
 - **Open: Kubernetes hosting cost.** EKS costs about $73/month for the control plane alone.
   Decide before the deploy phase whether to use EKS or a cheaper k8s setup.

@@ -10,7 +10,6 @@ Reusable, repository-scoped workflows for Codex.
 - `domain-modeling/` — Upstream Matt Pocock domain-modeling skill and glossary/ADR formats.
 - `grilling/` — Upstream Matt Pocock skill for questioning plans, decisions, and ideas.
 - `orchestrator/` — Local Kanban delivery, approvals, delegation, and handoff.
-- `plane-tickets/` — Read and modify local Plane tickets.
 - `research/` — Upstream Matt Pocock skill for research using primary sources.
 - `review-correctness/` — Blind correctness, security, and reliability review.
 - `review-design/` — Blind architecture, maintainability, and test-quality review.

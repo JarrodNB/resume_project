@@ -94,9 +94,13 @@ AI workflows use Pydantic AI, with tracing through Logfire.
 
 ## Getting started
 
-Install Docker with Docker Compose. Docker Desktop users on Windows should enable WSL2
-integration and keep the repository in the Linux filesystem, such as `~/resume_project`.
-Application runtimes and dependencies run inside containers.
+Local development uses native Ubuntu with bash. Install Docker Engine and the Docker
+Compose plugin, and make sure your user can run `docker` commands. Application runtimes
+and dependencies run inside containers.
+
+Run the commands below from the repository root (currently
+`/home/jarrod/Desktop/resume_project`). Check Docker access with `docker info` and
+Compose availability with `docker compose version` before starting the services.
 
 1. Copy the environment templates:
 

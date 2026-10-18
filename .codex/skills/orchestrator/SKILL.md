@@ -5,7 +5,7 @@ description: Coordinate a Careergrind Kanban item through planning, approved tic
 
 # Orchestrator
 
-Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; local Markdown files hold plans and implementation tickets. This skill describes the process without Plane or a temporary workflow document. The plan and tickets docs can remain on master. All implementation work should be done in a worktree.
+Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; local Markdown files hold plans and implementation tickets. The plan and tickets docs can remain on master. All implementation work should be done in a worktree.
 
 ## Select and resume
 

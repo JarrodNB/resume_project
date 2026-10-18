@@ -90,8 +90,9 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 ## Running Things
 
 - Everything runs in Docker. Do not assume Ruby, Node, or Python are installed on the host.
-- The host shell is bash in WSL2 Ubuntu (repo at `~/resume_project`), with Docker Desktop's
-  WSL integration. Use Linux commands, not PowerShell.
+- The host is native Ubuntu with bash. The current checkout is at
+  `/home/jarrod/Desktop/resume_project`. Use Linux commands and Docker Engine with the
+  Docker Compose plugin; run commands from the checkout being changed.
 - Local dev uses the root `docker-compose.yml`. Run commands inside containers, e.g.
   `docker compose run --rm api bin/rails db:migrate` or `docker compose run --rm ai pytest`.
 - Each app/service has a `Dockerfile.dev` for local dev (source is bind-mounted, so code

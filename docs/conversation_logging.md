@@ -14,8 +14,10 @@ replacement and feedback share `question_set-<set UUID>.md`. Imports use
 `task-<task UUID>.md`; tasks without a valid grouping ID also use their task ID.
 Import logs are not linked to a job created later.
 
-Each attempt includes task ID, receive count, generation, timestamps and an
-attempt UUID. Each concrete model request has its own UUID. Request snapshots
+Each attempt includes task ID, receive count, timestamps and an attempt UUID.
+Historical transcripts may include a generation value from the former tailoring
+approval flow; current tasks carry no generation counter. The logger still renders
+that optional metadata for reading older exchanges. Each concrete model request has its own UUID. Request snapshots
 repeat the full model history deliberately: repeated text in later snapshots
 does not mean a new user message. Models identify nested screening and fallback
 calls. Function tools, structured output tools and validation retries have
@@ -34,6 +36,9 @@ publication failures. A started attempt with no recorded outcome may have been
 interrupted or encountered a logging failure. Concurrent workers lock each
 append block, so their blocks can alternate but never merge. Match attempt and
 request IDs to follow a call.
+Complete-draft tailoring also runs independent requests concurrently within one
+attempt. A request snapshot may therefore appear before another request's response;
+this ordering alone does not mean a retry. Use request IDs to pair them.
 
 To disable logging locally, set `CONVERSATION_LOGGING_ENABLED=false` in
 `services/ai/.env` and recreate the AI worker. Logging requires

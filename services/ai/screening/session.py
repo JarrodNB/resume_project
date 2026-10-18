@@ -22,6 +22,7 @@ class ScreeningSession:
 
     deadline: float
     decisions: dict[tuple, Any] = field(default_factory=dict)
+    async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
 

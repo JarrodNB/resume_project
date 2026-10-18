@@ -51,6 +51,3 @@ class AiResultMessage(BaseModel):
     attempt_id: UUID | None = None
     usage_incomplete: bool = False
     attempt_finished: bool = True
-    # Set on tailor_resume results. ApplyAiResultService ignores a result whose generation is
-    # not the task's current one, so a redelivered earlier section cannot rewind the draft.
-    generation: int | None = None

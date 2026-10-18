@@ -1,10 +1,8 @@
-"""
-Description: Runs the tailoring evals for one section at a time and reports average scores
-to Logfire.
-Run: docker compose run --rm ai python -m evals.run_tailoring_evals
-Index:
-    - load_tailoring_dataset: reads the YAML cases
-    - run_tailoring_evals: evaluates every case
+"""Measure the four production resume writers on synthetic section cases.
+
+Summary, experience, projects, and skill selection use the real section agent and report
+scores to Logfire. Contact and credential copying have deterministic offline checks;
+this suite does not generate them or measure whole-draft execution latency.
 """
 
 from datetime import date

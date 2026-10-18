@@ -1,6 +1,6 @@
 # Faster resume tailoring: completed draft
 
-Status: plan revision 1 and ticket breakdown revision 1 approved; implementation starting.
+Status: implemented and verified; blind reviews resolved; preparing PR for human QA.
 
 ## Problem Statement
 
@@ -219,8 +219,8 @@ Two fresh blind reviewers will inspect the same committed candidate independentl
 ## Delivery Record
 
 - Source: KANBAN.md, “Faster resume tailoring: completed draft”.
-- Phase: both approvals received; preparing the planning commit and isolated implementation.
-- Next: commit approved artifacts on master, create the integration branch, start 01, 02, and 04.
+- Phase: 01–06 integrated and verified; blind reviews resolved.
+- Next: preserve newly published master planning documents, then create the PR for human QA.
 - Human decisions: recorded above from actual replies. The user's “confirmed” response
   confirms the scope including section exclusion. A later “confirmed” directly answered
   “Do you approve plan revision 1?” and establishes plan approval on October 18, 2026.
@@ -230,14 +230,95 @@ Two fresh blind reviewers will inspect the same committed candidate independentl
 - Ticket breakdown: revision 1 in tickets.md approved by the user's “approved” response to
   “Do you approve breakdown revision 1?” on October 18, 2026. Approved content
   SHA-256: `acad7a974989b95f832550351580dbb56c8b61abe0118aef192dfdffa2f31691`.
-- Planning commit: not created. Current checkout: master; preserve unrelated changes.
-- Integration base/head and worker branches: not created.
-- Ticket dependencies/statuses: 01, 02, and 04 ready-for-agent;
-  03 blocked by 02; 05 blocked by 03 and 04; 06 blocked by 01, 03, and 05.
-- Actual verification: source/log inspection; Docker services confirmed running. No tests run.
-- Reviews, PR, and manual QA: not started.
-- Known external blockers: none established; credentials and worktree test setup remain to
-  be checked when needed. The existing local transcript stays ignored and private.
+- Planning commit and integration base: `72b928a` on master.
+- PR ancestry correction: local master also held another workflow's unpushed planning
+  commit `cd521bb`. The unpublished integration branch was rebased onto remote master
+  `91f5a4f`, retaining this workflow's own planning commit as `696dd86` and excluding those
+  unrelated artifacts. Original master/worker branches and files were preserved. A tree
+  comparison excluding only the unrelated plan directory confirmed no other content change.
+  Integration commit remapping: 01 `30ac86c` -> `5dbb229`, 04 `4bcc5f4` -> `1190d9a`,
+  02 `c36b8e4` -> `4938723`. Original worker bases remain valid; integrate by cherry-pick.
+- Integration branch: `work/faster-resume-tailoring`, worktree
+  `.worktrees/faster-resume-tailoring-integration`; head recorded by Git.
+- Worker branches/worktrees: `work/faster-resume-tailoring-01-faithfulness` at
+  `.worktrees/faster-resume-tailoring-01`, `work/faster-resume-tailoring-02-preparation`
+  at `.worktrees/faster-resume-tailoring-02`, `work/faster-resume-tailoring-04-draft-editor`
+  at `.worktrees/faster-resume-tailoring-04`. All start at `72b928a`.
+- Ticket dependencies/statuses: 01 implemented (`30ac86c`), 02 implemented (`c36b8e4`),
+  04 implemented (`4bcc5f4`); 03 implemented (`f41063d`) from `.worktrees/faster-resume-tailoring-03`
+  on `work/faster-resume-tailoring-03-complete-draft`, starting base `c36b8e4`;
+  05 implemented (`82d0389` API/Python, `52d6067` web, `902f069` regenerated client) from
+  separate `-05-api` and `-05-web` worktrees/branches based at `f41063d`;
+  06 implemented (`e1e50b3`, worker `9606091`) in `.worktrees/faster-resume-tailoring-06` on
+  `work/faster-resume-tailoring-06-verification`, starting base `902f069`.
+  Ticket 05 used nonoverlapping writer ownership, not a changed
+  breakdown; coordinator integrates the API SDL and web operations before code generation.
+- Actual verification: integrated validator/evaluator/handler tests 27 passed; Rails tailoring,
+  result application, usage and mutation baseline 50 examples, 0 failures, on disposable
+  `faster-resume-tailoring-test-db`. Offline full AI baseline 560 passed, 9 db deselected;
+  integrated frontend tailoring tests 17 passed; shared preparation integration suite 61 passed.
+  Worker02 additionally reports 118 shared regressions and 18 provider-cancellation/handler
+  checks passed. Worker03 full offline AI suite 593 passed, 9 db deselected; independent
+  integrated generation suite 54 passed. One coordinator invocation used a nonexistent
+  credential-test filename and ran no tests; corrected to tests/test_certifications.py.
+  SDK construction
+  requires a dummy OPENAI_API_KEY; network remains disabled for offline AI tests. Four
+  unrelated baseline Ruff findings are recorded in ticket 01.
+- Cross-service verification after 05: 57 Rails examples, 16 frontend tests, frontend types
+  and lint passed; full offline AI suite 593 passed, 9 db deselected (102.19s). Worker05
+  additionally reports 88 Rails examples, 68 Python checks and changed Ruby/Python lint clean.
+- Live retrieval: initial default-bridge run had one passing case and a TCP ConnectTimeout;
+  the failed case reproduced on unchanged baseline. On the normal application network,
+  both synthetic cases passed with HitAt1/RecallAtK/MRR 1.0, PrecisionAtK 0.125 and about
+  4.1s per case; four provider calls, no task/evaluator failures. No automatic report saved.
+- Final verification at `e1e50b3`: full offline AI suite 599 passed, 9 db deselected
+  (97.32s); the 9 database tests passed separately against the disposable database with
+  the restricted reader role. Independent focused final AI check: 60 passed. Four existing
+  unrelated Ruff findings remain in conversation logging and its reliability tests;
+  changed Python files are clean. No source transcript or eval report was committed.
+- Final live tailoring eval: 9 cases, no task/evaluator failures, all three aggregate scores
+  1.0, 18.067s; 9 screening and 9 writing requests, known subtotal $0.001066 with the existing
+  fallback-instrumentation caveat. A real certification-summary validation failure led to
+  clarifying the already-enforced empty-entries summary contract in prompt version 4 and
+  schema descriptions. Targeted retry and final full eval passed; validator regressions
+  cover both supported summary labels and invalid duplicate entries.
+- Final synthetic production path: real restricted database reader, screening, retrieval,
+  models, privacy, tracing and worker result creation; only queue transport captured.
+  All seven sections in 16.29s, 17 screening + 4 writing + 2 embedding requests, complete
+  usage, estimated $0.000884. Copied descriptions and year-precision dates passed identity
+  checks. Earlier prompt-version-3 run took 19.31s with 5 writing requests; these small
+  fixtures do not establish full-library latency or a controlled before/after speedup.
+  Real Rails application accepted the initial output idempotently, saved edited/excluded
+  sections once, and left the library unchanged. Applying the final duplicate execution
+  twice preserved the finished outcome and one resume; another save was rejected.
+- Acceptance audit: criteria 1–3 use complete-draft worker and bounded-overlap tests;
+  4 uses shared-screening/fresh-session/real-guardrail tests; 5 uses empty/rejected/nothing-fits
+  generation cases; 6 uses failure/cancellation/deadline and page retry cases; 7 uses
+  supported/invented claim regressions; 8 uses editor/preview tests, Rails contract tests
+  and the synthetic save; 9 uses tenant-scoped service/GraphQL checks and duplicate/late
+  attempt accounting tests; 10 uses regenerated contracts, offline checks, live evals and
+  updated architecture guidance. Visual quality and representative-library experience
+  remain human checks under the QA outline above.
+- Reviews: both fresh reviewers inspect base `696dd86409ca2ef7740e53c98c142fb7217b0394`
+  through candidate `e1e50b3362048a57ad469f6be8bbf227285a1980`, with isolated snapshots,
+  no inherited conversation, and explicit exclusions for planning/delivery context.
+  Design review: no actionable findings; 83 offline tests passed, diff check clean.
+  Correctness review: 107 offline AI tests, 12 frontend tests, and 53 Rails examples passed
+  on its isolated database. An initial Rails run encountered three global-count assertions
+  due to the coordinator's synthetic records; rerunning on an empty database passed.
+  The reviewer reproduced one P2: old NEEDS_USER_INPUT tailoring tasks show an indefinite
+  spinner. Dismissed as outside the explicitly approved scope: the human said “We are not
+  in prod, so dont worry about existing data”; the approved plan excludes compatibility
+  migration for paused tasks. New tasks and completed/saved drafts are covered and work.
+  No source fix was made; no other actionable correctness finding remained. Both reviews
+  omitted browser/live-provider checks. Subsequent delivery records and master planning
+  reconciliation are editorial only; application code stays identical to the reviewed head.
+  PR and human QA pending.
+- Remote-base reconciliation: the final remote check found master had advanced from
+  `91f5a4f` to the original planning commit `72b928a`. Its only additions were this workflow's
+  approved plans and the other workflow's plans. Preserve those newly published documents
+  by merging master; do not let the earlier ancestry correction delete them from the PR.
+- Known external blockers: none. The existing local transcript stays ignored and private.
 - Planning artifact tracking: KANBAN.md and docs/plans/ are ignored by Git. Explicitly stage
   the approved plan and tickets when creating the required planning commit; leave unrelated
   ignored files alone.

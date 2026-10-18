@@ -33,8 +33,8 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
-  null). Each actual execution gets a fresh UUID, independent of SQS receive count and
-  tailoring generation. The worker publishes an unfinished, incomplete usage marker before
+  null). Each actual execution gets a fresh UUID, independent of SQS receive count.
+  The worker publishes an unfinished, incomplete usage marker before
   execution and one final accounting report with its result, or usage-only before retrying.
   Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
   report. Usage-only messages never change task status. A missing final report remains unknown.
@@ -85,6 +85,19 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
+- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
+  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
+  job and career library, prepares shared screened evidence, and returns one complete draft:
+  `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
+  summary, experience, projects, education, certifications, skills, omitting empty or
+  nothing-fits sections. Contact, education, and certifications are copied; independent
+  experience/project/skill writers overlap, and the summary uses selected content afterward.
+  The task completes or fails without section approvals or a generation counter. Failure
+  never publishes a partial draft. Users review, edit or exclude sections, preview, then
+  `saveTailoredResume` creates snapshots once under the owned task lock (`accepted_at`).
+  Later `updateResume` changes the saved resume only. See
+  [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
+
 - `generate_interview_questions`: input `{question_set_id, set_number, set_type}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
@@ -134,8 +147,9 @@ A duplicate costs extra LLM spend at worst, never corrupt data.
 The worker retries through SQS redelivery instead of in-process loops:
 
 - A **temporary** failure (model rate limit or 5xx, connection error or timeout, AWS
-  throttling or 5xx, job site 429/5xx or network error; see `services/ai/worker/retryable_errors.py`) publishes nothing and keeps
-  the message. The worker shortens its visibility to 30s × the attempt number, so the retry
+  throttling or 5xx, job site 429/5xx or network error; see `services/ai/worker/retryable_errors.py`)
+  publishes usage without a completed or failed outcome and keeps the message. The worker
+  shortens its visibility to 30s × the attempt number, so the retry
   comes sooner than the 300-second timeout.
 - A **permanent** failure (bad input, bug, missing upload, invalid model output) publishes
   `failed` right away.

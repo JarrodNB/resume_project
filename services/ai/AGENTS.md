@@ -43,8 +43,7 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   question(s) and the serialized message history. When the user answers, the follow-up task
   resumes with that history plus `DeferredToolResults`. Not built yet; reserved for
   AI-assisted rewriting of career library entries. Gap analysis doesn't ask questions.
-  Tailoring pauses once per section in ordinary code (the same task is requeued); it does
-  not use `ask_user`.
+  Tailoring generates one complete draft per queued execution and does not use `ask_user`.
 - **User-written text is screened by Jev before it enters a prompt** (`screening/`), including
   an uploaded resume before it is parsed. A missing `TYPESAFE_API_KEY` or a Jev error omits
   the text; a blocked resume fails the import. Screen each cohesive untrusted input once

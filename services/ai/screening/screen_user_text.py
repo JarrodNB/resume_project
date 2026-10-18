@@ -10,6 +10,7 @@ Index:
     - reported_model_name: re-exported from worker.model_prices (the name to bill)
 """
 
+import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable, Generator
@@ -77,6 +78,19 @@ async def screen_user_text_async(
     The classifier is a provider seam, not an approval: every returned decision still
     goes through confidence, fail-closed, cap, cache, and usage processing below.
     """
+    session = current_session()
+    if session is None:
+        return await _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify)
+    # The same execution can be used by successive asyncio.run calls. Locks belong to
+    # their event loop; completed decisions remain shared across those loops.
+    key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases, max_characters))
+    lock = session.async_locks.setdefault(key, asyncio.Lock())
+    async with lock:
+        return await _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify)
+
+
+async def _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify):
+    """Drive the common policy after acquiring execution-local source ownership."""
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
     try:
         chunk, timeout = next(screening)
@@ -91,6 +105,10 @@ async def screen_user_text_async(
         return done.value
 
 
+def _screen_key(text, model, check_phrases, max_characters):
+    return (mask_outbound(text), model, check_phrases, load_settings().user_text_screen_chunk_size, max_characters)
+
+
 def _screen_pass(
     text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
 ) -> Generator[tuple[str, float], Any, ScreenOutcome]:
@@ -98,7 +116,7 @@ def _screen_pass(
     text = mask_outbound(text)
     size = load_settings().user_text_screen_chunk_size
     session = current_session()
-    key = (text, model, check_phrases, size, max_characters)
+    key = _screen_key(text, model, check_phrases, max_characters)
     if session is not None and key in session.decisions:
         # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None)

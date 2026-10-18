@@ -25,6 +25,35 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(ai_task.reload).to be_accepted
   end
 
+  it "rejects an explicit empty selection without saving the original draft" do
+    ai_task
+
+    result = described_class.call(ai_task: ai_task, sections: [])
+
+    expect(result.errors).to eq([ described_class::NOT_READY_MESSAGE ])
+    expect(user.resumes).to be_empty
+    expect(ai_task.reload).not_to be_accepted
+  end
+
+  it "uses the original draft only when no selection was supplied" do
+    result = described_class.call(ai_task: ai_task)
+
+    expect(result).to be_success
+    expect(result.value.sections.order(:position).map(&:content)).to eq(sections.map { |section| section["content"] })
+  end
+
+  it "saves only selected sections with current edits in the submitted order" do
+    sections << { "section_type" => "skills", "content" => { "items" => [ { "name" => "Ruby" } ] } }
+    chosen = [ sections[1].merge("content" => { "text" => "My revised summary." }), sections[0] ]
+
+    result = described_class.call(ai_task: ai_task, sections: chosen)
+
+    expect(result).to be_success
+    expect(result.value.sections.order(:position).map { |section| [ section.section_type, section.position, section.content ] })
+      .to eq([ [ "summary", 0, { "text" => "My revised summary." } ], [ "contact", 1, { "full_name" => "Ada" } ] ])
+    expect(ai_task.reload.result["sections"]).to eq(sections)
+  end
+
   it "keeps the resume when the job is deleted" do
     described_class.call(ai_task: ai_task, sections: sections)
     resume = user.resumes.first
@@ -69,5 +98,4 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(section.reload.content["items"].sole["name"]).to eq("Edited credential")
     expect(credential.reload.name).to eq("AWS Solutions Architect")
   end
-
 end

@@ -4,7 +4,7 @@ returns the library rows hybrid search ranks highest. An empty result means the 
 should use the whole library, which is what happens before any embeddings exist.
 Index:
     - section_query: the text embedded for one section
-    - retrieve_source_keys: (Rails class name, id) of the closest rows, or None when there
+    - retrieve_source_keys / retrieve_source_keys_async: (Rails class name, id) of the closest rows, or None when there
       are none
 """
 
@@ -55,16 +55,27 @@ def retrieve_source_keys(
     query = section_query(section_type, job)
     embedded = embed_search_query(query, settings.embedding_model, settings.embedding_dimensions)
     usage = build_model_usage(settings.embedding_model, embedded.usage)
+    return _search_source_keys(user_id, query, embedded.vector, settings), usage
+
+
+def _search_source_keys(user_id, query, vector, settings):
+    """Keep both provider entry points on the same user-scoped search and fallback."""
     with open_read_only_connection(settings) as connection:
         matches = search_career_library(
-            connection,
-            user_id,
-            embedded.vector,
-            query,
-            stored_embedding_model_name(settings.embedding_model),
-            limit=_LIMIT,
+            connection, user_id, vector, query,
+            stored_embedding_model_name(settings.embedding_model), limit=_LIMIT,
             source_types=_SOURCE_TYPES,
         )
-    if not matches:
-        return None, usage
-    return {(match.source_type, match.source_id) for match in matches}, usage
+    return {(match.source_type, match.source_id) for match in matches} if matches else None
+
+
+async def retrieve_source_keys_async(
+    user_id: UUID, section_type: str, job: JobToAnalyze, settings: WorkerSettings,
+) -> tuple[set[tuple[str, str]] | None, ModelUsage | None]:
+    """Retrieve using an awaited embedding call without creating background threads."""
+    from memory.embed_search_query import embed_search_query_async
+
+    query = section_query(section_type, job)
+    embedded = await embed_search_query_async(query, settings.embedding_model, settings.embedding_dimensions)
+    usage = build_model_usage(settings.embedding_model, embedded.usage)
+    return _search_source_keys(user_id, query, embedded.vector, settings), usage

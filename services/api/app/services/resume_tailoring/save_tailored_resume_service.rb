@@ -12,7 +12,7 @@ module ResumeTailoring
       @sections = sections
     end
 
-    # Saves once. A second call returns the resume already created.
+    # Saves once. A second call returns an error without creating another resume.
     def call
       return failure([ NOT_READY_MESSAGE ]) unless @ai_task.tailor_resume? && @ai_task.completed?
 
@@ -36,7 +36,7 @@ module ResumeTailoring
 
     # The client's final edits when it sent them, otherwise the draft on the task.
     def normalized_sections
-      raw = @sections.presence || @ai_task.result&.dig("sections")
+      raw = @sections.nil? ? @ai_task.result&.dig("sections") : @sections
       return [] unless raw.is_a?(Array)
 
       raw.select { |section| section.is_a?(Hash) && saveable?(section) }

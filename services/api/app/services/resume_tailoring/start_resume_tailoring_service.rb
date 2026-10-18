@@ -29,10 +29,10 @@ module ResumeTailoring
 
     private
 
-    # A queued task still inside the in-flight window, a pause, or a finished draft not yet saved.
+    # A queued task inside the in-flight window, or a complete draft not yet saved.
     def resumable?(task)
       return false unless task
-      return true if task.needs_user_input? || (task.completed? && !task.accepted?)
+      return true if task.completed? && !task.accepted?
 
       task.queued? && task.created_at >= AiUsage::CheckAiTaskAllowanceService::IN_FLIGHT_WINDOW.ago
     end
@@ -48,7 +48,6 @@ module ResumeTailoring
       analysis = latest_completed_analysis
       {
         "job_id" => @job.id,
-        "generation" => 0,
         "contact" => {
           "full_name" => @user.name,
           "email" => @user.contact_email,
@@ -57,9 +56,7 @@ module ResumeTailoring
           "links" => @user.links
         },
         "gap_analysis" => analysis&.result&.dig("gap_analysis"),
-        "gap_responses" => @job.gap_responses.map { |response| { "requirement" => response.requirement, "body" => response.body } },
-        "approved_sections" => [],
-        "pending_section" => nil
+        "gap_responses" => @job.gap_responses.map { |response| { "requirement" => response.requirement, "body" => response.body } }
       }
     end
   end

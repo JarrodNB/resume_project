@@ -43,5 +43,7 @@ applies the threshold. This is not a second classifier and it does not choose al
 - Never grant coverage by substring matching, a persisted approval, or a caller-controlled
   boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Jev must not carry its own input guardrail (that would recurse).
-- Keep guards sequential: a blocked input must never reach the generative provider.
+- Preserve guard ordering for each input: a blocked input must never reach the generative
+  provider. Independent source checks may overlap with a bounded concurrency limit.
+  Concurrent checks of the same exact source and policy share one execution-local decision.
 - Report Jev `ModelUsage` on the task result when a call was made.

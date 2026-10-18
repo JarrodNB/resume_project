@@ -94,7 +94,6 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     except InputBlocked as error:
         result = AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message=str(error),
-            generation=task.input.get("generation") if task.task_type == "tailor_resume" else None,
         )
     except UsageLimitExceeded:
         logger.exception("Task %s hit a run limit on attempt %d", task.ai_task_id, receive_count)
@@ -119,8 +118,6 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
     result.attempt_id = task_usage.attempt_id
     result.usage_incomplete = task_usage.incomplete
-    if task.task_type == "tailor_resume":
-        result.generation = task.input.get("generation")
     publish_result(result_queue, result)
     logger.info("Published %s result for task %s", result.status, task.ai_task_id)
     return True

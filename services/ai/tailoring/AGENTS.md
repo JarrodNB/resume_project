@@ -9,24 +9,30 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
   education, certifications, skills) and entry label prefixes
-- `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, gap responses,
-  approved sections, and the pending user action
+- `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, and gap responses
 - `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
   `library_embeddings` with explicitly selected library types; no matches means the whole library
-- `labeled_sources.py` — short labels for retrieved entries, gap responses, and approved sections.
+- `labeled_sources.py` — short labels for retrieved entries, gap responses, and selected draft snapshots.
   Projects, education, certifications, and skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
 - `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
   replace the rewrite with the original library text
 - `materialize_section.py` — copies identity (employer, title, dates, skill name) from the
-  library and keeps the model's prose
+  library and keeps the model's prose; also copies education and certifications exactly
+- `generate_resume_draft.py` — prepares shared evidence, overlaps at most three independent
+  writers, then writes the summary from selected content and assembles an ordered draft
 
 ## Local Rules
 
-- Contact is copied in the handler with no model call.
+- Contact, education, and certifications are copied with no model call. Original credential
+  descriptions and date precision remain intact. Copied text still requires screening
+  before it is reused in the summary prompt.
+- A failed writer or deadline cancels and awaits outstanding requests before returning to
+  the worker. No partial draft is published. Empty sections skip generation; nothing-fits
+  sections are omitted with an explanation.
 - The checker never substitutes library text for a rejected rewrite.
 - Screen each selected labeled source (including library entries, gap-response requirements
-  and bodies, and approved titles/content), the job context, and optional gap summary once
+  and bodies, and selected snapshot titles/content), the job context, and optional gap summary once
   per execution. Unsafe optional sources are omitted with warnings. The job must pass
   before retrieval embeds it. Bind the exact rendered prompt to those approvals; direct
   unknown writer prompts retain the capability guard.

@@ -37,12 +37,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   preparation, runs the gap analysis agent, attaches
   evidence text, and reports Jev usage; a deleted job, empty library, job without
   requirements, or prompt over the character cap fails with a user-facing message
-- `tailor_resume_handler.py` — writes one resume section per message (contact is copied, then
-  summary, experience, projects, education, certifications, skills), pauses for approval, and echoes `generation`.
-  A section with no library entries is left out with no model call. Projects, education, certifications, and
-  skills are not narrowed by retrieval
-- `tailor_resume_steps.py` — folds the user's decision, screens section sources, and builds the
-  pause or failure result. A section over the screen cap stays open with a length message
+- `tailor_resume_handler.py` — delegates one complete draft to the tailoring module and
+  returns ordered sections and omission warnings. It copies no domain data back to the
+  database and never pauses for section approval. Unexpected errors retain normal retries
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
@@ -86,7 +83,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   and a final report even when retrying. Never add handler aggregate usage to observed requests.
 
 - `process_task_message` collects capability screening usage even when the guard blocks.
-  `InputBlocked` publishes a failed task with the safe error message and tailoring generation.
+  `InputBlocked` publishes a failed task with the safe error message.
 - Every execution starts a fresh screening session. Source-selection calls share decisions
   with exact bound prompts, but later tasks rescreen reused inputs. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.

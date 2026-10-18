@@ -50,17 +50,19 @@ RSpec.describe AiTasks::ApplyAiResultService do
       .with(:ai_task_updated, { id: task.id }, task).once
   end
 
-  it "counts separate executions of an old tailoring generation without changing its draft" do
-    task = create(:ai_task, task_type: "tailor_resume", generation: 2, status: "needs_user_input",
-                  input: { "approved_sections" => [ { "section_type" => "contact" } ] })
-    message = { "ai_task_id" => task.id, "status" => "failed", "generation" => 1,
+  it "counts late tailoring executions without changing the completed draft" do
+    draft = { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Finished draft" } } ] }
+    task = create(:ai_task, task_type: "tailor_resume", status: "completed", result: draft,
+                  input: { "job_id" => SecureRandom.uuid })
+    snapshots = task.input.deep_dup
+    message = { "ai_task_id" => task.id, "status" => "failed",
                 "attempt_id" => SecureRandom.uuid, "usage" => [ { "cost_microdollars" => 7 } ] }
     2.times { described_class.call(message: message) }
     described_class.call(message: message.merge("attempt_id" => SecureRandom.uuid))
     expect(task.reload.cost_microdollars).to eq(14)
-    expect(task).to be_needs_user_input
-    expect(task.generation).to eq(2)
-    expect(task.input).to eq("approved_sections" => [ { "section_type" => "contact" } ])
+    expect(task).to be_completed
+    expect(task.result).to eq(draft)
+    expect(task.input).to eq(snapshots)
     expect(ApiSchema.subscriptions).not_to have_received(:trigger).with(:ai_task_updated, anything, anything)
   end
 end

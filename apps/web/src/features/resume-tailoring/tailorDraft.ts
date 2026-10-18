@@ -1,6 +1,6 @@
 /**
  * Description: Turns one tailored section's JSON into the draft the resume-import review fields
- * edit, and back into the JSON the tailor mutation stores. Draft keys never leave the browser.
+ * edit, and back into the JSON the save mutation stores. Draft keys never leave the browser.
  * Index:
  *   - sectionDraftFromContent / contentFromSectionDraft: one section, both ways
  *   - SectionDraft: the editable form of one section
@@ -31,7 +31,7 @@ export function sectionDraftFromContent(sectionType: TailorSectionType, content:
   return { kind: 'skills', items: items(record).map(skillFrom) }
 }
 
-/** The JSON content for a submit or save, without drag-and-drop keys. */
+/** The JSON content for saving, without drag-and-drop keys. */
 export function contentFromSectionDraft(draft: SectionDraft): Record<string, unknown> {
   if (draft.kind === 'contact') return { ...draft.contact }
   if (draft.kind === 'summary') return { text: draft.text ?? '' }

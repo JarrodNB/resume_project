@@ -1,7 +1,7 @@
 """
 Description: Capability screening costs survive successful and blocked SQS tasks.
 Index:
-    - test_*: result usage, no generation on rejection, and stale-generation metadata
+    - test_*: result usage, no generation on rejection, and attempt isolation
 """
 
 import json
@@ -21,8 +21,8 @@ from worker.queue_messages import AiResultMessage
 
 
 @pytest.mark.parametrize("blocked", [False, True])
-def test_task_reports_guardrail_costs_and_generation(blocked, monkeypatch, task_dependencies) -> None:
-    """Blocked tasks retain Jev costs and the tailoring revision without generating output."""
+def test_task_reports_guardrail_costs_without_section_state(blocked, monkeypatch, task_dependencies) -> None:
+    """Blocked tasks retain Jev costs without section state or generated output."""
     generated = []
 
     async def classify(*_args):
@@ -42,7 +42,7 @@ def test_task_reports_guardrail_costs_and_generation(blocked, monkeypatch, task_
     monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", classify)
     monkeypatch.setattr(main, "handle_ai_task", handler)
     queue = FakeResultQueue()
-    body = build_task_body(task_type="tailor_resume", input={"generation": 3})
+    body = build_task_body(task_type="tailor_resume", input={})
     # Repeated tasks must each have their own usage collection, with no leakage.
     for _ in range(2):
         assert main.process_task_message(body, 1, queue, task_dependencies)
@@ -54,7 +54,7 @@ def test_task_reports_guardrail_costs_and_generation(blocked, monkeypatch, task_
         assert len(result["usage"]) == 1
         assert result["usage"][0]["model"] == "jev-1.13.0"
         assert result["usage"][0]["input_tokens"] == 100
+        assert "generation" not in result
         if blocked:
-            assert result["generation"] == 3
             assert result["result"] is None
     assert len(generated) == (0 if blocked else 2)

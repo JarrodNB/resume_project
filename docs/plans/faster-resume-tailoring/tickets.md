@@ -1,7 +1,7 @@
 # Faster resume tailoring — tickets
 
-Breakdown revision 1. Based on approved plan revision 1. Human breakdown approval pending.
-No implementation, integration branch, or worker worktree is authorized by plan approval alone.
+Breakdown revision 1 approved by the user on October 18, 2026, after plan revision 1 approval.
+Approved planning commit: `72b928a`. Implementation proceeds on the integration branch.
 
 All writers use separate worktrees based on the current verified integration head. The
 coordinator owns this file, integration, board updates, and the PR. Workers report actual
@@ -39,7 +39,7 @@ against invented claims.
 `find_section_problems` with synthetic labeled sources and agent output validation where
 needed; do not create a second name validator or rewrite valid model prose in code.
 
-**Status:** ready-for-agent. Human breakdown approval is still required.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -53,9 +53,15 @@ Green: fix matching and rerun it. Broaden with
 `docker compose run --rm ai pytest -m "not db" tests/test_check_section_faithfulness.py tests/test_tailoring_evaluators.py`
 and `docker compose run --rm ai ruff check .`. Actual checks/red-green evidence: not run.
 Ticket 06 runs live agent quality evaluations after integration.
+Actual red: three supported-opening-action regressions failed due to false rejection.
+Actual green: 16 validator/evaluator tests passed. Broader check and independent integration
+check: 27 validator/evaluator/handler tests passed, using network-disabled Docker and
+`OPENAI_API_KEY=offline-test` for SDK construction. Changed-file Ruff and diff checks passed.
+Full Ruff has four pre-existing findings in unrelated conversation-logging files.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-01-faithfulness`.
-Worktree/base/commits: not assigned. Concern: narrow the false-positive fix without allowing
+Worktree: `.worktrees/faster-resume-tailoring-01`; base `72b928a`; worker commit `96e6862`,
+integrated as `30ac86c`. Concern: narrow the false-positive fix without allowing
 unsupported proper names. Covers plan acceptance criterion 7.
 
 ## 02 — Prepare shared evidence once with bounded screening
@@ -73,7 +79,7 @@ warnings, and prompt binding. Keep SQL in database modules and user filtering in
 Use existing screening policy and provider interfaces. Introduce preparation alongside the
 old handler so this slice can be tested without switching queue/UI contracts.
 
-**Status:** ready-for-agent. Human breakdown approval is still required.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -93,10 +99,10 @@ old handler so this slice can be tested without switching queue/UI contracts.
 `docker compose run --rm ai pytest -m "not db" tests/test_tailoring_screening.py tests/test_screening_session.py tests/test_task_usage_guardrails.py tests/test_task_usage_accounting.py`
 plus the new preparation tests, `docker compose run --rm ai pytest tests/test_schema_dependencies.py`,
 and `docker compose run --rm ai ruff check .`. Broaden to other screening tests if shared
-helpers change. Actual commands/red-green results: not run.
+helpers change. Actual red/green: missing preparation behavior and duplicate concurrent classification failed before implementation; then worker suites 118 passed plus 18 preparation/provider-cancellation/handler checks passed. Independent integration suite 61 passed (preparation, session, embedding, retrieval scoping, screening, old handler, schema dependencies). Changed-file Ruff and diff checks passed; only known unrelated full-Ruff findings remain.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-02-preparation`.
-Worktree/base/commits: not assigned. Concern: actual screen policy cannot be mocked away in
+Worktree: `.worktrees/faster-resume-tailoring-02`; base `72b928a`; worker commit `154446f`, integrated as `c36b8e4`. Concern: actual screen policy cannot be mocked away in
 coverage tests. Covers preparation portions of plan criteria 3, 4, 5, 6, and 9.
 
 ## 03 — Generate a complete resume in one queued execution
@@ -115,7 +121,7 @@ plumbing in the handler. Use async provider interfaces without nesting `asyncio.
 an event loop. Share the prepared evidence from 02; callers do not sequence sections.
 Retain schema dependency directions and existing result shapes.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -137,10 +143,10 @@ Retain schema dependency directions and existing result shapes.
 `process_task_message`; use controlled concurrency and failures rather than timing guesses.
 Run `docker compose run --rm ai pytest -m "not db" tests/test_tailor_resume_handler.py tests/test_tailoring_screening.py tests/test_task_usage_accounting.py tests/test_task_usage_providers.py tests/test_run_limits.py`
 plus new draft/lifecycle tests, schema dependency tests, and AI lint. Keep the full offline
-AI suite green after replacing obsolete Python approval-loop tests. Actual results: not run.
+AI suite green after replacing obsolete Python approval-loop tests. Actual red/green: needs-user-input result, lost copied descriptions, screened-out native writers, and missing summary-omission explanation each failed before their fixes. Worker full offline AI suite: 593 passed, 9 db deselected, 4 nonfatal warnings (96.87s). Independent integration suite: 54 passed across complete draft, adapted handler, screening, preparation, credentials, and schema dependencies. Changed-file Ruff and diff checks passed.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-03-complete-draft`.
-Worktree/base/commits: not assigned. Concern: existing synchronous agent entry points and
+Worktree: `.worktrees/faster-resume-tailoring-03`; base `c36b8e4`; worker commit `2b7e6bc`, integrated as `f41063d`. Concern: existing synchronous agent entry points and
 execution-local contexts must compose correctly under concurrency. Covers plan criteria 1–6
 and the worker portions of 9. Python-only obsolete state can be removed here; Rails/UI
 contract removal belongs to 05.
@@ -159,7 +165,7 @@ are collapsed or excluded; provide a way to include an excluded section again be
 consume the same selected content. Reuse existing field editors and PDF model. Do not change
 generated GraphQL files or remove the old task progress UI in this ticket.
 
-**Status:** ready-for-agent. Human breakdown approval is still required.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -177,7 +183,7 @@ frontend typecheck and lint. PDF rendering is mocked in jsdom; human verifies vi
 Actual commands/red-green results: not run.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-04-draft-editor`.
-Worktree/base/commits: not assigned. Covers the editor/preview portion of plan criterion 8.
+Worktree: `.worktrees/faster-resume-tailoring-04`; base `72b928a`; worker commit `d32ec42`, integrated as `4bcc5f4`. Actual red/green: missing exclusion, preview, and empty-selection behaviors each failed then passed. All 17 tailoring frontend tests passed independently on integration; worker typecheck and lint passed. Dependencies were read-only with disposable Vite caches or an executable tmpfs copy. Covers the editor/preview portion of plan criterion 8.
 
 ## 05 — Replace approval contracts with complete-draft start and save
 
@@ -194,7 +200,7 @@ The page follows task status rather than Python section sequencing. Remove only 
 obsolete submit/reopen state and interfaces; preserve shared needs-user-input capabilities
 and usage handling for other tasks. Keep generated outputs owned by their generators.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -215,10 +221,10 @@ and usage handling for other tasks. Keep generated outputs owned by their genera
 Run `docker compose run --rm api bundle exec rspec spec/services/resume_tailoring spec/services/ai_tasks/apply_ai_result_service_spec.rb spec/services/ai_tasks/record_attempt_usage_spec.rb spec/graphql/mutations/resume_tailoring_spec.rb`.
 Run `docker compose run --rm api bin/rails graphql:schema:dump`, then
 `docker compose run --rm --no-deps web npm run codegen`; run schema-dump specs, frontend
-tailoring tests, typecheck, and lint. Actual red/green and generator outcomes: not run.
+tailoring tests, typecheck, and lint. Actual red/green: four Rails cases exposed approval input state, empty-selection fallback and input mutation; retired mutation and five Python generation-metadata cases failed before removal. Web regressions exposed per-section loading and retry-state gaps. Worker API 88 Rails examples and 68 focused Python tests passed; worker web 16 tests, types and lint passed. Integrated checks: 57 Rails examples, 16 frontend tests, typecheck and lint passed. Rails SDL and frontend client artifacts regenerated using their generators. Full integrated offline AI suite 593 passed, 9 db deselected. No browser QA run.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-05-flow-contracts`.
-Worktree/base/commits: not assigned. Concern: empty array fallback in the existing save service
+API/Python worktree `.worktrees/faster-resume-tailoring-05-api`, branch `work/faster-resume-tailoring-05-api-contracts`; web worktree `.worktrees/faster-resume-tailoring-05-web`, branch `work/faster-resume-tailoring-05-web-contracts`. Both start at verified `f41063d`. Coordinator integrates both and regenerates frontend types after the API SDL lands. API worker commit `c76e5fc`, integrated as `82d0389`; web worker commit `c256dde`, integrated as `52d6067`; coordinator client generation `902f069`. Concern: empty array fallback in the existing save service
 must not override section exclusion. Covers plan criteria 1, 6, 8, 9, and contract portions of 10.
 
 ## 06 — Verify the complete flow and update quality checks and guidance
@@ -236,7 +242,7 @@ do not create a second orchestration path solely for evals. Keep objective copie
 checks separate from subjective written-section quality scores. Update existing guidance
 where ownership and behavior changed rather than adding redundant file inventories.
 
-**Status:** blocked.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -258,9 +264,21 @@ where ownership and behavior changed rather than adding redundant file inventori
 Run `docker compose run --rm ai python -m evals.run_tailoring_evals`; use synthetic fixtures
 for a whole-draft production-path exercise. Live provider work incurs costs; record real
 results/limits. Documentation uses diff/link checks rather than artificial red tests.
-Actual checks/red-green evidence: not run.
+Actual checks: integrated full offline AI suite 599 passed, 9 db deselected; 9 database
+tests passed separately. Independent focused final suite 60 passed; worker final suite
+67 passed. Live tailoring 9 cases passed with zero task/evaluator failures and all three
+aggregate scores 1.0; final prompt version 4 clarifies the existing summary output rule.
+The preceding certification-summary case failed validation live before that clarification;
+targeted rerun and final suite passed. Observable validator tests cover accepted summary
+citations and rejected duplicate entries. Final real-worker synthetic fixture completed
+in 16.29s with 17 screening, 4 writing and 2 embedding requests, complete usage accounting,
+and copied descriptions/date precision intact. Real Rails duplicate/save checks passed.
+These fixtures are not a controlled full-library speed comparison. Earlier integrated
+cross-service checks: 57 Rails examples, 16 web tests, schema regeneration, frontend types
+and lint passed. Changed Python lint, 18 documentation links and diff checks passed;
+four unrelated baseline Ruff findings remain. Human visual/representative-library QA pending.
 
 **Progress:** Planned branch `work/faster-resume-tailoring-06-verification`.
-Worktree/base/commits: not assigned. Covers final plan criterion 10 and checks coverage of 1–9.
+Worktree `.worktrees/faster-resume-tailoring-06`, branch `work/faster-resume-tailoring-06-verification`, starting base `902f069`; worker commit `9606091`, integrated as `e1e50b3`. Coordinator completed the whole-draft synthetic exercise and final integrated verification. The plan delivery record maps evidence for criteria 1–10 and records remaining human checks.
 Blind reviews, supported review fixes, PR creation, and handoff remain coordinator duties
 after this ticket; they are not implied complete by its implementation status.

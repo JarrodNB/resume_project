@@ -1,10 +1,7 @@
-"""
-Description: Pydantic AI agent that writes one resume section from labeled sources. An output
-validator retries until the section cites real labels and doesn't name unsupported claims.
-Index:
-    - resume_tailoring_agent: the agent (deps: the SectionPrompt; model chosen per run)
-    - TailoringRun: the checked draft, token usage, and the model name to bill
-    - write_resume_section: runs the agent within a time limit
+"""Write a resume section from screened labeled evidence and check its claims.
+
+The async entry supports concurrent complete-draft generation. A sync entry remains for
+standalone section evaluation. Both share validation, provider accounting, and deadlines.
 """
 
 import asyncio
@@ -21,7 +18,7 @@ from prompts.resume_tailoring_instructions import (
 )
 from schemas.tailored_section import TailoredSectionDraft
 from screening.prompt_guardrail import screen_prompt
-from screening.session import remaining_timeout, within_screening_session
+from screening.session import remaining_timeout, screening_session, within_screening_session
 from tailoring.build_section_prompt import SectionPrompt
 from tailoring.check_section_faithfulness import find_section_problems
 from worker.generative_model import generative_model
@@ -71,19 +68,19 @@ def write_resume_section(
     """Writes one section. Raises TimeoutError if the run exceeds timeout_seconds.
     Raises UsageLimitExceeded when the run passes its request, tool-call, or token cap.
     A provider error tries fallback_model."""
-    return asyncio.run(_run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model))
+    return asyncio.run(write_resume_section_async(prompt, model, thinking, timeout_seconds, fallback_model))
 
 
-async def _run_with_deadline(
+async def write_resume_section_async(
     prompt: SectionPrompt,
     model: str,
     thinking: ThinkingEffort,
     timeout_seconds: float,
     fallback_model: str,
 ) -> TailoringRun:
-    """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(remaining_timeout(timeout_seconds)):
-        with record_prompt_version(RESUME_TAILORING_PROMPT_VERSION):
+    """Write a section within an existing async task, retaining its execution contexts."""
+    with screening_session(timeout_seconds, reuse=True), record_prompt_version(RESUME_TAILORING_PROMPT_VERSION):
+        async with asyncio.timeout(remaining_timeout(timeout_seconds)):
             result = await resume_tailoring_agent.run(
                 prompt.text,
                 deps=prompt,

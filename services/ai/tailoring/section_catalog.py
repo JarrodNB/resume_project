@@ -1,14 +1,7 @@
-"""
-Description: The fixed order of a tailored resume. Contact is copied from the profile; the
-rest are written one agent run at a time. The model does not choose when to stop.
-Index:
-    - SECTION_ORDER / WRITTEN_SECTIONS / SECTION_TITLES: order and display titles
-    - next_section: the first section not yet approved or omitted
-    - sections_before: sections that stay when an earlier one is reopened
-"""
+"""Define resume display order, generated sections, and source label prefixes."""
 
 SECTION_ORDER = ("contact", "summary", "experience", "projects", "education", "certifications", "skills")
-WRITTEN_SECTIONS = SECTION_ORDER[1:]
+WRITTEN_SECTIONS = ("summary", "experience", "projects", "skills")
 SECTION_TITLES = {
     "contact": "Contact",
     "summary": "Summary",
@@ -19,18 +12,3 @@ SECTION_TITLES = {
     "skills": "Skills",
 }
 ENTRY_PREFIX = {"experience": "E", "projects": "P", "education": "ED", "certifications": "C", "skills": "S"}
-
-
-def next_section(done: list[str]) -> str | None:
-    """The next section to write, or None when every section is done."""
-    finished = set(done)
-    for section_type in SECTION_ORDER:
-        if section_type not in finished:
-            return section_type
-    return None
-
-
-def sections_before(section_type: str) -> set[str]:
-    """Section types that remain when `section_type` is reopened (it and later ones go)."""
-    index = SECTION_ORDER.index(section_type)
-    return set(SECTION_ORDER[:index])

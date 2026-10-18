@@ -41,44 +41,41 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ai_task.error_message).to eq("Model timed out")
   end
 
-  it "ignores a tailor result from an earlier generation" do
-    ai_task.update!(task_type: "tailor_resume", status: "needs_user_input", generation: 2, input: { "approved_sections" => [ { "section_type" => "summary" } ] })
+  it "completes a tailor draft without changing its input snapshots" do
+    input = { "job_id" => SecureRandom.uuid, "contact" => { "full_name" => "Synthetic Person" } }
+    ai_task.update!(task_type: "tailor_resume", input: input)
+    sections = [ { "section_type" => "summary", "title" => "Summary", "content" => { "text" => "A draft." } } ]
 
-    described_class.call(message: result_message("needs_user_input", generation: 1, pending_questions: [ { "section_type" => "contact" } ]))
+    described_class.call(message: result_message("completed", result: { "sections" => sections, "warnings" => [] }))
 
-    expect(ai_task.reload.generation).to eq(2)
+    expect(ai_task.reload).to be_completed
+    expect(ai_task.result).to eq("sections" => sections, "warnings" => [])
+    expect(ai_task.input).to eq(input)
     expect(ai_task.pending_questions).to eq([])
-    expect(ai_task.input["approved_sections"]).to eq([ { "section_type" => "summary" } ])
   end
 
-  it "adds each tailor generation's cost once and stores the approved sections" do
-    ai_task.update!(task_type: "tailor_resume", generation: 1, cost_microdollars: 40, input: { "pending_section" => { "action" => "approve" } })
+  it "counts duplicate complete-draft results once without recreating approval state" do
+    ai_task.update!(task_type: "tailor_resume", input: { "job_id" => SecureRandom.uuid })
     usage = [ { "model" => "openai:gpt-5-mini", "input_tokens" => 10, "cached_input_tokens" => 0, "output_tokens" => 2, "cost_microdollars" => 15 } ]
-    message = result_message(
-      "needs_user_input",
-      generation: 1,
-      usage: usage,
-      pending_questions: [ { "section_type" => "summary", "approved_sections" => [ { "section_type" => "contact" } ] } ]
-    )
+    message = result_message("completed", attempt_id: SecureRandom.uuid, usage: usage,
+                             result: { "sections" => [ { "section_type" => "summary" } ] })
 
     2.times { described_class.call(message: message) }
 
-    expect(ai_task.reload.cost_microdollars).to eq(55)
-    expect(ai_task.usage_generation).to eq(1)
-    expect(ai_task.input["approved_sections"]).to eq([ { "section_type" => "contact" } ])
-    expect(ai_task.input["pending_section"]).to be_nil
+    expect(ai_task.reload.cost_microdollars).to eq(15)
+    expect(ai_task.input.keys).to eq([ "job_id" ])
+    expect(ApiSchema.subscriptions).to have_received(:trigger).once
   end
 
-  it "keeps the tailor submission when a step fails before a draft comes back" do
-    pending = { "section_type" => "summary", "action" => "approve" }
-    approved = [ { "section_type" => "contact" } ]
-    ai_task.update!(task_type: "tailor_resume", generation: 2, input: { "pending_section" => pending, "approved_sections" => approved })
+  it "keeps the tailoring snapshots when generation fails without a partial draft" do
+    input = { "contact" => { "full_name" => "Synthetic Person" }, "gap_responses" => [] }
+    ai_task.update!(task_type: "tailor_resume", input: input)
 
     described_class.call(message: result_message("failed", error_message: "The AI task failed"))
 
     expect(ai_task.reload).to be_failed
-    expect(ai_task.input["pending_section"]).to eq(pending)
-    expect(ai_task.input["approved_sections"]).to eq(approved)
+    expect(ai_task.result).to be_nil
+    expect(ai_task.input).to eq(input)
   end
 
   it "stores questions and message history when the AI needs user input" do

@@ -70,3 +70,27 @@ def test_requires_source_types() -> None:
     with pytest.raises(TypeError, match="source_types"):
         search_career_library(connection, uuid4(), [0.1], "Ruby", "model")
     assert connection.mock_calls == []
+
+
+def test_async_tailoring_retains_user_scope_and_empty_search_fallback(monkeypatch):
+    """Awaited query embedding keeps search filters identical to the synchronous path."""
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    from tailoring.retrieve_for_section import retrieve_source_keys_async
+
+    user = uuid4()
+    search = Mock(return_value=[])
+    monkeypatch.setattr("tailoring.retrieve_for_section.search_career_library", search)
+    monkeypatch.setattr("tailoring.retrieve_for_section.open_read_only_connection", Mock(return_value=nullcontext(Mock())))
+    embed = AsyncMock(return_value=QueryEmbedding([0.1], RequestUsage(input_tokens=3)))
+    monkeypatch.setattr("memory.embed_search_query.embed_search_query_async", embed)
+    settings = WorkerSettings()
+    job = JobToAnalyze(id=str(uuid4()), title="Engineer", company="Example")
+    keys, usage = asyncio.run(retrieve_source_keys_async(user, "experience", job, settings))
+    assert keys is None
+    assert usage.input_tokens == 3
+    assert search.call_args.args[1] == user
+    assert search.call_args.kwargs["source_types"] == {
+        "Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "LibraryFact"}
+    assert embed.await_count == 1

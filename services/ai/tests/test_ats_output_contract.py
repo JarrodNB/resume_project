@@ -17,7 +17,7 @@ from worker.queue_messages import AiTaskMessage
 
 
 @pytest.mark.parametrize("responses", [False, True])
-@pytest.mark.parametrize("section_id", ["7bfc2d1a-59c8-4e62-9d30-e84a6130519c", "0"])
+@pytest.mark.parametrize("section_id", ["7bfc2d1a-59c8-4e62-9d30-e84a6130519c", "0", "empty"])
 def test_provider_requires_complete_structured_assessments(
     task_dependencies, monkeypatch, responses, section_id
 ):
@@ -46,17 +46,23 @@ def test_provider_requires_complete_structured_assessments(
         job_fingerprint=None,
         rubric_version="1",
     )
+    if section_id == "empty":
+        snapshot.content_snapshot = []
     output = {
         "requirements": [],
         "checks": [
             {
                 "key": key,
-                "status": "pass",
-                "evidence": [{"section_id": section_id, "excerpt": "Python"}],
+                "status": (
+                    "fail" if key in ("contact_usability", "section_labels") else "unavailable"
+                )
+                if section_id == "empty"
+                else "pass",
+                "evidence_ids": [] if section_id == "empty" else ["e000001"],
                 "explanation": "Clear",
                 "suggested_action": "",
                 "severity": "info",
-                "absence_reason": None,
+                "absence_reason": "No saved sections." if section_id == "empty" else None,
             }
             for key in CHECK_KEYS
         ],
@@ -153,15 +159,24 @@ def test_provider_requires_complete_structured_assessments(
     assert result.status == "completed"
     tool = seen[0]["tools"][0] if responses else seen[0]["tools"][0]["function"]
     assert tool.get("strict") is True
-    evidence_schema = tool["parameters"][chr(36) + "defs"]["Evidence"]
-    assert evidence_schema["properties"]["section_id"].get("enum") == [
-        section_id,
-        "05c02311-6ca4-49b9-a6fb-58a15d31d6fe",
-    ]
-    for name in ("RequirementAssessment", "ContentCheck", "Evidence"):
-        schema = tool["parameters"]["\u0024defs"][name]
+    definitions = tool["parameters"][chr(36) + "defs"]
+    for name in ("RequirementSelection", "CheckSelection"):
+        schema = definitions[name]
         assert set(schema["required"]) == set(schema["properties"])
         assert schema["additionalProperties"] is False
+        assert "evidence" not in schema["properties"]
+        refs = schema["properties"]["evidence_ids"]
+        if section_id == "empty":
+            assert refs.get("maxItems") == 0
+            assert refs["items"].get("enum") != []
+        else:
+            assert refs["items"].get("enum") == ["e000000", "e000001", "e000002", "e000003"]
+    assert "evidence_catalog" in json.dumps(seen[0])
+    assert "field_path" in json.dumps(seen[0])
+    if section_id != "empty":
+        assert result.result["checks"][-1]["evidence"] == [
+            {"section_id": section_id, "excerpt": "Python"}
+        ]
 
 
 def test_retry_feedback_identifies_omitted_requirements_without_relaxing_coverage():

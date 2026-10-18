@@ -124,7 +124,7 @@ def test_handler_returns_versioned_assessment(task_dependencies, monkeypatch):
             {
                 "key": key,
                 "status": "pass",
-                "evidence": [{"section_id": "s1", "excerpt": "Python"}],
+                "evidence_ids": ["e000001"],
                 "explanation": "Clear",
                 "suggested_action": "",
             }
@@ -220,11 +220,10 @@ def test_handler_masks_natural_values_without_corrupting_json(task_dependencies,
     monkeypatch.setattr("worker.ats_content_handler.screen_user_text", screen)
     def model(*args):
         parsed = json.loads(screened[-1])
-        excerpt = parsed["content_snapshot"][0]["content"]["text"]
-        evidence = [{"section_id": "content", "excerpt": excerpt}]
+        evidence = [item["id"] for item in parsed["evidence_catalog"] if item["section_id"] == "content" and item["field_path"] == "content.text"]
         output = {"requirements": [{"requirement_id": "content", "status": "covered",
-            "evidence": evidence, "explanation": "Supported", "suggested_action": ""}],
-            "checks": [{"key": key, "status": "pass", "evidence": evidence,
+            "evidence_ids": evidence, "explanation": "Supported", "suggested_action": ""}],
+            "checks": [{"key": key, "status": "pass", "evidence_ids": evidence,
                         "explanation": "Supported", "suggested_action": ""} for key in CHECK_KEYS]}
         return TestModel(custom_output_args=output)
     monkeypatch.setattr("agents.ats_content_agent.generative_model", model)

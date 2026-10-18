@@ -1,6 +1,7 @@
 """Assess one owned snapshot; return identity so Rails can reject stale results."""
 
 import asyncio
+import json
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from agents.ats_content_agent import assess_content
 from pii import PiiDetectionError, PiiRestorationError
 from schemas.ats_contact import contact_usability
 from schemas.ats_content import validate_assessment
+from schemas.ats_evidence import build_evidence_catalog
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
@@ -56,7 +58,10 @@ def _assess_task(task, dependencies, privacy):
             error_message="This resume check snapshot is unavailable.",
         )
     masked_snapshot = prepare_ats_snapshot(snapshot, privacy)
-    source = masked_snapshot.model_dump_json(exclude={"pdf_result"})
+    catalog = build_evidence_catalog(masked_snapshot.content_snapshot)
+    protected_input = masked_snapshot.model_dump(mode="json", exclude={"pdf_result"})
+    protected_input["evidence_catalog"] = [item.model_dump(mode="json") for item in catalog]
+    source = json.dumps(protected_input, ensure_ascii=False, separators=(",", ":"))
     if text_limits.prompt_is_too_long(source):
         raise InputBlocked(TOO_LONG_MESSAGE)
     settings = dependencies.settings
@@ -74,7 +79,7 @@ def _assess_task(task, dependencies, privacy):
             else BLOCKED_MESSAGE
         )
     prompt = bind_screened_prompt((source,), lambda values: values[0])
-    run = asyncio.run(assess_content(prompt, masked_snapshot, settings))
+    run = asyncio.run(assess_content(prompt, masked_snapshot, settings, evidence_catalog=catalog))
     usage = [
         build_model_usage(
             reported_model_name(

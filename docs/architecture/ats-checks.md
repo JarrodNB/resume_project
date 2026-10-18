@@ -52,6 +52,17 @@ exactly once. Invalid shapes, identity, duplicate keys or invented excerpts fail
 atomically without publishing scores. Suggestions describe changes the user could make
 only if supported by their real experience; they never apply edits automatically.
 
+The model selects evidence rather than writing quotations. Before screening, the worker
+builds an opaque reference catalog from protected section titles and content strings,
+retaining section ownership and field paths. Long strings are split at word boundaries
+into exact contiguous snippets; nothing is normalized, paraphrased or silently truncated.
+The full snapshot and catalog count toward existing prompt/screening limits. The strict
+agent-only output schema permits only supplied reference IDs (or an empty list when no
+catalog exists). The worker expands references into the unchanged public evidence shape,
+runs the existing exact-source validator, restores protected values and validates again.
+Unknown references and altered excerpts fail closed. This removes quotation copying from
+the model while retaining model judgment about which evidence supports each assessment.
+
 ## Scoring and freshness
 
 Rails computes rubric `ats-v1` deterministically. Requirement covered/partial/missing

@@ -38,7 +38,7 @@ RSpec.describe "Resume tailoring mutations" do
     expect(AiTask.tailor_resume).to be_empty
   end
 
-  it "submitTailoredSection can't edit another user's task" do
+  it "rejects obsolete section approval operations without changing the task" do
     other = create(:ai_task, task_type: "tailor_resume", status: "needs_user_input")
     query = <<~GQL
       mutation($id: ID!) {
@@ -50,7 +50,7 @@ RSpec.describe "Resume tailoring mutations" do
 
     result = execute_graphql(query, user: user, variables: { id: other.id })
 
-    expect(result["errors"].first["message"]).to eq("Record not found")
+    expect(result["errors"].first["message"]).to include("submitTailoredSection", "doesn't exist")
     expect(other.reload).to be_needs_user_input
   end
 
@@ -64,6 +64,22 @@ RSpec.describe "Resume tailoring mutations" do
 
     expect(result["errors"].first["message"]).to eq("Record not found")
     expect(Resume.count).to eq(0)
+  end
+
+  it "saveTailoredResume rejects excluding every section instead of saving the original draft" do
+    task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
+                  result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Original" } } ] })
+    query = <<~GQL
+      mutation($id: ID!, $sections: JSON!) {
+        saveTailoredResume(input: { aiTaskId: $id, sections: $sections }) { resume { id } errors }
+      }
+    GQL
+
+    result = execute_graphql(query, user: user, variables: { id: task.id, sections: [] })
+
+    expect(result.dig("data", "saveTailoredResume", "errors")).to eq([ ResumeTailoring::SaveTailoredResumeService::NOT_READY_MESSAGE ])
+    expect(Resume.count).to eq(0)
+    expect(task.reload).not_to be_accepted
   end
 
   it "updateResume replaces section content" do
@@ -107,14 +123,14 @@ RSpec.describe "Resume tailoring mutations" do
   end
 
   it "latestTailoring returns the job's tailor task" do
-    task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "needs_user_input")
+    task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", result: { "sections" => [], "warnings" => [] })
     query = <<~GQL
       query($id: ID!) { job(id: $id) { latestTailoring { id status } resume { id } } }
     GQL
 
     result = execute_graphql(query, user: user, variables: { id: job.id })
 
-    expect(result.dig("data", "job", "latestTailoring")).to eq("id" => task.id, "status" => "NEEDS_USER_INPUT")
+    expect(result.dig("data", "job", "latestTailoring")).to eq("id" => task.id, "status" => "COMPLETED")
     expect(result.dig("data", "job", "resume")).to be_nil
   end
 end

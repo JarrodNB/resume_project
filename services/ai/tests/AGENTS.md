@@ -36,7 +36,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   agent blocks before a provider call, allowed flow, history coverage, caps and fail-closed.
   The `real_guardrail` marker opts out of the default fake capability classifier.
 - `test_guardrail_task_results.py` — SQS results retain capability usage on success/block,
-  preserve tailoring generation, and isolate usage between tasks.
+  preserve complete tailoring outcomes, and isolate usage between tasks.
 - Non-database tests mock profile-contact loading to keep task tracing independent of Postgres.
 - `conftest.py` — disables Logfire export and real model requests; `task_dependencies`,
   `fake_file_storage`, `fake_job_site`, `fake_context_reader` fixtures
@@ -94,8 +94,11 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_check_section_faithfulness.py` — unsupported claims are rejected; library text is not
   substituted
 - `test_labeled_sources.py` — a section's own rows stay labeled when retrieval returned other rows
-- `test_tailor_resume_handler.py` — one section per message, blocked edit, omit, an empty
-  projects list is skipped with no model call, generation
+- `test_tailor_resume_handler.py` — copied contact/credentials, prompt failures, empty section
+  skipping and completed output without section approval metadata
+- `test_complete_resume_draft.py` — complete-draft ordering, preserved copied descriptions,
+  sparse evidence, omissions, bounded writer overlap, awaited failure/deadline cancellation,
+  request-level accounting, privacy, and transcript contexts
 - `test_tailoring_evaluators.py` — hand labels score as expected
 - `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7

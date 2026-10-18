@@ -52,6 +52,11 @@ requests get a JSON 429 with `Retry-After`.
   `failed` on the first attempt, with no partial resume, analysis, or section. A wall-clock
   timeout stays retryable, because the same run may finish next time. A cap on the Jev screen
   fails the task the same way. Screening outages omit text only when recovery also fails.
+  Complete-draft tailoring shares one deadline across preparation and all writers.
+  Screening and retrieval have bounded concurrency; at most three independent section
+  writers run together. A failure cancels and awaits outstanding requests before reporting
+  an outcome. Received responses remain billable; cancelled requests without usage mark
+  the attempt incomplete.
 
 - **Evals for every agent.** Pydantic Evals defines the test cases and evaluators and runs
   them locally and in CI. Scores go to Logfire for comparison across prompt and model
@@ -87,7 +92,7 @@ requests get a JSON 429 with `Retry-After`.
   are exempt from recursive input screening. Fallback shares the remaining overall deadline.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
-  gap response, submitted answer, approved section, or reused interview question. Each is
+  gap response, submitted answer, selected section snapshot, or reused interview question. Each is
   checked once per execution. A blocked or unchecked optional entry is left out with a
   warning; a required input prevents generation. Imported, manually edited, retrieved, and
   scraped content follow this same rule when used in a generative request.
@@ -122,10 +127,10 @@ requests get a JSON 429 with `Retry-After`.
   pricing stay unknown rather than being estimated as zero. An unfinished report is sent
   before execution, so a stopped worker or failed final publication leaves an unknown marker.
   Exact charges for such attempts require provider reconciliation, which is not automated.
-  `ai_usage_attempts` records each execution independently of task outcome and generation.
+  `ai_usage_attempts` records each execution independently of task outcome.
   Under the task lock, final reports add known totals once, including retries and late or
-  stale-generation reports. Finished tasks keep their outcome. Legacy messages without an
-  attempt identity retain the previous assignment/generation rules. Monthly totals still use
+  out-of-order reports. Finished tasks keep their outcome. Legacy messages without an
+  attempt identity assign totals only when their outcome can still apply. Monthly totals still use
   tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
   not independently block work. The existing hourly and in-flight caps remain in place.
   Deploy the Rails migration/consumer before the new worker message format. This accounting

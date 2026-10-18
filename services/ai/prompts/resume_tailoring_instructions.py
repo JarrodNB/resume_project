@@ -3,15 +3,21 @@ Description: Instructions for writing one resume section from labeled sources.
 Index:
     - RESUME_TAILORING_PROMPT_VERSION: the version recorded on traces
     - RESUME_TAILORING_INSTRUCTIONS: selection, ordering, and rewriting without new facts
-Input: the section name, the job, labeled library entries, gap responses, and approved
-sections (tailoring/build_section_prompt.py).
+Input: the section name, the job, labeled library entries, gap responses, and selected
+generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "3"
+RESUME_TAILORING_PROMPT_VERSION = "4"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.
+
+For the summary section, put the paragraph in summary and set entries to []. Cite its
+supporting sources only in summary.source_labels. Do not also return entries for those
+sources: degrees and certifications are already copied into their own sections.
+For experience, projects, and skills, put the chosen entries in entries and set summary
+to null. Skills need no prose.
 
 Choose which labeled sources to include and which to leave off. Put the closest match first.
 Rewrite the wording toward the job's language: a summary is a new paragraph, and a bullet may

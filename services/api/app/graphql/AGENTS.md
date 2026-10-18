@@ -18,11 +18,9 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `mutations/gap_analysis/analyze_job_gaps.rb` (`analyzeJobGaps(jobId)`) queues a gap analysis,
   and `Job.latestGapAnalysis` (`types/job_type.rb`) is the job's newest analyze_gaps task;
   `mutations/resume_tailoring/` has `startResumeTailoring(jobId)`,
-  `submitTailoredSection(aiTaskId, sectionType, action, content)`,
   `saveTailoredResume(aiTaskId, sections)`, and `updateResume(id, sections)`; `Job.latestTailoring`
-  and `Job.resume` are the newest tailor task and the newest saved resume; `AiTask.input` is the
-  task input (approved
-  sections while tailoring);
+  and `Job.resume` are the newest tailor task and the newest saved resume; `AiTask.input` stores
+  the request snapshots; tailoring returns its complete editable draft in `AiTask.result`;
   `mutations/gap_responses/save_gap_response.rb` (`saveGapResponse`) saves an answer on that job,
   and `Job.gapResponses` lists them; `mutations/library_facts/delete_library_fact.rb`
   (`deleteLibraryFact`) removes a fact (`libraryFacts` on the root query);

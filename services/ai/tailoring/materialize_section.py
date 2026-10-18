@@ -1,9 +1,7 @@
-"""
-Description: Turns a checked TailoredSectionDraft into the JSON snapshot a resume section
-stores. Identity fields are copied from the library label; prose is the model's wording and
-is not replaced with the original library text.
-Index:
-    - materialize_section: the content object for one section type
+"""Assemble editable resume snapshots using saved library identity.
+
+Written sections keep the model's checked prose. Education and certifications have an
+exact copy path that preserves their original descriptions and credential date precision.
 """
 
 from datetime import date
@@ -19,6 +17,28 @@ from schemas.gap_analysis_context import (
 )
 from schemas.tailored_section import TailoredSectionDraft
 from tailoring.labeled_sources import LabeledSources
+
+
+def copy_library_section(section_type: str, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:
+    """Copy all degrees or credentials with their original descriptions and date precision.
+
+    These display-only snapshots are not generated prose. If reused in a later prompt,
+    the caller must screen them just like other saved user text.
+    """
+    if section_type == "education":
+        rows, kind, build = library.educations, "education", _education_item
+    elif section_type == "certifications":
+        rows, kind, build = library.certifications, "certification", _certification_item
+    else:
+        raise ValueError("Only education and certifications are copied library sections")
+    descriptions = {row.id: row.description for row in rows}
+    items = []
+    for label, record in sources.records.items():
+        if record.kind == kind:
+            item = build(label, [], library, sources)
+            item["description"] = descriptions[record.record_id]
+            items.append(item)
+    return {"items": items}
 
 
 def materialize_section(

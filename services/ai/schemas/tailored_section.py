@@ -1,11 +1,7 @@
-"""
-Description: What the tailoring agent returns for one written section. Employers, titles,
-dates, and skill names are not fields here: the model picks a source label and writes prose,
-and code copies the identity from that label.
-Index:
-    - CitedProse: rewritten text plus the labels it drew from
-    - ChosenEntry: one library entry to include, with its rewritten prose
-    - TailoredSectionDraft: the section, or nothing_fits when no source belongs
+"""Describe a generated section as cited prose or selected library entries.
+
+A summary contains only its cited paragraph. Other writers select entries and code copies
+their identity. Education and certification sections are copied without using this output.
 """
 
 from pydantic import BaseModel, Field
@@ -23,7 +19,7 @@ class CitedProse(BaseModel):
 class ChosenEntry(BaseModel):
     """One library entry the section includes."""
 
-    label: str = Field(description="The entry to include, such as E1, P1, ED1, C1, or S1.")
+    label: str = Field(description="The experience, project, or skill entry to include: E1, P1, or S1. Not used for summary citations.")
     prose: list[CitedProse] = Field(
         default_factory=list,
         description="Rewritten bullets or a description, closest match first. Empty for a skill.",
@@ -38,9 +34,9 @@ class TailoredSectionDraft(BaseModel):
     )
     entries: list[ChosenEntry] = Field(
         default_factory=list,
-        description="Entries to include, closest match first. Empty when nothing_fits is true.",
+        description="Entries to include, closest match first. Always [] for summary, and when nothing_fits is true. Summary citations belong only in summary.source_labels.",
     )
     summary: CitedProse | None = Field(
         default=None,
-        description="The summary paragraph. Set only when the section is the summary.",
+        description="The summary paragraph with supporting source labels. Set only for the summary section; entries must then be []. Null for other sections or when nothing_fits is true.",
     )

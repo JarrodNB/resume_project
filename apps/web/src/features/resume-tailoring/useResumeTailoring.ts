@@ -15,8 +15,6 @@ import { START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY } from './tailorOpera
 export interface TailorTaskView {
   id: string
   status: AiTaskStatusEnum
-  input: unknown
-  pendingQuestions: unknown
   result: unknown
   errorMessage: string | null
   acceptedAt: string | null
@@ -26,13 +24,13 @@ export interface TailorTaskView {
 export function useResumeTailoring(jobId: string) {
   const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, { variables: { id: jobId } })
   const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
-  const [startedId, setStartedId] = useState<string | null>(null)
+  const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])
   const started = useRef(false)
   const job = data?.job ?? null
   const existing = job?.latestTailoring ?? null
   const followExisting = Boolean(existing && existing.status !== 'FAILED' && !job?.resume)
-  const taskId = startedId ?? (followExisting && existing ? existing.id : '')
+  const taskId = startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
   const begin = useCallback(async () => {
@@ -41,7 +39,7 @@ export function useResumeTailoring(jobId: string) {
       const { data: startedData } = await startTailoring({ variables: { jobId } })
       const payload = startedData?.startResumeTailoring
       if (payload?.aiTask && payload.errors.length === 0) {
-        setStartedId(payload.aiTask.id)
+        setStartedTask(taskFrom(payload.aiTask))
         return
       }
       setStartErrors(payload?.errors.length ? payload.errors : ["Couldn't start the resume. Please try again."])
@@ -62,7 +60,7 @@ export function useResumeTailoring(jobId: string) {
     void begin()
   }
 
-  const task = taskFrom(aiTask) ?? (followExisting && existing ? taskFrom(existing) : null)
+  const task = (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing)
   return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
 }
 
@@ -70,8 +68,6 @@ export function useResumeTailoring(jobId: string) {
 function taskFrom(source: {
   id: string
   status: AiTaskStatusEnum
-  input?: unknown
-  pendingQuestions?: unknown
   result?: unknown
   errorMessage?: string | null
   acceptedAt?: string | null
@@ -80,8 +76,6 @@ function taskFrom(source: {
   return {
     id: source.id,
     status: source.status,
-    input: source.input ?? null,
-    pendingQuestions: source.pendingQuestions ?? null,
     result: source.result ?? null,
     errorMessage: source.errorMessage ?? null,
     acceptedAt: source.acceptedAt ?? null,

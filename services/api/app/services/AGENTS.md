@@ -48,18 +48,16 @@ All business logic, as service objects grouped by domain folder.
   lock), delegates attempt accounting to `record_attempt_usage_service.rb`, and triggers the
   existing task subscription only when the task outcome changes; a
   completed `scrape_job` saves its Job in the same locked transaction (task `subject`), or the
-  task fails if the Job can't be saved. A `tailor_resume` result whose `generation` doesn't
-  match the task keeps its old outcome while new attempt charges are still counted. Matching
-  generations copy approved sections onto the task input; legacy usage remains generation-deduplicated
-- `ai_tasks/republish_ai_task_service.rb` — publishes an existing task again (tailoring, one
-  section per message) without creating a row or re-checking the hourly limit
+  task fails if the Job can't be saved. Complete tailoring drafts stay in task results;
+  applying a result never changes their input snapshots. Attempt IDs deduplicate usage
+  independently, including late reports after a finished outcome.
 - `resume_tailoring/start_resume_tailoring_service.rb` — queues `tailor_resume`, or returns the
   task already in progress; snapshots contact, a finished comparison when one exists, and gap
   responses into the task input
-- `resume_tailoring/submit_tailored_section_service.rb` — records approve / omit / write_anyway
-  / reopen and requeues the same task at the next generation
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
-  (`accepted_at`); deleting the job keeps the resume
+  (`accepted_at`), using the supplied edited/included sections in order. An explicit empty
+  selection is rejected; omitting the argument uses the original draft. Deleting the job
+  keeps the resume
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
   resume (`updateResume`); type, title, and order stay put
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in

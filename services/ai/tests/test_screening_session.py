@@ -205,3 +205,39 @@ def _one_execution():
     with screening_session():
         screen_user_text("Career source", "typesafe:jev-1.13.0", 5)
         screen_user_text("Career source", "typesafe:jev-1.13.0", 5)
+
+
+def test_concurrent_same_source_has_one_classifier_request(monkeypatch):
+    """Two writers requesting the same source wait for one actual policy decision."""
+    import asyncio
+
+    from agents.user_text_screen_agent import UserTextScreenRun
+    from schemas.user_text_screen import UserTextScreen
+    from screening.screen_user_text import screen_user_text_async
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+
+    async def run():
+        seen = []
+        entered = asyncio.Event()
+        release = asyncio.Event()
+
+        async def classify(text, model, timeout):
+            seen.append(text)
+            entered.set()
+            await release.wait()
+            return UserTextScreenRun(UserTextScreen(prompt_injection=False, harmful_request=False),
+                model, {"prompt_injection": 1., "harmful_request": 1.}, RunUsage(input_tokens=10))
+
+        with screening_session():
+            first = asyncio.create_task(screen_user_text_async("Shared evidence", "typesafe:jev-1.13.0", 5, classify=classify))
+            await entered.wait()
+            second = asyncio.create_task(screen_user_text_async("Shared evidence", "typesafe:jev-1.13.0", 5, classify=classify))
+            # Give the duplicate caller a turn before releasing the classifier.
+            await asyncio.sleep(0)
+            release.set()
+            results = await asyncio.gather(first, second)
+        assert seen == ["Shared evidence"]
+        assert all(result.allowed for result in results)
+        assert sum(result.usage.input_tokens for result in results if result.usage) == 10
+    asyncio.run(run())

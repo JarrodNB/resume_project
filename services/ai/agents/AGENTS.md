@@ -33,8 +33,9 @@ instructions from `prompts/`.
   screening fallback model. Either true blocks; no fabricated JEV confidence. Exempt from
   input screening to prevent recursion; concrete requests use normal task accounting
 - `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
-  validator retries with `find_section_problems`; `write_resume_section` returns the draft and
-  usage. It writes prose and must not invent employers, titles, tools, dates, metrics, or
+  validator retries with `find_section_problems`; `write_resume_section_async` supports
+  concurrent draft generation and `write_resume_section` remains a standalone sync entry.
+  Both return the draft and usage. It writes prose and must not invent employers, titles, tools, dates, metrics, or
   responsibilities
 
 ## Local Rules
@@ -47,7 +48,8 @@ instructions from `prompts/`.
 - Create agents with `defer_model_check=True` and pass the model per run (from
   `WorkerSettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.
-- Expose one plain function per agent that handlers and eval runners call. It runs the agent
+- Expose a plain entry per agent that handlers and eval runners call; an async entry may
+  share the same implementation with a sync wrapper for existing callers. It runs the agent
   under an overall deadline (`WorkerSettings.llm_run_timeout_seconds`, below the `ai_tasks`
   visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It also
   passes `agent_usage_limits` (request, tool-call, and token caps). `UsageLimitExceeded` fails

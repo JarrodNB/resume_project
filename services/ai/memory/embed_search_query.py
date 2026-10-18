@@ -4,7 +4,7 @@ career library, through Pydantic AI's Embedder so the call is traced like agent 
 database/library_embedding_search.py.
 Index:
     - QueryEmbedding: the query vector plus the request's token usage (for cost reporting)
-    - embed_search_query: embeds one query text
+    - embed_search_query / embed_search_query_async: embed one query text
     - stored_embedding_model_name: the model name as Rails stores it in library_embeddings
 """
 
@@ -29,10 +29,23 @@ def embed_search_query(text: str, model: EmbeddingModel | str, dimensions: int) 
     """Embeds `text` as a search query, with known contact replaced by the same placeholders
     Rails uses for library rows. Pass `WorkerSettings.embedding_model` and
     `embedding_dimensions` (tests pass a TestEmbeddingModel)."""
+    import asyncio
+
+    return asyncio.run(embed_search_query_async(text, model, dimensions))
+
+
+def stored_embedding_model_name(model: str) -> str:
+    """Drops the provider prefix ("openai:text-embedding-3-small" -> "text-embedding-3-small"),
+    matching the `model` column Rails writes."""
+    return model.split(":", 1)[-1]
+
+
+async def embed_search_query_async(text: str, model: EmbeddingModel | str, dimensions: int) -> QueryEmbedding:
+    """Embed within the caller's event loop, awaiting cancellation and retaining usage."""
     embedder = Embedder(model, settings=EmbeddingSettings(dimensions=dimensions))
     usage = current_task_usage()
     try:
-        result = embedder.embed_query_sync(mask_outbound(text))
+        result = await embedder.embed_query(mask_outbound(text))
     except BaseException:
         if usage is not None:
             usage.incomplete = True
@@ -41,9 +54,3 @@ def embed_search_query(text: str, model: EmbeddingModel | str, dimensions: int) 
         model_name = model if isinstance(model, str) else f"{model.system}:{model.model_name}"
         usage.record(model_name, result.usage)
     return QueryEmbedding(vector=list(result.embeddings[0]), usage=result.usage)
-
-
-def stored_embedding_model_name(model: str) -> str:
-    """Drops the provider prefix ("openai:text-embedding-3-small" -> "text-embedding-3-small"),
-    matching the `model` column Rails writes."""
-    return model.split(":", 1)[-1]

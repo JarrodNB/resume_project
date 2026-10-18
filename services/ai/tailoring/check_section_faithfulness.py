@@ -1,10 +1,8 @@
-"""
-Description: Rejects a tailored section that names something none of its cited sources
-support. It does not replace the rewrite with the original library text; the agent is
-asked to try again.
-Index:
-    - find_section_problems: problems to send back as a retry, empty when the draft is usable
-    - _title_phrases: multi-word names, excluding a sentence opening plus an acronym
+"""Check a tailored section for unsupported labels, names, and numbers.
+
+This local heuristic helps the writing agent retry suspicious claims. Ordinary opening
+action verbs are not part of a name, but the following technology or name still needs
+source support. Valid prose is kept as written rather than replaced with library text.
 """
 
 import re
@@ -17,6 +15,11 @@ from tailoring.section_catalog import ENTRY_PREFIX
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
 _TITLE_PHRASE = re.compile(r"\b(?:[A-Z][A-Za-z0-9+#.]* ){1,5}[A-Z][A-Za-z0-9+#.]+\b")
 _MARKED_TOKEN = re.compile(r"\b(?:[A-Z]{2,}|[A-Za-z]*\d[A-Za-z0-9+.#-]*)\b")
+_OPENING_ACTIONS = frozenset({
+    "Built", "Created", "Delivered", "Designed", "Developed", "Implemented",
+    "Improved", "Integrated", "Led", "Managed", "Migrated", "Optimized",
+    "Shipped", "Supported", "Used",
+})
 
 
 def find_section_problems(
@@ -70,14 +73,20 @@ def _claim_problems(prose: CitedProse, sources: LabeledSources, *, extra_haystac
 
 
 def _title_phrases(text: str) -> list[str]:
-    """Multi-word names. 'Integrated AI' at the start of a sentence is an opening word plus
-    an acronym, and the acronym is checked on its own."""
+    """Keep names intact while separating ordinary sentence-opening action verbs.
+
+    Use an explicit verb list rather than dropping every opening word: 'Google Cloud'
+    must still be checked as a name even when it starts a sentence.
+    """
     phrases: list[str] = []
     for match in _TITLE_PHRASE.finditer(text):
         phrase = match.group(0)
         words = phrase.split(" ")
-        if _at_sentence_start(text, match.start()) and len(words) == 2 and _MARKED_TOKEN.fullmatch(words[1]):
-            continue
+        if _at_sentence_start(text, match.start()):
+            if words[0] in _OPENING_ACTIONS:
+                phrase = " ".join(words[1:])
+            elif len(words) == 2 and _MARKED_TOKEN.fullmatch(words[1]):
+                continue
         phrases.append(phrase)
     return phrases
 

@@ -1,11 +1,7 @@
-"""
-Description: Labels the library, screened gap responses, and approved sections the way the
-tailoring prompt and the faithfulness checker refer to them.
-Index:
-    - SourceRecord: one labeled source and the text a claim must appear in
-    - LabeledSources: the label map for one section
-    - label_sources: builds that map, optionally limited to retrieved library ids.
-      Projects, education, certifications, and skills are always labeled, even when retrieval missed them
+"""Label library evidence, gap responses, and selected resume snapshots.
+
+Prompts and claim checks share stable labels even when retrieval narrows the library.
+Selected section records supply generated/copied draft snapshots to later writers.
 """
 
 from dataclasses import dataclass, field
@@ -49,12 +45,12 @@ _NATIVE_TYPES = {
 def label_sources(
     context: GapAnalysisContext,
     gap_responses: list[dict[str, str]],
-    approved_sections: list[dict[str, object]],
+    selected_sections: list[dict[str, object]],
     retrieved: set[tuple[str, str]] | None,
     section_type: str = "",
 ) -> LabeledSources:
-    """Labels the library (all of it when `retrieved` is None) plus gap responses and
-    approved sections, which are always included. The section's own entry type is included
+    """Label library evidence plus gap responses and selected draft snapshots.
+    Selected snapshots are included independently of retrieval. The section's own entry type is included
     even when retrieval returned other rows."""
     sources = LabeledSources()
     native = _NATIVE_TYPES.get(section_type, frozenset())
@@ -62,12 +58,12 @@ def label_sources(
     for number, response in enumerate(gap_responses, start=1):
         text = f"{response.get('requirement', '')}: {response.get('body', '')}"
         sources.records[f"GR{number}"] = SourceRecord(f"GR{number}", "gap_response", text)
-    for number, section in enumerate(approved_sections, start=1):
+    for number, section in enumerate(selected_sections, start=1):
         if section.get("omitted"):
             continue
         title = str(section.get("title") or section.get("section_type"))
         text = _flatten(section.get("content"))
-        sources.records[f"A{number}"] = SourceRecord(f"A{number}", "approved", f"{title}: {text}")
+        sources.records[f"A{number}"] = SourceRecord(f"A{number}", "selected_section", f"{title}: {text}")
     return sources
 
 

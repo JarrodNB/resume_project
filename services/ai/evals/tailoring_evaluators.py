@@ -10,7 +10,7 @@ Index:
 
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from documents.text_matching import normalize_text
@@ -18,13 +18,22 @@ from schemas.gap_analysis_context import GapAnalysisContext
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from tailoring.check_section_faithfulness import find_section_problems
+from tailoring.section_catalog import WRITTEN_SECTIONS
 
 
 class TailorEvalInput(BaseModel):
-    """One section to write, against a synthetic library."""
+    """One production-generated section, against a synthetic library."""
 
     section_type: str
     context: GapAnalysisContext
+
+    @field_validator("section_type")
+    @classmethod
+    def generated_section(cls, value: str) -> str:
+        """Keep copied sections out of paid writer evaluations."""
+        if value not in WRITTEN_SECTIONS:
+            raise ValueError("Tailoring evals require a generated section")
+        return value
 
 
 class TailorEvalLabels(BaseModel):

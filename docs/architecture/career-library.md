@@ -26,7 +26,8 @@ tailoring) instead of sending everything.
   `Embedder` (traced in Logfire). `database/library_embedding_search.py` loads that user's
   rows for the stored model in cosine order (HNSW iterative scans, so the user filter does
   not drop a row). `memory/hybrid_rank.py` then fuses that order with BM25 over the same
-  texts (reciprocal rank fusion, k=60). Tailoring queries it once per written section.
+  texts (reciprocal rank fusion, k=60). Tailoring prepares retrieval for summary and
+  experience together. Projects and skills keep their native library rows available.
 
 ## Decisions
 
@@ -114,25 +115,30 @@ tailoring) instead of sending everything.
   no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
   reserved for a later feature where the AI rewrites career library entries and must ask for facts.
 
-- **Tailoring pauses once per section, in code, not via `ask_user`.** Contact is copied from
-  the user profile with no model call. Rails snapshots contact, the gap analysis, and gap
-  responses into the task input. The worker reads `name`, `contact_email`, and `phone` and
-  replaces those known values with placeholders before a model call or a Logfire trace. Then one
-  agent run writes summary, experience, projects, education, and skills, in that order. The model selects,
-  orders, and rewrites toward the job, and must not invent employers, titles, tools, dates,
-  metrics, or responsibilities. Each bullet cites library, gap-response, or approved-section
-  labels; a checker rejects unsupported claims and does not replace the rewrite with the
-  original library text. The agent may say nothing in the library fits; the user can leave that
-  section out or ask for a draft anyway, still only from the library. Each written section
-  retrieves library rows from that section's job requirements. The same `AiTask` is requeued
-  per section. `generation` on the task and on the result lets `ApplyAiResultService` ignore a
-  redelivered earlier `needs_user_input`, so it cannot rewind the draft. `needs_user_input` is
-  not finished and does not count as in-flight. Gap-response bodies and the user's submitted
-  section text go through the same Jev screen before the next prompt. A blocked section edit
-  is rejected and the section stays open (the writer is not called). A blocked gap response is
-  omitted with a warning. After the last section the task completes with the draft on the task.
-  Save creates `Resume` and `ResumeSection` snapshots once (`accepted_at`). Deleting the job
-  keeps the resume.
+- **Tailoring returns one complete draft for review.** Section-by-section approval made the
+  user wait repeatedly and repeated preparation. One queued execution now owns shared
+  evidence and generation behind `tailoring.generate_resume_draft`. Rails snapshots profile
+  contact, gap analysis, and gap responses; the worker reads the owned job and library once.
+  Contact, every degree, and every certification are copied without a generative call,
+  preserving descriptions and credential date precision. Experience, projects, and skill
+  selection run concurrently, with at most three writers in flight. The summary follows
+  selected content and its original source labels, including copied credentials for sparse
+  libraries. Newly assembled section snapshots are screened before reuse in that prompt.
+  The model selects, orders, and rewrites toward the job without inventing employers,
+  titles, tools, dates, metrics, or responsibilities. Each sentence cites evidence labels;
+  a local checker requests a retry for suspicious claims and keeps valid model wording.
+  Empty sections skip generation. A successful optional writer may omit its section with
+  an explanation when nothing fits. A failed writer or the shared task deadline cancels and
+  awaits outstanding work; no successful fragments are published as a complete draft.
+  Transient retries and provider accounting remain task-wide. Screening approvals live only
+  in the current execution; later deliveries prepare and screen again.
+  The result stays on the task as ordered section snapshots and warnings. There is no
+  tailoring `needs_user_input`, generation counter, submit-section mutation, or reopening
+  state. Users edit or exclude sections, preview, then explicitly save once. Save holds the
+  owned task lock and records `accepted_at`, creating `Resume` and `ResumeSection` snapshots
+  without changing the library. Explicitly excluding every section is rejected. Saved
+  resume edits change snapshots; deleting the job keeps the resume. Existing paused
+  development tasks have no compatibility path and are not deleted by this change.
 
 - **AI results are reviewed before they change user data.** A parsed resume is stored on the
   `AiTask`; the user edits it and explicitly imports it. Imports append to the career library

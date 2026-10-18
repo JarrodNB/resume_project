@@ -1,9 +1,10 @@
+"""Check that tailoring keeps supported wording and rejects invented claims.
+
+Synthetic labeled evidence exercises the public validator without calling providers.
+The checker reports useful retry reasons and never rewrites the draft itself.
 """
-Description: The tailoring checker rejects unsupported names and numbers and does not rewrite
-the section itself.
-Index:
-    - test_*: one behavior per test
-"""
+
+import pytest
 
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
@@ -100,6 +101,63 @@ def test_invented_name_is_rejected() -> None:
     assert "Google Cloud" in problems[0]
 
 
+@pytest.mark.parametrize(
+    ("text", "source"),
+    [
+        ("Implemented Qdrant for semantic search.", "Used Qdrant for semantic search."),
+        ("Built GraphQL APIs for customers.", "Developed GraphQL APIs for customers."),
+        ("Integrated AI into the product. Implemented Qdrant search.", "AI and Qdrant search"),
+    ],
+)
+def test_supported_opening_action_preserves_technology_wording(text: str, source: str) -> None:
+    """Changing the action verb does not turn a supported technology into an invented name."""
+    sources = LabeledSources(records={
+        "E1": SourceRecord("E1", "experience", "Engineer at Co"),
+        "H1": SourceRecord("H1", "highlight", source),
+    })
+    prose = CitedProse(text=text, source_labels=["H1"])
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="E1", prose=[prose])])
+
+    assert find_section_problems("experience", draft, sources) == []
+    assert prose.text == text
+
+
+@pytest.mark.parametrize(
+    ("text", "unsupported"),
+    [
+        ("Implemented Qdrant for search.", "Qdrant"),
+        ("Built GraphQL APIs for customers.", "GraphQL"),
+        ("Built Google Cloud services.", "Google Cloud"),
+        ("Google Cloud powers the product.", "Google Cloud"),
+        ("Implemented Qdrant with 99% uptime.", "99%"),
+    ],
+)
+def test_opening_action_does_not_hide_invented_claims(text: str, unsupported: str) -> None:
+    """The actual technology, proper name, or metric still needs source support."""
+    sources = LabeledSources(records={
+        "E1": SourceRecord("E1", "experience", "Engineer at Co"),
+        "H1": SourceRecord("H1", "highlight", "Developed search services"),
+    })
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(
+        label="E1", prose=[CitedProse(text=text, source_labels=["H1"])]
+    )])
+
+    problems = find_section_problems("experience", draft, sources)
+
+    assert problems
+    assert unsupported in problems[0]
+
+
+@pytest.mark.parametrize(("entry_label", "source_labels"), [("E99", ["H1"]), ("E1", ["H99"])])
+def test_unknown_labels_are_rejected(entry_label: str, source_labels: list[str]) -> None:
+    """Neither entry identity nor supporting citations may name absent source labels."""
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(
+        label=entry_label, prose=[CitedProse(text="Built Python APIs.", source_labels=source_labels)]
+    )])
+
+    assert "Unknown" in find_section_problems("experience", draft, _sources())[0]
+
+
 def test_nothing_fits_must_be_empty() -> None:
     """Saying nothing fits while still returning a role is a problem."""
     draft = TailoredSectionDraft(
@@ -107,3 +165,19 @@ def test_nothing_fits_must_be_empty() -> None:
     )
 
     assert find_section_problems("experience", draft, _sources())
+
+
+@pytest.mark.parametrize("include_entry", [False, True])
+def test_summary_cites_a_credential_without_also_selecting_an_entry(include_entry) -> None:
+    """Credential evidence supports summary prose; it must not create a summary entry."""
+    sources = LabeledSources(records={"C1": SourceRecord(
+        "C1", "certification", "AWS Solutions Architect, Amazon, issued 2024-03-01, expires 2027-03-01")})
+    draft = TailoredSectionDraft(nothing_fits=False,
+        summary=CitedProse(text="AWS Solutions Architect certified through March 2027.", source_labels=["C1"]),
+        entries=[ChosenEntry(label="C1")] if include_entry else [])
+
+    problems = find_section_problems("summary", draft, sources)
+
+    assert bool(problems) is include_entry
+    if include_entry:
+        assert "summary section does not include entries" in problems[0]

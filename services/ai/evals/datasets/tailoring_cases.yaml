@@ -1,6 +1,7 @@
 # Description: Hand-labelled tailoring cases. People, companies, and jobs are synthetic.
 # inputs.context is a GapAnalysisContext. metadata is TailorEvalLabels.
-# Covers every written section: summary, experience, projects, education, certifications, and skills.
+# Covers production writers: summary, experience, projects, and skill selection.
+# Degree/credential evidence is used by summary cases; copying is checked offline.
 cases:
   - name: experience_stays_faithful
     inputs:
@@ -141,9 +142,9 @@ cases:
       - SectionRelevance
       - OmitsWhenAsked
 
-  - name: education_includes_the_degree
+  - name: summary_can_use_copied_education
     inputs:
-      section_type: education
+      section_type: summary
       context:
         job:
           id: job-degree
@@ -160,7 +161,6 @@ cases:
               field_of_study: Computer Science
     metadata:
       nothing_fits: false
-      entry_label: ED1
       prose: BSc, Computer Science, Harbor College.
       source_labels:
         - ED1
@@ -224,9 +224,9 @@ cases:
       - SectionRelevance
       - OmitsWhenAsked
 
-  - name: certification_keeps_credential_separate
+  - name: summary_can_use_copied_certification
     inputs:
-      section_type: certifications
+      section_type: summary
       context:
         job:
           id: job-cert
@@ -242,7 +242,6 @@ cases:
               expiry_date: 2027-03-01
     metadata:
       nothing_fits: false
-      entry_label: C1
       prose: AWS Solutions Architect
       source_labels: [C1]
       job_terms: [AWS]

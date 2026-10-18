@@ -2,15 +2,14 @@
 
 ## Purpose
 
-Shared AI enqueue, result application, and task republication.
+Shared AI enqueue, result application, and attempt accounting.
 
 ## Contents
 
 - `apply_ai_result_service.rb`
 - `enqueue_ai_task_service.rb`
-- `republish_ai_task_service.rb`
 - `record_attempt_usage_service.rb` — resolves unfinished accounting markers and adds each
-  execution's known charges once, including retry, stale-generation and late reports.
+  execution's known charges once, including retry and late reports.
 
 ## Local Rules
 

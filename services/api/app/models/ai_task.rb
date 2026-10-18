@@ -6,7 +6,7 @@
 #   - source_file: the uploaded file a task reads (e.g. the resume for parse_resume)
 #   - finished?: true once completed or failed (late usage is still counted)
 #   - accepted?: true once the user has accepted the result into their data
-#   - generation / usage_generation: the tailor step in progress, and the step already billed
+#   - Historical generation columns are unused; per-attempt reports deduplicate billing.
 #   - ai_usage_attempts: execution reports, including retry charges and unknown costs
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume

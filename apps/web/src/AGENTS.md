@@ -19,7 +19,7 @@ Source of the web app, organized by feature.
   detail, edit, stage, and delete
 - `features/gap-analysis/` — compare a job with the career library (shown on the job page)
 - `features/resumes/` — saved resumes list and one resume's editor (`/resumes`, `/resumes/:id`)
-- `features/resume-tailoring/` — write a resume for a job, one section at a time, then edit the
+- `features/resume-tailoring/` — generate and review a complete resume draft for a job, then edit the
   saved resume, with an actual-size PDF preview (`/jobs/:id/tailor`)
 - `features/interview-prep/` — persistent numbered interview sets, question generation, live status,
   five collapsible question cards, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and confirmed deletion

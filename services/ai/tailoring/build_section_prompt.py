@@ -1,9 +1,7 @@
-"""
-Description: The user prompt for one written section: the job, the labeled sources for that
-section, and the sections already approved.
-Index:
-    - SectionPrompt: the prompt text and the label map the checker uses
-    - build_section_prompt: builds it, including a write-anyway note when the user asked
+"""Build a section prompt from the job and labeled career evidence.
+
+The summary can reuse selected generated/copied section snapshots after screening.
+Exact prompt binding shares only current-execution source approvals with the guardrail.
 """
 
 from collections.abc import Callable, Sequence
@@ -43,7 +41,7 @@ def build_section_prompt(
     section_type: str,
     context: GapAnalysisContext,
     gap_responses: list[dict[str, str]],
-    approved_sections: list[dict[str, object]],
+    selected_sections: list[dict[str, object]],
     retrieved: set[tuple[str, str]] | None,
     *,
     write_anyway: bool,
@@ -51,11 +49,15 @@ def build_section_prompt(
     today: date | None = None,
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
+    source_labels: set[str] | None = None,
 ) -> SectionPrompt:
-    """Builds the prompt for one section. Retrieval narrows the library; gap responses and
-    approved sections are considered even when retrieval narrows the library. Rejected
+    """Builds one prompt; retrieval narrows library evidence but retains supplied snapshots.
+    The `selected_sections` argument contains generated/copied draft snapshots. Rejected
     optional sources are omitted; required job context fails closed."""
-    sources = label_sources(context, gap_responses, approved_sections, retrieved, section_type)
+    sources = label_sources(context, gap_responses, selected_sections, retrieved, section_type)
+    if source_labels is not None:
+        sources.records = {label: record for label, record in sources.records.items()
+                           if label in source_labels or record.kind == "selected_section"}
     if allow_text is not None:
         sources.records = {
             label: record for label, record in sources.records.items()

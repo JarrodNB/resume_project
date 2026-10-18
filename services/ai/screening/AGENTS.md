@@ -48,5 +48,7 @@ answers strict booleans. Screening owns recovery and returns a small decision in
 - Never grant coverage by substring matching, a persisted approval, or a caller-controlled
   boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
-- Keep guards sequential: a blocked input must never reach the generative provider.
+- Preserve guard ordering for each input: a blocked input must never reach the generative
+  provider. Independent source checks may overlap with a bounded concurrency limit.
+  Concurrent checks of the same exact source and policy share one execution-local decision.
 - Report each actual classifier model's usage, including retries and calls before failure.

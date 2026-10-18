@@ -9,7 +9,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
 
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
-  finalized reports are immutable and independent of task outcome/generation.
+  finalized reports are immutable and independent of task outcome.
 
 - `user.rb` — account (Devise + JWT); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
@@ -41,7 +41,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `ai_task.rb` — one unit of AI work over SQS; `finished?` drives duplicate-result handling;
   `source_file` (Active Storage) is the upload a task reads; `accepted?` once its result has
   been imported; token columns and `cost_microdollars` come from the worker's reported usage;
-  `generation` is the tailor step in progress and `usage_generation` is the step already billed
+  historical `generation` and `usage_generation` columns are unused; attempt IDs deduplicate
+  current usage reports
 
 ## Local Rules
 

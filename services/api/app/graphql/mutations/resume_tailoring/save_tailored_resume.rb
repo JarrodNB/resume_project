@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Description: Saves a finished tailoring draft as a Resume, once. sections is the final
-# editor's copy; when omitted, the draft on the task is saved.
+# editor's copy; when omitted, the draft on the task is saved. An empty selection is rejected.
 module Mutations
   module ResumeTailoring
     class SaveTailoredResume < Mutations::BaseMutation

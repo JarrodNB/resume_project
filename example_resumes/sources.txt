@@ -1,0 +1,21 @@
+Publicly published university resume samples
+Downloaded: 2026-10-18
+
+These are educational samples, which may contain fictional names, contact
+information, dates, and experience. They are not verified applicant histories.
+Original files were downloaded without conversion or edits.
+
+Oregon State University source page:
+https://career.oregonstate.edu/sample-resumes
+UC Irvine source page:
+https://career.uci.edu/undergraduate/develop-a-resume-cover-letter/resume-and-cover-letter-examples/
+
+Filename and original download URL:
+osu_environmental_engineering.docx	https://career.oregonstate.edu/sites/career.oregonstate.edu/files/2026-04/Environmental%20Engineering%20Resume%201.docx
+osu_functional.docx	https://career.oregonstate.edu/sites/career.oregonstate.edu/files/2026-07/functional_resume.docx
+osu_biohealth_science.docx	https://career.oregonstate.edu/sites/career.oregonstate.edu/files/2026-03/BioHealth%20Science%20Resume.docx
+osu_biological_data_science.docx	https://career.oregonstate.edu/sites/career.oregonstate.edu/files/2026-04/FourthYear_Biological_Data_Science.docx
+uci_computer_science.pdf	https://career.uci.edu/wp-content/uploads/2024/11/Andrew-Hamilton_ICS_Resume01.pdf
+uci_business.pdf	https://career.uci.edu/wp-content/uploads/2024/11/Yuwei-Lisa-Chang_Business_Resume01.pdf
+uci_nursing.pdf	https://career.uci.edu/wp-content/uploads/2025/12/Angela-Diaz_Nursing_Resume01_2025.pdf
+uci_masters_mechanical_aerospace.pdf	https://career.uci.edu/wp-content/uploads/2025/12/Rebecca-Lopez_Grad-STEM_Mechanical_Aerospace_Engineering_Resume.pdf

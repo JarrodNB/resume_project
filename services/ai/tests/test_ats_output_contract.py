@@ -183,3 +183,25 @@ def test_retry_feedback_names_the_applicable_check_missing_evidence():
     )
     with pytest.raises(ValueError, match="dates"):
         validate_assessment(output, [{"id": "s1", "content": {"text": "Python"}}], [])
+
+
+def test_paid_runner_rejects_false_coverage_assertions(monkeypatch):
+    from types import SimpleNamespace
+
+    import evals.run_ats_content_evals as runner
+    from worker.settings import WorkerSettings
+
+    report = SimpleNamespace(
+        failures=[],
+        report_evaluator_failures=[],
+        cases=[
+            SimpleNamespace(
+                evaluator_failures=[],
+                assertions={"RequirementCoverage": SimpleNamespace(value=False)},
+            )
+        ],
+    )
+    monkeypatch.setattr(runner, "load_settings", WorkerSettings)
+    monkeypatch.setattr(runner, "evaluate_dataset", lambda *_args, **_kwargs: report)
+    with pytest.raises(RuntimeError, match="assertion"):
+        runner.run_ats_content_evals()

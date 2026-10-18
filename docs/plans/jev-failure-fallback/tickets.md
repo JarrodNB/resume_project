@@ -102,5 +102,8 @@ Use real screening and task interfaces in tests, with fakes only at external bou
 - Completed reviews on base `91f5a4f5e4f9cc05eab4d419b741055e0ebc0635` through candidate
   `28173b217054f78f4e22e0790ca9790f2ccd2c0b`: correctness and design both report no actionable
   findings. Correctness checks 62 + 140 passed; design checks 38 + 57 passed. No source fixes.
+- PR for human review/QA: https://github.com/JarrodNB/resume_project/pull/19. Initial
+  published snapshot `7b5839e23cb15554c314fe9bb38a4b4711c1df9f` has exactly the same tree
+  as local prepublication head; connector publication details are in the plan.
 - Environment concern: an initial unprivileged Docker inventory failed on socket permission.
   Necessary Docker commands may need sandbox escalation; record actual outcomes.

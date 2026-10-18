@@ -1,6 +1,6 @@
 # JEV failure fallback
 
-Status: ticket 01 integrated and verified; both blind reviews clean; preparing PR handoff.
+Status: implemented and reviewed; PR #19 awaits human review and manual QA.
 
 ## Problem Statement
 
@@ -157,8 +157,8 @@ completion confirmation authorizes removing it.
 ## Delivery Record
 
 - Source: `KANBAN.md`, **Need fallback for JEV failure** (already marked IP).
-- Phase / next action: integrated acceptance checks and both blind reviews passed; open
-  PR for human QA. Do not merge, deploy, or clear the board without human instruction.
+- Phase / next action: human review and manual QA on PR #19. Do not merge, deploy,
+  or clear the board without human instruction.
 - Human approvals: user said "confirmed, just make sure we are tracking the costs for the
   failover call like we should be doing everywhere" for plan SHA-256
   `cce0cf8441b92b67a2812af2c477271e935ac35d0d44561e48b49a1a5695dd87`.
@@ -208,5 +208,19 @@ completion confirmation authorizes removing it.
   callers consume the decision and per-model usage without managing provider sequencing.
 - No source fixes followed these reviews. Subsequent delivery-record/PR metadata edits
   are editorial; inspect the final diff but no new blind-review round is needed.
-- PR / manual QA: pending. Provider availability and four baseline lint failures must
-  be disclosed in handoff. No browser automation was used.
+- Publication: automatic review initially rejected a combined commit/push because the
+  destination was unverified. GitHub metadata confirmed the authenticated user owns
+  `JarrodNB/resume_project`, has admin/push access, and its clone URL exactly matches origin.
+  Publication was then approved, but Git CLI lacked HTTPS credentials. The authenticated
+  GitHub connector published a content-identical snapshot with parent remote master
+  `91f5a4f5e4f9cc05eab4d419b741055e0ebc0635`. Published initial commit:
+  `7b5839e23cb15554c314fe9bb38a4b4711c1df9f`. Its tree equals local prepublication
+  `057a1e5f1e403c6ff73bdda232e77b0d189bf7b4`: `63937212188bee270fd0c5c98d30c3d71dca8852`.
+  Local integration history was aligned by soft reset after this exact equality check;
+  worker/planning commits remain recorded above. Later handoff-record changes are editorial.
+- PR: https://github.com/JarrodNB/resume_project/pull/19, branch
+  `work/jev-failure-fallback`, attached to this chat. No merge or deployment performed.
+- Human QA: follow the four synthetic-input steps in the PR; verify normal completion,
+  configured-key JEV outage recovery and Nano cost, blocked/both-provider failure, and
+  missing-key behavior. Provider availability and four baseline lint failures are disclosed.
+  Kanban item remains on the board. No browser automation was used.

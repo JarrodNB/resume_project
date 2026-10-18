@@ -1,5 +1,7 @@
 """
 Description: Worker configuration loaded from environment variables.
+Generative tasks default to GPT-6 Luna with low reasoning effort; environment variables
+can override each task's model.
 Index:
     - WorkerSettings: typed settings for SQS, S3, the read-only database, each agent's model
       and reasoning effort, the generative fallback model, the embedding model for career
@@ -29,21 +31,21 @@ class WorkerSettings(BaseSettings):
     retry_delay_seconds: int = 30
     s3_endpoint_url: str | None = None
     s3_uploads_bucket: str = "careergrind-uploads"
-    resume_parsing_model: str = "openai:gpt-5-mini"
+    resume_parsing_model: str = "openai:gpt-6-luna"
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.
     resume_parsing_thinking: ThinkingEffort = "low"
     # Only runs for postings whose headings don't label the requirements.
-    job_requirements_sorting_model: str = "openai:gpt-5-mini"
+    job_requirements_sorting_model: str = "openai:gpt-6-luna"
     job_requirements_sorting_thinking: ThinkingEffort = "low"
     # Copies title, company, and requirement lines out of a pasted job ad.
-    job_posting_parse_model: str = "openai:gpt-5-mini"
+    job_posting_parse_model: str = "openai:gpt-6-luna"
     job_posting_parse_thinking: ThinkingEffort = "low"
-    interview_feedback_model: str = "openai:gpt-5-mini"
+    interview_feedback_model: str = "openai:gpt-6-luna"
     interview_feedback_thinking: ThinkingEffort = "low"
-    interview_questions_model: str = "openai:gpt-5-mini"
+    interview_questions_model: str = "openai:gpt-6-luna"
     interview_questions_thinking: ThinkingEffort = "low"
-    gap_analysis_model: str = "openai:gpt-5-mini"
+    gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. Pinned; there is no generative fallback.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
@@ -58,7 +60,7 @@ class WorkerSettings(BaseSettings):
         if value not in (2000, 4000):
             raise ValueError("Screen chunk size must be 2000 or 4000")
         return value
-    resume_tailoring_model: str = "openai:gpt-5-mini"
+    resume_tailoring_model: str = "openai:gpt-6-luna"
     resume_tailoring_thinking: ThinkingEffort = "low"
     # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.
     # Output-validation retries stay on the primary. The same name as the primary skips it.

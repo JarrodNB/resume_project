@@ -125,8 +125,8 @@ score attached, so runs can be compared across prompt and model changes.
   `tests/test_library_retrieval_evaluators.py`, and `tests/test_user_text_screen_evaluators.py`
   check that the hand labels score 1.0 against their own inputs; keep them passing when adding
   cases.
-- Runs cost real tokens (about $0.02 for the resume parsing set and $0.01 for the gap
-  analysis set on gpt-5-mini).
+- Runs cost real tokens. The October 2026 Luna-only rerun estimated about $0.0013 for
+  resume parsing and $0.0019 for gap analysis, including screening. Costs vary with usage.
 
 ## Certification support
 

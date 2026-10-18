@@ -28,9 +28,13 @@ requests get a JSON 429 with `Retry-After`.
 
 ## Decisions
 
-- **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring)
-  call `gpt-5-mini` and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
+- **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring,
+  interview questions, and interview feedback) default to `gpt-6-luna` with low reasoning
+  effort and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
   A failed output check retries the same model. Jev stays a single pinned model and fails closed.
+  Luna was selected for its lower cost and latency in the October 2026 synthetic evaluations.
+  Quality varies between runs, and interview quality scores were lower than GPT-5 mini's;
+  this is a cost and latency preference rather than a claim of better quality on every task.
 
 - **Prompt versions are stamped on traces.** Each prompt module has a version constant. The
   agent run records it on the Logfire spans for that call, so a task that screens text and

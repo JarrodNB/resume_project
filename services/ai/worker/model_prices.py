@@ -3,7 +3,7 @@ Description: Per-model token prices and the cost estimate reported with every ta
 (Rails sums these to enforce each user's monthly budget).
 Index:
     - ModelPrice: USD per 1M tokens for uncached input, cached input, and output
-    - MODEL_PRICES: price table keyed by the Pydantic AI model name (e.g. "openai:gpt-5-mini")
+    - MODEL_PRICES: price table keyed by the Pydantic AI model name (e.g. "openai:gpt-6-luna")
     - estimate_cost_microdollars: cost of one run's usage, in millionths of a dollar
     - build_model_usage: the ModelUsage entry a result message reports for one agent run
     - reported_model_name: the priced name to bill (the response's model, or the setting)
@@ -29,6 +29,8 @@ class ModelPrice(NamedTuple):
 # 2026-10-02. A model missing here fails the task loudly instead of being recorded as free.
 MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-5-mini": ModelPrice(input=0.25, cached_input=0.025, output=2.00),
+    # Standard rates from https://developers.openai.com/api/docs/pricing, checked 2026-10-18.
+    "openai:gpt-6-luna": ModelPrice(input=0.10, cached_input=0.01, output=0.50),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
     # Embeddings bill input tokens only.

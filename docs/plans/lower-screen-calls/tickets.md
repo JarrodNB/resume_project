@@ -227,4 +227,6 @@ Ruff still has four reproduced baseline conversation-logging findings. Synthetic
 suite failed on provider timeouts (standard: 4 correct/10 timeouts; serial: 5 correct/9 timeouts).
 No wrong completed decisions, but no passing live quality suite. Two fresh blind reviewers
 reviewed base `b485ed0` to candidate `1fde092`, both with no actionable findings. Correctness
-also reran full AI suite (665 passed); design focused suite 49 passed. PR handoff pending.
+also reran full AI suite (665 passed); design focused suite 49 passed. PR handoff:
+https://github.com/JarrodNB/resume_project/pull/22, ready for human review/manual QA.
+No merge/deployment or human acceptance has occurred.

@@ -183,8 +183,8 @@ exploration. No application code or infrastructure has changed.
 
 ## Delivery Record
 
-- Phase: implementation and blind reviews complete; explicit publication approval received,
-  publishing through the connected GitHub app because shell Git has no credentials.
+- Phase: PR ready for human review/manual QA. Stop here until human feedback; no merge,
+  deployment, or board removal authorized by publication approval.
 - Requirements: settled in this chat; import approval transfer explicitly excluded.
 - Plan approval: human said “confirmed” after presentation of revision 1. Approved file
   SHA-256 before delivery-record edits:
@@ -249,5 +249,16 @@ exploration. No application code or infrastructure has changed.
   and `JarrodNB/resume_project` destination. Authorized shell push then failed because Git
   has no credentials. Connected GitHub app confirms repository owner and push permission;
   publish the exact reviewed file tree through that app and verify its SHA against local Git.
-- Reviewed code is committed locally; PR body prepared at `/tmp/lower-screen-calls-pr.md`.
-  PR creation and human acceptance/manual QA remain pending; leave item on board.
+- PR: https://github.com/JarrodNB/resume_project/pull/22 on `work/lower-screen-calls`,
+  targeting master `b485ed0`. GitHub confirms open, unmerged, and mergeable.
+- Publication used the authenticated GitHub app: initial remote commit `c878afd3` has
+  exact file-tree SHA `948ee3fd2df9016b3dd97c96193307140f68f110`, matching local snapshot
+  `11df8fb`. Fetch/diff confirmed zero file differences. Only these final handoff records
+  change afterward; reviewed production/test code remains unchanged.
+- Preserve the original local integration commit history under
+  `codex/lower-screen-calls-local-history` while aligning the integration branch with the
+  app-published snapshot. Worker branches and blind-review snapshots remain available.
+- Manual QA steps and rollout order are in the PR body. Live JEV timeouts and baseline Ruff
+  findings are explicitly disclosed there. The disposable `screen01-db` test container was
+  removed after verification; no main-stack data changed.
+- Human acceptance/manual QA remain pending; leave item on board.

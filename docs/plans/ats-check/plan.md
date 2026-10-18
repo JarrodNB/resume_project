@@ -192,7 +192,7 @@ the Kanban item until explicit human acceptance.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “ATS check”: “Tailored Resumes should be passed into a thorough ATS check”.
-- Phase/next action: plan and breakdown approved; prepare planning commit and implement 01.
+- Phase/next action: implementation and review fixes integrated; final blind reviews pending.
 - Requirements confirmed: 2026-10-17, including revised export-only PDF behavior.
 - Plan approval: user said “confirmed” on 2026-10-17 in response to the written plan approval
   request. Approved file SHA-256 before delivery-record updates:
@@ -282,3 +282,24 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
   22 web passed. Design checks: 18 AI, 22 web, 2 actual renderer and 2 actual PDF checks passed.
 - Neither reviewer ran Rails DB tests or paid evaluations. Review changes require a fresh
   pair against the revised full code diff before the PR handoff.
+
+### Resumption, upstream integration and final verification
+
+- 2026-10-18: user requested continuation. Automatic approval review had temporarily
+  rejected test execution because of a usage-limit service failure; access now works.
+- Review fixes integrated as 696dbf7. Reproduced three red regressions, then 48 focused
+  Rails and 6 editor tests passed. Full pre-upstream suites: 456 Rails and 167 web passed.
+- Upstream advanced to af11d66384ed54a1ffc4dae8d351b7f511e0dc93 during the pause.
+  Integrated it as e29a3a0; preserved its unknown-company behavior. Renumbered unmerged ATS
+  migrations to 20261018030000 and 20261018030100 to avoid the upstream migration collision.
+- Fresh isolated final database migrated successfully through the entire combined chain.
+  Initial attempt exposed old schema auto-loading after renumbering; rebuilt that isolated
+  test database from migrations with the old generated schema removed, then regenerated it.
+- Final review base: af11d66384ed54a1ffc4dae8d351b7f511e0dc93.
+- Final candidate: dc0cf02933a4ea91d06690bb3bfe6b0aae0780ff.
+- Full combined suites: 460 Rails, 546 offline AI, 170 web passed; 2 ordinary-run production
+  fixture tests skipped and 9 AI DB tests deselected. Actual production renderer 2/2 and
+  Python inspection 2/2 passed separately. Typecheck, frontend lint and generated contracts
+  passed; no application files changed after that candidate.
+- Both fresh blind reviewers are reviewing this final full ATS diff against the updated
+  target base. Source changes from earlier review fixes and upstream integration are included.

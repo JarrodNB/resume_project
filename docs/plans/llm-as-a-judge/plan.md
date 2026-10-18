@@ -154,8 +154,7 @@ and ticket-breakdown approvals, before worktree implementation.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “LLM as a judge”; user supplied the same item in this chat.
-- Phase: both tickets integrated and verified; final blind reviews clean; publication
-  blocked pending explicit approval of the GitHub upload after automatic review rejection.
+- Phase: PR created; awaiting human review and QA. User requested temporary worktree cleanup.
 - Requirements: user selected one attempt/report failures and `gpt-6.1-sol`, then
   explicitly confirmed the full scope on 2026-10-18.
 - Plan approval: user said “approved” on 2026-10-18. Approved file SHA-256 before
@@ -205,7 +204,8 @@ and ticket-breakdown approvals, before worktree implementation.
   tests, configuration, and live evidence are byte-for-byte unchanged. Final remote-base
   diff contains only intended feature files; diff whitespace check passes. No additional
   review or test round is needed for the history-only rebase and delivery-record edits.
-- PR and manual QA: not started.
+- PR: https://github.com/JarrodNB/resume_project/pull/18, branch `work/llm-as-a-judge`,
+  targeting master. Human review and manual QA pending; no merge, deploy, or Kanban removal.
 - Publication blocker: automatic approval review rejected pushing the feature branch to
   `https://github.com/JarrodNB/resume_project.git`, stating private code/eval artifacts
   need trusted approval for this exact payload and destination. No push or PR occurred.
@@ -215,3 +215,11 @@ and ticket-breakdown approvals, before worktree implementation.
   then failed because CLI HTTPS credentials are unavailable. Publishing the identical
   reviewed file tree through the connected GitHub integration instead; verify remote
   tree identity before removing this feature's temporary worktrees. Preserve branches.
+- Publication completed through GitHub: remote commit `ecb4f67` has tree
+  `991284a181f21667a609b25716d4fbb276ab8782`, exactly matching local commit `aa3753f`.
+  PR is attached to this chat. Current master advanced to `69dffe8`; a nonmutating
+  merge-tree check passed with no conflicts. Code review and test evidence remain unchanged.
+- Cleanup: remove only this feature's seven temporary integration, worker, and review
+  worktrees after verifying the updated PR tree. Preserve all branches and unrelated worktrees.
+  Manual QA: inspect the evidence summary and linked reports for score quality and the
+  recorded Jev screening failure. Human completion confirmation is still required.

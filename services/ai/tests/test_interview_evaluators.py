@@ -1,13 +1,11 @@
 """
 Description: Exercises interview dataset checks offline with good and deliberately bad output.
 Index:
-    - test_knowledge_accuracy_skips_other_scopes: knowledge-only judge selection
     - test_feedback_focus_limits: focused coaching and concise examples
     - test_question_structure: counts, variety, exclusions and unsupported quotes
     - test_feedback_structure: blank coaching, invented evidence and missing placeholders
     - test_reporting_errors: runner fails and flushes on case or judge errors
 """
-import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -22,24 +20,6 @@ from schemas.interview_questions import (
     InterviewQuestionDraft,
     InterviewQuestions,
 )
-
-
-def test_knowledge_accuracy_skips_other_scopes(monkeypatch):
-    """Nonknowledge cases cannot be misgraded by the subject-accuracy model judge."""
-    seen = []
-
-    async def judge(self, context):
-        """Records applicable model judgments without making a provider request."""
-        seen.append(context.inputs.set_type)
-        return {"knowledge_accuracy": 0.5}
-
-    monkeypatch.setattr(interview_eval_reporting.LLMJudge, "evaluate", judge)
-    evaluator = interview_eval_reporting.KnowledgeAccuracyJudge(rubric="Subject correctness")
-    for set_type in ("general", "technical", "knowledge"):
-        context = SimpleNamespace(inputs=SimpleNamespace(set_type=set_type))
-        scores = asyncio.run(evaluator.evaluate(context))
-        assert scores == ({"knowledge_accuracy": 0.5} if set_type == "knowledge" else {})
-    assert seen == ["knowledge"]
 
 
 def test_question_structure() -> None:

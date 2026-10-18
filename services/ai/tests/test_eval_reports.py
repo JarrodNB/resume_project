@@ -89,7 +89,7 @@ def test_every_existing_runner_captures_native_report(monkeypatch, suite):
         assert run["report"] is native and run["error"] is None
         assert run["configuration"]["model"] == model
         if suite.startswith("interview_"):
-            assert run["configuration"]["judge_model"] == model
+            assert run["configuration"]["judge_model"] == "openai:gpt-6.1-sol"
             assert run["configuration"]["judge_rubrics"]
 
 

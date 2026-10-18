@@ -1,5 +1,7 @@
 """
 Description: Tests for the per-model price table and cost estimates.
+Production billing models need known prices. Eval-only judges may instead report
+an incomplete estimate when their price is unknown.
 Index:
     - test_*: one behavior per test
 """
@@ -11,10 +13,11 @@ from worker.model_prices import MODEL_PRICES, build_model_usage, estimate_cost_m
 from worker.settings import WorkerSettings
 
 
-def test_every_configured_model_has_a_price() -> None:
-    """A model chosen in settings can't silently be recorded as free."""
+def test_every_configured_production_model_has_a_price() -> None:
+    """Production billing defaults must have prices; eval judges allow unknown costs."""
     settings = WorkerSettings()
-    model_fields = [name for name in WorkerSettings.model_fields if name.endswith("_model")]
+    model_fields = [name for name in WorkerSettings.model_fields
+                    if name.endswith("_model") and name != "eval_judge_model"]
 
     assert model_fields
     for field_name in model_fields:

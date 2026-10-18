@@ -45,6 +45,8 @@ class WorkerSettings(BaseSettings):
     interview_feedback_thinking: ThinkingEffort = "low"
     interview_questions_model: str = "openai:gpt-6-luna"
     interview_questions_thinking: ThinkingEffort = "low"
+    # Interview eval judging stays independent of production and comparison models.
+    eval_judge_model: str = "openai:gpt-6.1-sol"
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingEffort = "low"
     # Jev screens one user-written message at a time. Pinned; there is no generative fallback.

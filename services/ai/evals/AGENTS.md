@@ -103,9 +103,11 @@ score attached, so runs can be compared across prompt and model changes.
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.
   The knowledge accuracy judge checks corrections; scope-aware example grounding permits subject facts while forbidding invented experience.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
-- `interview_eval_reporting.py` — input-aware Pydantic Evals LLM judges and Logfire scores;
-  judges use the evaluated agent's configured model. Case errors make the runner fail.
-  `KnowledgeAccuracyJudge` skips general/technical inputs deterministically; its aggregate is knowledge-only.
+- `interview_eval_reporting.py` — input-aware Pydantic Evals judging and Logfire scores;
+  `interview_judge.py` submits all applicable rubrics in one attempt with independent
+  `EVAL_JUDGE_MODEL` configuration. Output and HTTP retries are disabled; case errors
+  make the runner fail. Knowledge accuracy is omitted for general/technical inputs,
+  so its aggregate is knowledge-only. Instructions live in the prompts package.
   Reports include raw output JSON so bracket placeholders can be checked without terminal
   markup. Feedback placeholder expectations live in metadata, outside agent/judge inputs;
   failed feedback runs print their validation retry reasons.

@@ -48,7 +48,7 @@ def run_interview_questions_evals(model_override: str | None = None) -> None:
 
     report_interview_evals(load_interview_questions_dataset(), generate,
                           "evals.interview_questions", settings.interview_questions_model,
-                          INTERVIEW_QUESTIONS_PROMPT_VERSION, RUBRICS)
+                          INTERVIEW_QUESTIONS_PROMPT_VERSION, RUBRICS, settings=settings)
 
 
 if __name__ == "__main__":

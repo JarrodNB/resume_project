@@ -25,8 +25,14 @@ Standalone runner commands retain their defaults and terminal reports.
 Explicit generative overrides use OpenAI models and disable fallback for that run, so the
 comparison measures the selected model. Production settings are unchanged. Reasoning effort,
 limits, prompts, screening, fixtures and Logfire tracing remain configured as before.
-Interview quality judges use the evaluated model; their configuration and reasons appear in
-reports. Retrieval overrides require OpenAI embedding models and retain configured dimensions.
+Interview quality uses one judge attempt per successfully generated case. All applicable
+rubrics return separate scores and reasons in that response; knowledge accuracy applies
+only to knowledge feedback. `EVAL_JUDGE_MODEL` defaults to `openai:gpt-6.1-sol` and stays
+independent of generation model overrides. Use an OpenAI model for this setting. Invalid
+judge output or provider failures become evaluator errors with no retries or fallback,
+including HTTP retries. Configuration, reasons and available usage appear in reports;
+unknown model prices remain incomplete estimates. Retrieval overrides require OpenAI
+embedding models and retain configured dimensions.
 Screening overrides require Typesafe Jev decision models. The prompt guardrail suite uses a
 fixed fake generator and the configured live Jev model; it rejects model overrides.
 

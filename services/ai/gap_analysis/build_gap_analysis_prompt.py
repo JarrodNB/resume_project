@@ -1,6 +1,6 @@
 """
 Description: Turns a GapAnalysisContext into the agent's user prompt. Every requirement and every
-career library entry gets a short label (R1, D1, N1, E1, H1, P1, ED1, C1, S1, F1): models copy short
+career library entry gets a short label (R1, N1, E1, H1, P1, ED1, C1, S1, F1): models copy short
 labels reliably (unlike UUIDs) and they cost fewer tokens. The profile summary is unlabeled
 background for the overall writeup, not evidence. The returned maps let the validator
 check the labels and the worker swap them back for ids and text.
@@ -11,11 +11,9 @@ Index:
     - format_date_range: "Jan 2020 – present" style ranges
 """
 
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
 
-from gap_analysis.screen_library_facts import select_screened_facts
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis import EvidenceItem, RequirementKind
 from schemas.gap_analysis_context import GapAnalysisContext
@@ -23,7 +21,7 @@ from schemas.gap_analysis_context import GapAnalysisContext
 
 @dataclass(frozen=True)
 class LabeledRequirement:
-    """A job requirement, responsibility, or nice-to-have, as numbered in the prompt."""
+    """A job requirement or nice-to-have, as numbered in the prompt."""
 
     kind: RequirementKind
     text: str
@@ -48,33 +46,20 @@ def format_date_range(start_date: date | None, end_date: date | None) -> str | N
     return f"{start} – {end}"
 
 
-def build_gap_analysis_prompt(
-    context: GapAnalysisContext,
-    today: date,
-    *,
-    allow_fact: Callable[[str], object] | None = None,
-) -> GapAnalysisPrompt:
-    """Builds the labeled prompt. `today` lets the model count years for ongoing roles.
-    `allow_fact` screens each library fact (requirement and response together). It may return
-    a bool or an outcome with `allowed` and `too_long`. None keeps every fact (evals)."""
-    kept_facts, warnings = select_screened_facts(context.career_library.facts, allow_fact)
-    screened = context.model_copy(deep=True)
-    screened.career_library.facts = kept_facts
-    prompt = GapAnalysisPrompt(text="", warnings=warnings)
+def build_gap_analysis_prompt(context: GapAnalysisContext, today: date) -> GapAnalysisPrompt:
+    """Label the complete supplied context; production preparation owns required screening."""
+    prompt = GapAnalysisPrompt(text="")
     lines = [
         f"Today's date: {today.isoformat()}",
         "",
-        f"# Job: {screened.job.title} at {screened.job.company or 'Unknown company'}",
+        f"# Job: {context.job.title} at {context.job.company or 'Unknown company'}",
     ]
-    lines += _requirement_lines(prompt, "required", "R", "Requirements", screened.job.requirements)
+    lines += _requirement_lines(prompt, "required", "R", "Requirements", context.job.requirements)
     lines += _requirement_lines(
-        prompt, "responsibility", "D", "Responsibilities", screened.job.responsibilities
-    )
-    lines += _requirement_lines(
-        prompt, "nice_to_have", "N", "Nice to have", screened.job.nice_to_haves
+        prompt, "nice_to_have", "N", "Nice to have", context.job.nice_to_haves
     )
     lines += ["", "# Career library"]
-    lines += _library_lines(prompt, screened)
+    lines += _library_lines(prompt, context)
     prompt.text = "\n".join(lines)
     return prompt
 

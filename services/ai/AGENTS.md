@@ -95,7 +95,7 @@ skip it. Export indexes are not required.
   analysis, and similarity search over `library_embeddings`
 - `memory/` — embeds search queries (Pydantic AI `Embedder`) and fuses cosine order with BM25
 - `gap_analysis/` — gap analysis prompt building (short labels), output checks, copying
-  evidence text from the library, and screening library facts before they enter the prompt
+  evidence text from the library, and required whole-library preparation before generation
 - `text_limits.py` — character caps checked before Jev and generative runs (the same numbers
   Rails stores in `TextLimits`)
 - `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for

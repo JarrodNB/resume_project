@@ -179,9 +179,9 @@ human completion confirmation. The workflow ends at a reviewed PR and human QA.
 ### Progress
 
 - Slug: `tailor-page-styling`.
-- Phase: publishing reviewed branch. Explicit public destination/payload authorization
-  received in chat (`yes`) on 2026-10-18. Automated acceptance and both blind reviews
-  complete; human visual acceptance pending.
+- Phase: PR opened; human review and visual QA pending. Explicit public destination/payload
+  authorization received in chat (`yes`) on 2026-10-18. Automated acceptance and both blind
+  reviews complete.
 - Scope: styling/collapse decisions and deletion behavior confirmed in chat.
 - Plan revision 1 approved explicitly in chat on 2026-10-18 (`approved`). Approved file
   SHA-256 before this delivery-record update:
@@ -238,9 +238,21 @@ human completion confirmation. The workflow ends at a reviewed PR and human QA.
   authenticated GitHub connector to publish a snapshot commit, verifying its Git tree
   equals the local tree. Remote commit identity/history will differ; source remains the
   reviewed candidate. Preserve local commits and record both heads.
-- Next: publish, create/attach PR, record handoff, and stop for human QA. PR draft text is
-  at `/tmp/tailor-page-styling-pr-body.md`. No further implementation or review is needed
-  unless the candidate changes materially.
+- Publication: authenticated connector uploaded 33 files, each verified against its local
+  Git blob hash. Initial published snapshot `4390599b7c65986296deecf3632c810d90379506`
+  has tree `02bdffa67c17c1e65ecd814809ff517bfb897e49`, identical to local commit
+  `398b91e015eb308893c62540ae440318989da41e`. Local Git history is preserved separately.
+- PR: https://github.com/JarrodNB/resume_project/pull/21 (open, attached to this chat),
+  branch `work/tailor-page-styling`, target `master`. No merge or deployment performed.
+- Master advanced to `1b1379b5eb2fa253730021f7f21e4d237f667ca1` during publication.
+  Local integration merged it as `0b8215d`; incoming changes are only `.gitignore` and
+  unrelated lower-screen-calls planning records. Application source/tests remain the
+  reviewed candidate. Publish a matching merge tree with both remote parents to resolve
+  the initial snapshot's add/add planning-record conflict. No behavioral review or test
+  rerun required for this editorial reconciliation; full diff inspected.
+- Next: human QA using the checklist above and in the PR. Retain board item until explicit
+  completion confirmation. No further implementation or review is needed unless the
+  candidate changes materially.
   Manual QA pending: light/dark and narrow/wide styling; edit/collapse/exclude/restore,
   preview/save; cancel/confirm deletion from both routes, including orphan resume;
   verify job/list updates and no AI work until deliberately choosing Write resume again.

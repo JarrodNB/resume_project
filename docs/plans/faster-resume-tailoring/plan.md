@@ -1,6 +1,6 @@
 # Faster resume tailoring: completed draft
 
-Status: implemented and verified; blind reviews resolved; preparing PR for human QA.
+Status: implemented and verified; draft PR #20 awaits human QA and acceptance.
 
 ## Problem Statement
 
@@ -220,7 +220,7 @@ Two fresh blind reviewers will inspect the same committed candidate independentl
 
 - Source: KANBAN.md, “Faster resume tailoring: completed draft”.
 - Phase: 01–06 integrated and verified; blind reviews resolved.
-- Next: preserve newly published master planning documents, then create the PR for human QA.
+- Next: human QA using the outline above; no merge, deployment, or board removal authorized.
 - Human decisions: recorded above from actual replies. The user's “confirmed” response
   confirms the scope including section exclusion. A later “confirmed” directly answered
   “Do you approve plan revision 1?” and establishes plan approval on October 18, 2026.
@@ -313,11 +313,25 @@ Two fresh blind reviewers will inspect the same committed candidate independentl
   No source fix was made; no other actionable correctness finding remained. Both reviews
   omitted browser/live-provider checks. Subsequent delivery records and master planning
   reconciliation are editorial only; application code stays identical to the reviewed head.
-  PR and human QA pending.
+  PR created; human QA pending.
 - Remote-base reconciliation: the final remote check found master had advanced from
   `91f5a4f` to the original planning commit `72b928a`. Its only additions were this workflow's
   approved plans and the other workflow's plans. Preserve those newly published documents
-  by merging master; do not let the earlier ancestry correction delete them from the PR.
+  by merging master in `5898870`. Tree comparison confirmed application code unchanged
+  from the reviewed candidate, and the PR does not change the other workflow's plans.
+- Publishing: shell HTTPS push lacked credentials; strict SSH verification found no known
+  host key, so no SSH trust configuration was changed. The connected GitHub Git-data API
+  published an equivalent single-commit snapshot `bc5f5ca` from master `72b928a`. Its tree
+  `8d71e18641e5c5e93c02805b7012fc1faaf54f9a` exactly matched local `5898870`. Original
+  integration history remains at `work/faster-resume-tailoring-reviewed-local`; the clean
+  integration branch was aligned to the published equivalent snapshot. Final handoff-only
+  record changes do not alter reviewed application code and need no new review pair.
+- PR: [#20 — Generate a complete editable resume draft in one run](https://github.com/JarrodNB/resume_project/pull/20),
+  draft, branch `work/faster-resume-tailoring`, base `master`; attached to the Codex chat.
+  Human must check populated/sparse libraries, omissions, failure/retry, editing,
+  exclude/restore, preview/save, reload and saved editing. Representative-library wait
+  and visual/output quality remain unverified. Four unrelated baseline AI lint findings
+  remain as recorded above. Kanban item stays until explicit human acceptance.
 - Known external blockers: none. The existing local transcript stays ignored and private.
 - Planning artifact tracking: KANBAN.md and docs/plans/ are ignored by Git. Explicitly stage
   the approved plan and tickets when creating the required planning commit; leave unrelated

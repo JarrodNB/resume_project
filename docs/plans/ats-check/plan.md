@@ -192,7 +192,7 @@ the Kanban item until explicit human acceptance.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “ATS check”: “Tailored Resumes should be passed into a thorough ATS check”.
-- Phase/next action: implementation and review fixes integrated; final blind reviews pending.
+- Phase/next action: clean final blind reviews; create PR for human review and manual QA.
 - Requirements confirmed: 2026-10-17, including revised export-only PDF behavior.
 - Plan approval: user said “confirmed” on 2026-10-17 in response to the written plan approval
   request. Approved file SHA-256 before delivery-record updates:
@@ -303,3 +303,21 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
   passed; no application files changed after that candidate.
 - Both fresh blind reviewers are reviewing this final full ATS diff against the updated
   target base. Source changes from earlier review fixes and upstream integration are included.
+
+### Blind review round 2 - clean
+
+- Fresh correctness and design reviewers independently reviewed base
+  af11d66384ed54a1ffc4dae8d351b7f511e0dc93 to source candidate
+  dc0cf02933a4ea91d06690bb3bfe6b0aae0780ff with no planning/other-review context.
+- Both returned no actionable findings. Earlier scheduling retry and concurrent-save
+  identity findings were reproduced and fixed in 696dbf7, included in this full review.
+  Portable fixture instructions were corrected and generated fixture paths are ignored.
+- Correctness verification: 33 offline AI tests passed, 2 fixture cases initially skipped;
+  23 focused web passed; actual renderer 2 passed and actual inspector/PDF tests 12 passed.
+- Design verification: 18 offline AI passed, 2 fixture cases initially skipped; 35 focused
+  web passed; actual renderer 2 passed and matching Python inspector 2 passed.
+- Neither reviewer executed Rails DB tests or paid evaluations; coordinator executed full
+  Rails/AI/web checks and the separately recorded synthetic evaluation.
+- Acceptance audit remains satisfied after review repairs and upstream integration.
+  No application changes after reviewed candidate; subsequent records are documentation.
+- Human manual QA and explicit completion acceptance remain pending; no merge/deploy.

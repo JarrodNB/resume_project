@@ -1,11 +1,8 @@
-"""
-Description: Entry point for the AI worker. Long-polls the ai_tasks queue, handles each task, and
-publishes its result to ai_results.
-Index:
-    - process_task_message: handles one raw task message; says whether it can be deleted
-    - poll_task_queue_once: receives at most one task, handles it, and deletes it if allowed
-    - poll_until_stopped: polls repeatedly, surviving errors, until asked to stop
-    - run_worker: wires up the queues and polls until SIGTERM/SIGINT
+"""Run queued AI tasks and publish their outcomes before deleting task messages.
+
+Each delivery gets fresh execution coverage and independent usage accounting. Successful
+saved-source checks are reported even after failures or retries, in bounded queue packets;
+Rails owns their persistence and all domain writes.
 """
 
 import logging
@@ -23,8 +20,9 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
+from database.screening_decision_reader import build_database_screening_reader
 from screening.guardrail_usage import collect_guardrail_usage
-from screening.session import screening_session
+from screening.session import ScreeningSession, screening_session
 from worker.contact_mask import using_known_contact
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.retryable_errors import is_retryable_error
@@ -84,11 +82,14 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
                           guardrail_usage, privacy_stack):
     """Retain privacy through exception logging, publication, and parent span completion."""
     _publish_usage(task, task_usage, result_queue, finished=False)
+    screening_state = None
+    reader = dependencies.read_screening_successes
+    lookup = None if reader is None else lambda candidates: reader(task.user_id, candidates)
     try:
         privacy_stack.enter_context(using_known_contact(task))
         with (
             collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
-            screening_session(dependencies.settings.llm_run_timeout_seconds),
+            screening_session(dependencies.settings.llm_run_timeout_seconds, lookup_successes=lookup) as screening_state,
         ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
@@ -108,7 +109,8 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
                 receive_count,
                 exc_info=True,
             )
-            _publish_usage(task, task_usage, result_queue)
+            successes = _publish_screening_overflow(task, task_usage, result_queue, screening_state)
+            _publish_usage(task, task_usage, result_queue, screening_successes=successes)
             return False
         logger.exception("Task %s failed on attempt %d", task.ai_task_id, receive_count)
         result = AiResultMessage(
@@ -118,18 +120,34 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
     result.attempt_id = task_usage.attempt_id
     result.usage_incomplete = task_usage.incomplete
+    result.screening_successes = _publish_screening_overflow(
+        task, task_usage, result_queue, screening_state, result_bytes=len(result.model_dump_json().encode()),
+    )
     publish_result(result_queue, result)
     logger.info("Published %s result for task %s", result.status, task.ai_task_id)
     return True
 
 
-def _publish_usage(task, usage, queue, *, finished=True):
+def _publish_usage(task, usage, queue, *, finished=True, screening_successes=(), metadata_only=False):
     """Persists an unfinished marker or retry charges without changing task status."""
     publish_result(queue, AiResultMessage(
         ai_task_id=task.ai_task_id, status="usage", attempt_id=usage.attempt_id,
-        usage=usage.entries, usage_incomplete=usage.incomplete or not finished,
-        attempt_finished=finished,
+        usage=[] if metadata_only else usage.entries, usage_incomplete=usage.incomplete or not finished,
+        attempt_finished=finished, screening_successes=list(screening_successes),
     ))
+
+
+def _publish_screening_overflow(task, usage, queue, session: ScreeningSession | None, *, result_bytes=0):
+    """Send bounded metadata without losing checks or prematurely completing accounting."""
+    successes = list(session.successes.values()) if session is not None else []
+    if not result_bytes:
+        result_bytes = 1000 + sum(len(entry.model_dump_json().encode()) + 1 for entry in usage.entries)
+    while successes and (len(successes) > 1000 or result_bytes + sum(
+        len(success.model_dump_json().encode()) + 1 for success in successes
+    ) > 240_000):
+        _publish_usage(task, usage, queue, finished=False, screening_successes=successes[:1000], metadata_only=True)
+        successes = successes[1000:]
+    return successes
 
 
 def poll_task_queue_once(
@@ -176,6 +194,7 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        read_screening_successes=build_database_screening_reader(settings),
     )
 
     stop_requested = False

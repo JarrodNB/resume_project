@@ -116,3 +116,96 @@ def test_required_question_outage_prevents_feedback(task_dependencies, classifie
         result = handle_ai_task(request, deps)
     assert result.status == "failed" and "saved" in result.error_message
     assert len(classifier) == 2
+
+
+@pytest.mark.parametrize("operation", ["generate", "replace", "feedback"])
+def test_worker_reuses_saved_interview_sources(
+    operation, task_dependencies, classifier,
+):
+    """Published successes eliminate classifier requests on a later saved snapshot task."""
+    import json
+
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+
+    saved = set()
+    library = CareerLibrary(summary="Python", skills=[LibrarySkill(id="s", name="Stock checking")])
+    deps = replace(task_dependencies, read_career_library=lambda _: library,
+        read_screening_successes=lambda user, keys: saved.intersection(keys))
+    request = task() if operation == "feedback" else _task(operation == "replace")
+    request.input["saved_input_snapshot"] = "interview_question_v1"
+    agent = interview_feedback_agent if operation == "feedback" else interview_questions_agent
+    args = output() if operation == "feedback" else _output(1 if operation == "replace" else 5)
+    with agent.override(model=TestModel(custom_output_args=args)):
+        for run in range(2):
+            queue = FakeResultQueue()
+            assert process_task_message(request.model_dump_json(), 1, queue, deps)
+            result = json.loads(queue.sent_bodies[-1])
+            assert result["status"] == "completed"
+            reports = result.get("screening_successes", [])
+            if run == 0:
+                assert len(reports) == len(classifier)
+                assert len(reports) >= 2
+                first_calls = list(classifier)
+                saved.update((r["content_digest"], r["policy_identity"]) for r in reports)
+            else:
+                assert classifier == first_calls
+
+
+@pytest.mark.parametrize("changed_field", ["answer_text", "question_text"])
+def test_changed_saved_feedback_text_requires_a_new_check(changed_field, task_dependencies, classifier):
+    """An old revision's approval cannot cover edited question or answer bytes."""
+    from screening.session import screening_session
+
+    saved = set()
+    request = task()
+    request.input["saved_input_snapshot"] = "interview_question_v1"
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+        with screening_session(lookup_successes=lambda keys: saved.intersection(keys)) as session:
+            assert handle_ai_task(request, deps).status == "completed"
+            saved.update(session.successes)
+        classifier.clear()
+        request.input[changed_field] += " More detail."
+        with screening_session(lookup_successes=lambda keys: saved.intersection(keys)):
+            assert handle_ai_task(request, deps).status == "completed"
+    assert classifier == [request.input[changed_field]]
+
+
+def test_unmarked_feedback_snapshot_cannot_reuse_saved_checks(task_dependencies, classifier):
+    """Even matching successful metadata cannot approve unknown task input."""
+    from screening.session import screening_session
+
+    request = task()
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
+    with screening_session(lookup_successes=lambda keys: set(keys)) as session:
+        with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+            assert handle_ai_task(request, deps).status == "completed"
+        assert not session.successes
+    assert classifier == [request.input["answer_text"], request.input["question_text"]]
+
+
+def test_interviews_share_canonical_fact_response_sources(task_dependencies, classifier):
+    """Comparison-approved fact responses reuse while job-derived requirements stay absent."""
+    from schemas.gap_analysis_context import LibraryFact
+    from screening.library_inputs import library_source_values
+    from screening.saved_sources import register_saved_sources
+    from screening.screen_user_text import screen_user_text
+    from screening.session import screening_session
+
+    library = CareerLibrary(summary="Python", facts=[LibraryFact(
+        id="f", requirement="synthetic_attack", response="I organized a workshop.")])
+    canonical = library_source_values(library, include_fact_requirements=False)
+    saved = set()
+    with screening_session() as session:
+        register_saved_sources(canonical.sources)
+        for text in canonical.sources:
+            assert screen_user_text(text, model=task_dependencies.settings.user_text_screen_model,
+                timeout_seconds=10, check_phrases=False).allowed
+        saved.update(session.successes)
+    classifier.clear()
+    deps = replace(task_dependencies, read_career_library=lambda _: library)
+    with (screening_session(lookup_successes=lambda keys: saved.intersection(keys)),
+          interview_questions_agent.override(model=TestModel(custom_output_args=_output()))):
+        assert handle_ai_task(_task(), deps).status == "completed"
+    assert classifier == []

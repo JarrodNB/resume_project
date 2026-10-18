@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -279,6 +279,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.index ["user_id"], name: "index_resumes_on_user_id"
   end
 
+  create_table "screening_decisions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "content_digest", limit: 64, null: false
+    t.string "policy_identity", limit: 64, null: false
+    t.datetime "created_at", null: false
+    t.index ["user_id", "content_digest", "policy_identity"], name: "unique_screening_decision", unique: true
+    t.index ["user_id"], name: "index_screening_decisions_on_user_id"
+    t.check_constraint "content_digest::text ~ '^[0-9a-f]{64}$'::text", name: "screening_content_digest"
+    t.check_constraint "policy_identity::text ~ '^[0-9a-f]{64}$'::text", name: "screening_policy_identity"
+  end
+
   create_table "skills", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "name", null: false
@@ -331,5 +342,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
   add_foreign_key "resume_sections", "resumes", on_delete: :cascade
   add_foreign_key "resumes", "jobs", on_delete: :nullify
   add_foreign_key "resumes", "users"
+  add_foreign_key "screening_decisions", "users", on_delete: :cascade
   add_foreign_key "skills", "users"
 end

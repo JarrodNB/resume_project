@@ -96,7 +96,7 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     from dataclasses import replace
     from uuid import uuid4
 
-    from tailoring.labeled_sources import label_sources
+    from screening.library_inputs import library_source_values
     from worker.queue_messages import AiTaskMessage
     from worker.tailor_resume_handler import handle_tailor_resume_task
 
@@ -124,13 +124,61 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume",
         input={"job_id": str(uuid4()), "contact": {"full_name": "Synthetic Candidate"}})
-    sources = label_sources(context, [], [], None)
+    source_count = len(library_source_values(context.career_library).sources)
     with resume_tailoring_agent.override(model=FunctionModel(answer, model_name="gpt-5-mini")):
         first = handle_tailor_resume_task(task, task_dependencies)
         assert first.status == "completed"
         # Original inputs plus the job and the newly assembled copied education snapshot.
-        assert len(calls) == len(sources.records) + 2
+        assert len(calls) == source_count + 2
         second = handle_tailor_resume_task(task, task_dependencies)
     assert second.status == "completed"
-    assert len(calls) == 2 * (len(sources.records) + 2)
+    assert len(calls) == 2 * (source_count + 2)
     assert len(generation) == 8
+
+
+@pytest.mark.real_guardrail
+@pytest.mark.parametrize("saved", [False, True])
+def test_only_server_saved_gap_snapshots_reuse_between_tasks(
+    saved, task_dependencies, monkeypatch, offline_model_resolution,
+):
+    from dataclasses import replace
+    from uuid import uuid4
+
+    from worker.queue_messages import AiTaskMessage
+    from worker.tailor_resume_handler import handle_tailor_resume_task
+
+    calls = []
+
+    def classify(messages, info):
+        calls.append(messages[-1].parts[-1].content)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"prompt_injection": False, "harmful_request": False})], model_name="jev-1.13.0",
+            provider_details={"confidence": {"prompt_injection": 1., "harmful_request": 1.}})
+
+    async def retrieve(*_):
+        return None, None
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
+    monkeypatch.setattr("tailoring.prepare_resume_draft.retrieve_source_keys_async", retrieve)
+    context = build_gap_analysis_context()
+    dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context)
+    offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume", input={
+        "job_id": str(uuid4()), "gap_responses": [{"requirement": "Python", "body": "Built services"}],
+        **({"saved_input_snapshot": "resume_tailoring_v1"} if saved else {}),
+    })
+    with resume_tailoring_agent.override(model=TestModel(custom_output_args={"nothing_fits": True, "entries": []})):
+        with screening_session() as first:
+            assert handle_tailor_resume_task(task, dependencies).status == "completed"
+        count = len(calls)
+        with screening_session(lookup_successes=lambda keys: set(keys) & first.successes.keys()):
+            assert handle_tailor_resume_task(task, dependencies).status == "completed"
+        # Copied education is a temporary selected-section snapshot on every delivery.
+        assert len(calls) == count + (1 if saved else 2)
+        assert calls.count("Python: Built services") == (1 if saved else 2)
+        task.input["gap_responses"][0]["body"] = "Changed saved answer"
+        before = len(calls)
+        with screening_session(lookup_successes=lambda keys: set(keys) & first.successes.keys()):
+            assert handle_tailor_resume_task(task, dependencies).status == "completed"
+        assert len(calls) == before + 2
+        assert calls.count("Python: Changed saved answer") == 1

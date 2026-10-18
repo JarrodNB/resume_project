@@ -1,5 +1,6 @@
 # Description: Applies one ai_results message to its AiTask and notifies subscribers.
 # Idempotent: finished tasks keep their outcome; independently deduplicated usage can arrive late.
+# Successful screening metadata is saved independently, even after task completion.
 # The row lock stops two copies of the same report from both adding token usage and cost.
 # Costs stored on the task count toward the user's monthly AI budget. A completed scrape_job
 # or parse_job_posting also saves its Job in the same locked transaction. Interview question
@@ -28,6 +29,7 @@ module AiTasks
       return failure([ "AI task not found: #{@message['ai_task_id'].inspect}" ]) unless ai_task
 
       applied = with_result_lock(ai_task) do
+        RecordScreeningSuccessesService.call(ai_task: ai_task, reports: @message.fetch("screening_successes", []))
         if @message["attempt_id"].present?
           RecordAttemptUsageService.call(ai_task: ai_task, message: @message)
         end

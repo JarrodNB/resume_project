@@ -47,12 +47,12 @@ def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dep
         for _delivery in range(2):
             result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
             assert result.status == "completed"
-    # One job and one complete library source in each fresh delivery.
-    assert len(requests) == 4
-    assert requests[:2] == requests[2:]
-    assert sum("Built Python APIs" in text for text in requests[:2]) == 1
-    assert sum("Platform Engineer" in text for text in requests[:2]) == 1
-    assert sum(usage.input_tokens for usage in result.usage[1:]) == 200
+    # Job, summary and five individual entries in each fresh standalone delivery.
+    assert len(requests) == 14
+    assert requests[:7] == requests[7:]
+    assert sum("Built Python APIs" in text for text in requests[:7]) == 1
+    assert sum("Platform Engineer" in text for text in requests[:7]) == 1
+    assert sum(usage.input_tokens for usage in result.usage[1:]) == 700
 
 
 def test_required_gap_job_block_prevents_generation(task_dependencies, fake_context_reader):
@@ -72,8 +72,8 @@ def test_blocked_library_stops_analysis_and_retains_usage(task_dependencies, fak
         result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
     assert result.status == "failed"
     assert result.result is None
-    assert len(requests) == 2
-    assert sum(item.input_tokens for item in result.usage) == 200
+    assert len(requests) == 3
+    assert sum(item.input_tokens for item in result.usage) == 300
 
 
 def test_unavailable_required_job_fails_closed(monkeypatch, task_dependencies, fake_context_reader):
@@ -129,4 +129,4 @@ def test_queued_library_failure_reports_real_usage_once(
     result = json.loads(queue.sent_bodies[-1])
     assert result["status"] == "failed"
     assert result["result"] is None
-    assert sum(item["input_tokens"] for item in result["usage"]) == (200 if failure == "block" else 100)
+    assert sum(item["input_tokens"] for item in result["usage"]) == (300 if failure == "block" else 100)

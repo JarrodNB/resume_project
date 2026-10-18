@@ -44,3 +44,7 @@ definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
 - `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped snapshots; gap analysis shares the same row reader.
+
+- `screening_decision_reader.py` reads only requested exact content/policy digest pairs for
+  the task owner. The shared screening session batches candidates and memoizes misses;
+  Rails receives all writes through ai_results. No cross-user reuse is allowed.

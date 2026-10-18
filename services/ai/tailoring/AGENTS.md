@@ -36,6 +36,12 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
   per execution. Unsafe optional sources are omitted with warnings. The job must pass
   before retrieval embeds it. Bind the exact rendered prompt to those approvals; direct
   unknown writer prompts retain the capability guard.
+- Complete saved job/library units share classifier successes with comparisons. Project
+  labels only from checked canonical values and bind the exact assembled prompt; projected
+  labels do not become generally approved strings. A rejected whole entry falls back to
+  separately checked selected labels so safe evidence retains its original numbering.
+  Rails marks persisted gap-response snapshots with `saved_input_snapshot: resume_tailoring_v1`;
+  unmarked snapshots and generated/copied selected sections keep execution-local checks.
 
 ## Certification support
 

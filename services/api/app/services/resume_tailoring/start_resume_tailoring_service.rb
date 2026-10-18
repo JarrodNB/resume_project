@@ -1,6 +1,7 @@
 # Queues a resume draft or restores unsaved work for a job. Saved resumes block new work;
 # accepted tasks remain history after deletion. Decisions share the enqueue user lock so
 # concurrent starts and saves cannot create duplicate work. Publishing follows commit.
+# The saved-input marker identifies server-built gap-response snapshots for screening reuse.
 module ResumeTailoring
   class StartResumeTailoringService < ApplicationService
     ALREADY_SAVED_MESSAGE = "This job already has a saved resume.".freeze
@@ -50,6 +51,7 @@ module ResumeTailoring
       analysis = latest_completed_analysis
       {
         "job_id" => @job.id,
+        "saved_input_snapshot" => "resume_tailoring_v1",
         "contact" => {
           "full_name" => @user.name,
           "email" => @user.contact_email,

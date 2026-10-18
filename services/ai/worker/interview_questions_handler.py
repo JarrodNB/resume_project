@@ -1,11 +1,10 @@
-"""
-Description: Read-only handlers for interview set generation and single-question replacement.
-Index:
-    - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical/knowledge scope
-    - _library_evidence_text: original library strings for excerpt validation
-    - handle_interview_questions_task: screens source inputs once, then generates questions
+"""Generate interview sets or replace one question from checked career evidence.
+
+Saved library sources and server-created question snapshots can reuse successful screening.
+Returns drafts only; Rails applies them against the original question revisions.
 """
 import json
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,7 +16,8 @@ from pydantic_ai.usage import RunUsage
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
-from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.library_inputs import library_source_values, rebuild_library, screen_library_inputs
+from screening.saved_sources import register_saved_sources
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from worker.model_prices import build_model_usage, reported_model_name
@@ -28,6 +28,7 @@ from worker.task_dependencies import TaskDependencies
 class InterviewQuestionsInput(BaseModel):
     """Generation metadata or the immutable replacement snapshot from Rails."""
 
+    saved_input_snapshot: Literal["interview_question_v1"] | None = None
     question_set_id: UUID
     set_type: InterviewSetType = "general"
     question_id: UUID | None = None
@@ -51,6 +52,9 @@ def handle_interview_questions_task(
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
+    # Only the Rails snapshot builder supplies this marker after saving the revisions.
+    if snapshot.saved_input_snapshot is not None:
+        register_saved_sources([snapshot.question_text, *snapshot.other_questions])
     settings = dependencies.settings
     usage = []
 
@@ -62,6 +66,7 @@ def handle_interview_questions_task(
         return outcome
 
     # A fact's requirement came from a job posting; only the saved response is career evidence.
+    register_saved_sources(library_source_values(library, include_fact_requirements=False).sources)
     selected = screen_library_inputs(library, screen_note, include_fact_requirements=False)
     library = selected.library
     warnings = list(selected.warnings)

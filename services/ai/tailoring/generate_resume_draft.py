@@ -10,6 +10,7 @@ from uuid import UUID
 
 import text_limits
 from agents.resume_tailoring_agent import write_resume_section_async
+from screening.saved_sources import register_saved_sources
 from screening.session import remaining_timeout, screening_session
 from tailoring.labeled_sources import label_sources
 from tailoring.materialize_section import copy_library_section, materialize_section
@@ -38,6 +39,11 @@ async def generate_resume_draft(
     settings = dependencies.settings
     warnings: list[str] = []
     with screening_session(settings.llm_run_timeout_seconds, reuse=True):
+        if data.saved_input_snapshot == "resume_tailoring_v1":
+            register_saved_sources([
+                f"{response.get('requirement', '')}: {response.get('body', '')}"
+                for response in data.gap_responses
+            ])
         async with asyncio.timeout(remaining_timeout(settings.llm_run_timeout_seconds)):
             try:
                 prepared = await prepare_resume_draft(user_id, data.job_id, dependencies,

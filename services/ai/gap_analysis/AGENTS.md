@@ -11,8 +11,8 @@ can't be invented.
 - `prepare_gap_analysis.py` — `prepare_gap_analysis(context, today, screen_model,
   timeout_seconds)` returns a prepared prompt and completed screening usage, or a failure
   retaining that usage. It projects requirements and nice-to-haves, serializes the complete
-  library as one source, checks the 80,000-character source and 120,000-character prompt caps
-  before paid calls, then screens job and library separately through the import chunker.
+  library as shared per-entry sources, checks the complete 80,000-character library source and 120,000-character prompt caps
+  before paid calls, then screens the job and each required library source through the shared chunker.
   Both are required: rejection or an incomplete screen stops analysis. It reconstructs and
   binds the exact prompt from approved JSON; direct unknown prompts remain guarded.
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` labels the

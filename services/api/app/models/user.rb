@@ -5,6 +5,7 @@
 #     library_facts (answers the user added from gap analysis, by created_at)
 #   - jobs, resumes, ai_tasks, interview_question_sets
 #   - library_embeddings: vectors of the career library entries (derived data)
+#   - screening_decisions: successful exact-content screening checks owned by this account
 class User < ApplicationRecord
   devise :database_authenticatable, :registerable, :validatable,
          :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
@@ -20,6 +21,7 @@ class User < ApplicationRecord
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_tasks, dependent: :destroy
   has_many :library_embeddings, dependent: :delete_all
+  has_many :screening_decisions, dependent: :delete_all
 
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
   validates :summary, length: { maximum: TextLimits::PROSE }

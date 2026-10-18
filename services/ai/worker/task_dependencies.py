@@ -1,11 +1,7 @@
-"""
-Description: Shared services that task handlers need, built once at worker startup and
-swapped for fakes in tests.
-Index:
-    - FileStorage: protocol for downloading uploaded files
-    - GapAnalysisContextReader: reads a user's job and career library (None if no such job)
-    - TaskDependencies: settings, file storage, HTTP client, and database reader for handlers
-    - build_http_client: the HTTP client job scrapers fetch pages with
+"""Provide the external services needed by one worker task.
+
+Production readers are owner-scoped and read-only. Tests can inject offline readers,
+including saved-screening lookup, without opening database connections.
 """
 
 from collections.abc import Callable
@@ -40,6 +36,7 @@ class TaskDependencies:
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
+    read_screening_successes: Callable[[UUID, list[tuple[str, str]]], set[tuple[str, str]]] | None = None
 
 
 def build_http_client(settings: WorkerSettings) -> httpx.Client:

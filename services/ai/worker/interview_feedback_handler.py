@@ -1,10 +1,10 @@
-"""
-Description: Screens a saved answer and generates revision-bound interview feedback.
-Index:
-    - InterviewFeedbackInput: immutable Rails snapshot
-    - handle_interview_feedback_task: read-only coaching and usage reporting
+"""Coach a saved interview answer without changing it or the career library.
+
+Screens exact question, answer, and optional career evidence before generation. Only trusted
+saved snapshots can reuse earlier checks; Rails keeps feedback tied to its saved revisions.
 """
 import json
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,7 +17,8 @@ import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
-from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.library_inputs import library_source_values, rebuild_library, screen_library_inputs
+from screening.saved_sources import register_saved_sources
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from worker.interview_questions_handler import _library_evidence_text
@@ -29,6 +30,7 @@ from worker.task_dependencies import TaskDependencies
 class InterviewFeedbackInput(BaseModel):
     """Question and answer revisions saved before queue publication."""
 
+    saved_input_snapshot: Literal["interview_question_v1"] | None = None
     question_set_id: UUID
     set_type: InterviewSetType = "general"
     question_id: UUID
@@ -42,6 +44,9 @@ class InterviewFeedbackInput(BaseModel):
 def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDependencies) -> AiResultMessage:
     """Screens before model use; never writes the answer or career library."""
     snapshot = InterviewFeedbackInput.model_validate(task.input)
+    # Only the Rails snapshot builder supplies this marker after saving the revisions.
+    if snapshot.saved_input_snapshot is not None:
+        register_saved_sources([snapshot.answer_text, snapshot.question_text])
     settings = dependencies.settings
     usage = []
 
@@ -68,6 +73,7 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
+    register_saved_sources(library_source_values(library, include_fact_requirements=False).sources)
     selected = screen_library_inputs(library, screen, include_fact_requirements=False)
     library = selected.library
     warnings = list(selected.warnings)

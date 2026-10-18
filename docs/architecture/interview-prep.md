@@ -136,3 +136,25 @@ revision is fetched. Set deletion is confirmed; feedback/examples remain beside 
   promotion, or AI-reader grant. Temporary errors retry; missing configuration logs and skips.
   These independent Rails calls incur provider costs outside AI-task budgets/attempt reports
   and Logfire tracing, like library syncs; feedback tasks do not absorb their costs.
+
+## Saved screening inputs
+
+Interview generation reads owner-scoped library entries and screens them on first AI use.
+The canonical source units match comparisons and tailoring, so unchanged entries can reuse
+successful checks after Rails persists their reports. Fact responses exclude job-derived
+requirements from both checks and interview prompts.
+
+`StartQuestionTaskService` adds `saved_input_snapshot: "interview_question_v1"` after saving
+and snapshotting question/answer revisions. This server-only provenance marker makes the
+exact question, answer, and excluded-question bytes eligible for reuse; it grants no approval.
+Older unmarked snapshots still work and screen those strings within each execution. Saves
+and feedback/replacement result revision checks retain their existing behavior. A late
+screening report approves only its exact protected bytes and policy, never a newer revision.
+
+Persistence is asynchronous: retries or simultaneous tasks before the report is applied can
+repeat classifier calls. Rejected or unavailable checks are never remembered. Text edits,
+privacy-protected content changes, and screening-policy changes require new checks. Deploy
+the screening store migration and reader grant before updated workers; no backfill is needed.
+For manual QA, generate a set, wait for result persistence, replace a question, then request
+feedback on a saved answer. Unchanged sources should add no classifier requests; editing an
+answer should check that new answer while preserving saved text even if feedback fails.

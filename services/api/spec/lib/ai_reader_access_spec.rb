@@ -86,3 +86,24 @@ RSpec.describe "Interview embedding access" do
     end.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 end
+
+RSpec.describe "Screening decision access" do
+  it "allows successful-check reads but denies writes" do
+    connection = ActiveRecord::Base.connection
+    connection.execute("CREATE ROLE ai_reader NOLOGIN") unless AiReaderAccess.role_exists?(connection)
+    AiReaderAccess.grant(connection)
+    user = create(:user)
+    decision = ScreeningDecision.create!(user: user, content_digest: "a" * 64, policy_identity: "b" * 64, created_at: Time.current)
+    connection.transaction(requires_new: true) do
+      connection.execute("SET LOCAL ROLE ai_reader")
+      expect(connection.select_value("SELECT id FROM screening_decisions")).to eq(decision.id)
+      raise ActiveRecord::Rollback
+    end
+    expect do
+      connection.transaction(requires_new: true) do
+        connection.execute("SET LOCAL ROLE ai_reader")
+        connection.execute("DELETE FROM screening_decisions")
+      end
+    end.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+end

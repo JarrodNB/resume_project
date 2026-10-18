@@ -138,9 +138,38 @@ def _screen_pass(
     size = load_settings().user_text_screen_chunk_size
     session = current_session()
     key = _screen_key(text, model, check_phrases, max_characters)
+    # Local preconditions are never skipped, including on durable cache hits.
+    if len(text) > max_characters:
+        return ScreenOutcome(allowed=False, too_long=True)
+    if check_phrases and has_obvious_instruction_override(text):
+        return ScreenOutcome(allowed=False)
     if session is not None and key in session.decisions:
-        # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
+    saved = session is not None and text in session.saved_sources and bool(text.strip())
+    success = None
+    if saved:
+        from screening.saved_sources import screening_success
+
+        success = screening_success(text, model, max_characters)
+        identity = (success.content_digest, success.policy_identity)
+        found = identity in session.successes
+        if not found and session.lookup_successes is not None and identity not in session.looked_up:
+            # Register a whole server snapshot, then query its current policy once.
+            # Later registered sources or different source limits get their own batch.
+            candidates = set()
+            for source in session.saved_sources:
+                candidate = screening_success(source, model, max_characters)
+                candidates.add((candidate.content_digest, candidate.policy_identity))
+            pending = candidates - session.looked_up
+            if pending:
+                session.persisted_successes.update(session.lookup_successes(list(pending)))
+                session.looked_up.update(pending)
+        found = found or identity in session.persisted_successes
+        if found:
+            outcome = ScreenOutcome(allowed=True)
+            session.decisions[key] = outcome
+            session.allowed_sources.add(text)
+            return outcome
     outcome = yield from _screen_chunks(
         text, model, timeout_seconds, check_phrases, size, max_characters,
     )
@@ -148,6 +177,8 @@ def _screen_pass(
         session.decisions[key] = outcome
         if outcome.allowed:
             session.allowed_sources.add(text)
+            if success is not None:
+                session.successes[(success.content_digest, success.policy_identity)] = success
     return outcome
 
 

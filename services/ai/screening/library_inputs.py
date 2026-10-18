@@ -35,9 +35,13 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
     if len(sources) != len(fields):
         raise ValueError("Library source layout does not match its values")
     content = {field: [] for field in _ENTRY_FIELDS}
+    requirements = {}
     for source, field in zip(sources, fields):
         if field == "summary":
             content["summary"] = source
+        elif field == "fact_requirement":
+            item = json.loads(source)
+            requirements[item["id"]] = item["requirement"]
         elif field in _ENTRY_FIELDS:
             item = json.loads(source)
             if field == "facts":
@@ -45,6 +49,9 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
             content[field].append(item)
         else:
             raise ValueError("Unknown library input field")
+    for fact in content["facts"]:
+        if fact["id"] in requirements:
+            fact["requirement"] = requirements[fact["id"]]
     return CareerLibrary.model_validate(content)
 
 
@@ -69,15 +76,37 @@ def screen_library_inputs(
         else:
             omitted = True
 
-    if library.summary and library.summary.strip():
-        keep("summary", library.summary)
-    for field in _ENTRY_FIELDS:
-        for entry in getattr(library, field):
-            exclude = {"requirement"} if field == "facts" and not include_fact_requirements else None
-            keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude))
+    values = library_source_values(library, include_fact_requirements=include_fact_requirements)
+    for field, text in zip(values.fields, values.sources):
+        keep(field, text)
     warnings = []
     if omitted:
         warnings.append(LIBRARY_INPUT_OMITTED_WARNING)
     if too_long:
         warnings.append(NOTE_TOO_LONG_WARNING)
     return ScreenedLibrary(tuple(sources), tuple(fields), tuple(warnings))
+
+
+def library_source_values(
+    library: CareerLibrary, *, include_fact_requirements: bool = True,
+) -> ScreenedLibrary:
+    """Canonical saved units shared by features, independently checked per entry.
+
+    Facts keep the response separate from its requirement so interview prompts can omit
+    requirements while sharing exactly the same response check with other features.
+    Nothing here grants approval or provenance; trusted readers register these sources.
+    """
+    sources, fields = [], []
+    if library.summary and library.summary.strip():
+        sources.append(library.summary)
+        fields.append("summary")
+    for field in _ENTRY_FIELDS:
+        for entry in getattr(library, field):
+            sources.append(entry.model_dump_json(
+                exclude_none=True, exclude={"requirement"} if field == "facts" else None,
+            ))
+            fields.append(field)
+            if field == "facts" and include_fact_requirements:
+                sources.append(json.dumps({"id": entry.id, "requirement": entry.requirement}, separators=(",", ":")))
+                fields.append("fact_requirement")
+    return ScreenedLibrary(tuple(sources), tuple(fields), ())

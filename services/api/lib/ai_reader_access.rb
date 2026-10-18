@@ -9,7 +9,7 @@
 module AiReaderAccess
   ROLE_NAME = "ai_reader".freeze
   READABLE_TABLES = %w[
-    jobs experiences experience_highlights projects educations certifications skills library_facts library_embeddings
+    jobs experiences experience_highlights projects educations certifications skills library_facts library_embeddings screening_decisions
   ].freeze
   READABLE_USER_COLUMNS = %w[id summary name contact_email phone].freeze
 

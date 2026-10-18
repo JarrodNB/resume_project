@@ -39,6 +39,16 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
   report. Usage-only messages never change task status. A missing final report remains unknown.
 
+Successful saved-source classifier checks may accompany any result as optional
+`screening_successes`, at most 1,000 exact `{content_digest, policy_identity}` objects,
+each containing lowercase 64-character SHA-256 values. No source text is included.
+Rails derives ownership from the AiTask and inserts idempotently even for late, failed,
+or retry usage-only reports, independently of task outcome application. Workers split
+larger batches into unfinished usage-only packets; metadata that would make a final result
+too large is also sent separately. The final accounting report resolves that attempt once.
+Only completed allowed source checks are reported. Concurrent first uses can still duplicate
+classifier calls before Rails applies those reports.
+
 Per task type:
 
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
@@ -85,8 +95,13 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
-- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
-  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
+- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses, saved_input_snapshot}`; the subject is the
+  Job. Contact and gap fields are immutable request snapshots. Rails sets the optional
+  `saved_input_snapshot: "resume_tailoring_v1"` marker after building the persisted
+  gap-response snapshots. It permits exact gap-response requirement/body screening
+  successes to persist and be reused; it never grants approval. Unmarked older requests
+  still screen those snapshots locally. Generated selected sections and the comparison
+  summary retain execution-local checks. The worker reads the owned
   job and career library, prepares shared screened evidence, and returns one complete draft:
   `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
   summary, experience, projects, education, certifications, skills, omitting empty or
@@ -113,17 +128,22 @@ Per task type:
   `reasoning`, and `limitations` for knowledge sets, one of each. Knowledge excerpts ground
   topic relevance, while model subject knowledge supplies subject questions.
 - `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
-  answer_text, question_revision, answer_revision, other_questions, set_type}`; the subject is the
+  answer_text, question_revision, answer_revision, other_questions, set_type, saved_input_snapshot}`; the subject is the
   selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
   The worker uses the current library and returns the same question result shape with one
   draft, excluding both the old question and the other four.
 - `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
-  question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.
+  question_revision, answer_revision, set_type, saved_input_snapshot}`; the subject is the selected `InterviewQuestion`.
   The result is `{interview_feedback: {strengths, improvements, example_answer,
   evidence_quotes}, warnings: [...]}`. Strengths and improvements are lists of coaching
   statements; personal examples use square-bracket placeholders for missing facts. Knowledge
   examples correct subject misconceptions using model knowledge without invented personal
   experience. Feedback has no score and never overwrites the answer.
+
+  Both single-question task producers add `saved_input_snapshot: "interview_question_v1"`
+  after reading the saved question/answer revisions. This marks only the specific snapshot
+  fields as eligible for exact-content screening reuse; it is not an approval. Unmarked
+  snapshots retain task-local screening. See [interview screening](interview-prep.md).
 
 The Python worker deletes a task message only after its result is published. Messages that
 can't be parsed or applied stay on the queue and move to the `*_dead_letters` queue after 3
@@ -136,7 +156,8 @@ arrive twice (a worker crashes before deleting, a task outlives its visibility t
 rare SQS redelivery). We handle this instead of trying to prevent it:
 
 - **Rails result handling is idempotent.** Every message carries the `ai_task_id`. Results for
-  an `AiTask` that is already `completed` or `failed` are ignored. The check runs under a row
+  an `AiTask` that is already `completed` or `failed` cannot change its outcome.
+  Late usage and successful-screening metadata are still applied independently. The check runs under a row
   lock, so two copies processed at the same moment can't both apply.
 - **Workers receive one message at a time**, so no message sits in a local batch while its
   visibility timeout runs out. Scale by adding workers.

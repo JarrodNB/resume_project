@@ -44,11 +44,24 @@ answers strict booleans. Screening owns recovery and returns a small decision in
 
 - Do not send the text when the screen cannot run.
 - Screen each input once per execution. A later delivery, retry, or resumed task screens
-  reused content again. Required inputs fail closed; optional entries can be omitted.
-- Never grant coverage by substring matching, a persisted approval, or a caller-controlled
+  reused temporary content again. Trusted saved-source decisions may be reused across tasks
+  after Rails applies successful metadata reports. Required inputs fail closed; optional entries can be omitted.
+- Never grant coverage by substring matching, an unverified persisted approval, or a caller-controlled
   boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative
   provider. Independent source checks may overlap with a bounded concurrency limit.
   Concurrent checks of the same exact source and policy share one execution-local decision.
 - Report each actual classifier model's usage, including retries and calls before failure.
+
+- `saved_sources.py` registers exact source values only after trusted owner-scoped reads or
+  server-created immutable snapshots. Registration is provenance, not approval. The common
+  sync/async policy matches protected bytes and full classifier policy, batches lookup for
+  registered values, checks local limits/phrase rules first, and reports completed successes.
+  Blank, partial, rejected, and unavailable checks never persist. `check_phrases` is a local
+  precondition: classifier identity includes the phrase list but not that toggle.
+- `library_source_values` / `rebuild_library` and `job_source_values` / `rebuild_job` define
+  canonical source units and reconstruction. Fact responses exclude requirements; optional
+  fact requirements and job responsibilities are additional sources. Trusted renderers may
+  derive labels/formatting only from reconstructed checked values and bind the final exact
+  prompt against canonical sources, never grant generic coverage to projected substrings.

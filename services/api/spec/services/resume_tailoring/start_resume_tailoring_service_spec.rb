@@ -20,10 +20,11 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     task = result.value
     expect(task).to be_tailor_resume.and be_queued
     expect(task.subject).to eq(job)
-    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
+    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses", "saved_input_snapshot")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
     expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
+    expect(task.input["saved_input_snapshot"]).to eq("resume_tailoring_v1")
     expect(queue).to have_received(:send_message)
   end
 

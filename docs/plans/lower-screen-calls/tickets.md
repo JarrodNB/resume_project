@@ -26,7 +26,7 @@ grants, Python queue schema, and focused API/contract tests.
 from AiTask, never report-supplied user IDs. Define a bounded report contract with content
 digest and policy identity, no raw source text. Keep schemas independent of runtime modules.
 
-**Status:** ready-for-agent.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -48,10 +48,15 @@ docker compose run --rm ai pytest -m "not db" tests/test_schema_dependencies.py
 ```
 
 Also run added persistence/queue-contract tests. Generate schema via Rails, never hand-edit.
-Actual red/green evidence and command results: pending implementation.
+Actual: isolated migration succeeded and generated schema; Rails task/grant specs 45
+examples, 0 failures; Python contract/schema dependency tests 25 passed. Worker verified
+genuine red failures for missing persisted rows, then green. Changed Ruby/Python lint clean.
+Coordinator inspected integrated diff and reran the 45 Rails examples and 25 Python checks
+against integration commit `596a758`: all passed.
 
-**Progress:** Branch/worktree, starting base, commits: not assigned. No blockers beyond
-breakdown approval. Integrate and verify before releasing ticket 02.
+**Progress:** Assigned to TDD subagent on `work/lower-screen-calls-01-persistence` in
+`.worktrees/lower-screen-calls-01`, starting base `6c98a50`. Worker commit `4306fa5`, integrated
+as `596a758`. Both human approvals are recorded. Ticket 02 released after verification.
 
 ## 02 — Reuse saved source checks in gap analysis
 
@@ -71,7 +76,7 @@ to trusted renderers; callers must not manually seed allowed-source sets or mana
 sequencing. Establish source units suitable for later tailoring/interview reuse, preserving
 their field projections. Required complete gap context stays required.
 
-**Status:** ready-for-agent.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -103,10 +108,18 @@ docker compose run --rm ai ruff check .
 
 Add focused real-provider-seam cache/report tests and database reader tests, including a
 database-backed owner-isolation check. Use existing fake providers, not paid model calls.
-Actual red/green evidence and command results: pending implementation.
+Actual: worker focused suite 117 passed plus final queue regression 1 passed; real isolated
+database reader test 1 passed. Worker full run had 644 passes/4 outdated request-shape
+assertions; updated assertions and 29 affected tests passed. Coordinator verified integrated
+`6c15555`: 118 focused tests and real database reader test passed. Changed-file lint clean.
+Whole-repo Ruff's four conversation-logging defects were reproduced on unchanged baseline.
 
-**Progress:** Branch/worktree, starting base, commits: not assigned. Design concern: preserve
-prompt evidence and required-input semantics when replacing whole-library screening.
+**Progress:** Assigned to TDD subagent on `work/lower-screen-calls-02-shared-reuse` in
+`.worktrees/lower-screen-calls-02`, starting base `cbe0ca7`.
+Worker commit `80e8c1f`, integrated as `6c15555`, verified. Shared source API reconstructs
+prompts from canonical checked values. Current caller phrase/size preconditions run before
+reuse; persistent identity covers classifier policy and current phrase list. Tickets 03/04
+released. Updated remote master `b485ed0` merged cleanly before this integration.
 
 ## 03 — Reuse checks while preparing complete tailored drafts
 
@@ -122,7 +135,7 @@ any necessary Rails enqueue snapshot metadata, and focused tests/documentation.
 retrieval, labels, evidence selection, and prompt rendering; it must not duplicate cache
 keys or persistence logic. Preserve the current bounded async checks and task deadline.
 
-**Status:** ready-for-agent.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -147,10 +160,14 @@ docker compose run --rm ai ruff check .
 
 Run existing complete-draft preparation/generation and handler tests discovered in the
 worktree, plus added cross-feature regressions. If enqueue metadata changes, run focused
-Rails tailoring service specs. Actual red/green evidence and command results: pending.
+Rails tailoring service specs. Actual: worker genuine red for missing source reports and
+missing producer marker, then 70 Python tests and 9 Rails examples passed; changed lint clean.
+Coordinator full integration run: 665 offline AI tests and 455 Rails examples passed.
 
-**Progress:** Branch/worktree, starting base, commits: not assigned. Can run alongside 04
-after 02 is integrated; serialize any shared-source/worker edits that would conflict.
+**Progress:** TDD subagent assigned `work/lower-screen-calls-03-tailoring` in
+`.worktrees/lower-screen-calls-03`, base `1b3dbf7`. Running alongside 04; owns tailoring
+files while 04 owns shared optional library selection. Worker `d65e08c`, integrated `68f7eb0`.
+Focused and full combined checks passed.
 
 ## 04 — Reuse saved interview inputs and verify the complete change
 
@@ -166,7 +183,7 @@ if needed, tests, and final architecture/local guidance.
 its saved revisions, excluded questions, grounding, and required/optional inputs. Do not add
 screening persistence to domain models or change save-before-feedback behavior.
 
-**Status:** ready-for-agent.
+**Status:** implemented.
 
 **Acceptance Criteria:**
 
@@ -196,7 +213,18 @@ Run relevant database-backed reader/persistence checks, and live synthetic evals
 classifier/prompt behavior changes require them. Record paid-check configuration blockers
 truthfully. Coordinator runs combined checks after 03 and 04 integrate, then audits all plan
 criteria and conducts the workflow's two fresh blind reviews before PR handoff.
-Actual red/green evidence and command results: pending implementation.
+Actual: worker genuine red showed missing report counts in three queued reuse tests, then
+97 focused Python tests, 49 additional interview checks, and 91 Rails examples passed.
+Changed Ruff/Rubocop/whitespace checks clean. Coordinator verified integrated `fa23579`:
+97 focused Python tests and 91 Rails interview examples passed. Final combined checks await 03.
 
-**Progress:** Branch/worktree, starting base, commits: not assigned. Can implement alongside
-03 after 02; the coordinator owns final combined verification and review/PR records.
+**Progress:** TDD subagent assigned `work/lower-screen-calls-04-interviews` in
+`.worktrees/lower-screen-calls-04`, base `1b3dbf7`. Running alongside 03, owns interview
+files/shared optional library selection. Worker `d3b76d3` integrated as `fa23579`, verified.
+Coordinator full integration checks: 665 offline AI tests, 455 Rails examples, and 1 real
+database approval lookup/grant test passed. All changed Python lint passed. Full-repository
+Ruff still has four reproduced baseline conversation-logging findings. Synthetic live JEV
+suite failed on provider timeouts (standard: 4 correct/10 timeouts; serial: 5 correct/9 timeouts).
+No wrong completed decisions, but no passing live quality suite. Two fresh blind reviewers
+reviewed base `b485ed0` to candidate `1fde092`, both with no actionable findings. Correctness
+also reran full AI suite (665 passed); design focused suite 49 passed. PR handoff pending.

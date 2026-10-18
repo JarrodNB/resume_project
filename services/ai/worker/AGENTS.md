@@ -85,7 +85,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `process_task_message` collects capability screening usage even when the guard blocks.
   `InputBlocked` publishes a failed task with the safe error message.
 - Every execution starts a fresh screening session. Source-selection calls share decisions
-  with exact bound prompts, but later tasks rescreen reused inputs. Standalone handlers
+  with exact bound prompts. Trusted saved inputs may reuse exact owner/policy decisions;
+  temporary/unknown inputs still rescreen. Completed successes survive failure/retry via
+  bounded result metadata, while usage remains request-based. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
   tools in `tools/`, prompts in `prompts/` (sibling folders).

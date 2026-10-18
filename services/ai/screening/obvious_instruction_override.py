@@ -8,7 +8,7 @@ Index:
 import re
 
 # Substrings, matched case-insensitively. Kept obvious on purpose.
-_PHRASES = (
+OBVIOUS_OVERRIDE_PHRASES = (
     "ignore previous instructions",
     "ignore all previous instructions",
     "ignore your instructions",
@@ -27,7 +27,7 @@ _PHRASES = (
     "don't follow your instructions",
 )
 
-_PATTERN = re.compile("|".join(re.escape(phrase) for phrase in _PHRASES), re.IGNORECASE)
+_PATTERN = re.compile("|".join(re.escape(phrase) for phrase in OBVIOUS_OVERRIDE_PHRASES), re.IGNORECASE)
 
 
 def has_obvious_instruction_override(text: str) -> bool:

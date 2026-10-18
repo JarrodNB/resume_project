@@ -1,7 +1,7 @@
 """Prepare one complete, screened comparison without dropping library evidence.
 
-The job and entire library are required sources. Rebuild the exact prompt from their
-approved JSON, using the shared import chunk policy and task-local coverage binding.
+The job and every entry in the complete library are required sources. Rebuild the exact prompt from their
+approved JSON, using shared source units, screening policy, and exact coverage binding.
 Failures retain all completed screening usage and never return a partial prompt.
 """
 
@@ -10,7 +10,9 @@ from datetime import date
 
 import text_limits
 from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt, build_gap_analysis_prompt
-from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobToAnalyze
+from schemas.gap_analysis_context import GapAnalysisContext
+from screening.job_inputs import job_source_values, rebuild_job
+from screening.library_inputs import library_source_values, rebuild_library
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt
@@ -30,21 +32,20 @@ def prepare_gap_analysis(
     context: GapAnalysisContext, *, today: date, screen_model: str, timeout_seconds: float,
 ) -> PreparedGapAnalysis:
     """Validate complete sources, screen job then library, and bind the exact rebuilt prompt."""
-    sources = (
-        context.job.model_dump_json(exclude_none=True, exclude={"responsibilities"}),
-        context.career_library.model_dump_json(exclude_none=True),
-    )
+    library = library_source_values(context.career_library)
+    sources = (*job_source_values(context.job), *library.sources)
     usage: list[ModelUsage] = []
 
     def render(values):
         return build_gap_analysis_prompt(GapAnalysisContext(
-            job=JobToAnalyze.model_validate_json(values[0]),
-            career_library=CareerLibrary.model_validate_json(values[1]),
+            job=rebuild_job(values[:1]),
+            career_library=rebuild_library(values[1:], library.fields),
         ), today=today)
 
     # Check the complete representation before spending on either required source.
     prompt = render(sources)
-    if any(len(source) > text_limits.MAX_SCREENED_TEXT for source in sources):
+    if (len(context.career_library.model_dump_json(exclude_none=True)) > text_limits.MAX_SCREENED_TEXT
+            or any(len(source) > text_limits.MAX_SCREENED_TEXT for source in sources)):
         return PreparedGapAnalysis(None, usage, TOO_LONG_MESSAGE)
     if text_limits.prompt_is_too_long(prompt.text):
         return PreparedGapAnalysis(None, usage, text_limits.GAP_PROMPT_TOO_LONG_MESSAGE)

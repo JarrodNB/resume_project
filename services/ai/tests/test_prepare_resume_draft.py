@@ -11,7 +11,6 @@ from pydantic_ai.usage import RunUsage
 from agents.user_text_screen_agent import UserTextScreenRun
 from schemas.user_text_screen import UserTextScreen
 from screening.session import current_session, prompt_is_covered, screening_session
-from tailoring.build_section_prompt import job_context_text
 from tests.fakes import build_gap_analysis_context
 
 
@@ -38,7 +37,7 @@ def preparation(task_dependencies, monkeypatch):
         return allowed_run(text)
 
     async def retrieve(user, section, job, settings):
-        assert job_context_text(context) in current_session().allowed_sources
+        assert context.job.model_dump_json(exclude_none=True, exclude={"responsibilities"}) in current_session().allowed_sources
         assert user == user_id
         retrievals.append(section)
         return None, None
@@ -112,7 +111,7 @@ def test_bounded_overlap_and_awaited_cancellation(preparation, monkeypatch):
 
         async def classify(text, model, timeout):
             nonlocal active, peak
-            if text.startswith("# Job:"):
+            if text.startswith('{"id":"job-'):
                 return allowed_run(text)
             active += 1
             peak = max(peak, active)
@@ -275,7 +274,7 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
         async def classify(messages, info):
             nonlocal active
             text = messages[-1].parts[-1].content
-            if not text.startswith("# Job:"):
+            if not text.startswith('{"id":"job-'):
                 active += 1
                 if active == 2:
                     started.set()
@@ -303,4 +302,149 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
             assert sum(item.input_tokens for item in usage) == 7
             assert sum(item.input_tokens for item in accounting.entries) == 7
             assert accounting.incomplete
+    asyncio.run(run())
+
+
+def test_saved_canonical_sources_reuse_and_changed_role_checks_again(preparation):
+    """A later task reuses saved units while generated section snapshots still screen."""
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+
+    async def run():
+        with screening_session() as first:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        successes = {(row.content_digest, row.policy_identity) for row in first.successes.values()}
+        assert successes
+        first_count = len(calls)
+        with screening_session(lookup_successes=lambda keys: set(keys) & successes):
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert len(calls) == first_count
+            summary = await prepared.summary_prompt([{"title": "Experience", "content": {"text": "New draft"}}])
+            assert prompt_is_covered(summary.text)
+            assert len(calls) == first_count + 1
+        context.career_library.experiences[0].title = "Changed role"
+        before = len(calls)
+        with screening_session(lookup_successes=lambda keys: set(keys) & successes):
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert len(calls) == before + 1
+            assert "Changed role" in prepared.prompts["experience"].text
+            assert prompt_is_covered(prepared.prompts["experience"].text)
+    asyncio.run(run())
+
+
+def test_rejected_whole_role_keeps_safe_selected_highlight_with_stable_labels(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    context.career_library.experiences[0].highlights[1].content = "attack"
+
+    async def run():
+        warnings = []
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
+            prompt = prepared.prompts["experience"]
+            assert "H1" in prompt.sources.records
+            assert "H2" not in prompt.sources.records
+            assert "E1" in prompt.sources.records
+            assert "attack" not in prompt.text
+            assert prompt_is_covered(prompt.text)
+            assert "Senior Engineer at Now Co: Built Python APIs" in session.allowed_sources
+            # This fallback really received its own classifier pass.
+            assert "Senior Engineer at Now Co: Built Python APIs" in calls
+        assert warnings == ["One of your notes was left out."]
+    asyncio.run(run())
+
+
+def test_canonical_projection_never_approves_unknown_direct_prompts(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, _, _, user, job = preparation
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            prompt = prepared.prompts["experience"]
+            projection = prompt.sources.records["H1"].text
+            assert projection not in session.allowed_sources
+            assert not prompt_is_covered(projection)
+            assert prompt_is_covered(prompt.text)
+            assert not prompt_is_covered(prompt.text + " unchecked extra")
+    asyncio.run(run())
+
+
+def test_changed_highlight_checks_one_unit_and_updates_context(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+
+    async def run():
+        with screening_session() as first:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        context.career_library.experiences[0].highlights[0].content = "Built a new service"
+        before = len(calls)
+        with screening_session(lookup_successes=lambda keys: set(keys) & first.successes.keys()):
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert len(calls) == before + 1
+            assert "Built a new service" in prepared.prompts["experience"].sources.records["H1"].text
+            assert prompt_is_covered(prepared.prompts["experience"].text)
+    asyncio.run(run())
+
+
+def test_gap_analysis_approvals_reuse_exact_shared_tailoring_units(
+    preparation, monkeypatch, offline_model_resolution,
+):
+    from datetime import date
+
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
+    from screening.job_inputs import job_source_values
+    from screening.library_inputs import library_source_values
+    from screening.saved_sources import register_saved_sources
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+
+    def classify(messages, info):
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"prompt_injection": False, "harmful_request": False})], model_name="jev-1.13.0",
+            provider_details={"confidence": {"prompt_injection": 1., "harmful_request": 1.}})
+
+    offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
+    with screening_session() as comparison:
+        register_saved_sources((*job_source_values(context.job), *library_source_values(context.career_library).sources))
+        prepared = prepare_gap_analysis(context, today=date(2026, 1, 1),
+            screen_model=dependencies.settings.user_text_screen_model, timeout_seconds=30)
+        assert prepared.error_message is None
+
+    async def run():
+        with screening_session(lookup_successes=lambda keys: set(keys) & comparison.successes.keys()):
+            draft = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert calls == []
+            assert all(prompt_is_covered(prompt.text) for prompt in draft.prompts.values())
+    asyncio.run(run())
+
+
+def test_uploaded_resume_check_does_not_approve_imported_library_units(preparation):
+    from screening.screen_user_text import screen_user_text_async
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+
+    async def run():
+        with screening_session() as upload:
+            assert (await screen_user_text_async(context.career_library.model_dump_json(),
+                dependencies.settings.user_text_screen_model, 30,
+                classify=lambda *args: _upload_allowed(*args))).allowed
+        assert not upload.successes
+        calls.clear()
+        with screening_session(lookup_successes=lambda keys: set(keys) & upload.successes.keys()):
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        assert calls
+
+    async def _upload_allowed(text, *_):
+        return allowed_run(text)
+
     asyncio.run(run())

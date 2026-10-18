@@ -1,7 +1,8 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job before retrieval, then the union of selected sources. Approvals live in
-one enclosing execution; copied display-only fields do not require model screening.
+Screen the job before retrieval, then the saved units behind selected sources. Matching
+saved successes can be reused; prompt coverage still belongs to this execution. Copied
+display-only fields do not require model screening.
 """
 
 import asyncio
@@ -12,11 +13,20 @@ from uuid import UUID
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
+from screening.job_inputs import job_source_values
+from screening.library_inputs import library_source_values
+from screening.saved_sources import register_saved_sources
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import current_session, remaining_timeout, screening_session
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
 from tailoring.labeled_sources import label_sources
 from tailoring.retrieve_for_section import retrieve_source_keys_async
+from tailoring.source_projections import (
+    SourceProjection,
+    bind_projected_prompt,
+    job_projection,
+    library_projections,
+)
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -63,6 +73,7 @@ class PreparedResumeDraft:
     _warnings: list[str] = field(repr=False)
     _concurrency: int = field(repr=False)
     _session: object = field(default_factory=current_session, repr=False)
+    _projections: dict[str, SourceProjection] = field(default_factory=dict, repr=False)
 
     async def _screen(self, texts: Sequence[str]) -> None:
         async def check(text):
@@ -85,6 +96,7 @@ class PreparedResumeDraft:
             write_anyway=False, gap_analysis=self._gap_analysis,
             allow_text=lambda text: self._decisions[text], warnings=self._warnings,
             source_labels=selected_labels,
+            bind_prompt=lambda values, render: bind_projected_prompt(values, render, self._projections),
         )
 
     async def summary_prompt(
@@ -127,7 +139,11 @@ async def prepare_resume_draft(
             prepared = PreparedResumeDraft(context, {}, settings, gap_responses or [],
                 gap_analysis, {}, {}, usage, warnings, concurrency)
             job_text = job_context_text(context)
-            await prepared._screen([job_text])
+            job_sources = job_source_values(context.job)
+            register_saved_sources(job_sources)
+            await prepared._screen(job_sources)
+            prepared._decisions[job_text] = prepared._decisions[job_sources[0]]
+            prepared._projections[job_text] = job_projection(job_sources)
             if not prepared._decisions[job_text].allowed:
                 raise ResumePreparationError("The job context could not be screened. Please try again.")
             sections = ["summary"]
@@ -153,6 +169,21 @@ async def prepare_resume_draft(
             for section in sections:
                 sources = label_sources(context, prepared._gap_responses, [], prepared._retrieved[section], section)
                 texts.extend(record.text for record in sources.records.values())
+            library = library_source_values(context.career_library)
+            register_saved_sources(library.sources)
+            # Only units supplying selected labels are needed. A rejected whole unit
+            # falls back to its narrower labels, preserving selective omission.
+            projected = library_projections(library.sources, library.fields)
+            selected_units = list(dict.fromkeys(source for text in texts if text in projected
+                for source in projected[text].sources))
+            await prepared._screen(selected_units)
+            for text in texts:
+                projection = projected.get(text)
+                if projection and all(prepared._decisions[source].allowed for source in projection.sources):
+                    prepared._projections[text] = projection
+                    prepared._decisions[text] = ScreenOutcome(allowed=True)
+                elif projection:
+                    register_saved_sources([text])
             await prepared._screen(texts)
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared

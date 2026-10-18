@@ -50,6 +50,7 @@ def build_section_prompt(
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
     source_labels: set[str] | None = None,
+    bind_prompt: Callable | None = None,
 ) -> SectionPrompt:
     """Builds one prompt; retrieval narrows library evidence but retains supplied snapshots.
     The `selected_sections` argument contains generated/copied draft snapshots. Rejected
@@ -100,7 +101,7 @@ def build_section_prompt(
         return "\n".join(result)
 
     return SectionPrompt(
-        text=bind_screened_prompt(values, render) if allow_text is not None else render(values),
+        text=(bind_prompt or bind_screened_prompt)(values, render) if allow_text is not None else render(values),
         sources=sources,
         section_type=section_type,
     )

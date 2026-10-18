@@ -23,6 +23,9 @@ RSpec.describe "Interview practice services" do
           task_type: operation, answer_text: "I use a checklist.")
         expect(queued).to be_success
         expect(queued.value.input["set_type"]).to eq(set_type)
+        expect(queued.value.input["saved_input_snapshot"]).to eq("interview_question_v1")
+        expect(queued.value.input["question_text"]).to eq(scope_question.reload.question_text)
+        expect(queued.value.input["answer_text"]).to eq(scope_question.answer_text)
         queued.value.update!(status: "failed")
       end
       expect(scope_question.reload.answer_text).to eq("I use a checklist.")

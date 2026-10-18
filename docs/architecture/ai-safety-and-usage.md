@@ -106,8 +106,26 @@ requests get a JSON 429 with `Retry-After`.
   agent retains an official input capability: it checks unknown direct input and user/tool
   history without screening an already covered prompt again. Coverage never uses substring
   removal or a caller boolean. Output-validation retries and provider fallback reuse the
-  execution's coverage; later deliveries and tasks start fresh. No approval is stored in
-  Rails or the queues. Text over a shared character cap is rejected before
+  execution's coverage. Later deliveries start fresh execution coverage, but trusted saved
+  sources can reuse a completed classifier decision owned by the task's user. Rails stores
+  only exact protected-content and policy SHA-256 pairs; Python reads them with ai_reader
+  and returns new successful pairs through ai_results, including failures and retries.
+  Current blank, size, and caller-specific phrase checks run before reuse. The policy
+  fingerprint includes classifier instructions/versions/schemas, primary/fallback models,
+  confidence thresholds, phrase list, chunking, and source limits. The phrase toggle is a
+  local precondition rather than a different classifier decision; a stricter caller still
+  rejects matching phrases before any cache hit. Changed masking bytes invalidate content.
+  Trusted builders register exact sources only after owner-scoped database reads or immutable
+  server-created snapshots. Queue text, unsaved drafts, imports, and unknown history do not
+  establish saved provenance. Canonical library sources are individual entries; fact responses
+  and job-derived fact requirements are separate, so interviews can exclude requirements.
+  Job responsibilities are additional sources, excluded from gap analysis. A complete required
+  gap context still fails if any source fails. Approval never transfers by substring or from
+  an uploaded resume to its parsed records. Successful checks persist asynchronously: concurrent
+  executions or immediate retries can still call classifiers before reports are applied.
+  Cache hits add no provider usage; rejections, unavailable, blank, or partial checks never
+  create durable approvals. Deploy Rails schema/consumer/grants before these workers; the
+  empty store needs no backfill. Text over a shared character cap is rejected before
   it is stored and again before a Jev or generative call (`TextLimits` in Rails,
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000

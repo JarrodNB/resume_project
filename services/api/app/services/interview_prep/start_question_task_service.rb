@@ -1,6 +1,5 @@
-# Description: Starts replacement or feedback tasks with snapshots of the question and revisions.
-# Index:
-#   - call: validates the request and queues an operation without replacing existing content
+# Save answers before feedback and queue immutable question/revision snapshots.
+# The server marks persisted source text for screening reuse; this never grants approval.
 module InterviewPrep
   class StartQuestionTaskService < ApplicationService
     TASK_TYPES = %w[regenerate_interview_question review_interview_answer].freeze
@@ -47,7 +46,9 @@ module InterviewPrep
            @question.question_revision.to_s, @question.answer_revision.to_s).exists?
         return failure([ "Feedback has already been requested for this answer version. Save a changed answer first." ])
       end
+      # This server-only marker identifies saved source bytes, never a screening approval.
       task.input = {
+        "saved_input_snapshot" => "interview_question_v1",
         "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
         "question_text" => @question.question_text, "answer_text" => @question.answer_text,

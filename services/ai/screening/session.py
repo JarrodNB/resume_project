@@ -1,4 +1,4 @@
-"""Remember screening decisions only while one task execution is running.
+"""Keep execution coverage and collect successful saved-source classifier decisions.
 
 Trusted prompt builders may bind their exact rendered prompt to allowed source strings.
 Builders must render all untrusted values from the supplied sources, never from hidden
@@ -13,6 +13,7 @@ from functools import wraps
 from time import monotonic
 from typing import Any
 
+from schemas.screening_success import ScreeningSuccess
 from worker.contact_mask import mask_outbound
 
 
@@ -25,6 +26,11 @@ class ScreeningSession:
     async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
+    saved_sources: set[str] = field(default_factory=set)
+    successes: dict[tuple[str, str], ScreeningSuccess] = field(default_factory=dict)
+    lookup_successes: Callable | None = None
+    looked_up: set[tuple[str, str]] = field(default_factory=set)
+    persisted_successes: set[tuple[str, str]] = field(default_factory=set)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)
@@ -45,14 +51,17 @@ def remaining_timeout(timeout_seconds: float) -> float:
 
 
 @contextmanager
-def screening_session(timeout_seconds: float = 240, *, reuse: bool = False) -> Iterator[None]:
+def screening_session(
+    timeout_seconds: float = 240, *, reuse: bool = False, lookup_successes: Callable | None = None,
+) -> Iterator[ScreeningSession]:
     """Start fresh coverage, or explicitly reuse an enclosing task for a helper call."""
     if reuse and _current.get() is not None:
-        yield
+        yield _current.get()
         return
-    token = _current.set(ScreeningSession(monotonic() + timeout_seconds))
+    session = ScreeningSession(monotonic() + timeout_seconds, lookup_successes=lookup_successes)
+    token = _current.set(session)
     try:
-        yield
+        yield session
     finally:
         _current.reset(token)
 

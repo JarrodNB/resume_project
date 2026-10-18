@@ -183,14 +183,71 @@ exploration. No application code or infrastructure has changed.
 
 ## Delivery Record
 
-- Phase: implementation setup; next action is ticket 01 in an isolated worktree.
+- Phase: implementation and blind reviews complete; explicit publication approval received,
+  publishing through the connected GitHub app because shell Git has no credentials.
 - Requirements: settled in this chat; import approval transfer explicitly excluded.
 - Plan approval: human said “confirmed” after presentation of revision 1. Approved file
   SHA-256 before delivery-record edits:
   `d4f35bc318e0555498c2a5f0d900632227c8106fdbc4517eae246494d73eebd7`.
 - Breakdown approval: human said “confirmed” after presentation of revision 1; approved
   tickets SHA-256: `ff86149de202dc5703f1294a855d55be5eee2b95e87564699fc4734115806d1d`.
-- Planning commit, integration base/head, tickets, reviews, and PR: not created.
+- Planning commit and integration base: `6c98a50` on master.
+- Integration: `work/lower-screen-calls`, worktree `.worktrees/lower-screen-calls-integration`.
+- Ticket 01 implemented: worker `4306fa5`, integrated `596a758`; isolated migration, 45 Rails
+  examples and 25 Python checks passed. Coordinator reran both focused suites successfully.
+- Ticket 02 implemented: worker `80e8c1f`, integrated `6c15555`; coordinator verification:
+  118 focused offline tests and 1 real database isolation/grant test passed.
+- Remote master `b485ed0` merged cleanly into integration. Original planning base stays
+  `6c98a50`; PR/review diff will use current master to exclude unrelated merged work.
+- Tickets 03–04 started in separate worktrees from `1b3dbf7`:
+  `work/lower-screen-calls-03-tailoring` and `work/lower-screen-calls-04-interviews`.
+  Ticket 04 interview slice: worker `d3b76d3`, integrated `fa23579`; coordinator verification
+  97 Python tests and 91 Rails examples passed. Ticket 03: worker `d65e08c`, integrated
+  `68f7eb0`; worker 70 Python/9 Rails checks passed. All tickets implemented after combined
+  verification. Reviews and PR not started.
+- Combined verification on integration: 665 offline AI tests passed, 10 DB tests deselected
+  (119.78s); 455 Rails examples passed (24.73s); real database decision reader/grant test
+  1 passed. All changed Python lint and whitespace checks clean. Full Ruff's 4 unchanged
+  conversation-logging findings were reproduced against baseline, not fixed out of scope.
+- Acceptance audit: criteria 1–3 covered by queued saved-source, gap-to-tailoring, and interview
+  reuse tests; criterion 4 by temporary/unmarked snapshot and import non-transfer tests;
+  criterion 5 by blocked/unavailable/partial/size regressions; criterion 6 by owner-scoped DB,
+  prompt reconstruction, usage/retry/late/duplicate tests; criterion 7 by server snapshot
+  producer specs and real read-only grant tests. Manual QA remains for the human.
+- Live synthetic JEV suite: 4 correct completed cases, 10 provider timeouts, nonzero exit.
+  A serial diagnostic repeat returned 5 correct completed cases and 9 timeouts, also nonzero.
+  No wrong decisions among completed cases; this is not a passing quality suite. Keep as a
+  handoff limitation. No threshold/timeout changes or further repeated provider calls.
+- Implementation detail: durable identity represents the classifier decision. Current
+  caller-specific phrase and size preconditions always run before reuse; phrase-list and
+  classifier policy changes invalidate approval. This preserves existing local behavior
+  while allowing cross-feature classifier reuse.
 - Intended integration branch after both approvals: `work/lower-screen-calls`.
-- Verification so far: repository/code inspection only; no implementation tests run.
-- Human acceptance: pending; leave the item on the board.
+- Baseline verification: isolated Docker AI suite with networking disabled and synthetic
+  `OPENAI_API_KEY=offline-test-key`: 627 passed, 9 database tests deselected (108.81s).
+  An earlier run without that synthetic key failed at provider initialization; it is not
+  evidence of implementation regressions. No real model requests or credentials were used.
+  Git mutations and Docker need sandbox escalation, which is available. Existing development
+  images are available; no unrelated worktrees or main-stack data were modified.
+- Blind review snapshot: base `b485ed0f4ead7cce91e7698770a86cd945c6b28b`, candidate
+  `1fde092ff4ee1af4e8f88e0412a0bc566fb48b33`. Fresh reviewers had no inherited conversation
+  and were prohibited from reading the board, planning artifacts, commit messages, and
+  implementation reports. Both returned no actionable findings.
+- Correctness reviewer: focused 60 tests passed/1 DB deselected; full offline suite
+  665 passed/10 DB deselected; diff check passed; full Ruff confirmed only the four
+  unchanged conversation-logging findings. Rails/live/DB checks not run by reviewer.
+- Design reviewer: focused 49 passed/1 DB deselected; no actionable architecture,
+  maintainability, or test findings. Rails/live/DB checks not run by reviewer.
+- Coordinator independently audited all seven acceptance criteria as recorded above.
+  No review repairs were required. Subsequent workflow-record edits are editorial only;
+  no second review round is required for unchanged source/test code.
+- Publication blocker: automatic approval review rejected `git push -u origin
+  work/lower-screen-calls`, citing private repository code egress to an unverified external
+  GitHub destination. No push occurred. Explicit permission requested to push this reviewed
+  branch to `JarrodNB/resume_project` and open its PR; do not bypass the rejection.
+- Publication approval received: human selected “Approve push and PR” for the exact branch
+  and `JarrodNB/resume_project` destination. Authorized shell push then failed because Git
+  has no credentials. Connected GitHub app confirms repository owner and push permission;
+  publish the exact reviewed file tree through that app and verify its SHA against local Git.
+- Reviewed code is committed locally; PR body prepared at `/tmp/lower-screen-calls-pr.md`.
+  PR creation and human acceptance/manual QA remain pending; leave item on board.

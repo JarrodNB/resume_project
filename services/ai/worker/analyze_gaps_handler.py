@@ -14,6 +14,9 @@ from pydantic import BaseModel
 from agents.gap_analysis_agent import analyze_gaps
 from gap_analysis.attach_evidence_text import attach_evidence_text
 from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
+from screening.job_inputs import job_source_values
+from screening.library_inputs import library_source_values
+from screening.saved_sources import register_saved_sources
 from screening.session import within_screening_session
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -49,6 +52,8 @@ def handle_analyze_gaps_task(
 
     settings = dependencies.settings
     model = settings.gap_analysis_model
+    # Only this owner-scoped server read establishes saved-source provenance.
+    register_saved_sources((*job_source_values(context.job), *library_source_values(context.career_library).sources))
     prepared = prepare_gap_analysis(
         context, today=datetime.now(UTC).date(),
         screen_model=settings.user_text_screen_model,

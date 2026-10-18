@@ -55,7 +55,11 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
-  Approvals never persist across tasks. Both safety classifiers are exempt from recursive
+  Trusted saved-source builders may reuse successful classifier decisions from Rails,
+  scoped to the owner and exact protected bytes/policy. Current local limits/phrase rules
+  still run. Temporary/unknown input and imports never gain saved provenance from queue text.
+  New successes return through ai_results even on failure/retry; AI never writes them.
+  Both safety classifiers are exempt from recursive
   screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:

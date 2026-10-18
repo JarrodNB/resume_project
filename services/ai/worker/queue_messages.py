@@ -12,6 +12,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from schemas.screening_success import ScreeningSuccess
+
 TaskType = Literal[
     "parse_resume", "scrape_job", "parse_job_posting", "analyze_gaps", "tailor_resume",
     "generate_interview_questions", "regenerate_interview_question", "review_interview_answer",
@@ -48,6 +50,7 @@ class AiResultMessage(BaseModel):
     message_history: list[dict[str, Any]] = Field(default_factory=list)
     error_message: str | None = None
     usage: list[ModelUsage] = Field(default_factory=list)
+    screening_successes: list[ScreeningSuccess] = Field(default_factory=list, max_length=1000)
     attempt_id: UUID | None = None
     usage_incomplete: bool = False
     attempt_finished: bool = True

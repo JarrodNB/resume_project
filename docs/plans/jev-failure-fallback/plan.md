@@ -1,6 +1,6 @@
 # JEV failure fallback
 
-Status: implemented and reviewed; PR #19 awaits human review and manual QA.
+Status: plan and ticket breakdown approved; preparing isolated implementation.
 
 ## Problem Statement
 
@@ -157,70 +157,19 @@ completion confirmation authorizes removing it.
 ## Delivery Record
 
 - Source: `KANBAN.md`, **Need fallback for JEV failure** (already marked IP).
-- Phase / next action: human review and manual QA on PR #19. Do not merge, deploy,
-  or clear the board without human instruction.
+- Phase / next action: both approvals obtained; commit planning records, create integration
+  and worker worktrees, then dispatch ticket 01.
 - Human approvals: user said "confirmed, just make sure we are tracking the costs for the
   failover call like we should be doing everywhere" for plan SHA-256
   `cce0cf8441b92b67a2812af2c477271e935ac35d0d44561e48b49a1a5695dd87`.
   The cost reminder reinforces the existing accounting scope. User then said "confirmed"
   to breakdown SHA-256 `84c0b2b71e59a79c5b49dd02538ff63c024f22f5ca3af6bf9551023a234e45fc`.
-- Planning commit on `master`: `cd521bb561d1ba51b0122ba402871e6b68dd250c`.
-- Integration branch: `work/jev-failure-fallback`; base
-  `cd521bb561d1ba51b0122ba402871e6b68dd250c`; candidate head
-  `28173b217054f78f4e22e0790ca9790f2ccd2c0b`; checkout `.worktrees/jev-fallback-integration`.
-- Ticket 01 implemented: worker `screening_recovery`, branch
-  `work/jev-failure-fallback-01-screening-recovery`, checkout `.worktrees/jev-fallback-01`,
-  starting base `cd521bb561d1ba51b0122ba402871e6b68dd250c`.
-  Worker commit `db82adfc8b3593c87c936bcee3cbc1326decf253` integrated as
-  `28173b217054f78f4e22e0790ca9790f2ccd2c0b`.
+- Planning branch: `master`; starting checkout clean. No planning commit yet.
+- Integration branch/base/head: not created; proposed `work/jev-failure-fallback`.
+- Tickets: one proposed vertical slice in `tickets.md`; no worker or implementation commit.
 - Planning artifacts are ignored by `/docs/plans/` in `.gitignore`; explicitly stage only
   the approved feature artifacts when making the required planning commit on `master`.
-- Verification: worker final offline suite 586 passed, 9 deselected (93.53s).
-  Coordinator integrated checks: 96 passed (16.56s), covering recovery, screening/session,
-  prompt guardrail, fallback eval, provider/task accounting, run limits and schema direction.
-  All Docker offline checks used the explicitly mounted worktree, `--network none`, and
-  `OPENAI_API_KEY=offline-test-key`. Diff whitespace check passed. Full Ruff has four
-  independently reproduced baseline failures in unchanged conversation-logging files;
-  worker Ruff excluding those two files passed. Baseline offline suite: 560 passed.
+- Verification: code and scoped instructions inspected; no application checks run.
   Initial read-only `docker image ls` failed with permission denied on Docker's socket.
   Escalated Docker image inventory succeeded; `resume_project-ai:latest` is available.
-- Live synthetic checks: final guardrail suite 7/7 correct, passed. Final Nano 13 completed
-  cases all correct, one provider timeout, suite failed. Prior v2 Nano run also had 13
-  correct completed cases with a different timeout; every case completed correctly across
-  these two runs, but no fully available standalone run is claimed. Direct JEV: 3 completed
-  cases correct, 11 three-second timeouts, suite failed. Initial fallback false positives
-  were corrected through versioned prompt framing and reasoning, without changing labels.
-  No further paid retries planned. JEV eval now exits nonzero on case errors/incorrect decisions.
-- Acceptance audit: criteria 1–5 covered by real provider-boundary timeout, same-input,
-  allow/block, missing-key, deadline, usage-cap and cancellation tests. Criterion 6 covered
-  by mixed-chunk and existing session/overlap tests. Criterion 7 covered by real required
-  parse-job completion with no extra screen and direct async guard tests. Criterion 8
-  covered by queued concrete-response cost assertions, including validation retries,
-  blocked/invalid fallback and incomplete usage. Coordinator inspected these paths.
-- Blind reviews: base `91f5a4f5e4f9cc05eab4d419b741055e0ebc0635` (remote master before
-  planning), head `28173b217054f78f4e22e0790ca9790f2ccd2c0b`. Fresh correctness and design
-  agents received this same snapshot without requirement artifacts or implementation reports.
-- Correctness review: no actionable findings; 62 focused tests plus 140 affected tests
-  passed offline. One initial invocation named a nonexistent test file and collected no
-  tests; corrected invocation passed. Review whitespace check passed; checkout clean.
-- Design review: no actionable findings; 38 focused tests plus 57 affected tests passed
-  offline. Review whitespace check passed; checkout clean. Recovery remains cohesive and
-  callers consume the decision and per-model usage without managing provider sequencing.
-- No source fixes followed these reviews. Subsequent delivery-record/PR metadata edits
-  are editorial; inspect the final diff but no new blind-review round is needed.
-- Publication: automatic review initially rejected a combined commit/push because the
-  destination was unverified. GitHub metadata confirmed the authenticated user owns
-  `JarrodNB/resume_project`, has admin/push access, and its clone URL exactly matches origin.
-  Publication was then approved, but Git CLI lacked HTTPS credentials. The authenticated
-  GitHub connector published a content-identical snapshot with parent remote master
-  `91f5a4f5e4f9cc05eab4d419b741055e0ebc0635`. Published initial commit:
-  `7b5839e23cb15554c314fe9bb38a4b4711c1df9f`. Its tree equals local prepublication
-  `057a1e5f1e403c6ff73bdda232e77b0d189bf7b4`: `63937212188bee270fd0c5c98d30c3d71dca8852`.
-  Local integration history was aligned by soft reset after this exact equality check;
-  worker/planning commits remain recorded above. Later handoff-record changes are editorial.
-- PR: https://github.com/JarrodNB/resume_project/pull/19, branch
-  `work/jev-failure-fallback`, attached to this chat. No merge or deployment performed.
-- Human QA: follow the four synthetic-input steps in the PR; verify normal completion,
-  configured-key JEV outage recovery and Nano cost, blocked/both-provider failure, and
-  missing-key behavior. Provider availability and four baseline lint failures are disclosed.
-  Kanban item remains on the board. No browser automation was used.
+- Reviews / PR / manual QA: not started.

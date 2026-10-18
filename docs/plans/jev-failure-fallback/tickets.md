@@ -1,8 +1,7 @@
 # JEV failure fallback tickets
 
-Breakdown approved by the user ("confirmed") for SHA-256
-`84c0b2b71e59a79c5b49dd02538ff63c024f22f5ca3af6bf9551023a234e45fc`.
-Based on the approved plan in `plan.md`. This is one vertical slice because fallback decisions,
+Draft breakdown for human approval. Based on the approved plan in `plan.md`.
+Implementation has not started. This is one vertical slice because fallback decisions,
 deadlines, and per-model cost accounting must ship together to provide correct recovery.
 
 ## 01 — Recover from JEV failures with bounded, accounted fallback screening
@@ -26,7 +25,7 @@ in `prompts/`. Neither classifier recursively invokes the generative input guard
 Use concrete model request observation for costs; do not report mixed tokens as JEV usage.
 Use real screening and task interfaces in tests, with fakes only at external boundaries.
 
-**Status:** implemented.
+**Status:** ready-for-agent (not dispatchable until breakdown approval and planning commit).
 
 **Acceptance Criteria:**
 
@@ -73,37 +72,16 @@ Use real screening and task interfaces in tests, with fakes only at external bou
   fallback runner. Record actual quality results or specific credential/network blockers.
   These checks use synthetic data and may incur provider charges.
 - No browser automation. Manual QA stays with the human at PR handoff.
-- Actual TDD: outage regression first failed with unchecked, then passed after fallback;
-  mixed-provider regression exposed incorrect token attribution, then passed with separate
-  model usage. JEV outage eval first returned success, then failed correctly after repair;
-  native evaluation success exposed `.value` handling and passed after correction.
-- Worker full offline suite: 586 passed, 9 deselected (93.53s). Coordinator integrated suite:
-  96 passed (16.56s), using the nine focused files listed in the plan delivery record.
-- Full Ruff: exactly four confirmed baseline violations in unchanged files
-  `conversation_logging/__init__.py` (two BLE001) and
-  `tests/test_conversation_logging_reliability.py` (I001, SIM117). Ruff excluding those two
-  files passed; full diff whitespace check passed.
-- Live guardrail: 7/7 correct, passed. Final fallback: 13 completed correct, one provider
-  timeout, failed suite. Direct JEV: 3 completed correct, 11 application timeouts, failed
-  suite. Every fallback case completed correctly across the two v2 runs, but no single
-  standalone all-cases success is claimed. See plan for limitations.
+- Actual red/green, broader checks, and paid eval results: not run yet.
 
 **Progress:**
 
-- Assigned worker: `screening_recovery`, worktree `.worktrees/jev-fallback-01`.
-- Branch: `work/jev-failure-fallback-01-screening-recovery`.
-- Starting base: planning commit `cd521bb561d1ba51b0122ba402871e6b68dd250c`.
-- Resulting worker commit: `db82adfc8b3593c87c936bcee3cbc1326decf253`.
-  Integrated as `28173b217054f78f4e22e0790ca9790f2ccd2c0b`; coordinator verified before
-  marking implemented. All eight acceptance criteria checked against code and tests.
+- Assigned worker: none. Writer must use its own worktree and branch.
+- Proposed branch: `work/jev-failure-fallback-01-screening-recovery`.
+- Starting base: current integration head after the approved planning commit; not created.
+- Resulting commits: none. Coordinator integrates and verifies before marking implemented.
 - Worker must not edit this file, the plan, Kanban, integration branch, or PR.
 - Coordinator then runs acceptance checks and two fresh blind reviews of one fixed full diff,
   resolving supported findings before a PR for human QA.
-- Completed reviews on base `91f5a4f5e4f9cc05eab4d419b741055e0ebc0635` through candidate
-  `28173b217054f78f4e22e0790ca9790f2ccd2c0b`: correctness and design both report no actionable
-  findings. Correctness checks 62 + 140 passed; design checks 38 + 57 passed. No source fixes.
-- PR for human review/QA: https://github.com/JarrodNB/resume_project/pull/19. Initial
-  published snapshot `7b5839e23cb15554c314fe9bb38a4b4711c1df9f` has exactly the same tree
-  as local prepublication head; connector publication details are in the plan.
 - Environment concern: an initial unprivileged Docker inventory failed on socket permission.
   Necessary Docker commands may need sandbox escalation; record actual outcomes.

@@ -159,8 +159,8 @@ uses that path too; whole-input screening does not guarantee a single network ca
 
 - Source: Kanban item “gap analysis, should not be doing responsibilities, only requirements
   and nice to have's”; description “is also taking too long”.
-- Phase: all tickets integrated, acceptance checked, both blind reviews clean. Next action:
-  publish PR, then await human review and manual QA.
+- Phase: PR published; all tickets integrated, acceptance checked, both blind reviews clean.
+  Next action: await human review and manual QA. Do not merge or clear the board.
 - Human decisions: recorded above from this conversation, including explicit confirmation
   that library screening failure stops analysis. These are not plan/breakdown approvals.
 - Plan approval: human said “approved” on 2026-10-18 for plan SHA-256
@@ -210,8 +210,19 @@ uses that path too; whole-input screening does not guarantee a single network ca
 - Coordinator acceptance audit: all nine criteria met through service/handler/source-boundary
   tests, UI tests, source inspection, and recorded request/timing comparisons. Model quality
   limitations above remain visible; acceptance is technical, not human completion.
-- PR: pending. Git transport lacks push credentials; authenticated GitHub connector is
-  available for publication. Remote master matches original source `6930b8e`.
+- PR: https://github.com/JarrodNB/resume_project/pull/16, attached to this chat.
+  Branch `work/gap-analysis-requirements-only`, base `master` (`6930b8e`). Git transport has
+  no push credentials, so the authenticated GitHub connector published the exact local tree.
+  Remote planning commit `05c83325211741adbbb896227f87b5ba9b844d18` has the identical tree
+  to local planning commit `25d45c5`; remote source candidate
+  `078f9ec4f11678d45568ea0f37c5ae03c91de057` has tree `329135fb`, identical to local
+  delivery commit `18f4f3e`. The local delivery commit chain is preserved on
+  `work/gap-analysis-requirements-only-local-delivery`. Final reporting updates are editorial;
+  published source remains the reviewed snapshot. The integration worktree is aligned to
+  the published branch after tree verification; Git/PR records its final reporting head.
+- Human QA handoff: use the PR's five-step checklist for mixed/nice-only/duty-only jobs,
+  evidence and saved responses, full-library screen failures/limits, and tenure/strength
+  verdicts. Browser/manual QA has not been performed by agents. Human acceptance is pending.
 - Checkout inspected: clean `master` before planning. Production changes are confined to
   the integration/worker worktrees; the primary checkout remains on the planning commit.
 - Environment check: elevated `docker compose ps --format json` succeeded, no services running.

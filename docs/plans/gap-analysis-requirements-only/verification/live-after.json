@@ -1,0 +1,17 @@
+{
+  "status": "completed",
+  "error": null,
+  "fixture": "base career library plus 12 synthetic skills",
+  "screen_calls": 2,
+  "screen_seconds": 7.851797442999668,
+  "generation": [
+    {
+      "seconds": 12.847555678003118,
+      "requests": 1
+    }
+  ],
+  "total_seconds": 20.72575113900166,
+  "model": "openai:gpt-6-luna",
+  "thinking": "low",
+  "cost_microdollars": 271
+}

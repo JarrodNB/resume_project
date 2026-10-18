@@ -82,13 +82,26 @@ tailoring) instead of sending everything.
   change is rejected. Uses `@dnd-kit/react`, which supports keyboard dragging.
 
 - **Gap analysis speaks in short labels; code fills in the evidence.** The prompt labels each
-  requirement (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `F1`), and the
+  qualification (`R1`, `N1`) and library entry (`E1`, `H1`, `P1`, `ED1`, `S1`, `F1`), and the
   agent answers with labels only. The profile summary is shown as unlabeled background for the
   overall writeup and is not evidence, so it cannot be pasted under each requirement. An output
   validator sends missing, repeated, or unknown labels
   back as a retry, then code maps labels to ids and copies the library text as evidence. Short
   labels are cheaper and more reliable than UUIDs in a prompt, and the agent can't invent or
   reword evidence. It only compares the library with the job; it asks no questions.
+  Only saved requirements and nice-to-haves are compared, in that order. Saved job
+  responsibilities remain available to other features but do not enter gap screening or
+  generation. Both Rails and the AI worker reject jobs with neither qualification list;
+  nice-to-have-only jobs are supported.
+  Gap-analysis preparation screens the projected job first, then the complete career library
+  (including summary, highlights, certifications, and saved facts) as one structured source.
+  It reuses resume import's overlapping chunks without the short-note phrase filter. Any
+  blocked or incomplete screen stops analysis; entries are never omitted to continue.
+  The existing 80,000-character source cap now applies to the assembled library, including
+  JSON metadata, and the final prompt retains its 120,000-character cap. Both limits are
+  checked before screening calls; oversized sources fail without truncation. Preparation
+  rebuilds the exact prompt from approved sources and retains completed screening usage on
+  failures. Its small interface keeps serialization, screening, and coverage out of the handler.
 
 - **Gaps are answered in the comparison view, not by an AI asking questions.** The user can
   write a response under any gap or partial match. Responses are saved in Rails per job and

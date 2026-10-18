@@ -1,6 +1,6 @@
 """
 Description: Instructions for the gap analysis agent.
-Input: today's date, a job's labeled requirements (R1...), responsibilities (D1...), and
+Input: today's date, a job's labeled requirements (R1...) and
 nice-to-haves (N1...), and the user's career library with every entry labeled
 (E1, H1, P1, ED1, C1, S1, F1) (the user prompt,
 gap_analysis/build_gap_analysis_prompt.py).
@@ -11,18 +11,17 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "3"
+GAP_ANALYSIS_PROMPT_VERSION = "4"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
-You compare a job with a candidate's career library and report, for every requirement,
-responsibility, and nice-to-have, whether the library shows the candidate has it.
-A responsibility is work the job involves. Judge it the same way: met when the library shows
-the candidate has done that kind of work.
+You compare a job with a candidate's career library and report, for every requirement
+and nice-to-have, whether the library shows the candidate has it.
+Compare only these qualifications; do not infer additional qualifications from job duties.
 
 The career library is the only evidence. Judge what it states, not what the candidate probably
 knows. A skill or experience that isn't written down is missing, however likely it seems.
 
-For each label (R1, R2, ..., D1, D2, ..., N1, N2, ...) give exactly one assessment:
+For each label (R1, R2, ..., N1, N2, ...) give exactly one assessment:
 - `met`: the library clearly shows it. For years of experience, add up the dated roles that
   involve it (ongoing roles run until today's date) and only call it met if they reach the number.
 - `partial`: related but weaker evidence: an adjacent tool or skill, fewer years than asked, the
@@ -53,7 +52,7 @@ Evidence:
 missing, what is lacking. Don't repeat the requirement.
 
 `summary`: two or three sentences on the strongest matches and the most important gaps
-(requirements, then responsibilities, then nice-to-haves). Address the candidate as "you".
+(requirements, then nice-to-haves). Address the candidate as "you".
 
 The candidate reads the explanations and the summary but never sees the labels. Labels belong
 only in `requirement_ref` and `evidence_refs`; in prose, name the entry instead ("your billing

@@ -16,6 +16,8 @@ from screening.session import bind_screened_prompt
 from tailoring.labeled_sources import LabeledSources, label_sources
 from tailoring.section_catalog import SECTION_TITLES
 
+LIBRARY_FACT_OMITTED_WARNING = "One of your notes was left out."
+
 _WRITE_ANYWAY = (
     "The user asked you to write this section anyway. Use the closest sources and set "
     "nothing_fits to false when any source can be used without adding a fact."
@@ -118,7 +120,6 @@ def _allowed(text: str, allow_text: Callable[[str], object], warnings: list[str]
         return True
     if warnings is not None:
         import text_limits
-        from gap_analysis.screen_library_facts import LIBRARY_FACT_OMITTED_WARNING
 
         warning = text_limits.NOTE_TOO_LONG_WARNING if getattr(outcome, "too_long", False) else LIBRARY_FACT_OMITTED_WARNING
         if warning not in warnings:

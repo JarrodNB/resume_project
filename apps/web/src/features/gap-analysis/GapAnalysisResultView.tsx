@@ -1,6 +1,6 @@
 /**
  * Description: A completed gap analysis: summary, verdict counts for the requirements, then each
- * requirement, responsibility, and nice-to-have with its verdict and evidence.
+ * requirement and nice-to-have with its verdict and evidence.
  * Index:
  *   - GapAnalysisResultView: result component
  */
@@ -21,7 +21,6 @@ export function GapAnalysisResultView({
   responses: SavedGapResponse[]
 }) {
   const requirements = analysis.assessments.filter((item) => item.kind === 'required')
-  const responsibilities = analysis.assessments.filter((item) => item.kind === 'responsibility')
   const niceToHaves = analysis.assessments.filter((item) => item.kind === 'nice_to_have')
 
   return (
@@ -39,7 +38,6 @@ export function GapAnalysisResultView({
         </p>
       )}
       <AssessmentList title="Requirements" jobId={jobId} assessments={requirements} responses={responses} />
-      <AssessmentList title="Responsibilities" jobId={jobId} assessments={responsibilities} responses={responses} />
       <AssessmentList title="Nice to have" jobId={jobId} assessments={niceToHaves} responses={responses} />
     </div>
   )

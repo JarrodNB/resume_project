@@ -1,0 +1,39 @@
+[
+  {
+    "case": "small",
+    "status": "completed",
+    "screen_calls": 2,
+    "chunk_lengths": [
+      141,
+      1225
+    ],
+    "total_seconds": 3.1419,
+    "injected_delay_seconds_per_call": 0.005
+  },
+  {
+    "case": "many-short",
+    "status": "completed",
+    "screen_calls": 3,
+    "chunk_lengths": [
+      141,
+      4000,
+      1265
+    ],
+    "total_seconds": 0.0735,
+    "injected_delay_seconds_per_call": 0.005
+  },
+  {
+    "case": "multi-chunk",
+    "status": "completed",
+    "screen_calls": 5,
+    "chunk_lengths": [
+      141,
+      4000,
+      4000,
+      4000,
+      1065
+    ],
+    "total_seconds": 0.0952,
+    "injected_delay_seconds_per_call": 0.005
+  }
+]

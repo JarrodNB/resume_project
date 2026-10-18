@@ -43,3 +43,14 @@ it('keeps valid assessments and drops malformed ones', () => {
     warnings: ['One of your notes was left out.'],
   })
 })
+
+
+it('drops assessment kinds outside the qualification contract', () => {
+  const parsed = parseGapAnalysisResult({ gap_analysis: { assessments: [
+    { kind: 'required', requirement: 'Python', verdict: 'met' },
+    { kind: 'responsibility', requirement: 'Ship models', verdict: 'met' },
+    { kind: 'other', requirement: 'Unknown', verdict: 'missing' },
+  ] } })
+
+  expect(parsed?.assessments.map((item) => item.requirement)).toEqual(['Python'])
+})

@@ -8,20 +8,18 @@ can't be invented.
 
 ## Contents
 
-- `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today, allow_fact=None)`
-  returns a `GapAnalysisPrompt` (prompt text, label lookups, warnings). Labels: `R1`/`D1`/`N1` for
-  requirements, responsibilities, and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`
-  education, `C1` certification, `S1` skill, `F1` library fact; `format_date_range`. The profile summary is unlabeled
-  background, not a citable label. `allow_fact` screens each
-  library fact (requirement + response); a blocked or unchecked fact is omitted and the prompt
-  carries one warning. A fact over the screen cap uses a separate "too long" warning. `None`
-  keeps every fact (evals). Production handlers screen the required job context and every
-  optional cohesive library entry before calling the builder; each experience includes
-  its highlights. Rejected optional entries are omitted with warnings. The handler binds
-  the prompt rendered exclusively from retained sources to execution-local coverage, so
-  generation does not screen the assembled prompt again. Direct unknown agent prompts
-  remain guarded. A prompt over 120,000 characters fails before the agent runs
-- `screen_library_facts.py` — `select_screened_facts`; `LIBRARY_FACT_OMITTED_WARNING`
+- `prepare_gap_analysis.py` — `prepare_gap_analysis(context, today, screen_model,
+  timeout_seconds)` returns a prepared prompt and completed screening usage, or a failure
+  retaining that usage. It projects requirements and nice-to-haves, serializes the complete
+  library as one source, checks the 80,000-character source and 120,000-character prompt caps
+  before paid calls, then screens job and library separately through the import chunker.
+  Both are required: rejection or an incomplete screen stops analysis. It reconstructs and
+  binds the exact prompt from approved JSON; direct unknown prompts remain guarded.
+- `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` labels the
+  complete supplied context and returns text, lookups, and warnings. Labels: `R1`/`N1` for
+  requirements and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`
+  education, `C1` certification, `S1` skill, `F1` library fact. The profile summary is
+  unlabeled background, not evidence. Production callers use preparation before generation.
 - `find_gap_analysis_problems.py` — `find_gap_analysis_problems(analysis, prompt)`: missing,
   repeated, or unknown requirement labels, unknown evidence labels, met/partial without
   evidence, and labels written into the explanations or summary (the user never sees labels;
@@ -33,7 +31,8 @@ can't be invented.
 ## Local Rules
 
 - The LLM only ever sees and returns labels; ids and evidence text come from code.
-- No LLM calls here (they live in `agents/`). Fact screening is a callback the handler passes in.
+- Preparation delegates screening to the shared `screening/` policy; direct LLM calls live
+  in `agents/`. Prompt formatting and evidence attachment stay deterministic.
 
 ## Certification support
 

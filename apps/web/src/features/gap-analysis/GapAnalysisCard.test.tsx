@@ -191,6 +191,7 @@ it('shows verdicts, evidence, and the nice-to-have section', () => {
   expect(within(pythonItem as HTMLElement).getByText('Met')).toBeInTheDocument()
   expect(within(pythonItem as HTMLElement).getByText(/Built Python APIs/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Nice to have' })).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Responsibilities' })).not.toBeInTheDocument()
   expect(screen.getByText('Partly met')).toBeInTheDocument()
   expect(screen.getByText(/Compared on/)).toBeInTheDocument()
   const met = screen.getByText('5+ years of Python').closest('li') as HTMLElement

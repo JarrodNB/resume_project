@@ -14,7 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 Verdict = Literal["met", "partial", "missing"]
-RequirementKind = Literal["required", "responsibility", "nice_to_have"]
+RequirementKind = Literal["required", "nice_to_have"]
 EvidenceKind = Literal[
     "summary", "experience", "highlight", "project", "education", "certification", "skill", "fact"
 ]
@@ -24,7 +24,7 @@ class RequirementAssessment(BaseModel):
     """How well the career library covers one job requirement."""
 
     requirement_ref: str = Field(
-        description='The requirement\'s label from the prompt, e.g. "R1", "D2", or "N1".'
+        description='The requirement\'s label from the prompt, e.g. "R1" or "N1".'
     )
     verdict: Verdict = Field(
         description="met: the library clearly shows it. partial: related or weaker evidence "
@@ -41,7 +41,7 @@ class RequirementAssessment(BaseModel):
 
 
 class GapAnalysis(BaseModel):
-    """Every requirement, responsibility, and nice-to-have, each assessed once."""
+    """Every requirement and nice-to-have, each assessed once."""
 
     assessments: list[RequirementAssessment]
     summary: str = Field(
@@ -71,7 +71,7 @@ class AssessedRequirement(BaseModel):
 
 
 class GapAnalysisResult(BaseModel):
-    """The completed gap analysis: requirements, then responsibilities, then nice-to-haves."""
+    """The completed gap analysis: requirements, then nice-to-haves."""
 
     summary: str
     assessments: list[AssessedRequirement]

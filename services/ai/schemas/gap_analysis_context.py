@@ -1,6 +1,7 @@
 """
-Description: What the gap analysis agent compares: one saved job and the user's career library,
-as read from the database (database/career_library_reader.py) or built from eval cases.
+Description: Shared saved-job and career-library context read from the database or eval cases.
+Gap-analysis preparation projects only requirements and nice-to-haves; tailoring may also
+use the saved responsibilities.
 A saved job may have no company; career-library employers remain required.
 Index:
     - LibraryHighlight / LibraryExperience / LibraryProject / LibraryEducation / LibraryCertification / LibrarySkill /
@@ -110,7 +111,7 @@ class CareerLibrary(BaseModel):
 
 
 class JobToAnalyze(BaseModel):
-    """The saved job whose requirements, responsibilities, and nice-to-haves are checked."""
+    """The saved job; each workflow chooses the fields it needs for its prompt."""
 
     id: str
     title: str

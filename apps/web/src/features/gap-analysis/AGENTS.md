@@ -12,7 +12,7 @@ Adding it to the career library creates a library fact, listed on the career lib
 
 - `GapAnalysisCard.tsx` — "How you match" card: run button, live progress, failure with retry,
   completed result, using shared lifecycle state from the job page
-- `GapAnalysisResultView.tsx` — summary, verdict counts, "Requirements", "Responsibilities", and "Nice to have" lists
+- `GapAnalysisResultView.tsx` — summary, verdict counts, "Requirements" and "Nice to have" lists
 - `RequirementAssessmentItem.tsx` — `VerdictBadge` and one requirement with its evidence and,
   for a gap or partial match, `GapResponseForm.tsx` (`useSaveGapResponse.ts`). The row starts
   collapsed to the requirement and verdict (`job.<id>.gap.<requirement>`); the form stays

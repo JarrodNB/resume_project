@@ -1,9 +1,13 @@
 """Run bounded, screened content assessment and retry ungrounded evidence."""
 
 import asyncio
+from copy import deepcopy
+from dataclasses import replace
 
 from pydantic_ai import Agent, ModelRetry, RunContext, ToolOutput
+from pydantic_ai.capabilities import PrepareOutputTools
 from pydantic_ai.settings import ModelSettings
+from pydantic_ai.tools import ToolDefinition
 from pydantic_ai_harness import InputGuardrail
 
 from prompts.ats_content_instructions import ATS_CONTENT_INSTRUCTIONS, ATS_CONTENT_PROMPT_VERSION
@@ -14,6 +18,27 @@ from worker.generative_model import generative_model
 from worker.run_limits import agent_usage_limits
 from worker.tracing import record_prompt_version
 
+
+def bind_evidence_section_ids(context: RunContext[Snapshot], tools: list[ToolDefinition]):
+    """Restrict evidence to exact saved identifiers before provider serialization."""
+    section_ids = list(
+        dict.fromkeys(
+            str(section.get("id", section.get("position")))
+            for section in context.deps.content_snapshot
+        )
+    )
+    if not section_ids:
+        # Empty snapshots permit no evidence; the existing runtime validator enforces that.
+        return tools
+    prepared = []
+    for tool in tools:
+        # Schemas are shared by the agent, so bind a separate copy for each concurrent run.
+        schema = deepcopy(tool.parameters_json_schema)
+        schema["$defs"]["Evidence"]["properties"]["section_id"]["enum"] = section_ids
+        prepared.append(replace(tool, parameters_json_schema=schema))
+    return prepared
+
+
 ats_content_agent = Agent(
     name="ats_content_agent",
     deps_type=Snapshot,
@@ -21,7 +46,10 @@ ats_content_agent = Agent(
     instructions=ATS_CONTENT_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[
+        InputGuardrail(guard=screen_prompt),
+        PrepareOutputTools(bind_evidence_section_ids),
+    ],
 )
 
 

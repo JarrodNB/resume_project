@@ -5,13 +5,14 @@
       "resume_id": "00000000-0000-0000-0000-000000000001",
       "content_snapshot": [
         {
-          "id": "s1",
+          "id": "5c4738e8-5fce-54f7-97c2-df05c8ba5d0d",
           "type": "skills",
           "content": {
             "text": "Python and SQL"
           },
           "section_type": "skills",
-          "title": "Skills"
+          "title": "Skills",
+          "position": 0
         }
       ],
       "job_snapshot": {
@@ -43,12 +44,13 @@
       "resume_id": "00000000-0000-0000-0000-000000000001",
       "content_snapshot": [
         {
-          "id": "s1",
+          "id": "f556bd5b-467d-51b0-81c4-abfb1cb25e45",
           "section_type": "summary",
           "title": "Summary",
           "content": {
             "text": "Built internal API prototypes during a university Python project. No production deployment experience."
-          }
+          },
+          "position": 0
         }
       ],
       "job_snapshot": {
@@ -74,12 +76,13 @@
       "resume_id": "00000000-0000-0000-0000-000000000001",
       "content_snapshot": [
         {
-          "id": "s1",
+          "id": "80a956de-51ae-5f2e-b641-d55f2cf178aa",
           "section_type": "summary",
           "title": "Summary",
           "content": {
             "text": "Coordinated weekly community volunteering events and maintained participant records."
-          }
+          },
+          "position": 0
         }
       ],
       "job_snapshot": {

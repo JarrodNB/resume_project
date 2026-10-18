@@ -17,13 +17,29 @@ from worker.queue_messages import AiTaskMessage
 
 
 @pytest.mark.parametrize("responses", [False, True])
+@pytest.mark.parametrize("section_id", ["7bfc2d1a-59c8-4e62-9d30-e84a6130519c", "0"])
 def test_provider_requires_complete_structured_assessments(
-    task_dependencies, monkeypatch, responses
+    task_dependencies, monkeypatch, responses, section_id
 ):
+    section = {
+        "section_type": "skills",
+        "title": "Skills",
+        "position": 0,
+        "content": {"text": "Python"},
+    }
+    if section_id != "0":
+        section["id"] = section_id
     snapshot = Snapshot(
         resume_id=str(uuid4()),
         content_snapshot=[
-            {"id": "s1", "section_type": "skills", "title": "Skills", "content": {"text": "Python"}}
+            section,
+            {
+                "id": "05c02311-6ca4-49b9-a6fb-58a15d31d6fe",
+                "section_type": "summary",
+                "title": "Summary",
+                "position": 1,
+                "content": {"text": "SQL reporting"},
+            },
         ],
         job_snapshot=None,
         content_fingerprint="content",
@@ -36,7 +52,7 @@ def test_provider_requires_complete_structured_assessments(
             {
                 "key": key,
                 "status": "pass",
-                "evidence": [{"section_id": "s1", "excerpt": "Python"}],
+                "evidence": [{"section_id": section_id, "excerpt": "Python"}],
                 "explanation": "Clear",
                 "suggested_action": "",
                 "severity": "info",
@@ -137,6 +153,11 @@ def test_provider_requires_complete_structured_assessments(
     assert result.status == "completed"
     tool = seen[0]["tools"][0] if responses else seen[0]["tools"][0]["function"]
     assert tool.get("strict") is True
+    evidence_schema = tool["parameters"][chr(36) + "defs"]["Evidence"]
+    assert evidence_schema["properties"]["section_id"].get("enum") == [
+        section_id,
+        "05c02311-6ca4-49b9-a6fb-58a15d31d6fe",
+    ]
     for name in ("RequirementAssessment", "ContentCheck", "Evidence"):
         schema = tool["parameters"]["\u0024defs"][name]
         assert set(schema["required"]) == set(schema["properties"])
@@ -205,3 +226,35 @@ def test_paid_runner_rejects_false_coverage_assertions(monkeypatch):
     monkeypatch.setattr(runner, "evaluate_dataset", lambda *_args, **_kwargs: report)
     with pytest.raises(RuntimeError, match="assertion"):
         runner.run_ats_content_evals()
+
+
+def test_runtime_still_rejects_section_type_instead_of_saved_uuid():
+    from schemas.ats_content import Assessment, validate_assessment
+
+    output = Assessment(
+        requirements=[],
+        checks=[
+            {
+                "key": key,
+                "status": "pass",
+                "evidence": [{"section_id": "skills", "excerpt": "Python"}],
+                "explanation": "Supported",
+                "suggested_action": "",
+            }
+            for key in CHECK_KEYS
+        ],
+    )
+    with pytest.raises(ValueError, match="Invalid resume evidence"):
+        validate_assessment(
+            output,
+            [
+                {
+                    "id": "7bfc2d1a-59c8-4e62-9d30-e84a6130519c",
+                    "section_type": "skills",
+                    "position": 0,
+                    "title": "Skills",
+                    "content": {"text": "Python"},
+                }
+            ],
+            [],
+        )

@@ -93,6 +93,30 @@ def test_every_existing_runner_captures_native_report(monkeypatch, suite):
             assert run["configuration"]["judge_rubrics"]
 
 
+def test_report_cli_prints_without_saving_by_default(monkeypatch, tmp_path, capsys):
+    """Routine runs retain results in terminal output without creating report files."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(run_report, "run_suite", lambda *args: {
+        "model": "synthetic", "configuration": {}, "report": _report(["same"]), "error": None,
+    })
+    assert run_report.main(["resume_parsing"]) == 0
+    assert "# resume_parsing evaluation" in capsys.readouterr().out
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_save_uses_default_report_folder(monkeypatch, tmp_path):
+    """Explicit saving retains docs/evals as the usual destination."""
+    monkeypatch.setattr(run_report, "__file__", str(tmp_path / "services/ai/evals/run_report.py"))
+    original_exists = run_report.Path.exists
+    monkeypatch.setattr(run_report.Path, "exists", lambda path: False if str(path) == "/app"
+                        else original_exists(path))
+    monkeypatch.setattr(run_report, "run_suite", lambda *args: {
+        "model": "synthetic", "configuration": {}, "report": _report(["same"]), "error": None,
+    })
+    assert run_report.main(["resume_parsing", "--save"]) == 0
+    assert len(list((tmp_path / "docs/evals").glob("resume_parsing-*.md"))) == 1
+
+
 def test_successful_comparison_cli(monkeypatch, tmp_path):
     """Runs both selected models and saves aligned successful reports with exit status zero."""
     calls = []

@@ -4,7 +4,7 @@ Index:
     - SUITES: existing suites and their configured model fields
     - validate_model: rejects incompatible provider/model families before any paid run
     - run_suite: invokes existing runner and preserves failures for the artifact
-    - main: writes a collision-safe Markdown report and returns a failure status
+    - main: prints results, optionally saves Markdown, and returns a failure status
 """
 
 import argparse
@@ -81,14 +81,15 @@ def run_suite(suite, model=None):
 
 
 def main(argv=None):
-    """Parses report options, runs one/two models, and persists even failed evaluations."""
+    """Prints one/two model results; saves reports only with explicit output options."""
     parser = argparse.ArgumentParser(description=__doc__.split("Index:")[0])
     parser.add_argument("suite", choices=SUITES)
     parser.add_argument("--model", action="append", default=[], metavar="PROVIDER:MODEL",
                         help="Override model; repeat once for a side-by-side comparison")
+    parser.add_argument("--save", action="store_true",
+                        help="Save a Markdown report to docs/evals")
     parser.add_argument("--output-dir", type=Path,
-                        default=Path("/docs/evals") if Path("/app").exists()
-                        else Path(__file__).resolve().parents[3] / "docs/evals")
+                        help="Save a Markdown report to this directory instead (implies --save)")
     args = parser.parse_args(argv)
     if len(args.model) > 2:
         parser.error("Pass at most two --model options")
@@ -97,13 +98,21 @@ def main(argv=None):
             validate_model(args.suite, model)
     except ValueError as exception:
         parser.error(str(exception))
-    args.output_dir.mkdir(parents=True, exist_ok=True)
     created = datetime.now(UTC)
-    path = args.output_dir / f"{args.suite}-{created:%Y%m%dT%H%M%SZ}-{uuid4().hex}.md"
     runs = [run_suite(args.suite, model) for model in args.model or [None]]
-    with path.open("x", encoding="utf-8") as output:
-        output.write(render_report(args.suite, runs, created.isoformat()))
-    print(f"Saved evaluation report: {path}")
+    markdown = render_report(args.suite, runs, created.isoformat())
+    if args.save or args.output_dir is not None:
+        output_dir = args.output_dir or (
+            Path("/docs/evals") if Path("/app").exists()
+            else Path(__file__).resolve().parents[3] / "docs/evals"
+        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+        path = output_dir / f"{args.suite}-{created:%Y%m%dT%H%M%SZ}-{uuid4().hex}.md"
+        with path.open("x", encoding="utf-8") as output:
+            output.write(markdown)
+        print(f"Saved evaluation report: {path}")
+    else:
+        print(markdown)
     return int(any(run["error"] or report_errors(run["report"]) for run in runs))
 
 

@@ -9,6 +9,9 @@ score attached, so runs can be compared across prompt and model changes.
 ## Contents
 
 - `run_report.py` — optional report CLI for every suite; one model or aligned two-model comparison.
+  Prints results by default; `--save` writes to docs/evals, and `--output-dir` saves elsewhere.
+  Save reports only when the user requests them;
+  routine validation uses standalone runners and terminal output.
 - `report_capture.py` — isolated native report capture and eval-only model settings copies.
 - `report_markdown.py` — readable aggregates, aligned outputs/reasons and failure artifacts.
 - `report_costs.py` — report-scoped per-request usage capture and local price estimates.

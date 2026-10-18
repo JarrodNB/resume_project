@@ -3,18 +3,20 @@ Index: commands, supported suites, comparison configuration, costs, artifacts an
 
 # Evaluation reports
 
-Run any existing eval and save a readable Markdown report to this directory:
+Reports are saved only when explicitly requested. Ordinary pytest and standalone eval
+runners do not write reports here. To request a saved Markdown report, pass the
+`--save` option. Without it, the report CLI prints results without creating files:
 
 ```bash
-docker compose run --rm --no-deps ai python -m evals.run_report resume_parsing
+docker compose run --rm --no-deps ai python -m evals.run_report resume_parsing --save
 ```
 
 Use the configured defaults, select one model, or repeat `--model` for two-model comparison:
 
 ```bash
-docker compose run --rm --no-deps ai python -m evals.run_report interview_questions --model openai:gpt-5-mini --model openai:gpt-5
-docker compose run --rm --no-deps ai python -m evals.run_report library_retrieval --model openai:text-embedding-3-small --model openai:text-embedding-3-large
-docker compose run --rm --no-deps ai python -m evals.run_report user_text_screen --model typesafe:jev-1.13.0
+docker compose run --rm --no-deps ai python -m evals.run_report interview_questions --model openai:gpt-5-mini --model openai:gpt-5 --output-dir /docs/evals
+docker compose run --rm --no-deps ai python -m evals.run_report library_retrieval --model openai:text-embedding-3-small --model openai:text-embedding-3-large --output-dir /docs/evals
+docker compose run --rm --no-deps ai python -m evals.run_report user_text_screen --model typesafe:jev-1.13.0 --output-dir /docs/evals
 ```
 
 Supported suites: `resume_parsing`, `job_posting_parse`, `job_posting_extraction`,
@@ -39,7 +41,8 @@ fixed fake generator and the configured live Jev model; it rejects model overrid
 Reports align identical case names in score and raw-output/reason tables, with model labels,
 configuration, aggregates, task/total durations, assertions and detailed failure traces.
 Names contain UTC timestamps and random identifiers; repeated runs never overwrite artifacts.
-The Docker bind mount persists `/docs/evals` to this host directory. `--output-dir` changes
+The Docker bind mount persists `/docs/evals` to this host directory. `--output-dir` also opts
+into saving and changes
 the container destination; use a bind-mounted location to retain reports after container exit.
 
 Task/evaluator errors produce a saved report and nonzero exit status, including all-case

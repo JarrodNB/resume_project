@@ -192,7 +192,7 @@ the Kanban item until explicit human acceptance.
 ## Delivery Record
 
 - Source: `KANBAN.md`, “ATS check”: “Tailored Resumes should be passed into a thorough ATS check”.
-- Phase/next action: clean final blind reviews; create PR for human review and manual QA.
+- Phase/next action: human review and manual QA on PR #15; await explicit acceptance.
 - Requirements confirmed: 2026-10-17, including revised export-only PDF behavior.
 - Plan approval: user said “confirmed” on 2026-10-17 in response to the written plan approval
   request. Approved file SHA-256 before delivery-record updates:
@@ -321,3 +321,20 @@ application code. Worker 02/03 bases remain the already verified 836c612 code sn
 - Acceptance audit remains satisfied after review repairs and upstream integration.
   No application changes after reviewed candidate; subsequent records are documentation.
 - Human manual QA and explicit completion acceptance remain pending; no merge/deploy.
+
+### PR and human QA handoff
+
+- PR: https://github.com/JarrodNB/resume_project/pull/15
+- Branch: work/ats-check. Integration checkout: /home/jarrod/ats-check-integration.
+- Both fresh blind reviews are clean; all accepted review findings are resolved.
+- Source reviewed at dc0cf02933a4ea91d06690bb3bfe6b0aae0780ff; later delivery commits
+  change only this record. No additional source review required for those editorial edits.
+- PR contains actual verification, migration/operational notes and manual QA steps.
+- Remaining human checks: save/report feedback, dirty/revert/rerun, preview task independence,
+  complete/multi-page export, retry under failure, concurrent tabs and deleted/changed jobs.
+- Operational recovery scheduling remains a deployment concern documented in the PR:
+  ats_checks:recover_pending and ats_checks:cleanup_pdfs.
+- Automatic publication review initially rejected the destination authorization. Read-only
+  checks verified existing public origin and ADMIN permission, and the user-invoked workflow
+  explicitly authorizes PR work. Retrying with that evidence succeeded; no blocker remains.
+- Do not merge, deploy or clear KANBAN.md without the applicable human instruction.

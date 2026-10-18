@@ -10,6 +10,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tools import ToolDefinition
 from pydantic_ai_harness import InputGuardrail
 
+from pii import PiiRestorationError, validate_privacy_markers
 from prompts.ats_content_instructions import ATS_CONTENT_INSTRUCTIONS, ATS_CONTENT_PROMPT_VERSION
 from schemas.ats_evidence import (
     AssessmentContext,
@@ -57,6 +58,13 @@ ats_content_agent = Agent(
 
 @ats_content_agent.output_validator
 def validate_output(context: RunContext[AssessmentContext], output: AssessmentSelection):
+    try:
+        validate_privacy_markers(output, protected_source=context.deps.snapshot)
+    except PiiRestorationError:
+        raise ModelRetry(
+            "Rewrite explanatory and action text without invented or incomplete privacy markers. "
+            "Refer to protected contact details generically; keep evidence references unchanged."
+        ) from None
     try:
         expand_assessment(output, context.deps)
         return output

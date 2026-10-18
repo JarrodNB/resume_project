@@ -5,6 +5,16 @@
       "resume_id": "00000000-0000-0000-0000-000000000001",
       "content_snapshot": [
         {
+          "id": "a6ad53c0-145a-4e6e-9f6a-e42c94996a14",
+          "section_type": "contact",
+          "title": "Contact",
+          "position": 0,
+          "content": {
+            "full_name": "Jordan Taylor",
+            "email": "jordan.taylor@example.test"
+          }
+        },
+        {
           "id": "5c4738e8-5fce-54f7-97c2-df05c8ba5d0d",
           "type": "skills",
           "content": {
@@ -12,7 +22,7 @@
           },
           "section_type": "skills",
           "title": "Skills",
-          "position": 0
+          "position": 1
         }
       ],
       "job_snapshot": {

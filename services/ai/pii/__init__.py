@@ -32,6 +32,34 @@ class PiiRestorationError(ValueError):
     """A result contains an unresolved generated privacy placeholder."""
 
 
+def validate_privacy_markers(value: Any, *, protected_source: Any) -> None:
+    """Reject generated unknown or malformed tokens using only protected source text.
+
+    This pure check shares restoration token syntax without receiving the private map.
+    It never restores, strips or changes output; final session restoration stays strict.
+    """
+    allowed = {match.group() for text in _marker_strings(protected_source) for match in _TOKEN.finditer(text)}
+    for text in _marker_strings(value):
+        if "«pii:" in _TOKEN.sub("", text).casefold() or any(
+            match.group() not in allowed for match in _TOKEN.finditer(text)
+        ):
+            raise PiiRestorationError("Result contains an unresolved privacy placeholder")
+
+
+def _marker_strings(value):
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, BaseModel):
+        yield from _marker_strings(value.model_dump(mode="python"))
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            yield from _marker_strings(key)
+            yield from _marker_strings(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            yield from _marker_strings(item)
+
+
 @lru_cache(maxsize=1)
 def _analyzer():
     # Load explicitly first: Presidio's normal loader can download absent models.

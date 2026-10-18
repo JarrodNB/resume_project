@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_030100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -181,7 +181,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_030000) do
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -217,7 +217,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_030000) do
   create_table "jobs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "title", null: false
-    t.string "company", null: false
+    t.string "company"
     t.string "location"
     t.string "url"
     t.text "description"

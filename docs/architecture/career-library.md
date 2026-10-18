@@ -141,6 +141,14 @@ tailoring) instead of sending everything.
   (columns, heading names, date formats, entry boundaries), and the LLM parse costs well under
   a cent per resume.
 
+- **Saved jobs may have an unknown company.** The title stays required. Rails stores missing
+  or blank companies as null on manual creation, editing, and import; GraphQL and worker read
+  contexts preserve that absence. Views and prompt labels display **Unknown company** and
+  users can add the employer later. Career-library experience employers are unchanged.
+  Deploy the nullable database migration and tolerant consumers before a producer emits null.
+  Rollback requires real company names for existing null rows: the migration refuses to
+  restore NOT NULL until those rows are filled, without inventing names or removing jobs.
+
 - **Job scraping is deterministic and per site; the LLM only sorts scraped bullets by number.**
   Each supported job site gets its own scraper (`services/ai/scrapers/`, one site at a time)
   that reads the site's own markup or data instead of handing a whole page to an LLM.

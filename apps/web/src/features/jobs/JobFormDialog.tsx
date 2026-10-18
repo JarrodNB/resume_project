@@ -75,7 +75,7 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
           <DialogDescription>
             {job
               ? 'Requirement answers stay tied to the wording already saved.'
-              : 'Title and company are required. You can fill in the posting yourself.'}
+              : 'Title is required. You can add the company when you know it.'}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -86,7 +86,7 @@ function JobForm({ job, onClose, onCreated }: { job: JobDraft | null; onClose: (
           }}
         >
           <JobField label="Title" value={title} onChange={setTitle} required maxLength={SHORT_TEXT} />
-          <JobField label="Company" value={company} onChange={setCompany} required maxLength={SHORT_TEXT} />
+          <JobField label="Company" value={company} onChange={setCompany} maxLength={SHORT_TEXT} />
           <JobField label="Location" value={location} onChange={setLocation} maxLength={SHORT_TEXT} />
           <JobField label="Link" value={url} onChange={setUrl} type="url" maxLength={SHORT_TEXT} />
           <JobField label="Notes" value={notes} onChange={setNotes} multiline maxLength={PROSE_TEXT} />

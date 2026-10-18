@@ -105,7 +105,7 @@ def build_section_prompt(
 def job_context_text(context: GapAnalysisContext) -> str:
     """The exact job input shared by retrieval screening and generation."""
     return "\n".join([
-        f"# Job: {context.job.title} at {context.job.company}",
+        f"# Job: {context.job.title} at {context.job.company or 'Unknown company'}",
         *_bullets("Requirements", context.job.requirements),
         *_bullets("Nice to have", context.job.nice_to_haves),
     ])

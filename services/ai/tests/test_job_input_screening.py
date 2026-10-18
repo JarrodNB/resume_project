@@ -17,6 +17,28 @@ from worker.task_handlers import handle_ai_task
 pytestmark = pytest.mark.real_guardrail
 
 
+def test_unnamed_employer_import_needs_one_parse_request(task_dependencies, classifier):
+    """A real agent accepts null company and emits it without a retry."""
+    text = "AI Engineer\nRequirements\n- 5 years of Python"
+    requests = []
+
+    def answer(messages, info):
+        requests.append(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "title": "AI Engineer", "company": None,
+            "requirements": ["5 years of Python"],
+        })])
+
+    with parse_job_posting_agent.override(model=FunctionModel(answer)):
+        result = handle_ai_task(build_parse_task(text), task_dependencies)
+
+    assert result.status == "completed", result.error_message
+    assert result.result["scraped_job"]["company"] is None
+    assert result.result["scraped_job"]["requirements"] == ["5 years of Python"]
+    assert len(requests) == 1
+    assert classifier == [text]
+
+
 @pytest.fixture
 def classifier(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")

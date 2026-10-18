@@ -22,12 +22,34 @@ RSpec.describe "Job mutations" do
 
   it "returns validation errors instead of raising" do
     result = execute_graphql(<<~GQL, user: user)
-      mutation { createJob(input: { attributes: { title: "No company" } }) { job { id } errors } }
+      mutation { createJob(input: { attributes: { company: "Acme" } }) { job { id } errors } }
     GQL
 
     payload = result.dig("data", "createJob")
     expect(payload["job"]).to be_nil
-    expect(payload["errors"]).to include("Company can't be blank")
+    expect(payload["errors"]).to include("Title can't be blank")
+  end
+
+  it "creates, names, clears, and reads a job with an unknown company" do
+    created = execute_graphql(<<~GQL, user: user)
+      mutation { createJob(input: { attributes: { title: "Engineer", company: "  " } }) { job { id company } errors } }
+    GQL
+    payload = created.dig("data", "createJob")
+    expect(payload["errors"]).to eq([])
+    expect(payload["job"]["company"]).to be_nil
+    job_id = payload["job"]["id"]
+
+    [ "Acme", nil, "" ].each do |company|
+      updated = execute_graphql(<<~GQL, user: user, variables: { id: job_id, company: company })
+        mutation($id: ID!, $company: String) { updateJob(input: { id: $id, attributes: { company: $company } }) { job { company title } errors } }
+      GQL
+      expect(updated.dig("data", "updateJob", "errors")).to eq([])
+      expect(updated.dig("data", "updateJob", "job")).to eq("title" => "Engineer", "company" => company.presence)
+      expect(user.jobs.find(job_id).company).to eq(company.presence)
+    end
+
+    read = execute_graphql("query { jobs { company } }", user: user)
+    expect(read.dig("data", "jobs")).to eq([ { "company" => nil } ])
   end
 
   it "moves a job to a new stage" do

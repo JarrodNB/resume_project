@@ -1,6 +1,7 @@
 """
 Description: What the gap analysis agent compares: one saved job and the user's career library,
 as read from the database (database/career_library_reader.py) or built from eval cases.
+A saved job may have no company; career-library employers remain required.
 Index:
     - LibraryHighlight / LibraryExperience / LibraryProject / LibraryEducation / LibraryCertification / LibrarySkill /
       LibraryFact: career library entries, each with its database id
@@ -113,7 +114,7 @@ class JobToAnalyze(BaseModel):
 
     id: str
     title: str
-    company: str
+    company: str | None = None
     requirements: list[str] = Field(default_factory=list)
     responsibilities: list[str] = Field(default_factory=list)
     nice_to_haves: list[str] = Field(default_factory=list)

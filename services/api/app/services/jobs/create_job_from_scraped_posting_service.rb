@@ -2,6 +2,7 @@
 # (services/ai/schemas/scraped_job_posting.py). Runs inside AiTasks::ApplyAiResultService's row
 # lock, so a redelivered result can't create the job twice. The Job's url is the task's input url,
 # the canonical link StartJobScrapingService checks for duplicates.
+# An absent or blank company is stored as null; the title is still required.
 # Index:
 #   - call: validates the posting's shape and saves the Job; returns it, or error messages
 module Jobs
@@ -56,6 +57,7 @@ module Jobs
     # Maps the posting onto Job columns.
     def job_attributes
       @scraped_job.slice(*TEXT_FIELDS).merge(
+        "company" => @scraped_job["company"].presence,
         "url" => url,
         "requirements" => @scraped_job.fetch("requirements", []),
         "responsibilities" => @scraped_job.fetch("responsibilities", []),

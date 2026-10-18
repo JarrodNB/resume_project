@@ -1,5 +1,6 @@
 """
-Description: Checks that a parsed job ad copied its title, company, and bullets from the paste.
+Description: Checks that a parsed job ad copied its title, supplied company, and bullets
+from the paste. An unstated employer may be null.
 Index:
     - find_parsed_job_problems: messages for the agent to fix, or an empty list
 """
@@ -9,11 +10,11 @@ from schemas.parsed_job_posting import ParsedJobPosting
 
 
 def find_parsed_job_problems(parsed: ParsedJobPosting, source_text: str) -> list[str]:
-    """Returns one message per field that is blank or not present in the pasted ad."""
+    """Rejects missing titles and unsupported supplied text; a null company is valid."""
     problems: list[str] = []
     if not appears_in(parsed.title, source_text):
         problems.append("title must be copied from the advertisement")
-    if not appears_in(parsed.company, source_text):
+    if parsed.company is not None and not appears_in(parsed.company, source_text):
         problems.append("company must be copied from the advertisement")
     problems.extend(_list_problems("requirements", parsed.requirements, source_text))
     problems.extend(_list_problems("responsibilities", parsed.responsibilities, source_text))

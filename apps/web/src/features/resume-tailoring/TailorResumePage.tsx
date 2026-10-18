@@ -37,7 +37,7 @@ export function TailorResumePage() {
         <h1 className="text-2xl font-semibold tracking-tight">{job?.resume ? job.resume.title : 'Write resume'}</h1>
         {job && (
           <Link to={`/jobs/${job.id}`} className="text-muted-foreground underline-offset-4 hover:underline">
-            {job.title} at {job.company}
+            {job.title} at {job.company ?? 'Unknown company'}
           </Link>
         )}
       </div>

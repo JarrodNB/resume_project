@@ -14,7 +14,8 @@ are passed in or live in `agents/`.
   (`<h1>`-`<h6>`, an all-bold paragraph, or a short paragraph ending in ":"), classified as
   requirements, responsibilities, nice-to-haves, or other by keyword. Nice-to-have wordings win,
   then responsibilities ("responsibilities", "what you'll do", "the role"), then requirements
-- `find_parsed_job_problems.py` — title, company, and bullets must appear in a pasted ad
+- `find_parsed_job_problems.py` — title, supplied company, and bullets must appear in a pasted ad;
+  an unstated company stays null through conversion and saved-length normalization
 - `posting_from_parsed_job.py` — `ParsedJobPosting` -> `ScrapedJobPosting` (the paste is the
   description; a location or link that is not in the ad is dropped with a warning)
 - `extract_job_posting.py` — `extract_job_posting(page, sort_bullets)` -> `ScrapedJobPosting`;

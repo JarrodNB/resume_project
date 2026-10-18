@@ -50,9 +50,10 @@ RSpec.describe Jobs::CreateJobFromScrapedPostingService do
     expect(user.jobs).to be_empty
   end
 
-  it "returns validation errors for a posting without a company" do
+  it "stores a blank company as null" do
     result = described_class.call(ai_task: ai_task, scraped_job: scraped_job.merge("company" => ""))
 
-    expect(result.errors).to eq([ "Company can't be blank" ])
+    expect(result).to be_success
+    expect(result.value.reload.company).to be_nil
   end
 end

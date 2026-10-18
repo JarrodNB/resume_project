@@ -50,10 +50,10 @@ it('shows progress while the ad is read', async () => {
 it('shows the error when parsing failed', async () => {
   renderTaskPage({
     status: 'FAILED',
-    errorMessage: "We couldn't find a job title and company in that text. Paste the full ad, or add the job manually.",
+    errorMessage: "We couldn't read a faithful job title and details from that text. Paste the full ad, or add the job manually.",
   })
 
-  expect(await screen.findByText(/couldn't find a job title and company/)).toBeInTheDocument()
+  expect(await screen.findByText(/couldn't read a faithful job title and details/)).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Try another ad' })).toHaveAttribute('href', '/jobs/paste')
 })
 

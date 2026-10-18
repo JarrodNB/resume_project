@@ -12,7 +12,9 @@ class ParsedJobPosting(BaseModel):
     """Fields copied from a pasted job ad. Every string must appear in the ad."""
 
     title: str = Field(description="The job title, copied from the ad.")
-    company: str = Field(description="The hiring company, copied from the ad.")
+    company: str | None = Field(
+        default=None, description="The hiring company, copied from the ad, or null if unstated."
+    )
     location: str | None = Field(
         default=None, description="Where the job is, copied from the ad, or null if unstated."
     )

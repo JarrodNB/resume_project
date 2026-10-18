@@ -31,7 +31,7 @@ export function ResumePage() {
         <h1 className="text-2xl font-semibold tracking-tight">{resume?.title ?? 'Resume'}</h1>
         {resume?.job ? (
           <Link to={`/jobs/${resume.job.id}`} className="text-muted-foreground underline-offset-4 hover:underline">
-            {resume.job.title} at {resume.job.company}
+            {resume.job.title} at {resume.job.company ?? 'Unknown company'}
           </Link>
         ) : (
           resume && <p className="text-muted-foreground">The job for this resume was removed.</p>

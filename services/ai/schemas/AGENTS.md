@@ -33,6 +33,8 @@ the `result` sent to Rails, so changes must be mirrored there.
 
 - Give fields `description`s when the model needs guidance; they are sent to the LLM.
 - Optional fields default to `None` / empty lists so "not stated" never forces invention.
+- Saved-job contexts accept a null or absent company. Prompt labels use **Unknown company**;
+  the stored value stays null. Career-library experience companies remain required.
 
 ## Certification support
 

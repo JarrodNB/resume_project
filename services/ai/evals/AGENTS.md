@@ -48,7 +48,7 @@ score attached, so runs can be compared across prompt and model changes.
   `PostingFieldsMatch`
 - `run_job_posting_extraction_evals.py` — runner (heading split + real sorting agent):
   `docker compose run --rm ai python -m evals.run_job_posting_extraction_evals`
-- `datasets/job_posting_parse_cases.yaml` — 4 synthetic pasted ads, hand-labelled title,
+- `datasets/job_posting_parse_cases.yaml` — 5 synthetic pasted ads, including an unnamed employer, hand-labelled title,
   company, location, and verbatim requirements
 - `job_posting_parse_evaluators.py` — `PastedFieldMatch`, `PastedRequirementMatch`,
   `PastedVerbatim`

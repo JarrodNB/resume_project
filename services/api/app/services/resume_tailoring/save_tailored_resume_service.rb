@@ -53,7 +53,7 @@ module ResumeTailoring
     # One resume and its sections, in the order given.
     def create_resume(sections)
       job = @ai_task.subject
-      title = job ? "#{job.title} at #{job.company}" : "Tailored resume"
+      title = job ? "#{job.title} at #{job.company.presence || 'Unknown company'}" : "Tailored resume"
       Resume.transaction do
         resume = @ai_task.user.resumes.create!(job: job, title: title)
         sections.each_with_index do |section, index|

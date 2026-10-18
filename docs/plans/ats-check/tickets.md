@@ -188,3 +188,7 @@ Blind review results, PR and human manual QA remain pending.
 All tickets implemented and verified; both final blind reviews clean.
 PR: https://github.com/JarrodNB/resume_project/pull/15 (work/ats-check).
 Manual QA and explicit human completion acceptance remain pending. Board item retained.
+
+### Ticket 02 human QA recovery
+
+Ticket 02 is reopened as in-progress for the real-resume evidence and privacy failure. Tickets 01, 03 and 04 remain implemented. The plan delivery record tracks integrated fixes, actual synthetic evaluations, live retry results, and fresh reviews. Human acceptance remains pending; PR 15 is not yet updated with the local recovery commits.

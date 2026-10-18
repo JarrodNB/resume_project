@@ -69,7 +69,14 @@ def validate_output(context: RunContext[AssessmentContext], output: AssessmentSe
         expand_assessment(output, context.deps)
         return output
     except ValueError as error:
-        raise ModelRetry(str(error)) from error
+        title_refs = [
+            item.id for item in context.deps.evidence_catalog if item.field_path == "title"
+        ]
+        raise ModelRetry(
+            str(error) + " Use evidence_ids to select existing evidence_catalog IDs; never write "
+            "free-form quotes. A section-title reference may locate a missing field. Valid title "
+            f"reference IDs: {title_refs!r}. Correct evidence for every applicable check."
+        ) from error
 
 
 async def assess_content(prompt, snapshot, settings, *, evidence_catalog=None):

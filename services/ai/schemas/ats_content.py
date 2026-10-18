@@ -118,8 +118,8 @@ def validate_assessment(assessment, sections, requirements):
             )
         ):
             raise ValueError(
-                f"Applicable checks require evidence: {item.key}. Cite an exact excerpt from "
-                "an existing section title or content, or use unavailable only if truly inapplicable."
+                f"Applicable checks require evidence: {item.key}. Include source evidence, "
+                "or use unavailable only if truly inapplicable."
             )
     for item in assessment.checks:
         if not item.evidence and item.status == "fail" and item.absence_reason:

@@ -21,9 +21,11 @@ application stages, and deleted.
   "Try another ad"
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
   card (`features/gap-analysis/`, including gap responses), and `WriteResumeAction.tsx`.
-  "Write resume" is always shown and goes to `/jobs/:id/tailor`. A finished comparison goes
+  "Write resume" is disabled while a comparison is starting or active. Otherwise it goes
+  to `/jobs/:id/tailor`. A finished comparison goes
   straight there. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first, and
-  "Write resume anyway" continues. "Open resume" goes to `/resumes/:id` when one is already
+  "Compare first" starts the shared comparison on this page; "Write resume anyway" continues
+  without comparing. "Open resume" goes to `/resumes/:id` when one is already
   saved, and that page's breadcrumb returns here.
   requirements, responsibilities, nice-to-haves, notes, description (those cards start collapsed, remembered per
   job), the applied date once set, and a link to the original posting

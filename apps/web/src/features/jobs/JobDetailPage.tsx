@@ -11,6 +11,7 @@ import { useApolloClient } from '@apollo/client/react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
+import { useGapAnalysis } from '@/features/gap-analysis/useGapAnalysis'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { DeleteJobDialog } from './DeleteJobDialog'
@@ -25,9 +26,15 @@ import { WriteResumeAction } from './WriteResumeAction'
 /** Shows everything saved about one job, and the controls that change it. */
 export function JobDetailPage() {
   const { id = '' } = useParams()
+  return <JobDetails key={id} id={id} />
+}
+
+/** Keeps each job's edits and comparison subscription scoped to that job when routes change. */
+function JobDetails({ id }: { id: string }) {
   const navigate = useNavigate()
   const client = useApolloClient()
   const { job, loading, error } = useJob(id)
+  const comparison = useGapAnalysis(id, job?.latestGapAnalysis ?? null)
   const { save, busy, errors, clearErrors } = useSaveJob()
   const [editing, setEditing] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -83,7 +90,9 @@ export function JobDetailPage() {
               <WriteResumeAction
                 jobId={job.id}
                 resumeId={job.resume?.id ?? null}
-                comparisonFinished={job.latestGapAnalysis?.status === 'COMPLETED'}
+                comparisonFinished={comparison.completed}
+                comparisonBusy={comparison.busy}
+                onCompare={() => void comparison.start()}
               />
               {job.url && (
                 <Button asChild variant="outline" size="sm">
@@ -103,7 +112,7 @@ export function JobDetailPage() {
             busy={busy}
             errors={errors}
           />
-          <GapAnalysisCard jobId={job.id} latestGapAnalysis={job.latestGapAnalysis ?? null} gapResponses={job.gapResponses} />
+          <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
           <BulletCard
             sectionId={`job.${job.id}.requirements`}
             title="Requirements"

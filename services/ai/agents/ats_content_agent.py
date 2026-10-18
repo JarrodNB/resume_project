@@ -2,7 +2,7 @@
 
 import asyncio
 
-from pydantic_ai import Agent, ModelRetry, RunContext
+from pydantic_ai import Agent, ModelRetry, RunContext, ToolOutput
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai_harness import InputGuardrail
 
@@ -17,7 +17,7 @@ from worker.tracing import record_prompt_version
 ats_content_agent = Agent(
     name="ats_content_agent",
     deps_type=Snapshot,
-    output_type=Assessment,
+    output_type=ToolOutput(Assessment, strict=True),
     instructions=ATS_CONTENT_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,

@@ -77,10 +77,17 @@ def validate_assessment(assessment, sections, requirements):
     """Reject omitted/duplicate rubric items and quotations absent from their section."""
     ids = [item.requirement_id for item in assessment.requirements]
     keys = [item.key for item in assessment.checks]
-    if sorted(ids) != sorted(str(item["id"]) for item in requirements) or sorted(keys) != sorted(
-        CHECK_KEYS
-    ):
-        raise ValueError("Incomplete or duplicate rubric coverage")
+    expected_ids = sorted(str(item["id"]) for item in requirements)
+    if sorted(ids) != expected_ids:
+        raise ValueError(
+            "Incomplete or duplicate requirement coverage; return exactly these ids once: "
+            + repr(expected_ids)
+        )
+    if sorted(keys) != sorted(CHECK_KEYS):
+        raise ValueError(
+            "Incomplete or duplicate check coverage; return exactly these keys once: "
+            + repr(list(CHECK_KEYS))
+        )
     sources = {
         str(section.get("id", section.get("position"))): list(
             _text_values({"title": section.get("title"), "content": section.get("content")})
@@ -110,7 +117,10 @@ def validate_assessment(assessment, sections, requirements):
                 and item.absence_reason.strip()
             )
         ):
-            raise ValueError("Applicable checks require evidence")
+            raise ValueError(
+                f"Applicable checks require evidence: {item.key}. Cite an exact excerpt from "
+                "an existing section title or content, or use unavailable only if truly inapplicable."
+            )
     for item in assessment.checks:
         if not item.evidence and item.status == "fail" and item.absence_reason:
             if item.key == "section_labels" and any(

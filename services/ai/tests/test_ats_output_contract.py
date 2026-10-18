@@ -1,0 +1,185 @@
+"""Exercise the ATS provider tool contract and grounded validation retry feedback offline."""
+
+import json
+from dataclasses import replace
+from uuid import uuid4
+
+import httpx
+import pytest
+from pydantic_ai import models
+from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
+from pydantic_ai.providers.openai import OpenAIProvider
+
+from schemas.ats_content import CHECK_KEYS, Snapshot
+from screening.screen_user_text import ScreenOutcome
+from worker.ats_content_handler import handle_ats_content_task
+from worker.queue_messages import AiTaskMessage
+
+
+@pytest.mark.parametrize("responses", [False, True])
+def test_provider_requires_complete_structured_assessments(
+    task_dependencies, monkeypatch, responses
+):
+    snapshot = Snapshot(
+        resume_id=str(uuid4()),
+        content_snapshot=[
+            {"id": "s1", "section_type": "skills", "title": "Skills", "content": {"text": "Python"}}
+        ],
+        job_snapshot=None,
+        content_fingerprint="content",
+        job_fingerprint=None,
+        rubric_version="1",
+    )
+    output = {
+        "requirements": [],
+        "checks": [
+            {
+                "key": key,
+                "status": "pass",
+                "evidence": [{"section_id": "s1", "excerpt": "Python"}],
+                "explanation": "Clear",
+                "suggested_action": "",
+                "severity": "info",
+                "absence_reason": None,
+            }
+            for key in CHECK_KEYS
+        ],
+    }
+    seen = []
+
+    def reply(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        tool = body["tools"][0] if responses else body["tools"][0]["function"]
+        if responses:
+            return httpx.Response(
+                200,
+                json={
+                    "id": "resp-synthetic",
+                    "object": "response",
+                    "created_at": 1,
+                    "status": "completed",
+                    "model": "gpt-5-mini",
+                    "output": [
+                        {
+                            "type": "function_call",
+                            "id": "fc-1",
+                            "call_id": "call-1",
+                            "name": tool["name"],
+                            "arguments": json.dumps(output),
+                        }
+                    ],
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 10,
+                        "total_tokens": 20,
+                        "input_tokens_details": {"cached_tokens": 0},
+                        "output_tokens_details": {"reasoning_tokens": 0},
+                    },
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "synthetic",
+                "object": "chat.completion",
+                "created": 1,
+                "model": "gpt-5-mini",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call-1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": tool["name"],
+                                        "arguments": json.dumps(output),
+                                    },
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 10, "total_tokens": 20},
+            },
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(reply))
+    model = (OpenAIResponsesModel if responses else OpenAIChatModel)(
+        "gpt-5-mini", provider=OpenAIProvider(api_key="offline", http_client=client)
+    )
+    monkeypatch.setattr(models, "ALLOW_MODEL_REQUESTS", True)
+    monkeypatch.setattr("agents.ats_content_agent.generative_model", lambda *_: model)
+    monkeypatch.setattr(
+        "worker.ats_content_handler.screen_user_text",
+        lambda *_args, **_kwargs: ScreenOutcome(allowed=True),
+    )
+    task = AiTaskMessage(
+        ai_task_id=uuid4(),
+        user_id=uuid4(),
+        task_type="check_resume_content",
+        input={
+            "run_id": str(uuid4()),
+            "resume_id": snapshot.resume_id,
+            "content_fingerprint": "content",
+            "job_fingerprint": None,
+            "rubric_version": "1",
+        },
+    )
+    result = handle_ats_content_task(
+        task, replace(task_dependencies, read_ats_snapshot=lambda *_: snapshot)
+    )
+    assert result.status == "completed"
+    tool = seen[0]["tools"][0] if responses else seen[0]["tools"][0]["function"]
+    assert tool.get("strict") is True
+    for name in ("RequirementAssessment", "ContentCheck", "Evidence"):
+        schema = tool["parameters"]["\u0024defs"][name]
+        assert set(schema["required"]) == set(schema["properties"])
+        assert schema["additionalProperties"] is False
+
+
+def test_retry_feedback_identifies_omitted_requirements_without_relaxing_coverage():
+    from schemas.ats_content import Assessment, validate_assessment
+
+    output = Assessment(
+        requirements=[],
+        checks=[
+            {
+                "key": key,
+                "status": "pass",
+                "evidence": [{"section_id": "s1", "excerpt": "Python"}],
+                "explanation": "Supported",
+                "suggested_action": "",
+            }
+            for key in CHECK_KEYS
+        ],
+    )
+    with pytest.raises(ValueError, match="r1.*r2"):
+        validate_assessment(
+            output, [{"id": "s1", "content": {"text": "Python"}}], [{"id": "r1"}, {"id": "r2"}]
+        )
+
+
+def test_retry_feedback_names_the_applicable_check_missing_evidence():
+    from schemas.ats_content import Assessment, validate_assessment
+
+    output = Assessment(
+        requirements=[],
+        checks=[
+            {
+                "key": key,
+                "status": "pass",
+                "evidence": [] if key == "dates" else [{"section_id": "s1", "excerpt": "Python"}],
+                "explanation": "Supported",
+                "suggested_action": "",
+            }
+            for key in CHECK_KEYS
+        ],
+    )
+    with pytest.raises(ValueError, match="dates"):
+        validate_assessment(output, [{"id": "s1", "content": {"text": "Python"}}], [])

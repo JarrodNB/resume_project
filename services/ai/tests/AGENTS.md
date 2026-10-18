@@ -6,6 +6,11 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_screening_recovery.py` — real sync/async screening and queued required-input tasks:
+  timeout cancellation, fallback decisions, deadlines, limits, and per-model retry costs.
+- `test_user_text_fallback_evals.py` — shared synthetic labels and outage handling through
+  the dedicated boolean fallback evaluation runner.
+
 - `test_conversation_logging_reliability.py` — nested/fallback calls, generations, redelivery,
   original publication errors, logging isolation and independent-process append integrity.
 - `test_conversation_logging.py` — real task/model transcript capture, user/job/set/task

@@ -28,7 +28,10 @@ instructions from `prompts/`.
   returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
 - `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (two bool questions on
   `typesafe:jev-1.13.0`); `screen_user_message` returns the screen, model name, confidence, and
-  usage. No generative fallback
+  usage. The screening policy owns outage fallback, not this agent
+- `user_text_fallback_agent.py` — same two safety questions as strict booleans on the separate
+  screening fallback model. Either true blocks; no fabricated JEV confidence. Exempt from
+  input screening to prevent recursion; concrete requests use normal task accounting
 - `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
   validator retries with `find_section_problems`; `write_resume_section_async` supports
   concurrent draft generation and `write_resume_section` remains a standalone sync entry.
@@ -41,7 +44,7 @@ instructions from `prompts/`.
   constructor. The guard enforces current-execution coverage before generation. Trusted
   builders bind exact prompts to screened source values; unknown direct input and history
   are screened, while approved sources do not incur a second assembled-prompt pass.
-  Keep existing structured-output validators. Jev is exempt to prevent recursion.
+  Keep existing structured-output validators. Both safety classifiers are exempt to prevent recursion.
 - Create agents with `defer_model_check=True` and pass the model per run (from
   `WorkerSettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.
@@ -54,7 +57,7 @@ instructions from `prompts/`.
   output together with the run's `RunUsage` and the model name to bill, so handlers can report
   cost for the model that answered.
 - Generative runs take `fallback_model` and call `generative_model` (primary, then
-  `gpt-5-nano` on a provider error). The Jev screen does not.
+  `gpt-5-nano` on a provider error). Safety screening has its own recovery policy.
 - Each run stamps its prompt version with `record_prompt_version`.
 - Every agent has an eval dataset and runner in `evals/`.
 

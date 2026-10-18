@@ -1,6 +1,6 @@
 """
 Description: Pydantic AI agent that asks Jev two yes/no questions about one user-written
-message. There is no generative model behind it: a failed call fails closed in the caller.
+message. The screening policy owns recovery; this agent only runs JEV with a three-second cap.
 Index:
     - user_text_screen_agent: the agent (model chosen per run; output UserTextScreen)
     - UserTextScreenRun: the judgement, the response's model name, and token usage
@@ -28,6 +28,7 @@ from worker.tracing import record_prompt_version
 # The default bar. yes_probability() recovers P(yes) from this and the reported margin.
 # screening/yes_confidence.py must use the same value.
 BOOLEAN_THRESHOLD = 0.5
+JEV_REQUEST_TIMEOUT_SECONDS = 3.0
 
 user_text_screen_agent = Agent(
     name="user_text_screen_agent",
@@ -55,7 +56,7 @@ def screen_user_message(text: str, model: str, timeout_seconds: float) -> UserTe
 
 async def screen_user_message_async(text: str, model: str, timeout_seconds: float) -> UserTextScreenRun:
     """Runs the agent, cancelling it once timeout_seconds have passed."""
-    async with asyncio.timeout(timeout_seconds):
+    async with asyncio.timeout(min(JEV_REQUEST_TIMEOUT_SECONDS, timeout_seconds)):
         with record_prompt_version(USER_TEXT_SCREEN_PROMPT_VERSION):
             result = await user_text_screen_agent.run(
                 text,

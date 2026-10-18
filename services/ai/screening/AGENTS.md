@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Decide whether user-written text may enter a prompt. Jev answers two yes/no questions; code
-applies the threshold. This is not a second classifier and it does not choose allow or block.
+Decide whether user-written text may enter a prompt. JEV answers two yes/no questions; code
+applies the confidence threshold. After an attempted JEV failure, a separate Nano classifier
+answers strict booleans. Screening owns recovery and returns a small decision interface.
 
 ## Contents
 
@@ -12,11 +13,15 @@ applies the threshold. This is not a second classifier and it does not choose al
   and screens unknown direct input and user/tool history, under the prompt cap. Blocks fail
   with `InputBlocked`; usage caps propagate. No phrase prefilter on assembled context.
 - `guardrail_usage.py` — task-scoped capability usage accounting, including blocked runs.
-- `screen_user_text.py` — `screen_user_text`: a string over the screen cap returns not allowed
-  with `too_long` and does not call Jev. Then the phrase check (skipped for a whole resume),
-  then Jev, then the 0.7 yes-confidence threshold. A missing key or a Jev error returns not
-  allowed with `unchecked` and does not send the text. A request, tool-call, or token cap is
-  re-raised. Blank text is allowed without a call
+- `screen_user_text.py` — text over the cap returns `too_long` without any provider call.
+  A short note gets a phrase prefilter; whole resumes skip it. JEV gets at most three
+  seconds and keeps the 0.7 confidence bar. Attempted JEV failures use the configured
+  safety fallback on the same protected chunk within remaining time. Either fallback
+  boolean being true blocks. Missing credentials call neither provider; failed recovery
+  returns `unchecked`. Limits and cancellation propagate. Blank text is free.
+  `model_usages` retains completed calls by model; compatibility totals exist only for
+  single-model passes. Cached decisions return no usage. Worker request accounting remains
+  authoritative for failed runs and output-validation retries.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 
@@ -42,8 +47,8 @@ applies the threshold. This is not a second classifier and it does not choose al
   reused content again. Required inputs fail closed; optional entries can be omitted.
 - Never grant coverage by substring matching, a persisted approval, or a caller-controlled
   boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
-- Jev must not carry its own input guardrail (that would recurse).
+- Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative
   provider. Independent source checks may overlap with a bounded concurrency limit.
   Concurrent checks of the same exact source and policy share one execution-local decision.
-- Report Jev `ModelUsage` on the task result when a call was made.
+- Report each actual classifier model's usage, including retries and calls before failure.

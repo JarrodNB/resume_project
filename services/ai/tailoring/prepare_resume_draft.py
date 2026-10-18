@@ -11,12 +11,12 @@ from uuid import UUID
 
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import GapAnalysisContext
+from screening.guardrail_usage import collect_guardrail_usage
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import current_session, remaining_timeout, screening_session
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
 from tailoring.labeled_sources import label_sources
 from tailoring.retrieve_for_section import retrieve_source_keys_async
-from worker.model_prices import build_model_usage
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -65,21 +65,18 @@ class PreparedResumeDraft:
     _session: object = field(default_factory=current_session, repr=False)
 
     async def _screen(self, texts: Sequence[str]) -> None:
-        async def classify(text, model, timeout):
-            run = await screen_user_message_async(text, model, timeout)
-            # Record each actual chunk immediately, including chunks before cancellation.
-            self._usage.append(build_model_usage(run.model_name, run.usage))
-            return run
-
         async def check(text):
             if text not in self._decisions:
                 self._decisions[text] = await screen_user_text_async(
                     text, self._settings.user_text_screen_model,
                     remaining_timeout(self._settings.llm_run_timeout_seconds),
-                    check_phrases=True, classify=classify,
+                    check_phrases=True, classify=screen_user_message_async,
                 )
 
-        await _bounded(list(dict.fromkeys(texts)), check, self._concurrency)
+        # Shared screening records both classifiers immediately, including completed
+        # chunks before a later block or cancellation. Cached decisions add no charge.
+        with collect_guardrail_usage(self._usage):
+            await _bounded(list(dict.fromkeys(texts)), check, self._concurrency)
 
     def _prompt(self, section_type, selected_sections, selected_labels=None):
         return build_section_prompt(

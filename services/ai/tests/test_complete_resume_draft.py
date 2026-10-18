@@ -95,6 +95,60 @@ def test_one_task_returns_ordered_complete_editable_draft(generation):
     assert "Synthetic Candidate" not in seen[-1][1]
 
 
+@pytest.mark.real_guardrail
+@pytest.mark.parametrize("queued", [False, True])
+def test_complete_draft_recovery_keeps_each_classifier_cost_once(
+    generation, monkeypatch, offline_model_resolution, queued,
+):
+    """Shared async preparation recovers through Nano and reports its actual model price."""
+    import json
+
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    from agents.user_text_screen_agent import screen_user_message_async
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+
+    dependencies, _, _, model = generation
+    calls = {"jev": 0, "nano": 0}
+
+    def jev(messages, info):
+        calls["jev"] += 1
+        if calls["jev"] > 1:
+            raise ModelHTTPError(503, "jev-1.13.0", "unavailable")
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"prompt_injection": False, "harmful_request": False})],
+            model_name="jev-1.13.0", usage=RunUsage(input_tokens=7),
+            provider_details={"confidence": {"prompt_injection": 1., "harmful_request": 1.}})
+
+    def nano(messages, info):
+        calls["nano"] += 1
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"prompt_injection": False, "harmful_request": False})],
+            model_name="openai:gpt-5-nano", usage=RunUsage(input_tokens=13, output_tokens=2))
+
+    monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", screen_user_message_async)
+    offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(jev, model_name="jev-1.13.0"))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(nano, model_name="openai:gpt-5-nano"))
+    offline_model_resolution(dependencies.settings.resume_tailoring_model, model)
+    message = task()
+    if queued:
+        queue = FakeResultQueue()
+        assert process_task_message(message.model_dump_json(), 1, queue, dependencies)
+        result = json.loads(queue.sent_bodies[-1])
+        assert result["usage_incomplete"]  # Failed JEV requests have unknown usage.
+    else:
+        with resume_tailoring_agent.override(model=model):
+            result = handle_ai_task(message, dependencies).model_dump()
+    assert result["status"] == "completed", result
+    assert len(result["result"]["sections"]) == 6
+    usage = result["usage"]
+    assert calls["nano"] > 1
+    assert len(usage) == 1 + calls["nano"] + 4
+    assert sum(entry["input_tokens"] for entry in usage if entry["model"] == "jev-1.13.0") == 7
+    assert sum(entry["input_tokens"] for entry in usage if entry["model"] == "openai:gpt-5-nano") == calls["nano"] * 13
+
+
 def test_copied_credentials_keep_descriptions_and_stated_date_precision(generation):
     dependencies, context, seen, model = generation
     context.career_library.educations[0].description = "Completed a research thesis."

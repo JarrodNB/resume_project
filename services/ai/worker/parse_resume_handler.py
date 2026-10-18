@@ -139,7 +139,5 @@ def _screen_resume_text(text: str, model: str, timeout_seconds: float) -> Screen
 
 
 def _screen_usage(screen: ScreenOutcome) -> list[ModelUsage]:
-    """Jev usage to report when a call was made. The phrase list makes none."""
-    if screen.usage is None or screen.model is None:
-        return []
-    return [build_model_usage(screen.model, screen.usage)]
+    """Classifier usage to report when a call was made. The phrase list makes none."""
+    return screen.model_usages

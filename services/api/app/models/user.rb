@@ -1,4 +1,4 @@
-# Description: An account holder. Authenticates with Devise; API requests carry a JWT.
+# Description: An account holder. Authenticates with Devise; API requests use server-side browser sessions.
 # Index:
 #   - profile columns: name, contact_email, phone, location, links, summary
 #   - career library: experiences, projects, educations (most recent first), certifications (issued date), skills (by position),
@@ -6,8 +6,7 @@
 #   - jobs, resumes, ai_tasks, interview_question_sets
 #   - library_embeddings: vectors of the career library entries (derived data)
 class User < ApplicationRecord
-  devise :database_authenticatable, :registerable, :validatable,
-         :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
+  devise :database_authenticatable, :registerable, :validatable
 
   has_many :experiences, -> { most_recent_first }, dependent: :destroy
   has_many :projects, -> { most_recent_first }, dependent: :destroy

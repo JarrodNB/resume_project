@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# Description: Devise config. Mostly generated defaults; the "API-only + JWT" block at the
-# bottom configures token auth (secret from DEVISE_JWT_SECRET_KEY, 1-day expiry).
+# Description: Devise account defaults and JSON responses. Rails sessions carry browser identity.
 #
 # Assuming you have not yet modified this file, each configuration option below
 # is set to its default value. Note that some are commented out while others
@@ -317,12 +316,6 @@ Devise.setup do |config|
   # changed. Defaults to true, so a user is signed in automatically after changing a password.
   # config.sign_in_after_change_password = true
 
-  # ==> API-only + JWT
+  # ==> JSON API responses
   config.navigational_formats = []
-
-  config.jwt do |jwt|
-    jwt.secret = ENV["DEVISE_JWT_SECRET_KEY"].presence || Rails.application.secret_key_base
-    jwt.expiration_time = 1.day.to_i
-    jwt.dispatch_requests = [ [ "POST", %r{\A/auth/sign_up\z} ] ]
-  end
 end

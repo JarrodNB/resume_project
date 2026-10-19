@@ -1,0 +1,109 @@
+# Browser authentication
+
+Devise owns account identity and password checks. Rails owns browser sessions,
+CSRF tokens, and cookies. The web app never receives a session credential in JSON
+and never stores one in localStorage.
+
+## Session transport
+
+`GET /auth/session` returns safe account fields, or `user: null`, plus a Rails
+`csrfToken`. It is also the startup check when the browser refreshes. A network
+failure is retryable and does not establish an authenticated session.
+
+Auth calls and GraphQL requests include browser credentials. Unsafe requests send
+`X-CSRF-Token`, including login, signup, logout, and multipart uploads. Login and
+signup return safe account state and a fresh CSRF token. Authenticated HTTP work
+uses Devise's `current_user`; domain reads/writes remain scoped to that user.
+Responses containing session state are not cacheable.
+
+Each successful session transition replaces the Apollo cache and closes the old
+socket. A BroadcastChannel sends only a change notification to other browser tabs;
+they discard their old session view and bootstrap again before rendering routes.
+An outdated bootstrap response cannot restore the previous account.
+
+The session store is Rails-maintained `activerecord-session_store` 2.3.0 with JSON
+serialization and `secure_session_only`. It stores opaque session IDs as private
+digests in the primary database, rather than accepting browser-supplied account
+state. This uses the library's standard store and Devise's session serialization;
+there is no separate token protocol. The dependency's tagged constraints support
+the app's Rails/Rack versions; app request and connection tests verify integration.
+
+The `_careergrind_session` cookie is HttpOnly, host scoped, and SameSite Lax.
+Production requires Secure cookies and HTTPS. Local HTTP development omits Secure.
+The cookie lifetime is one day. A persisted authentication timestamp also enforces
+an absolute one-day authentication limit, even when repeated requests extend the
+cookie expiry. Session state is rotated on authentication and destroyed on logout.
+
+HTTP and Cable use the shared persisted-session identity service. It checks the
+stored authentication time and Devise's serialized user/password salt. `/cable`
+uses the browser cookie, not a URL token. The channel checks validity before each
+operation and private transmission. The regular Cable heartbeat closes invalid
+connections; delivery checks block private updates before that heartbeat runs.
+
+## Origins and deployment
+
+Set `CORS_ORIGINS` to explicit HTTP(S) web origins separated by commas; the default
+is `http://localhost:5173`. CORS allows credentials only from those origins. The
+same list is used for trusted cross-origin CSRF and Cable checks. Do not use `*`
+or disable forgery protection to make a deployment work.
+
+Deploy the web app and API under the same site, such as HTTPS subdomains of the
+same domain, or route both through one origin. Separate local ports are same-site.
+Unrelated hosting domains are incompatible with the chosen SameSite policy.
+Configure HTTPS termination/proxy forwarding consistently with production Rails
+SSL settings. Keep application secrets stable across API replicas; keep them out
+of committed configuration.
+
+The session table is in the primary Rails database. Restrict database access and
+retain existing limited AI-reader grants; the AI worker needs no session access.
+The database must be available for authentication. Cache eviction cannot grant
+access or silently become a fallback authentication store.
+
+## Cleanup and operations
+
+Session lookup uses a unique session-ID index. Schedule the gem's cleanup task
+daily, using a retention period longer than the one-day authentication lifetime:
+
+```bash
+docker compose run --rm -e SESSION_DAYS_TRIM_THRESHOLD=2 api bin/rails db:sessions:trim
+```
+
+The default cleanup threshold is 30 days. Cleanup bounds stored anonymous and
+expired state; it does not replace authentication-time expiry checks. Monitor
+session table growth, bootstrap throttling, database errors, and authentication
+failures without logging cookies, passwords, or CSRF secrets. A session-store
+outage must not grant access. Recover the database, then let the browser retry.
+
+## Cutover and rollback
+
+Apply the additive session migration before deploying the new API and web bundle.
+Deploy their transport changes together. Users sign in once again; existing
+account IDs, passwords, and saved domain data remain intact. The frontend removes
+legacy localStorage JWTs. HTTP bearer tokens and Cable URL tokens no longer grant
+access; legacy denylist records can remain in the database during this migration.
+
+If rollback is necessary, roll back web and API together and preserve the additive
+session table. A rollback to the old JWT implementation must use a newly rotated
+JWT signing secret so pre-cutover tokens cannot regain access. Explicitly configure
+that secret; do not fall back to the old `secret_key_base`. This forces fresh login
+on rollback as well. Stop/drain existing Cable connections during deployment.
+Do not drop accounts, password hashes, or domain data as a rollback step.
+
+## Verification
+
+Request tests cover actual cookie login and logout, CSRF, expiry, replay, trusted
+origins, and uploads. Channel tests cover persisted-session identity and blocked
+delivery after invalidation. Frontend tests cover bootstrap, credentials, CSRF,
+navigation, and per-session cache/connection replacement. Use Docker checks from
+[testing](../testing.md). Human browser QA should exercise two accounts, refresh,
+logout with a live subscription, an expired session, and a resume upload.
+
+Email verification/recovery and stronger password rules are separate account-flow
+changes; this transport migration does not enable them by itself.
+
+## References
+
+- [Rails session stores](https://guides.rubyonrails.org/v8.1/action_controller_overview.html#session-stores)
+- [Session store release and source](https://github.com/rails/activerecord-session_store/releases/tag/v2.3.0)
+- [Session store configuration and cleanup](https://github.com/rails/activerecord-session_store/tree/v2.3.0)
+- [Devise](https://github.com/heartcombo/devise)

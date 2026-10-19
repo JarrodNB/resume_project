@@ -9,7 +9,7 @@ over feature breadth or market positioning.
 
 ## In Scope
 
-1. **Auth** — sign up / log in (Devise + JWT).
+1. **Auth** — sign up / log in (Devise + server-side browser sessions).
 2. **Career library** — upload a PDF/DOCX (AI parses it into experiences, projects, education,
    skills, contact details, and summary) or fill out a form. The library is the base; there
    is no separate base resume to drift out of sync with it. Later, the AI helps rewrite library

@@ -12,6 +12,7 @@ class GraphqlChannel < ApplicationCable::Channel
 
   # Runs a GraphQL operation as the connected user and transmits the result.
   def execute(data)
+    return connection.check_session unless connection.session_valid?
     result = ApiSchema.execute(
       data["query"],
       variables: data["variables"] || {},
@@ -20,6 +21,12 @@ class GraphqlChannel < ApplicationCable::Channel
     )
     @subscription_ids << result.context[:subscription_id] if result.context[:subscription_id]
     transmit({ result: result.to_h, more: result.subscription? })
+  end
+
+  # Subscription broadcasts bypass execute; guard their delivery as well.
+  def transmit(data, **options)
+    return connection.check_session unless connection.session_valid?
+    super
   end
 
   # Cleans up every GraphQL subscription opened on this channel.

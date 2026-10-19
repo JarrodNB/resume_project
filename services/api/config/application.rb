@@ -40,6 +40,11 @@ module Api
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
 
+    config.middleware.use ActionDispatch::Cookies
+    config.session_store :active_record_store, key: "_careergrind_session", expire_after: 1.day,
+      httponly: true, secure: Rails.env.production?, same_site: :lax, secure_session_only: true
+    config.middleware.use config.session_store, config.session_options
+
     # WebSocket origins match the CORS origins (see config/initializers/cors.rb).
     config.action_cable.allowed_request_origins = ENV.fetch("CORS_ORIGINS", "http://localhost:5173").split(",")
 

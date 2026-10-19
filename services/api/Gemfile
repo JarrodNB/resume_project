@@ -29,7 +29,6 @@ gem "image_processing", "~> 1.2"
 gem "rack-cors"
 
 gem "devise"
-gem "devise-jwt"
 
 gem "graphql"
 
@@ -60,3 +59,5 @@ gem "rack-attack", "~> 6.8"
 
 gem "neighbor", "~> 1.2"
 gem "openai", "~> 0.99.0"
+
+gem "activerecord-session_store", "~> 2.3"

@@ -11,12 +11,13 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
   finalized reports are immutable and independent of task outcome.
 
-- `user.rb` — account (Devise + JWT); owns everything below. Profile columns (`name`,
+- `user.rb` — account (Devise + Rails sessions); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. Nullable
   `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
   the global AI usage limits
-- `jwt_denylist.rb` — revoked tokens (sign-out)
+- `jwt_denylist.rb` — legacy token records retained for migration safety; browser
+  authentication no longer accepts JWTs.
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
   - `project.rb`, `education.rb`, `skill.rb`

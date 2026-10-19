@@ -12,7 +12,7 @@ RSpec.describe GraphqlChannel, type: :channel do
 
   # Subscribes to the channel as `as_user` and runs the aiTaskUpdated subscription.
   def subscribe_to_ai_task(as_user:)
-    stub_connection current_user: as_user
+    stub_connection current_user: as_user, session_valid?: true, check_session: nil
     subscribe
     perform :execute, "query" => subscription_query, "variables" => { "id" => ai_task.id }
     transmissions.last
@@ -30,5 +30,23 @@ RSpec.describe GraphqlChannel, type: :channel do
 
     expect(transmission["result"]["errors"].first["message"]).to eq("Record not found")
     expect(transmission["result"]["data"]).to be_nil
+  end
+
+  it "blocks private delivery and new operations when an open session is revoked" do
+    session_id = Rack::Session::SessionId.new(SecureRandom.hex(32))
+    record = ActiveRecord::SessionStore::Session.create!(session_id: session_id.private_id,
+      data: { "warden.user.user.key" => User.serialize_into_session(user), "authenticated_at" => Time.current.to_i })
+    subscribe_to_ai_task(as_user: user)
+    allow(connection).to receive(:session_valid?) do
+      BrowserSessions::ResolveSessionIdentityService.call(session_id: session_id).success?
+    end
+    allow(connection).to receive(:check_session)
+    record.destroy!
+    previous = transmissions.size
+    subscription.transmit({ result: { data: { private: "must not arrive" } } })
+    expect(ApiSchema).not_to receive(:execute)
+    perform :execute, "query" => "{ me { email } }"
+    expect(transmissions.size).to eq(previous)
+    expect(connection).to have_received(:check_session).twice
   end
 end

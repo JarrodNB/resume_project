@@ -2,7 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "Resume deletion authentication", type: :request do
-  it "rejects deletion without a token and preserves the resume" do
+  it "rejects deletion without a session and preserves the resume" do
     resume = create(:resume)
 
     post "/graphql",

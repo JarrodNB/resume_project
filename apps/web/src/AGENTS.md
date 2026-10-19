@@ -12,7 +12,7 @@ Source of the web app, organized by feature.
 - `index.css` — Tailwind + shadcn theme variables: warm paper and forest ink in light
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
-- `features/auth/` — sign-in/up pages, session (JWT) context, route guards
+- `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
@@ -39,8 +39,9 @@ Source of the web app, organized by feature.
 
 ## Local Rules
 
-- Auth: the JWT is kept in localStorage and sent as `Authorization: Bearer` over HTTP and as
-  `?token=` on the `/cable` WebSocket. A 401 from GraphQL ends the session.
+- Auth uses an HttpOnly cookie. Bootstrap retrieves safe user state and a CSRF token;
+  HTTP requests send credentials and unsafe requests include the Rails CSRF header.
+  WebSockets use the same cookie, without URL credentials. A GraphQL 401 ends local auth.
 - Signing in or out replaces the Apollo client, so no cached data leaks between users.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

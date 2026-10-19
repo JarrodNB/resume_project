@@ -10,9 +10,9 @@ import { useAuth } from './useAuth'
 
 /** Redirects to /sign-in (remembering where the user was going) when there is no session. */
 export function RequireAuth() {
-  const { token } = useAuth()
+  const { user } = useAuth()
   const location = useLocation()
-  if (!token) return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />
+  if (!user) return <Navigate to="/sign-in" replace state={{ from: location.pathname }} />
   return <Outlet />
 }
 
@@ -21,8 +21,8 @@ export function RequireAuth() {
  * these pages doesn't trigger it, so the page itself decides where to go next.
  */
 export function RequireSignedOut() {
-  const { token } = useAuth()
-  const [signedInOnArrival] = useState(token !== null)
+  const { user } = useAuth()
+  const [signedInOnArrival] = useState(user !== null)
   if (signedInOnArrival) return <Navigate to="/" replace />
   return <Outlet />
 }

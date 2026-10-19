@@ -1,6 +1,6 @@
 /**
- * Description: One entry in the career library (a role, project, or school), tinted with its
- * section's color.
+ * Description: One entry in the career library (a role, project, or school), separated by a quiet
+ * rule so the career evidence stays more prominent than its container.
  * Index:
  *   - LibraryEntry: heading, subheading, date range, description, optional actions, and extra content
  */
@@ -21,7 +21,7 @@ interface LibraryEntryProps {
 /** Renders a library entry; empty optional parts are left out. */
 export function LibraryEntry({ tone, heading, subheading, dates, description, actions, children }: LibraryEntryProps) {
   return (
-    <article className={cn('grid gap-1 rounded-lg border p-3', SECTION_TONES[tone].entry)}>
+    <article className={cn('grid gap-1 border-t py-5', SECTION_TONES[tone].entry)}>
       <div className="flex items-start gap-2">
         <div className="flex flex-1 flex-wrap items-baseline justify-between gap-x-4">
           <h3 className="font-medium">{heading}</h3>

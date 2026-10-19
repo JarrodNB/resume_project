@@ -3,10 +3,11 @@
  * Index:
  *   - ResumesPage: page component
  */
+import { ArrowUpRight, FileText } from 'lucide-react'
 import { Link } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { PageHeading } from '@/components/PageHeading'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useResumes } from './useResumes'
 
@@ -16,33 +17,30 @@ export function ResumesPage() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Resumes</h1>
-        <p className="text-muted-foreground">Resumes you've written for a job. Newest changes first.</p>
-      </div>
+      <PageHeading title="Resumes" description="Your experience, shaped for each opportunity. Open a draft to review, refine, and export." />
       {error && <ErrorAlert title="Couldn't load your resumes" messages={[requestErrorMessage(error, error.message)]} />}
       {!resumes && loading && <p className="text-muted-foreground">Loading…</p>}
       {resumes?.length === 0 && (
-        <Card>
-          <CardContent className="grid justify-items-center gap-4 py-10 text-center text-muted-foreground">
+        <div className="empty-records">
+            <FileText size={30} strokeWidth={1.4} aria-hidden />
+            <h2>Your next resume starts with a job</h2>
             <p>No resumes yet. Write one from a job after you've compared it with your library.</p>
             <Button asChild>
               <Link to="/jobs">Go to jobs</Link>
             </Button>
-          </CardContent>
-        </Card>
+        </div>
       )}
       {resumes && resumes.length > 0 && (
-        <ul className="grid gap-3">
+        <ul className="record-list">
           {resumes.map((resume) => (
             <li key={resume.id}>
-              <Link to={`/resumes/${resume.id}`} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-ring">
-                <Card className="transition-colors hover:bg-accent/40">
-                  <CardContent className="grid gap-0.5">
-                    <p className="font-medium">{resume.title}</p>
-                    <p className="text-sm text-muted-foreground">{resume.job ? `${resume.job.title} at ${resume.job.company ?? 'Unknown company'}` : 'The job for this resume was removed.'}</p>
-                  </CardContent>
-                </Card>
+              <Link to={`/resumes/${resume.id}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
+                <FileText size={20} className="record-icon" aria-hidden />
+                <div className="record-text">
+                  <p className="font-medium">{resume.title}</p>
+                  <p className="text-sm text-muted-foreground">{resume.job ? `${resume.job.title} at ${resume.job.company ?? 'Unknown company'}` : 'The job for this resume was removed.'}</p>
+                </div>
+                <ArrowUpRight size={17} className="record-arrow" aria-hidden />
               </Link>
             </li>
           ))}

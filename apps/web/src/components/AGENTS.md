@@ -6,17 +6,17 @@ Shared UI used by more than one feature.
 
 ## Contents
 
-- `AppLayout.tsx` — signed-in layout: header (Career library, Import resume, Jobs, Resumes, Interview prep,
-  `ThemeToggle`, sign out) and routed page
+- `AppLayout.tsx` — signed-in layout: fixed desktop navigation spine; sticky compact header with
+  horizontally scrollable navigation below 900px, theme/account actions, location bar, and routed page
 - `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
 - `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.
 - `ErrorAlert.test.tsx` — task-notification dismissal, timeout, and retry regression coverage.
 - `CollapseToggle.tsx` — header button (chevron, `aria-expanded`) for a collapsible section
 - `useOpenSection.ts` — open flag for one section id, from `lib/openSections.ts`
-- `SectionCard.tsx` — card for one resume section, colored by its `tone`; pass `sectionId` to
+- `SectionCard.tsx` — quiet card for one resume section with a tone-colored icon; pass `sectionId` to
   collapse it until opened
-- `sectionTones.ts` — per-section classes (card stripe, header band, icon, entry tint) and icon
+- `sectionTones.ts` — per-section classes (quiet card/header, icon accent, ruled entry) and icon
 - `dnd/` — drag-and-drop building blocks (see `dnd/AGENTS.md`)
 - `ui/` — generated shadcn/ui components (generated; excluded from lint)
 

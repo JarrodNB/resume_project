@@ -1,5 +1,5 @@
 /**
- * Description: Color tone and icon for each resume section. Class names are written out in full
+ * Description: Quiet section surfaces with a distinct icon color for each resume section. Class names are written out in full
  * so Tailwind can find them (it can't see classes built from template strings).
  * Index:
  *   - SectionTone: the resume section a piece of UI belongs to
@@ -19,59 +19,59 @@ interface SectionToneStyle {
 
 export const SECTION_TONES: Record<SectionTone, SectionToneStyle> = {
   contact: {
-    card: 'border-l-4 border-l-section-contact-accent',
-    header: 'bg-section-contact',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-contact-accent',
-    entry: 'border-section-contact-accent/25 bg-section-contact/50',
+    entry: 'border-border bg-transparent',
     Icon: UserRound,
   },
   summary: {
-    card: 'border-l-4 border-l-section-summary-accent',
-    header: 'bg-section-summary',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-summary-accent',
-    entry: 'border-section-summary-accent/25 bg-section-summary/50',
+    entry: 'border-border bg-transparent',
     Icon: FileText,
   },
   experience: {
-    card: 'border-l-4 border-l-section-experience-accent',
-    header: 'bg-section-experience',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-experience-accent',
-    entry: 'border-section-experience-accent/25 bg-section-experience/50',
+    entry: 'border-border bg-transparent',
     Icon: Briefcase,
   },
   projects: {
-    card: 'border-l-4 border-l-section-projects-accent',
-    header: 'bg-section-projects',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-projects-accent',
-    entry: 'border-section-projects-accent/25 bg-section-projects/50',
+    entry: 'border-border bg-transparent',
     Icon: FolderKanban,
   },
   education: {
-    card: 'border-l-4 border-l-section-education-accent',
-    header: 'bg-section-education',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-education-accent',
-    entry: 'border-section-education-accent/25 bg-section-education/50',
+    entry: 'border-border bg-transparent',
     Icon: GraduationCap,
   },
   certifications: {
-    card: 'border-l-4 border-l-section-certifications-accent',
-    header: 'bg-section-certifications',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-certifications-accent',
-    entry: 'border-section-certifications-accent/25 bg-section-certifications/50',
+    entry: 'border-border bg-transparent',
     Icon: Award,
   },
   skills: {
-    card: 'border-l-4 border-l-section-skills-accent',
-    header: 'bg-section-skills',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-skills-accent',
-    entry: 'border-section-skills-accent/25 bg-section-skills/50',
+    entry: 'border-border bg-transparent',
     Icon: Sparkles,
   },
   facts: {
-    card: 'border-l-4 border-l-section-facts-accent',
-    header: 'bg-section-facts',
+    card: 'border-border',
+    header: 'bg-card',
     icon: 'text-section-facts-accent',
-    entry: 'border-section-facts-accent/25 bg-section-facts/50',
+    entry: 'border-border bg-transparent',
     Icon: MessageSquareText,
   },
 }

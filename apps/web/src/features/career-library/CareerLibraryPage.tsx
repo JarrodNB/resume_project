@@ -8,8 +8,9 @@
  *   - CareerLibraryPage: page component
  */
 import { DragDropProvider } from '@dnd-kit/react'
-import { FileUp } from 'lucide-react'
+import { ArrowUpRight, FileUp } from 'lucide-react'
 import { Link } from 'react-router'
+import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
@@ -34,34 +35,34 @@ export function CareerLibraryPage() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Career library</h1>
-          <p className="text-muted-foreground">Everything your tailored resumes are built from.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {library && <ClearLibraryButton />}
-          <Button asChild>
-            <Link to="/import">
-              <FileUp /> Import a resume
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." actions={
+        <Button asChild><Link to="/import"><FileUp /> Import a resume</Link></Button>
+      } />
       <ImportSummaryNotice />
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
       <ErrorAlert title="Couldn't save that change" messages={reordering.errors} />
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
       {library && (
-        <DragDropProvider {...handlers}>
-          <ProfileSection profile={library.me} />
-          <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} />
-          <ProjectSection projects={library.projects} />
-          <EducationSection educations={library.educations} />
-          <CertificationSection certifications={library.certifications} />
-          <SkillsSection skills={library.skills} />
-          <FactsSection facts={library.libraryFacts} />
-        </DragDropProvider>
+        <div className="library-layout">
+          <div className="library-sections">
+            <DragDropProvider {...handlers}>
+              <ProfileSection profile={library.me} />
+              <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} />
+              <ProjectSection projects={library.projects} />
+              <EducationSection educations={library.educations} />
+              <CertificationSection certifications={library.certifications} />
+              <SkillsSection skills={library.skills} />
+              <FactsSection facts={library.libraryFacts} />
+            </DragDropProvider>
+            <div className="mt-4 flex justify-end border-t pt-4"><ClearLibraryButton /></div>
+          </div>
+          <aside className="library-guide" aria-label="How to use your career library">
+              <p><strong>Good applications start here.</strong><br />Keep your roles, projects, and achievements together. Add details as you remember them.</p>
+              <p>When a role catches your eye, compare it with your library and shape a resume around your relevant experience.</p>
+              <Link to="/jobs">Explore your saved jobs <ArrowUpRight size={16} aria-hidden /></Link>
+              <Link to="/resumes">Review your resumes <ArrowUpRight size={16} aria-hidden /></Link>
+          </aside>
+        </div>
       )}
     </div>
   )

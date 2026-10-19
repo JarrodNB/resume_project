@@ -1,6 +1,6 @@
 /**
- * Description: Card for one resume section, colored by its tone: accent stripe on the left and a
- * tinted header band with the section icon. Pass `sectionId` to remember whether it is open.
+ * Description: Card for one resume section, colored by its tone: a quiet surface and a
+ * recognizable section icon. Pass `sectionId` to remember whether it is open.
  * Index:
  *   - SectionCard: titled, tone-colored card with optional badge, description, and collapse
  *   - CollapsibleSectionCard: the same card, collapsed until its section id is opened
@@ -53,14 +53,14 @@ function SectionCardFrame({
   const heading = (
     <div className="flex min-w-0 flex-1 items-center gap-2">
       <style.Icon className={cn('size-4', style.icon)} aria-hidden />
-      <CardTitle className="text-lg">{title}</CardTitle>
+      <CardTitle className="text-base">{title}</CardTitle>
       {badge}
     </div>
   )
 
   return (
-    <Card className={cn('pt-0', style.card)}>
-      <CardHeader className={cn('py-3', style.header, open && 'border-b')}>
+    <Card className={cn('section-card gap-0 py-0 shadow-none', style.card)}>
+      <CardHeader className={cn('px-5 py-5', style.header, open && 'border-b')}>
         {toggle && panelId ? (
           <CollapseToggle open={open} panelId={panelId} onToggle={toggle}>
             {heading}
@@ -71,7 +71,7 @@ function SectionCardFrame({
         {description && <CardDescription>{description}</CardDescription>}
       </CardHeader>
       {open && (
-        <CardContent id={panelId} className={contentClassName}>
+        <CardContent id={panelId} className={cn('px-5 py-5', contentClassName)}>
           {children}
         </CardContent>
       )}

@@ -17,9 +17,9 @@ their category.
 - `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
   and `ClearLibraryDialog.tsx` empty the library after confirmation; `useClearCareerLibrary.ts`
   runs `clearCareerLibrary` and refetches
-- `ProfileSection.tsx` (profile card with Edit), `LibrarySection.tsx` (tone-colored card with a
+- `ProfileSection.tsx` (profile card with Edit), `LibrarySection.tsx` (quiet card with a tone-colored icon, a
   count and an Add button; each starts collapsed and stays that way until opened),
-  `LibraryEntry.tsx` (tinted entry with an `actions` slot) — display pieces
+  `LibraryEntry.tsx` (ruled entry with an `actions` slot) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,
   `FactsSection.tsx` — one section each, owning its add/edit dialog
 - `ExperienceFormDialog.tsx`, `ProjectFormDialog.tsx`, `EducationFormDialog.tsx`,

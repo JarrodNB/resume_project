@@ -1,0 +1,891 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-19T09:44:36.791125+00:00",
+  "title": "Design System: Careergrind web workspace",
+  "extensions": {
+    "shadows": [
+      {
+        "name": "card-ring",
+        "value": "0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)",
+        "purpose": "Generated card surface edge."
+      }
+    ],
+    "motion": [
+      {
+        "name": "workspace-transition",
+        "value": "160ms",
+        "purpose": "Navigation and record hover transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "guide-stack",
+        "value": "1199px"
+      },
+      {
+        "name": "compact-navigation",
+        "value": "899px"
+      },
+      {
+        "name": "phone",
+        "value": "599px"
+      }
+    ],
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Background",
+        "tonalRamp": [
+          "oklch(from #f6f5f0 0.15 c h)",
+          "oklch(from #f6f5f0 0.26 c h)",
+          "oklch(from #f6f5f0 0.38 c h)",
+          "oklch(from #f6f5f0 0.49 c h)",
+          "oklch(from #f6f5f0 0.61 c h)",
+          "oklch(from #f6f5f0 0.72 c h)",
+          "oklch(from #f6f5f0 0.84 c h)",
+          "oklch(from #f6f5f0 0.95 c h)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Foreground",
+        "tonalRamp": [
+          "oklch(from #25352e 0.15 c h)",
+          "oklch(from #25352e 0.26 c h)",
+          "oklch(from #25352e 0.38 c h)",
+          "oklch(from #25352e 0.49 c h)",
+          "oklch(from #25352e 0.61 c h)",
+          "oklch(from #25352e 0.72 c h)",
+          "oklch(from #25352e 0.84 c h)",
+          "oklch(from #25352e 0.95 c h)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "Card",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 c h)",
+          "oklch(from #ffffff 0.26 c h)",
+          "oklch(from #ffffff 0.38 c h)",
+          "oklch(from #ffffff 0.49 c h)",
+          "oklch(from #ffffff 0.61 c h)",
+          "oklch(from #ffffff 0.72 c h)",
+          "oklch(from #ffffff 0.84 c h)",
+          "oklch(from #ffffff 0.95 c h)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "tonalRamp": [
+          "oklch(from #285c45 0.15 c h)",
+          "oklch(from #285c45 0.26 c h)",
+          "oklch(from #285c45 0.38 c h)",
+          "oklch(from #285c45 0.49 c h)",
+          "oklch(from #285c45 0.61 c h)",
+          "oklch(from #285c45 0.72 c h)",
+          "oklch(from #285c45 0.84 c h)",
+          "oklch(from #285c45 0.95 c h)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "neutral",
+        "displayName": "Primary Foreground",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 c h)",
+          "oklch(from #ffffff 0.26 c h)",
+          "oklch(from #ffffff 0.38 c h)",
+          "oklch(from #ffffff 0.49 c h)",
+          "oklch(from #ffffff 0.61 c h)",
+          "oklch(from #ffffff 0.72 c h)",
+          "oklch(from #ffffff 0.84 c h)",
+          "oklch(from #ffffff 0.95 c h)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Secondary",
+        "tonalRamp": [
+          "oklch(from #e9eee7 0.15 c h)",
+          "oklch(from #e9eee7 0.26 c h)",
+          "oklch(from #e9eee7 0.38 c h)",
+          "oklch(from #e9eee7 0.49 c h)",
+          "oklch(from #e9eee7 0.61 c h)",
+          "oklch(from #e9eee7 0.72 c h)",
+          "oklch(from #e9eee7 0.84 c h)",
+          "oklch(from #e9eee7 0.95 c h)"
+        ]
+      },
+      "secondary-foreground": {
+        "role": "neutral",
+        "displayName": "Secondary Foreground",
+        "tonalRamp": [
+          "oklch(from #2b513e 0.15 c h)",
+          "oklch(from #2b513e 0.26 c h)",
+          "oklch(from #2b513e 0.38 c h)",
+          "oklch(from #2b513e 0.49 c h)",
+          "oklch(from #2b513e 0.61 c h)",
+          "oklch(from #2b513e 0.72 c h)",
+          "oklch(from #2b513e 0.84 c h)",
+          "oklch(from #2b513e 0.95 c h)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(from #eeeee7 0.15 c h)",
+          "oklch(from #eeeee7 0.26 c h)",
+          "oklch(from #eeeee7 0.38 c h)",
+          "oklch(from #eeeee7 0.49 c h)",
+          "oklch(from #eeeee7 0.61 c h)",
+          "oklch(from #eeeee7 0.72 c h)",
+          "oklch(from #eeeee7 0.84 c h)",
+          "oklch(from #eeeee7 0.95 c h)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Muted Foreground",
+        "tonalRamp": [
+          "oklch(from #626b63 0.15 c h)",
+          "oklch(from #626b63 0.26 c h)",
+          "oklch(from #626b63 0.38 c h)",
+          "oklch(from #626b63 0.49 c h)",
+          "oklch(from #626b63 0.61 c h)",
+          "oklch(from #626b63 0.72 c h)",
+          "oklch(from #626b63 0.84 c h)",
+          "oklch(from #626b63 0.95 c h)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(from #e7ede3 0.15 c h)",
+          "oklch(from #e7ede3 0.26 c h)",
+          "oklch(from #e7ede3 0.38 c h)",
+          "oklch(from #e7ede3 0.49 c h)",
+          "oklch(from #e7ede3 0.61 c h)",
+          "oklch(from #e7ede3 0.72 c h)",
+          "oklch(from #e7ede3 0.84 c h)",
+          "oklch(from #e7ede3 0.95 c h)"
+        ]
+      },
+      "accent-foreground": {
+        "role": "neutral",
+        "displayName": "Accent Foreground",
+        "tonalRamp": [
+          "oklch(from #254d39 0.15 c h)",
+          "oklch(from #254d39 0.26 c h)",
+          "oklch(from #254d39 0.38 c h)",
+          "oklch(from #254d39 0.49 c h)",
+          "oklch(from #254d39 0.61 c h)",
+          "oklch(from #254d39 0.72 c h)",
+          "oklch(from #254d39 0.84 c h)",
+          "oklch(from #254d39 0.95 c h)"
+        ]
+      },
+      "destructive": {
+        "role": "neutral",
+        "displayName": "Destructive",
+        "tonalRamp": [
+          "oklch(from #b43732 0.15 c h)",
+          "oklch(from #b43732 0.26 c h)",
+          "oklch(from #b43732 0.38 c h)",
+          "oklch(from #b43732 0.49 c h)",
+          "oklch(from #b43732 0.61 c h)",
+          "oklch(from #b43732 0.72 c h)",
+          "oklch(from #b43732 0.84 c h)",
+          "oklch(from #b43732 0.95 c h)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "tonalRamp": [
+          "oklch(from #dcdfd5 0.15 c h)",
+          "oklch(from #dcdfd5 0.26 c h)",
+          "oklch(from #dcdfd5 0.38 c h)",
+          "oklch(from #dcdfd5 0.49 c h)",
+          "oklch(from #dcdfd5 0.61 c h)",
+          "oklch(from #dcdfd5 0.72 c h)",
+          "oklch(from #dcdfd5 0.84 c h)",
+          "oklch(from #dcdfd5 0.95 c h)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Input",
+        "tonalRamp": [
+          "oklch(from #c7cdc2 0.15 c h)",
+          "oklch(from #c7cdc2 0.26 c h)",
+          "oklch(from #c7cdc2 0.38 c h)",
+          "oklch(from #c7cdc2 0.49 c h)",
+          "oklch(from #c7cdc2 0.61 c h)",
+          "oklch(from #c7cdc2 0.72 c h)",
+          "oklch(from #c7cdc2 0.84 c h)",
+          "oklch(from #c7cdc2 0.95 c h)"
+        ]
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Ring",
+        "tonalRamp": [
+          "oklch(from #427456 0.15 c h)",
+          "oklch(from #427456 0.26 c h)",
+          "oklch(from #427456 0.38 c h)",
+          "oklch(from #427456 0.49 c h)",
+          "oklch(from #427456 0.61 c h)",
+          "oklch(from #427456 0.72 c h)",
+          "oklch(from #427456 0.84 c h)",
+          "oklch(from #427456 0.95 c h)"
+        ]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Sidebar",
+        "tonalRamp": [
+          "oklch(from #eeefe8 0.15 c h)",
+          "oklch(from #eeefe8 0.26 c h)",
+          "oklch(from #eeefe8 0.38 c h)",
+          "oklch(from #eeefe8 0.49 c h)",
+          "oklch(from #eeefe8 0.61 c h)",
+          "oklch(from #eeefe8 0.72 c h)",
+          "oklch(from #eeefe8 0.84 c h)",
+          "oklch(from #eeefe8 0.95 c h)"
+        ]
+      },
+      "sidebar-accent": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent",
+        "tonalRamp": [
+          "oklch(from #dfe8db 0.15 c h)",
+          "oklch(from #dfe8db 0.26 c h)",
+          "oklch(from #dfe8db 0.38 c h)",
+          "oklch(from #dfe8db 0.49 c h)",
+          "oklch(from #dfe8db 0.61 c h)",
+          "oklch(from #dfe8db 0.72 c h)",
+          "oklch(from #dfe8db 0.84 c h)",
+          "oklch(from #dfe8db 0.95 c h)"
+        ]
+      },
+      "sidebar-accent-foreground": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent Foreground",
+        "tonalRamp": [
+          "oklch(from #254d39 0.15 c h)",
+          "oklch(from #254d39 0.26 c h)",
+          "oklch(from #254d39 0.38 c h)",
+          "oklch(from #254d39 0.49 c h)",
+          "oklch(from #254d39 0.61 c h)",
+          "oklch(from #254d39 0.72 c h)",
+          "oklch(from #254d39 0.84 c h)",
+          "oklch(from #254d39 0.95 c h)"
+        ]
+      },
+      "sidebar-border": {
+        "role": "neutral",
+        "displayName": "Sidebar Border",
+        "tonalRamp": [
+          "oklch(from #d9ddd1 0.15 c h)",
+          "oklch(from #d9ddd1 0.26 c h)",
+          "oklch(from #d9ddd1 0.38 c h)",
+          "oklch(from #d9ddd1 0.49 c h)",
+          "oklch(from #d9ddd1 0.61 c h)",
+          "oklch(from #d9ddd1 0.72 c h)",
+          "oklch(from #d9ddd1 0.84 c h)",
+          "oklch(from #d9ddd1 0.95 c h)"
+        ]
+      },
+      "section-contact-accent": {
+        "role": "secondary",
+        "displayName": "Section Contact Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.45 0.06 260) 0.15 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.26 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.38 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.49 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.61 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.72 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.84 c h)",
+          "oklch(from oklch(0.45 0.06 260) 0.95 c h)"
+        ]
+      },
+      "section-summary-accent": {
+        "role": "secondary",
+        "displayName": "Section Summary Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.74 0.14 68) 0.15 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.26 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.38 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.49 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.61 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.72 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.84 c h)",
+          "oklch(from oklch(0.74 0.14 68) 0.95 c h)"
+        ]
+      },
+      "section-experience-accent": {
+        "role": "secondary",
+        "displayName": "Section Experience Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.31 0.075 262) 0.15 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.26 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.38 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.49 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.61 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.72 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.84 c h)",
+          "oklch(from oklch(0.31 0.075 262) 0.95 c h)"
+        ]
+      },
+      "section-projects-accent": {
+        "role": "secondary",
+        "displayName": "Section Projects Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.67 0.14 38) 0.15 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.26 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.38 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.49 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.61 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.72 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.84 c h)",
+          "oklch(from oklch(0.67 0.14 38) 0.95 c h)"
+        ]
+      },
+      "section-education-accent": {
+        "role": "secondary",
+        "displayName": "Section Education Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.52 0.07 248) 0.15 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.26 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.38 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.49 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.61 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.72 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.84 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.95 c h)"
+        ]
+      },
+      "section-certifications-accent": {
+        "role": "secondary",
+        "displayName": "Section Certifications Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.52 0.07 248) 0.15 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.26 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.38 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.49 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.61 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.72 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.84 c h)",
+          "oklch(from oklch(0.52 0.07 248) 0.95 c h)"
+        ]
+      },
+      "section-skills-accent": {
+        "role": "secondary",
+        "displayName": "Section Skills Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.72 0.13 70) 0.15 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.26 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.38 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.49 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.61 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.72 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.84 c h)",
+          "oklch(from oklch(0.72 0.13 70) 0.95 c h)"
+        ]
+      },
+      "section-facts-accent": {
+        "role": "secondary",
+        "displayName": "Section Facts Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.55 0.1 165) 0.15 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.26 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.38 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.49 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.61 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.72 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.84 c h)",
+          "oklch(from oklch(0.55 0.1 165) 0.95 c h)"
+        ]
+      },
+      "dark-background": {
+        "role": "neutral",
+        "displayName": "Dark Background",
+        "tonalRamp": [
+          "oklch(from #191f1b 0.15 c h)",
+          "oklch(from #191f1b 0.26 c h)",
+          "oklch(from #191f1b 0.38 c h)",
+          "oklch(from #191f1b 0.49 c h)",
+          "oklch(from #191f1b 0.61 c h)",
+          "oklch(from #191f1b 0.72 c h)",
+          "oklch(from #191f1b 0.84 c h)",
+          "oklch(from #191f1b 0.95 c h)"
+        ]
+      },
+      "dark-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Foreground",
+        "tonalRamp": [
+          "oklch(from #e7ebe2 0.15 c h)",
+          "oklch(from #e7ebe2 0.26 c h)",
+          "oklch(from #e7ebe2 0.38 c h)",
+          "oklch(from #e7ebe2 0.49 c h)",
+          "oklch(from #e7ebe2 0.61 c h)",
+          "oklch(from #e7ebe2 0.72 c h)",
+          "oklch(from #e7ebe2 0.84 c h)",
+          "oklch(from #e7ebe2 0.95 c h)"
+        ]
+      },
+      "dark-card": {
+        "role": "neutral",
+        "displayName": "Dark Card",
+        "tonalRamp": [
+          "oklch(from #222a24 0.15 c h)",
+          "oklch(from #222a24 0.26 c h)",
+          "oklch(from #222a24 0.38 c h)",
+          "oklch(from #222a24 0.49 c h)",
+          "oklch(from #222a24 0.61 c h)",
+          "oklch(from #222a24 0.72 c h)",
+          "oklch(from #222a24 0.84 c h)",
+          "oklch(from #222a24 0.95 c h)"
+        ]
+      },
+      "dark-primary": {
+        "role": "primary",
+        "displayName": "Dark Primary",
+        "tonalRamp": [
+          "oklch(from #a6c6a5 0.15 c h)",
+          "oklch(from #a6c6a5 0.26 c h)",
+          "oklch(from #a6c6a5 0.38 c h)",
+          "oklch(from #a6c6a5 0.49 c h)",
+          "oklch(from #a6c6a5 0.61 c h)",
+          "oklch(from #a6c6a5 0.72 c h)",
+          "oklch(from #a6c6a5 0.84 c h)",
+          "oklch(from #a6c6a5 0.95 c h)"
+        ]
+      },
+      "dark-primary-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Primary Foreground",
+        "tonalRamp": [
+          "oklch(from #1d3425 0.15 c h)",
+          "oklch(from #1d3425 0.26 c h)",
+          "oklch(from #1d3425 0.38 c h)",
+          "oklch(from #1d3425 0.49 c h)",
+          "oklch(from #1d3425 0.61 c h)",
+          "oklch(from #1d3425 0.72 c h)",
+          "oklch(from #1d3425 0.84 c h)",
+          "oklch(from #1d3425 0.95 c h)"
+        ]
+      },
+      "dark-secondary": {
+        "role": "neutral",
+        "displayName": "Dark Secondary",
+        "tonalRamp": [
+          "oklch(from #303d31 0.15 c h)",
+          "oklch(from #303d31 0.26 c h)",
+          "oklch(from #303d31 0.38 c h)",
+          "oklch(from #303d31 0.49 c h)",
+          "oklch(from #303d31 0.61 c h)",
+          "oklch(from #303d31 0.72 c h)",
+          "oklch(from #303d31 0.84 c h)",
+          "oklch(from #303d31 0.95 c h)"
+        ]
+      },
+      "dark-secondary-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Secondary Foreground",
+        "tonalRamp": [
+          "oklch(from #d3e2ce 0.15 c h)",
+          "oklch(from #d3e2ce 0.26 c h)",
+          "oklch(from #d3e2ce 0.38 c h)",
+          "oklch(from #d3e2ce 0.49 c h)",
+          "oklch(from #d3e2ce 0.61 c h)",
+          "oklch(from #d3e2ce 0.72 c h)",
+          "oklch(from #d3e2ce 0.84 c h)",
+          "oklch(from #d3e2ce 0.95 c h)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted",
+        "tonalRamp": [
+          "oklch(from #293129 0.15 c h)",
+          "oklch(from #293129 0.26 c h)",
+          "oklch(from #293129 0.38 c h)",
+          "oklch(from #293129 0.49 c h)",
+          "oklch(from #293129 0.61 c h)",
+          "oklch(from #293129 0.72 c h)",
+          "oklch(from #293129 0.84 c h)",
+          "oklch(from #293129 0.95 c h)"
+        ]
+      },
+      "dark-muted-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Muted Foreground",
+        "tonalRamp": [
+          "oklch(from #acb6a9 0.15 c h)",
+          "oklch(from #acb6a9 0.26 c h)",
+          "oklch(from #acb6a9 0.38 c h)",
+          "oklch(from #acb6a9 0.49 c h)",
+          "oklch(from #acb6a9 0.61 c h)",
+          "oklch(from #acb6a9 0.72 c h)",
+          "oklch(from #acb6a9 0.84 c h)",
+          "oklch(from #acb6a9 0.95 c h)"
+        ]
+      },
+      "dark-accent": {
+        "role": "neutral",
+        "displayName": "Dark Accent",
+        "tonalRamp": [
+          "oklch(from #334332 0.15 c h)",
+          "oklch(from #334332 0.26 c h)",
+          "oklch(from #334332 0.38 c h)",
+          "oklch(from #334332 0.49 c h)",
+          "oklch(from #334332 0.61 c h)",
+          "oklch(from #334332 0.72 c h)",
+          "oklch(from #334332 0.84 c h)",
+          "oklch(from #334332 0.95 c h)"
+        ]
+      },
+      "dark-accent-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Accent Foreground",
+        "tonalRamp": [
+          "oklch(from #e0ecda 0.15 c h)",
+          "oklch(from #e0ecda 0.26 c h)",
+          "oklch(from #e0ecda 0.38 c h)",
+          "oklch(from #e0ecda 0.49 c h)",
+          "oklch(from #e0ecda 0.61 c h)",
+          "oklch(from #e0ecda 0.72 c h)",
+          "oklch(from #e0ecda 0.84 c h)",
+          "oklch(from #e0ecda 0.95 c h)"
+        ]
+      },
+      "dark-destructive": {
+        "role": "neutral",
+        "displayName": "Dark Destructive",
+        "tonalRamp": [
+          "oklch(from #f08b80 0.15 c h)",
+          "oklch(from #f08b80 0.26 c h)",
+          "oklch(from #f08b80 0.38 c h)",
+          "oklch(from #f08b80 0.49 c h)",
+          "oklch(from #f08b80 0.61 c h)",
+          "oklch(from #f08b80 0.72 c h)",
+          "oklch(from #f08b80 0.84 c h)",
+          "oklch(from #f08b80 0.95 c h)"
+        ]
+      },
+      "dark-border": {
+        "role": "neutral",
+        "displayName": "Dark Border",
+        "tonalRamp": [
+          "oklch(from #3b463b 0.15 c h)",
+          "oklch(from #3b463b 0.26 c h)",
+          "oklch(from #3b463b 0.38 c h)",
+          "oklch(from #3b463b 0.49 c h)",
+          "oklch(from #3b463b 0.61 c h)",
+          "oklch(from #3b463b 0.72 c h)",
+          "oklch(from #3b463b 0.84 c h)",
+          "oklch(from #3b463b 0.95 c h)"
+        ]
+      },
+      "dark-input": {
+        "role": "neutral",
+        "displayName": "Dark Input",
+        "tonalRamp": [
+          "oklch(from #546150 0.15 c h)",
+          "oklch(from #546150 0.26 c h)",
+          "oklch(from #546150 0.38 c h)",
+          "oklch(from #546150 0.49 c h)",
+          "oklch(from #546150 0.61 c h)",
+          "oklch(from #546150 0.72 c h)",
+          "oklch(from #546150 0.84 c h)",
+          "oklch(from #546150 0.95 c h)"
+        ]
+      },
+      "dark-ring": {
+        "role": "neutral",
+        "displayName": "Dark Ring",
+        "tonalRamp": [
+          "oklch(from #a6c6a5 0.15 c h)",
+          "oklch(from #a6c6a5 0.26 c h)",
+          "oklch(from #a6c6a5 0.38 c h)",
+          "oklch(from #a6c6a5 0.49 c h)",
+          "oklch(from #a6c6a5 0.61 c h)",
+          "oklch(from #a6c6a5 0.72 c h)",
+          "oklch(from #a6c6a5 0.84 c h)",
+          "oklch(from #a6c6a5 0.95 c h)"
+        ]
+      },
+      "dark-sidebar": {
+        "role": "neutral",
+        "displayName": "Dark Sidebar",
+        "tonalRamp": [
+          "oklch(from #202720 0.15 c h)",
+          "oklch(from #202720 0.26 c h)",
+          "oklch(from #202720 0.38 c h)",
+          "oklch(from #202720 0.49 c h)",
+          "oklch(from #202720 0.61 c h)",
+          "oklch(from #202720 0.72 c h)",
+          "oklch(from #202720 0.84 c h)",
+          "oklch(from #202720 0.95 c h)"
+        ]
+      },
+      "dark-sidebar-accent": {
+        "role": "neutral",
+        "displayName": "Dark Sidebar Accent",
+        "tonalRamp": [
+          "oklch(from #344332 0.15 c h)",
+          "oklch(from #344332 0.26 c h)",
+          "oklch(from #344332 0.38 c h)",
+          "oklch(from #344332 0.49 c h)",
+          "oklch(from #344332 0.61 c h)",
+          "oklch(from #344332 0.72 c h)",
+          "oklch(from #344332 0.84 c h)",
+          "oklch(from #344332 0.95 c h)"
+        ]
+      },
+      "dark-sidebar-accent-foreground": {
+        "role": "neutral",
+        "displayName": "Dark Sidebar Accent Foreground",
+        "tonalRamp": [
+          "oklch(from #e0ecda 0.15 c h)",
+          "oklch(from #e0ecda 0.26 c h)",
+          "oklch(from #e0ecda 0.38 c h)",
+          "oklch(from #e0ecda 0.49 c h)",
+          "oklch(from #e0ecda 0.61 c h)",
+          "oklch(from #e0ecda 0.72 c h)",
+          "oklch(from #e0ecda 0.84 c h)",
+          "oklch(from #e0ecda 0.95 c h)"
+        ]
+      },
+      "dark-sidebar-border": {
+        "role": "neutral",
+        "displayName": "Dark Sidebar Border",
+        "tonalRamp": [
+          "oklch(from #3b463b 0.15 c h)",
+          "oklch(from #3b463b 0.26 c h)",
+          "oklch(from #3b463b 0.38 c h)",
+          "oklch(from #3b463b 0.49 c h)",
+          "oklch(from #3b463b 0.61 c h)",
+          "oklch(from #3b463b 0.72 c h)",
+          "oklch(from #3b463b 0.84 c h)",
+          "oklch(from #3b463b 0.95 c h)"
+        ]
+      },
+      "dark-section-contact-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Contact Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.7 0.03 250) 0.15 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.26 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.38 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.49 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.61 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.72 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.84 c h)",
+          "oklch(from oklch(0.7 0.03 250) 0.95 c h)"
+        ]
+      },
+      "dark-section-summary-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Summary Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.8 0.13 80) 0.15 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.26 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.38 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.49 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.61 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.72 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.84 c h)",
+          "oklch(from oklch(0.8 0.13 80) 0.95 c h)"
+        ]
+      },
+      "dark-section-experience-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Experience Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.72 0.1 190) 0.15 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.26 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.38 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.49 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.61 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.72 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.84 c h)",
+          "oklch(from oklch(0.72 0.1 190) 0.95 c h)"
+        ]
+      },
+      "dark-section-projects-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Projects Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.72 0.13 295) 0.15 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.26 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.38 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.49 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.61 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.72 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.84 c h)",
+          "oklch(from oklch(0.72 0.13 295) 0.95 c h)"
+        ]
+      },
+      "dark-section-education-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Education Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.72 0.11 240) 0.15 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.26 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.38 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.49 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.61 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.72 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.84 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.95 c h)"
+        ]
+      },
+      "dark-section-certifications-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Certifications Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.72 0.11 240) 0.15 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.26 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.38 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.49 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.61 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.72 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.84 c h)",
+          "oklch(from oklch(0.72 0.11 240) 0.95 c h)"
+        ]
+      },
+      "dark-section-skills-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Skills Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.74 0.12 160) 0.15 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.26 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.38 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.49 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.61 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.72 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.84 c h)",
+          "oklch(from oklch(0.74 0.12 160) 0.95 c h)"
+        ]
+      },
+      "dark-section-facts-accent": {
+        "role": "secondary",
+        "displayName": "Dark Section Facts Accent",
+        "tonalRamp": [
+          "oklch(from oklch(0.74 0.1 175) 0.15 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.26 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.38 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.49 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.61 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.72 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.84 c h)",
+          "oklch(from oklch(0.74 0.1 175) 0.95 c h)"
+        ]
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary button as implemented in the web workspace.",
+      "html": "<button class=\"ds-button-primary\">Save changes</button>",
+      "css": ".ds-button-primary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--primary);color:var(--primary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary) 80%,transparent)}.ds-button-primary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-primary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Outline button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Outline button as implemented in the web workspace.",
+      "html": "<button class=\"ds-button-outline\">Save changes</button>",
+      "css": ".ds-button-outline{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-outline:hover{background:var(--muted)}.ds-button-outline:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-outline:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Ghost button as implemented in the web workspace.",
+      "html": "<button class=\"ds-button-ghost\">Save changes</button>",
+      "css": ".ds-button-ghost{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:transparent;color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-ghost:hover{background:var(--muted)}.ds-button-ghost:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-ghost:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary button as implemented in the web workspace.",
+      "html": "<button class=\"ds-button-secondary\">Save changes</button>",
+      "css": ".ds-button-secondary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-secondary:hover{background:color-mix(in oklch,var(--secondary),var(--foreground) 5%)}.ds-button-secondary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-secondary:active{transform:translateY(1px)}"
+    },
+    {
+      "name": "Text input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text input as implemented in the web workspace.",
+      "html": "<input class=\"ds-input\" aria-label=\"Job title\" placeholder=\"Job title\">",
+      "css": ".ds-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:transparent;color:var(--foreground);transition:border-color 150ms}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{border-color:var(--input)}.ds-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+    },
+    {
+      "name": "Section count",
+      "kind": "chip",
+      "refersTo": "badge-secondary",
+      "description": "Section count as implemented in the web workspace.",
+      "html": "<span class=\"ds-badge\">3</span>",
+      "css": ".ds-badge{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:inline-flex;align-items:center;height:20px;padding:2px 8px;border-radius:calc(var(--radius)*2.6);background:var(--secondary);color:var(--secondary-foreground);font-size:12px;font-weight:500}"
+    },
+    {
+      "name": "Selected navigation",
+      "kind": "nav",
+      "description": "Selected navigation as implemented in the web workspace.",
+      "html": "<nav aria-label=\"Workspace\"><a href=\"#library\" aria-current=\"page\" class=\"ds-nav\">Career library</a></nav>",
+      "css": ".ds-nav{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:flex;align-items:center;min-height:46px;padding:10px 12px;border-radius:7px;background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:600;text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav:hover{background:var(--muted);color:var(--foreground)}.ds-nav:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+    },
+    {
+      "name": "Section surface",
+      "kind": "card",
+      "refersTo": "section-card",
+      "description": "Section surface as implemented in the web workspace.",
+      "html": "<section class=\"ds-card\"><h2>Experience</h2><div>Career evidence belongs here.</div></section>",
+      "css": ".ds-card{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;border-radius:calc(var(--radius)*1.4);background:var(--card);color:var(--card-foreground);box-shadow:0 0 0 1px color-mix(in oklab,var(--foreground) 10%,transparent);overflow:hidden}.ds-card h2{font-size:16px;font-weight:500;margin:0;padding:20px;border-bottom:1px solid var(--border)}.ds-card div{padding:20px}"
+    },
+    {
+      "name": "Ruled record",
+      "kind": "custom",
+      "description": "Ruled record as implemented in the web workspace.",
+      "html": "<a class=\"ds-record\" href=\"#record\"><strong>Saved resume</strong><span>Updated recently</span></a>",
+      "css": ".ds-record{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:grid;gap:5px;padding:24px 16px;border-top:1px solid var(--border);border-radius:8px;color:var(--foreground);text-decoration:none;transition:background-color 160ms}.ds-record strong{font-weight:550}.ds-record span{font-size:13px;color:var(--muted-foreground)}.ds-record:hover{background:var(--accent)}.ds-record:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Career Folio",
+    "overview": "The career folio presents career evidence as an ordered personal record. Warm paper, forest ink, restrained selection, and ruled rows keep long editing sessions calm and readable.\n\nThe main web app shares this system across signed-in tools and authentication. The separate marketing landing page is outside this specification.",
+    "keyCharacteristics": [
+      "Quiet surfaces and visible current location.",
+      "Clear page titles and restrained action hierarchy.",
+      "Remembered disclosures and structurally responsive navigation."
+    ],
+    "rules": [
+      {
+        "name": "The Quiet Record Rule",
+        "body": "Let evidence and headings carry the page; use borders rather than colored section bands to organize records.",
+        "section": "colors"
+      }
+    ],
+    "dos": [
+      "Do use semantic theme variables in both color modes.",
+      "Do preserve disclosure state and keep the current navigation item visible.",
+      "Do use quiet rules to separate career records."
+    ],
+    "donts": [
+      "Don't restore colored header bands or accent stripes to section cards.",
+      "Don't replace the mobile navigation with a clipped desktop sidebar.",
+      "Don't treat the marketing landing page as covered by this workspace system."
+    ]
+  }
+}

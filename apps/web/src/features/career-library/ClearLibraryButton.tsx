@@ -22,7 +22,8 @@ export function ClearLibraryButton() {
   return (
     <>
       <Button
-        variant="destructive"
+        variant="ghost"
+        className="text-muted-foreground hover:text-destructive"
         onClick={() => {
           clearErrors()
           setOpen(true)

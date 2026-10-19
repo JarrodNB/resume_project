@@ -5,6 +5,7 @@
 import { Link, useNavigate } from 'react-router'
 import { useState } from 'react'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
+import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -29,9 +30,9 @@ export function InterviewPrepPage() {
     if (id) void navigate(`/interview-prep/${id}`)
   }
   return <div className="mx-auto grid max-w-3xl gap-6">
-    <div className="grid gap-2">
-      <h1 className="text-2xl font-semibold tracking-tight">Interview prep</h1>
-      <p className="text-muted-foreground">Practice five personalized interview questions based on your career library. Choose general career questions, technical questions about your practical work, or knowledge questions that test your understanding of subjects in your field. Saved sets stay as they are when your library changes.</p>
+    <PageHeading title="Interview prep" description="Turn your experience into a conversation you’re ready for." />
+    <div className="grid gap-5 rounded-xl border bg-card p-6">
+      <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Practice five personalized interview questions based on your career library. Choose general career questions, technical questions about your practical work, or knowledge questions that test your understanding of subjects in your field. Saved sets stay as they are when your library changes.</p>
       <RadioGroup aria-label="Question type" className="flex flex-wrap gap-5" value={setType} disabled={generation.loading} onValueChange={(value) => setSetType(value as InterviewQuestionSetTypeEnum)}>
         <div className="flex items-center gap-2"><RadioGroupItem id="general-questions" value="GENERAL" /><Label htmlFor="general-questions">General</Label></div>
         <div className="flex items-center gap-2"><RadioGroupItem id="technical-questions" value="TECHNICAL" /><Label htmlFor="technical-questions">Technical</Label></div>

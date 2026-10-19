@@ -1,10 +1,10 @@
-/**
- * Description: Layout for signed-in pages: top bar with navigation and sign-out, then the page.
- * Index:
- *   - AppLayout: header plus routed page content
+/** A persistent navigation spine for the user's job-search workspace.
+ * Related detail routes keep their parent selected. On small screens the spine
+ * becomes a compact header with horizontally scrollable navigation.
  */
-import { LogOut } from 'lucide-react'
-import { NavLink, Outlet } from 'react-router'
+import { ArrowUpRight, BookOpen, BriefcaseBusiness, FileText, FileUp, LogOut, MessagesSquare } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
 import { PRODUCT_NAME } from '@/lib/productName'
@@ -12,49 +12,63 @@ import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ITEMS = [
-  { to: '/library', label: 'Career library' },
-  { to: '/import', label: 'Import resume' },
-  { to: '/jobs', label: 'Jobs' },
-  { to: '/resumes', label: 'Resumes' },
-  { to: '/interview-prep', label: 'Interview prep' },
+  { to: '/library', label: 'Career library', Icon: BookOpen, group: 'Your foundation' },
+  { to: '/import', label: 'Import resume', Icon: FileUp, group: 'Your foundation' },
+  { to: '/jobs', label: 'Jobs', Icon: BriefcaseBusiness, group: 'Your applications' },
+  { to: '/resumes', label: 'Resumes', Icon: FileText, group: 'Your applications' },
+  { to: '/interview-prep', label: 'Interview prep', Icon: MessagesSquare, group: 'Your practice' },
 ]
 
-/** Renders the app header and the current page below it. */
 export function AppLayout() {
   const { signOut } = useAuth()
+  const { pathname } = useLocation()
+  const navigationRef = useRef<HTMLElement>(null)
+
+  // Keep the selected tool in view when the mobile navigation overflows.
+  useEffect(() => {
+    const navigation = navigationRef.current
+    const activeLink = navigation?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (navigation && activeLink && navigation.scrollWidth > navigation.clientWidth) {
+      navigation.scrollLeft = activeLink.offsetLeft - navigation.offsetLeft - (navigation.clientWidth - activeLink.clientWidth) / 2
+    }
+  }, [pathname])
+  const currentPage = NAV_ITEMS.find((item) => pathname.startsWith(item.to))?.label ?? 'Workspace'
 
   return (
-    <div className="min-h-svh bg-muted/40">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2">
-          <span className="font-semibold tracking-tight text-primary">{PRODUCT_NAME}</span>
-          <nav className="flex flex-wrap gap-1">
-            {NAV_ITEMS.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'rounded-md px-3 py-1.5 text-sm transition-colors',
-                    isActive ? 'bg-secondary font-medium text-secondary-foreground' : 'text-muted-foreground hover:text-foreground',
-                  )
-                }
-              >
+    <div className="workspace">
+      <a className="skip-link" href="#main-content">Skip to content</a>
+      <aside className="workspace-sidebar">
+        <Link to="/library" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>
+          <span className="brand-mark" aria-hidden><BookOpen size={21} strokeWidth={1.7} /></span>
+          {PRODUCT_NAME}<span className="brand-period" aria-hidden>.</span>
+        </Link>
+        <nav ref={navigationRef} className="workspace-nav" aria-label="Main navigation">
+          {NAV_ITEMS.map((item, index) => (
+            <div key={item.to} className="workspace-nav-item">
+              {(index === 0 || NAV_ITEMS[index - 1].group !== item.group) && <p className="nav-group-label">{item.group}</p>}
+              <NavLink to={item.to} className={({ isActive }) => cn('workspace-nav-link', isActive && 'is-active')}>
+                <item.Icon size={18} strokeWidth={1.7} aria-hidden />
                 {item.label}
               </NavLink>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-1">
-            <ThemeToggle />
-            <Button variant="ghost" size="sm" onClick={() => void signOut()}>
-              <LogOut /> Sign out
-            </Button>
-          </div>
+            </div>
+          ))}
+        </nav>
+        <div className="workspace-sidebar-note">
+          <p>A little more prepared.<br />One opportunity at a time.</p>
+          <Link to="/jobs">Find your next step <ArrowUpRight size={15} aria-hidden /></Link>
         </div>
-      </header>
-      <main className="mx-auto max-w-5xl px-6 py-8">
-        <Outlet />
-      </main>
+        <div className="workspace-account">
+          <ThemeToggle />
+          <Button variant="ghost" size="sm" onClick={() => void signOut()}><LogOut aria-hidden /> Sign out</Button>
+        </div>
+      </aside>
+      <div className="workspace-body">
+        <header className="workspace-topbar">
+          <span>Your workspace <span className="breadcrumb-divider" aria-hidden>/</span> <span className="text-foreground">{currentPage}</span></span>
+          <span className="workspace-principle">Your experience. Your next chapter.</span>
+        </header>
+        <main id="main-content" tabIndex={-1} className="workspace-content"><Outlet /></main>
+      </div>
     </div>
   )
 }

@@ -9,9 +9,9 @@ Source of the web app, organized by feature.
 - `main.tsx` — entry point (applies the saved color theme before rendering); `App.tsx` —
   AuthProvider > SessionApolloProvider > router
 - `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`)
-- `index.css` — Tailwind + shadcn theme variables: navy with warm amber/coral accents in light
-  mode, teal on slate in `.dark`, plus a tint and accent color per resume section
-  (`--section-<tone>`, `--section-<tone>-accent`)
+- `index.css` — Tailwind + shadcn theme variables: warm paper and forest ink in light
+  mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
+  (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, session (JWT) context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page

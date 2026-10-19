@@ -35,6 +35,15 @@ interface ParsedResumeFormProps {
 export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: ParsedResumeFormProps) {
   const [draft, setDraft] = useState(() => toReviewDraft(parsedResume))
   const dragHandlers = useReviewDragHandlers(draft, setDraft)
+  const experiencesWithoutDetails = draft.experiences.filter(
+    (experience) => !experience.description?.trim() && !experience.highlights.some((highlight) => highlight.text.trim()),
+  ).length
+  const warnings = experiencesWithoutDetails
+    ? [
+        ...draft.parsing_warnings,
+        `${experiencesWithoutDetails} experience ${experiencesWithoutDetails === 1 ? 'entry has' : 'entries have'} no description or highlights. Add details or remove ${experiencesWithoutDetails === 1 ? 'it' : 'them'} before saving.`,
+      ]
+    : draft.parsing_warnings
   const set = <Key extends keyof ReviewDraft>(key: Key, value: ReviewDraft[Key]) =>
     setDraft((current) => ({ ...current, [key]: value }))
 
@@ -46,7 +55,7 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
   return (
     <DragDropProvider {...dragHandlers}>
       <form className="grid gap-6" onSubmit={handleSubmit}>
-        <ParsingWarnings warnings={draft.parsing_warnings} />
+        <ParsingWarnings warnings={warnings} />
         <ReviewSection tone="contact" title="Contact">
           <ContactFields contact={draft.contact} onChange={(contact) => set('contact', contact)} />
         </ReviewSection>

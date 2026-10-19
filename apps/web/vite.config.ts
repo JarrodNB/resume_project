@@ -7,6 +7,7 @@
  *     0.0.0.0:5173, Vitest with jsdom)
  */
 import path from 'node:path'
+import { readFile } from 'node:fs/promises'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
@@ -22,8 +23,33 @@ function productNameHtml(): Plugin {
   }
 }
 
+/** Serves one allowlisted example resume for exercising the real import flow locally. */
+function devSampleResume(): Plugin {
+  return {
+    name: 'dev-sample-resume',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__dev-sample-resume', async (request, response, next) => {
+        if (request.method !== 'GET') {
+          response.statusCode = 405
+          response.end()
+          return
+        }
+        try {
+          const file = await readFile('/example_resumes/uci_business.pdf')
+          response.setHeader('Content-Type', 'application/pdf')
+          response.setHeader('Content-Length', file.byteLength)
+          response.end(file)
+        } catch (error) {
+          next(error)
+        }
+      })
+    },
+  }
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), productNameHtml()],
+  plugins: [react(), tailwindcss(), productNameHtml(), devSampleResume()],
   resolve: {
     alias: { '@': path.resolve(import.meta.dirname, './src') },
   },

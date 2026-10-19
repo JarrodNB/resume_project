@@ -17,13 +17,19 @@ import { interviewSetTypeLabel } from './interviewSetTypeLabel'
 import { DeleteInterviewSetButton } from './DeleteInterviewSetButton'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { useGenerateInterviewSet, useInterviewSets } from './useInterviewPrep'
+import { useCareerLibrary } from '@/features/career-library/useCareerLibrary'
 
 /** Generates and lists reusable sets based on the current career library. */
 export function InterviewPrepPage() {
   const { sets, loading, error, refetch } = useInterviewSets()
+  const { library, loading: libraryLoading, error: libraryError } = useCareerLibrary()
   const generation = useGenerateInterviewSet()
   const navigate = useNavigate()
   const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>('GENERAL')
+  const hasCareerContext = Boolean(library && (
+    library.me.summary?.trim() || library.experiences.length || library.projects.length ||
+    library.educations.length || library.certifications.length || library.skills.length || library.libraryFacts.length
+  ))
   /** Opens the persistent set as soon as generation is queued. */
   async function generate() {
     const id = await generation.generate(setType)
@@ -38,12 +44,22 @@ export function InterviewPrepPage() {
         <div className="flex items-center gap-2"><RadioGroupItem id="technical-questions" value="TECHNICAL" /><Label htmlFor="technical-questions">Technical</Label></div>
         <div className="flex items-center gap-2"><RadioGroupItem id="knowledge-questions" value="KNOWLEDGE" /><Label htmlFor="knowledge-questions">Knowledge</Label></div>
       </RadioGroup>
-      <Button className="justify-self-start" disabled={generation.loading} onClick={() => void generate()}>{generation.loading ? 'Starting…' : 'Generate questions'}</Button>
+      <Button className="justify-self-start" disabled={generation.loading || !hasCareerContext} onClick={() => void generate()}>{generation.loading ? 'Starting…' : 'Generate questions'}</Button>
+      {!hasCareerContext && !libraryError && <div className="grid gap-2 text-sm text-muted-foreground" aria-live="polite">
+        {libraryLoading ? <p>Checking your career library…</p> : <>
+          <p>Add career details before generating interview questions.</p>
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link className="font-medium text-foreground underline underline-offset-4" to="/import">Import a resume</Link>
+            <Link className="font-medium text-foreground underline underline-offset-4" to="/library">Add details in your career library</Link>
+          </div>
+        </>}
+      </div>}
     </div>
     <ErrorAlert title="Couldn't generate questions" messages={generation.errors} />
     {error && <ErrorAlert title="Couldn't load your sets" messages={[requestErrorMessage(error, error.message)]} />}
+    {libraryError && <ErrorAlert title="Couldn't check your career library" messages={[requestErrorMessage(libraryError, libraryError.message)]} />}
     {!sets && loading && <p>Loading…</p>}
-    {sets?.length === 0 && <p className="text-muted-foreground">No question sets yet. Add your experience to the career library, then generate your first set.</p>}
+    {sets?.length === 0 && hasCareerContext && <p className="text-muted-foreground">No question sets yet. Generate your first set when you’re ready to practice.</p>}
     <ul className="grid gap-3">
       {sets?.map((set) => <li key={set.id}><Card><CardContent className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">

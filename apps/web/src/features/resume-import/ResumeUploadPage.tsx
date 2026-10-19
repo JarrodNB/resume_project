@@ -1,10 +1,12 @@
 /**
- * Description: First step of importing a resume: upload the file, then follow the parse live.
+ * Description: Upload a resume and follow its parse live; development builds can load a project sample.
  * Index:
  *   - ResumeUploadPage: page component
  */
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ResumeDropzone } from './ResumeDropzone'
 import { useParseResume } from './useParseResume'
@@ -13,10 +15,27 @@ import { useParseResume } from './useParseResume'
 export function ResumeUploadPage() {
   const navigate = useNavigate()
   const { parseResume, uploading, errors } = useParseResume()
+  const [loadingSample, setLoadingSample] = useState(false)
+  const [sampleError, setSampleError] = useState<string | null>(null)
 
   async function handleFileSelected(file: File) {
     const aiTaskId = await parseResume(file)
     if (aiTaskId) navigate(`/import/${aiTaskId}`)
+  }
+
+  async function handleLoadSample() {
+    setLoadingSample(true)
+    setSampleError(null)
+    try {
+      const response = await fetch('/__dev-sample-resume')
+      if (!response.ok) throw new Error('Sample file request failed')
+      const sample = new File([await response.blob()], 'uci_business.pdf', { type: 'application/pdf' })
+      await handleFileSelected(sample)
+    } catch {
+      setSampleError('Could not load the project sample. Refresh and try again.')
+    } finally {
+      setLoadingSample(false)
+    }
   }
 
   return (
@@ -35,7 +54,11 @@ export function ResumeUploadPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <ErrorAlert messages={errors} title="Upload failed" />
-          <ResumeDropzone onFileSelected={handleFileSelected} busy={uploading} />
+          {sampleError && <ErrorAlert messages={[sampleError]} title="Sample unavailable" />}
+          <ResumeDropzone onFileSelected={handleFileSelected} busy={uploading || loadingSample} />
+          {import.meta.env.DEV && <Button className="justify-self-start" disabled={uploading || loadingSample} onClick={() => void handleLoadSample()} variant="outline">
+            {loadingSample ? 'Loading sample…' : 'Load project sample resume (development only)'}
+          </Button>}
         </CardContent>
       </Card>
     </div>

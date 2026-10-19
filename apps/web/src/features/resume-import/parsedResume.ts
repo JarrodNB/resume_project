@@ -90,17 +90,26 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   }
 }
 
-/** Reads structured links and upgrades legacy string-only task results. */
+/** Reads structured or legacy string-only links and makes bare web addresses valid URLs. */
 export function parsedLinks(value: unknown): ParsedLink[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((link) => {
-    if (typeof link === 'string') return [{ label: link, url: link }]
+    if (typeof link === 'string') return [{ label: link, url: normalizeBareWebUrl(link) }]
     if (typeof link !== 'object' || link === null) return []
     const record = link as Record<string, unknown>
     return typeof record.label === 'string' && typeof record.url === 'string'
-      ? [{ label: record.label, url: record.url }]
+      ? [{ label: record.label, url: normalizeBareWebUrl(record.url) }]
       : []
   })
+}
+
+/** Adds the conventional secure scheme when an extracted link is a bare domain address. */
+function normalizeBareWebUrl(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed || /^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed
+  return /^(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:[/:?#][^\s]*)?$/i.test(trimmed)
+    ? `https://${trimmed}`
+    : trimmed
 }
 /** A blank experience. */
 export function emptyExperience(): ParsedExperience {

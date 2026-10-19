@@ -1,11 +1,9 @@
 # Copies a public listing into a private Job snapshot. Deduplication happens under
 # the owner's row lock; refreshing provider data never rewrites a saved application.
-require "uri"
 
 module JobBoard
   class ImportListingService < ApplicationService
     LEFT_OUT_WARNING = "Part of this posting was too long to save, so the extra text was left out.".freeze
-    TRACKING_PARAMETERS = %w[fbclid gclid dclid msclkid mc_cid mc_eid].freeze
 
     # @param user [User] authenticated owner
     # @param listing [JobBoardListing] shared provider snapshot
@@ -18,7 +16,7 @@ module JobBoard
     # Makes no provider requests and schedules no AI tasks.
     def call
       @user.with_lock do
-        job = @user.jobs.find_by(job_board_listing_id: @listing.id) || matching_url_job
+        job = SavedJobLookup.new(user: @user).find(@listing)
         if job
           job.update!(job_board_listing: @listing) unless job.job_board_listing_id
         else
@@ -31,27 +29,6 @@ module JobBoard
     end
 
     private
-
-    def matching_url_job
-      identity = normalized_url(@listing.payload["application_url"])
-      return unless identity
-
-      @user.jobs.where.not(url: [ nil, "" ]).order(:created_at, :id).detect { |job| normalized_url(job.url) == identity }
-    end
-
-    def normalized_url(value)
-      return if value.blank?
-      uri = URI.parse(value)
-      return unless %w[http https].include?(uri.scheme) && uri.host
-      uri.fragment = nil
-      if uri.query
-        parameters = URI.decode_www_form(uri.query).reject { |key, _| key.downcase.start_with?("utm_") || TRACKING_PARAMETERS.include?(key.downcase) }
-        uri.query = parameters.empty? ? nil : URI.encode_www_form(parameters)
-      end
-      uri.to_s
-    rescue URI::InvalidURIError, ArgumentError
-      nil
-    end
 
     def attributes
       payload = @listing.payload

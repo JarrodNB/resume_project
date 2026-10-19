@@ -12,3 +12,7 @@ Authorized GraphQL query specs.
 ## Local Rules
 
 Read through current_user. Cover cross-user IDs and interview set ordering, question revisions, latest tasks, and outdated feedback. Keep external calls stubbed.
+
+Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
+All saved Job lookup remains scoped to the current user, including listing/URL matches via
+JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.

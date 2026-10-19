@@ -39,8 +39,8 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 
 ## Local Rules
 
-- Root query fields read through `current_user` associations only.
-- Mutations: find the record via `current_user`, call one service, return
+- Private root query fields read through `current_user` associations. Job Board search reads the shared provider catalogue.
+- Mutations: find private records via `current_user` (shared Job Board listing IDs are the exception), call one service, return
   `payload_from(result, :record_key)`. Payloads always include `errors: [String!]!`.
 - Inputs are `<Noun>AttributesInput` with all-optional fields, shared by create and update.
 - Enum types mirror model constants with `extend EnumFromValues; values_from Model::CONSTANT`.
@@ -59,3 +59,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 - Certification types/inputs and `mutations/certifications/` expose authorized create/update/delete/merge and the `certifications` query.
 
 - Interview prep: `interviewQuestionSets` / `interviewQuestionSet(id)` expose persisted questions, revision metadata, outdated feedback, and latest tasks. `mutations/interview_prep/` provides generation, saving, regeneration, feedback, and deletion; question IDs are scoped through an owned set. `types/interview_question_set_type.rb` and `types/interview_question_type.rb` define these outputs.
+
+Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
+All saved Job lookup remains scoped to the current user, including listing/URL matches via
+JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.

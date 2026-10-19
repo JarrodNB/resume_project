@@ -557,3 +557,73 @@ def test_group_failure_cancels_and_awaits_siblings(offline_model_resolution):
     with collect_task_usage(), pytest.raises(ValueError, match="group failed"):
         parse()
     assert len(cancelled) == 2
+
+
+def test_split_roles_restore_wrapped_duplicate_passages_in_source_order(offline_model_resolution):
+    source = (
+        "WORK EXPERIENCE\nSenior Engineer\nAcme\n2022 - Present\n"
+        "• Built a PERSON_TOKEN platform\n  across two regions.\n"
+        "• Reduced support requests by 30%.\n"
+        "Software Engineer\nContoso\n2019 - 2022\n"
+        "• Built a PERSON_TOKEN platform\n  across two regions.\n"
+        "• Improved deployment reliability.\n"
+        "PROJECTS\n• Built a personal site.\n"
+    )
+
+    async def answer(messages, info):
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            args = {"experiences": [
+                {"company": "Acme", "title": "Senior Engineer", "start_date": "2022",
+                 "is_current": True, "highlight_ids": ["B2", "B1"]},
+                {"company": "Contoso", "title": "Software Engineer", "start_date": "2019",
+                 "end_date": "2022", "highlight_ids": ["B4", "B3"]},
+            ]}
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
+    roles = result.parsed_resume.experiences
+    assert [(role.company, role.title, role.start_date, role.end_date) for role in roles] == [
+        ("Acme", "Senior Engineer", "2022", None),
+        ("Contoso", "Software Engineer", "2019", "2022"),
+    ]
+    assert roles[0].is_current
+    assert [role.highlights for role in roles] == [
+        ["Built a PERSON_TOKEN platform\nacross two regions.", "Reduced support requests by 30%."],
+        ["Built a PERSON_TOKEN platform\nacross two regions.", "Improved deployment reliability."],
+    ]
+
+
+@pytest.mark.parametrize("recover", [False, True])
+def test_source_id_reused_across_roles_retries_or_fails(recover, offline_model_resolution):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    calls = 0
+
+    async def answer(messages, info):
+        nonlocal calls
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            calls += 1
+            args = {"experiences": [
+                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]},
+                {"company": "Contoso", "title": "Engineer",
+                 "highlight_ids": ["B2"] if recover and calls > 1 else ["B1"]},
+            ]}
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    source = "WORK EXPERIENCE\n• Built one thing.\n• Built another thing."
+    if recover:
+        result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
+        assert calls == 2
+        assert [role.highlights for role in result.parsed_resume.experiences] == [
+            ["Built one thing."], ["Built another thing."],
+        ]
+    else:
+        with pytest.raises(UnexpectedModelBehavior):
+            parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
+        assert calls == 3

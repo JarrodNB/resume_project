@@ -1,7 +1,6 @@
 /**
- * Description: Email/password form used by sign-in and sign-up (sign-up adds a name field).
- * Index:
- *   - AuthForm: controlled form that submits AuthCredentials and shows server errors
+ * Collects login or signup credentials and shows server errors. Signup explains
+ * the server's new-password policy; login leaves existing passwords unrestricted.
  */
 import { useState, type FormEvent } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthRequestError, type AuthCredentials } from './authApi'
+import { PasswordInput } from './PasswordInput'
 
 interface AuthFormProps {
   submitLabel: string
@@ -38,7 +38,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
 
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
-      <ErrorAlert messages={errors} />
+      {errors.length > 0 && <div id="auth-errors"><ErrorAlert messages={errors} /></div>}
       {includeName && (
         <div className="grid gap-2">
           <Label htmlFor="name">Name <span className="text-muted-foreground">(optional)</span></Label>
@@ -58,17 +58,22 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
       </div>
       <div className="grid gap-2">
         <Label htmlFor="password">Password</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete={includeName ? 'new-password' : 'current-password'}
-          minLength={includeName ? 6 : undefined}
-          maxLength={includeName ? 128 : undefined}
+          aria-describedby={[includeName && 'password-guidance', errors.length > 0 && 'auth-errors'].filter(Boolean).join(' ') || undefined}
+          aria-invalid={errors.some((message) => /^password\b/i.test(message)) || undefined}
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
-        {includeName && <p className="text-sm text-muted-foreground">Use 6 to 128 characters.</p>}
+        {includeName && (
+          <p id="password-guidance" className="text-sm text-muted-foreground">
+            Use at least 15 characters and at most 72 bytes. Some characters, such as emoji,
+            use more than one byte. Try a unique passphrase; common passwords are rejected.
+            No special mix of letters, numbers, or symbols is required.
+          </p>
+        )}
       </div>
       <Button type="submit" size="lg" disabled={submitting}>
         {submitting ? 'Please wait…' : submitLabel}

@@ -10,7 +10,7 @@ RSpec.describe "Auth", type: :request do
   end
 
   it "signs up and authenticates with a cookie" do
-    post "/auth/sign_up", params: { user: { name: "Ada", email: "ada@example.com", password: "password123" } }.to_json, headers: json_headers
+    post "/auth/sign_up", params: { user: { name: "Ada", email: "ada@example.com", password: "a quiet orchard after rain" } }.to_json, headers: json_headers
     expect(response).to have_http_status(:created)
     expect(response.headers["Authorization"]).to be_nil
     expect(response.headers["Set-Cookie"]).to include("httponly", "samesite=lax")
@@ -31,7 +31,7 @@ RSpec.describe "Auth", type: :request do
 
   it "signs in and signs out idempotently" do
     user = create(:user)
-    sign_in(email: user.email, password: "password123")
+    sign_in(email: user.email, password: "a quiet orchard after rain")
     expect(response).to have_http_status(:ok)
     post "/graphql", params: me_query, headers: json_headers
     expect(response.parsed_body.dig("data", "me", "email")).to eq(user.email)

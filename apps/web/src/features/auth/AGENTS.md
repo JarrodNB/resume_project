@@ -10,6 +10,8 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
 - `authContext.ts`, `AuthProvider.tsx`, `useAuth.ts` — session context and actions
 - `RequireAuth.tsx` — `RequireAuth` (signed-in routes) and `RequireSignedOut` (auth pages)
 - `SignInPage.tsx`, `SignUpPage.tsx`, `AuthForm.tsx`, `AuthPageShell.tsx` — pages and UI
+- `PasswordInput.tsx` — shared password-manager-friendly input and accessible visibility toggle;
+  password acceptance remains server-owned, with no native truncating maximum length
 - `*.test.ts(x)` — auth API and sign-in flow tests
 
 ## Local Rules

@@ -182,8 +182,10 @@ Devise.setup do |config|
   # config.rememberable_options = {}
 
   # ==> Configuration for :validatable
-  # Range for password length.
-  config.password_length = 6..128
+  # Newly chosen passwords only. The User validation also enforces bcrypt's byte limit.
+  config.password_length = 15..72
+  # Check every eligible entry in the gem's bundled offline SecLists top-10,000 list.
+  config.password_matches = 10_000
 
   # Email regex used to validate email formats. It simply asserts that
   # one (and only one) @ exists in the given string. This is mainly

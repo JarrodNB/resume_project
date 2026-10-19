@@ -21,7 +21,7 @@ RSpec.describe "Browser sessions", type: :request do
   def login
     token = bootstrap
     user = create(:user)
-    post "/auth/sign_in", params: { user: { email: user.email, password: "password123" } }.to_json,
+    post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }.to_json,
       headers: headers.merge("X-CSRF-Token" => token)
     expect(response).to have_http_status(:ok)
     expect(response.headers["Authorization"]).to be_nil
@@ -35,13 +35,13 @@ RSpec.describe "Browser sessions", type: :request do
   end
 
   it "requires CSRF even on login" do
-    post "/auth/sign_in", params: { user: { email: "missing@example.com", password: "password123" } }.to_json, headers: headers
+    post "/auth/sign_in", params: { user: { email: "missing@example.com", password: "a quiet orchard after rain" } }.to_json, headers: headers
     expect(response).to have_http_status(:unprocessable_content)
     expect(response.parsed_body["errors"]).to eq([ "Invalid CSRF token" ])
   end
 
   it "requires CSRF on signup and logout" do
-    post "/auth/sign_up", params: { user: { email: "ada@example.com", password: "password123" } }.to_json, headers: headers
+    post "/auth/sign_up", params: { user: { email: "ada@example.com", password: "a quiet orchard after rain" } }.to_json, headers: headers
     expect(response).to have_http_status(:unprocessable_content)
     delete "/auth/sign_out", headers: headers
     expect(response).to have_http_status(:unprocessable_content)
@@ -49,7 +49,7 @@ RSpec.describe "Browser sessions", type: :request do
 
   it "accepts signup with CSRF and returns the newly authenticated session" do
     token = bootstrap
-    post "/auth/sign_up", params: { user: { email: "ada@example.com", password: "password123" } }.to_json,
+    post "/auth/sign_up", params: { user: { email: "ada@example.com", password: "a quiet orchard after rain" } }.to_json,
       headers: headers.merge("X-CSRF-Token" => token)
     expect(response).to have_http_status(:created)
     expect(response.parsed_body.dig("user", "email")).to eq("ada@example.com")
@@ -88,7 +88,7 @@ RSpec.describe "Browser sessions", type: :request do
     old_csrf = bootstrap
     old_cookie = cookies["_careergrind_session"]
     user = create(:user)
-    post "/auth/sign_in", params: { user: { email: user.email, password: "password123" } }.to_json,
+    post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }.to_json,
       headers: headers.merge("X-CSRF-Token" => old_csrf)
     expect(cookies["_careergrind_session"]).not_to eq(old_cookie)
     post "/graphql", params: { query: "{ me { email } }" }.to_json, headers: headers.merge("X-CSRF-Token" => old_csrf)

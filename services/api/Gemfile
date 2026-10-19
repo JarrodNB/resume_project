@@ -29,6 +29,7 @@ gem "image_processing", "~> 1.2"
 gem "rack-cors"
 
 gem "devise"
+gem "devise-uncommon_password", "~> 0.4.9", require: "devise/uncommon_password"
 
 gem "graphql"
 

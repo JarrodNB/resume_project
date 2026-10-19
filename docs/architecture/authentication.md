@@ -98,8 +98,47 @@ navigation, and per-session cache/connection replacement. Use Docker checks from
 [testing](../testing.md). Human browser QA should exercise two accounts, refresh,
 logout with a live subscription, an expired session, and a resume upload.
 
-Email verification/recovery and stronger password rules are separate account-flow
-changes; this transport migration does not enable them by itself.
+Email verification and recovery are separate account-flow changes.
+
+## New passwords
+
+Devise validates newly chosen passwords at the User boundary: at least 15 Unicode
+characters, with an explicit maximum of 72 bytes for the installed bcrypt hasher.
+Some characters use multiple bytes, so a Unicode passphrase may reach that limit
+before 72 characters. The server rejects oversized values; it never trims or
+normalizes them. Passphrases need no prescribed mix of character types. Existing
+password hashes still authenticate, and profile-only updates do not revalidate
+the old password. Replacement passwords use the same rules as registration.
+
+The frontend explains these limits and displays server errors. Its shared
+`PasswordInput` supports password-manager autocomplete, paste, and a keyboard
+visibility toggle. It deliberately has no native maximum length, which could
+silently truncate a pasted password, or client strength estimator.
+
+`devise-uncommon_password` 0.4.9 supplies the offline common-password validation.
+Its bundled list derives from SecLists `darkweb2017_top10K.txt`; both projects use
+the MIT license. `password_matches = 10_000` checks all bundled entries that fit
+Devise's configured length range, including case variants. Passwords never leave
+the API for this check. This fixed list is a common-password safeguard, not a
+complete or continuously updated collection of breached passwords. Update the
+dependency deliberately and rerun policy regressions when refreshing it.
+
+The selected release is tagged `v0.4.9` (commit
+`3915117211dfd23def120d069a317c4a9ac1ace6`, released February 2026). Its declared
+support covers Ruby >=2.7, Rails >=4.2 and <9, and Devise >=3.5 and <6. Upstream
+tests cover rejection, case variants, configurable list length, and profile-only
+updates; its CI matrix covers Ruby 3.3 with Rails 7.1, 7.2, and 8.0. Application
+request/model tests exercise the actual locked Rails 8.1 / Ruby 3.4 / Devise 5 stack.
+
+Narrow safeguards live beside these validations: a text-value guard around
+the extension's validator (0.4.9 otherwise calls `downcase` on nil), and assignment
+and login guards because bcrypt hashes eagerly and raises on NUL bytes before
+validations. Non-text and NUL values are rejected without calling the hasher;
+invalid assigned values are retained only so validation can explain the error.
+Normal password assignments and comparisons delegate unchanged to Devise. Tests cover
+missing/blank/NUL registration, Unicode byte/character boundaries, unchanged
+hashes after invalid updates, non-text credentials, malformed login, and legacy login. These guards do not replace the
+library's lookup or cryptography.
 
 ## References
 
@@ -107,3 +146,6 @@ changes; this transport migration does not enable them by itself.
 - [Session store release and source](https://github.com/rails/activerecord-session_store/releases/tag/v2.3.0)
 - [Session store configuration and cleanup](https://github.com/rails/activerecord-session_store/tree/v2.3.0)
 - [Devise](https://github.com/heartcombo/devise)
+- [Offline password validator release source and tests](https://github.com/HCLarsen/devise-uncommon_password/tree/v0.4.9)
+- [Validator MIT license](https://github.com/HCLarsen/devise-uncommon_password/blob/v0.4.9/MIT-LICENSE)
+- [SecLists source and MIT license](https://github.com/danielmiessler/SecLists)

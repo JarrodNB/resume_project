@@ -41,7 +41,7 @@ RSpec.describe "Rack::Attack throttling", type: :request do
 
   it "throttles GraphQL per signed-in user" do
     user = create(:user)
-    post "/auth/sign_in", params: { user: { email: user.email, password: "password123" } }.to_json, headers: json_headers
+    post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }.to_json, headers: json_headers
     auth_headers = json_headers
 
     120.times { |request_number| post "/graphql", params: { query: "{ me { email } }" }.to_json, headers: auth_headers.merge("REMOTE_ADDR" => "10.1.0.#{request_number % 200}") }

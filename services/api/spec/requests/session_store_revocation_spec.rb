@@ -6,7 +6,7 @@ RSpec.describe "Session store revocation", type: :request do
   it "authenticates Cable using the actual HTTP login cookie through session middleware" do
     user = create(:user)
     get "/auth/session"
-    post "/auth/sign_in", params: { user: { email: user.email, password: "password123" } }, as: :json,
+    post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }, as: :json,
       headers: { "X-CSRF-Token" => response.parsed_body.fetch("csrfToken") }
     expect(response).to have_http_status(:ok)
     cookie = response.headers.fetch("Set-Cookie").split(";").first
@@ -35,7 +35,7 @@ RSpec.describe "Session store revocation", type: :request do
     user = create(:user)
     get "/auth/session"
     token = response.parsed_body.fetch("csrfToken")
-    post "/auth/sign_in", params: { user: { email: user.email, password: "password123" } }, as: :json,
+    post "/auth/sign_in", params: { user: { email: user.email, password: "a quiet orchard after rain" } }, as: :json,
       headers: { "X-CSRF-Token" => token }
     expect(response).to have_http_status(:ok), response.body
     cookie = response.headers.fetch("Set-Cookie").split(";").first

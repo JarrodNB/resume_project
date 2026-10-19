@@ -25,6 +25,7 @@ class ScreeningSession:
     async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
+    library_screening: list[Any] = field(default_factory=list)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)
@@ -45,14 +46,14 @@ def remaining_timeout(timeout_seconds: float) -> float:
 
 
 @contextmanager
-def screening_session(timeout_seconds: float = 240, *, reuse: bool = False) -> Iterator[None]:
+def screening_session(timeout_seconds: float = 240, *, reuse: bool = False) -> Iterator[ScreeningSession]:
     """Start fresh coverage, or explicitly reuse an enclosing task for a helper call."""
     if reuse and _current.get() is not None:
-        yield
+        yield _current.get()
         return
     token = _current.set(ScreeningSession(monotonic() + timeout_seconds))
     try:
-        yield
+        yield _current.get()
     finally:
         _current.reset(token)
 

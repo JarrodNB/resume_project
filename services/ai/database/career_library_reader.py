@@ -45,37 +45,37 @@ JOB_QUERY = """
     SELECT id::text, title, company, requirements, responsibilities, nice_to_haves
     FROM jobs WHERE id = %(job_id)s AND user_id = %(user_id)s
 """
-SUMMARY_QUERY = "SELECT summary FROM users WHERE id = %(user_id)s"
+SUMMARY_QUERY = "SELECT id::text, summary, screened_fields FROM users WHERE id = %(user_id)s"
 EXPERIENCES_QUERY = f"""
-    SELECT id::text, company, title, location, start_date, end_date, description
+    SELECT id::text, company, title, location, start_date, end_date, description, screened_fields
     FROM experiences WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 HIGHLIGHTS_QUERY = """
-    SELECT highlights.id::text, highlights.experience_id::text, highlights.content
+    SELECT highlights.id::text, highlights.experience_id::text, highlights.content, highlights.screened_fields
     FROM experience_highlights AS highlights
     JOIN experiences ON experiences.id = highlights.experience_id
     WHERE experiences.user_id = %(user_id)s
     ORDER BY highlights.position
 """
 PROJECTS_QUERY = f"""
-    SELECT id::text, name, role, description, start_date, end_date
+    SELECT id::text, name, role, description, start_date, end_date, screened_fields
     FROM projects WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 EDUCATIONS_QUERY = f"""
-    SELECT id::text, institution, degree, field_of_study, description, start_date, end_date
+    SELECT id::text, institution, degree, field_of_study, description, start_date, end_date, screened_fields
     FROM educations WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
 CERTIFICATIONS_QUERY = """
-    SELECT id::text, name, issuer, issued_date, issued_date_precision, expiry_date, expiry_date_precision, credential_id, credential_url, description
+    SELECT id::text, name, issuer, issued_date, issued_date_precision, expiry_date, expiry_date_precision, credential_id, credential_url, description, screened_fields
     FROM certifications WHERE user_id = %(user_id)s
     ORDER BY issued_date DESC NULLS LAST, position
 """
 SKILLS_QUERY = """
-    SELECT id::text, name, category FROM skills WHERE user_id = %(user_id)s
+    SELECT id::text, name, category, screened_fields FROM skills WHERE user_id = %(user_id)s
     ORDER BY position, name
 """
 FACTS_QUERY = """
-    SELECT id::text, requirement, response FROM library_facts WHERE user_id = %(user_id)s
+    SELECT id::text, requirement, response, screened_fields FROM library_facts WHERE user_id = %(user_id)s
     ORDER BY created_at
 """
 
@@ -108,11 +108,13 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(
-            LibraryHighlight(id=row["id"], content=row["content"])
+            LibraryHighlight(id=row["id"], content=row["content"], screened_fields=row.get("screened_fields", []))
         )
 
     library = CareerLibrary(
         summary=summary_row["summary"] if summary_row else None,
+        summary_record_id=summary_row.get("id") if summary_row else None,
+        screened_fields=summary_row.get("screened_fields", []) if summary_row else [],
         experiences=[
             LibraryExperience(**row, highlights=highlights_by_experience.get(row["id"], []))
             for row in experience_rows

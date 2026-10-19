@@ -94,9 +94,10 @@ tailoring) instead of sending everything.
   responsibilities remain available to other features but do not enter gap screening or
   generation. Both Rails and the AI worker reject jobs with neither qualification list;
   nice-to-have-only jobs are supported.
-  Gap-analysis preparation screens the projected job first, then the complete career library
-  (including summary, highlights, certifications, and saved facts) as one structured source.
-  It reuses resume import's overlapping chunks without the short-note phrase filter. Any
+  Gap-analysis preparation screens the projected job first, then all unchecked used fields
+  from the complete career library (including summary, highlights, certifications, and saved
+  facts) as one structured source. Checked fields are reused. It uses resume import's
+  overlapping chunks without the short-note phrase filter. Any
   blocked or incomplete screen stops analysis; entries are never omitted to continue.
   The existing 80,000-character source cap now applies to the assembled library, including
   JSON metadata, and the final prompt retains its 120,000-character cap. Both limits are
@@ -130,8 +131,14 @@ tailoring) instead of sending everything.
   Empty sections skip generation. A successful optional writer may omit its section with
   an explanation when nothing fits. A failed writer or the shared task deadline cancels and
   awaits outstanding work; no successful fragments are published as a complete draft.
-  Transient retries and provider accounting remain task-wide. Screening approvals live only
-  in the current execution; later deliveries prepare and screen again.
+  Transient retries and provider accounting remain task-wide. Career-library records remember
+  checked field names in `screened_fields`, including summary on the user and highlight content.
+  All library consumers reuse these checks; each screens only unchecked fields it uses.
+  Interviews exclude fact requirements. Edits remove only changed field names; reordering
+  preserves checks. New/imported rows start unchecked. Rails applies successful check reports
+  from completed or failed AI results to owner-scoped records; Python remains read-only.
+  Other input and prompt coverage remain execution-local. Checks have no expiry or policy
+  version, and results carry no edit revision check.
   The result stays on the task as ordered section snapshots and warnings. There is no
   tailoring `needs_user_input`, generation counter, submit-section mutation, or reopening
   state. Users edit or exclude sections, preview, then explicitly save once. Save holds the

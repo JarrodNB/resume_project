@@ -35,7 +35,8 @@ def test_every_library_value_is_screened_and_preserved():
         assert prompt_is_covered(result.prompt.text)
         assert not prompt_is_covered(result.prompt.text + " new untrusted text")
     assert len(requests) == 2
-    assert requests[1] == context.career_library.model_dump_json(exclude_none=True)
+    assert "On call" in requests[1]
+    assert "screened_fields" not in requests[1]
     assert result.prompt == expected
     assert list(result.prompt.evidence) == ["E1", "H1", "H2", "P1", "ED1", "C1", "S1", "S2", "F1"]
 
@@ -44,15 +45,15 @@ def test_complete_library_reuses_import_chunk_policy(monkeypatch):
     monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
     context = build_gap_analysis_context()
     context.career_library.summary = "Career background " * 270
-    source = context.career_library.model_dump_json(exclude_none=True)
     requests = []
     with screening_session(), user_text_screen_agent.override(model=jev_model(requests)):
         result = prepare(context)
         assert prompt_is_covered(result.prompt.text)
     chunks = requests[1:]
-    assert chunks == [source[start:start + 2000] for start in range(0, len(source), 1700)
-                      if start == 0 or start + 300 < len(source)]
-    assert chunks[0] + "".join(chunk[300:] for chunk in chunks[1:]) == source
+    screened = chunks[0] + "".join(chunk[300:] for chunk in chunks[1:])
+    assert chunks == [screened[start:start + 2000] for start in range(0, len(screened), 1700)
+                      if start == 0 or start + 300 < len(screened)]
+    assert context.career_library.summary in screened
     assert sum(item.input_tokens for item in result.usage) == len(requests) * 100
 
 
@@ -116,7 +117,7 @@ def test_library_at_exact_source_cap_is_not_truncated(monkeypatch):
         result = prepare(context)
     assert result.prompt is not None
     chunks = requests[1:]
-    assert len(chunks[0] + "".join(chunk[300:] for chunk in chunks[1:])) == 80_000
+    assert context.career_library.summary in chunks[0] + "".join(chunk[300:] for chunk in chunks[1:])
     assert result.prompt.text.count("x") >= 80_000 - overhead
 
 
@@ -136,3 +137,29 @@ def test_whole_library_skips_short_note_phrase_filter():
         result = prepare(context)
     assert result.prompt is not None
     assert len(requests) == 2
+
+
+def test_later_analysis_reuses_saved_checks_but_still_screens_job():
+    context = build_gap_analysis_context()
+    requests = []
+    with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):
+        first = prepare(context)
+        assert first.prompt
+        reports = session.library_screening
+    for report in reports:
+        for collection in (context.career_library.experiences, context.career_library.projects,
+                           context.career_library.educations, context.career_library.skills):
+            for record in collection:
+                if record.id == report.record_id:
+                    record.screened_fields = report.fields
+                for highlight in getattr(record, "highlights", []):
+                    if highlight.id == report.record_id:
+                        highlight.screened_fields = report.fields
+    context.career_library.screened_fields = ["summary"]
+    requests.clear()
+    with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):
+        second = prepare(context)
+        assert prompt_is_covered(second.prompt.text)
+        assert not session.library_screening
+    assert second.prompt == first.prompt
+    assert len(requests) == 1

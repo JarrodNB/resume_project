@@ -12,6 +12,57 @@ RSpec.describe AiTasks::ApplyAiResultService do
     { "ai_task_id" => ai_task.id, "status" => status }.merge(fields.stringify_keys)
   end
 
+  it "remembers successful library field checks on failed generation, idempotently and only for its owner" do
+    own = create(:project, user: ai_task.user)
+    other = create(:project)
+    reports = [ own, other ].map { |record| { "record_type" => "project", "record_id" => record.id, "fields" => %w[name unknown] } }
+    message = result_message("failed", error_message: "Generation failed", library_screening: reports)
+    2.times { described_class.call(message: message) }
+
+    expect(own.reload.screened_fields).to eq([ "name" ])
+    expect(other.reload.screened_fields).to eq([])
+  end
+
+  it "does not restore an edited field's check when a final result is redelivered" do
+    project = create(:project, user: ai_task.user)
+    report = { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] }
+    message = result_message("failed", error_message: "Generation failed", library_screening: [ report ])
+    described_class.call(message: message)
+    Projects::UpdateProjectService.call(project: project.reload, attributes: { name: "Edited" })
+    described_class.call(message: message)
+    expect(project.reload.screened_fields).to eq([])
+  end
+
+  it "accepts each library kind and rejects another owner's profile and highlights" do
+    user = ai_task.user
+    experience = create(:experience, user: user)
+    records = [ user, experience, create(:experience_highlight, experience: experience),
+               create(:project, user: user), create(:education, user: user),
+               create(:certification, user: user), create(:skill, user: user), create(:library_fact, user: user) ]
+    reports = records.map do |record|
+      { "record_type" => record.class.name.underscore, "record_id" => record.id,
+        "fields" => CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name) }
+    end
+    other_user = create(:user)
+    other_highlight = create(:experience_highlight)
+    reports += [
+      { "record_type" => "user", "record_id" => other_user.id, "fields" => [ "summary" ] },
+      { "record_type" => "experience_highlight", "record_id" => other_highlight.id, "fields" => [ "content" ] },
+      { "record_type" => "job", "record_id" => SecureRandom.uuid, "fields" => [ "title" ] }
+    ]
+    expect(described_class.call(message: result_message("completed", result: {}, library_screening: reports))).to be_success
+    records.each { |record| expect(record.reload.screened_fields).to eq(CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name)) }
+    expect(other_user.reload.screened_fields).to eq([])
+    expect(other_highlight.reload.screened_fields).to eq([])
+  end
+
+  it "does not apply screening on usage-only messages" do
+    project = create(:project, user: ai_task.user)
+    report = { "record_type" => "project", "record_id" => project.id, "fields" => [ "name" ] }
+    described_class.call(message: result_message("usage", attempt_id: SecureRandom.uuid, library_screening: [ report ]))
+    expect(project.reload.screened_fields).to eq([])
+  end
+
   it "completes the task and notifies subscribers" do
     result = described_class.call(message: result_message("completed", result: { "echo" => "hi" }))
 

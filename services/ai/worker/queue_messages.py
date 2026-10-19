@@ -38,6 +38,14 @@ class ModelUsage(BaseModel):
     cost_microdollars: int | None = Field(default=None, ge=0)
 
 
+class LibraryScreening(BaseModel):
+    """Successful field checks to add to a saved record owned by the task user."""
+
+    record_type: str
+    record_id: str
+    fields: list[str]
+
+
 class AiResultMessage(BaseModel):
     """An outcome or usage-only report. Attempt identity deduplicates accounting, not execution."""
 
@@ -51,3 +59,4 @@ class AiResultMessage(BaseModel):
     attempt_id: UUID | None = None
     usage_incomplete: bool = False
     attempt_finished: bool = True
+    library_screening: list[LibraryScreening] = Field(default_factory=list)

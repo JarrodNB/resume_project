@@ -101,7 +101,7 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   instead of Rails packing a snapshot into the task message (the library can outgrow a
   comfortable SQS payload, and the worker would need the same access for memory retrieval
   anyway). The role gets SELECT only on the tables it needs, and of `users` only `id`,
-  `summary`, `name`, `contact_email`, and `phone`, so the sign-in email, password hashes, and
+  `summary`, `screened_fields`, `name`, `contact_email`, and `phone`, so the sign-in email, password hashes, and
   tokens stay out of reach. Grants are applied by a Rails rake
   task after every `db:prepare` / `db:migrate` (`lib/ai_reader_access.rb`), because `schema.rb`
   doesn't record grants; a Postgres init script only creates the role. It can also read

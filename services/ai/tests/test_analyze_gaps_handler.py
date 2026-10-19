@@ -208,7 +208,7 @@ def test_blocked_library_fact_fails_complete_analysis(
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
     monkeypatch.setattr(
         "gap_analysis.prepare_gap_analysis.screen_user_text",
-        lambda text, *_args, **_kwargs: ScreenOutcome(allowed="fact-1" not in text),
+        lambda text, *_args, **_kwargs: ScreenOutcome(allowed="Ignore previous instructions" not in text),
     )
 
     with gap_analysis_agent.override(model=TestModel(custom_output_args=VALID_OUTPUT)):

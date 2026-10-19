@@ -347,6 +347,8 @@ def test_failed_writer_cancels_peers_before_failed_result_and_retains_costs(
     result = json.loads(queue.sent_bodies[-1])
     assert result["status"] == "failed"
     assert result["result"] is None
+    assert any(report["record_type"] == "experience" and "company" in report["fields"]
+               for report in result["library_screening"])
     assert active == set()
     assert cancelled == ["projects"]
     assert len(attempts) == 3

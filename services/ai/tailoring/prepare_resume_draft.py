@@ -1,7 +1,7 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job before retrieval, then the union of selected sources. Approvals live in
-one enclosing execution; copied display-only fields do not require model screening.
+Screen the job before retrieval, then the union of selected sources. Saved library
+fields reuse their checks; temporary inputs stay within one enclosing execution.
 """
 
 import asyncio
@@ -12,11 +12,13 @@ from uuid import UUID
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
+from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import current_session, remaining_timeout, screening_session
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
-from tailoring.labeled_sources import label_sources
+from tailoring.labeled_sources import SourceRecord, label_sources, library_fields_for_source
 from tailoring.retrieve_for_section import retrieve_source_keys_async
+from text_limits import MAX_SCREENED_TEXT
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -64,19 +66,40 @@ class PreparedResumeDraft:
     _concurrency: int = field(repr=False)
     _session: object = field(default_factory=current_session, repr=False)
 
-    async def _screen(self, texts: Sequence[str]) -> None:
+    async def _screen(self, texts: Sequence[str], records: dict[str, SourceRecord] | None = None) -> None:
+        async def classify(text):
+            return await screen_user_text_async(
+                text, self._settings.user_text_screen_model,
+                remaining_timeout(self._settings.llm_run_timeout_seconds),
+                check_phrases=True, classify=screen_user_message_async,
+            )
+
         async def check(text):
             if text not in self._decisions:
-                self._decisions[text] = await screen_user_text_async(
-                    text, self._settings.user_text_screen_model,
-                    remaining_timeout(self._settings.llm_run_timeout_seconds),
-                    check_phrases=True, classify=screen_user_message_async,
-                )
+                source = (records or {}).get(text)
+                selected = library_fields_for_source(self.context.career_library, source) if source else None
+                if len(text) > MAX_SCREENED_TEXT:
+                    outcome = ScreenOutcome(False, too_long=True)
+                elif selected:
+                    library, used_fields = selected
+                    outcome = await screen_library_fields_async(
+                        library, classify, used_fields=used_fields, approved_sources=[text])
+                    if outcome is True:
+                        outcome = ScreenOutcome(True)
+                else:
+                    outcome = await classify(text)
+                self._decisions[text] = outcome
 
         # Shared screening records both classifiers immediately, including completed
         # chunks before a later block or cancellation. Cached decisions add no charge.
         with collect_guardrail_usage(self._usage):
-            await _bounded(list(dict.fromkeys(texts)), check, self._concurrency)
+            unique = list(dict.fromkeys(texts))
+            # Highlights also contain their role's identity. Finish role checks first
+            # so highlights reuse those fields rather than paying to check them twice.
+            highlights = [text for text in unique if (records or {}).get(text)
+                          and records[text].kind == "highlight"]
+            await _bounded([text for text in unique if text not in highlights], check, self._concurrency)
+            await _bounded(highlights, check, self._concurrency)
 
     def _prompt(self, section_type, selected_sections, selected_labels=None):
         return build_section_prompt(
@@ -99,8 +122,9 @@ class PreparedResumeDraft:
             raise RuntimeError("Prepare evidence again inside the current screening session")
         sources = label_sources(self.context, self._gap_responses, selected_sections,
             None if selected_labels is not None else self._retrieved["summary"], "summary")
-        await self._screen([record.text for label, record in sources.records.items()
-                            if selected_labels is None or label in selected_labels or record.kind == "selected_section"])
+        records = {record.text: record for label, record in sources.records.items()
+                   if selected_labels is None or label in selected_labels or record.kind == "selected_section"}
+        await self._screen(list(records), records)
         return self._prompt("summary", selected_sections, selected_labels)
 
 
@@ -150,9 +174,11 @@ async def prepare_resume_draft(
             summary = (gap_analysis or {}).get("summary")
             if isinstance(summary, str) and summary.strip():
                 texts.append(summary.strip())
+            records = {}
             for section in sections:
                 sources = label_sources(context, prepared._gap_responses, [], prepared._retrieved[section], section)
                 texts.extend(record.text for record in sources.records.values())
-            await prepared._screen(texts)
+                records.update({record.text: record for record in sources.records.values()})
+            await prepared._screen(texts, records)
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared

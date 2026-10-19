@@ -2,7 +2,8 @@
 
 Each entry is one optional input, including its descriptive fields and highlights. The
 returned layout contains only application-owned field names, so prompt builders can
-reconstruct a library exclusively from the source values approved in this execution.
+reconstruct a library from checked source values. Saved field approvals are reused;
+unchecked fields are checked together for each optional entry before it is retained.
 """
 
 import json
@@ -10,7 +11,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from schemas.gap_analysis_context import CareerLibrary
-from text_limits import NOTE_TOO_LONG_WARNING
+from screening.library_fields import screen_library_fields
+from text_limits import MAX_SCREENED_TEXT, NOTE_TOO_LONG_WARNING
 
 LIBRARY_INPUT_OMITTED_WARNING = "One of your career library entries was left out."
 _ENTRY_FIELDS = ("experiences", "projects", "educations", "certifications", "skills", "facts")
@@ -18,7 +20,7 @@ _ENTRY_FIELDS = ("experiences", "projects", "educations", "certifications", "ski
 
 @dataclass(frozen=True)
 class ScreenedLibrary:
-    """Retained inputs and their structural layout, with no approval token to persist."""
+    """Retained prompt inputs and their structural layout, excluding saved metadata."""
 
     sources: tuple[str, ...]
     fields: tuple[str, ...]
@@ -57,9 +59,15 @@ def screen_library_inputs(
     fields = []
     omitted = too_long = False
 
-    def keep(field, text):
+    def keep(field, text, snapshot):
         nonlocal omitted, too_long
-        decision = allow_text(text)
+        if len(text) > MAX_SCREENED_TEXT:
+            too_long = True
+            return
+        decision = screen_library_fields(
+            snapshot, allow_text, include_fact_requirements=include_fact_requirements,
+            approved_sources=(text,),
+        )
         allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
         if allowed:
             sources.append(text)
@@ -70,11 +78,15 @@ def screen_library_inputs(
             omitted = True
 
     if library.summary and library.summary.strip():
-        keep("summary", library.summary)
+        keep("summary", library.summary, CareerLibrary(
+            summary=library.summary, summary_record_id=library.summary_record_id,
+            screened_fields=library.screened_fields,
+        ))
     for field in _ENTRY_FIELDS:
         for entry in getattr(library, field):
             exclude = {"requirement"} if field == "facts" and not include_fact_requirements else None
-            keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude))
+            keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude),
+                 CareerLibrary(**{field: [entry]}))
     warnings = []
     if omitted:
         warnings.append(LIBRARY_INPUT_OMITTED_WARNING)

@@ -90,6 +90,7 @@ def test_reads_the_job_and_library_in_rails_order(
         user_id=user_id,
         company="Now Co",
         title="Lead",
+        screened_fields=["title"],
         start_date="2020-01-01",
     )
     _insert(
@@ -142,6 +143,9 @@ def test_reads_the_job_and_library_in_rails_order(
     assert context.job.nice_to_haves == ["Kubernetes"]
     library = context.career_library
     assert library.summary == "Backend engineer"
+    assert library.summary_record_id == str(user_id)
+    assert library.experiences[0].screened_fields == ["title"]
+    assert "screened_fields" not in library.model_dump_json()
     assert [experience.id for experience in library.experiences] == [
         str(current_role),
         str(old_role),

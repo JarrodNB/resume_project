@@ -42,6 +42,41 @@ _NATIVE_TYPES = {
 }
 
 
+def library_fields_for_source(library: CareerLibrary, source: SourceRecord) -> tuple[CareerLibrary, dict[str, set[str]]] | None:
+    """Select only the saved fields represented by this formatted source.
+
+    A highlight includes its role's title and company, while display-only project
+    roles, skill categories, and education descriptions are not model evidence.
+    Temporary gap responses and generated snapshots have no saved field state.
+    """
+    if source.kind == "summary":
+        return CareerLibrary(summary=library.summary, summary_record_id=library.summary_record_id,
+                             screened_fields=library.screened_fields), {"user": {"summary"}}
+    if source.kind in {"experience", "highlight"}:
+        for experience in library.experiences:
+            highlights = [item for item in experience.highlights if item.id == source.record_id]
+            if (source.kind == "experience" and experience.id == source.record_id) or highlights:
+                fields = {"experience": {"title", "company"}}
+                if source.kind == "experience":
+                    fields["experience"].add("description")
+                    highlights = []
+                else:
+                    fields["experience_highlight"] = {"content"}
+                return CareerLibrary(experiences=[experience.model_copy(update={"highlights": highlights})]), fields
+    selections = {
+        "project": ("projects", {"name", "description"}),
+        "education": ("educations", {"institution", "degree", "field_of_study"}),
+        "certification": ("certifications", {"name", "issuer", "credential_id", "credential_url", "description"}),
+        "skill": ("skills", {"name"}),
+        "fact": ("facts", {"requirement", "response"}),
+    }
+    if source.kind in selections:
+        collection, fields = selections[source.kind]
+        rows = [item for item in getattr(library, collection) if item.id == source.record_id]
+        return CareerLibrary(**{collection: rows}), {"library_fact" if source.kind == "fact" else source.kind: fields}
+    return None
+
+
 def label_sources(
     context: GapAnalysisContext,
     gap_responses: list[dict[str, str]],

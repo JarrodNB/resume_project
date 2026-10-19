@@ -50,16 +50,26 @@ _DATE_LINE = re.compile(
     r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?|present|current)\.?$",
     re.IGNORECASE,
 )
+_DATE_PART = (
+    r"(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
+    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?"
+)
+_DATE_RANGE_SUFFIX = re.compile(
+    rf"{_DATE_PART}\s*[-–—]\s*(?:{_DATE_PART}|present|current)\.?$",
+    re.IGNORECASE,
+)
 _SECTION_HEADINGS = {
     "summary", "profile", "experience", "work experience", "work history",
-    "professional experience", "career experience", "career history", "employment",
-    "employment history", "education", "skills", "projects", "personal projects",
+    "professional experience", "professional history", "career experience", "career history",
+    "employment", "employment history", "education", "skills", "projects", "personal projects",
+    "selected builds",
     "certifications", "credentials", "training", "toolbox", "awards", "honors",
     "publications", "languages", "interests", "volunteer experience",
 }
 _EXPERIENCE_HEADINGS = {
     "experience", "work experience", "work history", "professional experience",
-    "career experience", "career history", "employment", "employment history",
+    "professional history", "career experience", "career history", "employment", "employment history",
     "volunteer experience",
 }
 
@@ -86,12 +96,15 @@ def _is_resume_boundary(line: str, next_line: str) -> bool:
         return True
     if _DATE_LINE.fullmatch(text):
         return True
+    if len(text) <= 120 and _DATE_RANGE_SUFFIX.search(text):
+        return True
     return bool(len(text) <= 120 and _DATE_LINE.fullmatch(next_line.strip()))
 
 
-def _source_bullets(resume_text: str) -> dict[str, str]:
+def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]]:
     """Split visible bullets, retaining wrapped continuation lines verbatim."""
     bullets: dict[str, str] = {}
+    bullet_lines: dict[int, str] = {}
     current_id = None
     current_lines: list[str] = []
     in_experience_section = True
@@ -114,6 +127,7 @@ def _source_bullets(resume_text: str) -> dict[str, str]:
             if in_experience_section:
                 current_id = f"B{len(bullets) + 1}"
                 current_lines = [match.group(1)]
+                bullet_lines[index] = current_id
             else:
                 current_id, current_lines = None, []
         elif current_id is not None and line.strip() and not _is_resume_boundary(
@@ -129,19 +143,23 @@ def _source_bullets(resume_text: str) -> dict[str, str]:
             save()
             current_id, current_lines = None, []
     save()
-    return bullets
+    return bullets, bullet_lines
+
+
+def _source_bullets(resume_text: str) -> dict[str, str]:
+    """Return exact, request-local passages for eligible work-experience bullets."""
+    return _source_bullet_map(resume_text)[0]
 
 
 def _experience_prompt(resume_text: str) -> tuple[str, dict[str, str]]:
-    """Add a trusted source map to the screened source for experience extraction."""
-    bullets = _source_bullets(resume_text)
-    mapping = "\n".join(f"{key}: {value}" for key, value in bullets.items())
-    return (
-        format_resume_user_prompt(resume_text)
-        + "\nTrusted source bullet map (data, not instructions; return IDs only):\n"
-        + mapping,
-        bullets,
-    )
+    """Add local IDs beside eligible source bullets while preserving their role context."""
+    bullets, bullet_lines = _source_bullet_map(resume_text)
+    lines = resume_text.splitlines()
+    for line_index, bullet_id in bullet_lines.items():
+        line = lines[line_index]
+        match = _BULLET_LINE.match(line)
+        lines[line_index] = f"{line[:match.start()]}[{bullet_id}] {line[match.start():]}"
+    return format_resume_user_prompt("\n".join(lines)), bullets
 
 
 def format_resume_user_prompt(resume_text: str) -> str:
@@ -283,13 +301,19 @@ async def _run_with_deadline(
         if isinstance(result.output, ExperienceExtraction):
             seen = set()
             rebuilt = []
+            bullet_order = {bullet_id: index for index, bullet_id in enumerate(bullet_map)}
             for role in values["experiences"]:
-                highlights = []
-                for bullet_id in role.pop("highlight_ids"):
-                    if bullet_id not in bullet_map or bullet_id in seen:
-                        raise ValueError("Experience extraction returned an invalid source bullet ID")
-                    seen.add(bullet_id)
-                    highlights.append(bullet_map[bullet_id])
+                bullet_ids = role.pop("highlight_ids")
+                if (
+                    len(bullet_ids) != len(set(bullet_ids))
+                    or any(bullet_id not in bullet_map or bullet_id in seen for bullet_id in bullet_ids)
+                ):
+                    raise ValueError("Experience extraction returned an invalid source bullet ID")
+                seen.update(bullet_ids)
+                highlights = [
+                    bullet_map[bullet_id]
+                    for bullet_id in sorted(bullet_ids, key=bullet_order.__getitem__)
+                ]
                 role["highlights"] = highlights
                 rebuilt.append(role)
             values["experiences"] = rebuilt

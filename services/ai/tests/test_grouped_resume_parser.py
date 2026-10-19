@@ -33,6 +33,8 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
         if "experiences" in schema:
             prompt = messages[-1].parts[-1].content
             assert "Include every source bullet that belongs to each role." in prompt
+            assert "[B1] • Built a thing" in prompt
+            assert "Trusted source bullet map" not in prompt
             await asyncio.sleep(0.03)
             args = {
                 "experiences": [
@@ -221,11 +223,26 @@ def test_source_bullets_exclude_project_and_skill_section_bullets():
     assert _source_bullets(source) == {"B1": "Built a reliable API."}
 
 
+def test_source_bullets_stop_before_role_headers_with_inline_dates():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\n"
+        "• Built a complex payment system used across three regions.\n"
+        "Senior Engineer, Acme — 2022–Present\n"
+        "• Improved reliability by 30%.\n"
+    )
+    assert _source_bullets(source) == {
+        "B1": "Built a complex payment system used across three regions.",
+        "B2": "Improved reliability by 30%.",
+    }
+
+
 def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
     async def answer(messages, info):
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
             args = {"experiences": [
-                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]},
+                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B2", "B1"]},
                 {"company": "Acme", "title": "Lead", "highlight_ids": []},
             ]}
         else:
@@ -234,10 +251,17 @@ def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(of
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     result = parse_resume_text(
-        "Acme\nEngineer\n• Built a thing\n\nLead", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+        "Acme\nEngineer\n• Built the first thing.\n• Built the second thing.\n\nLead",
+        "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
     )
-    assert [r.highlights for r in result.parsed_resume.experiences] == [["Built a thing"], []]
-    assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == ["Built a thing"]
+    assert [r.highlights for r in result.parsed_resume.experiences] == [
+        ["Built the first thing.", "Built the second thing."],
+        [],
+    ]
+    assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == [
+        "Built the first thing.",
+        "Built the second thing.",
+    ]
 
 
 @pytest.mark.parametrize("ids", [["B404"], ["B1", "B1"]])

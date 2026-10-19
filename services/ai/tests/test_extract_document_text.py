@@ -42,6 +42,25 @@ def test_docx_text_preserves_list_bullet_markers_for_exact_highlight_mapping() -
     assert text == "• Built a reliable API"
 
 
+def test_docx_text_detects_numbering_metadata_on_normal_style_paragraph() -> None:
+    document = Document()
+    paragraph = document.add_paragraph("Built a reliable API")
+    num_properties = OxmlElement("w:numPr")
+    level = OxmlElement("w:ilvl")
+    level.set(qn("w:val"), "0")
+    number_id = OxmlElement("w:numId")
+    number_id.set(qn("w:val"), "1")
+    num_properties.append(level)
+    num_properties.append(number_id)
+    paragraph._p.get_or_add_pPr().append(num_properties)
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert text == "• Built a reliable API"
+
+
 def test_docx_text_includes_hyperlink_label_and_url() -> None:
     """A labelled DOCX hyperlink keeps both the visible text and destination."""
     document = Document()

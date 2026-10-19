@@ -64,7 +64,7 @@ module JobBoard
 
     def build_request
       uri = URI(ENDPOINT)
-      parameters = { title: @keyword.strip, location: "US", extra_fields: "description" }
+      parameters = { title: @keyword.strip, country_id: "233", extra_fields: "description" }
       parameters[:remote] = "true" if @remote_only
       parameters[:cursor] = @cursor if @cursor
       uri.query = URI.encode_www_form(parameters)
@@ -109,14 +109,20 @@ module JobBoard
     end
 
     def normalize_listing(listing)
-      return unless listing.is_a?(Hash) && listing["id"].is_a?(Integer) && listing["id"].positive? && valid_text?(listing["title"], 1000)
+      return unless listing.is_a?(Hash) && valid_text?(listing["title"], 1000)
+      provider_id = if listing["id"].is_a?(Integer)
+        listing["id"]
+      elsif listing["id"].is_a?(String) && listing["id"].match?(/\A[0-9]+\z/)
+        listing["id"].to_i
+      end
+      return unless provider_id&.positive?
       return unless listing["locations"].is_a?(Array)
       # Never infer country from free text or numeric IDs. A multi-country listing
       # qualifies when it has a resolved US row; only those US rows leave this boundary.
       locations = listing["locations"].select { |row| row.is_a?(Hash) && row["country_code"] == "US" }
       return if locations.empty?
 
-      normalized = listing.slice("id", "title")
+      normalized = listing.slice("title").merge("id" => provider_id)
       normalized["locations"] = locations.map { |row| row.slice("country_code", "display_label", "city_name", "state_name", "state_code") }
       labels = locations.filter_map { |row| row["display_label"] if row["display_label"].is_a?(String) && !row["display_label"].strip.empty? }.uniq
       normalized["location"] = labels.join("; ") unless labels.empty?

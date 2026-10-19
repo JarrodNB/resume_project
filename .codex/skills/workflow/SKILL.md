@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: Deliver a Careergrind Kanban item through requirements discussion, approved planning and ticket breakdown, parallel TDD implementation, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow, including a named Kanban item.
+description: Deliver a Careergrind Kanban item through requirements discussion, approved planning, small reviewable tickets, TDD implementation with human approval after each ticket, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow, including a named Kanban item.
 ---
 
 # Workflow
@@ -9,8 +9,7 @@ Own delivery and its recorded state. This skill contains its planning, ticketing
 
 ## Select and resume
 
-- Read applicable `AGENTS.md` files, `KANBAN.md`, and existing artifacts. Inspect relevant code. Consult `docs/testing.md` for checks, `GLOSSARY.md` for terms, and architecture docs/ADRs when affected contracts require them.
-- Use the named item; otherwise take the top item. Ask if selection is ambiguous or the board is empty. Report blockers instead of silently choosing another item.
+- Read applicable `AGENTS.md` files and existing artifacts. Inspect relevant code. Consult `docs/testing.md` for checks, `GLOSSARY.md` for terms, and architecture docs/ADRs when affected contracts require them.
 - Preserve unrelated changes. Resume existing plans, approvals, tickets, and branches; reconcile records with actual files, commits, and checks instead of restarting.
 - Leave the item on the board until the human explicitly confirms completion. Checks, reviews, and a PR do not establish human acceptance.
 - For research-only work, investigate primary sources and record cited findings and open questions in `docs/plans/<feature-slug>/research.md`. Do not infer authorization to implement recommendations.
@@ -30,7 +29,7 @@ After both approvals, create the integration branch from the selected base and r
 
 Maintain a compact delivery record in the plan: source item, phase/next action, actual human approvals tied to the approved revision or content hash, integration base/head, branches, ticket dependencies/statuses, actual verification results, review snapshots/outcomes, and PR/manual-QA handoff. Record blockers and unfinished work for resumption. Agent summaries are not new human approvals.
 
-Ticket states: `ready-for-agent`, `in-progress`, `blocked`, `implemented`. Implemented means integrated and verified, not human acceptance. The coordinator owns integration, ticket status, board updates, and PR work.
+Ticket states: `ready-for-agent`, `in-progress`, `blocked`, `awaiting-human-review`, `implemented`. Awaiting human review means the ticket is implemented and verified on its own branch, with a ticket-scoped draft PR presented for review; it is not yet integrated. Implemented means the human approved that ticket's reviewed revision and it has been integrated, not acceptance of the overall item. The coordinator owns integration, ticket status, board updates, and PR work.
 
 ## Explore and settle decisions
 
@@ -83,15 +82,15 @@ Present the written plan and test seams. Obtain explicit human plan approval bef
 
 DO NOT OVERCOMPLICATE THE DESIGN
 
-After plan approval, draft tickets in the single tickets file. Present delivered behaviors, granularity, and blocking edges. Obtain explicit human breakdown approval before implementation or creating the integration branch. Plan approval does not imply breakdown approval. Record the approved revision; material breakdown changes require renewed approval.
+After plan approval, draft tickets in the single tickets file. Present reviewable outcomes, granularity, verification evidence expected, and blocking edges. Obtain explicit human breakdown approval before implementation or creating the integration branch. Plan approval does not imply breakdown approval. Record the approved revision; material breakdown changes require renewed approval.
 
-Prefer narrow vertical slices: each delivers a complete, independently demoable or verifiable behavior through necessary layers and fits a fresh agent context. A slice need not touch every service. Prefactor first where it makes the approved change easier.
+Choose the smallest coherent, reviewable slice that fits a fresh agent context and has clear verification evidence. A ticket may cover an interface, prefactoring, or one layer without delivering an end-to-end behavior. Use a vertical slice when it is the smallest meaningful review unit. Order tickets to expose uncertain design decisions early, so the human can redirect or abandon a bad design before more work builds on it. Prefactor first where it makes the approved change easier.
 
-For wide mechanical refactors that cannot land as green vertical slices, use expand–contract: introduce the new form alongside the old, migrate callers in bounded batches, then remove the old form after all migrations. If intermediate batches cannot stay green, explicitly group them behind a final integrate-and-verify ticket and document that limitation.
+For wide mechanical refactors, use expand–contract: introduce the new form alongside the old, migrate callers in bounded reviewable batches, then remove the old form after all migrations. Keep intermediate tickets green where possible. If they cannot stay green, document the limitation and required final integration checks in the approved breakdown and each affected review draft.
 
 Each numbered ticket contains:
 
-- **What to build:** observable behavior delivered.
+- **What to build:** coherent change and reviewable outcome.
 - **Blocked by:** stable ticket IDs or None; only genuine prerequisites.
 - **Layers:** layers actually affected.
 - **Modularity:** relevant ownership, public interface, and test seam decisions.
@@ -104,11 +103,19 @@ Keep implementation tickets off the overall Kanban board. After breakdown approv
 
 ## Implement with subagents
 
-Run ready tickets concurrently up to agent capacity, only after blockers are integrated and verified. Give each writer a separate worktree and branch based on the current integration head. If isolation is unavailable, serialize writers. Independent dependencies do not guarantee conflict-free writes.
+Implement one ticket at a time, including independent tickets. Do not start or delegate the next ticket until the human explicitly approves the current ticket's reviewed revision. Give the worker a separate worktree and branch based on the current integration head.
 
 Give workers relevant plan/ticket context, repository instructions, acceptance criteria, branch/base/worktree details, and the TDD instructions below. Workers stay within approved scope and their worktree. Require changed files/commits, acceptance outcomes, actual red/green and broader check results, and concerns. Workers must not mutate the integration branch, combined tickets file, board, or PR.
 
-Integrate commits sequentially. Inspect the integrated diff, resolve conflicts without discarding unrelated work, and verify acceptance criteria on the integration branch before marking implemented and releasing dependents. Run appropriate cross-ticket checks. Record failures truthfully and investigate fixable ones; unrun checks cannot count as passed. Ask about material ambiguity or external blockers while continuing independent work.
+Inspect the completed ticket's branch diff against its recorded starting integration head, resolve issues without discarding unrelated work, and verify acceptance criteria on that branch. Run the ticket's focused checks, then follow the per-ticket review checkpoint. Only after human approval, integrate that ticket's commits, verify the integrated result on the integration branch, and mark it implemented before releasing the next ticket. Record failures truthfully and investigate fixable ones; unrun checks cannot count as passed. Ask about material ambiguity or external blockers while continuing independent work within the current ticket.
+
+### Per-ticket human review
+
+After each ticket, create a separate draft PR for that ticket alone, targeting the integration branch. Its base is the integration head recorded when the ticket started, so its diff shows only that ticket's work. Do not add later tickets or the combined feature result to this PR. Present the ticket's diff, design rationale, actual verification results, and remaining limitations. Record the PR, ticket base/head commits, and `awaiting-human-review` status in local workflow state. Verify the diff excludes `KANBAN.md` and `docs/plans/` before publication. If PR tooling is unavailable, present the local diff and exact commits as the review draft and report the blocker.
+
+Stop and wait for explicit human approval of that revision before beginning any subsequent ticket. Plan approval, breakdown approval, passing tests, and agent reviews do not satisfy this checkpoint. Address requested revisions within the current ticket, rerun affected checks, and present the revised draft for approval. If the human redirects or abandons the design, record that decision and revise the remaining plan/tickets as needed; obtain renewed approval for material changes.
+
+Record approval against the reviewed head commit. Integrate the approved ticket, then mark it implemented and only then continue to the next approved ticket. Keep each ticket PR limited to its own review; never reuse it for later tickets. After every ticket is approved and integrated, the complete feature can be assembled and reviewed as a whole through the final two blind reviews and final human-QA PR. These checkpoints supplement each other.
 
 ### TDD instructions for workers and review fixes
 
@@ -163,6 +170,6 @@ After substantial fixes to behavior, interfaces, dependencies, or test coverage,
 
 ## PR and human handoff
 
-After implementation, verification, acceptance checking, and review fixes, commit remaining intended changes and create/update a focused PR using available repository tooling. Invoking this workflow authorizes its branch, commit, PR, and safe worktree-lifecycle work described above. If access/tooling is unavailable, leave the reviewed branch ready and report the specific blocker. Verify the base/head diff excludes `KANBAN.md` and `docs/plans/` before publication.
+After all tickets have been individually approved and integrated, run cross-ticket verification and acceptance checks, then complete the final blind reviews. Only after those steps, create or update a separate feature PR from the integration branch to the selected base branch, showing the culmination of all approved tickets, and mark it ready for review using available repository tooling. This final PR is the first review artifact that presents the combined feature. Invoking this workflow authorizes its branch, commit, PR, and safe worktree-lifecycle work described above. If access/tooling is unavailable, leave the reviewed branch ready and report the specific blocker. Verify the base/head diff excludes `KANBAN.md` and `docs/plans/` before publication.
 
 Describe the concrete problem, resulting behavior, actual checks, review outcomes, limitations, and manual-QA steps. Record and report the PR link, branch, and remaining human checks. Stop at human review and QA. Do not merge, deploy, or clear the board without the relevant human instruction. After explicit completion confirmation, remove only the completed item from `KANBAN.md`.

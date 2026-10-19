@@ -37,7 +37,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     expect(http).to have_received(:request).once do |request|
       expect(request).to be_a(Net::HTTP::Get)
       expect(request["Authorization"]).to eq("Bearer test-secret")
-      expect(URI.decode_www_form(URI(request.path).query).to_h).to eq("title" => "engineer", "location" => "US", "extra_fields" => "description", "remote" => "true", "cursor" => "previous+/=")
+      expect(URI.decode_www_form(URI(request.path).query).to_h).to eq("title" => "engineer", "country_id" => "233", "extra_fields" => "description", "remote" => "true", "cursor" => "previous+/=")
     end
   end
   it "keeps only valid US-confirmed listings in provider order without inventing optional fields" do
@@ -54,6 +54,12 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     expect(result.value[:listings].first).to eq(listing.merge("locations" => [ us ], "location" => "Austin, TX, US"))
     expect(result.value[:listings].last).not_to have_key("description")
     expect(result.value[:listings].last).not_to have_key("company")
+  end
+
+  it "accepts provider IDs serialized as numeric strings" do
+    body["data"] = [ listing.merge("id" => "111990153") ]
+    respond_with
+    expect(search.value[:listings].first["id"]).to eq(111990153)
   end
 
   [ nil, "", " ", 3, [], "a" * 201, "bad\nquery" ].each do |keyword|

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T09:44:36.791125+00:00",
+  "generatedAt": "2026-10-19T16:01:06.694463+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
     "shadows": [
@@ -15,6 +15,11 @@
         "name": "workspace-transition",
         "value": "160ms",
         "purpose": "Navigation and record hover transitions."
+      },
+      {
+        "name": "reduced-motion-duration",
+        "value": "0.01ms",
+        "purpose": "Transition and animation duration when reduced motion is preferred."
       }
     ],
     "breakpoints": [
@@ -797,7 +802,7 @@
       "refersTo": "button-primary",
       "description": "Primary button as implemented in the web workspace.",
       "html": "<button class=\"ds-button-primary\">Save changes</button>",
-      "css": ".ds-button-primary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--primary);color:var(--primary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary) 80%,transparent)}.ds-button-primary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-primary:active{transform:translateY(1px)}"
+      "css": ".ds-button-primary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--primary);color:var(--primary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary) 80%,transparent)}.ds-button-primary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-primary:active{transform:translateY(1px)}.ds-button-primary:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-primary{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Outline button",
@@ -805,7 +810,7 @@
       "refersTo": "button-outline",
       "description": "Outline button as implemented in the web workspace.",
       "html": "<button class=\"ds-button-outline\">Save changes</button>",
-      "css": ".ds-button-outline{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-outline:hover{background:var(--muted)}.ds-button-outline:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-outline:active{transform:translateY(1px)}"
+      "css": ".ds-button-outline{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-outline:hover{background:var(--muted)}.ds-button-outline:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-outline:active{transform:translateY(1px)}.ds-button-outline:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-outline{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Ghost button",
@@ -813,7 +818,7 @@
       "refersTo": "button-ghost",
       "description": "Ghost button as implemented in the web workspace.",
       "html": "<button class=\"ds-button-ghost\">Save changes</button>",
-      "css": ".ds-button-ghost{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:transparent;color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-ghost:hover{background:var(--muted)}.ds-button-ghost:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-ghost:active{transform:translateY(1px)}"
+      "css": ".ds-button-ghost{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:transparent;color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-ghost:hover{background:var(--muted)}.ds-button-ghost:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-ghost:active{transform:translateY(1px)}.ds-button-ghost:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-ghost{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Secondary button",
@@ -821,7 +826,7 @@
       "refersTo": "button-secondary",
       "description": "Secondary button as implemented in the web workspace.",
       "html": "<button class=\"ds-button-secondary\">Save changes</button>",
-      "css": ".ds-button-secondary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-secondary:hover{background:color-mix(in oklch,var(--secondary),var(--foreground) 5%)}.ds-button-secondary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-secondary:active{transform:translateY(1px)}"
+      "css": ".ds-button-secondary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-secondary:hover{background:color-mix(in oklch,var(--secondary),var(--foreground) 5%)}.ds-button-secondary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-secondary:active{transform:translateY(1px)}.ds-button-secondary:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-secondary{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Text input",
@@ -829,7 +834,7 @@
       "refersTo": "input",
       "description": "Text input as implemented in the web workspace.",
       "html": "<input class=\"ds-input\" aria-label=\"Job title\" placeholder=\"Job title\">",
-      "css": ".ds-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:transparent;color:var(--foreground);transition:border-color 150ms}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{border-color:var(--input)}.ds-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+      "css": ".ds-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:transparent;color:var(--foreground);transition:border-color 150ms}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{border-color:var(--input)}.ds-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Section count",
@@ -837,14 +842,14 @@
       "refersTo": "badge-secondary",
       "description": "Section count as implemented in the web workspace.",
       "html": "<span class=\"ds-badge\">3</span>",
-      "css": ".ds-badge{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:inline-flex;align-items:center;height:20px;padding:2px 8px;border-radius:calc(var(--radius)*2.6);background:var(--secondary);color:var(--secondary-foreground);font-size:12px;font-weight:500}"
+      "css": ".ds-badge{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:inline-flex;align-items:center;height:20px;padding:2px 8px;border-radius:calc(var(--radius)*2.6);background:var(--secondary);color:var(--secondary-foreground);font-size:12px;font-weight:500}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Selected navigation",
       "kind": "nav",
       "description": "Selected navigation as implemented in the web workspace.",
       "html": "<nav aria-label=\"Workspace\"><a href=\"#library\" aria-current=\"page\" class=\"ds-nav\">Career library</a></nav>",
-      "css": ".ds-nav{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:flex;align-items:center;min-height:46px;padding:10px 12px;border-radius:7px;background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:600;text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav:hover{background:var(--muted);color:var(--foreground)}.ds-nav:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+      "css": ".ds-nav{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:flex;align-items:center;min-height:46px;padding:10px 12px;border-radius:7px;background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:600;text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav:hover{background:var(--muted);color:var(--foreground)}.ds-nav:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Section surface",
@@ -852,14 +857,14 @@
       "refersTo": "section-card",
       "description": "Section surface as implemented in the web workspace.",
       "html": "<section class=\"ds-card\"><h2>Experience</h2><div>Career evidence belongs here.</div></section>",
-      "css": ".ds-card{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;border-radius:calc(var(--radius)*1.4);background:var(--card);color:var(--card-foreground);box-shadow:0 0 0 1px color-mix(in oklab,var(--foreground) 10%,transparent);overflow:hidden}.ds-card h2{font-size:16px;font-weight:500;margin:0;padding:20px;border-bottom:1px solid var(--border)}.ds-card div{padding:20px}"
+      "css": ".ds-card{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;border-radius:calc(var(--radius)*1.4);background:var(--card);color:var(--card-foreground);box-shadow:none;overflow:hidden}.ds-card h2{font-size:16px;font-weight:500;margin:0;padding:20px;border-bottom:1px solid var(--border)}.ds-card div{padding:20px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
       "name": "Ruled record",
       "kind": "custom",
       "description": "Ruled record as implemented in the web workspace.",
       "html": "<a class=\"ds-record\" href=\"#record\"><strong>Saved resume</strong><span>Updated recently</span></a>",
-      "css": ".ds-record{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:grid;gap:5px;padding:24px 16px;border-top:1px solid var(--border);border-radius:8px;color:var(--foreground);text-decoration:none;transition:background-color 160ms}.ds-record strong{font-weight:550}.ds-record span{font-size:13px;color:var(--muted-foreground)}.ds-record:hover{background:var(--accent)}.ds-record:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+      "css": ".ds-record{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:grid;gap:5px;padding:24px 16px;border-top:1px solid var(--border);border-radius:8px;color:var(--foreground);text-decoration:none;transition:background-color 160ms}.ds-record strong{font-weight:550}.ds-record span{font-size:13px;color:var(--muted-foreground)}.ds-record:hover{background:var(--accent)}.ds-record:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     }
   ],
   "narrative": {

@@ -52,6 +52,9 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 10. **History lives in git**, not file headers. Do not hand-edit generated code; use its
     generator. Generated files do not need added metadata headers.
 11. **Keep language simple.** Write like you are talking to a college student.
+12. **Do design work on a branch.** For Impeccable and frontend design changes,
+    use a dedicated `codex/` branch rather than editing on the default branch.
+    Build new surfaces directly in code by default; see `.impeccable/config.json`.
 
 ## Human-friendly file headers
 

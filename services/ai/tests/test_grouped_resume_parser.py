@@ -297,6 +297,35 @@ def test_source_bullets_exclude_professional_summary_bullets_before_experience()
     assert _source_bullets(source) == {"B1": "Built a reliable API."}
 
 
+def test_parser_ignores_unheaded_preamble_bullets_before_dated_work_history(
+    offline_model_resolution,
+):
+    source = (
+        "Former teacher transitioning into software development.\n"
+        "• Organized classroom activities for 150 students.\n"
+        "Senior Engineer, Acme — 2022–Present\n"
+        "• Built a reliable API.\n"
+    )
+
+    async def answer(messages, info):
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            args = {
+                "experiences": [
+                    {"company": "Acme", "title": "Senior Engineer", "highlight_ids": ["B1"]}
+                ]
+            }
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse_resume_text(
+        source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+    )
+
+    assert result.parsed_resume.experiences[0].highlights == ["Built a reliable API."]
+
+
 def test_nonexperience_group_instructions_only_name_owned_fields():
     from prompts.resume_parsing_instructions import format_resume_group_instruction
 

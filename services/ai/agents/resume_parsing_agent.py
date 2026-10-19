@@ -75,6 +75,11 @@ _EXPERIENCE_HEADINGS = {
     "professional history", "career experience", "career history", "employment", "employment history",
     "volunteer experience",
 }
+_DATE_EXCLUDED_SECTION_HEADINGS = {
+    "education", "skills", "technical skills", "core competencies", "competencies",
+    "projects", "personal projects", "selected builds", "certifications", "credentials",
+    "training", "toolbox", "awards", "honors", "publications", "languages", "interests",
+}
 
 
 def _section_kind(line: str) -> str | None:
@@ -135,19 +140,34 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
     bullet_lines: dict[int, str] = {}
     current_id = None
     current_lines: list[str] = []
-    in_experience_section = True
+    lines = resume_text.splitlines()
+    has_experience_heading = any(_section_kind(line) == "experience" for line in lines)
+    has_date_header = any(
+        _DATE_LINE.fullmatch(line.strip()) or _DATE_RANGE_SUFFIX.search(line.strip())
+        for line in lines
+    )
+    in_experience_section = not has_experience_heading and not has_date_header
+    in_date_excluded_section = False
 
     def save():
         if current_id is not None:
             bullets[current_id] = "\n".join(current_lines)
 
-    lines = resume_text.splitlines()
     for index, line in enumerate(lines):
         section = _section_kind(line)
         if section:
             save()
             current_id, current_lines = None, []
             in_experience_section = section == "experience"
+            heading = line.strip().rstrip(": ").casefold()
+            in_date_excluded_section = heading in _DATE_EXCLUDED_SECTION_HEADINGS
+            continue
+        if not has_experience_heading and not in_date_excluded_section and (
+            _DATE_LINE.fullmatch(line.strip()) or _DATE_RANGE_SUFFIX.search(line.strip())
+        ):
+            save()
+            current_id, current_lines = None, []
+            in_experience_section = True
             continue
         match = _BULLET_LINE.match(line)
         if match:

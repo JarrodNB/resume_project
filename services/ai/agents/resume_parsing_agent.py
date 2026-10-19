@@ -2,6 +2,7 @@
 
 The public interface returns one ParsedResume only after all groups succeed. The parser
 owns group assembly, one deadline and combined budgets, and awaits cancelled siblings.
+The documents module owns experience passage IDs and exact highlight reconstruction.
 """
 
 import asyncio
@@ -9,13 +10,13 @@ import re
 from typing import NamedTuple
 
 from opentelemetry import trace
-from pydantic import create_model, model_validator
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
+from documents.experience_source import ExperienceSource
 from prompts.resume_parsing_instructions import (
     RESUME_PARSING_INSTRUCTIONS,
     RESUME_PARSING_PROMPT_VERSION,
@@ -23,7 +24,6 @@ from prompts.resume_parsing_instructions import (
 )
 from schemas.parsed_resume import (
     ExperienceExtraction,
-    ExperienceRoleExtraction,
     ParsedResume,
     ProfileExtraction,
     ProjectsSkillsExtraction,
@@ -42,211 +42,6 @@ from worker.tracing import record_prompt_version
 # A resume can contain the fence tags, including a space or newline inside the tag.
 # Replacing "<" keeps the words and stops the tag closing.
 _RESUME_TAG = re.compile(r"<\s*/?\s*resume\s*>", re.IGNORECASE)
-_BULLET_LINE = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+(.*)$")
-_DATE_LINE = re.compile(
-    r"^(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
-    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?\s*[-–—]\s*"
-    r"(?:(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
-    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?|present|current)\.?$",
-    re.IGNORECASE,
-)
-_DATE_PART = (
-    r"(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
-    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
-    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?"
-)
-_DATE_RANGE_SUFFIX = re.compile(
-    rf"{_DATE_PART}\s*[-–—]\s*(?:{_DATE_PART}|present|current)\.?$",
-    re.IGNORECASE,
-)
-_ROLE_HEADER_SEPARATOR = re.compile(r",\s+|\s+[|–—-]\s+|\s+at\s+", re.IGNORECASE)
-_SECTION_HEADINGS = {
-    "summary", "professional summary", "career summary", "objective", "career objective",
-    "profile", "experience", "work experience", "work history",
-    "professional experience", "professional history", "career experience", "career history",
-    "employment", "employment history", "education", "skills", "technical skills",
-    "core competencies", "competencies", "projects", "personal projects",
-    "side projects", "selected projects", "academic projects", "open source projects",
-    "open-source projects", "project experience", "selected builds",
-    "certifications", "credentials", "training", "toolbox", "awards", "honors",
-    "publications", "languages", "interests", "volunteer experience",
-}
-_EXPERIENCE_HEADINGS = {
-    "experience", "work experience", "work history", "professional experience",
-    "professional history", "career experience", "career history", "employment", "employment history",
-    "volunteer experience",
-}
-_DATE_EXCLUDED_SECTION_HEADINGS = {
-    "education", "skills", "technical skills", "core competencies", "competencies",
-    "projects", "personal projects", "side projects", "selected projects", "academic projects",
-    "open source projects", "open-source projects", "project experience", "selected builds",
-    "certifications", "credentials",
-    "training", "toolbox", "awards", "honors", "publications", "languages", "interests",
-}
-
-
-def _section_kind(line: str) -> str | None:
-    """Tell work history headings from sections whose bullets are not job highlights."""
-    heading = line.strip().rstrip(": ").casefold()
-    if heading in _EXPERIENCE_HEADINGS:
-        return "experience"
-    if heading in _SECTION_HEADINGS:
-        return "other"
-    return None
-
-
-def _looks_like_title_case_label(text: str, *, minimum_words: int = 1) -> bool:
-    """Recognize compact title/company lines without treating sentence fragments as headers."""
-    words = re.findall(r"[A-Za-z][A-Za-z&.'’/-]*", text)
-    connector_words = {"and", "at", "for", "of", "the", "to"}
-    return (
-        minimum_words <= len(words) <= 8
-        and all(word[0].isupper() or word.casefold() in connector_words for word in words)
-    )
-
-
-def _is_role_date_header(line: str) -> bool:
-    """Recognize standalone dates or role-shaped headers that end with a date range."""
-    text = line.strip()
-    if _DATE_LINE.fullmatch(text):
-        return True
-    match = _DATE_RANGE_SUFFIX.search(text)
-    if not match or _BULLET_LINE.match(text):
-        return False
-    prefix = text[: match.start()].rstrip(" ,|–—-")
-    parts = _ROLE_HEADER_SEPARATOR.split(prefix)
-    return len(parts) > 1 and all(_looks_like_title_case_label(part) for part in parts)
-
-
-def _is_resume_boundary(line: str, next_line: str, after_next_line: str = "") -> bool:
-    """Recognize section headings and role/date headers between source bullets."""
-    text = line.strip()
-    if not text:
-        return True
-    letters = [char for char in text if char.isalpha()]
-    if _section_kind(text) or (
-        len(text) <= 60 and len(letters) >= 3 and all(char.isupper() for char in letters)
-    ):
-        return True
-    if _DATE_LINE.fullmatch(text):
-        return True
-    if len(text) <= 120 and _is_role_date_header(text):
-        return True
-    if len(text) <= 120 and not text.endswith((".", "!", "?")):
-        role_parts = _ROLE_HEADER_SEPARATOR.split(text)
-        if len(role_parts) > 1 and all(
-            part.strip() and part.strip()[0].isupper() for part in role_parts
-        ):
-            return True
-        if (
-            _looks_like_title_case_label(text, minimum_words=2)
-            and _looks_like_title_case_label(next_line)
-            and (
-                _DATE_LINE.fullmatch(after_next_line.strip())
-                or _BULLET_LINE.match(after_next_line)
-            )
-        ):
-            return True
-    return bool(len(text) <= 120 and _DATE_LINE.fullmatch(next_line.strip()))
-
-
-def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]]:
-    """Split visible bullets, retaining wrapped continuation lines verbatim."""
-    bullets: dict[str, str] = {}
-    bullet_lines: dict[int, str] = {}
-    current_id = None
-    current_lines: list[str] = []
-    lines = resume_text.splitlines()
-    has_experience_heading = any(_section_kind(line) == "experience" for line in lines)
-    has_date_header = any(_is_role_date_header(line) for line in lines)
-    in_experience_section = not has_experience_heading and not has_date_header
-    in_date_excluded_section = False
-
-    def save():
-        if current_id is not None:
-            bullets[current_id] = "\n".join(current_lines)
-
-    for index, line in enumerate(lines):
-        section = _section_kind(line)
-        if section:
-            save()
-            current_id, current_lines = None, []
-            in_experience_section = section == "experience"
-            heading = line.strip().rstrip(": ").casefold()
-            in_date_excluded_section = heading in _DATE_EXCLUDED_SECTION_HEADINGS
-            continue
-        if not has_experience_heading and not in_date_excluded_section and (
-            _is_role_date_header(line)
-        ):
-            save()
-            current_id, current_lines = None, []
-            in_experience_section = True
-            continue
-        match = _BULLET_LINE.match(line)
-        if match:
-            save()
-            if in_experience_section:
-                current_id = f"B{len(bullets) + 1}"
-                current_lines = [match.group(1)]
-                bullet_lines[index] = current_id
-            else:
-                current_id, current_lines = None, []
-        elif current_id is not None and line.strip() and not _is_resume_boundary(
-            line,
-            lines[index + 1] if index + 1 < len(lines) else "",
-            lines[index + 2] if index + 2 < len(lines) else "",
-        ) and (
-            line[: len(line) - len(line.lstrip())]
-            or line.lstrip()[:1].islower()
-            or len(current_lines[-1]) >= 30
-            or not current_lines[-1].rstrip().endswith((".", "!", "?"))
-        ):
-            current_lines.append(line.strip())
-        elif current_id is not None:
-            save()
-            current_id, current_lines = None, []
-    save()
-    return bullets, bullet_lines
-
-
-def _source_bullets(resume_text: str) -> dict[str, str]:
-    """Return exact, request-local passages for eligible work-experience bullets."""
-    return _source_bullet_map(resume_text)[0]
-
-
-def _experience_output_type(source_bullet_ids: set[str]):
-    """Add request-local ID validation so malformed model output gets a retry."""
-    def validate_ids(output):
-        seen = set()
-        for role in output.experiences:
-            for bullet_id in role.highlight_ids:
-                if bullet_id not in source_bullet_ids or bullet_id in seen:
-                    raise ValueError("Use only known source bullet IDs, once per resume.")
-                seen.add(bullet_id)
-        return output
-
-    validator = model_validator(mode="after")(validate_ids)
-    output_type = create_model(
-        "ValidatedExperienceExtraction",
-        __base__=ExperienceExtraction,
-        __validators__={"validate_source_bullet_ids": validator},
-    )
-    output_type.model_rebuild(_types_namespace={"ExperienceRoleExtraction": ExperienceRoleExtraction})
-    return output_type
-
-
-def _experience_prompt(resume_text: str) -> tuple[str, dict[str, str]]:
-    """Add local IDs beside eligible source bullets while preserving their role context."""
-    bullets, bullet_lines = _source_bullet_map(resume_text)
-    lines = resume_text.splitlines()
-    for line_index, bullet_id in bullet_lines.items():
-        line = lines[line_index]
-        match = _BULLET_LINE.match(line)
-        lines[line_index] = f"{line[:match.start()]}[{bullet_id}] {line[match.start():]}"
-    return format_resume_user_prompt("\n".join(lines)), bullets
-
 
 def format_resume_user_prompt(resume_text: str) -> str:
     """Wraps extracted resume text as data. A tag inside the file cannot close the fence."""
@@ -329,13 +124,17 @@ async def _run_with_deadline(
 
     async def extract(schema):
         instruction = format_resume_group_instruction(schema.__name__)
-        bullet_map = {}
+        experience_source = None
+
         def build_prompt(sources):
+            nonlocal experience_source
             if schema is ExperienceExtraction:
-                prompt, bullets = _experience_prompt(sources[0])
-                bullet_map.update(bullets)
-                return instruction + "\n" + prompt
+                experience_source = ExperienceSource(sources[0])
+                return instruction + "\n" + format_resume_user_prompt(
+                    experience_source.annotated_text
+                )
             return instruction + "\n" + format_resume_user_prompt(sources[0])
+
         prompt = bind_screened_prompt(
             [resume_text],
             build_prompt,
@@ -350,8 +149,8 @@ async def _run_with_deadline(
             result = await resume_parsing_agent.run(
                 prompt,
                 output_type=(
-                    _experience_output_type(set(bullet_map))
-                    if schema is ExperienceExtraction
+                    experience_source.output_type
+                    if experience_source is not None
                     else schema
                 ),
                 model=generative_model(model, fallback_model),
@@ -363,7 +162,7 @@ async def _run_with_deadline(
             span.set_attribute("resume_parse.input_tokens", result.usage.input_tokens)
             span.set_attribute("resume_parse.cached_input_tokens", result.usage.cache_read_tokens)
             span.set_attribute("resume_parse.output_tokens", result.usage.output_tokens)
-            return result, bullet_map
+            return result, experience_source
 
     async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         settings = load_settings()
@@ -389,27 +188,12 @@ async def _run_with_deadline(
     warnings = []
     usage = RunUsage()
     charges = []
-    for result, bullet_map in results:
-        values = result.output.model_dump()
-        if isinstance(result.output, ExperienceExtraction):
-            seen = set()
-            rebuilt = []
-            bullet_order = {bullet_id: index for index, bullet_id in enumerate(bullet_map)}
-            for role in values["experiences"]:
-                bullet_ids = role.pop("highlight_ids")
-                if (
-                    len(bullet_ids) != len(set(bullet_ids))
-                    or any(bullet_id not in bullet_map or bullet_id in seen for bullet_id in bullet_ids)
-                ):
-                    raise ValueError("Experience extraction returned an invalid source bullet ID")
-                seen.update(bullet_ids)
-                highlights = [
-                    bullet_map[bullet_id]
-                    for bullet_id in sorted(bullet_ids, key=bullet_order.__getitem__)
-                ]
-                role["highlights"] = highlights
-                rebuilt.append(role)
-            values["experiences"] = rebuilt
+    for result, experience_source in results:
+        values = (
+            experience_source.reconstruct(result.output)
+            if experience_source is not None
+            else result.output.model_dump()
+        )
         warnings.extend(values.pop("parsing_warnings"))
         fields.update(values)
         usage.incr(result.usage)

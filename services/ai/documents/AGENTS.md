@@ -7,6 +7,8 @@ against that text. No LLM calls here.
 
 ## Contents
 
+- `experience_source.py` — request-local experience passage eligibility, source-ID annotation,
+  validated model selections, and reconstruction of exact highlights in source order
 - `extract_document_text.py` — PDF (pypdf) and DOCX (python-docx, including table cells) to
   text; raises `UnsupportedDocumentError` for other types or files with no text layer, and
   `DocumentTooLongError` when the PDF has more than 30 pages or the text is over 80,000 characters

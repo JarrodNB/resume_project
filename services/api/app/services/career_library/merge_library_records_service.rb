@@ -31,6 +31,7 @@ module CareerLibrary
       ActiveRecord::Base.transaction do
         fill_blank_fields
         add_new_highlights if @target.is_a?(Experience)
+        RecordScreeningService.discard_changed_fields(record: @target)
         @target.save!
         @source.destroy! if @source.persisted?
         SyncLibraryEmbeddingsJob.perform_later(@target.user_id)

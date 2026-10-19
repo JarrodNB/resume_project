@@ -80,6 +80,7 @@ module GapResponses
       return [ fact, false ] if fact.persisted? && fact.response == @body
 
       fact.response = @body
+      CareerLibrary::RecordScreeningService.discard_changed_fields(record: fact)
       fact.save
       [ fact, fact.persisted? ]
     end

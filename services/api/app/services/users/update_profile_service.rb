@@ -15,7 +15,9 @@ module Users
 
     # Applies the profile attributes.
     def call
-      @user.update(normalized_attributes) ? success(@user) : failure(@user.errors)
+      @user.assign_attributes(normalized_attributes)
+      CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
+      @user.save ? success(@user) : failure(@user.errors)
     end
 
     private

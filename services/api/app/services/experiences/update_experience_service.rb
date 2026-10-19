@@ -14,6 +14,7 @@ module Experiences
     def call
       ActiveRecord::Base.transaction do
         @experience.assign_attributes(@attributes)
+        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         replace_highlights if @highlights
         raise ActiveRecord::Rollback unless @experience.save
       end

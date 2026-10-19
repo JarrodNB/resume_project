@@ -33,6 +33,8 @@ module AiTasks
         end
         next false if status == "usage" || ai_task.finished?
 
+        CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
+
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
         attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"

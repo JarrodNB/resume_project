@@ -31,6 +31,17 @@ def test_docx_text_includes_paragraphs_and_table_cells() -> None:
     assert text.splitlines() == ["Jane Doe", "Experience", "Acme", "2021 - 2023"]
 
 
+def test_docx_text_preserves_list_bullet_markers_for_exact_highlight_mapping() -> None:
+    document = Document()
+    document.add_paragraph("Built a reliable API", style="List Bullet")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert text == "• Built a reliable API"
+
+
 def test_docx_text_includes_hyperlink_label_and_url() -> None:
     """A labelled DOCX hyperlink keeps both the visible text and destination."""
     document = Document()

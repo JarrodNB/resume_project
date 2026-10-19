@@ -152,13 +152,20 @@ def _extract_docx_text(file_bytes: bytes) -> str:
 
 
 def _docx_paragraph_text(paragraph: Any) -> str:
-    """Returns visible paragraph text plus markers for its external hyperlinks."""
+    """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
+    style_name = paragraph.style.name.casefold()
+    if style_name.startswith("list bullet"):
+        text = f"• {paragraph.text}"
+    elif style_name.startswith("list number"):
+        text = f"1. {paragraph.text}"
+    else:
+        text = paragraph.text
     markers = [
         _hyperlink_marker(hyperlink.text.strip() or hyperlink.url, hyperlink.url)
         for hyperlink in paragraph.hyperlinks
         if hyperlink.url
     ]
-    return "\n".join([paragraph.text, *markers])
+    return "\n".join([text, *markers])
 
 
 def _hyperlink_marker(label: str, url: str) -> str:

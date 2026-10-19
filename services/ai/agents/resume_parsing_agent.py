@@ -51,9 +51,27 @@ _DATE_LINE = re.compile(
     re.IGNORECASE,
 )
 _SECTION_HEADINGS = {
-    "summary", "profile", "experience", "work experience", "employment", "education",
-    "skills", "projects", "certifications", "credentials", "training", "toolbox",
+    "summary", "profile", "experience", "work experience", "work history",
+    "professional experience", "career experience", "career history", "employment",
+    "employment history", "education", "skills", "projects", "personal projects",
+    "certifications", "credentials", "training", "toolbox", "awards", "honors",
+    "publications", "languages", "interests", "volunteer experience",
 }
+_EXPERIENCE_HEADINGS = {
+    "experience", "work experience", "work history", "professional experience",
+    "career experience", "career history", "employment", "employment history",
+    "volunteer experience",
+}
+
+
+def _section_kind(line: str) -> str | None:
+    """Tell work history headings from sections whose bullets are not job highlights."""
+    heading = line.strip().rstrip(": ").casefold()
+    if heading in _EXPERIENCE_HEADINGS:
+        return "experience"
+    if heading in _SECTION_HEADINGS:
+        return "other"
+    return None
 
 
 def _is_resume_boundary(line: str, next_line: str) -> bool:
@@ -62,17 +80,13 @@ def _is_resume_boundary(line: str, next_line: str) -> bool:
     if not text:
         return True
     letters = [char for char in text if char.isalpha()]
-    if text.casefold() in _SECTION_HEADINGS or (
+    if _section_kind(text) or (
         len(text) <= 60 and len(letters) >= 3 and all(char.isupper() for char in letters)
     ):
         return True
     if _DATE_LINE.fullmatch(text):
         return True
-    return bool(
-        re.search(r"[|—–]", text)
-        and len(text) <= 120
-        and _DATE_LINE.fullmatch(next_line.strip())
-    )
+    return bool(len(text) <= 120 and _DATE_LINE.fullmatch(next_line.strip()))
 
 
 def _source_bullets(resume_text: str) -> dict[str, str]:
@@ -80,6 +94,7 @@ def _source_bullets(resume_text: str) -> dict[str, str]:
     bullets: dict[str, str] = {}
     current_id = None
     current_lines: list[str] = []
+    in_experience_section = True
 
     def save():
         if current_id is not None:
@@ -87,16 +102,26 @@ def _source_bullets(resume_text: str) -> dict[str, str]:
 
     lines = resume_text.splitlines()
     for index, line in enumerate(lines):
+        section = _section_kind(line)
+        if section:
+            save()
+            current_id, current_lines = None, []
+            in_experience_section = section == "experience"
+            continue
         match = _BULLET_LINE.match(line)
         if match:
             save()
-            current_id = f"B{len(bullets) + 1}"
-            current_lines = [match.group(1)]
+            if in_experience_section:
+                current_id = f"B{len(bullets) + 1}"
+                current_lines = [match.group(1)]
+            else:
+                current_id, current_lines = None, []
         elif current_id is not None and line.strip() and not _is_resume_boundary(
             line, lines[index + 1] if index + 1 < len(lines) else ""
         ) and (
             line[: len(line) - len(line.lstrip())]
             or line.lstrip()[:1].islower()
+            or len(current_lines[-1]) >= 30
             or not current_lines[-1].rstrip().endswith((".", "!", "?"))
         ):
             current_lines.append(line.strip())

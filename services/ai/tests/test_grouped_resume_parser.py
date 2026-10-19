@@ -196,6 +196,31 @@ def test_source_bullets_keep_unindented_wraps_and_stop_before_role_and_section_h
     }
 
 
+def test_source_bullets_keep_unindented_sentence_continuations():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "Product Manager — Acme\n2022 – Present\n"
+        "• Launched the new onboarding flow in five regions.\n"
+        "This improved retention and cut support requests.\n"
+    )
+    assert _source_bullets(source) == {
+        "B1": "Launched the new onboarding flow in five regions.\n"
+        "This improved retention and cut support requests."
+    }
+
+
+def test_source_bullets_exclude_project_and_skill_section_bullets():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
+        "PROJECTS\n• Built a personal portfolio.\n"
+        "SKILLS\n• Python\n"
+    )
+    assert _source_bullets(source) == {"B1": "Built a reliable API."}
+
+
 def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
     async def answer(messages, info):
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:

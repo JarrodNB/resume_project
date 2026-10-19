@@ -13,7 +13,9 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 - `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
   `library_embeddings` with explicitly selected library types; no matches means the whole library
 - `labeled_sources.py` — short labels for retrieved entries, gap responses, and selected draft snapshots.
-  Projects, education, certifications, and skills are labeled even when retrieval returned other rows
+  Text and saved-field provenance are built together; preparation passes that provenance
+  to screening without looking entries up again. Projects, education, certifications, and
+  skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
 - `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
   replace the rewrite with the original library text

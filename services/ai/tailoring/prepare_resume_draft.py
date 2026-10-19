@@ -16,7 +16,7 @@ from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import current_session, remaining_timeout, screening_session
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
-from tailoring.labeled_sources import SourceRecord, label_sources, library_fields_for_source
+from tailoring.labeled_sources import SourceRecord, label_sources
 from tailoring.retrieve_for_section import retrieve_source_keys_async
 from text_limits import MAX_SCREENED_TEXT
 from worker.queue_messages import ModelUsage
@@ -77,13 +77,12 @@ class PreparedResumeDraft:
         async def check(text):
             if text not in self._decisions:
                 source = (records or {}).get(text)
-                selected = library_fields_for_source(self.context.career_library, source) if source else None
+                provenance = source.provenance if source else None
                 if len(text) > MAX_SCREENED_TEXT:
                     outcome = ScreenOutcome(False, too_long=True)
-                elif selected:
-                    library, used_fields = selected
+                elif provenance:
                     outcome = await screen_library_fields_async(
-                        library, classify, used_fields=used_fields, approved_sources=[text])
+                        provenance.library, classify, used_fields=provenance.used_fields, approved_sources=[text])
                     if outcome is True:
                         outcome = ScreenOutcome(True)
                 else:

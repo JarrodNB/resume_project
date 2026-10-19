@@ -378,3 +378,108 @@ def test_approved_oversized_and_rejected_library_sources_stay_out(preparation, m
         assert "One of your notes was left out because it is too long." in warnings
         assert "One of your notes was left out." in warnings
     asyncio.run(run())
+
+
+def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
+    """Fields absent from evidence cannot gain approvals; structured dates stay structured."""
+    import json
+
+    from schemas.gap_analysis_context import CareerLibrary
+    from tailoring.labeled_sources import label_sources
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    ids = {kind: str(uuid4()) for kind in (
+        "experience", "highlight", "project", "education", "certification", "skill", "fact")}
+    context.career_library = CareerLibrary.model_validate({
+        "summary_record_id": str(user), "summary": "Profile evidence",
+        "experiences": [{
+            "id": ids["experience"], "title": "Role evidence", "company": "Employer evidence",
+            "description": "Role description", "location": "Omitted location",
+            "highlights": [{"id": ids["highlight"], "content": "Highlight evidence"}],
+        }],
+        "projects": [{"id": ids["project"], "name": "Project evidence",
+                      "description": "Project description", "role": "Omitted project role"}],
+        "educations": [{"id": ids["education"], "institution": "School evidence",
+                        "degree": "Degree evidence", "field_of_study": "Subject evidence",
+                        "description": "Omitted school description"}],
+        "certifications": [{
+            "id": ids["certification"], "name": "Credential evidence", "issuer": "Issuer evidence",
+            "credential_id": "Credential identifier", "credential_url": "https://credential.example",
+            "description": "Credential description", "issued_date": "2020-01-01",
+            "issued_date_precision": "year", "expiry_date": "2030-02-01",
+            "expiry_date_precision": "month",
+        }],
+        "skills": [{"id": ids["skill"], "name": "Skill evidence", "category": "Omitted category"}],
+        "facts": [{"id": ids["fact"], "requirement": "Fact requirement", "response": "Fact evidence"}],
+    })
+    expected = {
+        ("user", str(user)): {"summary": "Profile evidence"},
+        ("experience", ids["experience"]): {
+            "title": "Role evidence", "company": "Employer evidence", "description": "Role description"},
+        ("experience_highlight", ids["highlight"]): {"content": "Highlight evidence"},
+        ("project", ids["project"]): {"name": "Project evidence", "description": "Project description"},
+        ("education", ids["education"]): {
+            "institution": "School evidence", "degree": "Degree evidence", "field_of_study": "Subject evidence"},
+        ("certification", ids["certification"]): {
+            "name": "Credential evidence", "issuer": "Issuer evidence", "credential_id": "Credential identifier",
+            "credential_url": "https://credential.example", "description": "Credential description"},
+        ("skill", ids["skill"]): {"name": "Skill evidence"},
+        ("library_fact", ids["fact"]): {"requirement": "Fact requirement", "response": "Fact evidence"},
+    }
+    sources = label_sources(context, [], [], None)
+    assert sources.records["C1"].text == (
+        "Credential evidence, Issuer evidence, issued 2020, expires 2030-02, "
+        "Credential identifier, https://credential.example, Credential description")
+    # The public source interface exposes provenance for every saved kind.
+    assert {record.kind for record in sources.records.values() if record.provenance} == {
+        "summary", "experience", "highlight", "project", "education", "certification", "skill", "fact"}
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            reports = {(report.record_type, str(report.record_id)): set(report.fields)
+                       for report in session.library_screening}
+            assert reports == {identity: set(values) for identity, values in expected.items()}
+            assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
+            assert all("screened_fields" not in prompt.text and "provenance" not in prompt.text
+                       for prompt in prepared.prompts.values())
+        pending = [row for text in calls[1:] for row in json.loads(text)]
+        assert {json.dumps(row, sort_keys=True) for row in pending} == {
+            json.dumps(row, sort_keys=True) for row in expected.values()}
+        assert len(pending) == len(expected)
+        rendered = sources.text_for(list(sources.records))
+        assert all(value in rendered for values in expected.values() for value in values.values())
+        assert "Omitted" not in rendered
+        assert all("Omitted" not in text for text in calls)
+    asyncio.run(run())
+
+
+def test_highlights_reuse_partial_saved_parent_checks(preparation):
+    """Role identity screens once and highlights screen only their unchecked content."""
+    import json
+
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    role = context.career_library.experiences[0]
+    role.screened_fields = ["title"]
+    role.description = "Unsaved role description"
+
+    async def run():
+        with screening_session() as session:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            role_reports = [report for report in session.library_screening
+                            if report.record_type == "experience" and str(report.record_id) == role.id]
+            assert len(role_reports) == 1
+            assert set(role_reports[0].fields) == {"company", "description"}
+            for highlight in role.highlights:
+                reports = [report for report in session.library_screening
+                           if report.record_type == "experience_highlight"
+                           and str(report.record_id) == highlight.id]
+                assert len(reports) == 1
+                assert reports[0].fields == ["content"]
+        fields = [row for text in calls[1:] for row in json.loads(text)]
+        assert not any("title" in row and row["title"] == role.title for row in fields)
+        assert sum(row.get("company") == role.company for row in fields) == 1
+    asyncio.run(run())

@@ -18,14 +18,20 @@ from pydantic import BaseModel, Field
 from schemas.certification_dates import DatePrecision
 
 
-class LibraryHighlight(BaseModel):
+class LibraryRecord(BaseModel):
+    """Saved screening metadata stays outside prompt and evidence serialization."""
+
+    screened_fields: list[str] = Field(default_factory=list, exclude=True)
+
+
+class LibraryHighlight(LibraryRecord):
     """One bullet point under a role."""
 
     id: str
     content: str
 
 
-class LibraryExperience(BaseModel):
+class LibraryExperience(LibraryRecord):
     """A role the user has held."""
 
     id: str
@@ -38,7 +44,7 @@ class LibraryExperience(BaseModel):
     highlights: list[LibraryHighlight] = Field(default_factory=list)
 
 
-class LibraryProject(BaseModel):
+class LibraryProject(LibraryRecord):
     """A project the user worked on."""
 
     id: str
@@ -49,7 +55,7 @@ class LibraryProject(BaseModel):
     end_date: date | None = None
 
 
-class LibraryEducation(BaseModel):
+class LibraryEducation(LibraryRecord):
     """A degree, course, or other education entry."""
 
     id: str
@@ -61,7 +67,7 @@ class LibraryEducation(BaseModel):
     end_date: date | None = None
 
 
-class LibraryCertification(BaseModel):
+class LibraryCertification(LibraryRecord):
     """An earned certification with its stated identity and validity dates."""
 
     id: str
@@ -76,7 +82,7 @@ class LibraryCertification(BaseModel):
     description: str | None = None
 
 
-class LibrarySkill(BaseModel):
+class LibrarySkill(LibraryRecord):
     """A skill, optionally grouped by category."""
 
     id: str
@@ -84,7 +90,7 @@ class LibrarySkill(BaseModel):
     category: str | None = None
 
 
-class LibraryFact(BaseModel):
+class LibraryFact(LibraryRecord):
     """A requirement the user answered and added to the career library."""
 
     id: str
@@ -95,6 +101,8 @@ class LibraryFact(BaseModel):
 class CareerLibrary(BaseModel):
     """The user's career library: the only evidence the analysis may use."""
 
+    summary_record_id: str | None = Field(default=None, exclude=True)
+    screened_fields: list[str] = Field(default_factory=list, exclude=True)
     summary: str | None = None
     experiences: list[LibraryExperience] = Field(default_factory=list)
     projects: list[LibraryProject] = Field(default_factory=list)

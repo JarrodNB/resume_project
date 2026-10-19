@@ -84,11 +84,11 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
                           guardrail_usage, privacy_stack):
     """Retain privacy through exception logging, publication, and parent span completion."""
     _publish_usage(task, task_usage, result_queue, finished=False)
+    session = privacy_stack.enter_context(screening_session(dependencies.settings.llm_run_timeout_seconds))
     try:
         privacy_stack.enter_context(using_known_contact(task))
         with (
             collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
-            screening_session(dependencies.settings.llm_run_timeout_seconds),
         ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
@@ -115,6 +115,7 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
             ai_task_id=task.ai_task_id, status="failed", error_message="The AI task failed"
         )
 
+    result.library_screening = session.library_screening
     result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
     result.attempt_id = task_usage.attempt_id
     result.usage_incomplete = task_usage.incomplete

@@ -206,3 +206,24 @@ def test_temporary_error_on_last_attempt_publishes_failed(
     assert process_task_message(build_task_body(), last_attempt, result_queue, task_dependencies)
 
     assert json.loads(result_queue.sent_bodies[-1])["status"] == "failed"
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_successful_library_checks_survive_generation_failure(monkeypatch, task_dependencies, failure):
+    from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+    from screening.library_fields import screen_library_fields
+
+    def handler(task, dependencies):
+        screen_library_fields(CareerLibrary(facts=[LibraryFact(
+            id="fact", requirement="On call", response="Weekly")]), lambda _: True)
+        if failure:
+            raise RuntimeError("generation failed")
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed")
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    queue = FakeResultQueue()
+    assert process_task_message(build_task_body(), 1, queue, task_dependencies)
+    started, final = map(json.loads, queue.sent_bodies)
+    assert not started["library_screening"]
+    assert final["library_screening"] == [{"record_type": "library_fact", "record_id": "fact",
+                                           "fields": ["requirement", "response"]}]

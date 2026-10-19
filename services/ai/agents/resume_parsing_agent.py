@@ -41,6 +41,38 @@ from worker.tracing import record_prompt_version
 # Replacing "<" keeps the words and stops the tag closing.
 _RESUME_TAG = re.compile(r"<\s*/?\s*resume\s*>", re.IGNORECASE)
 _BULLET_LINE = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+(.*)$")
+_DATE_LINE = re.compile(
+    r"^(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
+    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?\s*[-–—]\s*"
+    r"(?:(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
+    r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
+    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?|present|current)\.?$",
+    re.IGNORECASE,
+)
+_SECTION_HEADINGS = {
+    "summary", "profile", "experience", "work experience", "employment", "education",
+    "skills", "projects", "certifications", "credentials", "training", "toolbox",
+}
+
+
+def _is_resume_boundary(line: str, next_line: str) -> bool:
+    """Recognize section headings and role/date headers between source bullets."""
+    text = line.strip()
+    if not text:
+        return True
+    letters = [char for char in text if char.isalpha()]
+    if text.casefold() in _SECTION_HEADINGS or (
+        len(text) <= 60 and len(letters) >= 3 and all(char.isupper() for char in letters)
+    ):
+        return True
+    if _DATE_LINE.fullmatch(text):
+        return True
+    return bool(
+        re.search(r"[|—–]", text)
+        and len(text) <= 120
+        and _DATE_LINE.fullmatch(next_line.strip())
+    )
 
 
 def _source_bullets(resume_text: str) -> dict[str, str]:
@@ -53,16 +85,19 @@ def _source_bullets(resume_text: str) -> dict[str, str]:
         if current_id is not None:
             bullets[current_id] = "\n".join(current_lines)
 
-    for line in resume_text.splitlines():
+    lines = resume_text.splitlines()
+    for index, line in enumerate(lines):
         match = _BULLET_LINE.match(line)
         if match:
             save()
             current_id = f"B{len(bullets) + 1}"
             current_lines = [match.group(1)]
-        elif current_id is not None and line.strip() and (
+        elif current_id is not None and line.strip() and not _is_resume_boundary(
+            line, lines[index + 1] if index + 1 < len(lines) else ""
+        ) and (
             line[: len(line) - len(line.lstrip())]
-            or len(current_lines[-1]) >= 30
             or line.lstrip()[:1].islower()
+            or not current_lines[-1].rstrip().endswith((".", "!", "?"))
         ):
             current_lines.append(line.strip())
         elif current_id is not None:

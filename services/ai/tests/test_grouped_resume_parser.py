@@ -8,7 +8,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage, UsageLimits
 
-from agents.resume_parsing_agent import parse_resume_text, resume_parsing_agent
+from agents.resume_parsing_agent import parse_resume_text
 
 
 def parse(timeout=5):
@@ -17,7 +17,7 @@ def parse(timeout=5):
     )
 
 
-def test_groups_overlap_and_assemble_in_fixed_order():
+def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
     active = 0
     peak = 0
     arrived = asyncio.Event()
@@ -31,6 +31,8 @@ def test_groups_overlap_and_assemble_in_fixed_order():
         await asyncio.wait_for(arrived.wait(), 0.5)
         schema = info.output_tools[0].parameters_json_schema["properties"]
         if "experiences" in schema:
+            prompt = messages[-1].parts[-1].content
+            assert "Include every source bullet that belongs to each role." in prompt
             await asyncio.sleep(0.03)
             args = {
                 "experiences": [
@@ -53,7 +55,11 @@ def test_groups_overlap_and_assemble_in_fixed_order():
             usage=RequestUsage(input_tokens=10, output_tokens=2),
         )
 
-    with resume_parsing_agent.override(model=FunctionModel(answer)):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    from worker.task_usage import collect_task_usage
+
+    with collect_task_usage():
         result = parse()
     assert peak == 3
     assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
@@ -67,7 +73,7 @@ def test_groups_overlap_and_assemble_in_fixed_order():
     assert result.usage.input_tokens == 30
 
 
-def test_combined_requests_reserve_inflight_capacity(monkeypatch):
+def test_combined_requests_reserve_inflight_capacity(monkeypatch, offline_model_resolution):
     calls = 0
     cancelled = 0
 
@@ -83,16 +89,17 @@ def test_combined_requests_reserve_inflight_capacity(monkeypatch):
         "agents.resume_parsing_agent.agent_usage_limits",
         lambda settings: UsageLimits(request_limit=2),
     )
-    with (
-        resume_parsing_agent.override(model=FunctionModel(answer)),
-        pytest.raises(UsageLimitExceeded),
-    ):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    from worker.task_usage import collect_task_usage
+
+    with collect_task_usage(), pytest.raises(UsageLimitExceeded):
         parse()
     assert calls == 2
     assert cancelled == 2
 
 
-def test_whole_deadline_cancels_and_awaits_every_group():
+def test_whole_deadline_cancels_and_awaits_every_group(offline_model_resolution):
     cancelled = []
 
     async def answer(messages, info):
@@ -101,7 +108,11 @@ def test_whole_deadline_cancels_and_awaits_every_group():
         finally:
             cancelled.append(True)
 
-    with resume_parsing_agent.override(model=FunctionModel(answer)), pytest.raises(TimeoutError):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    from worker.task_usage import collect_task_usage
+
+    with collect_task_usage(), pytest.raises(TimeoutError):
         parse(0.8)
     assert len(cancelled) == 3
 
@@ -170,6 +181,21 @@ def test_source_bullets_keep_wrapped_duplicate_passages_and_masked_tokens():
     }
 
 
+def test_source_bullets_keep_unindented_wraps_and_stop_before_role_and_section_headers():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "Senior Engineer — Acme\n2022 – Present\n"
+        "• Improved our\nRetention by 20% across teams.\n"
+        "Engineer — Acme\n2019 – 2022\n"
+        "• Built a reliable deployment platform.\nEDUCATION\n"
+    )
+    assert _source_bullets(source) == {
+        "B1": "Improved our\nRetention by 20% across teams.",
+        "B2": "Built a reliable deployment platform.",
+    }
+
+
 def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
     async def answer(messages, info):
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
@@ -183,7 +209,7 @@ def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(of
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     result = parse_resume_text(
-        "Acme\nEngineer\n• Built a thing\nLead", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+        "Acme\nEngineer\n• Built a thing\n\nLead", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
     )
     assert [r.highlights for r in result.parsed_resume.experiences] == [["Built a thing"], []]
     assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == ["Built a thing"]
@@ -205,7 +231,7 @@ def test_invalid_or_duplicate_source_ids_fail_without_partial_resume(ids, offlin
         )
 
 
-def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch):
+def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_model_resolution):
     async def answer(messages, info):
         await asyncio.sleep(0.01)
         return ModelResponse(
@@ -217,10 +243,11 @@ def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch):
         "agents.resume_parsing_agent.agent_usage_limits",
         lambda settings: UsageLimits(output_tokens_limit=10),
     )
-    with (
-        resume_parsing_agent.override(model=FunctionModel(answer)),
-        pytest.raises(UsageLimitExceeded),
-    ):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    from worker.task_usage import collect_task_usage
+
+    with collect_task_usage(), pytest.raises(UsageLimitExceeded):
         parse()
 
 
@@ -257,7 +284,7 @@ def test_fallback_charges_survive_later_group_failure(offline_model_resolution):
     assert sum(entry.input_tokens for entry in charges.entries) == 22
 
 
-def test_group_failure_cancels_and_awaits_siblings():
+def test_group_failure_cancels_and_awaits_siblings(offline_model_resolution):
     started = 0
     cancelled = []
     ready = asyncio.Event()
@@ -275,9 +302,10 @@ def test_group_failure_cancels_and_awaits_siblings():
         finally:
             cancelled.append(True)
 
-    with (
-        resume_parsing_agent.override(model=FunctionModel(answer)),
-        pytest.raises(ValueError, match="group failed"),
-    ):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    from worker.task_usage import collect_task_usage
+
+    with collect_task_usage(), pytest.raises(ValueError, match="group failed"):
         parse()
     assert len(cancelled) == 2

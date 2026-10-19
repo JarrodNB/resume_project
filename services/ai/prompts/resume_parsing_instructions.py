@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "9"
+RESUME_PARSING_PROMPT_VERSION = "10"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -75,7 +75,8 @@ def format_resume_group_instruction(group: str) -> str:
         f"Extract only these fields: {_GROUP_FIELDS[group]}. "
         "Include warnings only for these fields. Other groups extract the remaining fields. "
         + (
-            "Keep each employer and role together in experiences. For each role, return only "
+            "Keep each employer, role, and all its source bullet IDs together in experiences. "
+            "Include every source bullet that belongs to each role. For each role, return only "
             "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
             if group == "ExperienceExtraction"
             else "Keep each employer, role, and all its bullets together in experiences."

@@ -50,6 +50,12 @@ Per task type:
   `AiTask#accepted_at`.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
+  Parsing screens the complete masked source once (using chunks when necessary), then
+  concurrently extracts experience; projects and skills; and profile, education and
+  certifications. Each group receives the full source. One deadline and combined
+  request/token budgets apply; failure cancels and awaits siblings, returning no partial
+  parse. Warnings combine in group order with exact duplicates removed. Concrete provider
+  requests, including fallback attempts, retain attempt-level usage accounting.
   Both Jev screening and parsing receive reversible typed placeholders, even when
   profile contact is empty or different. Structured output is restored before source
   checks and publication. Detector failures stop before either provider; unresolved

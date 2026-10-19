@@ -189,3 +189,47 @@ def test_two_column_eval_preserves_employers_titles_and_bullet_verbs():
     employer_field = masked.splitlines()[5].split(" | ")[0]
     assert session.restore(employer_field) == "Brightline Studio"
     assert session.restore(masked) == text
+
+
+@pytest.mark.parametrize("copies", [1, 8])
+def test_layout_segments_use_batched_nlp_without_reprocessing_each_segment(monkeypatch, copies):
+    import pii
+
+    engine = pii._analyzer().nlp_engine
+    process_text = engine.process_text
+    single_texts = []
+
+    def record_single(text, language):
+        single_texts.append(text)
+        return process_text(text, language)
+
+    monkeypatch.setattr(engine, "process_text", record_single)
+    text = (
+        "John Smith      SKILLS\nMaria Garcia\tPython APIs\n"
+        "• David Chen\njohn.smith@example.test\n+44 20 7946 0958\n"
+        "08/2017 - 12/2020\n"
+    ) * copies
+    masked, session = prepare_document(text)
+    for contact in (
+        "John Smith", "Maria Garcia", "David Chen", "john.smith@example.test",
+        "+44 20 7946 0958",
+    ):
+        assert contact not in masked
+    for fact in ("SKILLS", "Python APIs", "08/2017 - 12/2020"):
+        assert fact in masked
+    assert session.restore(masked) == text
+    # The full document retains contact context; segment NLP runs as one batch.
+    assert single_texts == [text]
+
+
+def test_batched_detector_failure_does_not_expose_source(monkeypatch):
+    import pii
+
+    def broken_batch(*args, **kwargs):
+        raise RuntimeError("John Smith john.smith@example.test")
+
+    monkeypatch.setattr(pii._analyzer().nlp_engine, "process_batch", broken_batch)
+    with pytest.raises(pii.PiiDetectionError) as failure:
+        prepare_document("John Smith\njohn.smith@example.test")
+    assert str(failure.value) == "Local contact detection is unavailable"
+    assert failure.value.__suppress_context__

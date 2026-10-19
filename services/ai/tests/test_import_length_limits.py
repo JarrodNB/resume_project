@@ -44,14 +44,14 @@ def providers(monkeypatch, offline_model_resolution, task_dependencies):
     return seen
 
 
-def test_valid_import_expansion_reaches_parser_once(task_dependencies, fake_file_storage, providers):
+def test_valid_import_expansion_reaches_all_parser_groups(task_dependencies, fake_file_storage, providers):
     source = "jane@example.test\n" * 3500
     assert len(source) < MAX_RESUME_TEXT
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(source.splitlines())
     result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
-    assert len(providers["parse"]) == 1
-    assert len(providers["parse"][0]) > MAX_PROMPT_TEXT
+    assert len(providers["parse"]) == 3
+    assert all(len(prompt) > MAX_PROMPT_TEXT for prompt in providers["parse"])
     assert providers["screen"]
     assert "jane@example.test" not in repr(providers)
 

@@ -30,17 +30,19 @@ score attached, so runs can be compared across prompt and model changes.
   Run `docker compose run --rm ai python -m evals.run_prompt_guardrail_evals`.
 - Parsing quality runs exclude expected input blocks; the fixtures remain for deterministic
   evaluator tests and the dedicated capability suite. No production screening bypass exists.
-- `datasets/resume_parsing_cases.yaml` — 7 synthetic, hand-labelled resumes (clean, year-only
-  dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction)
+- `datasets/resume_parsing_cases.yaml` — 8 synthetic, hand-labelled resumes (clean, year-only
+  dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction,
+  and a longer promotion history with projects and credentials)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,
-  `ExperienceMatch`, `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`
+  `ExperienceMatch` (one-to-one roles and their own verbatim bullet recall), `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`
   (matching helpers come from
   `documents/text_matching.py`, shared with the production faithfulness guard; evals score the
   raw agent output, before that guard runs)
 - `run_resume_parsing_evals.py` — runner:
   `docker compose run --rm ai python -m evals.run_resume_parsing_evals`; prepares local
   contact masking before screening/parsing and restores raw structured outputs before
-  evaluator scoring, without applying the source-faithfulness guard
+  evaluator scoring, without applying the source-faithfulness guard. Cases run sequentially by
+  default so latency comparisons do not compete across resumes; parser groups still overlap
 - `datasets/job_posting_extraction_cases.yaml` — 8 synthetic LinkedIn postings written in
   LinkedIn's description markup (bold and colon headings; curly apostrophes; plain-text
   sub-headings; minimum vs preferred; "what you should have" / "bonus points"; nested lists; no

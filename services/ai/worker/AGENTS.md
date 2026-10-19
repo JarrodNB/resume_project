@@ -25,7 +25,13 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   that does not run fails as unchecked, not unsafe; the phrase list is not applied to the
   whole file), runs the
   resume parsing agent, checks its output with `enforce_source_faithfulness`, reports parsing
-  and Jev token usage
+  and Jev token usage.
+  Local stage timings export through Logfire as static OpenTelemetry child spans:
+  `resume_import.download`, `resume_import.extract`, `resume_import.prepare_pii`,
+  and `resume_import.restore_and_check_source`. These spans carry no document attributes
+  or exception details because failures may occur before contact detection. Existing
+  instrumented agent spans time screening and parsing. Browser upload, Rails storage/enqueue,
+  queue wait, and result delivery are outside these local worker timings.
 - `parse_job_posting_handler.py` — screens a pasted ad, runs the parse agent, and returns a
   `ScrapedJobPosting` (description is the paste; title, supplied company, and bullets must appear
   in it; an unstated company is null)

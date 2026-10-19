@@ -334,6 +334,104 @@ cases:
           credential_id: AWS-123
           credential_url: https://example.com/credential
 
+  - name: long_resume_with_promotions_and_projects
+    inputs: |
+      MORGAN ELLIS
+      morgan.ellis@example.com | Portland, OR
+      SUMMARY
+      Platform engineer building reliable payment and inventory systems.
+      PROFESSIONAL HISTORY
+      Senior Platform Engineer — Cedar Systems
+      2022 – Present
+      • Led the migration of twelve services to a shared event platform, reducing deployment failures by 35%.
+      • Designed a regional failover plan and coordinated quarterly recovery exercises with six teams.
+      • Built a deployment dashboard using Python and SQL that tracked 900 weekly releases.
+      • Mentored four engineers through architecture reviews and incident response training.
+      Platform Engineer — Cedar Systems
+      2019 – 2022
+      • Implemented an idempotent payment ingestion pipeline processing two million daily events.
+      • Reduced cloud infrastructure spend by 18% by resizing worker pools and removing unused storage.
+      • Added integration tests for account reconciliation and documented operational runbooks.
+      • Maintained Terraform modules for Kubernetes clusters across three development environments.
+      Software Engineer — Cedar Systems
+      2016 – 2019
+      • Built REST endpoints for inventory tracking using Python and PostgreSQL.
+      • Introduced request tracing across five services and cut incident investigation time by 25%.
+      • Migrated nightly exports to an incremental pipeline with automated data validation.
+      • Partnered with support staff to resolve recurring customer onboarding failures.
+      SELECTED BUILDS
+      Release Atlas
+      Built a Python dashboard that visualizes deployment history and incident timelines.
+      Queue Lab
+      Created a Go simulator for duplicate delivery and retry scheduling.
+      TOOLBOX
+      Python, Go, SQL, PostgreSQL, Terraform, Kubernetes
+      LEARNING
+      Cascadia University — B.S. Computer Science, 2012 – 2016
+      CREDENTIALS
+      Cloud Operations Certificate — Example Cloud Institute, issued 2023, expires 2027
+    expected_output:
+      contact:
+        full_name: Morgan Ellis
+        email: morgan.ellis@example.com
+        location: Portland, OR
+      summary: Platform engineer building reliable payment and inventory systems.
+      experiences:
+        - company: Cedar Systems
+          title: Senior Platform Engineer
+          start_date: "2022"
+          end_date: null
+          is_current: true
+          highlights:
+            - "Led the migration of twelve services to a shared event platform, reducing deployment failures by 35%."
+            - "Designed a regional failover plan and coordinated quarterly recovery exercises with six teams."
+            - "Built a deployment dashboard using Python and SQL that tracked 900 weekly releases."
+            - "Mentored four engineers through architecture reviews and incident response training."
+        - company: Cedar Systems
+          title: Platform Engineer
+          start_date: "2019"
+          end_date: "2022"
+          is_current: false
+          highlights:
+            - "Implemented an idempotent payment ingestion pipeline processing two million daily events."
+            - "Reduced cloud infrastructure spend by 18% by resizing worker pools and removing unused storage."
+            - "Added integration tests for account reconciliation and documented operational runbooks."
+            - "Maintained Terraform modules for Kubernetes clusters across three development environments."
+        - company: Cedar Systems
+          title: Software Engineer
+          start_date: "2016"
+          end_date: "2019"
+          is_current: false
+          highlights:
+            - "Built REST endpoints for inventory tracking using Python and PostgreSQL."
+            - "Introduced request tracing across five services and cut incident investigation time by 25%."
+            - "Migrated nightly exports to an incremental pipeline with automated data validation."
+            - "Partnered with support staff to resolve recurring customer onboarding failures."
+      projects:
+        - name: Release Atlas
+          description: Built a Python dashboard that visualizes deployment history and incident timelines.
+        - name: Queue Lab
+          description: Created a Go simulator for duplicate delivery and retry scheduling.
+      skills:
+        - name: Python
+        - name: Go
+        - name: SQL
+        - name: PostgreSQL
+        - name: Terraform
+        - name: Kubernetes
+      educations:
+        - institution: Cascadia University
+          degree: B.S.
+          field_of_study: Computer Science
+          start_date: "2012"
+          end_date: "2016"
+      certifications:
+        - name: Cloud Operations Certificate
+          issuer: Example Cloud Institute
+          issued_date: "2023"
+          expiry_date: "2027"
+
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

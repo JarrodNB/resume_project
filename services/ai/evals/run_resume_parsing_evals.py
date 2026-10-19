@@ -35,8 +35,8 @@ def load_resume_parsing_dataset() -> Dataset[str, ParsedResume, dict[str, Any]]:
     )
 
 
-def run_resume_parsing_evals(model_override: str | None = None) -> EvaluationReport:
-    """Evaluates allowed parsing cases; expected blocks run in the guardrail suite."""
+def run_resume_parsing_evals(model_override: str | None = None, *, max_concurrency: int = 1) -> EvaluationReport:
+    """Evaluates allowed cases sequentially for comparable latency; guards measure blocks."""
     settings = override_settings(load_settings(), "resume_parsing_model", model_override)
     model = settings.resume_parsing_model
     thinking = settings.resume_parsing_thinking
@@ -78,7 +78,7 @@ def run_resume_parsing_evals(model_override: str | None = None) -> EvaluationRep
         version=RESUME_PARSING_PROMPT_VERSION,
         tags=["eval", "parse_resume", model, f"thinking:{thinking}"],
         evaluation_name=f"resume_parsing:{model}:thinking={thinking}",
-        max_concurrency=5,
+        max_concurrency=max_concurrency,
     )
 
 

@@ -148,16 +148,25 @@ def _detect_spans(text: str) -> list[tuple[int, int, str]]:
     ]
     # NLP can merge a name with the next line or column. Names are recognized in
     # each layout segment; structured contacts retain priority over person guesses.
+    segments = []
     for segment in re.finditer(r"[^\r\n]+", text):
         for column in re.finditer(r"\S.*?(?=\s{2,}|\t|$)", segment.group()):
             value = column.group().rstrip()
             offset = segment.start() + column.start()
             without_bullet = re.sub(r"^[•●▪◦*-]\s*", "", value)
             offset += len(value) - len(without_bullet)
-            for match in analyzer.analyze(text=without_bullet, language="en", entities=["PERSON"]):
-                start, end = offset + match.start, offset + match.end
-                if not any(start < old_end and end > old_start for old_start, old_end, _ in spans):
-                    spans.append((start, end, "PERSON"))
+            segments.append((without_bullet, offset))
+    # Batch independent segments without joining them: NLP still sees the same
+    # layout boundaries, but spaCy can process their pipeline work together.
+    for value, artifacts, offset in analyzer.nlp_engine.process_batch(
+        segments, language="en", batch_size=32, as_tuples=True
+    ):
+        for match in analyzer.analyze(
+            text=value, language="en", entities=["PERSON"], nlp_artifacts=artifacts
+        ):
+            start, end = offset + match.start, offset + match.end
+            if not any(start < old_end and end > old_start for old_start, old_end, _ in spans):
+                spans.append((start, end, "PERSON"))
     return spans
 
 

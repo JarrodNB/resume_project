@@ -119,3 +119,28 @@ class ParsedResume(BaseModel):
         default_factory=list,
         description="Anything ambiguous or skipped, e.g. unclear whether an entry is a job.",
     )
+
+
+class ExperienceExtraction(BaseModel):
+    """Keep each complete employer, role and its bullets together."""
+
+    experiences: list[ParsedExperience] = Field(default_factory=list)
+    parsing_warnings: list[str] = Field(default_factory=list)
+
+
+class ProjectsSkillsExtraction(BaseModel):
+    """Extract projects and the explicitly listed skills."""
+
+    projects: list[ParsedProject] = Field(default_factory=list)
+    skills: list[ParsedSkill] = Field(default_factory=list)
+    parsing_warnings: list[str] = Field(default_factory=list)
+
+
+class ProfileExtraction(BaseModel):
+    """Extract contact, summary, education and certifications."""
+
+    contact: ParsedContactInfo = Field(default_factory=ParsedContactInfo)
+    summary: str | None = None
+    educations: list[ParsedEducation] = Field(default_factory=list)
+    certifications: list[ParsedCertification] = Field(default_factory=list)
+    parsing_warnings: list[str] = Field(default_factory=list)

@@ -1,10 +1,7 @@
-"""
-Description: Pydantic AI agent that turns resume text into a ParsedResume.
-Index:
-    - resume_parsing_agent: the agent (model and reasoning effort are chosen per run)
-    - ResumeParsingRun: the parsed resume, token usage, and the model name to bill
-    - format_resume_user_prompt: fences extracted text so a tag inside the file cannot close it
-    - parse_resume_text: runs the agent on extracted resume text within a time limit
+"""Extract three complete resume sections concurrently from one screened source.
+
+The public interface returns one ParsedResume only after all groups succeed. The parser
+owns group assembly, one deadline and combined budgets, and awaits cancelled siblings.
 """
 
 import asyncio
@@ -12,19 +9,29 @@ import re
 from typing import NamedTuple
 
 from pydantic_ai import Agent
+from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
-from pydantic_ai_harness import InputGuardrail
+from pydantic_ai_harness import InputBlocked, InputGuardrail
 
 from prompts.resume_parsing_instructions import (
     RESUME_PARSING_INSTRUCTIONS,
     RESUME_PARSING_PROMPT_VERSION,
+    format_resume_group_instruction,
 )
-from schemas.parsed_resume import ParsedResume
-from screening.prompt_guardrail import screen_prompt
+from schemas.parsed_resume import (
+    ExperienceExtraction,
+    ParsedResume,
+    ProfileExtraction,
+    ProjectsSkillsExtraction,
+)
+from screening import prompt_guardrail
+from screening.prompt_guardrail import BLOCKED_MESSAGE, UNCHECKED_MESSAGE, screen_prompt
+from screening.screen_user_text import screen_user_text_async
 from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
 from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
+from worker.model_prices import build_model_usage, reported_model_name
+from worker.queue_messages import ModelUsage
 from worker.run_limits import agent_usage_limits
 from worker.settings import load_settings
 from worker.tracing import record_prompt_version
@@ -38,6 +45,25 @@ def format_resume_user_prompt(resume_text: str) -> str:
     """Wraps extracted resume text as data. A tag inside the file cannot close the fence."""
     neutralized = _RESUME_TAG.sub(lambda match: match.group(0).replace("<", "&lt;"), resume_text)
     return f"<resume>\n{neutralized}\n</resume>"
+
+
+_GROUPS = (ExperienceExtraction, ProjectsSkillsExtraction, ProfileExtraction)
+
+
+class ParsingBudget(AbstractCapability):
+    """Reserve concurrent requests before awaiting, then check combined returned tokens."""
+
+    def __init__(self, limits):
+        self.limits = limits
+        self.usage = RunUsage()
+
+    async def wrap_model_request(self, ctx, *, request_context, handler):
+        self.limits.check_before_request(self.usage)
+        self.usage.requests += 1
+        response = await handler(request_context)
+        self.usage.incr(response.usage)
+        self.limits.check_tokens(self.usage)
+        return response
 
 
 resume_parsing_agent = Agent(
@@ -55,6 +81,7 @@ class ResumeParsingRun(NamedTuple):
     parsed_resume: ParsedResume
     usage: RunUsage
     model: str = ""
+    model_usages: list[ModelUsage] | None = None
 
 
 @within_screening_session
@@ -69,9 +96,8 @@ def parse_resume_text(
     effort. Raises TimeoutError if the whole run (including the provider's own retries) takes
     longer than timeout_seconds. Raises UsageLimitExceeded when the run passes its request,
     tool-call, or token cap. A provider error tries fallback_model."""
-    prompt = bind_screened_prompt([resume_text], lambda sources: format_resume_user_prompt(sources[0]))
     return asyncio.run(
-        _run_with_deadline(prompt, model, thinking, timeout_seconds, fallback_model)
+        _run_with_deadline(resume_text, model, thinking, timeout_seconds, fallback_model)
     )
 
 
@@ -82,17 +108,58 @@ async def _run_with_deadline(
     timeout_seconds: float,
     fallback_model: str,
 ) -> ResumeParsingRun:
-    """Runs the agent, cancelling it once timeout_seconds have passed."""
+    """Return all three groups in source order, cancelling and awaiting siblings on failure."""
+    budget = ParsingBudget(agent_usage_limits(load_settings()))
+
+    async def extract(schema):
+        instruction = format_resume_group_instruction(schema.__name__)
+        prompt = bind_screened_prompt(
+            [resume_text],
+            lambda sources: instruction + "\n" + format_resume_user_prompt(sources[0]),
+        )
+        return await resume_parsing_agent.run(
+            prompt,
+            output_type=schema,
+            model=generative_model(model, fallback_model),
+            model_settings=ModelSettings(thinking=thinking),
+            capabilities=[budget],
+            usage_limits=agent_usage_limits(load_settings()),
+        )
+
     async with asyncio.timeout(remaining_timeout(timeout_seconds)):
+        settings = load_settings()
+        screening = await screen_user_text_async(
+            resume_text,
+            settings.user_text_screen_model,
+            remaining_timeout(timeout_seconds),
+            max_characters=len(resume_text),
+            classify=prompt_guardrail._screen_prompt_text,
+        )
+        if not screening.allowed:
+            raise InputBlocked(UNCHECKED_MESSAGE if screening.unchecked else BLOCKED_MESSAGE)
         with record_prompt_version(RESUME_PARSING_PROMPT_VERSION):
-            result = await resume_parsing_agent.run(
-                resume_text,
-                model=generative_model(model, fallback_model),
-                model_settings=ModelSettings(thinking=thinking),
-                usage_limits=agent_usage_limits(load_settings()),
-            )
+            tasks = [asyncio.create_task(extract(schema)) for schema in _GROUPS]
+            try:
+                results = await asyncio.gather(*tasks)
+            finally:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+    fields = {}
+    warnings = []
+    usage = RunUsage()
+    charges = []
+    for result in results:
+        values = result.output.model_dump()
+        warnings.extend(values.pop("parsing_warnings"))
+        fields.update(values)
+        usage.incr(result.usage)
+        answering_model = reported_model_name(result.response.model_name or model, model)
+        charges.append(build_model_usage(answering_model, result.usage))
     return ResumeParsingRun(
-        parsed_resume=result.output,
-        usage=result.usage,
-        model=reported_model_name(result.response.model_name or model, model),
+        ParsedResume(**fields, parsing_warnings=list(dict.fromkeys(warnings))),
+        usage,
+        (charges[0].model if len({charge.model for charge in charges}) == 1 else model),
+        charges,
     )

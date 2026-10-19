@@ -15,7 +15,7 @@ from typing import Any
 
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from documents.text_matching import appears_in, fraction, loosely_equal
+from documents.text_matching import appears_in, fraction, loosely_equal, normalize_text
 from schemas.parsed_resume import ParsedExperience, ParsedResume
 
 ResumeContext = EvaluatorContext[str, ParsedResume, dict[str, Any]]
@@ -39,24 +39,44 @@ class SourceFaithfulness(Evaluator[str, ParsedResume, dict[str, Any]]):
 
 @dataclass
 class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
-    """Compares extracted roles to the labelled ones, matching on company name."""
+    """Matches labelled company/title roles once each, preferring matching dates."""
 
     def evaluate(self, ctx: ResumeContext) -> dict[str, float]:
         """Scores recall, precision, and date accuracy of experiences."""
         expected_roles = ctx.expected_output.experiences if ctx.expected_output else []
         ambiguous_names = (ctx.metadata or {}).get("ambiguous_entries", [])
-        matches = [(role, _find_role(role, ctx.output.experiences)) for role in expected_roles]
+        unmatched = list(ctx.output.experiences)
+        matches = []
+        pending = []
+        for expected in expected_roles:
+            actual = next((item for item in unmatched
+                           if loosely_equal(expected.company, item.company)
+                           and normalize_text(expected.title) == normalize_text(item.title)
+                           and _same_dates(expected, item)), None)
+            if actual is None:
+                pending.append(expected)
+            else:
+                matches.append((expected, actual))
+                unmatched.remove(actual)
+        for expected in pending:
+            actual = next((item for item in unmatched
+                           if loosely_equal(expected.company, item.company)
+                           and normalize_text(expected.title) == normalize_text(item.title)), None)
+            matches.append((expected, actual))
+            if actual is not None:
+                unmatched.remove(actual)
         found = [(expected, actual) for expected, actual in matches if actual is not None]
-        extra_roles = [
-            role
-            for role in ctx.output.experiences
-            if _find_role(role, expected_roles) is None
-            and not any(loosely_equal(role.company, name) for name in ambiguous_names)
-        ]
+        extra_roles = [role for role in unmatched if not any(
+            loosely_equal(role.company, name) for name in ambiguous_names)]
         return {
             "experience_recall": fraction(len(found), len(expected_roles)),
             "experience_precision": fraction(
                 len(ctx.output.experiences) - len(extra_roles), len(ctx.output.experiences)
+            ),
+            "experience_highlight_recall": fraction(
+                sum(sum(any(normalize_text(bullet) == normalize_text(value) for value in actual.highlights)
+                        for bullet in expected.highlights) for expected, actual in found),
+                sum(len(role.highlights) for role in expected_roles),
             ),
             "experience_dates": fraction(
                 sum(_same_dates(expected, actual) for expected, actual in found), len(found)
@@ -139,13 +159,6 @@ RESUME_PARSING_EVALUATORS = [
 def _share_in_source(values: list[str], source_text: str) -> float:
     """Share of values that appear (normalised) in the source text."""
     return fraction(sum(appears_in(value, source_text) for value in values), len(values))
-
-
-def _find_role(
-    role: ParsedExperience, candidates: list[ParsedExperience]
-) -> ParsedExperience | None:
-    """Returns the candidate at the same company, if any."""
-    return next((item for item in candidates if loosely_equal(item.company, role.company)), None)
 
 
 def _same_dates(expected: ParsedExperience, actual: ParsedExperience) -> bool:

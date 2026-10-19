@@ -37,6 +37,12 @@ leniency otherwise accepts this date range as a regional phone number. Employers
 still be mislabeled PERSON, so callers must retain tokens according to source layout
 and restore them rather than assume the label guarantees the semantic field.
 
+The same independent layout segments run through spaCy in batches of 32, using
+Presidio's `process_batch` API. Each segment's NLP artifacts are reused for person
+recognition; segments are never joined, and the full-document email/phone analysis
+retains its original context. Batching uses one process and keeps all document data
+inside the preparation call.
+
 ## Assets and limits
 
 The lockfile pins Presidio Analyzer 2.2.362, spaCy 3.8.11, and the English

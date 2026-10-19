@@ -54,6 +54,13 @@ For a research-only item, read and use `research`. Give its background agent the
 - Use TDD for behavior changes and run relevant checks in Docker. Do not use browser automation, browser-driven tests, or browser QA. Non-browser component/service/integration tests are appropriate; manual QA belongs to the human.
 - Record failures truthfully, investigate fixable failures, and ask about material ambiguity or external blockers. Unrun checks cannot be counted as passed.
 
+## Test and clean up worktrees
+
+- Run commands with the target worktree as the tool's working directory. For a human running from the primary checkout, provide an absolute-path command such as `docker compose -p <project> --project-directory <worktree> -f <worktree>/docker-compose.yml run --rm <service> <check>`; do not require manual navigation. Use a unique Compose project name for a running worktree stack, and state its URL/port overrides and teardown command.
+- Record each created worktree's purpose, path, branch or commit, and cleanup state in the local plan. Check `git worktree prune --dry-run` before creating more; prune only entries whose directories are already missing.
+- Remove a clean worker worktree and its merged local branch after its commits are integrated and verified. Remove detached review worktrees after capturing their results and stopping their test processes/stacks. Never force-remove dirty worktrees or force-delete unmerged branches.
+- Retain the integration worktree through PR review and human QA. Remove it and its local branch only after explicit completion/merge confirmation, or earlier at the human's request after explaining what local test target will be lost. Report removals and anything retained.
+
 ## Two blind reviews
 
 1. After integration and relevant checks, fix the candidate base/head commits and verify the diff contains only intended work. Both reviewers assess this same snapshot.
@@ -68,4 +75,4 @@ For a research-only item, read and use `research`. Give its background agent the
 - After implementation, verification, and review fixes, create/update a focused PR using available repository tooling. Invoking this delivery workflow authorizes its branch, commit, and PR work, not merge or deployment. If tooling/access is unavailable, leave the reviewed branch ready and report the specific blocker.
 - Before committing or opening the PR, verify with `git status --short` and the base/head diff that `KANBAN.md` and `docs/plans/` are absent. Workflow-state changes are never part of the product PR.
 - Describe the problem, resulting behavior, checks actually run, review outcomes, and manual-QA steps. State limitations plainly and exclude unrelated work from commits/PR.
-- Report the PR/branch and hand off for human review and manual QA. Stop here. Do not merge, deploy, or clear the board without the relevant human instruction.
+- Report the PR/branch, retained integration worktree path, and copy-paste test/start command from the primary checkout, then hand off for human review and manual QA. Stop here. Do not merge, deploy, clear the board, or remove the integration worktree without the relevant human instruction.

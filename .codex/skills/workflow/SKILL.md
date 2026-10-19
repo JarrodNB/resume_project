@@ -5,7 +5,7 @@ description: Deliver a Careergrind Kanban item through requirements discussion, 
 
 # Workflow
 
-Own delivery and its recorded state. This skill contains its planning, ticketing, TDD, and review instructions; no other skills are required. Write artifacts in plain language.
+Own delivery and its recorded state. This skill contains its planning, ticketing, TDD, and review instructions; no other skills are required. Write artifacts in plain language. Keep workflow records local to the primary checkout and product changes isolated in worktrees.
 
 ## Select and resume
 
@@ -19,22 +19,41 @@ Own delivery and its recorded state. This skill contains its planning, ticketing
 
 Use a stable lowercase hyphenated feature slug; honor user-supplied names and branches.
 
-- Plan: `docs/plans/<feature-slug>/plan.md`.
-- Tickets: one combined `docs/plans/<feature-slug>/tickets.md`, with stable numbered ticket headings. Never renumber existing tickets.
+- Plan: `<primary-checkout>/docs/plans/<feature-slug>/plan.md`.
+- Tickets: one combined `<primary-checkout>/docs/plans/<feature-slug>/tickets.md`, with stable numbered ticket headings. Never renumber existing tickets.
 - Integration branch: `work/<feature-slug>`.
 - Worker branches: `work/<feature-slug>-<NN>-<ticket-slug>`, each in its own worktree.
 
-Prepare and commit approved planning artifacts on `master`, excluding unrelated changes. Do not switch a dirty checkout or overwrite unrelated branches; use a separate worktree when needed. After both approvals and the planning commit, create the integration branch from that commit and record its base. Honor an explicitly supplied base branch instead of assuming master. Implementation takes place in worktrees. Subsequent progress records travel with the integration branch; do not maintain divergent copies on master.
+Resolve the primary checkout from `git worktree list --porcelain`; it is the non-bare worktree whose Git directory is the common Git directory. Confirm `KANBAN.md` and `docs/plans/` are ignored with `git check-ignore` before writing them. They are local-only coordination state: never force-add, commit, or copy them into worktrees. If legacy artifacts are tracked, preserve their working copies and remove them from the index as a workflow-maintenance change, not in a product PR. The coordinator alone updates these records; pass absolute paths as read-only context to workers.
 
-Maintain a compact delivery record in the plan: source item, phase/next action, actual human approvals tied to the approved revision or content hash, planning commit, integration base/head, branches, ticket dependencies/statuses, actual verification results, review snapshots/outcomes, and PR/manual-QA handoff. Record blockers and unfinished work for resumption. Agent summaries are not new human approvals.
+After both approvals, create the integration branch from the selected base and record that base in the local plan. Honor an explicitly supplied base branch instead of assuming master. Do not switch a dirty checkout or overwrite unrelated branches.
+
+Maintain a compact delivery record in the plan: source item, phase/next action, actual human approvals tied to the approved revision or content hash, integration base/head, branches, ticket dependencies/statuses, actual verification results, review snapshots/outcomes, and PR/manual-QA handoff. Record blockers and unfinished work for resumption. Agent summaries are not new human approvals.
 
 Ticket states: `ready-for-agent`, `in-progress`, `blocked`, `implemented`. Implemented means integrated and verified, not human acceptance. The coordinator owns integration, ticket status, board updates, and PR work.
 
 ## Explore and settle decisions
 
-Before writing the plan, inspect the code and discuss requirements and design with the user. Map decisions by dependency. Ask questions in rounds, including only decisions whose prerequisites are settled. Number questions and provide recommended answers with reasons. Wait for answers before asking dependent questions. Find repository/environment facts yourself; ask the user for decisions rather than facts you can inspect. Continue independent exploration while answers are pending.
+Before writing the plan, inspect the code and interview the user until the product and delivery decisions are explicit. Treat discovery as a decision tree, not a request for one general clarification:
 
-Cover the user problem, intended behavior, failure cases, scope boundaries, interfaces, and testing decisions as relevant. Record settled choices and open questions. Confirm shared understanding before finalizing the plan; that confirmation alone is not plan approval. Do not invent requirements to fill headings.
+1. Start with the root decisions: the concrete problem, who experiences it, the desired outcome, and scope boundaries. State what the code already establishes and list any tentative assumptions; do not quietly promote an assumption into a requirement.
+2. Build the next question frontier from decisions whose prerequisites are settled. Ask the whole useful frontier in one round, number the questions, and give a recommended answer with reasons for each. Phrase each question so a plain “yes” accepts the recommendation. Do not ask a downstream question while its parent decision is unresolved.
+3. After every answer, update the decision tree. Answers commonly expose new branches; ask those in a later round instead of treating the first round as sufficient. Continue inspecting repository facts independently while the user answers.
+4. Distinguish facts from choices. Find codebase, environment, and existing-behavior facts yourself. Ask the user to choose behavior, tradeoffs, boundaries, and priorities that cannot be derived from evidence.
+
+Probe each relevant lens below. Skip a lens only when repository evidence or an earlier answer makes it genuinely irrelevant; record that reason rather than silently omitting it.
+
+- current pain and a concrete example;
+- primary user, trigger, happy path, and definition of success;
+- inputs, outputs, state transitions, UI/API behavior, and wording users will see;
+- empty, invalid, partial, duplicate, retry, cancellation, timeout, and dependency-failure behavior;
+- authorization, tenant boundaries, privacy, sensitive data, and destructive effects;
+- compatibility, existing in-progress data, migration, rollout, and rollback;
+- concurrency, idempotency, ordering, ownership, and cross-service boundaries;
+- observability, cost or performance limits, and operational recovery;
+- acceptance evidence, automated test seams, manual QA, and explicit out-of-scope behavior.
+
+Discovery is complete only when the decision frontier is empty: all relevant branches are answered, deliberately deferred, or explicitly out of scope; remaining assumptions are visible and accepted; and the user confirms a concise shared-understanding summary. A single broad question or an agent-authored summary is not enough when unresolved branches remain. Shared-understanding confirmation is not plan approval. Record settled choices, deferrals, rejected alternatives that constrain implementation, and open questions. Do not invent requirements to fill headings.
 
 Prefer deep modules: useful behavior behind a small, simple interface that hides complicated details. Keep responsibilities cohesive and dependencies directed toward the owning module. Avoid callers managing internal sequencing/state, shallow wrappers, speculative abstractions, and duplicated decisions. Prefer existing public test seams and the highest useful observable interface. Update shared terminology and justified architectural decisions using repository glossary/ADR conventions when needed.
 
@@ -62,6 +81,8 @@ Present the written plan and test seams. Obtain explicit human plan approval bef
 
 ## Break down and approve
 
+DO NOT OVERCOMPLICATE THE DESIGN
+
 After plan approval, draft tickets in the single tickets file. Present delivered behaviors, granularity, and blocking edges. Obtain explicit human breakdown approval before implementation or creating the integration branch. Plan approval does not imply breakdown approval. Record the approved revision; material breakdown changes require renewed approval.
 
 Prefer narrow vertical slices: each delivers a complete, independently demoable or verifiable behavior through necessary layers and fits a fresh agent context. A slice need not touch every service. Prefactor first where it makes the approved change easier.
@@ -79,7 +100,7 @@ Each numbered ticket contains:
 - **Verification:** intended commands, then actual commands/results and red/green evidence.
 - **Progress:** assigned branch/worktree, starting base, resulting commits, blockers, and concerns.
 
-Keep implementation tickets off the overall Kanban board. Commit approved planning artifacts, then create/resume the integration branch.
+Keep implementation tickets off the overall Kanban board. After breakdown approval, create or resume the integration branch; planning artifacts remain ignored local workflow state.
 
 ## Implement with subagents
 
@@ -100,6 +121,17 @@ Read repository instructions and existing tests. Implement one observable accept
 Test observable results, errors, saved state, or emitted work. Avoid private-method assertions and tests mirroring implementation. Stub external services at their boundary without mocking away business behavior. Add regression coverage for bugs and duplicate-delivery coverage when queue changes affect idempotency.
 
 Run checks in Docker following `docs/testing.md`, without browser automation or browser-driven QA. Leave visual/manual checks to the human. Documentation and mechanical edits use appropriate existing/static checks instead of artificial red tests. Report actual commands/results and execution blockers.
+
+The coordinator runs each command with the target worktree as the command's working directory; neither the coordinator nor the human should have to navigate there. When handing a command to the human from the primary checkout, use absolute paths, for example `docker compose -p <project> --project-directory <worktree> -f <worktree>/docker-compose.yml run --rm <service> <check>`. Use a unique, stable Compose project name for a worktree stack. Focused `run` checks normally need no published ports; if manual QA needs a running stack, state its project name, URL/port overrides, startup command, and teardown command explicitly.
+
+## Worktree lifecycle
+
+- Record every workflow-created worktree's purpose, absolute path, branch or detached commit, and cleanup state in the local plan.
+- A worker worktree becomes disposable only after its intended commits are integrated, the integration branch contains them, required checks pass, and `git status --short` in that worktree is empty. Remove the worktree, then delete its local worker branch only when Git confirms it is merged. Never force-remove a dirty worktree or force-delete an unmerged branch.
+- Remove detached review worktrees after their review result is captured and any test process or Compose stack they started is stopped. They do not need to survive review resolution.
+- Keep the integration worktree through PR review and human manual QA so the exact candidate remains easy to run. Remove it and its local branch only after explicit human completion/merge confirmation, or earlier at the human's request after clearly reporting what will no longer be locally available.
+- Before creating worktrees, run `git worktree prune --dry-run`. Prune stale administrative entries only when their paths are already missing; do not treat pruning as permission to delete live directories.
+- At handoff, report the retained integration worktree path and a copy-paste test/start command from the primary checkout. At completion, report which worktrees and branches were removed and anything intentionally retained.
 
 ## Two blind reviews
 
@@ -131,6 +163,6 @@ After substantial fixes to behavior, interfaces, dependencies, or test coverage,
 
 ## PR and human handoff
 
-After implementation, verification, acceptance checking, and review fixes, commit remaining intended changes and create/update a focused PR using available repository tooling. Invoking this workflow authorizes its branch, commit, and PR work. If access/tooling is unavailable, leave the reviewed branch ready and report the specific blocker.
+After implementation, verification, acceptance checking, and review fixes, commit remaining intended changes and create/update a focused PR using available repository tooling. Invoking this workflow authorizes its branch, commit, PR, and safe worktree-lifecycle work described above. If access/tooling is unavailable, leave the reviewed branch ready and report the specific blocker. Verify the base/head diff excludes `KANBAN.md` and `docs/plans/` before publication.
 
 Describe the concrete problem, resulting behavior, actual checks, review outcomes, limitations, and manual-QA steps. Record and report the PR link, branch, and remaining human checks. Stop at human review and QA. Do not merge, deploy, or clear the board without the relevant human instruction. After explicit completion confirmation, remove only the completed item from `KANBAN.md`.

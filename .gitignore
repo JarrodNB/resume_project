@@ -75,7 +75,8 @@ crash.*.log
 /initial_project_description_and_notes.txt
 /running_notes.txt
 /docs/pydanticAI/
-/docs/evals/
+/docs/evals/*
+docs/research/*
 /docs/plans/*
 Workflow.md
 KANBAN.md

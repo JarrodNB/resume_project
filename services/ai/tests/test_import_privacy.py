@@ -58,7 +58,7 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
         seen.append(("parse", prompt))
         tokens = re.findall(r"«pii:[^»]+»", prompt)
         assert tokens, "Import text must be masked before reaching a provider"
-        name, email, phone = prompt.splitlines()[1:4]
+        name, email, phone = prompt.split("<resume>\n", 1)[1].splitlines()[:3]
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
             "contact": {"full_name": name, "email": email, "phone": phone},
             "experiences": [{"company": "Acme", "title": "Engineer",
@@ -71,7 +71,7 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
         FunctionModel(parse))
     result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
-    assert [kind for kind, _ in seen] == ["screen", "parse"]
+    assert [kind for kind, _ in seen] == ["screen", "parse", "parse", "parse"]
     for _, request in seen:
         for secret in ("Jane Doe", "jane@example.test", "+1 415-555-2671"):
             assert secret not in request
@@ -275,9 +275,11 @@ def test_duplicate_deliveries_fallback_and_validation_retry_are_isolated(
         seen.append(str(messages))
         prompt = next(part.content for part in messages[0].parts if hasattr(part, "content")
                       and isinstance(part.content, str) and "<resume>" in part.content)
-        name = prompt.splitlines()[1]
+        name = prompt.split("<resume>\n", 1)[1].splitlines()[0]
+        if "contact" not in info.output_tools[0].parameters_json_schema["properties"]:
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {})])
         attempts.append(name)
-        # First reply on each run is invalid, so the same masked history is retried.
+        # First profile reply on each run is invalid; retry the same masked history.
         args = {"contact": {"full_name": 42}} if len(attempts) % 2 else {"contact": {"full_name": name}}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
 

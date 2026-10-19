@@ -1,13 +1,15 @@
 """
 Description: Imports a resume without sending detected contact to screening or parsing.
 Downloads and extracts locally, validates original limits, prepares opaque PII replacements,
-then restores structured output before source checks. Safe to run twice (it only reads).
+then restores structured output before source checks. Static spans time local stages without
+recording document attributes or exceptions. Safe to run twice (it only reads).
 Index:
     - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
     - handle_parse_resume_task: returns a completed result with the faithfulness-checked
       ParsedResume and token usage, or a failed result when the file is unreadable or blocked
 """
 
+from opentelemetry import trace
 from pydantic import BaseModel
 
 from agents.resume_parsing_agent import parse_resume_text
@@ -25,6 +27,8 @@ from worker.contact_mask import import_privacy_scope
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
+
+_stage_tracer = trace.get_tracer(__name__)
 
 UNREADABLE_FILE_MESSAGE = (
     "We couldn't read any text from this file. Upload a PDF or DOCX that isn't a scanned image."
@@ -67,10 +71,18 @@ def handle_parse_resume_task(
 def _parse_resume(task, dependencies, privacy):
     """Coordinate local extraction, protected calls, restoration, and source checks."""
     task_input = ParseResumeInput.model_validate(task.input)
-    file_bytes = dependencies.file_storage.download_file(task_input.source_file.key)
+    # Timing spans deliberately omit exception details: early failures may contain
+    # uploaded content before local privacy detection has run.
+    with _stage_tracer.start_as_current_span(
+        "resume_import.download", record_exception=False, set_status_on_exception=False
+    ):
+        file_bytes = dependencies.file_storage.download_file(task_input.source_file.key)
 
     try:
-        resume_text = extract_document_text(file_bytes, task_input.source_file.content_type)
+        with _stage_tracer.start_as_current_span(
+            "resume_import.extract", record_exception=False, set_status_on_exception=False
+        ):
+            resume_text = extract_document_text(file_bytes, task_input.source_file.content_type)
     except DocumentTooLongError:
         return AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message=RESUME_TOO_LONG_MESSAGE
@@ -85,7 +97,10 @@ def _parse_resume(task, dependencies, privacy):
         return AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message=RESUME_TOO_LONG_MESSAGE
         )
-    masked_text = privacy.prepare(resume_text)
+    with _stage_tracer.start_as_current_span(
+        "resume_import.prepare_pii", record_exception=False, set_status_on_exception=False
+    ):
+        masked_text = privacy.prepare(resume_text)
     screen = _screen_resume_text(
         masked_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
     )
@@ -106,13 +121,19 @@ def _parse_resume(task, dependencies, privacy):
         timeout_seconds=settings.llm_run_timeout_seconds,
         fallback_model=settings.generative_fallback_model,
     )
-    usage = [build_model_usage(parsing_run.model or model, parsing_run.usage), *screen_usage]
-    try:
-        restored = privacy.restore(parsing_run.parsed_resume)
-    except PiiRestorationError:
-        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
-                               error_message=RESUME_PRIVACY_MESSAGE, usage=usage)
-    parsed_resume = enforce_source_faithfulness(restored, resume_text)
+    usage = [*(getattr(parsing_run, "model_usages", None) or
+               [build_model_usage(parsing_run.model or model, parsing_run.usage)]), *screen_usage]
+    with _stage_tracer.start_as_current_span(
+        "resume_import.restore_and_check_source",
+        record_exception=False,
+        set_status_on_exception=False,
+    ):
+        try:
+            restored = privacy.restore(parsing_run.parsed_resume)
+        except PiiRestorationError:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+                                   error_message=RESUME_PRIVACY_MESSAGE, usage=usage)
+        parsed_resume = enforce_source_faithfulness(restored, resume_text)
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",

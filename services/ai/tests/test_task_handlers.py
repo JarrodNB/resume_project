@@ -83,7 +83,7 @@ def test_parse_resume_returns_parsed_resume(
     assert result.status == "completed"
     ParsedResume.model_validate(result.result["parsed_resume"])
     [user_prompt] = [part for part in messages[0].parts if isinstance(part, UserPromptPart)]
-    assert user_prompt.content.startswith("<resume>\n«pii:")
+    assert "<resume>\n«pii:" in user_prompt.content
     assert "Jane Doe" not in user_prompt.content
     assert user_prompt.content.endswith(" at Acme\n</resume>")
 
@@ -122,11 +122,12 @@ def test_parse_resume_reports_token_usage(
     with resume_parsing_agent.override(model=TestModel()):
         result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
-    [model_usage] = result.usage
-    assert model_usage.model == task_dependencies.settings.resume_parsing_model
-    assert model_usage.input_tokens > 0
-    assert model_usage.output_tokens > 0
-    assert model_usage.cost_microdollars > 0
+    assert len(result.usage) == 3
+    for model_usage in result.usage:
+        assert model_usage.model == task_dependencies.settings.resume_parsing_model
+        assert model_usage.input_tokens > 0
+        assert model_usage.output_tokens > 0
+        assert model_usage.cost_microdollars > 0
 
 
 def test_parse_resume_gives_up_at_the_run_deadline(
@@ -260,7 +261,7 @@ def test_parse_resume_reports_screen_usage_when_allowed(
 
     assert result.status == "completed"
     assert [item.model for item in result.usage] == [
-        task_dependencies.settings.resume_parsing_model,
+        *([task_dependencies.settings.resume_parsing_model] * 3),
         "typesafe:jev-1.13.0",
     ]
 

@@ -46,4 +46,5 @@ def test_parse_resume_bills_the_priced_model_that_answered() -> None:
         )
 
     assert run.model == "openai:gpt-5-nano"
-    assert run.usage.input_tokens == 12
+    assert run.usage.input_tokens == 36
+    assert [entry.model for entry in run.model_usages] == ["openai:gpt-5-nano"] * 3

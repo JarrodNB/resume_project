@@ -1,13 +1,13 @@
 """
 Description: Instructions for the resume parsing agent.
 Input: the plain text extracted from a resume file, fenced as data in the user prompt.
-Output: a ParsedResume (schemas/parsed_resume.py).
+Output: one owned extraction group from schemas/parsed_resume.py; the parser assembles ParsedResume.
 Index:
     - RESUME_PARSING_PROMPT_VERSION: the version recorded on traces
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "7"
+RESUME_PARSING_PROMPT_VERSION = "8"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -57,3 +57,19 @@ Rules:
 - If the text does not look like a resume, return empty sections and say so in
   `parsing_warnings`.
 """
+
+
+_GROUP_FIELDS = {
+    "ExperienceExtraction": "experiences",
+    "ProjectsSkillsExtraction": "projects, skills",
+    "ProfileExtraction": "contact, summary, educations, certifications",
+}
+
+
+def format_resume_group_instruction(group: str) -> str:
+    """Constrain each full-source extraction to its owned fields and warnings."""
+    return (
+        f"Extract only these fields: {_GROUP_FIELDS[group]}. "
+        "Include warnings only for these fields. Other groups extract the remaining fields. "
+        "Keep each employer, role, and all its bullets together in experiences."
+    )

@@ -83,7 +83,9 @@ it('previews and saves only the selected sections with current edits in original
   await user.clear(screen.getByRole('textbox', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), 'Edited summary.')
   await user.click(screen.getByRole('button', { name: 'Exclude Skills' }))
-  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByText('Your draft is ready to review')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Save resume' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Review full resume' }))
   expect(JSON.parse(screen.getByTestId('pdf-model').textContent ?? '{}')).toMatchObject({
     blocks: [{ title: 'Summary', text: 'Edited summary.' }],
   })
@@ -102,7 +104,7 @@ it('requires at least one included section and allows restoring a section before
   await user.click(screen.getByRole('button', { name: 'Exclude Skills' }))
   expect(screen.getByRole('button', { name: 'Save resume' })).toBeDisabled()
   expect(screen.getByText('Include at least one section to preview or save your resume.')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Preview' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Review full resume' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
   expect(onSave).not.toHaveBeenCalled()
   await user.click(screen.getByRole('button', { name: 'Include Skills' }))

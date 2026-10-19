@@ -3,8 +3,7 @@
  * Deletion requires confirmation; the route chooses where to return afterward.
  * Save status tracks the submitted snapshot, so edits made during a save stay unsaved.
  */
-import { useMemo, useState } from 'react'
-import { flushSync } from 'react-dom'
+import { useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DeleteResumeDialog } from '@/features/resumes/DeleteResumeDialog'
 import { useDeleteResume } from '@/features/resumes/useDeleteResume'
@@ -32,9 +31,9 @@ export function SavedResumeEditor({ resumeId, sections, jobId, onDeleted }: { re
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(drafts))
-  const [deleted, setDeleted] = useState(false)
+  const deleted = useRef(false)
   const snapshot = JSON.stringify(drafts)
-  const dirty = !deleted && snapshot !== savedSnapshot
+  const dirty = snapshot !== savedSnapshot
   const [previewOpen, setPreviewOpen] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -42,7 +41,7 @@ export function SavedResumeEditor({ resumeId, sections, jobId, onDeleted }: { re
 
   async function confirmDelete() {
     if (await deletion.deleteResume()) {
-      flushSync(() => setDeleted(true))
+      deleted.current = true
       onDeleted()
     }
   }
@@ -63,7 +62,7 @@ export function SavedResumeEditor({ resumeId, sections, jobId, onDeleted }: { re
 
   return (
     <div className="grid gap-4">
-      <ResumeUnsavedChanges dirty={dirty} />
+      <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
       <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
         <Button type="button" variant="destructive" disabled={pending || deletion.pending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
       </ResumeEditorActions>

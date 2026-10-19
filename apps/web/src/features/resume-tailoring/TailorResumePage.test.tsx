@@ -312,7 +312,7 @@ it('deletes an edited resume and returns to the job without another discard warn
   const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
   const { router } = renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />,
     extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job</p> }],
-    mocks: [jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [
+    mocks: [jobMock(task({ status: 'COMPLETED', acceptedAt: null, result: { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old generated draft.' } }] } }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [
       { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Original summary.' } },
     ] }),
       { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },

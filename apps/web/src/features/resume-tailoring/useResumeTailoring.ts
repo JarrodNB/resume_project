@@ -1,7 +1,8 @@
 /**
  * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
  * follows it live. Accepted tasks are history, not editable drafts. A saved resume
- * prevents generation for this visit, including when deletion removes its cached link.
+ * prevents generation and old-draft restoration for this visit, including when deletion
+ * removes its cached link before the task's accepted timestamp reaches the cache.
  * Index:
  *   - TailorTaskView: the task fields the page renders
  *   - useResumeTailoring: job, task, start errors, and retry
@@ -27,11 +28,15 @@ export function useResumeTailoring(jobId: string) {
   const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])
+  const [savedResumeJobId, setSavedResumeJobId] = useState<string | null>(null)
   const started = useRef(false)
   const job = data?.job ?? null
+  // Remember this before a deletion cache update can remove the saved link.
+  if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
   const existing = job?.latestTailoring ?? null
-  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && !job?.resume)
-  const taskId = startedTask?.id ?? (followExisting && existing ? existing.id : '')
+  const hasSavedResume = Boolean(job?.resume) || savedResumeJobId === jobId
+  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && !hasSavedResume)
+  const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
   const begin = useCallback(async () => {
@@ -55,7 +60,7 @@ export function useResumeTailoring(jobId: string) {
     if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt) || started.current) return
     started.current = true
     void begin()
-  }, [loading, job, begin])
+  }, [loading, job, jobId, begin])
 
   /** Starts again after a failed task. */
   function retry() {
@@ -63,7 +68,7 @@ export function useResumeTailoring(jobId: string) {
     void begin()
   }
 
-  const task = (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
+  const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
   return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
 }
 

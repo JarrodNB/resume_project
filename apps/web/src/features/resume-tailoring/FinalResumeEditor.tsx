@@ -1,7 +1,8 @@
 /**
  * Review and edit the finished resume before saving it once. Sections start collapsed.
  * Edits and inclusion choices stay together. Unsaved drafts warn before navigation;
- * controls pause during the first save because success switches to the saved editor.
+ * Full-resume review is the main next action, with saving always available.
+ * Controls pause during the first save because success switches to the saved editor.
  */
 import { useState } from 'react'
 import { CircleAlert } from 'lucide-react'
@@ -57,7 +58,7 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
   return (
     <div className="grid gap-4">
       <ResumeUnsavedChanges dirty={dirty} />
-      <ResumeEditorActions pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()} />
+      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()} />
       {warnings.length > 0 && (
         <Alert>
           <CircleAlert aria-hidden />

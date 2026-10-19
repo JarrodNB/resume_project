@@ -1,22 +1,24 @@
 /** Warn before leaving a resume with unsaved work. Staying keeps the editor intact;
  * leaving explicitly discards local edits. Reloads use the browser's native warning.
  */
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
+import type { RefObject } from 'react'
 import { useBeforeUnload, useBlocker } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-export function ResumeUnsavedChanges({ dirty }: { dirty: boolean }) {
-  const blocker = useBlocker(dirty)
+export function ResumeUnsavedChanges({ dirty, discarded }: { dirty: boolean; discarded?: RefObject<boolean> }) {
+  // Read confirmed deletion at navigation time, even before router effects update.
+  const blocker = useBlocker(() => dirty && !discarded?.current)
   useEffect(() => {
     if (!dirty && blocker.state === 'blocked') blocker.reset()
   }, [dirty, blocker])
-  useBeforeUnload(useCallback((event) => {
-    if (dirty) {
+  useBeforeUnload((event) => {
+    if (dirty && !discarded?.current) {
       event.preventDefault()
       event.returnValue = ''
     }
-  }, [dirty]))
+  })
 
   return (
     <Dialog open={blocker.state === 'blocked'} onOpenChange={(open) => {

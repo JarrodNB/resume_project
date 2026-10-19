@@ -48,6 +48,7 @@ RSpec.describe "Concurrent results and resume writes" do
     message = { "ai_task_id" => task.id, "status" => "completed", "attempt_id" => SecureRandom.uuid,
                 "result" => original_result, "usage" => [ { "cost_microdollars" => 7 } ] }
     outcomes = run_while_record_locked(
+      locked_record: task,
       locked_operation: -> { AiTasks::ApplyAiResultService.call(message: message) },
       competing_operation: -> { ResumeImports::ImportParsedResumeService.call(ai_task: AiTask.find(task.id), parsed_resume: parsed) }
     )
@@ -79,8 +80,9 @@ RSpec.describe "Concurrent results and resume writes" do
         "observed_updated_at" => role.updated_at.iso8601(6), "screening_policy_version" => "policy-1" } ]
     }
     outcomes = run_while_record_locked(
-      locked_operation: -> { AiTasks::ApplyAiResultService.call(message: message) },
-      competing_operation: -> { CareerLibrary::ClearCareerLibraryService.call(user: User.find(user.id)) }
+      locked_record: role,
+      locked_operation: -> { CareerLibrary::ClearCareerLibraryService.call(user: User.find(user.id)) },
+      competing_operation: -> { AiTasks::ApplyAiResultService.call(message: message) }
     )
     expect(outcomes.grep(Exception)).to be_empty
     expect(outcomes).to all(be_success)

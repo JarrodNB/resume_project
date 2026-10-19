@@ -24,6 +24,8 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
     expect(task.input["gap_responses"]).to contain_exactly(include("requirement" => "Python", "body" => "Five years."))
+    # The worker's existing gap-answer payload accepts strings, not null metadata.
+    expect(task.input["gap_responses"].first.values).to all(be_a(String))
     expect(queue).to have_received(:send_message)
   end
 
@@ -119,11 +121,12 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   it "identifies the exact saved gap response revision in its snapshot" do
     user = create(:user)
     job = create(:job, user: user)
-    response = create(:job_gap_response, job: job)
+    response = create(:job_gap_response, job: job, screened_at: Time.current, screening_policy_version: "current")
     allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
     task = described_class.call(user: user, job: job).value
     expect(task.input["gap_responses"].first).to include(
       "id" => response.id, "updated_at" => response.updated_at.iso8601(6),
+      "screened_at" => response.screened_at.iso8601(6), "screening_policy_version" => "current",
       "requirement" => response.requirement, "body" => response.body
     )
   end

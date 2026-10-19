@@ -370,33 +370,26 @@ def test_saved_approvals_rescreen_changed_policy_or_complete_content(preparation
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("changed", [False, True])
-def test_gap_snapshot_matches_saved_revision_before_reuse(preparation, changed):
+@pytest.mark.parametrize("approved", [False, True])
+def test_saved_gap_answer_uses_screening_fields_from_rails(preparation, approved):
     from datetime import UTC, datetime
 
-    from database.gap_response_reader import match_gap_response_snapshots
     from screening.records import screening_policy_version
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
     dependencies, _, _, calls, _, user, job = preparation
     now = datetime.now(UTC)
-    row = {"id": str(uuid4()), "requirement": "gap requirement", "body": "saved gap answer",
-           "updated_at": now, "screened_at": now,
+    snapshot = {"id": str(uuid4()), "requirement": "gap requirement", "body": "saved gap answer",
+           "updated_at": now.isoformat(), "screened_at": now.isoformat() if approved else None,
            "screening_policy_version": screening_policy_version(dependencies.settings.user_text_screen_model)}
-    snapshot = {"id": row["id"], "updated_at": now.isoformat(), "requirement": row["requirement"], "body": row["body"]}
-    if changed:
-        row["body"] = "new saved gap answer"
-    dependencies = replace(dependencies,
-        read_gap_response_snapshots=lambda user_id, job_id, values: match_gap_response_snapshots(values, [row]))
 
     async def run():
         with screening_session() as session:
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[], gap_responses=[snapshot])
             assert "gap requirement: saved gap answer" in prepared.prompts["summary"].text
-            assert "new saved gap answer" not in prepared.prompts["summary"].text
             assert prompt_is_covered(prepared.prompts["summary"].text)
-            assert any("saved gap answer" in text for text in calls) == changed
-            assert not any(item.record_id == row["id"] for item in session.screening_successes)
+            assert any("saved gap answer" in text for text in calls) == (not approved)
+            assert any(item.record_id == snapshot["id"] for item in session.screening_successes) == (not approved)
     asyncio.run(run())
 
 
@@ -448,7 +441,6 @@ def test_unicode_gap_response_masks_provider_requests_and_reuses_saved_approval(
     from pydantic_ai.models.function import FunctionModel
 
     from agents.resume_tailoring_agent import write_resume_section_async
-    from database.gap_response_reader import match_gap_response_snapshots
     from screening.records import screening_policy_version
     from tailoring.prepare_resume_draft import prepare_resume_draft
     from worker.contact_mask import contact_scope, install_contact_hooks
@@ -463,8 +455,7 @@ def test_unicode_gap_response_masks_provider_requests_and_reuses_saved_approval(
            "updated_at": now, "screened_at": None, "screening_policy_version": None}
     snapshot = {key: row[key] for key in ("id", "requirement", "body")}
     snapshot["updated_at"] = now.isoformat()
-    dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context,
-        read_gap_response_snapshots=lambda _user, _job, values: match_gap_response_snapshots(values, [row]))
+    dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context)
     seen, generated = [], []
 
     def classify(messages, info):
@@ -504,7 +495,7 @@ def test_unicode_gap_response_masks_provider_requests_and_reuses_saved_approval(
                 assert len(seen) == screened_count
                 assert "«name» built services" in generated[0]
                 assert name not in generated[0] and escaped_name not in generated[0]
-            row.update(screened_at=now,
+            snapshot.update(screened_at=now.isoformat(),
                        screening_policy_version=screening_policy_version(dependencies.settings.user_text_screen_model))
             before = len(seen)
             with screening_session():

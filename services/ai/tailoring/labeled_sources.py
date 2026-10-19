@@ -5,9 +5,11 @@ Selected section records supply generated/copied draft snapshots to later writer
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
+from schemas.record_screening import RecordScreeningState
 
 
 @dataclass(frozen=True)
@@ -188,7 +190,14 @@ def source_input(context: GapAnalysisContext, record: SourceRecord, gap_response
         def render_response(value):
             item = json.loads(value)
             return f"{item['requirement']}: {item['body']}"
-        return source, getattr(response, "_screening_state", None), render_response
+        # Rails constructs these fields from the saved answer when it enqueues the task.
+        state = None
+        if response.get("id") and response.get("updated_at"):
+            state = RecordScreeningState("JobGapResponse", response["id"],
+                datetime.fromisoformat(response["updated_at"]),
+                datetime.fromisoformat(response["screened_at"]) if response.get("screened_at") else None,
+                response.get("screening_policy_version"), source)
+        return source, state, render_response
     if record.kind == "selected_section":
         return record.text, None, lambda value: value
     fields = {"experience": "experiences", "highlight": "experiences", "project": "projects",

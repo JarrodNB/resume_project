@@ -85,12 +85,12 @@ RSpec.describe "Interview practice services" do
     expect(result).to be_success
     expect(result.value.input).to include("answer_text" => "I led a project.", "question_revision" => 1, "answer_revision" => 1)
     expect(question.reload.answer_text).to eq("I led a project.")
-    expect(result.value.input["question_record"]).to include(
-      "user_id" => user.id, "question_set_id" => question_set.id,
+    expect(result.value.input).to include(
       "question_id" => question.id, "question_text" => question.question_text,
       "answer_text" => "I led a project.", "observed_updated_at" => question.updated_at.iso8601(6),
       "screened_at" => nil, "screening_policy_version" => nil
     )
+    expect(result.value.input).not_to have_key("question_record")
     expect(user.library_facts).to be_empty
   end
 
@@ -149,11 +149,13 @@ RSpec.describe "Interview practice services" do
     expect(start_operation("regenerate_interview_question")).not_to be_success
     result = start_operation("regenerate_interview_question", confirmed: true)
     expect(result).to be_success
-    expect(result.value.input["other_questions"]).to eq([ "What are your goals?" ])
-    other_snapshot = result.value.input["other_question_records"].sole
-    expect(other_snapshot).to include("user_id" => user.id, "question_set_id" => question_set.id,
-      "question_text" => "What are your goals?", "answer_text" => "")
-    expect(result.value.input["question_record"]).to include("question_id" => question.id,
+    other_snapshot = result.value.input["other_questions"].sole
+    expect(other_snapshot).to include(
+      "question_text" => "What are your goals?", "answer_text" => "",
+      "screened_at" => nil, "screening_policy_version" => nil)
+    expect(other_snapshot).to have_key("observed_updated_at")
+    expect(result.value.input).not_to have_key("other_question_records")
+    expect(result.value.input).to include("question_id" => question.id,
       "answer_text" => "Existing")
     expect(question.reload.answer_text).to eq("Existing")
     expect(question.feedback).to be_present

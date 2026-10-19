@@ -2,8 +2,7 @@
 # Idempotent: finished tasks keep their outcome; independently deduplicated usage can arrive late.
 # The row lock stops two copies of the same report from both adding token usage and cost.
 # Costs stored on the task count toward the user's monthly AI budget. A completed scrape_job
-# or parse_job_posting also saves its Job in the same locked transaction. All results acquire
-# the owner lock before the task lock, matching resume saves and interview operations.
+# or parse_job_posting also saves its Job in the same locked transaction.
 # Successful screening stamps commit first, one source at a time, independently of outcomes.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
@@ -19,7 +18,7 @@ module AiTasks
 
     # Validates and applies the message, notifying subscribers only when the outcome changes.
     # Call without an enclosing transaction: each screening UPDATE must release its source
-    # lock before the next stamp and before the owner/task outcome transaction begins.
+    # lock before the next stamp and before the task outcome transaction begins.
     def call
       status = @message["status"]
       return failure([ "Unknown result status: #{status.inspect}" ]) unless RESULT_STATUSES.include?(status)
@@ -48,10 +47,13 @@ module AiTasks
 
     private
 
-    # Use the same owner/task order as enqueue, resume saves, imports and interview
-    # operations. Screening has already committed independently before these locks.
+    # Interview writes share the owner lock with enqueue/save/delete; acquire it before the task.
     def with_result_lock(ai_task, &block)
-      ai_task.user.with_lock { ai_task.with_lock(&block) }
+      if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+        ai_task.user.with_lock { ai_task.with_lock(&block) }
+      else
+        ai_task.with_lock(&block)
+      end
     end
 
     # Maps a result message to the AiTask attributes it sets.

@@ -13,7 +13,7 @@ service (`bundle exec shoryuken -R -C config/shoryuken.yml`), not in Puma.
 
 - Workers are thin: parse the body (`body_parser: :json`), call one service, raise if it fails.
 - Call `ApplyAiResultService` without an enclosing transaction. Screening stamps commit
-  independently before its owner/task transaction; wrapping the worker would retain source
+  independently before its task transaction; wrapping the worker would retain source
   locks across multiple stamps and allow deadlocks with library edits.
 - Use `auto_delete: true`, so a message is deleted only after `perform` succeeds. Raising
   leaves it for SQS to retry, and after 3 failed attempts it moves to the dead-letter queue.

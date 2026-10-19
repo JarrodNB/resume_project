@@ -47,25 +47,21 @@ module InterviewPrep
            @question.question_revision.to_s, @question.answer_revision.to_s).exists?
         return failure([ "Feedback has already been requested for this answer version. Save a changed answer first." ])
       end
-      task.input = {
+      task.input = screening_input(@question).merge(
         "set_type" => @question.interview_question_set.set_type,
-        "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
-        "question_text" => @question.question_text, "answer_text" => @question.answer_text,
-        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision,
-        "question_record" => screening_snapshot(@question)
-      }
+        "question_set_id" => @question.interview_question_set_id,
+        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision
+      )
       if @task_type == "regenerate_interview_question"
         others = @question.interview_question_set.questions.where.not(id: @question.id).to_a
-        task.input["other_questions"] = others.map(&:question_text)
-        task.input["other_question_records"] = others.map { |question| screening_snapshot(question) }
+        task.input["other_questions"] = others.map { |question| screening_input(question) }
       end
       success(task)
     end
 
-    # Complete source and owner/version metadata; clients cannot submit approval fields.
-    def screening_snapshot(question)
+    # Send each saved question once, with its version and two screening fields.
+    def screening_input(question)
       {
-        "user_id" => @user.id, "question_set_id" => question.interview_question_set_id,
         "question_id" => question.id, "question_text" => question.question_text,
         "answer_text" => question.answer_text, "observed_updated_at" => question.updated_at.iso8601(6),
         "screened_at" => question.screened_at&.iso8601(6),

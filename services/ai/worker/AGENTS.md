@@ -110,4 +110,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
 
 - `interview_feedback_handler.py` — checks complete saved question/answer and library records before model use, reusing their current policy state. Job requirements stay outside coaching prompts and grounding; the handler reports coaching, screening successes and usage without database writes.
+  Rails sends screening fields alongside each question's text and version. Legacy queued questions without a version receive a temporary check and cannot report saved approval.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.

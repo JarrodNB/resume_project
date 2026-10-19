@@ -1,5 +1,6 @@
 """Count actual screening requests for interview inputs before fake generation."""
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -61,7 +62,9 @@ def test_feedback_screens_answer_question_and_library_once(task_dependencies, cl
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier == [request.input["answer_text"], request.input["question_text"], "Python"]
+    assert len(classifier) == 2
+    assert json.loads(classifier[0]) == {key: request.input[key] for key in ("question_text", "answer_text")}
+    assert classifier[1] == "Python"
 
 
 def test_optional_rejected_library_item_is_omitted(task_dependencies, classifier):
@@ -84,7 +87,7 @@ def test_reused_question_block_prevents_feedback(task_dependencies, classifier):
         result = handle_ai_task(request, deps)
     assert result.status == "failed"
     assert "saved" in result.error_message
-    assert len(classifier) == 2
+    assert len(classifier) == 1
 
 
 def test_replacement_checks_all_excluded_questions_once(task_dependencies, classifier):
@@ -94,7 +97,8 @@ def test_replacement_checks_all_excluded_questions_once(task_dependencies, class
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier == ["Python", request.input["question_text"], *request.input["other_questions"]]
+    assert classifier[0] == "Python"
+    assert [json.loads(source)["question_text"] for source in classifier[1:]] == [request.input["question_text"], *request.input["other_questions"]]
 
 
 def test_later_task_checks_reused_library_again(task_dependencies, classifier):
@@ -115,7 +119,7 @@ def test_required_question_outage_prevents_feedback(task_dependencies, classifie
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "failed" and "saved" in result.error_message
-    assert len(classifier) == 2
+    assert len(classifier) == 1
 
 
 def test_generation_reuses_complete_saved_library_state(task_dependencies, classifier):
@@ -141,8 +145,7 @@ def saved_question(request, *, text=None, answer=None, question_id=None):
 
     from screening.records import screening_policy_version
     from worker.settings import load_settings
-    return {"user_id": str(request.user_id), "question_set_id": request.input["question_set_id"],
-        "question_id": question_id or request.input["question_id"],
+    return {"question_id": question_id or request.input["question_id"],
         "question_text": text or request.input["question_text"],
         "answer_text": request.input.get("answer_text", "") if answer is None else answer,
         "observed_updated_at": datetime.now(UTC).isoformat(), "screened_at": datetime.now(UTC).isoformat(),
@@ -152,23 +155,23 @@ def saved_question(request, *, text=None, answer=None, question_id=None):
 def test_feedback_reuses_full_saved_question_and_answer(task_dependencies, classifier):
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
     request = task()
-    request.input["question_record"] = saved_question(request)
+    request.input.update(saved_question(request))
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
     assert classifier == ["Python"]
 
 
-@pytest.mark.parametrize("mismatch", ["user_id", "question_set_id", "question_text", "answer_text"])
-def test_feedback_rejects_mismatched_saved_snapshot(task_dependencies, classifier, mismatch):
-    from uuid import uuid4
+def test_legacy_queued_feedback_cannot_persist_approval(task_dependencies, classifier):
+    from screening.session import screening_session
     request = task()
-    request.input["question_record"] = saved_question(request)
-    request.input["question_record"][mismatch] = str(uuid4()) if mismatch.endswith("_id") else "Changed text"
-    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
-    result = handle_ai_task(request, deps)
-    assert result.status == "failed" and "saved" in result.error_message
-    assert classifier == []
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
+    with screening_session() as session:
+        with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+            result = handle_ai_task(request, deps)
+        assert session.screening_successes == []
+    assert result.status == "completed"
+    assert len(classifier) == 1
 
 
 def test_replacement_reuses_complete_records_without_exposing_answers(task_dependencies, classifier, monkeypatch):
@@ -177,8 +180,8 @@ def test_replacement_reuses_complete_records_without_exposing_answers(task_depen
     from worker import interview_questions_handler as handler
     request = _task(True)
     request.input["answer_text"] = "Private saved answer"
-    request.input["question_record"] = saved_question(request)
-    request.input["other_question_records"] = [saved_question(request, text=text,
+    request.input.update(saved_question(request))
+    request.input["other_questions"] = [saved_question(request, text=text,
         answer="Another private answer", question_id=str(uuid4())) for text in request.input["other_questions"]]
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
     original = handler.generate_interview_questions
@@ -187,7 +190,7 @@ def test_replacement_reuses_complete_records_without_exposing_answers(task_depen
         assert "Another private answer" not in context.text
         assert "screening_policy_version" not in context.text
         assert "observed_updated_at" not in context.text
-        assert context.excluded == (request.input["question_text"], *request.input["other_questions"])
+        assert context.excluded == (request.input["question_text"], *[row["question_text"] for row in request.input["other_questions"]])
         return original(context, **kwargs)
     monkeypatch.setattr(handler, "generate_interview_questions", generate)
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
@@ -199,8 +202,8 @@ def test_replacement_reuses_complete_records_without_exposing_answers(task_depen
 def test_unchecked_question_checks_complete_answer_and_reports(task_dependencies, classifier):
     from screening.session import screening_session
     request = task()
-    request.input["question_record"] = saved_question(request)
-    request.input["question_record"]["screened_at"] = None
+    request.input.update(saved_question(request))
+    request.input["screened_at"] = None
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     with screening_session() as session:
         with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
@@ -213,13 +216,17 @@ def test_unchecked_question_checks_complete_answer_and_reports(task_dependencies
     assert request.input["answer_text"] in classifier[0]
 
 
-def test_replacement_partial_records_fail_closed(task_dependencies, classifier):
+def test_replacement_legacy_questions_do_not_report_approval(task_dependencies, classifier):
+    from screening.session import screening_session
     request = _task(True)
-    request.input["question_record"] = saved_question(request)
+    request.input.update(saved_question(request))
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
-    result = handle_ai_task(request, deps)
-    assert result.status == "failed"
-    assert classifier == ["Python"]
+    with screening_session() as session:
+        with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
+            result = handle_ai_task(request, deps)
+        assert session.screening_successes == []
+    assert result.status == "completed"
+    assert len(classifier) == 5
 
 
 def test_queue_publishes_question_success_and_next_task_reuses(task_dependencies, classifier):
@@ -229,8 +236,8 @@ def test_queue_publishes_question_success_and_next_task_reuses(task_dependencies
     from tests.test_process_task_message import FakeResultQueue
     from worker.main import process_task_message
     request = task()
-    request.input["question_record"] = saved_question(request)
-    request.input["question_record"]["screened_at"] = None
+    request.input.update(saved_question(request))
+    request.input["screened_at"] = None
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     queue = FakeResultQueue()
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
@@ -240,8 +247,8 @@ def test_queue_publishes_question_success_and_next_task_reuses(task_dependencies
         report, = finished["screening_successes"]
         assert report["record_type"] == "InterviewQuestion"
         assert report["record_id"] == request.input["question_id"]
-        request.input["question_record"]["screened_at"] = datetime.now(UTC).isoformat()
-        request.input["question_record"]["screening_policy_version"] = report["screening_policy_version"]
+        request.input["screened_at"] = datetime.now(UTC).isoformat()
+        request.input["screening_policy_version"] = report["screening_policy_version"]
         assert process_task_message(request.model_dump_json(), 1, queue, deps)
         assert json.loads(queue.sent_bodies[-1])["status"] == "completed"
     assert len(classifier) == 1
@@ -249,8 +256,8 @@ def test_queue_publishes_question_success_and_next_task_reuses(task_dependencies
 
 def test_changed_policy_rechecks_full_saved_question(task_dependencies, classifier):
     request = task()
-    request.input["question_record"] = saved_question(request)
-    request.input["question_record"]["screening_policy_version"] = "obsolete"
+    request.input.update(saved_question(request))
+    request.input["screening_policy_version"] = "obsolete"
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         assert handle_ai_task(request, deps).status == "completed"
@@ -262,8 +269,8 @@ def test_rejected_complete_answer_reports_no_approval(task_dependencies, classif
     from screening.session import screening_session
     request = task()
     request.input["answer_text"] = "synthetic_attack"
-    request.input["question_record"] = saved_question(request)
-    request.input["question_record"]["screened_at"] = None
+    request.input.update(saved_question(request))
+    request.input["screened_at"] = None
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     with screening_session() as session:
         result = handle_ai_task(request, deps)

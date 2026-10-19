@@ -6,6 +6,7 @@ Index:
     - handle_interview_questions_task: screens source inputs once, then generates questions
 """
 import json
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -17,29 +18,45 @@ from pydantic_ai.usage import RunUsage
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
+from schemas.record_screening import RecordScreeningState
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.records import screen_record
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.interview_record_snapshot import InterviewRecordSnapshot
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 
-class InterviewQuestionsInput(BaseModel):
+class InterviewQuestionInput(BaseModel):
+    """One saved question as published by Rails, or a legacy temporary question."""
+
+    question_id: UUID | None = None
+    question_text: str = ""
+    answer_text: str = ""
+    observed_updated_at: datetime | None = None
+    screened_at: datetime | None = None
+    screening_policy_version: str | None = None
+
+    def source(self):
+        return json.dumps({"question_text": self.question_text, "answer_text": self.answer_text},
+                          ensure_ascii=False, separators=(",", ":"))
+
+    def screening_state(self):
+        if self.question_id is None or self.observed_updated_at is None:
+            return None
+        return RecordScreeningState("InterviewQuestion", str(self.question_id),
+            self.observed_updated_at, self.screened_at, self.screening_policy_version, self.source())
+
+
+class InterviewQuestionsInput(InterviewQuestionInput):
     """Generation metadata or the immutable replacement snapshot from Rails."""
 
     question_set_id: UUID
     set_type: InterviewSetType = "general"
-    question_id: UUID | None = None
-    question_text: str = ""
-    other_questions: list[str] = Field(default_factory=list)
+    other_questions: list[InterviewQuestionInput | str] = Field(default_factory=list)
     question_revision: int | None = None
     answer_revision: int | None = None
-    answer_text: str = ""
-    question_record: InterviewRecordSnapshot | None = None
-    other_question_records: list[InterviewRecordSnapshot] = Field(default_factory=list)
 
 
 @within_screening_session
@@ -94,33 +111,18 @@ def handle_interview_questions_task(
     if not usable:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
-    excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
-    excluded_sources = list(excluded)
-    complete_records = False
-    if replacement and snapshot.question_record is not None:
-        records = [snapshot.question_record, *snapshot.other_question_records]
-        if len(records) != len(excluded) or len({r.question_id for r in records}) != len(records):
-            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                error_message="Reload this question set and request replacement again.")
-        try:
-            states = [record.state(task, snapshot.question_set_id, question,
-                snapshot.question_id if index == 0 else None,
-                snapshot.answer_text if index == 0 else None)
-                for index, (record, question) in enumerate(zip(records, excluded))]
-        except ValueError:
-            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                error_message="Reload this question set and request replacement again.")
-        excluded_sources = [record.source() for record in records]
-        complete_records = True
-    for index, question in enumerate(excluded_sources):
-        outcome = check_record(question, states[index]) if complete_records else screen_note(question)
-        if not outcome.allowed:
+    records = [snapshot, *[InterviewQuestionInput(question_text=value) if isinstance(value, str) else value
+                          for value in snapshot.other_questions]] if replacement else []
+    excluded = tuple(record.question_text for record in records)
+    excluded_sources = [record.source() for record in records]
+    for record, source in zip(records, excluded_sources):
+        if not check_record(source, record.screening_state()).allowed:
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="We couldn't check these questions. Reload the set and try again.")
     count = 1 if replacement else 5
     text = bind_screened_prompt(
         [*selected.sources, *excluded_sources],
-        lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type, complete_records),
+        lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type),
     )
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
@@ -148,15 +150,13 @@ def handle_interview_questions_task(
         usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
 
 
-def _question_prompt_text(values, fields, count, set_type, complete_records=False):
+def _question_prompt_text(values, fields, count, set_type):
     """Render only checked library and excluded-question values with trusted scope."""
     library = rebuild_library(values[:len(fields)], fields)
     content = library.model_dump(mode="json", exclude_none=True,
         exclude={"facts": {"__all__": {"requirement"}}})
     text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
-    excluded = values[len(fields):]
-    if complete_records:
-        excluded = [json.loads(source)["question_text"] for source in excluded]
+    excluded = [json.loads(source)["question_text"] for source in values[len(fields):]]
     if excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
     return text

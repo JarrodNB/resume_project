@@ -14,9 +14,8 @@ Shared AI enqueue, result application, and attempt accounting.
 ## Local Rules
 
 Enqueue preparation runs under the owner lock after allowance checks; publish after commit.
-Result outcomes and usage acquire the owner lock before the task lock, including late
-and usage-only reports, matching resume saves, imports and interview operations. Library
-clearing also locks the owner before source rows. Finished tasks keep their
+Results lock the task; interview results first lock the owner to match interview operations.
+Finished tasks keep their
 outcome, but new usage attempts are still recorded. Usage-only messages never change task
 status or trigger task-state subscriptions.
 
@@ -26,5 +25,5 @@ including retries and late messages. Malformed entries are ignored. The shared
 checks; its state stamps never advance the record's `updated_at`.
 The consumer calls result application without an enclosing transaction. Screening stamps
 run first as independent atomic updates, releasing each source lock before the next stamp
-or the owner/task transaction. They survive a later outcome/accounting failure safely;
+or the task transaction. They survive a later outcome/accounting failure safely;
 redelivery retries the remaining work. Do not move them inside a shared transaction.

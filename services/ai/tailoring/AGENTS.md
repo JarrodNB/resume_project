@@ -34,8 +34,8 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 - Screen complete saved records behind selected labels before rendering narrower evidence.
   Current approvals from gap analysis or tailoring may be reused. Experience approval covers
   its role fields and every highlight; optional rejected entries are omitted with warnings.
-  Gap-answer queue snapshots carry ID/revision and receive private state only after an owned
-  database row matches revision and content. Stale/unproven snapshots remain task-local.
+  Rails includes each saved gap answer's ID, revision and two screening fields in the task.
+  Use those fields directly; Rails rejects success reports for records edited since enqueue.
   Temporary generated section snapshots and the optional gap summary screen per execution.
   The job must pass before retrieval embeds it. Bind exact prompts reconstructed from checked
   canonical values; direct unknown writer prompts retain the capability guard.

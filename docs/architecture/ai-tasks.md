@@ -52,7 +52,7 @@ Per task type:
   edits it, then the `importParsedResume` mutation writes it to the career library and
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
-  `AiTask#accepted_at`, with owner-then-task locks matching late result handling.
+  `AiTask#accepted_at`, under the task's row lock.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
   Both Jev screening and parsing receive reversible typed placeholders, even when
@@ -92,9 +92,9 @@ Per task type:
 
 - `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
   Job. Contact and gap fields are immutable request snapshots. Each gap response carries
-  `{id, updated_at, requirement, body}`. The worker verifies its revision and both text fields
-  against an owner/job-scoped read before reusing saved screening state. Old snapshots remain
-  temporary sources and cannot approve changed records. The worker reads the owned
+  `{id, updated_at, screened_at, screening_policy_version, requirement, body}`, constructed
+  by Rails from the saved answer, omitting unset screening fields. The worker uses them directly; Rails
+  rejects success reports for records edited since enqueue. The worker reads the owned
   job and career library, prepares shared screened evidence, and returns one complete draft:
   `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
   summary, experience, projects, education, certifications, skills, omitting empty or
@@ -149,8 +149,8 @@ rare SQS redelivery). We handle this instead of trying to prevent it:
   consumer has no enclosing transaction: each stamp releases its row lock before the next
   stamp, avoiding retained multi-source locks during library edits. These derived checks
   may persist even if later outcome/accounting work fails; SQS redelivery retries that work.
-  Outcome and usage updates acquire owner then task locks, matching resume saves, imports
-  and interview operations. Clearing the library also locks the owner before source rows.
+  Outcome and usage updates lock the task. Interview results first lock the owner to match
+  interview operations.
 - **Workers receive one message at a time**, so no message sits in a local batch while its
   visibility timeout runs out. Scale by adding workers.
 - **Long tasks extend their visibility timeout** (heartbeat) if real runs approach the

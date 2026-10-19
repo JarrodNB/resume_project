@@ -60,7 +60,9 @@ module ResumeTailoring
         "gap_analysis" => analysis&.result&.dig("gap_analysis"),
         "gap_responses" => @job.gap_responses.map do |response|
           { "id" => response.id, "updated_at" => response.updated_at.iso8601(6),
-            "requirement" => response.requirement, "body" => response.body }
+            "screened_at" => response.screened_at&.iso8601(6),
+            "screening_policy_version" => response.screening_policy_version,
+            "requirement" => response.requirement, "body" => response.body }.compact
         end
       }
     end

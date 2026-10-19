@@ -95,6 +95,19 @@ def test_one_task_returns_ordered_complete_editable_draft(generation):
     assert "Synthetic Candidate" not in seen[-1][1]
 
 
+def test_queued_unchecked_saved_gap_answer_can_generate_a_draft(generation):
+    from datetime import UTC, datetime
+
+    dependencies, _, seen, model = generation
+    # Rails omits unset approval fields; the record still has an ID and content version.
+    data = task_input(gap_responses=[{"id": str(uuid4()), "updated_at": datetime.now(UTC).isoformat(),
+        "requirement": "Python", "body": "Built Python APIs."}])
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(task(data), dependencies)
+    assert result.status == "completed"
+    assert any("Python: Built Python APIs." in prompt for _, prompt in seen)
+
+
 @pytest.mark.real_guardrail
 @pytest.mark.parametrize("queued", [False, True])
 def test_complete_draft_recovery_keeps_each_classifier_cost_once(

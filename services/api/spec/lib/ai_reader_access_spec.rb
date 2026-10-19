@@ -56,8 +56,7 @@ RSpec.describe AiReaderAccess do
 
     expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
-    expect(select_as_ai_reader("SELECT id FROM job_gap_responses").length).to eq(1)
-    expect { select_as_ai_reader("UPDATE job_gap_responses SET body = 'Changed'") }
+    expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 

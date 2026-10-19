@@ -127,8 +127,6 @@ async def prepare_resume_draft(
             if context is None:
                 raise ResumePreparationError("This job no longer exists.")
             responses = gap_responses or []
-            if responses and dependencies.read_gap_response_snapshots is not None:
-                responses = dependencies.read_gap_response_snapshots(user_id, job_id, responses)
             prepared = PreparedResumeDraft(context, {}, settings, responses,
                 gap_analysis, {}, {}, usage, warnings, concurrency)
             job_text = context.job.model_dump_json(exclude_none=True)

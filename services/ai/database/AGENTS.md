@@ -20,8 +20,6 @@ this folder only reads what an AI task needs.
   hybrid rank (`LibrarySearchMatch` list). Cosine order uses HNSW iterative scans so the user
   filter doesn't drop a row before BM25 sees it. Registers the pgvector type on the connection.
   Tailoring calls it for summary/experience with an explicit mixed-type selection
-- `gap_response_reader.py` — verifies immutable tailoring answer snapshots against owner/job-scoped
-  `job_gap_responses` rows before attaching private screening state; old/unproven snapshots remain temporary.
 - `profile_contact.py` — `read_profile_contact(connection, user_id)`: `name`, `contact_email`,
   and `phone` for masking outbound text
 

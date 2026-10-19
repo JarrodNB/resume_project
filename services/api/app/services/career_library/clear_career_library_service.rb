@@ -2,8 +2,7 @@
 # Removes roles (and their bullets), projects, education, certifications, skills, and facts, and clears the
 # profile fields an import fills (name, contact, links, summary). The sign-in email, saved
 # jobs, and tailored resumes stay. Job answers that pointed at a fact stay, unlinked.
-# Locks the owner before deleting source rows, matching screening result writes. Queues one
-# embedding sync when any entry was removed. Running it twice changes nothing.
+# Queues one embedding sync when any entry was removed. Running it twice changes nothing.
 # Index:
 #   - PROFILE_FIELDS: user columns the import fills, cleared here
 #   - call: deletes the entries and clears the profile in one transaction; returns the user
@@ -18,7 +17,7 @@ module CareerLibrary
     # Deletes every library entry and clears the import-filled profile fields.
     def call
       removed_entries = false
-      @user.with_lock do
+      ActiveRecord::Base.transaction do
         removed_entries = delete_entries
         clear_profile
       end

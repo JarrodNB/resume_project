@@ -200,5 +200,5 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     assert screened and any(requirement in text for text in screened)
     assert any('"response":"Python"' in text for text in screened)
     if replacement:
-        assert _task(True).input["question_text"] in screened
+        assert any(_task(True).input["question_text"] in source for source in screened)
     assert library.facts[0].requirement == requirement

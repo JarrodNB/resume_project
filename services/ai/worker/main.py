@@ -23,7 +23,6 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
-from database.gap_response_reader import build_gap_response_snapshot_reader
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
 from worker.contact_mask import using_known_contact
@@ -179,7 +178,6 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
-        read_gap_response_snapshots=build_gap_response_snapshot_reader(settings),
     )
 
     stop_requested = False

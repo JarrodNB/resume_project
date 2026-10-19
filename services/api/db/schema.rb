@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_19_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -182,6 +182,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_010000) do
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
+  end
+
+  create_table "job_board_listings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "provider_id", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider_id"], name: "index_job_board_listings_on_provider_id", unique: true
+  end
+
+  create_table "job_board_search_pages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "query_digest", null: false
+    t.string "keyword", null: false
+    t.boolean "remote_only", default: false, null: false
+    t.text "cursor"
+    t.uuid "listing_ids", default: [], null: false, array: true
+    t.text "next_cursor"
+    t.datetime "retrieved_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["query_digest"], name: "index_job_board_search_pages_on_query_digest", unique: true
   end
 
   create_table "job_gap_responses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -60,6 +60,11 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
+  it "cannot read shared job board catalogue or search pages" do
+    expect { select_as_ai_reader("SELECT id FROM job_board_listings") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("SELECT id FROM job_board_search_pages") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
   it "can't write" do
     create(:job)
 

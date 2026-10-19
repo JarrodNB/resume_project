@@ -21,6 +21,14 @@ All business logic, as service objects grouped by domain folder.
   most one retry for the documented per-second 429 message. Country confirmation uses only
   `locations[].country_code`; mixed-country listings retain only US rows and derived labels.
   Contract references: https://cleanjobdata.com/docs/api/jobs and https://cleanjobdata.com/docs/api/errors.
+- `job_board/search_catalogue_service.rb` — shared catalogue search and 24-hour page cache.
+  Accepts keyword, remote-only, exact cursor; returns ordered `JobBoardListing` records,
+  retrieval time, next cursor, and stale/errors metadata. Keyword normalization collapses
+  spaces and trims outer whitespace, preserving case, punctuation, and phrase syntax.
+  The bounded provider call runs under a transaction advisory lock for the exact page;
+  sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
+  Catalogue payloads contain only the provider client's normalized fields; JSON avoids
+  duplicating its optional field schema, and UUIDs remain separate from provider IDs.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
@@ -86,7 +94,8 @@ All business logic, as service objects grouped by domain folder.
 - Name services `<Verb><Noun>Service` in a domain module: `Jobs::MoveJobToStageService`.
 - Subclass `ApplicationService`, take keyword arguments in `initialize`, expose only `call`.
 - Always return a `ServiceResult` via `success`/`failure`; never raise for validation errors.
-- Services receive records already scoped to the user; they don't do authorization lookups.
+- Services receive private records already scoped to the user; they don't do authorization lookups.
+  Job Board catalogue search is the shared provider-data exception documented in the API guide.
 - Multi-record changes run in a transaction (see `UpdateExperienceService`).
 - A service that changes career library text enqueues `CareerLibrary::SyncLibraryEmbeddingsJob`
   for the user (import, merge, experience create/update, highlight moved to another role,

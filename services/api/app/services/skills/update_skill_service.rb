@@ -11,7 +11,9 @@ module Skills
 
     # Applies the attributes.
     def call
-      return failure(@skill.errors) unless @skill.update(@attributes)
+      @skill.assign_attributes(@attributes)
+      RecordScreening::InvalidateService.call(record: @skill)
+      return failure(@skill.errors) unless @skill.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@skill.user_id)
       success(@skill)

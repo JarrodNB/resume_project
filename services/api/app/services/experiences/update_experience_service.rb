@@ -14,7 +14,10 @@ module Experiences
     def call
       ActiveRecord::Base.transaction do
         @experience.assign_attributes(@attributes)
-        replace_highlights if @highlights
+        previous_highlights = @experience.highlights.order(:position, :id).pluck(:content) if @highlights
+        highlights_changed = @highlights && previous_highlights.sort != @highlights.sort
+        replace_highlights if @highlights && previous_highlights != @highlights
+        RecordScreening::InvalidateService.call(record: @experience, content_changed: !!highlights_changed)
         raise ActiveRecord::Rollback unless @experience.save
       end
       return failure(@experience.errors) if @experience.errors.any?

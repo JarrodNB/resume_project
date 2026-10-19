@@ -6,6 +6,7 @@ Index:
 """
 
 import json
+from datetime import UTC
 from uuid import uuid4
 
 import pytest
@@ -206,3 +207,33 @@ def test_temporary_error_on_last_attempt_publishes_failed(
     assert process_task_message(build_task_body(), last_attempt, result_queue, task_dependencies)
 
     assert json.loads(result_queue.sent_bodies[-1])["status"] == "failed"
+
+
+@pytest.mark.parametrize("error,delete,status", [(RuntimeError("generation failed"), True, "failed"),
+                                                   (TimeoutError("try again"), False, "usage")])
+def test_completed_record_checks_publish_even_when_generation_fails(
+    monkeypatch, task_dependencies, error, delete, status,
+):
+    from datetime import datetime
+
+    from agents.user_text_screen_agent import user_text_screen_agent
+    from schemas.record_screening import RecordScreeningState
+    from screening.records import screen_record
+    from tests.test_gap_context_screening import jev_model
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "test-key")
+    requests = []
+    def handler(task, dependencies):
+        source = "Synthetic saved record"
+        state = RecordScreeningState("Project", str(uuid4()), datetime.now(UTC), None, None, source)
+        assert screen_record(source, state, model="typesafe:jev-1.13.0", timeout_seconds=5).allowed
+        raise error
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    queue = FakeResultQueue()
+    with user_text_screen_agent.override(model=jev_model(requests)):
+        assert process_task_message(build_task_body(), 1, queue, task_dependencies) is delete
+    started, finished = [json.loads(body) for body in queue.sent_bodies]
+    assert not started["screening_successes"]
+    assert finished["status"] == status
+    assert len(finished["screening_successes"]) == 1
+    assert finished["screening_successes"][0]["record_type"] == "Project"

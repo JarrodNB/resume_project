@@ -15,7 +15,9 @@ module Certifications
 
     # Applies the attributes.
     def call
-      return failure(@certification.errors) unless @certification.update(@attributes)
+      @certification.assign_attributes(@attributes)
+      RecordScreening::InvalidateService.call(record: @certification)
+      return failure(@certification.errors) unless @certification.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@certification.user_id)
       success(@certification)

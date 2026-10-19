@@ -34,10 +34,12 @@ module InterviewPrep
         excluded = record.interview_question_set.questions.pluck(:question_text)
         return failure([ INVALID_MESSAGE ]) if excluded.any? { |text| normalize(text) == normalize(drafts.first["question_text"]) }
 
-        record.update!(question_text: drafts.first["question_text"],
+        record.assign_attributes(question_text: drafts.first["question_text"],
                        question_revision: record.question_revision + 1,
                        answer_text: "", answer_revision: record.answer_revision + 1,
                        feedback: {}, feedback_question_revision: nil, feedback_answer_revision: nil)
+        RecordScreening::InvalidateService.call(record: record)
+        record.save!
         record.embedding&.destroy!
       end
       success(record)

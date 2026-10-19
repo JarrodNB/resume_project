@@ -118,3 +118,15 @@ def test_search_query_uses_the_same_placeholders() -> None:
         embed_search_query("Jane Doe kubernetes", model, 4)
 
     assert model.seen == ["«name» kubernetes"]
+
+
+def test_known_contact_masks_json_encodings_and_preserves_raw_restoration():
+    import json
+
+    name = 'Ana "Annie" Doe'
+    contact = KnownContact.from_values(names=[name])
+    for encoded in [json.dumps(name, ensure_ascii=False)[1:-1], json.dumps(name)[1:-1]]:
+        assert contact.mask(f'{{"name":"{encoded}"}}') == '{"name":"«name»"}'
+    assert contact.mask(name) == "«name»"
+    assert contact.unmask("«name»") == name
+    assert contact.pairs[0][0] == name

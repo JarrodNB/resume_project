@@ -74,6 +74,7 @@ RSpec.describe "Applying an interview question replacement" do
   end
 
   it "replaces only the selected question, clears its answer/feedback, and advances revisions once" do
+    question.update!(screened_at: Time.current, screening_policy_version: "policy-1")
     InterviewPrep::SyncQuestionEmbeddingService.call(user: user, question_id: question.id,
       embedding_client: FakeEmbeddingClient.new)
     other_attributes = questions.drop(1).map(&:attributes)
@@ -81,7 +82,7 @@ RSpec.describe "Applying an interview question replacement" do
     expect(task.reload).to be_completed
     expect(question.reload).to have_attributes(question_text: "What would you like to develop next?",
       question_revision: 2, answer_revision: 3, answer_text: "", feedback: {},
-      feedback_question_revision: nil, feedback_answer_revision: nil)
+      feedback_question_revision: nil, feedback_answer_revision: nil, screened_at: nil, screening_policy_version: nil)
     expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(other_attributes)
     expect(task.cost_microdollars).to eq(30)
     expect(question.embedding).to be_nil

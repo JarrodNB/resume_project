@@ -23,7 +23,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
-    expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
+    expect(task.input["gap_responses"]).to contain_exactly(include("requirement" => "Python", "body" => "Five years."))
     expect(queue).to have_received(:send_message)
   end
 
@@ -112,5 +112,19 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
 
     expect(job.ai_tasks.tailor_resume.count).to eq(1)
     expect(queue).not_to have_received(:send_message)
+  end
+end
+
+RSpec.describe ResumeTailoring::StartResumeTailoringService do
+  it "identifies the exact saved gap response revision in its snapshot" do
+    user = create(:user)
+    job = create(:job, user: user)
+    response = create(:job_gap_response, job: job)
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    task = described_class.call(user: user, job: job).value
+    expect(task.input["gap_responses"].first).to include(
+      "id" => response.id, "updated_at" => response.updated_at.iso8601(6),
+      "requirement" => response.requirement, "body" => response.body
+    )
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_19_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -96,6 +96,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.datetime "updated_at", null: false
     t.string "issued_date_precision", default: "day", null: false
     t.string "expiry_date_precision", default: "day", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id"], name: "index_certifications_on_user_id"
   end
 
@@ -110,6 +112,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id"], name: "index_educations_on_user_id"
   end
 
@@ -133,6 +137,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id"], name: "index_experiences_on_user_id"
   end
 
@@ -174,6 +180,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.integer "feedback_answer_revision"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
@@ -187,6 +195,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.uuid "library_fact_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["job_id", "requirement"], name: "index_job_gap_responses_on_job_id_and_requirement", unique: true
     t.index ["job_id"], name: "index_job_gap_responses_on_job_id"
     t.index ["library_fact_id"], name: "index_job_gap_responses_on_library_fact_id"
@@ -207,6 +217,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "responsibilities", default: [], null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id", "stage"], name: "index_jobs_on_user_id_and_stage"
     t.index ["user_id"], name: "index_jobs_on_user_id"
   end
@@ -240,6 +252,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.text "response", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id", "requirement"], name: "index_library_facts_on_user_id_and_requirement", unique: true
     t.index ["user_id"], name: "index_library_facts_on_user_id"
   end
@@ -255,6 +269,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id"], name: "index_projects_on_user_id"
   end
 
@@ -286,6 +302,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.integer "position", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["user_id", "name"], name: "index_skills_on_user_id_and_name", unique: true
     t.index ["user_id"], name: "index_skills_on_user_id"
   end
@@ -307,6 +325,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_010000) do
     t.string "location"
     t.jsonb "links", default: [], null: false
     t.text "summary"
+    t.datetime "screened_at"
+    t.string "screening_policy_version"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end

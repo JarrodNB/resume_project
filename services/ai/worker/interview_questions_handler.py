@@ -18,8 +18,10 @@ import text_limits
 from agents.interview_questions_agent import generate_interview_questions
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.records import screen_record
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
+from worker.interview_record_snapshot import InterviewRecordSnapshot
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -35,6 +37,9 @@ class InterviewQuestionsInput(BaseModel):
     other_questions: list[str] = Field(default_factory=list)
     question_revision: int | None = None
     answer_revision: int | None = None
+    answer_text: str = ""
+    question_record: InterviewRecordSnapshot | None = None
+    other_question_records: list[InterviewRecordSnapshot] = Field(default_factory=list)
 
 
 @within_screening_session
@@ -61,8 +66,16 @@ def handle_interview_questions_task(
         usage.extend(outcome.model_usages)
         return outcome
 
-    # A fact's requirement came from a job posting; only the saved response is career evidence.
-    selected = screen_library_inputs(library, screen_note, include_fact_requirements=False)
+    def check_record(text, state):
+        if state is None:
+            return screen_note(text)
+        outcome = screen_record(text, state, model=settings.user_text_screen_model,
+                                timeout_seconds=settings.llm_run_timeout_seconds)
+        usage.extend(outcome.model_usages)
+        return outcome
+
+    # Check complete records; only saved fact responses become interview evidence.
+    selected = screen_library_inputs(library, screen_note, include_fact_requirements=False, allow_record=check_record)
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.
@@ -82,14 +95,32 @@ def handle_interview_questions_task(
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
-    for question in excluded:
-        if not screen_note(question).allowed:
+    excluded_sources = list(excluded)
+    complete_records = False
+    if replacement and snapshot.question_record is not None:
+        records = [snapshot.question_record, *snapshot.other_question_records]
+        if len(records) != len(excluded) or len({r.question_id for r in records}) != len(records):
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                error_message="Reload this question set and request replacement again.")
+        try:
+            states = [record.state(task, snapshot.question_set_id, question,
+                snapshot.question_id if index == 0 else None,
+                snapshot.answer_text if index == 0 else None)
+                for index, (record, question) in enumerate(zip(records, excluded))]
+        except ValueError:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                error_message="Reload this question set and request replacement again.")
+        excluded_sources = [record.source() for record in records]
+        complete_records = True
+    for index, question in enumerate(excluded_sources):
+        outcome = check_record(question, states[index]) if complete_records else screen_note(question)
+        if not outcome.allowed:
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="We couldn't check these questions. Reload the set and try again.")
     count = 1 if replacement else 5
     text = bind_screened_prompt(
-        [*selected.sources, *excluded],
-        lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type),
+        [*selected.sources, *excluded_sources],
+        lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type, complete_records),
     )
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
@@ -117,13 +148,15 @@ def handle_interview_questions_task(
         usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
 
 
-def _question_prompt_text(values, fields, count, set_type):
+def _question_prompt_text(values, fields, count, set_type, complete_records=False):
     """Render only checked library and excluded-question values with trusted scope."""
     library = rebuild_library(values[:len(fields)], fields)
     content = library.model_dump(mode="json", exclude_none=True,
         exclude={"facts": {"__all__": {"requirement"}}})
     text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
     excluded = values[len(fields):]
+    if complete_records:
+        excluded = [json.loads(source)["question_text"] for source in excluded]
     if excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
     return text

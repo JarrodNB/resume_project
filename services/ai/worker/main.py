@@ -23,6 +23,7 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
+from database.gap_response_reader import build_gap_response_snapshot_reader
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
 from worker.contact_mask import using_known_contact
@@ -84,11 +85,12 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
                           guardrail_usage, privacy_stack):
     """Retain privacy through exception logging, publication, and parent span completion."""
     _publish_usage(task, task_usage, result_queue, finished=False)
+    screening = None
     try:
         privacy_stack.enter_context(using_known_contact(task))
         with (
             collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
-            screening_session(dependencies.settings.llm_run_timeout_seconds),
+            screening_session(dependencies.settings.llm_run_timeout_seconds) as screening,
         ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:
@@ -108,13 +110,14 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
                 receive_count,
                 exc_info=True,
             )
-            _publish_usage(task, task_usage, result_queue)
+            _publish_usage(task, task_usage, result_queue, screening_successes=screening.screening_successes if screening else [])
             return False
         logger.exception("Task %s failed on attempt %d", task.ai_task_id, receive_count)
         result = AiResultMessage(
             ai_task_id=task.ai_task_id, status="failed", error_message="The AI task failed"
         )
 
+    result.screening_successes = screening.screening_successes if screening else []
     result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
     result.attempt_id = task_usage.attempt_id
     result.usage_incomplete = task_usage.incomplete
@@ -123,12 +126,12 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     return True
 
 
-def _publish_usage(task, usage, queue, *, finished=True):
+def _publish_usage(task, usage, queue, *, finished=True, screening_successes=()):
     """Persists an unfinished marker or retry charges without changing task status."""
     publish_result(queue, AiResultMessage(
         ai_task_id=task.ai_task_id, status="usage", attempt_id=usage.attempt_id,
         usage=usage.entries, usage_incomplete=usage.incomplete or not finished,
-        attempt_finished=finished,
+        attempt_finished=finished, screening_successes=list(screening_successes),
     ))
 
 
@@ -176,6 +179,7 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        read_gap_response_snapshots=build_gap_response_snapshot_reader(settings),
     )
 
     stop_requested = False

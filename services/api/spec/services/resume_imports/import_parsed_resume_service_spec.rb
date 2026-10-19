@@ -39,6 +39,15 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.reload.name).to eq("Jane Doe")
   end
 
+  it "starts extracted records unchecked and clears a filled summary's former screening state" do
+    user.update!(screened_at: Time.current, screening_policy_version: "upload-policy")
+    parsed_resume["experiences"][0].merge!("screened_at" => Time.current.iso8601, "screening_policy_version" => "upload-policy")
+    expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).to be_success
+    [ user.reload, *user.experiences, *user.projects, *user.educations, *user.skills ].each do |record|
+      expect(record).to have_attributes(screened_at: nil, screening_policy_version: nil)
+    end
+  end
+
   it "fills blank profile fields without overwriting existing ones and creates no resume" do
     user.update!(phone: "555-0100")
     parsed_resume["contact"].merge!("phone" => "555-9999", "location" => "Perth", "links" => [ { "label" => "GitHub", "url" => "https://github.com/jane" } ])

@@ -18,9 +18,11 @@ from agents.interview_feedback_agent import generate_interview_feedback
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.records import screen_record
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from worker.interview_questions_handler import _library_evidence_text
+from worker.interview_record_snapshot import InterviewRecordSnapshot
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -36,6 +38,7 @@ class InterviewFeedbackInput(BaseModel):
     answer_text: str = Field(min_length=1, max_length=text_limits.MAX_INTERVIEW_ANSWER)
     question_revision: int = Field(ge=1)
     answer_revision: int = Field(ge=0)
+    question_record: InterviewRecordSnapshot | None = None
 
 
 @within_screening_session
@@ -56,26 +59,45 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         usage.extend(outcome.model_usages)
         return outcome
 
+    def check_record(text, state):
+        if state is None:
+            return screen(text)
+        outcome = screen_record(text, state, model=settings.user_text_screen_model,
+                                timeout_seconds=settings.llm_run_timeout_seconds)
+        usage.extend(outcome.model_usages)
+        return outcome
+
     if not snapshot.answer_text.strip():
         return fail("Write an answer before asking for feedback.")
-    outcome = screen(snapshot.answer_text)
+    record = snapshot.question_record
+    if record is not None:
+        try:
+            state = record.state(task, snapshot.question_set_id, snapshot.question_text,
+                                 snapshot.question_id, snapshot.answer_text)
+        except ValueError:
+            return fail("Your answer is saved. Reload the question and request feedback again.")
+        outcome = check_record(record.source(), state)
+        question_sources = [record.source()]
+    else:
+        outcome = screen(snapshot.answer_text)
+        question_sources = [snapshot.answer_text, snapshot.question_text]
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    if not screen(snapshot.question_text).allowed:
+    if record is None and not screen(snapshot.question_text).allowed:
         return fail("Your answer is saved. We couldn't check this question. Try requesting feedback again.")
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
-    selected = screen_library_inputs(library, screen, include_fact_requirements=False)
+    selected = screen_library_inputs(library, screen, include_fact_requirements=False, allow_record=check_record)
     library = selected.library
     warnings = list(selected.warnings)
     content = library.model_dump(mode="json", exclude_none=True,
                                exclude={"facts": {"__all__": {"requirement"}}})
     text = bind_screened_prompt(
-        [snapshot.answer_text, snapshot.question_text, *selected.sources],
-        lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type),
+        [*question_sources, *selected.sources],
+        lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type, record is not None),
     )
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
@@ -100,10 +122,15 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         usage=[*usage, build_model_usage(run.model or settings.interview_feedback_model, run.usage)])
 
 
-def _feedback_prompt_text(values, fields, set_type):
+def _feedback_prompt_text(values, fields, set_type, complete_record=False):
     """Render question, answer and library solely from supplied screened sources."""
-    library = rebuild_library(values[2:], fields)
+    if complete_record:
+        record = json.loads(values[0])
+        answer, question = record["answer_text"], record["question_text"]
+    else:
+        answer, question = values[:2]
+    library = rebuild_library(values[1 if complete_record else 2:], fields)
     content = library.model_dump(mode="json", exclude_none=True,
         exclude={"facts": {"__all__": {"requirement"}}})
-    return json.dumps({"set_type": set_type, "question": values[1], "answer": values[0],
+    return json.dumps({"set_type": set_type, "question": question, "answer": answer,
         "career_library": content}, ensure_ascii=False)

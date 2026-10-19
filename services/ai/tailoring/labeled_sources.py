@@ -170,3 +170,38 @@ def _flatten(content: object) -> str:
 
     walk(content)
     return "\n".join(parts)
+
+
+def source_input(context: GapAnalysisContext, record: SourceRecord, gap_responses):
+    """Return a complete source, private reader state and its trusted narrow renderer.
+
+    Renderers capture only application field names, kinds and record IDs. All words in
+    the evidence are reconstructed from the checked value supplied to the renderer.
+    """
+    import json
+
+    if record.kind == "summary":
+        return record.text, context.career_library._summary_screening_state, lambda value: value
+    if record.kind == "gap_response":
+        response = gap_responses[int(record.label[2:]) - 1]
+        source = json.dumps({key: response.get(key, "") for key in ("requirement", "body")}, separators=(",", ":"), ensure_ascii=False)
+        def render_response(value):
+            item = json.loads(value)
+            return f"{item['requirement']}: {item['body']}"
+        return source, getattr(response, "_screening_state", None), render_response
+    if record.kind == "selected_section":
+        return record.text, None, lambda value: value
+    fields = {"experience": "experiences", "highlight": "experiences", "project": "projects",
+              "education": "educations", "certification": "certifications", "skill": "skills", "fact": "facts"}
+    field_name = fields[record.kind]
+    entry = next(item for item in getattr(context.career_library, field_name)
+                 if item.id == record.record_id or (record.kind == "highlight" and
+                     any(highlight.id == record.record_id for highlight in item.highlights)))
+    kind, record_id = record.kind, record.record_id
+
+    def render_entry(value):
+        library = CareerLibrary.model_validate({field_name: [json.loads(value)]})
+        rebuilt = label_sources(GapAnalysisContext(job={"id": "", "title": ""}, career_library=library), [], [], None)
+        return next(item.text for item in rebuilt.records.values()
+                    if item.kind == kind and item.record_id == record_id)
+    return entry.model_dump_json(exclude_none=True), entry._screening_state, render_entry

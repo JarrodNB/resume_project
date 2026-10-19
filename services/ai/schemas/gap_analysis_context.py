@@ -13,9 +13,16 @@ Index:
 
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 from schemas.certification_dates import DatePrecision
+from schemas.record_screening import RecordScreeningState
+
+
+class SavedRecord(BaseModel):
+    """Keep reader-attached state private so payloads and prompts cannot claim approval."""
+
+    _screening_state: RecordScreeningState | None = PrivateAttr(default=None)
 
 
 class LibraryHighlight(BaseModel):
@@ -25,7 +32,7 @@ class LibraryHighlight(BaseModel):
     content: str
 
 
-class LibraryExperience(BaseModel):
+class LibraryExperience(SavedRecord):
     """A role the user has held."""
 
     id: str
@@ -38,7 +45,7 @@ class LibraryExperience(BaseModel):
     highlights: list[LibraryHighlight] = Field(default_factory=list)
 
 
-class LibraryProject(BaseModel):
+class LibraryProject(SavedRecord):
     """A project the user worked on."""
 
     id: str
@@ -49,7 +56,7 @@ class LibraryProject(BaseModel):
     end_date: date | None = None
 
 
-class LibraryEducation(BaseModel):
+class LibraryEducation(SavedRecord):
     """A degree, course, or other education entry."""
 
     id: str
@@ -61,7 +68,7 @@ class LibraryEducation(BaseModel):
     end_date: date | None = None
 
 
-class LibraryCertification(BaseModel):
+class LibraryCertification(SavedRecord):
     """An earned certification with its stated identity and validity dates."""
 
     id: str
@@ -76,7 +83,7 @@ class LibraryCertification(BaseModel):
     description: str | None = None
 
 
-class LibrarySkill(BaseModel):
+class LibrarySkill(SavedRecord):
     """A skill, optionally grouped by category."""
 
     id: str
@@ -84,7 +91,7 @@ class LibrarySkill(BaseModel):
     category: str | None = None
 
 
-class LibraryFact(BaseModel):
+class LibraryFact(SavedRecord):
     """A requirement the user answered and added to the career library."""
 
     id: str
@@ -94,6 +101,8 @@ class LibraryFact(BaseModel):
 
 class CareerLibrary(BaseModel):
     """The user's career library: the only evidence the analysis may use."""
+
+    _summary_screening_state: RecordScreeningState | None = PrivateAttr(default=None)
 
     summary: str | None = None
     experiences: list[LibraryExperience] = Field(default_factory=list)
@@ -110,7 +119,7 @@ class CareerLibrary(BaseModel):
         )
 
 
-class JobToAnalyze(BaseModel):
+class JobToAnalyze(SavedRecord):
     """The saved job; each workflow chooses the fields it needs for its prompt."""
 
     id: str

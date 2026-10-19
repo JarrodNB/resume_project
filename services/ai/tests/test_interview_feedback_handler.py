@@ -233,7 +233,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert result.status == "completed"
     assert result.result["interview_feedback"]["evidence_quotes"] == []
     assert screened[:2] == [task().input["answer_text"], task().input["question_text"]]
-    assert "Private note" in screened[2] and "Managed 20 people" not in screened[2]
+    assert "Private note" in screened[2] and "Managed 20 people" in screened[2]
     assert library.facts[0].requirement == "Managed 20 people"
 
 

@@ -1,5 +1,7 @@
 """Check cohesive gap inputs and the actual Jev boundary before generation."""
 
+from datetime import UTC
+
 import pytest
 from pydantic_ai.messages import ModelResponse, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import FunctionModel
@@ -130,3 +132,46 @@ def test_queued_library_failure_reports_real_usage_once(
     assert result["status"] == "failed"
     assert result["result"] is None
     assert sum(item["input_tokens"] for item in result["usage"]) == (200 if failure == "block" else 100)
+
+
+def test_saved_gap_records_reuse_approvals_and_keep_full_job_screening(task_dependencies, fake_context_reader):
+    from datetime import datetime
+
+    from schemas.record_screening import RecordScreeningState
+    from screening.records import screening_policy_version
+    from screening.session import current_session, screening_session
+
+    context = build_gap_analysis_context()
+    context.job.responsibilities = ["Distinct responsibility for screening only"]
+    units = [(context.job, "Job")]
+    for field, kind in [("experiences", "Experience"), ("projects", "Project"),
+                        ("educations", "Education"), ("certifications", "Certification"),
+                        ("skills", "Skill"), ("facts", "LibraryFact")]:
+        units.extend((record, kind) for record in getattr(context.career_library, field))
+    now = datetime.now(UTC)
+    for record, kind in units:
+        record._screening_state = RecordScreeningState(kind, record.id, now, None, None,
+                                                       record.model_dump_json(exclude_none=True))
+    context.career_library._summary_screening_state = RecordScreeningState(
+        "User", str(USER_ID), now, None, None, context.career_library.summary or "")
+    fake_context_reader.contexts[(USER_ID, JOB_ID)] = context
+    requests = []
+    with user_text_screen_agent.override(model=jev_model(requests)), gap_analysis_agent.override(
+        model=TestModel(custom_output_args=VALID_OUTPUT),
+    ):
+        with screening_session():
+            result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+            assert result.status == "completed"
+            assert len(current_session().screening_successes) == len(units) + 1
+        assert any("Distinct responsibility" in value for value in requests)
+        calls = len(requests)
+        from dataclasses import replace
+        for record, _kind in units:
+            record._screening_state = replace(record._screening_state, screened_at=now,
+                screening_policy_version=screening_policy_version("typesafe:jev-1.13.0"))
+        context.career_library._summary_screening_state = replace(
+            context.career_library._summary_screening_state, screened_at=now,
+            screening_policy_version=screening_policy_version("typesafe:jev-1.13.0"))
+        result = handle_analyze_gaps_task(build_analyze_gaps_task(), task_dependencies)
+        assert result.status == "completed"
+        assert len(requests) == calls

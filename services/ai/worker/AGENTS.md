@@ -84,9 +84,11 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 - `process_task_message` collects capability screening usage even when the guard blocks.
   `InputBlocked` publishes a failed task with the safe error message.
-- Every execution starts a fresh screening session. Source-selection calls share decisions
-  with exact bound prompts, but later tasks rescreen reused inputs. Standalone handlers
-  and agent wrappers establish a local session when no worker execution exists.
+- Every execution starts a fresh screening session. Source selection reuses saved records
+  approved under the current policy and checks temporary or changed inputs. Exact bound
+  prompts share coverage within that execution. Standalone handlers and agent wrappers
+  establish a local session when no worker execution exists. `main.py` publishes completed
+  record successes with final outcomes and retry usage reports; Rails persists them.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
   tools in `tools/`, prompts in `prompts/` (sibling folders).
 - Handlers take `(task, dependencies)` and return an `AiResultMessage`. Return a `failed`
@@ -104,8 +106,8 @@ name, issuer, issued/expiry dates, credential ID/URL, and description. Older par
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 
 
-- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Fact responses are used; job-derived requirement fields are excluded from screening, prompts, and grounding evidence.
+- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened records, limits, usage, and structured drafts. Complete library facts are safety checked; their job-derived requirements are excluded from generation prompts and grounding evidence.
   Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
 
-- `interview_feedback_handler.py` — screens saved answers before model use, screens library notes, excludes job requirements, and reports coaching plus usage without writes.
+- `interview_feedback_handler.py` — checks complete saved question/answer and library records before model use, reusing their current policy state. Job requirements stay outside coaching prompts and grounding; the handler reports coaching, screening successes and usage without database writes.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.

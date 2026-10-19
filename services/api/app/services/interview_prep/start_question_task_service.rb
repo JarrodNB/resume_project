@@ -51,13 +51,26 @@ module InterviewPrep
         "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
         "question_text" => @question.question_text, "answer_text" => @question.answer_text,
-        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision
+        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision,
+        "question_record" => screening_snapshot(@question)
       }
       if @task_type == "regenerate_interview_question"
-        task.input["other_questions"] = @question.interview_question_set.questions
-                                                .where.not(id: @question.id).pluck(:question_text)
+        others = @question.interview_question_set.questions.where.not(id: @question.id).to_a
+        task.input["other_questions"] = others.map(&:question_text)
+        task.input["other_question_records"] = others.map { |question| screening_snapshot(question) }
       end
       success(task)
+    end
+
+    # Complete source and owner/version metadata; clients cannot submit approval fields.
+    def screening_snapshot(question)
+      {
+        "user_id" => @user.id, "question_set_id" => question.interview_question_set_id,
+        "question_id" => question.id, "question_text" => question.question_text,
+        "answer_text" => question.answer_text, "observed_updated_at" => question.updated_at.iso8601(6),
+        "screened_at" => question.screened_at&.iso8601(6),
+        "screening_policy_version" => question.screening_policy_version
+      }
     end
   end
 end

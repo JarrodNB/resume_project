@@ -31,11 +31,14 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
   the worker. No partial draft is published. Empty sections skip generation; nothing-fits
   sections are omitted with an explanation.
 - The checker never substitutes library text for a rejected rewrite.
-- Screen each selected labeled source (including library entries, gap-response requirements
-  and bodies, and selected snapshot titles/content), the job context, and optional gap summary once
-  per execution. Unsafe optional sources are omitted with warnings. The job must pass
-  before retrieval embeds it. Bind the exact rendered prompt to those approvals; direct
-  unknown writer prompts retain the capability guard.
+- Screen complete saved records behind selected labels before rendering narrower evidence.
+  Current approvals from gap analysis or tailoring may be reused. Experience approval covers
+  its role fields and every highlight; optional rejected entries are omitted with warnings.
+  Gap-answer queue snapshots carry ID/revision and receive private state only after an owned
+  database row matches revision and content. Stale/unproven snapshots remain task-local.
+  Temporary generated section snapshots and the optional gap summary screen per execution.
+  The job must pass before retrieval embeds it. Bind exact prompts reconstructed from checked
+  canonical values; direct unknown writer prompts retain the capability guard.
 
 ## Certification support
 

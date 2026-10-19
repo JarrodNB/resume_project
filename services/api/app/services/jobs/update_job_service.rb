@@ -11,7 +11,9 @@ module Jobs
     def call
       attributes = @attributes.to_h.symbolize_keys
       attributes[:company] = attributes[:company].presence if attributes.key?(:company)
-      @job.update(attributes) ? success(@job) : failure(@job.errors)
+      @job.assign_attributes(attributes)
+      RecordScreening::InvalidateService.call(record: @job)
+      @job.save ? success(@job) : failure(@job.errors)
     end
   end
 end

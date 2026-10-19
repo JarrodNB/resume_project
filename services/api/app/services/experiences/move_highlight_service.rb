@@ -23,6 +23,12 @@ module Experiences
 
       source_experience = @highlight.experience
       ActiveRecord::Base.transaction do
+        if source_experience.id != @experience.id
+          [ source_experience, @experience ].each do |record|
+            RecordScreening::InvalidateService.call(record: record, content_changed: true)
+            record.save!
+          end
+        end
         renumber(@experience, target_order)
         renumber(source_experience, highlights_without_moved(source_experience)) if source_experience.id != @experience.id
       end

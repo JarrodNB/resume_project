@@ -50,16 +50,21 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
 
 def screen_library_inputs(
     library: CareerLibrary, allow_text: Callable[[str], object], *,
-    include_fact_requirements: bool = True,
+    include_fact_requirements: bool = True, allow_record: Callable | None = None,
 ) -> ScreenedLibrary:
-    """Omit rejected optional entries and retain exact strings for prompt coverage binding."""
+    """Keep exact checked strings for prompt reconstruction and omit unsafe optional entries.
+
+    Record-aware callers check the complete saved unit, including fact requirements;
+    their renderer must remove fields excluded from feature evidence. Legacy text-only
+    callers can still select a narrower fact projection, without durable approval.
+    """
     sources = []
     fields = []
     omitted = too_long = False
 
-    def keep(field, text):
+    def keep(field, text, state=None):
         nonlocal omitted, too_long
-        decision = allow_text(text)
+        decision = allow_record(text, state) if allow_record is not None else allow_text(text)
         allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
         if allowed:
             sources.append(text)
@@ -70,11 +75,11 @@ def screen_library_inputs(
             omitted = True
 
     if library.summary and library.summary.strip():
-        keep("summary", library.summary)
+        keep("summary", library.summary, library._summary_screening_state)
     for field in _ENTRY_FIELDS:
         for entry in getattr(library, field):
-            exclude = {"requirement"} if field == "facts" and not include_fact_requirements else None
-            keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude))
+            exclude = {"requirement"} if field == "facts" and not include_fact_requirements and allow_record is None else None
+            keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude), entry._screening_state)
     warnings = []
     if omitted:
         warnings.append(LIBRARY_INPUT_OMITTED_WARNING)

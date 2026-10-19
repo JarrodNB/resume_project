@@ -93,7 +93,10 @@ requests get a JSON 429 with `Retry-After`.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
   gap response, submitted answer, selected section snapshot, or reused interview question. Each is
-  checked once per execution. A blocked or unchecked optional entry is left out with a
+  checked on first AI use. Saved records carry nullable `screened_at` and
+  `screening_policy_version` fields; unchanged records approved under the current policy
+  skip provider screening. Temporary or unproven sources remain checked per execution.
+  A blocked or unchecked optional entry is left out with a
   warning; a required input prevents generation. Imported, manually edited, retrieved, and
   scraped content follow this same rule when used in a generative request.
   Large sources use 4,000-character chunks with 300 characters of overlap by default.
@@ -106,8 +109,28 @@ requests get a JSON 429 with `Retry-After`.
   agent retains an official input capability: it checks unknown direct input and user/tool
   history without screening an already covered prompt again. Coverage never uses substring
   removal or a caller boolean. Output-validation retries and provider fallback reuse the
-  execution's coverage; later deliveries and tasks start fresh. No approval is stored in
-  Rails or the queues. Text over a shared character cap is rejected before
+  execution's coverage. Trusted database snapshots keep record metadata outside prompt JSON,
+  and full record screening includes experience highlights and complete job requirements,
+  responsibilities and nice-to-haves even when generation uses a narrower projection.
+  Builders reconstruct prompt values exclusively from checked sources; record state never
+  approves an arbitrary caller string. Local length and phrase checks precede reuse.
+
+  Workers return completed successes through `screening_successes`, including successes
+  before a later failure or retry. Rails atomically checks owner and observed `updated_at`
+  before setting the two fields. Relevant domain edits clear them; highlight changes also
+  advance the experience version. Unrelated ordering, stage or feedback changes retain
+  approval, though they may conservatively prevent an in-flight report from saving.
+  Deleted and edited records cannot be approved by old reports. Rejections, unavailable
+  checks and incomplete chunk passes produce no success report. Upload approval never
+  transfers to extracted records. Concurrent first uses can both screen before Rails saves
+  a report; this does not guarantee one provider request globally.
+
+  The explicit policy version must change with classifier instructions, thresholds or
+  local rules. Its effective token includes the configured primary/fallback models, chunk
+  size and current known-contact masking identity, so changed protected text cannot inherit
+  an approval from older masking. Deploy additive fields, grants and Rails result support
+  before new workers. Rolling back workers leaves harmless nullable state fields.
+  Text over a shared character cap is rejected before
   it is stored and again before a Jev or generative call (`TextLimits` in Rails,
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000

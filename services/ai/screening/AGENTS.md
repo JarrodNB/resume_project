@@ -43,9 +43,11 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
 
 - Do not send the text when the screen cannot run.
-- Screen each input once per execution. A later delivery, retry, or resumed task screens
-  reused content again. Required inputs fail closed; optional entries can be omitted.
-- Never grant coverage by substring matching, a persisted approval, or a caller-controlled
+- `records.py` reuses current-policy success only for an exact complete trusted snapshot;
+  otherwise it screens and records a success report for Rails. Failed/partial checks never
+  report success. Temporary inputs remain execution-local. Required inputs fail closed;
+  optional entries can be omitted.
+- Never grant coverage by substring matching, raw persisted fields, or a caller-controlled
   boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative

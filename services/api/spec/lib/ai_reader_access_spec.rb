@@ -51,12 +51,14 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
-  it "can't read AI tasks, the JWT denylist, or job-only gap responses" do
+  it "can't read AI tasks or the JWT denylist" do
     create(:job_gap_response)
 
     expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
-    expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect(select_as_ai_reader("SELECT id FROM job_gap_responses").length).to eq(1)
+    expect { select_as_ai_reader("UPDATE job_gap_responses SET body = 'Changed'") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
   it "can't write" do
@@ -64,6 +66,17 @@ RSpec.describe AiReaderAccess do
 
     expect { select_as_ai_reader("UPDATE jobs SET title = 'x' RETURNING id") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "reads screening metadata and summary versions without gaining private user access" do
+    user = create(:user, screened_at: Time.current, screening_policy_version: "policy-1")
+    job = create(:job, user: user, screened_at: Time.current, screening_policy_version: "policy-1")
+    expect(select_as_ai_reader("SELECT screening_policy_version, screened_at, updated_at FROM users").first)
+      .to include("screening_policy_version" => "policy-1", "screened_at" => user.screened_at, "updated_at" => user.updated_at)
+    expect(select_as_ai_reader("SELECT screening_policy_version FROM jobs WHERE id = '#{job.id}'"))
+      .to eq([ { "screening_policy_version" => "policy-1" } ])
+    expect { select_as_ai_reader("SELECT * FROM users") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    expect { select_as_ai_reader("UPDATE users SET screened_at = NOW()") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
   it "reads independent certifications but cannot modify them" do
     credential = create(:certification)

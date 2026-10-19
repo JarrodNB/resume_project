@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
 from schemas.certification_dates import certification_expiry_status
-from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_analysis_context import GapAnalysisContext, JobToAnalyze
 from screening.session import bind_screened_prompt
-from tailoring.labeled_sources import LabeledSources, label_sources
+from tailoring.labeled_sources import LabeledSources, label_sources, source_input
 from tailoring.section_catalog import SECTION_TITLES
 
 LIBRARY_FACT_OMITTED_WARNING = "One of your notes was left out."
@@ -50,6 +50,7 @@ def build_section_prompt(
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
     source_labels: set[str] | None = None,
+    complete_records: bool = False,
 ) -> SectionPrompt:
     """Builds one prompt; retrieval narrows library evidence but retains supplied snapshots.
     The `selected_sections` argument contains generated/copied draft snapshots. Rejected
@@ -61,7 +62,7 @@ def build_section_prompt(
     if allow_text is not None:
         sources.records = {
             label: record for label, record in sources.records.items()
-            if _allowed(record.text, allow_text, warnings)
+            if _allowed(source_input(context, record, gap_responses)[0] if complete_records else record.text, allow_text, warnings)
         }
     today = today or datetime.now(UTC).date()
     expiry_statuses = [
@@ -77,7 +78,7 @@ def build_section_prompt(
         _WRITE_ANYWAY if write_anyway else "",
         "",
     ]
-    job_text = job_context_text(context)
+    job_text = context.job.model_dump_json(exclude_none=True) if complete_records else job_context_text(context)
     if allow_text is not None and not getattr(allow_text(job_text), "allowed", False):
         raise ValueError("The job context could not be screened. Please try again.")
     summary = (gap_analysis or {}).get("summary")
@@ -85,11 +86,19 @@ def build_section_prompt(
     if summary and allow_text is not None and not _allowed(summary, allow_text, warnings):
         summary = ""
     values = [job_text, *([summary] if summary else []), *[record.text for record in sources.records.values()]]
+    projections = [source_input(context, record, gap_responses) for record in sources.records.values()] if complete_records else []
+    if complete_records:
+        values = [job_text, *([summary] if summary else []), *[item[0] for item in projections]]
     labels = list(sources.records)
     has_summary = bool(summary)
 
     def render(approved_values: Sequence[str]) -> str:
         """Only supplied approved values contribute user-controlled prompt text."""
+        if complete_records:
+            start = 2 if has_summary else 1
+            approved_values = [job_context_text(GapAnalysisContext(job=JobToAnalyze.model_validate_json(approved_values[0]), career_library={})),
+                               *approved_values[1:start],
+                               *[item[2](value) for item, value in zip(projections, approved_values[start:], strict=True)]]
         offset = 1
         result = [*lines, approved_values[0]]
         if has_summary:

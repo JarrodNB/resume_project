@@ -49,8 +49,12 @@ prevents duplicate result persistence and usage accounting; failed application s
 reported usage once.
 
 Question generation requires usable library content; feedback can use an empty library. Both
-handlers screen saved library-fact responses and omit job-derived requirement fields from
-prompts and grounding evidence. Feedback also screens the submitted answer and fails closed
+handlers check complete saved library records, reusing their current screening policy state.
+Library-fact requirements are included in that complete safety check but omitted from
+interview prompts and grounding evidence. Rails publishes immutable complete question/answer
+snapshots with owner, set and observed-version metadata in server-owned task input; no public
+mutation accepts approval fields. Replacement checks every excluded question with its answer,
+then renders only question text. Feedback checks the complete question/answer unit and fails closed
 on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
 Pydantic AI runs, versioned prompts, and Logfire tracing apply. Question evidence requires
 exact library excerpts; optional feedback excerpts are normalized to exact source text and
@@ -136,3 +140,10 @@ revision is fetched. Set deletion is confirmed; feedback/examples remain beside 
   promotion, or AI-reader grant. Temporary errors retry; missing configuration logs and skips.
   These independent Rails calls incur provider costs outside AI-task budgets/attempt reports
   and Logfire tracing, like library syncs; feedback tasks do not absorb their costs.
+
+Saved interview question approvals cover both question and answer text. Relevant edits clear
+the state; feedback and ordering changes retain it. Successful full checks travel through
+`ai_results`, and Rails stamps only an unchanged owned record version. Failed tasks can still
+report completed source checks. Legacy or partial task snapshots remain task-local and cannot
+approve complete records. Record metadata never enters interview prompts. Concurrent first
+uses can each incur a classifier call before either result is applied.

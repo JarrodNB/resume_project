@@ -1,10 +1,12 @@
 """
 Description: The user's known name, contact email, and phone, and the placeholders that
-stand in for them. Nothing here discovers contact by scanning a document.
+stand in for them, including when JSON has escaped the known text. Nothing here
+discovers contact by scanning a document.
 Index:
     - KnownContact: replacement pairs for one task
 """
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -36,7 +38,7 @@ class KnownContact:
         labeled.sort(key=lambda item: len(item[0]), reverse=True)
         return cls(
             tuple(
-                (secret, placeholder, re.compile(rf"(?<!\w){re.escape(secret)}(?!\w)", re.IGNORECASE))
+                (secret, placeholder, _contact_pattern(secret))
                 for secret, placeholder in labeled
             )
         )
@@ -54,6 +56,13 @@ class KnownContact:
         for secret, placeholder, _pattern in sorted(self.pairs, key=lambda item: len(item[1]), reverse=True):
             restored = restored.replace(placeholder, secret)
         return restored
+
+
+def _contact_pattern(secret: str) -> re.Pattern[str]:
+    """Match the known value in plain text and either standard JSON string encoding."""
+    variants = {secret, json.dumps(secret, ensure_ascii=False)[1:-1], json.dumps(secret)[1:-1]}
+    alternatives = "|".join(re.escape(value) for value in sorted(variants, key=len, reverse=True))
+    return re.compile(rf"(?<!\w)(?:{alternatives})(?!\w)", re.IGNORECASE)
 
 
 def _labeled(label: str, values: list[Any], usable: Callable[[str], bool]) -> list[tuple[str, str]]:

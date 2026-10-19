@@ -2,7 +2,8 @@
 # library and fills blank profile fields (contact, summary). Experiences, projects, and
 # educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
 # are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
-# task can be imported once. The library's embeddings are re-synced after the import commits.
+# task can be imported once. Owner-then-task locks match result handling and keep profile
+# writes in the same transaction. The library's embeddings are re-synced after it commits.
 # Index:
 #   - call: checks the JSON shape, then imports library records and fills the profile in one
 #     transaction; returns the accepted AiTask
@@ -22,7 +23,7 @@ module ResumeImports
       @raw_parsed_resume = parsed_resume
     end
 
-    # Imports everything under a row lock so a double submit can't import twice.
+    # Locks the owner before the task so imports and late results use the same order.
     def call
       return failure([ "Only completed resume parsing tasks can be imported" ]) unless importable?
 
@@ -30,14 +31,16 @@ module ResumeImports
       return shape unless shape.success?
 
       @parsed_resume = shape.value
-      @ai_task.with_lock do
-        if @ai_task.accepted?
-          failure([ "This resume has already been imported" ])
-        else
-          import_everything
-          @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
-          CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
-          success(@ai_task)
+      @user.with_lock do
+        @ai_task.with_lock do
+          if @ai_task.accepted?
+            failure([ "This resume has already been imported" ])
+          else
+            import_everything
+            @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
+            CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
+            success(@ai_task)
+          end
         end
       end
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => error
@@ -67,7 +70,11 @@ module ResumeImports
     def fill_blank_profile_fields(contact, summary)
       values = CONTACT_COLUMNS.to_h { |key, column| [ column, contact[key] ] }.merge(summary: summary)
       blank_fills = values.select { |column, value| @user.public_send(column).blank? && value.present? }
-      @user.update!(blank_fills) if blank_fills.any?
+      return if blank_fills.empty?
+
+      @user.assign_attributes(blank_fills)
+      RecordScreening::InvalidateService.call(record: @user)
+      @user.save!
     end
 
     # Returns the list under `key`, or an empty list.

@@ -58,7 +58,10 @@ module ResumeTailoring
           "links" => @user.links
         },
         "gap_analysis" => analysis&.result&.dig("gap_analysis"),
-        "gap_responses" => @job.gap_responses.map { |response| { "requirement" => response.requirement, "body" => response.body } }
+        "gap_responses" => @job.gap_responses.map do |response|
+          { "id" => response.id, "updated_at" => response.updated_at.iso8601(6),
+            "requirement" => response.requirement, "body" => response.body }
+        end
       }
     end
   end

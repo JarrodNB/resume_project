@@ -7,6 +7,7 @@ Index:
     - AiResultMessage: a result written to ai_results (applied by AiTasks::ApplyAiResultService)
 """
 
+from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -38,6 +39,15 @@ class ModelUsage(BaseModel):
     cost_microdollars: int | None = Field(default=None, ge=0)
 
 
+class ScreeningSuccess(BaseModel):
+    """A completed check of an observed saved-record version; Rails verifies ownership."""
+
+    record_type: str
+    record_id: str
+    observed_updated_at: datetime
+    screening_policy_version: str
+
+
 class AiResultMessage(BaseModel):
     """An outcome or usage-only report. Attempt identity deduplicates accounting, not execution."""
 
@@ -51,3 +61,4 @@ class AiResultMessage(BaseModel):
     attempt_id: UUID | None = None
     usage_incomplete: bool = False
     attempt_finished: bool = True
+    screening_successes: list[ScreeningSuccess] = Field(default_factory=list)

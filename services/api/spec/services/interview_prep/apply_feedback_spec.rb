@@ -30,10 +30,13 @@ RSpec.describe "Applying interview answer feedback" do
       let(:question_set) { user.interview_question_sets.create!(number: 1, set_type: set_type) }
 
       it "stores coaching once while preserving the typed answer" do
+        question.update!(screened_at: Time.current, screening_policy_version: "policy-1")
         task.update!(input: task.input.merge("set_type" => set_type))
         2.times { apply }
         expect(task.reload).to be_completed
         expect(question.reload).to have_attributes(answer_text: "I organized a workshop.", feedback: feedback)
+        expect(question.screened_at).to be_present
+        expect(question.screening_policy_version).to eq("policy-1")
       end
 
       it "rejects mismatched type snapshots without replacing prior coaching" do

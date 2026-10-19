@@ -19,6 +19,7 @@ module InterviewPrep
         changed = @question.answer_text != @answer_text
         @question.answer_revision += 1 if changed
         @question.answer_text = @answer_text
+        RecordScreening::InvalidateService.call(record: @question)
         if @question.save
           @question.embedding&.destroy! if changed
           SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if @question.answer_text.present?

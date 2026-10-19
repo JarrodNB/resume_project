@@ -68,10 +68,12 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
   grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
-  and `library_embeddings` (of `users`, `id`, `summary`, `name`, `contact_email`, and `phone`;
+  and `library_embeddings` (of `users`, `id`, `summary`, `name`, `contact_email`, `phone`,
+  `updated_at`, `screened_at`, and `screening_policy_version`;
   the sign-in email and password stay hidden). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
-  the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
+  the AI worker must read needs to be added there. `job_gap_responses` is readable so the
+  owner/job-scoped reader can verify saved tailoring snapshots before reusing their checks.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
 - `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
   GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`
@@ -84,6 +86,14 @@ Gems are installed into the `api_bundle` volume: add one with
 
 The Shoryuken process doesn't pick up code reloads: after editing a worker or a service it
 calls, run `docker compose restart api-results-worker`.
+
+Screened source records keep nullable `screened_at` and `screening_policy_version` fields.
+Domain services call `RecordScreening::InvalidateService` after assigning relevant text and
+before saving; child content changes also advance the parent's `updated_at`. Ordering,
+stage and feedback changes retain checks. `RecordScreening::ApplySuccessesService` applies
+owner-scoped worker reports only when the observed `updated_at` still matches, without
+changing that version. There is no separate screening table. New content mutation paths
+must use the same invalidation service, including writes during imports and merges.
 
 Uploads use Active Storage on the `amazon` service (`config/storage.yml`): S3Mock in
 development (`S3_ENDPOINT_URL`, `S3_UPLOADS_BUCKET` from docker compose), local disk in tests.

@@ -96,7 +96,6 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     from dataclasses import replace
     from uuid import uuid4
 
-    from tailoring.labeled_sources import label_sources
     from worker.queue_messages import AiTaskMessage
     from worker.tailor_resume_handler import handle_tailor_resume_task
 
@@ -124,13 +123,12 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume",
         input={"job_id": str(uuid4()), "contact": {"full_name": "Synthetic Candidate"}})
-    sources = label_sources(context, [], [], None)
     with resume_tailoring_agent.override(model=FunctionModel(answer, model_name="gpt-5-mini")):
         first = handle_tailor_resume_task(task, task_dependencies)
         assert first.status == "completed"
-        # Original inputs plus the job and the newly assembled copied education snapshot.
-        assert len(calls) == len(sources.records) + 2
+        # Job, profile summary, experience, project, education, two skills, and copied draft.
+        assert len(calls) == 8
         second = handle_tailor_resume_task(task, task_dependencies)
     assert second.status == "completed"
-    assert len(calls) == 2 * (len(sources.records) + 2)
+    assert len(calls) == 2 * (8)
     assert len(generation) == 8

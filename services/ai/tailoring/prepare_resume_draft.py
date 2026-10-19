@@ -1,7 +1,7 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job before retrieval, then the union of selected sources. Approvals live in
-one enclosing execution; copied display-only fields do not require model screening.
+Screen complete saved records before rendering selected evidence. Current saved approvals
+are reused; temporary snapshots remain local to this execution.
 """
 
 import asyncio
@@ -12,10 +12,11 @@ from uuid import UUID
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
-from screening.screen_user_text import ScreenOutcome, screen_user_text_async
+from screening.records import screen_record_async
+from screening.screen_user_text import ScreenOutcome
 from screening.session import current_session, remaining_timeout, screening_session
-from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
-from tailoring.labeled_sources import label_sources
+from tailoring.build_section_prompt import SectionPrompt, build_section_prompt
+from tailoring.labeled_sources import label_sources, source_input
 from tailoring.retrieve_for_section import retrieve_source_keys_async
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
@@ -64,12 +65,12 @@ class PreparedResumeDraft:
     _concurrency: int = field(repr=False)
     _session: object = field(default_factory=current_session, repr=False)
 
-    async def _screen(self, texts: Sequence[str]) -> None:
+    async def _screen(self, texts: Sequence[str], states=None) -> None:
         async def check(text):
             if text not in self._decisions:
-                self._decisions[text] = await screen_user_text_async(
-                    text, self._settings.user_text_screen_model,
-                    remaining_timeout(self._settings.llm_run_timeout_seconds),
+                self._decisions[text] = await screen_record_async(
+                    text, (states or {}).get(text), model=self._settings.user_text_screen_model,
+                    timeout_seconds=remaining_timeout(self._settings.llm_run_timeout_seconds),
                     check_phrases=True, classify=screen_user_message_async,
                 )
 
@@ -84,7 +85,7 @@ class PreparedResumeDraft:
             None if section_type == "summary" and selected_labels is not None else self._retrieved[section_type],
             write_anyway=False, gap_analysis=self._gap_analysis,
             allow_text=lambda text: self._decisions[text], warnings=self._warnings,
-            source_labels=selected_labels,
+            source_labels=selected_labels, complete_records=True,
         )
 
     async def summary_prompt(
@@ -99,8 +100,9 @@ class PreparedResumeDraft:
             raise RuntimeError("Prepare evidence again inside the current screening session")
         sources = label_sources(self.context, self._gap_responses, selected_sections,
             None if selected_labels is not None else self._retrieved["summary"], "summary")
-        await self._screen([record.text for label, record in sources.records.items()
-                            if selected_labels is None or label in selected_labels or record.kind == "selected_section"])
+        inputs = [source_input(self.context, record, self._gap_responses) for label, record in sources.records.items()
+                  if selected_labels is None or label in selected_labels or record.kind == "selected_section"]
+        await self._screen([item[0] for item in inputs], {item[0]: item[1] for item in inputs})
         return self._prompt("summary", selected_sections, selected_labels)
 
 
@@ -124,10 +126,13 @@ async def prepare_resume_draft(
             context = dependencies.read_gap_analysis_context(user_id, job_id)
             if context is None:
                 raise ResumePreparationError("This job no longer exists.")
-            prepared = PreparedResumeDraft(context, {}, settings, gap_responses or [],
+            responses = gap_responses or []
+            if responses and dependencies.read_gap_response_snapshots is not None:
+                responses = dependencies.read_gap_response_snapshots(user_id, job_id, responses)
+            prepared = PreparedResumeDraft(context, {}, settings, responses,
                 gap_analysis, {}, {}, usage, warnings, concurrency)
-            job_text = job_context_text(context)
-            await prepared._screen([job_text])
+            job_text = context.job.model_dump_json(exclude_none=True)
+            await prepared._screen([job_text], {job_text: context.job._screening_state})
             if not prepared._decisions[job_text].allowed:
                 raise ResumePreparationError("The job context could not be screened. Please try again.")
             sections = ["summary"]
@@ -147,12 +152,16 @@ async def prepare_resume_draft(
                         usage.append(embedding_usage)
             await _bounded(sections, retrieve, concurrency)
             texts = [job_text]
+            states = {job_text: context.job._screening_state}
             summary = (gap_analysis or {}).get("summary")
             if isinstance(summary, str) and summary.strip():
                 texts.append(summary.strip())
             for section in sections:
                 sources = label_sources(context, prepared._gap_responses, [], prepared._retrieved[section], section)
-                texts.extend(record.text for record in sources.records.values())
-            await prepared._screen(texts)
+                for record in sources.records.values():
+                    source, state, _render = source_input(context, record, prepared._gap_responses)
+                    texts.append(source)
+                    states[source] = state
+            await prepared._screen(texts, states)
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared

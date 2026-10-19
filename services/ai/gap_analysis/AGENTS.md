@@ -12,7 +12,9 @@ can't be invented.
   timeout_seconds)` returns a prepared prompt and completed screening usage, or a failure
   retaining that usage. It projects requirements and nice-to-haves, serializes the complete
   library as one source, checks the 80,000-character source and 120,000-character prompt caps
-  before paid calls, then screens job and library separately through the import chunker.
+  before paid calls. Trusted database contexts check each complete saved unit through
+  shared record screening; temporary contexts check job and whole-library sources through
+  the import chunker. Complete job screening does not add responsibilities to generation.
   Both are required: rejection or an incomplete screen stops analysis. It reconstructs and
   binds the exact prompt from approved JSON; direct unknown prompts remain guarded.
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` labels the

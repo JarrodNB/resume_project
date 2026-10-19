@@ -29,8 +29,13 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, screening_successes}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
+  `screening_successes` defaults to `[]`; each entry contains `record_type`, `record_id`,
+  `observed_updated_at` and `screening_policy_version`. Rails applies allowlisted,
+  owner-scoped reports even for failed, retry-usage or late result messages, independently
+  of task outcome and accounting deduplication. Atomic version matching prevents stale
+  reports from restoring approval after edits; duplicate reports are harmless.
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
   null). Each actual execution gets a fresh UUID, independent of SQS receive count.
@@ -47,7 +52,7 @@ Per task type:
   edits it, then the `importParsedResume` mutation writes it to the career library and
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
-  `AiTask#accepted_at`.
+  `AiTask#accepted_at`, with owner-then-task locks matching late result handling.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
   Both Jev screening and parsing receive reversible typed placeholders, even when
@@ -86,7 +91,10 @@ Per task type:
   requirements fails the task with a user-facing message.
 
 - `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
-  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
+  Job. Contact and gap fields are immutable request snapshots. Each gap response carries
+  `{id, updated_at, requirement, body}`. The worker verifies its revision and both text fields
+  against an owner/job-scoped read before reusing saved screening state. Old snapshots remain
+  temporary sources and cannot approve changed records. The worker reads the owned
   job and career library, prepares shared screened evidence, and returns one complete draft:
   `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
   summary, experience, projects, education, certifications, skills, omitting empty or
@@ -135,9 +143,14 @@ Standard SQS delivers each message *at least* once, so a task or result can occa
 arrive twice (a worker crashes before deleting, a task outlives its visibility timeout, or a
 rare SQS redelivery). We handle this instead of trying to prevent it:
 
-- **Rails result handling is idempotent.** Every message carries the `ai_task_id`. Results for
-  an `AiTask` that is already `completed` or `failed` are ignored. The check runs under a row
-  lock, so two copies processed at the same moment can't both apply.
+- **Rails result handling is idempotent.** Every message carries the `ai_task_id`. A finished
+  task keeps its outcome; late usage and successful screening reports can still be applied.
+  Successful screening reports apply first as independent atomic source updates. The
+  consumer has no enclosing transaction: each stamp releases its row lock before the next
+  stamp, avoiding retained multi-source locks during library edits. These derived checks
+  may persist even if later outcome/accounting work fails; SQS redelivery retries that work.
+  Outcome and usage updates acquire owner then task locks, matching resume saves, imports
+  and interview operations. Clearing the library also locks the owner before source rows.
 - **Workers receive one message at a time**, so no message sits in a local batch while its
   visibility timeout runs out. Scale by adding workers.
 - **Long tasks extend their visibility timeout** (heartbeat) if real runs approach the

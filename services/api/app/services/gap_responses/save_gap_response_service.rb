@@ -60,6 +60,7 @@ module GapResponses
         else
           response.library_fact = nil
         end
+        RecordScreening::InvalidateService.call(record: response)
         unless response.save
           errors = response.errors
           raise ActiveRecord::Rollback
@@ -80,6 +81,7 @@ module GapResponses
       return [ fact, false ] if fact.persisted? && fact.response == @body
 
       fact.response = @body
+      RecordScreening::InvalidateService.call(record: fact)
       fact.save
       [ fact, fact.persisted? ]
     end

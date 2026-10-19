@@ -10,7 +10,9 @@ module Projects
 
     # Applies the attributes.
     def call
-      return failure(@project.errors) unless @project.update(@attributes)
+      @project.assign_attributes(@attributes)
+      RecordScreening::InvalidateService.call(record: @project)
+      return failure(@project.errors) unless @project.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@project.user_id)
       success(@project)

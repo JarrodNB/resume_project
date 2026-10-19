@@ -10,7 +10,9 @@ module LibraryFacts
 
     # Applies the attributes.
     def call
-      return failure(@library_fact.errors) unless @library_fact.update(@attributes)
+      @library_fact.assign_attributes(@attributes)
+      RecordScreening::InvalidateService.call(record: @library_fact)
+      return failure(@library_fact.errors) unless @library_fact.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@library_fact.user_id)
       success(@library_fact)

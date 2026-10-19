@@ -205,3 +205,49 @@ def test_job_independent_library_is_user_scoped(admin_connection: psycopg.Connec
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert [skill.name for skill in read_career_library(admin_connection, owner_id).skills] == ["Python"]
     assert read_career_library(admin_connection, other_user_id).is_empty()
+
+
+def test_saved_state_is_trusted_and_never_enters_prompt_json(admin_connection):
+    from datetime import UTC, datetime
+
+    now = datetime.now(UTC)
+    owner = _insert_user(admin_connection, summary="Python engineer")
+    job_id = _insert(admin_connection, "jobs", user_id=owner, title="Engineer",
+                     screened_at=now, screening_policy_version="current")
+    project_id = _insert(admin_connection, "projects", user_id=owner, name="Python APIs",
+                         screened_at=now, screening_policy_version="current")
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    context = read_gap_analysis_context(admin_connection, owner, job_id)
+    assert context.job._screening_state.record_id == str(job_id)
+    assert context.job._screening_state.screening_policy_version == "current"
+    assert context.career_library._summary_screening_state.record_id == str(owner)
+    project = context.career_library.projects[0]
+    assert project._screening_state.record_id == str(project_id)
+    assert project._screening_state.source == project.model_dump_json(exclude_none=True)
+    assert "screening_policy_version" not in context.model_dump_json()
+    assert "screened_at" not in context.model_dump_json()
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), admin_connection.transaction():
+        admin_connection.execute("UPDATE projects SET screened_at = NULL WHERE id = %s", (project_id,))
+
+
+def test_tailoring_gap_snapshots_require_owned_matching_saved_revision(admin_connection):
+    from datetime import UTC
+
+    from database.gap_response_reader import read_gap_response_snapshots
+
+    user_id = _insert_user(admin_connection)
+    other_user = _insert_user(admin_connection)
+    job_id = _insert(admin_connection, "jobs", user_id=user_id, title="Engineer")
+    response_id = _insert(admin_connection, "job_gap_responses", job_id=job_id,
+                          requirement="Python", body="Built services")
+    row = admin_connection.execute(
+        "SELECT updated_at FROM job_gap_responses WHERE id = %s", [response_id]).fetchone()
+    snapshot = {"id": str(response_id), "updated_at": row["updated_at"].replace(tzinfo=UTC).isoformat(),
+                "requirement": "Python", "body": "Built services"}
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    owned = read_gap_response_snapshots(admin_connection, user_id, job_id, [snapshot])[0]
+    assert owned._screening_state.record_id == str(response_id)
+    assert "_screening_state" not in owned
+    assert read_gap_response_snapshots(admin_connection, other_user, job_id, [snapshot])[0]._screening_state is None
+    changed = {**snapshot, "body": "changed queue body"}
+    assert read_gap_response_snapshots(admin_connection, user_id, job_id, [changed])[0]._screening_state is None

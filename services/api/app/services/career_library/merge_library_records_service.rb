@@ -30,7 +30,10 @@ module CareerLibrary
 
       ActiveRecord::Base.transaction do
         fill_blank_fields
+        previous_highlights = @target.highlights.size if @target.is_a?(Experience)
         add_new_highlights if @target.is_a?(Experience)
+        children_changed = @target.is_a?(Experience) && @target.highlights.size != previous_highlights
+        RecordScreening::InvalidateService.call(record: @target, content_changed: children_changed)
         @target.save!
         @source.destroy! if @source.persisted?
         SyncLibraryEmbeddingsJob.perform_later(@target.user_id)

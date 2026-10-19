@@ -1,7 +1,8 @@
 /**
  * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, or write a resume, then how the
  * career library matches it, requirements, responsibilities, nice-to-haves, notes, the description, and the
- * original posting. Requirements, responsibilities, nice-to-haves, notes, and the description start collapsed.
+ * original posting. Job Board import omissions stay visible on arrival. Requirements, responsibilities,
+ * nice-to-haves, notes, and the description start collapsed.
  * Index:
  *   - JobDetailPage: page component
  */
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui/button'
 import { useGapAnalysis } from '@/features/gap-analysis/useGapAnalysis'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { JobBoardImportNotice } from './JobBoardImportNotice'
 import { DeleteJobDialog } from './DeleteJobDialog'
 import { BulletCard, CollapsibleJobCard } from './JobDetailCards'
 import { JobFormDialog } from './JobFormDialog'
@@ -66,6 +68,7 @@ function JobDetails({ id }: { id: string }) {
       {!job && loading && <p className="text-muted-foreground">Loading…</p>}
       {job && (
         <>
+          <JobBoardImportNotice jobId={id} />
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="grid gap-1">
               <h1 className="text-2xl font-semibold tracking-tight">{job.title}</h1>

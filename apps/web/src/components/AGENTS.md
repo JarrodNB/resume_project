@@ -7,7 +7,8 @@ Shared UI used by more than one feature.
 ## Contents
 
 - `AppLayout.tsx` — signed-in layout: fixed desktop navigation spine; sticky compact header with
-  horizontally scrollable navigation below 900px, theme/account actions, location bar, and routed page
+  horizontally scrollable navigation below 900px, theme/account actions, location bar, and routed page.
+  Job Board is shared listing discovery; Jobs is the private saved list
 - `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
 - `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.

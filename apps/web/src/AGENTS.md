@@ -15,6 +15,7 @@ Source of the web app, organized by feature.
 - `features/auth/` — sign-in/up pages, session (JWT) context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
+- `features/job-board/` — shared US listing search, paginated results, and explicit import into private Jobs (`/job-board`); Rails owns provider access, caching, and duplicate matching
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   detail, edit, stage, and delete
 - `features/gap-analysis/` — compare a job with the career library (shown on the job page)

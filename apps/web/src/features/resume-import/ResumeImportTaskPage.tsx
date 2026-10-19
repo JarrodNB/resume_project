@@ -33,6 +33,11 @@ export function ResumeImportTaskPage() {
         <ParseTaskStatusCard status="failed" errorMessage={aiTask.errorMessage} />
       ) : parsedResume ? (
         <ParsedResumeReview key={aiTask.id} aiTaskId={aiTask.id} parsedResume={parsedResume} />
+      ) : aiTask.status === 'NEEDS_USER_INPUT' || aiTask.status === 'COMPLETED' ? (
+        <ParseTaskStatusCard
+          status="failed"
+          errorMessage="We couldn't prepare a resume to review. Please upload the file again."
+        />
       ) : (
         <ParseTaskStatusCard status="parsing" />
       )}

@@ -73,6 +73,19 @@ it('says so when the parse was already imported', async () => {
   expect(await screen.findByText('Already imported')).toBeInTheDocument()
 })
 
+it('explains when parsing completed without a reviewable resume', async () => {
+  renderTaskPage([aiTaskMock({ status: 'COMPLETED', result: null })])
+  expect(await screen.findByText("We couldn't prepare a resume to review. Please upload the file again.")).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Try another file' })).toHaveAttribute('href', '/import')
+  expect(screen.queryByText('Reading your resume…')).not.toBeInTheDocument()
+})
+
+it('explains when parsing is waiting for input that this page cannot provide', async () => {
+  renderTaskPage([aiTaskMock({ status: 'NEEDS_USER_INPUT' })])
+  expect(await screen.findByText("We couldn't prepare a resume to review. Please upload the file again.")).toBeInTheDocument()
+  expect(screen.queryByText('Reading your resume…')).not.toBeInTheDocument()
+})
+
 it('imports the reviewed resume and opens the career library', async () => {
   const parsedResume = buildParsedResume()
   const importMock = {

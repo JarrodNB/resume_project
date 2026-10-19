@@ -41,7 +41,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
       <ErrorAlert messages={errors} />
       {includeName && (
         <div className="grid gap-2">
-          <Label htmlFor="name">Name</Label>
+          <Label htmlFor="name">Name <span className="text-muted-foreground">(optional)</span></Label>
           <Input id="name" autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} />
         </div>
       )}
@@ -62,10 +62,13 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
           id="password"
           type="password"
           autoComplete={includeName ? 'new-password' : 'current-password'}
+          minLength={includeName ? 6 : undefined}
+          maxLength={includeName ? 128 : undefined}
           required
           value={password}
           onChange={(event) => setPassword(event.target.value)}
         />
+        {includeName && <p className="text-sm text-muted-foreground">Use 6 to 128 characters.</p>}
       </div>
       <Button type="submit" size="lg" disabled={submitting}>
         {submitting ? 'Please wait…' : submitLabel}

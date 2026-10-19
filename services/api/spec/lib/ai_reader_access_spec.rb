@@ -45,6 +45,7 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT id, summary, name, contact_email, phone FROM users")).to eq(
       [ { "id" => user.id, "summary" => "Backend engineer", "name" => "Ada Lovelace", "contact_email" => "ada@example.com", "phone" => "555-0100" } ]
     )
+    expect(select_as_ai_reader("SELECT screened_fields FROM users")).to eq([ { "screened_fields" => "{}" } ])
     expect { select_as_ai_reader("SELECT email FROM users") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT encrypted_password FROM users") }

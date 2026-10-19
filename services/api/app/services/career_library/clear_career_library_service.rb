@@ -39,7 +39,11 @@ module CareerLibrary
     def clear_profile
       blank = PROFILE_FIELDS.index_with { |column| column == :links ? [] : nil }
       changes = blank.select { |column, value| @user.public_send(column) != value }
-      @user.update!(changes) if changes.any?
+      if changes.any?
+        @user.assign_attributes(changes)
+        RecordScreeningService.discard_changed_fields(record: @user)
+        @user.save!
+      end
     end
   end
 end

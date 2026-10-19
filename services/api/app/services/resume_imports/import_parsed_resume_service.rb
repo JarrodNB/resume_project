@@ -67,7 +67,11 @@ module ResumeImports
     def fill_blank_profile_fields(contact, summary)
       values = CONTACT_COLUMNS.to_h { |key, column| [ column, contact[key] ] }.merge(summary: summary)
       blank_fills = values.select { |column, value| @user.public_send(column).blank? && value.present? }
-      @user.update!(blank_fills) if blank_fills.any?
+      if blank_fills.any?
+        @user.assign_attributes(blank_fills)
+        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
+        @user.save!
+      end
     end
 
     # Returns the list under `key`, or an empty list.

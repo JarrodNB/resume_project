@@ -8,6 +8,7 @@ import asyncio
 import re
 from typing import NamedTuple
 
+from opentelemetry import trace
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
@@ -48,6 +49,12 @@ def format_resume_user_prompt(resume_text: str) -> str:
 
 
 _GROUPS = (ExperienceExtraction, ProjectsSkillsExtraction, ProfileExtraction)
+_GROUP_NAMES = {
+    ExperienceExtraction: "experience",
+    ProjectsSkillsExtraction: "projects_skills",
+    ProfileExtraction: "profile",
+}
+_group_tracer = trace.get_tracer(__name__)
 
 
 class ParsingBudget(AbstractCapability):
@@ -117,14 +124,26 @@ async def _run_with_deadline(
             [resume_text],
             lambda sources: instruction + "\n" + format_resume_user_prompt(sources[0]),
         )
-        return await resume_parsing_agent.run(
-            prompt,
-            output_type=schema,
-            model=generative_model(model, fallback_model),
-            model_settings=ModelSettings(thinking=thinking),
-            capabilities=[budget],
-            usage_limits=agent_usage_limits(load_settings()),
-        )
+        group_name = _GROUP_NAMES[schema]
+        with _group_tracer.start_as_current_span(
+            f"resume_parse.group.{group_name}",
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            span.set_attribute("resume_parse.group", group_name)
+            result = await resume_parsing_agent.run(
+                prompt,
+                output_type=schema,
+                model=generative_model(model, fallback_model),
+                model_settings=ModelSettings(thinking=thinking),
+                capabilities=[budget],
+                usage_limits=agent_usage_limits(load_settings()),
+            )
+            span.set_attribute("resume_parse.requests", result.usage.requests)
+            span.set_attribute("resume_parse.input_tokens", result.usage.input_tokens)
+            span.set_attribute("resume_parse.cached_input_tokens", result.usage.cache_read_tokens)
+            span.set_attribute("resume_parse.output_tokens", result.usage.output_tokens)
+            return result
 
     async with asyncio.timeout(remaining_timeout(timeout_seconds)):
         settings = load_settings()

@@ -272,6 +272,21 @@ def test_source_bullets_stop_before_role_headers_with_inline_dates():
     }
 
 
+def test_source_bullets_stop_before_role_headers_without_dates():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\n"
+        "• Built a complex platform used across three regions.\n"
+        "Senior Engineer, Acme\n"
+        "• Improved reliability by 30%.\n"
+    )
+    assert _source_bullets(source) == {
+        "B1": "Built a complex platform used across three regions.",
+        "B2": "Improved reliability by 30%.",
+    }
+
+
 def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
     async def answer(messages, info):
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:

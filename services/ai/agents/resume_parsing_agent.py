@@ -59,6 +59,7 @@ _DATE_RANGE_SUFFIX = re.compile(
     rf"{_DATE_PART}\s*[-–—]\s*(?:{_DATE_PART}|present|current)\.?$",
     re.IGNORECASE,
 )
+_ROLE_HEADER_SEPARATOR = re.compile(r",\s+|\s+[|–—-]\s+|\s+at\s+", re.IGNORECASE)
 _SECTION_HEADINGS = {
     "summary", "professional summary", "career summary", "objective", "career objective",
     "profile", "experience", "work experience", "work history",
@@ -100,6 +101,12 @@ def _is_resume_boundary(line: str, next_line: str) -> bool:
         return True
     if len(text) <= 120 and _DATE_RANGE_SUFFIX.search(text):
         return True
+    if len(text) <= 120 and not text.endswith((".", "!", "?")):
+        role_parts = _ROLE_HEADER_SEPARATOR.split(text)
+        if len(role_parts) > 1 and all(
+            part.strip() and part.strip()[0].isupper() for part in role_parts
+        ):
+            return True
     return bool(len(text) <= 120 and _DATE_LINE.fullmatch(next_line.strip()))
 
 

@@ -30,6 +30,40 @@ RSpec.describe "Job mutations" do
     expect(payload["errors"]).to include("Title can't be blank")
   end
 
+  it "returns validation errors when a requirement list is explicitly null" do
+    result = execute_graphql(<<~GQL, user: user)
+      mutation {
+        createJob(input: { attributes: { title: "Engineer", requirements: null } }) {
+          job { id }
+          errors
+        }
+      }
+    GQL
+
+    payload = result.dig("data", "createJob")
+    expect(payload["job"]).to be_nil
+    expect(payload["errors"]).to include("Requirements must be a list")
+    expect(Job.count).to eq(0)
+  end
+
+  it "leaves requirement lists unchanged when omitted and rejects null on update" do
+    job = create(:job, user: user, nice_to_haves: [ "Communication" ])
+
+    result = execute_graphql(<<~GQL, user: user, variables: { id: job.id })
+      mutation($id: ID!) {
+        updateJob(input: { id: $id, attributes: { niceToHaves: null } }) {
+          job { id niceToHaves }
+          errors
+        }
+      }
+    GQL
+
+    payload = result.dig("data", "updateJob")
+    expect(payload["job"]).to be_nil
+    expect(payload["errors"]).to include("Nice to haves must be a list")
+    expect(job.reload.nice_to_haves).to eq([ "Communication" ])
+  end
+
   it "creates, names, clears, and reads a job with an unknown company" do
     created = execute_graphql(<<~GQL, user: user)
       mutation { createJob(input: { attributes: { title: "Engineer", company: "  " } }) { job { id company } errors } }

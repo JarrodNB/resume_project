@@ -46,7 +46,10 @@ class Job < ApplicationRecord
   # Adds a base error when the list is too long or an item exceeds a bullet.
   def limit_list(attribute, singular, plural)
     values = public_send(attribute)
-    return unless values.is_a?(Array)
+    unless values.is_a?(Array)
+      errors.add(attribute, "must be a list")
+      return
+    end
 
     if values.size > TextLimits::MAX_REQUIREMENTS
       errors.add(:base, "You can save up to #{TextLimits::MAX_REQUIREMENTS} #{plural}")

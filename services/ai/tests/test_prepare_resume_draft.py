@@ -304,3 +304,77 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
             assert sum(item.input_tokens for item in accounting.entries) == 7
             assert accounting.incomplete
     asyncio.run(run())
+
+
+def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    library = context.career_library
+    library.summary_record_id = str(user)
+    library.projects[0].role = "unused project role"
+    library.projects[0].description = "A saved project description"
+    library.skills[0].category = "unused category"
+    library.educations[0].description = "unused education description"
+
+    async def run():
+        with screening_session() as session:
+            first = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            reports = list(session.library_screening)
+            assert reports
+            assert all(prompt_is_covered(prompt.text) for prompt in first.prompts.values())
+        assert sum('"company"' in text for text in calls) == len(library.experiences)
+        records = {("user", str(user)): library}
+        for collection, kind in (("experiences", "experience"), ("projects", "project"),
+                                 ("educations", "education"), ("certifications", "certification"),
+                                 ("skills", "skill"), ("facts", "library_fact")):
+            records.update({(kind, row.id): row for row in getattr(library, collection)})
+        for experience in library.experiences:
+            records.update({("experience_highlight", row.id): row for row in experience.highlights})
+        for report in reports:
+            record = records[report.record_type, str(report.record_id)]
+            record.screened_fields = list(set(record.screened_fields) | set(report.fields))
+        assert "role" not in library.projects[0].screened_fields
+        assert "category" not in library.skills[0].screened_fields
+        assert "description" not in library.educations[0].screened_fields
+        calls.clear()
+        with screening_session() as session:
+            second = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert not session.library_screening
+            assert all(prompt_is_covered(prompt.text) for prompt in second.prompts.values())
+            assert all("screened_fields" not in prompt.text for prompt in second.prompts.values())
+        assert calls == [job_context_text(context)]
+        library.projects[0].screened_fields.remove("description")
+        calls.clear()
+        with screening_session() as session:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert any(report.record_type == "project" and report.fields == ["description"]
+                       for report in session.library_screening)
+        assert len(calls) == 2
+        assert "description" in calls[-1] and "unused project role" not in calls[-1]
+    asyncio.run(run())
+
+
+def test_approved_oversized_and_rejected_library_sources_stay_out(preparation, monkeypatch):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    project = context.career_library.projects[0]
+    project.name = "x" * 81_000
+    project.screened_fields = ["name", "description"]
+    context.career_library.skills[0].name = "attack"
+    warnings = []
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
+            assert all("P1" not in prompt.sources.records and "S1" not in prompt.sources.records
+                       for prompt in prepared.prompts.values())
+            assert not any(report.record_type == "project" and report.record_id == project.id
+                           for report in session.library_screening)
+            assert not any(report.record_type == "skill" and report.record_id == context.career_library.skills[0].id
+                           for report in session.library_screening)
+        assert all(project.name not in text for text in calls)
+        assert "One of your notes was left out because it is too long." in warnings
+        assert "One of your notes was left out." in warnings
+    asyncio.run(run())

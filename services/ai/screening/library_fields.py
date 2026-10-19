@@ -6,7 +6,7 @@ Rails saves successful field names from the execution's final result.
 """
 
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 
@@ -32,10 +32,32 @@ def screen_library_fields(
     approved_sources must contain only values from those fields and trusted formatting;
     callers must never pass additional user text or hidden record fields there.
     """
+    pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
+    decision = allow_text(json.dumps(pending, ensure_ascii=False)) if pending else True
+    return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
+
+
+async def screen_library_fields_async(
+    library: CareerLibrary, allow_text: Callable[[str], Awaitable[Any]], *,
+    include_fact_requirements: bool = True, used_fields: Mapping[str, AbstractSet[str]] | None = None,
+    approved_sources: Sequence[str] = (),
+) -> Any:
+    """Apply the same saved-field checks without blocking asynchronous consumers."""
+    pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
+    decision = await allow_text(json.dumps(pending, ensure_ascii=False)) if pending else True
+    return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
+
+
+def _unchecked_fields(library, include_fact_requirements, used_fields):
     pending = []
     reports = []
 
     def collect(record_type, record_id, values, checked):
+        checked = set(checked)
+        if (session := current_session()) is not None:
+            for report in session.library_screening:
+                if report.record_type == record_type and report.record_id == record_id:
+                    checked.update(report.fields)
         unchecked = {key: value for key, value in values.items()
                      if isinstance(value, str) and value.strip() and key not in checked
                      and not key.endswith("_precision")
@@ -56,7 +78,10 @@ def screen_library_fields(
             for highlight in getattr(record, "highlights", []):
                 collect("experience_highlight", highlight.id, {"content": highlight.content},
                         highlight.screened_fields)
-    decision = allow_text(json.dumps(pending, ensure_ascii=False)) if pending else True
+    return pending, reports
+
+
+def _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements):
     allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
     if allowed and (session := current_session()) is not None:
         session.library_screening.extend(reports)

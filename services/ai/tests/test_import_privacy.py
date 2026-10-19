@@ -12,7 +12,6 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
-from agents.resume_parsing_agent import resume_parsing_agent
 from pii import PiiRestorationError, prepare_document
 from screening.screen_user_text import ScreenOutcome
 from tests import test_tracing
@@ -44,7 +43,8 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
 ):
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test")
     task_dependencies.settings.generative_fallback_model = task_dependencies.settings.resume_parsing_model
-    fake_file_storage.files[FILE_KEY] = build_docx_bytes(SOURCE.splitlines())
+    source_lines = [*SOURCE.splitlines(), "• Helped Jane Doe ship Python services."]
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes(source_lines)
     seen = []
 
     def screen(messages, info):
@@ -62,7 +62,7 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
             "contact": {"full_name": name, "email": email, "phone": phone},
             "experiences": [{"company": "Acme", "title": "Engineer",
-                "highlights": [f"Helped {name} ship Python services."]}],
+                "highlight_ids": ["B1"]}],
         })])
 
     offline_model_resolution(task_dependencies.settings.user_text_screen_model,
@@ -220,8 +220,11 @@ def test_unresolved_output_fails_safely_with_usage(
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(SOURCE.splitlines())
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text",
         lambda *args, **kwargs: ScreenOutcome(True))
-    with resume_parsing_agent.override(model=TestModel(custom_output_args={"summary": output})):
-        result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
+    monkeypatch.setattr(
+        "agents.resume_parsing_agent.generative_model",
+        lambda *_args: TestModel(custom_output_args={"summary": output}),
+    )
+    result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "failed"
     assert result.error_message == RESUME_PRIVACY_MESSAGE
     assert result.result is None
@@ -244,8 +247,11 @@ def test_mask_expansion_does_not_change_original_document_limit(
         return ScreenOutcome(True)
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", screen)
-    with resume_parsing_agent.override(model=TestModel(custom_output_args={})):
-        result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
+    monkeypatch.setattr(
+        "agents.resume_parsing_agent.generative_model",
+        lambda *_args: TestModel(custom_output_args={}),
+    )
+    result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
 
 

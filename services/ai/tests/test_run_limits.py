@@ -10,7 +10,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RunUsage, UsageLimits
 
-from agents.resume_parsing_agent import parse_resume_text, resume_parsing_agent
+from agents.resume_parsing_agent import parse_resume_text
 from screening.screen_user_text import screen_user_text
 from worker.run_limits import agent_usage_limits
 from worker.settings import WorkerSettings
@@ -36,7 +36,7 @@ def test_caps_come_from_settings() -> None:
 
 
 def test_a_run_past_the_request_cap_does_not_call_the_model(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, offline_model_resolution,
 ) -> None:
     """The next request is refused before the model is called. Nothing is returned."""
     calls = {"count": 0}
@@ -53,10 +53,9 @@ def test_a_run_past_the_request_cap_does_not_call_the_model(
         "agents.resume_parsing_agent.agent_usage_limits",
         lambda _settings: UsageLimits(request_limit=0, tool_calls_limit=0),
     )
-    with (
-        resume_parsing_agent.override(model=FunctionModel(answer)),
-        pytest.raises(UsageLimitExceeded),
-    ):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    with pytest.raises(UsageLimitExceeded):
         parse_resume_text(
             "Jane Doe",
             model="openai:gpt-5-mini",
@@ -68,7 +67,9 @@ def test_a_run_past_the_request_cap_does_not_call_the_model(
     assert calls["count"] == 0
 
 
-def test_a_run_past_the_output_token_cap_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_a_run_past_the_output_token_cap_fails(
+    monkeypatch: pytest.MonkeyPatch, offline_model_resolution,
+) -> None:
     """An oversized response fails the run. The caller does not receive a partial parse."""
 
     def answer(_messages: list[object], info: AgentInfo) -> ModelResponse:
@@ -82,10 +83,9 @@ def test_a_run_past_the_output_token_cap_fails(monkeypatch: pytest.MonkeyPatch) 
         "agents.resume_parsing_agent.agent_usage_limits",
         lambda _settings: UsageLimits(request_limit=6, tool_calls_limit=0, output_tokens_limit=10),
     )
-    with (
-        resume_parsing_agent.override(model=FunctionModel(answer)),
-        pytest.raises(UsageLimitExceeded),
-    ):
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
+    with pytest.raises(UsageLimitExceeded):
         parse_resume_text(
             "Jane Doe",
             model="openai:gpt-5-mini",

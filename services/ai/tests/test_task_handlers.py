@@ -12,11 +12,12 @@ from uuid import uuid4
 
 import pytest
 from pydantic_ai import capture_run_messages
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import UserPromptPart
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
-from agents.resume_parsing_agent import format_resume_user_prompt, resume_parsing_agent
+from agents.resume_parsing_agent import format_resume_user_prompt
 from documents.extract_document_text import DOCX_CONTENT_TYPE, DocumentTooLongError
 from schemas.parsed_resume import ParsedResume
 from screening.screen_user_text import ScreenOutcome
@@ -72,12 +73,14 @@ def test_unknown_task_type_fails_with_message(task_dependencies: TaskDependencie
 
 
 def test_parse_resume_returns_parsed_resume(
-    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage,
+    offline_resume_model_resolution,
 ) -> None:
     """The uploaded file's text goes to the agent, and its output becomes the result."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
 
-    with capture_run_messages() as messages, resume_parsing_agent.override(model=TestModel()):
+    offline_resume_model_resolution(TestModel())
+    with capture_run_messages() as messages:
         result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert result.status == "completed"
@@ -88,8 +91,9 @@ def test_parse_resume_returns_parsed_resume(
     assert user_prompt.content.endswith(" at Acme\n</resume>")
 
 
-def test_parse_resume_removes_highlights_not_in_the_file(
-    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+def test_parse_resume_rejects_unknown_source_bullet_ids(
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage,
+    offline_resume_model_resolution,
 ) -> None:
     """Agent output is checked against the file's text before it becomes the result."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(
@@ -100,27 +104,25 @@ def test_parse_resume_removes_highlights_not_in_the_file(
             {
                 "company": "Acme",
                 "title": "Engineer",
-                "highlights": ["Shipped the billing service", "Led a team of 40 engineers"],
+                "highlight_ids": ["B1", "B999"],
             }
         ]
     }
 
-    with resume_parsing_agent.override(model=TestModel(custom_output_args=agent_output)):
-        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
-
-    parsed_resume = ParsedResume.model_validate(result.result["parsed_resume"])
-    assert parsed_resume.experiences[0].highlights == ["Shipped the billing service"]
-    assert any("Led a team of 40 engineers" in text for text in parsed_resume.parsing_warnings)
+    offline_resume_model_resolution(TestModel(custom_output_args=agent_output))
+    with pytest.raises(UnexpectedModelBehavior):
+        handle_ai_task(build_parse_resume_task(), task_dependencies)
 
 
 def test_parse_resume_reports_token_usage(
-    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage,
+    offline_resume_model_resolution,
 ) -> None:
     """The completed result carries the agent run's tokens and cost for the configured model."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
 
-    with resume_parsing_agent.override(model=TestModel()):
-        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+    offline_resume_model_resolution(TestModel())
+    result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert len(result.usage) == 3
     for model_usage in result.usage:
@@ -131,7 +133,8 @@ def test_parse_resume_reports_token_usage(
 
 
 def test_parse_resume_gives_up_at_the_run_deadline(
-    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage
+    task_dependencies: TaskDependencies, fake_file_storage: FakeFileStorage,
+    offline_resume_model_resolution,
 ) -> None:
     """A run slower than llm_run_timeout_seconds is cancelled with TimeoutError."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
@@ -141,11 +144,8 @@ def test_parse_resume_gives_up_at_the_run_deadline(
         """Stands in for a model call that hangs."""
         await asyncio.sleep(60)
 
-    with (
-        resume_parsing_agent.override(model=TestModel()),
-        patch.object(TestModel, "request", never_finishes),
-        pytest.raises(TimeoutError),
-    ):
+    offline_resume_model_resolution(TestModel())
+    with patch.object(TestModel, "request", never_finishes), pytest.raises(TimeoutError):
         handle_ai_task(build_parse_resume_task(), task_dependencies)
 
 
@@ -203,7 +203,7 @@ def test_parse_resume_fails_when_the_screen_blocks(
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", block)
 
-    with capture_run_messages() as messages, resume_parsing_agent.override(model=TestModel()):
+    with capture_run_messages() as messages:
         result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert result.status == "failed"
@@ -229,7 +229,7 @@ def test_parse_resume_says_the_check_did_not_run(
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", unchecked)
 
-    with capture_run_messages() as messages, resume_parsing_agent.override(model=TestModel()):
+    with capture_run_messages() as messages:
         result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert result.status == "failed"
@@ -242,6 +242,7 @@ def test_parse_resume_reports_screen_usage_when_allowed(
     task_dependencies: TaskDependencies,
     fake_file_storage: FakeFileStorage,
     monkeypatch: pytest.MonkeyPatch,
+    offline_resume_model_resolution,
 ) -> None:
     """A screen that calls Jev adds its usage beside the parsing run."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
@@ -256,8 +257,8 @@ def test_parse_resume_reports_screen_usage_when_allowed(
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", allow)
 
-    with resume_parsing_agent.override(model=TestModel()):
-        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+    offline_resume_model_resolution(TestModel())
+    result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert result.status == "completed"
     assert [item.model for item in result.usage] == [

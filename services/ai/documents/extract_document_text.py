@@ -1,5 +1,5 @@
 """
-Description: Extracts text and hyperlink labels/targets from uploaded resume files (PDF and DOCX).
+Description: Extracts text, DOCX list markers, and hyperlink labels/targets from uploaded resume files (PDF and DOCX).
 Index:
     - PDF_CONTENT_TYPE / DOCX_CONTENT_TYPE: supported MIME types
     - UnsupportedDocumentError: raised for other file types or files with no text
@@ -13,6 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from docx import Document
+from docx.oxml.ns import qn
 from pypdf import PdfReader
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
@@ -152,13 +153,36 @@ def _extract_docx_text(file_bytes: bytes) -> str:
 
 
 def _docx_paragraph_text(paragraph: Any) -> str:
-    """Returns visible paragraph text plus markers for its external hyperlinks."""
+    """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
+    style_name = paragraph.style.name.casefold()
+    if style_name.startswith("list bullet"):
+        text = f"• {paragraph.text}"
+    elif style_name.startswith("list number"):
+        text = f"1. {paragraph.text}"
+    elif _docx_paragraph_is_numbered(paragraph):
+        text = f"• {paragraph.text}"
+    else:
+        text = paragraph.text
     markers = [
         _hyperlink_marker(hyperlink.text.strip() or hyperlink.url, hyperlink.url)
         for hyperlink in paragraph.hyperlinks
         if hyperlink.url
     ]
-    return "\n".join([paragraph.text, *markers])
+    return "\n".join([text, *markers])
+
+
+def _docx_paragraph_is_numbered(paragraph: Any) -> bool:
+    """Find list numbering stored on the paragraph or inherited from a paragraph style."""
+    paragraph_properties = paragraph._p.pPr
+    if paragraph_properties is not None and paragraph_properties.find(qn("w:numPr")) is not None:
+        return True
+    style = paragraph.style
+    while style is not None:
+        style_properties = style._element.pPr
+        if style_properties is not None and style_properties.find(qn("w:numPr")) is not None:
+            return True
+        style = style.base_style
+    return False
 
 
 def _hyperlink_marker(label: str, url: str) -> str:

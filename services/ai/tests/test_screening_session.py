@@ -103,18 +103,19 @@ def test_late_failure_keeps_earlier_billed_chunks(suffix, unchecked, classifier)
     assert len(classifier) == 2
 
 
-def test_resume_handler_screens_source_once_then_generates(task_dependencies, fake_file_storage, classifier):
+def test_resume_handler_screens_source_once_then_generates(
+    task_dependencies, fake_file_storage, classifier, offline_resume_model_resolution,
+):
     """The handler and real parsing agent share coverage, rather than screening the wrapper."""
     from pydantic_ai.models.test import TestModel
 
-    from agents.resume_parsing_agent import resume_parsing_agent
     from tests.fakes import build_docx_bytes
     from tests.test_task_handlers import FILE_KEY, build_parse_resume_task
     from worker.task_handlers import handle_ai_task
 
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
-    with resume_parsing_agent.override(model=TestModel()):
-        result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+    offline_resume_model_resolution(TestModel())
+    result = handle_ai_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
     assert len(classifier) == 1
     assert "Jane Doe" not in classifier[0]

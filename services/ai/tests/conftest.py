@@ -29,7 +29,7 @@ models.ALLOW_MODEL_REQUESTS = False
 @pytest.fixture
 def offline_model_resolution(monkeypatch):
     """Replaces SDK model resolution while preserving the production model adapters."""
-    from pydantic_ai.models import wrapper
+    from pydantic_ai.models import fallback, wrapper
 
     original = models.infer_model
     providers = {}
@@ -46,6 +46,18 @@ def offline_model_resolution(monkeypatch):
 
     monkeypatch.setattr(models, "infer_model", resolve)
     monkeypatch.setattr(wrapper, "infer_model", resolve)
+    monkeypatch.setattr(fallback, "infer_model", resolve)
+    return register
+
+
+@pytest.fixture
+def offline_resume_model_resolution(offline_model_resolution, task_dependencies):
+    """Registers one fake for both configured resume parsing models."""
+    def register(model):
+        settings = task_dependencies.settings
+        offline_model_resolution(settings.resume_parsing_model, model)
+        offline_model_resolution(settings.generative_fallback_model, model)
+
     return register
 
 

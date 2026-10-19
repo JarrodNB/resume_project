@@ -3,6 +3,7 @@
  * Index: InterviewTaskStatus
  */
 import { useEffect, useRef, useState } from 'react'
+import { LoaderCircle } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 
@@ -23,6 +24,7 @@ export function InterviewTaskStatus({ task, onFinished, operation = 'generation'
   }, [aiTask, task.id, onFinished])
   return (
     <div className="grid gap-2" aria-live="polite">
+      {operation === 'generation' && current.status === 'QUEUED' && <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" />Generating questions…</p>}
       {error && <ErrorAlert title="Live updates disconnected" messages={['Reload this page to check task status.']} />}
       {current.status === 'FAILED' && <ErrorAlert notificationId={current.id} title={operation === 'generation' ? 'Question generation failed' : operation === 'feedback' ? 'Answer feedback failed' : 'Question replacement failed'} messages={[current.errorMessage ?? 'Could not complete this task. Try again.']} />}
     </div>

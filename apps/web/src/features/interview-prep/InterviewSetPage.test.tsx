@@ -23,10 +23,12 @@ function setMock(status: 'QUEUED' | 'COMPLETED' | 'FAILED') {
 
 it('restores a queued task on reload and fetches five saved cards on live completion', async () => {
   renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [setMock('QUEUED'), {
-    request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, delay: 100,
+    request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, delay: 500,
     result: { data: { aiTaskUpdated: taskFixture('COMPLETED') } },
   }, setMock('COMPLETED')] })
+  expect(await screen.findByRole('status')).toHaveTextContent('Generating questions…')
   expect(await screen.findByRole('button', { name: 'Question 1' })).toBeInTheDocument()
+  expect(screen.queryByText('Generating questions…')).not.toBeInTheDocument()
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Technical')
   expect(screen.getAllByRole('button', { name: /Question \d/ }).map((button) => button.textContent)).toEqual(['Question 1', 'Question 2', 'Question 3', 'Question 4', 'Question 5'])
   expect(screen.queryByText('Questions ready.')).not.toBeInTheDocument()
@@ -38,6 +40,8 @@ it('restores a queued task on reload and fetches five saved cards on live comple
 it('restores failure details and keeps deletion available', async () => {
   renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [setMock('FAILED')] })
   expect(await screen.findByText('Add more career library details.')).toBeInTheDocument()
+  expect(screen.getByText('Question generation failed')).toBeInTheDocument()
+  expect(screen.queryByText('Generating questions…')).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Delete set 1' })).toBeEnabled()
 })
 
@@ -47,4 +51,13 @@ it('shows the persisted knowledge type and saved cards on reload', async () => {
   renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [mock] })
   expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Knowledge')
   expect(screen.getAllByRole('button', { name: /Question \d/ })).toHaveLength(5)
+})
+
+
+it('keeps generation progress visible when live updates disconnect', async () => {
+  renderPage({ path: '/interview-prep/:id', url: '/interview-prep/set-1', element: <InterviewSetPage />, mocks: [setMock('QUEUED'), {
+    request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, error: new Error('Connection interrupted'),
+  }] })
+  expect(await screen.findByRole('status')).toHaveTextContent('Generating questions…')
+  expect(await screen.findByText('Live updates disconnected')).toBeInTheDocument()
 })

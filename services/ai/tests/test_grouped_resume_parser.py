@@ -310,6 +310,12 @@ def test_nonexperience_group_instructions_only_name_owned_fields():
         "ProfileExtraction"
     )
 
+    experience_instruction = format_resume_group_instruction("ExperienceExtraction").casefold()
+    assert "copy each stated company, title, and date from that role's own header" in (
+        experience_instruction
+    )
+    assert "do not leave stated role fields blank" in experience_instruction
+
 
 def test_source_bullets_stop_before_role_headers_with_inline_dates():
     from agents.resume_parsing_agent import _source_bullets

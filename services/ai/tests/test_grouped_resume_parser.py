@@ -344,6 +344,7 @@ def test_nonexperience_group_instructions_only_name_owned_fields():
         experience_instruction
     )
     assert "do not leave stated role fields blank" in experience_instruction
+    assert "one deliverable for an unnamed client" in experience_instruction
 
 
 def test_source_bullets_stop_before_role_headers_with_inline_dates():

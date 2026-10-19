@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "12"
+RESUME_PARSING_PROMPT_VERSION = "13"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -80,6 +80,9 @@ def format_resume_group_instruction(group: str) -> str:
             "Keep each employer, role, and all its source bullet IDs together in experiences. "
             "Copy each stated company, title, and date from that role's own header. Do not leave "
             "stated role fields blank or move a privacy token between fields. "
+            "A lone description of one deliverable for an unnamed client, with no stated job "
+            "title or ongoing work relationship, is a project rather than an experience; do not "
+            "invent an employer or role title for it. "
             "Include every source bullet that belongs to each role. For each role, return only "
             "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
         )

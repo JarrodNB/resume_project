@@ -6,7 +6,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
-from agents.resume_parsing_agent import parse_resume_text, resume_parsing_agent
+from agents.resume_parsing_agent import parse_resume_text
 from documents.extract_document_text import UnsupportedDocumentError
 from pii import PiiDetectionError, PiiRestorationError
 from screening.screen_user_text import ScreenOutcome
@@ -38,6 +38,7 @@ def exporters():
 @pytest.mark.parametrize("failure", [None, "download", "extract", "prepare_pii", "screen", "restore"])
 def test_import_stage_durations_and_private_failure_details(
     failure, exporters, task_dependencies, fake_file_storage, monkeypatch,
+    offline_resume_model_resolution,
 ):
     """Only reached stages export timings, even when a pre-detection error has content."""
     task_dependencies.settings.generative_fallback_model = task_dependencies.settings.resume_parsing_model
@@ -68,7 +69,8 @@ def test_import_stage_durations_and_private_failure_details(
     if failure == "download":
         monkeypatch.setattr(fake_file_storage, "download_file", unavailable)
 
-    with logfire.span("import task") as parent, resume_parsing_agent.override(model=TestModel()):
+    offline_resume_model_resolution(TestModel())
+    with logfire.span("import task") as parent:
         if failure == "download":
             # Catch inside the parent: this test checks the added stage telemetry only.
             with pytest.raises(RuntimeError):

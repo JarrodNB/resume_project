@@ -13,7 +13,7 @@ from agents.resume_parsing_agent import parse_resume_text, resume_parsing_agent
 
 def parse(timeout=5):
     return parse_resume_text(
-        "A complete masked resume", "openai:gpt-5-mini", "low", timeout, "openai:gpt-5-nano"
+        "A complete masked resume\n• Built a thing", "openai:gpt-5-mini", "low", timeout, "openai:gpt-5-nano"
     )
 
 
@@ -34,7 +34,7 @@ def test_groups_overlap_and_assemble_in_fixed_order():
             await asyncio.sleep(0.03)
             args = {
                 "experiences": [
-                    {"company": "Acme", "title": "Engineer", "highlights": ["Built a thing"]}
+                    {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]}
                 ],
                 "parsing_warnings": ["Experience warning", "Shared"],
             }
@@ -155,9 +155,54 @@ def test_source_screened_once_and_group_prompts_reuse_exact_approval(monkeypatch
         return await classify(text, model, timeout)
 
     monkeypatch.setattr(prompt_guardrail, "_screen_prompt_text", screen)
-    with resume_parsing_agent.override(model=TestModel()):
-        parse()
-    assert calls == ["A complete masked resume"]
+    monkeypatch.setattr("agents.resume_parsing_agent.generative_model", lambda *_args: TestModel())
+    parse()
+    assert calls == ["A complete masked resume\n• Built a thing"]
+
+
+def test_source_bullets_keep_wrapped_duplicate_passages_and_masked_tokens():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = "Acme\n• Built a PERSON_TOKEN\n  across two lines\n• Built a PERSON_TOKEN\n"
+    assert _source_bullets(source) == {
+        "B1": "Built a PERSON_TOKEN\nacross two lines",
+        "B2": "Built a PERSON_TOKEN",
+    }
+
+
+def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(offline_model_resolution):
+    async def answer(messages, info):
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            args = {"experiences": [
+                {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]},
+                {"company": "Acme", "title": "Lead", "highlight_ids": []},
+            ]}
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse_resume_text(
+        "Acme\nEngineer\n• Built a thing\nLead", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+    )
+    assert [r.highlights for r in result.parsed_resume.experiences] == [["Built a thing"], []]
+    assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == ["Built a thing"]
+
+
+@pytest.mark.parametrize("ids", [["B404"], ["B1", "B1"]])
+def test_invalid_or_duplicate_source_ids_fail_without_partial_resume(ids, offline_model_resolution):
+    async def answer(messages, info):
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            args = {"experiences": [{"company": "Acme", "title": "Engineer", "highlight_ids": ids}]}
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(ValueError):
+        parse_resume_text(
+            "Acme\n• Built a thing", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+        )
 
 
 def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch):

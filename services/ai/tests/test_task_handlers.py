@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic_ai import capture_run_messages
+from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import UserPromptPart
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
@@ -109,7 +110,7 @@ def test_parse_resume_rejects_unknown_source_bullet_ids(
     }
 
     offline_resume_model_resolution(TestModel(custom_output_args=agent_output))
-    with pytest.raises(ValueError, match="invalid source bullet ID"):
+    with pytest.raises(UnexpectedModelBehavior):
         handle_ai_task(build_parse_resume_task(), task_dependencies)
 
 

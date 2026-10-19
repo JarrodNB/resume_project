@@ -266,6 +266,13 @@ def test_source_bullets_keep_unindented_sentence_continuations():
     }
 
 
+def test_source_bullets_keep_bullet_text_ending_in_a_date_range():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = "Managed the program from 2019–2024\n• Led the rollout across five regions, 2020–2024\n"
+    assert _source_bullets(source) == {"B1": "Led the rollout across five regions, 2020–2024"}
+
+
 def test_source_bullets_exclude_project_and_skill_section_bullets():
     from agents.resume_parsing_agent import _source_bullets
 
@@ -433,6 +440,8 @@ def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(of
 
 @pytest.mark.parametrize("ids", [["B404"], ["B1", "B1"]])
 def test_invalid_or_duplicate_source_ids_fail_without_partial_resume(ids, offline_model_resolution):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
     async def answer(messages, info):
         if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
             args = {"experiences": [{"company": "Acme", "title": "Engineer", "highlight_ids": ids}]}
@@ -441,10 +450,33 @@ def test_invalid_or_duplicate_source_ids_fail_without_partial_resume(ids, offlin
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
-    with pytest.raises(ValueError):
+    with pytest.raises(UnexpectedModelBehavior):
         parse_resume_text(
             "Acme\n• Built a thing", "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
         )
+
+
+def test_invalid_source_id_is_retried_before_rebuilding_highlights(offline_model_resolution):
+    experience_calls = 0
+
+    async def answer(messages, info):
+        nonlocal experience_calls
+        properties = info.output_tools[0].parameters_json_schema["properties"]
+        if "experiences" in properties:
+            experience_calls += 1
+            ids = ["B404"] if experience_calls == 1 else ["B1"]
+            args = {"experiences": [{"company": "Acme", "title": "Engineer", "highlight_ids": ids}]}
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse_resume_text(
+        "Acme\nEngineer\n2022–Present\n• Built a thing",
+        "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
+    )
+    assert experience_calls == 2
+    assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
 
 
 def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_model_resolution):

@@ -11,6 +11,7 @@ from datetime import date
 import text_limits
 from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt, build_gap_analysis_prompt
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobToAnalyze
+from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt
@@ -48,15 +49,24 @@ def prepare_gap_analysis(
         return PreparedGapAnalysis(None, usage, TOO_LONG_MESSAGE)
     if text_limits.prompt_is_too_long(prompt.text):
         return PreparedGapAnalysis(None, usage, text_limits.GAP_PROMPT_TOO_LONG_MESSAGE)
-    for source in sources:
+    def check(source):
         outcome = screen_user_text(
             source, model=screen_model, timeout_seconds=timeout_seconds, check_phrases=False,
         )
         usage.extend(outcome.model_usages)
-        if not outcome.allowed:
-            message = TOO_LONG_MESSAGE if outcome.too_long else (
-                UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE
-            )
-            return PreparedGapAnalysis(None, usage, message)
+        return outcome
+
+    outcome = check(sources[0])
+    if not outcome.allowed:
+        message = TOO_LONG_MESSAGE if outcome.too_long else (
+            UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE
+        )
+        return PreparedGapAnalysis(None, usage, message)
+    outcome = screen_library_fields(context.career_library, check)
+    if outcome is not True and not outcome.allowed:
+        message = TOO_LONG_MESSAGE if outcome.too_long else (
+            UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE
+        )
+        return PreparedGapAnalysis(None, usage, message)
     bind_screened_prompt(sources, lambda values: render(values).text)
     return PreparedGapAnalysis(prompt, usage)

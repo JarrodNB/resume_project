@@ -29,6 +29,12 @@ All business logic, as service objects grouped by domain folder.
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids
   duplicating its optional field schema, and UUIDs remain separate from provider IDs.
+- `job_board/import_listing_service.rb` — copies a shared listing into an owned Job under
+  the user's row lock. Returns `{ job:, warnings: }`; repeat listing IDs or application URLs
+  differing only in fragments/tracking parameters reuse an owned Job without changing edits.
+  Saved Jobs retain their own snapshots. Oversized URLs are omitted, never shortened.
+  `listing_description.rb` reads HTML as plain text and copies bullets only under known
+  headings; neither helper calls the provider or AI.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues

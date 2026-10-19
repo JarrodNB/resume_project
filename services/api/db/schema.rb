@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_19_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -232,6 +232,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "responsibilities", default: [], null: false
+    t.uuid "job_board_listing_id"
+    t.index ["job_board_listing_id"], name: "index_jobs_on_job_board_listing_id"
+    t.index ["user_id", "job_board_listing_id"], name: "index_jobs_on_user_id_and_job_board_listing_id", unique: true
     t.index ["user_id", "stage"], name: "index_jobs_on_user_id_and_stage"
     t.index ["user_id"], name: "index_jobs_on_user_id"
   end
@@ -353,6 +356,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_020000) do
   add_foreign_key "interview_questions", "interview_question_sets"
   add_foreign_key "job_gap_responses", "jobs"
   add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
+  add_foreign_key "jobs", "job_board_listings", on_delete: :nullify
   add_foreign_key "jobs", "users"
   add_foreign_key "library_embeddings", "users", on_delete: :cascade
   add_foreign_key "library_facts", "users"

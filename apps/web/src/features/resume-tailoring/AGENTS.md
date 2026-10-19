@@ -17,6 +17,9 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
   (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
 - `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback
+- `ResumeUnsavedChanges.tsx` — leave/discard dialog and native reload warning for unsaved
+  resumes. New drafts are unsaved until persisted; saved editors track the submitted snapshot
+  so edits made during a request remain unsaved. Successful deletion bypasses the warning.
 - `SectionFields.tsx` — resume-import review fields for one section
 - `sectionOrder.ts` — section names and display titles
 - `tailorDraft.ts` — section JSON to and from the review-field draft

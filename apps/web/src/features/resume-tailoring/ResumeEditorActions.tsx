@@ -4,8 +4,9 @@ import { Eye, LoaderCircle, Save } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 
-export function ResumeEditorActions({ pending, disabled = false, errors, onPreview, onSave, children }: {
+export function ResumeEditorActions({ pending, disabled = false, dirty, errors, onPreview, onSave, children }: {
   pending: boolean
+  dirty: boolean
   disabled?: boolean
   errors: string[]
   onPreview: () => void
@@ -25,7 +26,9 @@ export function ResumeEditorActions({ pending, disabled = false, errors, onPrevi
           </Button>
         </div>
       </div>
-      {pending && <p role="status" className="text-sm text-muted-foreground">Saving your resume…</p>}
+      <p role="status" className="text-sm text-muted-foreground">
+        {pending ? 'Saving your resume…' : dirty ? 'Unsaved changes' : 'All changes saved'}
+      </p>
       <ErrorAlert messages={errors} title="Couldn't save this resume" />
     </div>
   )

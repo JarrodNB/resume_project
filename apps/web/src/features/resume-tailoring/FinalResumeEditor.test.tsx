@@ -1,14 +1,51 @@
 /** Exercises whole-draft editing and inclusion through the controls users interact with. */
-import { render, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
+import { Link } from 'react-router'
+import type { ReactElement } from 'react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { FinalResumeEditor } from './FinalResumeEditor'
+import { renderPage } from '@/test/renderPage'
 import type { TailorSection } from './parseTailorTask'
 
 const sections: TailorSection[] = [
   { sectionType: 'summary', title: 'Summary', content: { text: 'Backend engineer.' }, omitted: false },
   { sectionType: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] }, omitted: false },
 ]
+
+function render(element: ReactElement) {
+  return renderPage({ path: '/', url: '/', element: <>{element}<Link to="/jobs">Jobs</Link></>, extraRoutes: [{ path: '/jobs', element: <p>Job list</p> }] })
+}
+
+it('warns before discarding a new draft and keeps it when navigation is canceled', async () => {
+  const user = userEvent.setup()
+  const { router } = render(<FinalResumeEditor jobId="job-1" sections={sections} warnings={[]} pending={false} errors={[]} onSave={vi.fn()} />)
+  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  const unload = new Event('beforeunload', { cancelable: true })
+  fireEvent(window, unload)
+  expect(unload.defaultPrevented).toBe(true)
+  await user.click(screen.getByRole('button', { name: 'Exclude Skills' }))
+  await user.click(screen.getByRole('link', { name: 'Jobs' }))
+  expect(screen.getByRole('dialog', { name: 'Leave without saving?' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Keep editing' }))
+  expect(router.state.location.pathname).toBe('/')
+  expect(screen.getByRole('button', { name: 'Include Skills' })).toBeInTheDocument()
+  await user.click(screen.getByRole('link', { name: 'Jobs' }))
+  await user.click(screen.getByRole('button', { name: 'Discard and leave' }))
+  expect(await screen.findByText('Job list')).toBeInTheDocument()
+})
+
+it('clears a new draft warning only when its save succeeds', async () => {
+  const user = userEvent.setup()
+  const onSave = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true)
+  render(<FinalResumeEditor jobId="job-1" sections={sections} warnings={[]} pending={false} errors={[]} onSave={onSave} />)
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await user.click(screen.getByRole('link', { name: 'Jobs' }))
+  expect(await screen.findByText('Job list')).toBeInTheDocument()
+})
 
 it('preserves edits when a section is collapsed, excluded, and included again', async () => {
   const user = userEvent.setup()

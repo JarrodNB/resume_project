@@ -164,11 +164,15 @@ def _add_simple(
         if _keep(retrieved, "Certification", certification.id, native):
             provenance = SourceProvenance()
             values = provenance.select("certifications", "certification", certification,
-                                       "name", "issuer", "credential_id", "credential_url", "description")
+                                       "name", "issuer", "issued_date", "issued_date_precision",
+                                       "expiry_date", "expiry_date_precision", "credential_id",
+                                       "credential_url", "description")
             text = ", ".join(str(part) for part in (
                 values["name"], values["issuer"],
-                f"issued {format_certification_date(certification.issued_date, certification.issued_date_precision)}" if certification.issued_date else None,
-                f"expires {format_certification_date(certification.expiry_date, certification.expiry_date_precision)}" if certification.expiry_date else None,
+                f"issued {format_certification_date(values['issued_date'], values['issued_date_precision'])}"
+                if values["issued_date"] else None,
+                f"expires {format_certification_date(values['expiry_date'], values['expiry_date_precision'])}"
+                if values["expiry_date"] else None,
                 values["credential_id"], values["credential_url"], values["description"],
             ) if part)
             sources.records[f"C{number}"] = SourceRecord(

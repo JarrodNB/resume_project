@@ -16,6 +16,9 @@ for GraphQL subscriptions, the official `openai` gem for career-library and inte
 - **Business logic lives in service objects** under `app/services/`, grouped by domain
   (`app/services/jobs/move_job_to_stage_service.rb`). See `app/services/AGENTS.md`.
 - GraphQL resolvers and mutations stay thin: authorize, call a service, return the result.
+- Shared `JobBoardListing` and `JobBoardSearchPage` records contain only provider data and are
+  intentionally unscoped by user. Authenticated Job Board operations may read these shared tables;
+  they have no AI reader grant. All private-domain reads retain the rule below.
 - **Every read goes through `current_user`** (`current_user.jobs.find(id)`), never
   `Job.find(id)`. That is the entire authorization model; a missing record and someone
   else's record both return "Record not found".

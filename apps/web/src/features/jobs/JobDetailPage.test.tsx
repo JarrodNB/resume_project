@@ -385,3 +385,26 @@ it('follows a newer comparison loaded after a locally started comparison complet
   await screen.findByRole('link', { name: 'Write resume' })
   expect(router.state.location.pathname).toBe('/jobs/job-1')
 })
+
+it('shows Job Board import warnings on the returned saved job', async () => {
+  renderPage({
+    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+    historyState: { jobBoardImport: { jobId: 'job-1', warnings: ['The application link was omitted.'] } },
+    mocks: [jobQuery(job())],
+  })
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.getByText('Saved with a few changes')).toBeInTheDocument()
+  expect(screen.getByText('The application link was omitted.')).toBeInTheDocument()
+})
+
+it.each([
+  { jobId: 'another-job', warnings: ['Only for another job'] },
+  { jobId: 'job-1', warnings: { unexpected: 'shape' } },
+])('does not show unrelated or malformed import warnings: %j', async (jobBoardImport) => {
+  renderPage({
+    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+    historyState: { jobBoardImport }, mocks: [jobQuery(job())],
+  })
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.queryByText('Saved with a few changes')).not.toBeInTheDocument()
+})

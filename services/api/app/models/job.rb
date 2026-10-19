@@ -1,5 +1,6 @@
 # Description: A structured job profile the user tracks through application stages.
-# The title is required; company may be unknown and stored as null.
+# The title is required; company may be unknown and stored as null. Imported jobs keep
+# an optional catalogue identity; their editable fields remain private snapshots.
 # Index:
 #   - STAGES / stage enum: unapplied, applied, interviewing, rejected, offer
 #   - resumes: tailored resumes written for this job
@@ -12,6 +13,7 @@ class Job < ApplicationRecord
   STAGES = %w[unapplied applied interviewing rejected offer].freeze
 
   belongs_to :user
+  belongs_to :job_board_listing, optional: true
   has_many :resumes, dependent: :nullify
   has_many :ai_tasks, as: :subject, dependent: :nullify
   has_many :gap_responses, -> { order(:created_at) }, class_name: "JobGapResponse", dependent: :destroy, inverse_of: :job

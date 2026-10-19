@@ -1,7 +1,8 @@
 # frozen_string_literal: true
 
 # Description: Root GraphQL schema. Every request is authenticated (see GraphqlController and
-# ApplicationCable::Connection), and every root field is scoped to `context[:current_user]`.
+# ApplicationCable::Connection), and private records are scoped to `context[:current_user]`.
+# Job Board operations may read shared provider data; saved Jobs remain private.
 # Subscriptions are delivered over ActionCable (GraphqlChannel).
 # Index:
 #   - rescue_from RecordNotFound: returns a "not found" GraphQL error instead of a 500

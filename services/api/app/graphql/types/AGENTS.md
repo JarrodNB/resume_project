@@ -55,4 +55,8 @@ GraphQL output/input types, enums, and root operation fields.
 
 ## Local Rules
 
-Root queries must use current_user associations. Interview feedback freshness compares reviewed and current revisions; expose latest tasks for reload restoration. Dump the schema after changes.
+Private root queries must use current_user associations; authenticated Job Board search reads shared listings. Interview feedback freshness compares reviewed and current revisions; expose latest tasks for reload restoration. Dump the schema after changes.
+
+Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
+All saved Job lookup remains scoped to the current user, including listing/URL matches via
+JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.

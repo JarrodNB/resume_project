@@ -1,8 +1,9 @@
 /** A persistent navigation spine for the user's job-search workspace.
  * Related detail routes keep their parent selected. On small screens the spine
- * becomes a compact header with horizontally scrollable navigation.
+ * becomes a compact header with horizontally scrollable navigation. Job Board discovery
+ * has its own location beside the private saved Jobs list.
  */
-import { ArrowUpRight, BookOpen, BriefcaseBusiness, FileText, FileUp, LogOut, MessagesSquare } from 'lucide-react'
+import { ArrowUpRight, BookOpen, BriefcaseBusiness, FileText, FileUp, LogOut, MessagesSquare, Search } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
@@ -14,6 +15,7 @@ import { ThemeToggle } from './ThemeToggle'
 const NAV_ITEMS = [
   { to: '/library', label: 'Career library', Icon: BookOpen, group: 'Your foundation' },
   { to: '/import', label: 'Import resume', Icon: FileUp, group: 'Your foundation' },
+  { to: '/job-board', label: 'Job Board', Icon: Search, group: 'Your applications' },
   { to: '/jobs', label: 'Jobs', Icon: BriefcaseBusiness, group: 'Your applications' },
   { to: '/resumes', label: 'Resumes', Icon: FileText, group: 'Your applications' },
   { to: '/interview-prep', label: 'Interview prep', Icon: MessagesSquare, group: 'Your practice' },

@@ -19,6 +19,7 @@ application stages, and deleted.
   (`aiTask.job`), or shows warnings first; failures offer "Try another link"
 - `JobPasteTaskPage.tsx` (`/jobs/paste/:aiTaskId`) — paste status; same redirect, failures offer
   "Try another ad"
+- `JobBoardImportNotice.tsx` — displays import warnings from navigation state only for the matching saved Job
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
   card (`features/gap-analysis/`, including gap responses), and `WriteResumeAction.tsx`.
   "Write resume" is disabled while a comparison is starting or active. Otherwise it goes

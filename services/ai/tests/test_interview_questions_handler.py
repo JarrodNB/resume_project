@@ -198,7 +198,7 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
     assert screened and all(requirement not in text for text in screened)
-    assert any('"response":"Python"' in text for text in screened)
+    assert any('"response": "Python"' in text for text in screened)
     if replacement:
         assert _task(True).input["question_text"] in screened
     assert library.facts[0].requirement == requirement

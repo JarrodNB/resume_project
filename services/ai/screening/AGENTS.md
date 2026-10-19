@@ -28,7 +28,10 @@ answers strict booleans. Screening owns recovery and returns a small decision in
 ## Local Rules
 
 - `library_inputs.py` — cohesive optional library entry selection and reconstruction from
-  checked source values; shared by gap analysis and interviews.
+  checked source values for interviews, reusing saved field checks through `library_fields.py`.
+- `library_fields.py` — reuse database field approvals and report new successful checks over
+  final task results. Callers choose used fields and keep complete-source limits. Metadata
+  stays outside prompt serialization; only Rails persists approvals and clears edited fields.
 - `session.py` owns execution-local decisions and exact
   prompt coverage. The worker opens a fresh `screening_session` for every delivery;
   standalone handlers/wrappers use `within_screening_session` to reuse an enclosing scope.
@@ -43,10 +46,12 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
 
 - Do not send the text when the screen cannot run.
-- Screen each input once per execution. A later delivery, retry, or resumed task screens
-  reused content again. Required inputs fail closed; optional entries can be omitted.
-- Never grant coverage by substring matching, a persisted approval, or a caller-controlled
-  boolean. A trusted renderer must reconstruct every untrusted value from supplied sources.
+- Screen each input once per execution. Saved career-library fields reuse database
+  checks across tasks; unchecked fields and other input screen again on later deliveries.
+  Required inputs fail closed; optional entries can be omitted.
+- Never grant coverage by substring matching or a caller-controlled boolean.
+  Saved library checks can authorize exact sources reconstructed from their approved fields.
+  A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative
   provider. Independent source checks may overlap with a bounded concurrency limit.

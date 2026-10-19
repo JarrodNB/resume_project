@@ -93,8 +93,10 @@ requests get a JSON 429 with `Retry-After`.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
   gap response, submitted answer, selected section snapshot, or reused interview question. Each is
-  checked once per execution. A blocked or unchecked optional entry is left out with a
-  warning; a required input prevents generation. Imported, manually edited, retrieved, and
+  checked once per execution, except saved career-library fields whose successful checks
+  persist in Rails. Features screen only unchecked fields they use; edits clear the changed
+  field names. Existing/imported rows start unchecked. A blocked or unchecked optional entry
+  is left out with a warning; a required input prevents generation. Imported, manually edited, retrieved, and
   scraped content follow this same rule when used in a generative request.
   Large sources use 4,000-character chunks with 300 characters of overlap by default.
   A live synthetic comparison of 2,000, 4,000, and whole resumes found identical decisions
@@ -106,9 +108,11 @@ requests get a JSON 429 with `Retry-After`.
   agent retains an official input capability: it checks unknown direct input and user/tool
   history without screening an already covered prompt again. Coverage never uses substring
   removal or a caller boolean. Output-validation retries and provider fallback reuse the
-  execution's coverage; later deliveries and tasks start fresh. No approval is stored in
-  Rails or the queues. Text over a shared character cap is rejected before
-  it is stored and again before a Jev or generative call (`TextLimits` in Rails,
+  execution's prompt coverage; later deliveries start fresh prompt coverage. Saved library
+  field checks rebuild exact source coverage from the database snapshot. Final queue results
+  report successful field names even when generation fails. Rejected or unavailable checks
+  remain unchecked. These approvals have no expiry or policy version. Text over a shared
+  character cap is rejected before it is stored and again before a Jev or generative call (`TextLimits` in Rails,
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000
   characters. Those failures tell the user the text is too long. They are not reported as

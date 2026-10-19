@@ -50,7 +50,7 @@ export function TailorResumePage() {
           </CardContent>
         </Card>
       )}
-      {job?.resume && <SavedResumeEditor resumeId={job.resume.id} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <Card>
           <CardContent className="grid gap-4">
@@ -87,13 +87,13 @@ function TailorProgress({
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}
         errors={actions.errors}
-        onSave={(sections) => void actions.saveResume(sections)}
+        onSave={actions.saveResume}
       />
     )
   }
 
   return (
-    <Card className="border-l-4 border-l-section-skills-accent bg-section-skills">
+    <Card className="bg-section-skills">
       <CardContent className="grid gap-2">
         <p className="flex items-center gap-2 font-medium" role="status">
           <LoaderCircle className="size-4 animate-spin text-section-skills-accent" aria-hidden /> Writing your complete draft…

@@ -1,6 +1,8 @@
 /**
  * Review and edit the finished resume before saving it once. Sections start collapsed.
- * Their edits and inclusion choices stay together here so hiding a section never loses work.
+ * Edits and inclusion choices stay together. Unsaved drafts warn before navigation;
+ * Full-resume review is the main next action, with saving always available.
+ * Controls pause during the first save because success switches to the saved editor.
  */
 import { useState } from 'react'
 import { CircleAlert } from 'lucide-react'
@@ -13,6 +15,7 @@ import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ResumeEditorActions } from './ResumeEditorActions'
+import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
@@ -26,7 +29,7 @@ interface FinalResumeEditorProps {
   warnings: string[]
   pending: boolean
   errors: string[]
-  onSave: (sections: { section_type: string; title: string; content: unknown }[]) => void
+  onSave: (sections: { section_type: string; title: string; content: unknown }[]) => Promise<boolean> | boolean | void
 }
 
 /** Lets the user edit the whole draft, then save it once. */
@@ -38,20 +41,24 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
   })))
 
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+  const snapshot = JSON.stringify(drafts)
+  const dirty = snapshot !== savedSnapshot
   const selected = drafts.filter((section) => section.included).map((section) => ({
     sectionType: section.sectionType,
     title: section.title || SECTION_TITLES[section.sectionType],
     content: contentFromSectionDraft(section.draft),
   }))
 
-  function save() {
+  async function save() {
     if (selected.length === 0 || pending) return
-    onSave(selected.map(({ sectionType, ...section }) => ({ ...section, section_type: sectionType })))
+    if (await onSave(selected.map(({ sectionType, ...section }) => ({ ...section, section_type: sectionType })))) setSavedSnapshot(snapshot)
   }
 
   return (
     <div className="grid gap-4">
-      <ResumeEditorActions pending={pending} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={save} />
+      <ResumeUnsavedChanges dirty={dirty} />
+      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()} />
       {warnings.length > 0 && (
         <Alert>
           <CircleAlert aria-hidden />
@@ -59,17 +66,19 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
           <AlertDescription>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</AlertDescription>
         </Alert>
       )}
-      {drafts.map((section, index) => (
-        <FinalSection
-          key={section.sectionType}
-          sectionId={`resume.${jobId}.${section.sectionType}`}
-          title={section.title || SECTION_TITLES[section.sectionType]}
-          draft={section.draft}
-          included={section.included}
-          onToggleIncluded={() => setDrafts((current) => current.map((draft, position) => position === index ? { ...draft, included: !draft.included } : draft))}
-          onChange={(next) => setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, draft: next } : draft)))}
-        />
-      ))}
+      <fieldset disabled={pending} className="grid min-w-0 gap-4">
+        {drafts.map((section, index) => (
+          <FinalSection
+            key={section.sectionType}
+            sectionId={`resume.${jobId}.${section.sectionType}`}
+            title={section.title || SECTION_TITLES[section.sectionType]}
+            draft={section.draft}
+            included={section.included}
+            onToggleIncluded={() => setDrafts((current) => current.map((draft, position) => position === index ? { ...draft, included: !draft.included } : draft))}
+            onChange={(next) => setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, draft: next } : draft)))}
+          />
+        ))}
+      </fieldset>
       {selected.length === 0 && <p className="text-sm text-muted-foreground">Include at least one section to preview or save your resume.</p>}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
         <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">

@@ -16,13 +16,17 @@ export function useTailorActions(aiTaskId: string, onSaved: () => void) {
     try {
       const { data } = await save({ variables: { aiTaskId, sections } })
       const payload = data?.saveTailoredResume
-      if (payload?.resume && payload.errors.length === 0) onSaved()
+      if (payload?.resume && payload.errors.length === 0) {
+        onSaved()
+        return true
+      }
       else setErrors(payload?.errors.length ? payload.errors : ["Couldn't save this resume. Please try again."])
     } catch (error) {
       setErrors([requestErrorMessage(error, "Couldn't save this resume. Check your connection and try again.")])
     } finally {
       setPending(false)
     }
+    return false
   }
 
   return { saveResume, errors, pending }

@@ -1,7 +1,7 @@
 /**
  * Description: One saved resume (/resumes/:id). The breadcrumb returns to the job when this
  * page was opened from that job, and to the resume list otherwise. The job name always links
- * to the job while it still exists.
+ * to the job while it still exists. Each resume gets its own editor state and leave warning.
  * Index:
  *   - ResumePage: page component
  */
@@ -40,7 +40,7 @@ export function ResumePage() {
       </div>
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
       {!resume && loading && <p className="text-muted-foreground">Loading…</p>}
-      {resume && <SavedResumeEditor resumeId={resume.id} sections={resume.sections} jobId={resume.job?.id} onDeleted={() => void navigate('/resumes')} />}
+      {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} sections={resume.sections} jobId={resume.job?.id} onDeleted={() => void navigate('/resumes')} />}
     </div>
   )
 }

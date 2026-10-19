@@ -47,4 +47,21 @@ RSpec.describe ApplicationCable::Connection, type: :channel do
     expect(connection).to receive(:close).with(reason: "Session expired", reconnect: false)
     connection.beat
   end
+
+  [ :reset, :change ].each do |operation|
+    it "closes an open connection after password #{operation}" do
+      connect_session
+      replacement = "another orchard after gentle rain"
+      result = if operation == :reset
+        token = user.send_reset_password_instructions
+        Accounts::ResetPasswordService.call(token: token, password: replacement, password_confirmation: replacement)
+      else
+        Accounts::ChangePasswordService.call(user: user, current_password: "a quiet orchard after rain", password: replacement, password_confirmation: replacement)
+      end
+      expect(result).to be_success
+      expect(connection.session_valid?).to be(false)
+      expect(connection).to receive(:close).with(reason: "Session expired", reconnect: false)
+      connection.beat
+    end
+  end
 end

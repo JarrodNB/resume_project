@@ -49,4 +49,26 @@ RSpec.describe GraphqlChannel, type: :channel do
     expect(transmissions.size).to eq(previous)
     expect(connection).to have_received(:check_session).twice
   end
+
+  [ :reset, :change ].each do |operation|
+    it "blocks private transmissions immediately after password #{operation}" do
+      session_id = Rack::Session::SessionId.new(SecureRandom.hex(32))
+      ActiveRecord::SessionStore::Session.create!(session_id: session_id.private_id,
+        data: { "warden.user.user.key" => User.serialize_into_session(user), "authenticated_at" => Time.current.to_i })
+      subscribe_to_ai_task(as_user: user)
+      allow(connection).to receive(:session_valid?) { BrowserSessions::ResolveSessionIdentityService.call(session_id: session_id).success? }
+      replacement = "another orchard after gentle rain"
+      result = if operation == :reset
+        Accounts::ResetPasswordService.call(token: user.send_reset_password_instructions, password: replacement, password_confirmation: replacement)
+      else
+        Accounts::ChangePasswordService.call(user: user, current_password: "a quiet orchard after rain", password: replacement, password_confirmation: replacement)
+      end
+      expect(result).to be_success
+      previous = transmissions.size
+      subscription.transmit({ result: { data: { private: "must not arrive" } } })
+      expect(ApiSchema).not_to receive(:execute)
+      perform :execute, "query" => "{ me { email } }"
+      expect(transmissions.size).to eq(previous)
+    end
+  end
 end

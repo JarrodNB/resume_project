@@ -66,4 +66,20 @@ RSpec.describe "Rack::Attack throttling", type: :request do
     end
     expect(response).to have_http_status(:too_many_requests)
   end
+
+  it "bounds recovery mail, reset guessing and password change including malformed requests" do
+    6.times { post "/auth/password", params: { user: { email: "bad" } }, as: :json }
+    expect(response).to have_http_status(:too_many_requests)
+    11.times { put "/auth/password", params: { user: { reset_password_token: [] } }, as: :json }
+    expect(response).to have_http_status(:too_many_requests)
+    6.times { patch "/auth/password/change", params: { user: { current_password: "bad" } }, as: :json }
+    expect(response).to have_http_status(:too_many_requests)
+  end
+
+  it "bounds recovery delivery to one email across IPs" do
+    6.times do |n|
+      post "/auth/password", params: { user: { email: " Unknown@Example.com " } }, as: :json, headers: { "REMOTE_ADDR" => "10.8.0.#{n}" }
+    end
+    expect(response).to have_http_status(:too_many_requests)
+  end
 end

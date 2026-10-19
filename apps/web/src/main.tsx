@@ -8,8 +8,10 @@ import './index.css'
 import App from './App.tsx'
 import { applyColorTheme, preferredColorTheme } from './lib/colorTheme'
 import { captureConfirmationToken } from './features/auth/confirmationLink'
+import { captureResetPasswordToken } from './features/auth/resetPasswordLink'
 
 captureConfirmationToken()
+captureResetPasswordToken()
 applyColorTheme(preferredColorTheme())
 
 createRoot(document.getElementById('root')!).render(

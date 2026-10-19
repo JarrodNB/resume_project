@@ -68,7 +68,7 @@ RSpec.describe AiReaderAccess do
   end
 
   it "cannot read account confirmation state or secrets" do
-    %w[confirmation_token confirmed_at confirmation_sent_at unconfirmed_email].each do |column|
+    %w[confirmation_token confirmed_at confirmation_sent_at unconfirmed_email reset_password_token reset_password_sent_at].each do |column|
       expect { select_as_ai_reader("SELECT #{column} FROM users") }
         .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     end

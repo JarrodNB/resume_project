@@ -2,6 +2,7 @@
 # Index:
 #   - GET /auth/session, POST /auth/sign_up, /auth/sign_in, DELETE /auth/sign_out
 #   - POST /auth/confirmation (resend), /auth/confirmation/verify (consume token)
+#   - POST/PUT /auth/password (request/reset), PATCH /auth/password/change
 #   - POST /graphql
 #   - GET /up: health check
 Rails.application.routes.draw do
@@ -11,7 +12,7 @@ Rails.application.routes.draw do
              path: "auth",
              path_names: { sign_in: "sign_in", sign_out: "sign_out" },
              controllers: { sessions: "auth/sessions" },
-             skip: [ :registrations, :confirmations ],
+             skip: [ :registrations, :confirmations, :passwords ],
              defaults: { format: :json }
 
   devise_scope :user do
@@ -19,6 +20,9 @@ Rails.application.routes.draw do
     post "auth/sign_up", to: "auth/registrations#create", defaults: { format: :json }
     post "auth/confirmation", to: "auth/confirmations#create", defaults: { format: :json }
     post "auth/confirmation/verify", to: "auth/confirmations#verify", defaults: { format: :json }
+    post "auth/password", to: "auth/passwords#create", defaults: { format: :json }
+    put "auth/password", to: "auth/passwords#update", defaults: { format: :json }
+    patch "auth/password/change", to: "auth/passwords#change", defaults: { format: :json }
   end
 
   post "/graphql", to: "graphql#execute"

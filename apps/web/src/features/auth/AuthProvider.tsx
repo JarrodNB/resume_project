@@ -12,7 +12,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const generation = useRef(0)
   const broadcasts = useRef<BroadcastChannel | null>(null)
 
-  const expireSession = useCallback(() => {
+  const expireSession = useCallback((broadcast = false) => {
+    if (broadcast) broadcasts.current?.postMessage('changed')
     generation.current++
     setSession(null)
     setError(false)
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof BroadcastChannel === 'undefined') return
     const channel = new BroadcastChannel('careergrind-session')
     broadcasts.current = channel
-    channel.onmessage = expireSession
+    channel.onmessage = () => expireSession()
     return () => { channel.close(); broadcasts.current = null }
   }, [expireSession])
 

@@ -20,9 +20,12 @@ RSpec.describe "Auth routes", type: :routing do
     expect(get: "/auth/sign_up/cancel").not_to be_routable
   end
 
-  it "does not route password reset" do
-    expect(post: "/auth/password").not_to be_routable
-    expect(put: "/auth/password").not_to be_routable
+  it "routes only explicit recovery and change writes" do
+    expect(post: "/auth/password").to route_to("auth/passwords#create", format: :json)
+    expect(put: "/auth/password").to route_to("auth/passwords#update", format: :json)
+    expect(patch: "/auth/password/change").to route_to("auth/passwords#change", format: :json)
     expect(get: "/auth/password/new").not_to be_routable
+    expect(get: "/auth/password/edit").not_to be_routable
+    expect(get: "/auth/password").not_to be_routable
   end
 end

@@ -12,11 +12,13 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - `graphql/schema_dump_spec.rb` — fails when `schema.graphql` is out of date
 - `requests/auth_spec.rb` — signup verification pending, cookie sign-in/out over HTTP
 - `requests/email_verification_spec.rb` — Devise confirmation, resend, errors, CSRF and queue failure
+- `requests/password_recovery_spec.rb` — recovery/change, token expiry, policy, session replay,
+  CSRF, generic delivery failures and secret filtering; `services/accounts/` includes real races
 - `requests/browser_sessions_spec.rb` — bootstrap, CSRF, cookie replay, and expiry
 - `requests/rack_attack_spec.rb` — throttles (swaps in a memory cache; the test cache is a
   null store, so throttles never trip in other specs)
-- `routing/auth_routes_spec.rb` — explicit signup/session/POST confirmation routes;
-  no account delete/update or password reset yet
+- `routing/auth_routes_spec.rb` — explicit signup/session/confirmation/password writes;
+  no account delete/update or GET token consumption
 - `channels/` — persisted-session WebSocket auth and subscriptions through `GraphqlChannel`
 - `workers/` — Shoryuken workers (called directly with a parsed body)
 - `jobs/` — Active Job jobs (performed inline with stubbed services)

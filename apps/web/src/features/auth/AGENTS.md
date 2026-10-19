@@ -15,6 +15,8 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
 - `*.test.ts(x)` — auth API and sign-in flow tests
 - `VerifyEmailPage.tsx`, `ResendConfirmationForm.tsx`, `confirmationLink.ts` — public
   explicit verification and resend; capture/clear fragment before app bootstrap
+- `ForgotPasswordPage.tsx`, `PasswordUpdatePage.tsx`, `resetPasswordLink.ts` — public recovery
+  and signed-in current-password change; success survives session/cache refresh on a public route
 
 ## Local Rules
 
@@ -26,3 +28,6 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
   signed in (otherwise it races the page's own navigation).
 - Signup requests verification without creating a session. `/verify-email` is public
   even for signed-in browsers and never switches accounts. Keep tokens in memory only.
+- `/reset-password` is public even for signed-in browsers. Capture/clear its fragment before
+  startup and send the token only on explicit submit. Password success refreshes local and
+  sibling-tab sessions, preserving an unrelated account as reported by server bootstrap.

@@ -10,6 +10,8 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
 - `auth/sessions_controller.rb` — session bootstrap, `POST /auth/sign_in`, `DELETE /auth/sign_out`
 - `auth/registrations_controller.rb` — `POST /auth/sign_up`
 - `auth/confirmations_controller.rb` — resend and explicit POST verification; no GET consumes links
+- `auth/passwords_controller.rb` — recovery request/reset and signed-in current-password change;
+  only password fields, no auto-login or account edit/delete
 
 ## Local Rules
 

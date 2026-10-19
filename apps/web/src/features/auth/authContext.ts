@@ -5,6 +5,6 @@ export interface AuthContextValue extends BrowserSession {
   signIn: (credentials: AuthCredentials) => Promise<void>
   signUp: (credentials: AuthCredentials) => Promise<void>
   signOut: () => Promise<void>
-  expireSession: () => void
+  expireSession: (broadcast?: boolean) => void
 }
 export const AuthContext = createContext<AuthContextValue | null>(null)

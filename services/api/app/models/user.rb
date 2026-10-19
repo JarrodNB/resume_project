@@ -8,7 +8,7 @@
 #   - jobs, resumes, ai_tasks, interview_question_sets
 #   - library_embeddings: vectors of the career library entries (derived data)
 class User < ApplicationRecord
-  devise :database_authenticatable, :registerable, :validatable, :uncommon_password, :confirmable
+  devise :database_authenticatable, :registerable, :validatable, :uncommon_password, :confirmable, :recoverable
 
   has_many :experiences, -> { most_recent_first }, dependent: :destroy
   has_many :projects, -> { most_recent_first }, dependent: :destroy

@@ -1,4 +1,4 @@
-# Description: Request throttling (Rack::Attack, counters in Rails.cache): sign-in, sign-up and confirmation
+# Description: Request throttling (Rack::Attack, counters in Rails.cache): sign-in, signup, confirmation and passwords
 # by IP and email, and GraphQL by user and IP. Throttled requests get a JSON 429 with Retry-After.
 # AI task limits (budget, hourly, in flight) are separate: see AiUsage::CheckAiTaskAllowanceService.
 # Index:
@@ -54,6 +54,26 @@ end
 
 Rack::Attack.throttle("auth/confirmation/verify/ip", limit: 10, period: 1.minute) do |request|
   request.ip if request.post? && request.path == "/auth/confirmation/verify"
+end
+
+Rack::Attack.throttle("auth/password/ip", limit: 5, period: 1.hour) do |request|
+  request.ip if request.post? && request.path == "/auth/password"
+end
+
+Rack::Attack.throttle("auth/password/email", limit: 5, period: 1.hour) do |request|
+  RackAttackRequestKeys.sign_in_email(request) if request.post? && request.path == "/auth/password"
+end
+
+Rack::Attack.throttle("auth/password/reset/ip", limit: 10, period: 1.minute) do |request|
+  request.ip if request.put? && request.path == "/auth/password"
+end
+
+Rack::Attack.throttle("auth/password/change/ip", limit: 5, period: 10.minutes) do |request|
+  request.ip if request.patch? && request.path == "/auth/password/change"
+end
+
+Rack::Attack.throttle("auth/password/change/user", limit: 5, period: 10.minutes) do |request|
+  RackAttackRequestKeys.session_user_id(request) if request.patch? && request.path == "/auth/password/change"
 end
 
 Rack::Attack.throttle("graphql/user", limit: 120, period: 1.minute) do |request|

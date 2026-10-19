@@ -11,8 +11,9 @@ and never stores one in localStorage.
 failure is retryable and does not establish an authenticated session.
 
 Auth calls and GraphQL requests include browser credentials. Unsafe requests send
-`X-CSRF-Token`, including login, signup, logout, and multipart uploads. Login and
-signup return safe account state and a fresh CSRF token. Authenticated HTTP work
+`X-CSRF-Token`, including login, signup, logout, and multipart uploads. Sign-in
+returns safe account state and a fresh CSRF token; signup requests verification
+without signing in. Authenticated HTTP work
 uses Devise's `current_user`; domain reads/writes remain scoped to that user.
 Responses containing session state are not cacheable.
 
@@ -160,6 +161,66 @@ mail queues. Queue rows contain delivery tokens and must stay restricted to Rail
 never export them into diagnostics or AI context. No third-party browser telemetry
 currently runs; any future integration must initialize after fragment capture and
 must exclude account-request bodies.
+
+## Recovery and password changes
+
+`POST /auth/password` accepts `{ user: { email } }` and returns the same 202 message
+for known, unknown and unverified accounts. Only confirmed accounts receive recovery
+mail. A valid-looking address is required; malformed envelopes return 400 and invalid
+addresses return 422. Failed or lost delivery never changes the password. Requesting
+mail again generates a fresh Devise token and supersedes the earlier link, including
+an earlier message still waiting in the queue. Recovery does not confirm an account.
+
+`PUT /auth/password` accepts `{ user: { reset_password_token, password,
+password_confirmation } }`. A successful reset returns 200; malformed, expired, reused
+or superseded links and invalid passwords return 422. Tokens expire after six hours.
+Devise Recoverable owns token generation, digest storage, expiry and password saving.
+The service locks and reloads the account, rechecks the token and confirmation state,
+then calls Devise's instance reset operation. This makes consumption one-use even
+when requests race. It does not use Devise's class reset helper, whose lookup and save
+are separate operations. Both new password fields must be present and identical.
+
+`PATCH /auth/password/change` requires a signed-in account and accepts only
+`{ user: { current_password, password, password_confirmation } }`. It checks current
+credentials using Devise `update_with_password` under the same user row lock.
+It cannot change the sign-in email, name or another account. Validation errors return
+422 and missing/expired authentication returns 401. Failed reset/change leaves the
+persisted hash, recovery token, confirmation state and usable sessions unchanged.
+
+Successful reset or change clears the outstanding recovery token and changes the
+bcrypt salt. Devise's existing session serialization binds every browser to that salt;
+the shared HTTP/Cable resolver rejects all old sessions and captured cookies. A login
+that verified old credentials before a concurrent reset cannot revive access: even
+if it serializes afterward, its user instance carries the old salt. User row locks
+also prevent two changes with the same old password from both succeeding. In-flight
+domain work authorized before the change may finish; new requests, channel operations
+and private transmissions recheck session validity. Expired rows remain until normal
+session cleanup. No automatic login follows either operation.
+
+Public `/forgot-password` and `/reset-password` remain reachable in signed-in browsers.
+Recovery links use the trusted `WEB_APP_URL` and a fragment captured/cleared before
+bootstrap, just like confirmation. An explicit form submit sends the token by a
+CSRF-protected PUT; GET never consumes it. Refresh loses the in-memory token, so reopen
+the email or request a new one. A successful reset preserves an unrelated signed-in
+account; failed recovery never switches identity. `/account/security` offers the
+signed-in current-password form. Success navigates to public `/password-updated`,
+refreshes session/Apollo state and broadcasts only a change notice to sibling tabs.
+The success notice survives authenticated-route unmount. A change returning 401 clears
+local state and offers sign-in again. Network failures allow explicit retry; a lost
+success response may require signing in with the new password or requesting a new link.
+
+The existing restricted mail queue, sanitized bounded retries, required STARTTLS,
+preflight and production setup apply to recovery mail too. A synthetic preview is at
+`http://localhost:3000/rails/mailers/account_mailer/reset_password_instructions`.
+No additional dependency or migration is needed: reset digest/timestamp columns already
+exist and remain unavailable to the AI reader. Request logs filter tokens and passwords;
+mail and SQL logging restrictions above also apply to recovery queue arguments.
+
+Recovery requests are bounded to five per IP and normalized email per hour. Reset
+attempts are bounded to ten per IP per minute, and signed-in changes to five per IP
+and account per ten minutes. Rails returns JSON 429 with Retry-After. These counters
+use the configured Rails cache; deployment must provide a shared supported cache
+when running multiple API replicas. They do not replace password or token checks.
 
 ## New passwords
 

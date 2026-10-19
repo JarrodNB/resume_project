@@ -71,14 +71,14 @@ _GROUP_FIELDS = {
 
 def format_resume_group_instruction(group: str) -> str:
     """Constrain each full-source extraction to its owned fields and warnings."""
-    return (
+    instruction = (
         f"Extract only these fields: {_GROUP_FIELDS[group]}. "
         "Include warnings only for these fields. Other groups extract the remaining fields. "
-        + (
+    )
+    if group == "ExperienceExtraction":
+        instruction += (
             "Keep each employer, role, and all its source bullet IDs together in experiences. "
             "Include every source bullet that belongs to each role. For each role, return only "
             "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
-            if group == "ExperienceExtraction"
-            else "Keep each employer, role, and all its bullets together in experiences."
         )
-    )
+    return instruction

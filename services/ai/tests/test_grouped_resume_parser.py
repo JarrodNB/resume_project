@@ -223,6 +223,30 @@ def test_source_bullets_exclude_project_and_skill_section_bullets():
     assert _source_bullets(source) == {"B1": "Built a reliable API."}
 
 
+def test_source_bullets_exclude_technical_skills_section_bullets():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
+        "TECHNICAL SKILLS\n• Python\n"
+    )
+    assert _source_bullets(source) == {"B1": "Built a reliable API."}
+
+
+def test_nonexperience_group_instructions_only_name_owned_fields():
+    from prompts.resume_parsing_instructions import format_resume_group_instruction
+
+    for group in ("ProjectsSkillsExtraction", "ProfileExtraction"):
+        instruction = format_resume_group_instruction(group).casefold()
+        assert "experiences" not in instruction
+        assert "bullets" not in instruction
+
+    assert "projects, skills" in format_resume_group_instruction("ProjectsSkillsExtraction")
+    assert "contact, summary, educations, certifications" in format_resume_group_instruction(
+        "ProfileExtraction"
+    )
+
+
 def test_source_bullets_stop_before_role_headers_with_inline_dates():
     from agents.resume_parsing_agent import _source_bullets
 

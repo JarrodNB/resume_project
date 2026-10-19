@@ -60,7 +60,8 @@ _DATE_RANGE_SUFFIX = re.compile(
     re.IGNORECASE,
 )
 _SECTION_HEADINGS = {
-    "summary", "profile", "experience", "work experience", "work history",
+    "summary", "professional summary", "career summary", "objective", "career objective",
+    "profile", "experience", "work experience", "work history",
     "professional experience", "professional history", "career experience", "career history",
     "employment", "employment history", "education", "skills", "technical skills",
     "core competencies", "competencies", "projects", "personal projects",

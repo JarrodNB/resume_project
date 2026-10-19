@@ -277,6 +277,17 @@ def test_source_bullets_exclude_project_and_skill_section_bullets():
     assert _source_bullets(source) == {"B1": "Built a reliable API."}
 
 
+@pytest.mark.parametrize("heading", ["SIDE PROJECTS", "SELECTED PROJECTS", "ACADEMIC PROJECTS"])
+def test_source_bullets_stop_at_project_heading_variants(heading):
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\nAcme\nEngineer\n2022 – Present\n• Built a reliable API.\n"
+        f"{heading}\n• Built a personal portfolio.\n"
+    )
+    assert _source_bullets(source) == {"B1": "Built a reliable API."}
+
+
 def test_source_bullets_exclude_technical_skills_section_bullets():
     from agents.resume_parsing_agent import _source_bullets
 

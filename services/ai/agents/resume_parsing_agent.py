@@ -66,7 +66,8 @@ _SECTION_HEADINGS = {
     "professional experience", "professional history", "career experience", "career history",
     "employment", "employment history", "education", "skills", "technical skills",
     "core competencies", "competencies", "projects", "personal projects",
-    "selected builds",
+    "side projects", "selected projects", "academic projects", "open source projects",
+    "open-source projects", "project experience", "selected builds",
     "certifications", "credentials", "training", "toolbox", "awards", "honors",
     "publications", "languages", "interests", "volunteer experience",
 }
@@ -77,7 +78,9 @@ _EXPERIENCE_HEADINGS = {
 }
 _DATE_EXCLUDED_SECTION_HEADINGS = {
     "education", "skills", "technical skills", "core competencies", "competencies",
-    "projects", "personal projects", "selected builds", "certifications", "credentials",
+    "projects", "personal projects", "side projects", "selected projects", "academic projects",
+    "open source projects", "open-source projects", "project experience", "selected builds",
+    "certifications", "credentials",
     "training", "toolbox", "awards", "honors", "publications", "languages", "interests",
 }
 

@@ -68,7 +68,7 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `config/cable.yml` — Solid Cable in development and production (own `cable` database)
 - `lib/ai_reader_access.rb` + `lib/tasks/ai_reader_access.rake` — `db:grant_ai_reader_access`
   grants the AI worker's read-only `ai_reader` role SELECT on the job and career library tables
-  and `library_embeddings` (of `users`, `id`, `summary`, `name`, `contact_email`, and `phone`;
+  and `library_embeddings` (of `users`, `id`, `summary`, `screened_fields`, `name`, `contact_email`, and `phone`;
   the sign-in email and password stay hidden). It runs after `db:prepare`, `db:migrate`, and
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.

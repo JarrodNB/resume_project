@@ -49,14 +49,15 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   attempted JEV failure uses the separate Nano safety classifier within the remaining deadline
   (three seconds maximum for each JEV run). If both fail, omit the text; a blocked resume
   fails the import. Screen each cohesive untrusted input once
-  per task execution, including saved/imported library entries, job text, and reused questions.
+  per task execution for job text, answers, and reused questions. Saved career-library fields
+  reuse database approvals; unchecked fields screen on first use, and edits clear their checks.
   Large inputs use overlapping chunks. Optional rejected inputs are omitted with warnings;
   required rejected inputs prevent generation. Every generative agent declares an official
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
-  Approvals never persist across tasks. Both safety classifiers are exempt from recursive
-  screening. All actual chunk requests count toward task usage under their actual model, including validation retries
+  Only career-library field approvals persist across tasks, through final queue results.
+  Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per

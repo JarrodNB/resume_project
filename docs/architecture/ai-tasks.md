@@ -29,7 +29,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
@@ -38,6 +38,11 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   execution and one final accounting report with its result, or usage-only before retrying.
   Rails resolves each marker once; duplicate/out-of-order markers cannot overwrite a final
   report. Usage-only messages never change task status. A missing final report remains unknown.
+  Final completed/failed results may include `library_screening` entries shaped as
+  `{record_type, record_id, fields}` for newly successful career-library field checks.
+  Rails merges allowlisted field names into the owning records, including when generation
+  failed. Duplicate reports are harmless; unknown kinds/fields and other owners are ignored.
+  Usage-only retry reports do not carry saved field checks.
 
 Per task type:
 

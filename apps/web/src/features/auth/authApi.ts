@@ -24,8 +24,22 @@ export async function sessionRequest(signal?: AbortSignal): Promise<BrowserSessi
 export function signInRequest(credentials: AuthCredentials, csrfToken: string): Promise<BrowserSession> {
   return requestSession('/auth/sign_in', credentials, csrfToken)
 }
-export function signUpRequest(credentials: AuthCredentials, csrfToken: string): Promise<BrowserSession> {
-  return requestSession('/auth/sign_up', credentials, csrfToken)
+export function signUpRequest(credentials: AuthCredentials, csrfToken: string): Promise<{ message: string }> {
+  return accountRequest('/auth/sign_up', { user: credentials }, csrfToken)
+}
+export function resendConfirmationRequest(email: string, csrfToken: string): Promise<{ message: string }> {
+  return accountRequest('/auth/confirmation', { user: { email } }, csrfToken)
+}
+export function verifyEmailRequest(token: string, csrfToken: string): Promise<{ message: string }> {
+  return accountRequest('/auth/confirmation/verify', { confirmation_token: token }, csrfToken)
+}
+async function accountRequest(path: string, body: unknown, csrfToken: string): Promise<{ message: string }> {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: 'POST', credentials: 'include', headers: { ...JSON_HEADERS, 'X-CSRF-Token': csrfToken },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) throw new AuthRequestError(await readErrorMessages(response))
+  return response.json()
 }
 export async function signOutRequest(csrfToken: string): Promise<void> {
   const response = await fetch(`${API_URL}/auth/sign_out`, {

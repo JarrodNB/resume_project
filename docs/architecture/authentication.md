@@ -98,7 +98,68 @@ navigation, and per-session cache/connection replacement. Use Docker checks from
 [testing](../testing.md). Human browser QA should exercise two accounts, refresh,
 logout with a live subscription, an expired session, and a resume upload.
 
-Email verification and recovery are separate account-flow changes.
+## Email verification and delivery
+
+New accounts require Devise Confirmable verification before login, HTTP access or
+Cable access. The additive migration explicitly confirms only the rows present
+during migration; it preserves IDs, password hashes and profile data. There is no
+confirmed database default for future accounts. Apply this migration before the
+new code. Keep the columns on rollback; reverting to code without confirmation
+would allow unverified accounts to sign in and requires an explicit rollout decision.
+
+`POST /auth/sign_up` accepts `{ user: { email, password, name } }` and returns a
+generic 202 message for valid new/duplicate submissions, with no session. Invalid
+fields return 422. Duplicate signup never replaces credentials/profile or rotates
+the original token. `POST /auth/confirmation` accepts `{ user: { email } }` and
+returns the same 202 for unknown, confirmed and unconfirmed accounts. Email requests
+are queued, so SMTP latency/failure cannot disclose account existence. Rack::Attack
+bounds signup/resend by IP, resend by normalized email, and verification by IP.
+Malformed envelopes return 400; invalid fields return 422. All POSTs require CSRF.
+
+`POST /auth/confirmation/verify` accepts `{ confirmation_token }`, returning 200
+on confirmation or generic 422 for malformed, expired, reused or superseded links.
+Devise owns tokens and the explicit 24-hour expiry. A user row lock serializes
+confirmation and resend. Resend forces Devise's own generator to replace the old
+token; even a queued old email cannot verify after a newer resend commits. Success
+does not create or switch a session. Login errors do not disclose verification state.
+
+Links use configured `WEB_APP_URL`, never the request Host. The token travels in a
+fragment to public `/verify-email`, is captured in memory and removed from history
+before app mount/bootstrap, and is sent only by an explicit CSRF-protected POST.
+Email scanners cannot consume links through GET. Refresh/cancel loses the in-memory
+token: reopen the link or request another. Nothing stores the token in localStorage.
+
+Action Mailer and Devise provide delivery, with no new gems/provider SDK. Development
+uses Rails' file delivery (`services/api/tmp/mails`, private local files; delete after
+use), the in-process async queue, and synthetic previews at
+`http://localhost:3000/rails/mailers/account_mailer/confirmation_instructions`.
+Restarting development can lose pending mail; resend recovers. Tests use Rails' test
+queue/delivery adapters. Production uses existing Solid Queue in the separate Rails
+queue database: prepare its schema and run `bin/jobs` alongside the API. Monitor queue
+age and failed `AccountMailDeliveryJob` records. Each SMTP attempt has 5-second open/read
+timeouts, required STARTTLS, and at most three attempts with Rails polynomial backoff.
+Resend retries a failed or lost request; duplicates are safe, but the latest requested
+link is the usable one. This mail never enters AI/SQS queues or Logfire.
+
+Production email delivery remains setup work. Set `WEB_APP_URL` to the HTTPS web
+origin, `MAIL_FROM` to the provider-verified sender, and `SMTP_HOST`, `SMTP_PORT`
+(587 or 2525), `SMTP_DOMAIN`, `SMTP_USERNAME`, `SMTP_PASSWORD` through environment
+secrets. Run `docker compose run --rm api bin/rails accounts:email_preflight`
+in the configured deployment environment. This readiness task rejects missing/invalid
+configuration and never connects/sends or prints credentials. After setup, a human
+must smoke-test delivery, spam placement and links with a controlled account.
+
+Tokens, passwords, emails, CSRF and cookies are filtered request parameters. Devise
+stores raw confirmation tokens; AI-reader column grants exclude all confirmation
+columns. Rails mail-body logging is disabled; mail-job arguments are hidden and SMTP
+errors are replaced with a fixed message before bounded retries. Queue argument SQL
+binds are filtered. Solid Queue bulk INSERTs inline serialized tokens, so Active
+Record uses a separate INFO logger even when application debug logging is enabled:
+SQL debug output is intentionally unavailable. Do not turn it on against real account
+mail queues. Queue rows contain delivery tokens and must stay restricted to Rails;
+never export them into diagnostics or AI context. No third-party browser telemetry
+currently runs; any future integration must initialize after fragment capture and
+must exclude account-request bodies.
 
 ## New passwords
 

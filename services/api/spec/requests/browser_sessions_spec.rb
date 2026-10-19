@@ -47,16 +47,15 @@ RSpec.describe "Browser sessions", type: :request do
     expect(response).to have_http_status(:unprocessable_content)
   end
 
-  it "accepts signup with CSRF and returns the newly authenticated session" do
+  it "accepts signup with CSRF without starting authentication" do
     token = bootstrap
     post "/auth/sign_up", params: { user: { email: "ada@example.com", password: "a quiet orchard after rain" } }.to_json,
       headers: headers.merge("X-CSRF-Token" => token)
-    expect(response).to have_http_status(:created)
-    expect(response.parsed_body.dig("user", "email")).to eq("ada@example.com")
-    expect(response.parsed_body["csrfToken"]).to be_present
+    expect(response).to have_http_status(:accepted)
+    expect(response.parsed_body["user"]).to be_nil
     expect(response.headers["Authorization"]).to be_nil
     bootstrap
-    expect(response.parsed_body.dig("user", "email")).to eq("ada@example.com")
+    expect(response.parsed_body["user"]).to be_nil
   end
 
   it "uses cookies for GraphQL and rejects their replay after logout" do

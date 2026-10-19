@@ -13,6 +13,8 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
 - `PasswordInput.tsx` — shared password-manager-friendly input and accessible visibility toggle;
   password acceptance remains server-owned, with no native truncating maximum length
 - `*.test.ts(x)` — auth API and sign-in flow tests
+- `VerifyEmailPage.tsx`, `ResendConfirmationForm.tsx`, `confirmationLink.ts` — public
+  explicit verification and resend; capture/clear fragment before app bootstrap
 
 ## Local Rules
 
@@ -22,3 +24,5 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
   Unsafe requests include the Rails CSRF token; do not silently retry mutations.
 - Pages navigate after signing in; `RequireSignedOut` only redirects users who arrive already
   signed in (otherwise it races the page's own navigation).
+- Signup requests verification without creating a session. `/verify-email` is public
+  even for signed-in browsers and never switches accounts. Keep tokens in memory only.

@@ -15,7 +15,7 @@ module BrowserSessions
       return failure([ "Signed out" ]) unless authenticated_at.is_a?(Integer) && key.is_a?(Array)
       return failure([ "Session expired" ]) unless authenticated_at > 1.day.ago.to_i && authenticated_at <= Time.current.to_i
       user = User.serialize_from_session(*key)
-      user ? success(user) : failure([ "Signed out" ])
+      user&.active_for_authentication? ? success(user) : failure([ "Signed out" ])
     end
   end
 end

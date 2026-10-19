@@ -9,13 +9,12 @@ RSpec.describe "Auth", type: :request do
     post "/auth/sign_in", params: { user: { email: email, password: password } }.to_json, headers: json_headers
   end
 
-  it "signs up and authenticates with a cookie" do
+  it "signs up without authenticating until email verification" do
     post "/auth/sign_up", params: { user: { name: "Ada", email: "ada@example.com", password: "a quiet orchard after rain" } }.to_json, headers: json_headers
-    expect(response).to have_http_status(:created)
+    expect(response).to have_http_status(:accepted)
     expect(response.headers["Authorization"]).to be_nil
-    expect(response.headers["Set-Cookie"]).to include("httponly", "samesite=lax")
     post "/graphql", params: me_query, headers: json_headers
-    expect(response.parsed_body.dig("data", "me", "email")).to eq("ada@example.com")
+    expect(response).to have_http_status(:unauthorized)
   end
 
   it "returns validation errors" do

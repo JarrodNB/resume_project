@@ -51,4 +51,19 @@ RSpec.describe "Rack::Attack throttling", type: :request do
 
     expect(response).to have_http_status(:too_many_requests)
   end
+
+  it "bounds confirmation requests by IP, including malformed requests" do
+    6.times { post "/auth/confirmation", params: { user: { email: "bad" } }, as: :json }
+    expect(response).to have_http_status(:too_many_requests)
+    expect(response.headers["retry-after"]).to be_present
+    11.times { post "/auth/confirmation/verify", params: { confirmation_token: [] }, as: :json }
+    expect(response).to have_http_status(:too_many_requests)
+  end
+
+  it "bounds confirmation email delivery across different IPs" do
+    6.times do |n|
+      post "/auth/confirmation", params: { user: { email: " Unknown@Example.com " } }, as: :json, headers: { "REMOTE_ADDR" => "10.9.0.#{n}" }
+    end
+    expect(response).to have_http_status(:too_many_requests)
+  end
 end

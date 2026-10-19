@@ -31,7 +31,7 @@ RSpec.describe "Password policy", type: :request do
   [ "orchard dusk tea", "🌳" * 15, "é" * 36, "qz" * 36, " 🌳 " + "é" * 10 + " rain " ].each do |password|
     it "accepts and preserves a passphrase within the boundaries (#{password.bytesize} bytes)" do
       register(password)
-      expect(response).to have_http_status(:created)
+      expect(response).to have_http_status(:accepted)
       user = User.find_by!(email: "new@example.com")
       expect(user.valid_password?(password)).to be(true)
       expect(user.valid_password?(password.strip)).to be(false) unless password == password.strip

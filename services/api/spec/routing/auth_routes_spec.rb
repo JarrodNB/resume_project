@@ -1,5 +1,4 @@
-# Description: Only sign up, sign in, and sign out are routed under /auth; Devise's account
-# update/delete and password reset routes must not exist.
+# Explicit session, signup and confirmation routes; arbitrary account changes remain unavailable.
 require "rails_helper"
 
 RSpec.describe "Auth routes", type: :routing do
@@ -7,6 +6,10 @@ RSpec.describe "Auth routes", type: :routing do
     expect(post: "/auth/sign_up").to route_to("auth/registrations#create", format: :json)
     expect(post: "/auth/sign_in").to route_to("auth/sessions#create", format: :json)
     expect(delete: "/auth/sign_out").to route_to("auth/sessions#destroy", format: :json)
+    expect(post: "/auth/confirmation").to route_to("auth/confirmations#create", format: :json)
+    expect(post: "/auth/confirmation/verify").to route_to("auth/confirmations#verify", format: :json)
+    expect(get: "/auth/confirmation").not_to be_routable
+    expect(get: "/auth/confirmation/verify").not_to be_routable
   end
 
   it "does not route account update or deletion" do

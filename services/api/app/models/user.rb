@@ -8,7 +8,7 @@
 #   - jobs, resumes, ai_tasks, interview_question_sets
 #   - library_embeddings: vectors of the career library entries (derived data)
 class User < ApplicationRecord
-  devise :database_authenticatable, :registerable, :validatable, :uncommon_password
+  devise :database_authenticatable, :registerable, :validatable, :uncommon_password, :confirmable
 
   has_many :experiences, -> { most_recent_first }, dependent: :destroy
   has_many :projects, -> { most_recent_first }, dependent: :destroy
@@ -40,6 +40,11 @@ class User < ApplicationRecord
     return false unless value.is_a?(String) && !value.include?("\0")
 
     super
+  end
+
+  # Standard Devise integration: Rails owns asynchronous delivery and retries, not the AI queues.
+  def send_devise_notification(notification, *args)
+    devise_mailer.send(notification, self, *args).deliver_later
   end
 
   private

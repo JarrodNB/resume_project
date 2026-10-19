@@ -35,6 +35,7 @@ export function SignInPage() {
       }
     >
       <AuthForm submitLabel="Sign in" onSubmit={handleSignIn} />
+      <Link to="/verify-email" className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Need a verification email?</Link>
     </AuthPageShell>
   )
 }

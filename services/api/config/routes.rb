@@ -1,6 +1,7 @@
 # Description: HTTP routes. Auth uses Devise browser sessions; domain data uses GraphQL.
 # Index:
 #   - GET /auth/session, POST /auth/sign_up, /auth/sign_in, DELETE /auth/sign_out
+#   - POST /auth/confirmation (resend), /auth/confirmation/verify (consume token)
 #   - POST /graphql
 #   - GET /up: health check
 Rails.application.routes.draw do
@@ -10,12 +11,14 @@ Rails.application.routes.draw do
              path: "auth",
              path_names: { sign_in: "sign_in", sign_out: "sign_out" },
              controllers: { sessions: "auth/sessions" },
-             skip: [ :registrations ],
+             skip: [ :registrations, :confirmations ],
              defaults: { format: :json }
 
   devise_scope :user do
     get "auth/session", to: "auth/sessions#show", defaults: { format: :json }
     post "auth/sign_up", to: "auth/registrations#create", defaults: { format: :json }
+    post "auth/confirmation", to: "auth/confirmations#create", defaults: { format: :json }
+    post "auth/confirmation/verify", to: "auth/confirmations#verify", defaults: { format: :json }
   end
 
   post "/graphql", to: "graphql#execute"

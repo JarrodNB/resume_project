@@ -18,6 +18,18 @@ RSpec.describe ApplicationCable::Connection, type: :channel do
     expect(connection.current_user).to eq(user)
   end
 
+  it "rejects unconfirmed accounts even with a serialized session" do
+    user.update_columns(confirmed_at: nil)
+    expect { connect_session }.to have_rejected_connection
+  end
+
+  it "closes an active connection if its account is no longer confirmed" do
+    connect_session
+    user.update_columns(confirmed_at: nil)
+    expect(connection).to receive(:close).with(reason: "Session expired", reconnect: false)
+    connection.beat
+  end
+
   it "rejects missing sessions even with an old URL token" do
     expect { connect "/cable", params: { token: "legacy" } }.to have_rejected_connection
   end

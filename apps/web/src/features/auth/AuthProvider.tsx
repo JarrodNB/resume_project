@@ -49,8 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session) await startSession(() => signInRequest(credentials, session.csrfToken))
   }, [session, startSession])
   const signUp = useCallback(async (credentials: AuthCredentials) => {
-    if (session) await startSession(() => signUpRequest(credentials, session.csrfToken))
-  }, [session, startSession])
+    if (session) await signUpRequest(credentials, session.csrfToken)
+  }, [session])
   const signOut = useCallback(async () => {
     if (!session) return
     // Keep the session visible if the server could not confirm revocation.

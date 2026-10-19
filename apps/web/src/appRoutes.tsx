@@ -8,6 +8,7 @@ import { AppLayout } from '@/components/AppLayout'
 import { RequireAuth, RequireSignedOut } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { SignUpPage } from '@/features/auth/SignUpPage'
+import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
 import { AddJobFromTextPage } from '@/features/jobs/AddJobFromTextPage'
 import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
@@ -24,6 +25,7 @@ import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
 
 export const appRoutes: RouteObject[] = [
+  { path: '/verify-email', element: <VerifyEmailPage /> },
   {
     element: <RequireSignedOut />,
     children: [

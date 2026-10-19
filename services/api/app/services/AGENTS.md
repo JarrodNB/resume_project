@@ -15,6 +15,12 @@ All business logic, as service objects grouped by domain folder.
   `OPENAI_API_KEY`. The only place Rails calls OpenAI
 - `embeddings/mask_contact.rb` — `MaskContact.mask(text, user)` replaces that user's known
   name, contact email, and phone with «name», «email», and «phone»
+- `job_board/search_clean_job_data_service.rb` — server-only CleanJobData list search; returns
+  ordered, validated US listings and an opaque next cursor without persistence or detail calls.
+  Uses `CLEANJOBDATA_API_KEY`, fixed HTTPS endpoint, an eight-second overall deadline, and at
+  most one retry for the documented per-second 429 message. Country confirmation uses only
+  `locations[].country_code`; mixed-country listings retain only US rows and derived labels.
+  Contract references: https://cleanjobdata.com/docs/api/jobs and https://cleanjobdata.com/docs/api/errors.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues

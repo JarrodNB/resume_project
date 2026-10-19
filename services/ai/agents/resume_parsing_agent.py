@@ -87,7 +87,17 @@ def _section_kind(line: str) -> str | None:
     return None
 
 
-def _is_resume_boundary(line: str, next_line: str) -> bool:
+def _looks_like_title_case_label(text: str, *, minimum_words: int = 1) -> bool:
+    """Recognize compact title/company lines without treating sentence fragments as headers."""
+    words = re.findall(r"[A-Za-z][A-Za-z&.'’/-]*", text)
+    connector_words = {"and", "at", "for", "of", "the", "to"}
+    return (
+        minimum_words <= len(words) <= 8
+        and all(word[0].isupper() or word.casefold() in connector_words for word in words)
+    )
+
+
+def _is_resume_boundary(line: str, next_line: str, after_next_line: str = "") -> bool:
     """Recognize section headings and role/date headers between source bullets."""
     text = line.strip()
     if not text:
@@ -105,6 +115,15 @@ def _is_resume_boundary(line: str, next_line: str) -> bool:
         role_parts = _ROLE_HEADER_SEPARATOR.split(text)
         if len(role_parts) > 1 and all(
             part.strip() and part.strip()[0].isupper() for part in role_parts
+        ):
+            return True
+        if (
+            _looks_like_title_case_label(text, minimum_words=2)
+            and _looks_like_title_case_label(next_line)
+            and (
+                _DATE_LINE.fullmatch(after_next_line.strip())
+                or _BULLET_LINE.match(after_next_line)
+            )
         ):
             return True
     return bool(len(text) <= 120 and _DATE_LINE.fullmatch(next_line.strip()))
@@ -140,7 +159,9 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
             else:
                 current_id, current_lines = None, []
         elif current_id is not None and line.strip() and not _is_resume_boundary(
-            line, lines[index + 1] if index + 1 < len(lines) else ""
+            line,
+            lines[index + 1] if index + 1 < len(lines) else "",
+            lines[index + 2] if index + 2 < len(lines) else "",
         ) and (
             line[: len(line) - len(line.lstrip())]
             or line.lstrip()[:1].islower()

@@ -183,6 +183,60 @@ def test_source_bullets_keep_wrapped_duplicate_passages_and_masked_tokens():
     }
 
 
+def test_pdf_extracted_bullets_are_restored_from_source_ids(offline_model_resolution):
+    from io import BytesIO
+
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    from documents.extract_document_text import PDF_CONTENT_TYPE, extract_document_text
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=612, height=792)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+            NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
+        }
+    )
+    page[NameObject("/Resources")] = DictionaryObject(
+        {
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
+        }
+    )
+    content = DecodedStreamObject()
+    content.set_data(
+        b"BT /F1 12 Tf 14 TL 50 700 Td "
+        b"(WORK EXPERIENCE) Tj T* (Acme) Tj T* (Engineer) Tj T* "
+        b"(2022 - Present) Tj T* (\x95 Built a reliable API.) Tj ET"
+    )
+    page[NameObject("/Contents")] = writer._add_object(content)
+    pdf_bytes = BytesIO()
+    writer.write(pdf_bytes)
+    source = extract_document_text(pdf_bytes.getvalue(), PDF_CONTENT_TYPE)
+    assert "• Built a reliable API." in source
+
+    async def answer(messages, info):
+        if "experiences" in info.output_tools[0].parameters_json_schema["properties"]:
+            args = {
+                "experiences": [
+                    {"company": "Acme", "title": "Engineer", "highlight_ids": ["B1"]}
+                ]
+            }
+        else:
+            args = {}
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse_resume_text(
+        source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
+    )
+
+    assert result.parsed_resume.experiences[0].highlights == ["Built a reliable API."]
+
+
 def test_source_bullets_keep_unindented_wraps_and_stop_before_role_and_section_headers():
     from agents.resume_parsing_agent import _source_bullets
 
@@ -279,6 +333,23 @@ def test_source_bullets_stop_before_role_headers_without_dates():
         "WORK EXPERIENCE\n"
         "• Built a complex platform used across three regions.\n"
         "Senior Engineer, Acme\n"
+        "• Improved reliability by 30%.\n"
+    )
+    assert _source_bullets(source) == {
+        "B1": "Built a complex platform used across three regions.",
+        "B2": "Improved reliability by 30%.",
+    }
+
+
+def test_source_bullets_stop_before_split_role_headers():
+    from agents.resume_parsing_agent import _source_bullets
+
+    source = (
+        "WORK EXPERIENCE\n"
+        "• Built a complex platform used across three regions.\n"
+        "Senior Engineer\n"
+        "Acme\n"
+        "2022 - Present\n"
         "• Improved reliability by 30%.\n"
     )
     assert _source_bullets(source) == {

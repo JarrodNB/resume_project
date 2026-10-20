@@ -24,16 +24,16 @@ export function VerifyEmailPage() {
     } catch (error) { setErrors(error instanceof AuthRequestError ? error.messages : ['Could not reach the server. Try again, or request a new link if verification already completed.']) }
     finally { setPending(false) }
   }
-  return <AuthPageShell title="Verify your email" description="Finish creating your Careergrind account."
-    footer={<Link to="/sign-in" className="font-medium text-foreground underline underline-offset-4">Sign in</Link>}>
+  return <AuthPageShell title={verified ? 'Email verified' : token ? 'Verify your email' : 'Get a verification email'} description={verified ? 'Your account is ready. Continue your job search.' : 'Finish creating your Careergrind account.'}
+    footer={verified ? 'Grounded in your experience. Refined with you.' : <Link to="/sign-in" className="font-medium text-foreground underline underline-offset-4">Sign in</Link>}>
     <div className="grid gap-4">
       {errors.length > 0 && <ErrorAlert messages={errors} />}
-      {verified ? <p role="status">Email verified. You can now sign in.</p> : token ? <>
+      {verified ? <><p role="status">Email verified. You can now sign in.</p><Button asChild size="lg" className="min-h-11"><Link to="/sign-in">Sign in</Link></Button></> : token ? <>
         <p>Verify the email address from your link. This does not sign you in.</p>
-        <Button size="lg" disabled={pending} onClick={verify}>{pending ? 'Verifying…' : 'Verify email'}</Button>
-        <Button variant="outline" size="lg" disabled={pending} onClick={() => { forgetConfirmationToken(); setToken(null) }}>Cancel</Button>
+        <Button size="lg" className="min-h-11" disabled={pending} onClick={verify}>{pending ? 'Verifying…' : 'Verify email'}</Button>
+        <Button variant="ghost" size="lg" className="min-h-11" disabled={pending} onClick={() => { forgetConfirmationToken(); setToken(null); setErrors([]) }}>Cancel</Button>
       </> : <p>Open the link in your email, or request another below. If you refreshed this page, reopen the email link.</p>}
-      {!verified && <ResendConfirmationForm />}
+      {!verified && !token && <ResendConfirmationForm />}
     </div>
   </AuthPageShell>
 }

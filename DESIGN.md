@@ -183,6 +183,8 @@ Inputs have a fine input-colored border, transparent light background by default
 
 Password visibility sits inside the field as a quiet 44px touch target. Account-help links occupy separate rows. Auth status messages use a bordered secondary surface, and resend forms start below a fine divider. Between 600px and 899px, auth columns keep 24px horizontal padding and 2rem introduction headings; mobile inputs use 16px text.
 
+Account emails use the same paper, forest, and ruled separators in a fluid 520px layout with inline styles and system sans-serif fallbacks for email clients. One green action leads each email; expiry and ignore instructions sit below. Verification shows only the active task; signup reveals resend help on request. Completed verification and password recovery offer a prominent sign-in action.
+
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.

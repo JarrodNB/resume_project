@@ -263,6 +263,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   overflow-wrap: anywhere;
 }
 .auth-help-links { display: grid; margin-top: 16px; }
+.auth-resend-disclosure summary { cursor: pointer; min-height: 44px; align-content: center; font-size: 14px; text-decoration: underline; text-underline-offset: 4px; }
+.auth-resend-disclosure summary:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
 .auth-help-links a {
   display: flex;
   align-items: center;

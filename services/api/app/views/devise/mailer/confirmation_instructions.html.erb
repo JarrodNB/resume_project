@@ -1,4 +1,6 @@
-<p>Verify your Careergrind email address to finish creating your account.</p>
-<p><%= link_to "Verify email", @confirmation_url %></p>
-<p>This link expires after 24 hours. Requesting another email replaces it.</p>
-<p>If you did not request this account, you can ignore this email.</p>
+<%# Shows one verification action and explains its expiry without exposing account details. %>
+<h1 style="margin:0 0 16px; font-size:28px; line-height:1.2; letter-spacing:-0.5px;">Verify your email</h1>
+<p style="margin:0 0 24px;">Verify your Careergrind email address to finish creating your account. Then sign in to start building your career library.</p>
+<p style="margin:0 0 24px;"><%= link_to "Verify email", @confirmation_url, style: "display:inline-block; padding:13px 24px; border-radius:8px; background-color:#285c45; color:#ffffff; font-size:16px; font-weight:bold; text-decoration:none;" %></p>
+<p style="margin:0 0 24px; color:#626b63; font-size:14px;">This link expires after 24 hours. Requesting another email replaces it.</p>
+<p style="margin:0; color:#626b63; font-size:14px;">If you did not request this account, you can ignore this email.</p>

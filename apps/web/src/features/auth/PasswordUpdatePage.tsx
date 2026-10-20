@@ -67,8 +67,8 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
 export function PasswordUpdatedPage() {
   const { user } = useAuth()
   return <AuthPageShell title="Password updated" description="This account is signed out everywhere. Sign in with the new password."
-    footer={<Link to="/sign-in" className="underline underline-offset-4">Return to sign in</Link>}>
+    footer={user ? <Link to="/library" className="inline-flex min-h-11 items-center underline underline-offset-4">Continue with your signed-in account</Link> : 'Grounded in your experience. Refined with you.'}>
     <p role="status">Your password has been updated.</p>
-    {user && <Link to="/library" className="inline-flex min-h-11 items-center underline underline-offset-4">Continue with your signed-in account</Link>}
+    <Button asChild size="lg" className="mt-6 min-h-11 w-full"><Link to="/sign-in">Sign in with new password</Link></Button>
   </AuthPageShell>
 }

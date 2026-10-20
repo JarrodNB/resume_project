@@ -20,3 +20,9 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
   CSRF; do not introduce bearer-token or query-token alternatives.
 - Preserve the shared persisted-session validity check and no-store response headers.
 - Don't add REST endpoints for domain data; add GraphQL fields instead.
+
+- `internal/interviews_controller.rb` is the scoped machine-to-machine exception:
+  authenticated `/internal/interviews/operations` callbacks use `INTERVIEW_SERVICE_SECRET`
+  with the Bearer scheme, never browser identity or a supplied owner ID. It inherits
+  `ActionController::API` directly and does not weaken browser session/CSRF rules.
+  Persisted operations establish ownership. Business rules stay in `Interviews` services.

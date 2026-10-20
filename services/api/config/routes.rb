@@ -1,4 +1,5 @@
-# Description: HTTP routes. Auth uses Devise browser sessions; domain data uses GraphQL.
+# HTTP routes. Auth uses browser sessions and public domain data uses GraphQL. Private
+# interview execution callbacks authenticate a separate service credential.
 # Index:
 #   - GET /auth/session, POST /auth/sign_up, /auth/sign_in, DELETE /auth/sign_out
 #   - POST /auth/confirmation (resend), /auth/confirmation/verify (consume token)
@@ -25,6 +26,14 @@ Rails.application.routes.draw do
     post "auth/password", to: "auth/passwords#create", defaults: { format: :json }
     put "auth/password", to: "auth/passwords#update", defaults: { format: :json }
     patch "auth/password/change", to: "auth/passwords#change", defaults: { format: :json }
+  end
+
+  namespace :internal do
+    get "interviews/operations", to: "interviews#discover"
+    get "interviews/operations/:id", to: "interviews#status"
+    %w[claim heartbeat accept fail usage retry start_provider].each do |callback|
+      post "interviews/operations/:id/#{callback}", to: "interviews##{callback}"
+    end
   end
 
   post "/graphql", to: "graphql#execute"

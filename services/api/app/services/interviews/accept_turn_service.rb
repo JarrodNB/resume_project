@@ -21,11 +21,12 @@ module Interviews
       return failure("Invalid acceptance payload") unless valid_payload?
 
       interview = @operation.interview_session
-      interview.user.with_lock do
+      interview.user.with_lock(requires_new: true) do
         interview.lock!
         @questions = interview.questions.lock.to_a
         question = @questions.find { |candidate| candidate.id == @operation.question_id }
         @operation.lock!
+        @operation.ai_task&.lock!
         fingerprint = Digest::SHA256.hexdigest(JSON.generate(canonical_payload))
         if @operation.accepted?
           next @operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
@@ -45,6 +46,7 @@ module Interviews
         receipt = { "revision" => interview.revision, "status" => interview.status,
           "message_ids" => [ answer.id, response.id ], "question_id" => question.id }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
+        @operation.ai_task&.update!(status: "completed", completed_at: Time.current)
         success(receipt)
       end
     rescue ActiveRecord::RecordInvalid => error

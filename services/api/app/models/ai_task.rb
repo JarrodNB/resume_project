@@ -1,4 +1,5 @@
-# Description: One unit of AI work sent to the worker over SQS, and its outcome.
+# One logical unit of AI work and its outcome. Queue features publish it over SQS;
+# interview execution links it to durable HTTP work without publishing a queue message.
 # Index:
 #   - TASK_TYPES / task_type enum: parse_resume, scrape_job, parse_job_posting, analyze_gaps,
 #     tailor_resume, generate_interview_questions, regenerate_interview_question, review_interview_answer
@@ -10,7 +11,7 @@
 #   - ai_usage_attempts: execution reports, including retry charges and unknown costs
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_interview_questions regenerate_interview_question review_interview_answer].freeze
+                  generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
 
   belongs_to :user

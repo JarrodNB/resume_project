@@ -73,3 +73,34 @@ RSpec.describe "Basic Interview concurrency" do
     end
   end
 end
+
+RSpec.describe "Interview claim concurrency" do
+  self.use_transactional_tests = false
+  it "assigns exactly one current execution across independent connections" do
+    user = create(:user)
+    interview = Interviews::CreateFixtureService.call(user: user).value
+    operation_id = interview.operations.first.id
+    ready, start = Queue.new, Queue.new
+    threads = 2.times.map do
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do |connection|
+          ready << connection.select_value("SELECT pg_backend_pid()")
+          start.pop
+          Interviews::ClaimOperationService.call(operation: InterviewSessionOperation.find(operation_id))
+        end
+      end
+    end
+    expect(2.times.map { Timeout.timeout(10) { ready.pop } }.uniq.length).to eq(2)
+    2.times { start << true }
+    results = Timeout.timeout(20) { threads.map(&:value) }
+    expect(results.count(&:success?)).to eq(1)
+    operation = interview.operations.find(operation_id)
+    expect(operation.execution_count).to eq(1)
+    expect(operation.execution_attempts.count).to eq(1)
+    expect(user.ai_tasks.count).to eq(1)
+  ensure
+    2.times { start << true } if start
+    threads&.each(&:join)
+    user&.destroy!
+  end
+end

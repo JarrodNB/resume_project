@@ -63,4 +63,6 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - `interview_session*` — separate spoken demo sessions, prepared questions, accepted
   dialogue and durable turn/speech work. Composite foreign keys keep linked records in
-  one interview. Lifecycle policy stays in `Interviews` services.
+  one interview. Lifecycle policy stays in `Interviews` services. `InterviewExecutionAttempt`
+  and `InterviewProviderAttempt` bind durable execution/provider identities to shared
+  AiUsageAttempt ledger entries; missing reports remain incomplete.

@@ -45,9 +45,11 @@ module TextLimits
   end
 end
 
-# Rejects a request whose Content-Length is over 8 MB before Rails parses the body.
+# Rejects oversized bodies before JSON parsing: 300,000 bytes for private interview
+# callbacks and 8 MB elsewhere. Streams without Content-Length use the same bounds.
 class MaxRequestBody
   MAX_BYTES = 8.megabytes
+  INTERNAL_INTERVIEW_BYTES = 300_000
 
   def initialize(app)
     @app = app
@@ -55,9 +57,10 @@ class MaxRequestBody
 
   # Returns 413 when the declared length or the bytes actually read are over the cap.
   def call(env)
-    return too_large if env["CONTENT_LENGTH"].to_i > MAX_BYTES
+    limit = env["PATH_INFO"].to_s.start_with?("/internal/interviews/") ? INTERNAL_INTERVIEW_BYTES : MAX_BYTES
+    return too_large if env["CONTENT_LENGTH"].to_i > limit
 
-    env["rack.input"] = BoundedInput.new(env["rack.input"], MAX_BYTES) if env["rack.input"]
+    env["rack.input"] = BoundedInput.new(env["rack.input"], limit) if env["rack.input"]
     @app.call(env)
   rescue BoundedInput::TooLarge
     too_large

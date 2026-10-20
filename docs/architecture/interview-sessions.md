@@ -14,9 +14,9 @@ internal Rails HTTP, runs asynchronously, and submits results for Rails acceptan
 not write the database. Browser requests never wait for the interviewer. Existing queue
 features continue to use SQS and `ai_results` without changes.
 
-The first delivery slice implements persistence and lifecycle services only. HTTP claim and
-recovery handlers, accounting, media authorization/cleanup, Python execution, and the public
-demo are subsequent slices. Nothing in the first slice is a new public API or upload grant.
+The first two delivery slices implement persistence, lifecycle services, private HTTP
+claims/recovery, and accounting. Media authorization/cleanup, Python execution and the
+public demo are subsequent slices. These internal APIs grant no browser or upload authority.
 
 ## Shared domain and Basic type
 
@@ -93,3 +93,88 @@ submission/acceptance. Actual media cleanup and expiry orchestration belong to l
 The schema is additive and requires no backfill of written practice. Do not remove tables as
 an operational rollback: stop the new runtime and disable creation, retaining accepted data
 and accounting until an explicit data-loss decision.
+
+## Internal execution HTTP contract
+
+The second slice adds private Rails callbacks; it still exposes no public demo or
+recording authority. `/internal/interviews/operations` is the generic shared route.
+Set `INTERVIEW_SERVICE_SECRET` to a separate random credential and send exactly
+`Authorization: Bearer <secret>`. An unset credential disables these routes. Browser
+cookies and caller-supplied user IDs confer no authority. Request bodies are capped at
+300,000 bytes before JSON parsing, including streams without Content-Length. Callbacks
+bound database lock waits to two seconds and statements to five seconds; a timeout
+returns 503 with instructions to retry the identical identity. The later Python client
+must also use finite connect/read timeouts and a configured Rails origin.
+
+All callbacks receive an operation ID whose persisted session establishes its owner.
+`GET /internal/interviews/operations` returns at most ten eligible IDs. Discovery retires
+at most ten expired operations each pass; canonical status also retires expired work.
+This releases the active-turn slot and marks linked tasks failed while leaving incomplete
+usage visible. Physical media deletion remains the media slice's responsibility.
+
+For `/internal/interviews/operations/:id`:
+
+- `POST /claim` atomically returns `operation_id`, `kind`, `attempt_id`,
+  `claim_generation`, `lease_expires_at`, `execution_deadline`, and canonical `payload`.
+  A turn payload contains its recording identity, question, revision, versioned model
+  history and fictional context; speech contains only saved text and its message ID.
+- `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
+  checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
+  or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.
+- `POST /accept` takes claim identity plus the documented turn acceptance fields.
+  Exact repeated acceptance returns its saved receipt even after the lease expires.
+- `POST /fail` takes claim identity, a safe failure `code`, and boolean `retryable`.
+  Supported codes are `dependency_unavailable`, `invalid_recording`, `screening_blocked`,
+  `screening_unavailable`, `execution_failed`, `execution_timeout`, `lease_expired`, and
+  `speech_failed`. Invalid recording and blocked screening are not retryable.
+- `POST /retry` explicitly opens another failed-operation cycle; it cannot regenerate
+  an accepted turn, revive expired media or exceed the total execution allowance.
+- `GET` returns canonical status, failure/retry metadata and an acceptance receipt;
+  it omits current claim credentials, recordings and model history.
+
+Leases last 30 seconds, heartbeat is intended every ten seconds, and each execution has
+an absolute 120-second deadline. A replacement claim increments the generation and gets a
+new UUID. After lease/deadline loss, claim schedules recovery and the next discovery pass
+finds it when due. There are three executions per automatic cycle and six total, with
+2/5-second waits between the first three executions; the configured third 10-second
+backoff is never used once the three-execution cap is reached. Explicit retry starts a
+fresh bounded cycle. Turn recovery stops at the recording's one-hour lifetime. Speech
+recovery stops at session expiry or one hour after completion, whichever is earlier.
+Expired claims cannot heartbeat, checkpoint, accept or start another provider call.
+Speech attachment/completion belongs to the media slice, which must preserve these claim
+and saved-message checks; this slice intentionally has no speech completion endpoint.
+
+## HTTP execution accounting
+
+Each admitted logical operation links a generic `interview_turn` or `interview_speech`
+AiTask without calling the SQS enqueue service. Admission acquires the owner lock before
+session/question/operation/task locks. It applies the existing monthly, hourly and
+in-flight limits. Retry admission rechecks monthly and in-flight limits while excluding
+its own logical task and does not count another hourly task. Acceptance completes the
+linked task atomically; failures/expiry update its lifecycle independently of billing.
+
+A claim creates `InterviewExecutionAttempt` and an unfinished AiUsageAttempt before
+execution. Before **each** potentially charged provider call, the executor must:
+
+1. `POST /start_provider` with the current claim identity, a new `observation_id` UUID,
+   `stage` (`transcription`, `screening`, `interviewer`, `speech`), `provider`, and `model`.
+   Retry an ambiguous response with the same identity. Labels are immutable and bounded
+   to 100 characters. The UUID binds an `InterviewProviderAttempt` to this execution and
+   creates an unfinished shared ledger marker before the provider can run.
+2. `POST /usage` with `attempt_id`, `observation_id`, `usage` containing one numeric
+   entry, and boolean `incomplete` (default false). Supported units are `input_tokens`,
+   `cached_input_tokens`, `output_tokens`, `audio_milliseconds`, `characters`, and
+   `cost_microdollars`. Values are nonnegative integers up to one trillion. The server
+   adds the immutable labels. Complete reports require explicit cost, including fake zero.
+3. When the whole execution finishes, post `/usage` with its `attempt_id`, `usage: []`,
+   and explicit completeness, omitting `observation_id`. This resolves only the execution
+   marker and cannot charge provider observations again. Domain acceptance does not wait
+   for this report; a missing report stays incomplete.
+
+Provider starts are capped at `INTERVIEW_PROVIDER_ATTEMPT_LIMIT` per execution (default
+eight, clamped to 1–20). Repeated identical starts still succeed at the cap. Separate
+provider executions require separate observation UUIDs. Duplicate finalized reports never
+add cost twice. Persisted matching stale-execution observations can still report charges,
+including after domain acceptance; they cannot change dialogue or current claims. Missing
+observations remain unknown rather than silently becoming known zero. A completed
+execution marker does not resolve its unfinished provider markers.

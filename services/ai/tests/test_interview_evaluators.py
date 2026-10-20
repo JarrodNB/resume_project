@@ -58,7 +58,7 @@ def test_question_structure() -> None:
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 13
+    assert len(dataset.cases) == 17
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],

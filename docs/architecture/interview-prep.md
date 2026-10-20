@@ -76,6 +76,17 @@ Trusted per-run scope selects separate knowledge-feedback instructions, so knowl
 never receive personal-fact-only scaffolding rules. The subject-accuracy judge deterministically
 skips other scopes; its aggregate measures knowledge cases only.
 
+General behavioral feedback uses STAR as flexible coaching: brief situation and responsibility,
+personal actions, and the actual result. It prioritizes useful gaps and demonstrates clearer
+ordering without required fields or a four-part checklist. Unknown, qualitative and negative
+results remain honest; having no matching example never becomes invented experience. Examples
+use at most two integrated placeholders and remain concise. Introductions and legacy goals or
+development questions follow their actual focus instead of forcing a story. The trusted general
+scope adds this guidance to the existing personal-fact policy; technical and knowledge policies
+remain separate. Newly requested feedback uses the guidance without rewriting saved answers.
+Feedback evals cover complete and incomplete stories, no example, uncertain/negative outcomes,
+and legacy nonbehavioral questions alongside technical and knowledge regressions.
+
 The web routes `/interview-prep` and `/interview-prep/:id` list numbered/date sets newest first
 and display five ordered cards. Persisted `latestTask` fields restore subscriptions on reload.
 Cards preserve local drafts, show outdated feedback for substantive unsaved changes too, warn before

@@ -1,7 +1,7 @@
 /**
  * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, or write a resume, then how the
  * career library matches it, requirements, responsibilities, nice-to-haves, notes, the description, and the
- * original posting. Job Board import omissions stay visible on arrival. Requirements, responsibilities,
+ * saved website. Job Board import omissions stay visible on arrival. Requirements, responsibilities,
  * nice-to-haves, notes, and the description start collapsed.
  * Index:
  *   - JobDetailPage: page component
@@ -100,7 +100,7 @@ function JobDetails({ id }: { id: string }) {
               {job.url && (
                 <Button asChild variant="outline" size="sm">
                   <a href={job.url} target="_blank" rel="noreferrer">
-                    <ExternalLink /> Original posting
+                    <ExternalLink /> Visit website
                   </a>
                 </Button>
               )}

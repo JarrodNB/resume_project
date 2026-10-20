@@ -35,7 +35,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
     threads&.each(&:join)
   end
 
-  it "makes only one provider request for simultaneous identical cache misses" do
+  it "makes only one provider request for simultaneous case-equivalent cache misses" do
     calls = Queue.new
     entered = Queue.new
     release = Queue.new
@@ -59,7 +59,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
       end
       release << true
     end
-    results = concurrent_searches([ "Engineer", "Engineer" ], provider)
+    results = concurrent_searches([ "Engineer", "ENGINEER" ], provider)
     observer.value
     expect(calls.size).to eq(1)
     expect(results).to all(be_success)
@@ -77,7 +77,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
     provider = lambda do |keyword:, **_arguments|
       arrived << true
       release.pop
-      ids = keyword == "A" ? [ 71, 72 ] : [ 72, 71 ]
+      ids = keyword == "a" ? [ 71, 72 ] : [ 72, 71 ]
       ServiceResult.new(success: true, value: { listings: ids.map { |id| { "id" => id, "title" => keyword } }, next_cursor: nil }, errors: [])
     end
     observer = Thread.new do

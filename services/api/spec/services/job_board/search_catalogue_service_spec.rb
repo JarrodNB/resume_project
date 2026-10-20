@@ -10,7 +10,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
   end
 
   it "persists and reuses the ordered page across equivalent whitespace searches" do
-    expect(provider).to receive(:call).with(keyword: "Software Engineer", remote_only: false, cursor: nil)
+    expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, cursor: nil)
       .once.and_return(ServiceResult.new(success: true, value: { listings: [ listing ], next_cursor: "opaque" }, errors: []))
     first = search
     second = described_class.call(keyword: "Software Engineer", provider: provider)
@@ -22,6 +22,29 @@ RSpec.describe JobBoard::SearchCatalogueService do
   end
   def successful_page(listings = [ listing ], next_cursor: nil)
     ServiceResult.new(success: true, value: { listings: listings, next_cursor: next_cursor }, errors: [])
+  end
+
+  it "bypasses a pre-normalization empty cache page without changing listing identity" do
+    old_listing = create(:job_board_listing, provider_id: 71, payload: listing)
+    digest = Digest::SHA256.hexdigest(JSON.generate([ "Software Engineer", false, nil ]))
+    JobBoardSearchPage.create!(query_digest: digest, keyword: "Software Engineer", remote_only: false,
+      listing_ids: [], next_cursor: "old-cursor", retrieved_at: Time.current)
+    expect(provider).to receive(:call).and_return(successful_page([ listing.merge("location" => "Alpharetta, GA, US") ], next_cursor: "new-cursor"))
+    result = search.value
+    expect(result[:listings].map(&:id)).to eq([ old_listing.id ])
+    expect(result[:next_cursor]).to eq("new-cursor")
+    expect(JobBoardSearchPage.count).to eq(2)
+  end
+
+  it "does not fall back to a legacy page if the revised first fetch fails" do
+    digest = Digest::SHA256.hexdigest(JSON.generate([ "Software Engineer", false, nil ]))
+    JobBoardSearchPage.create!(query_digest: digest, keyword: "Software Engineer", remote_only: false,
+      listing_ids: [], next_cursor: "old-cursor", retrieved_at: Time.current)
+    allow(provider).to receive(:call).and_return(ServiceResult.new(success: false, value: nil, errors: [ "Unavailable" ]))
+    result = search
+    expect(result).not_to be_success
+    expect(result.errors).to eq([ "Unavailable" ])
+    expect(JobBoardSearchPage.count).to eq(1)
   end
 
   it "refreshes exactly at 24 hours and updates the same catalogue UUID" do
@@ -75,16 +98,37 @@ RSpec.describe JobBoard::SearchCatalogueService do
     search(cursor: "Token")
     search(cursor: "token")
     expect(JobBoardSearchPage.count).to eq(4)
-    expect(provider).to have_received(:call).with(keyword: "Software Engineer", remote_only: false, cursor: "Token")
+    expect(provider).to have_received(:call).with(keyword: "software engineer", remote_only: false, cursor: "Token")
     expect(provider).to have_received(:call).exactly(4).times
   end
 
-  it "preserves phrase punctuation and case instead of assuming provider equivalence" do
-    allow(provider).to receive(:call).and_return(successful_page)
-    described_class.call(keyword: '"Software Engineer" OR Rails', provider: provider)
-    described_class.call(keyword: '"software engineer" OR Rails', provider: provider)
+  it "shares ordered first and continuation pages across keyword casing while preserving punctuation" do
+    phrase = '"software engineer" or rails+c++'
+    [ nil, "NextToken" ].each do |cursor|
+      expect(provider).to receive(:call).with(keyword: phrase, remote_only: false, cursor: cursor)
+        .once.and_return(successful_page([ listing.merge("id" => 72), listing ], next_cursor: "NextToken"))
+      results = [ '  "Software   Engineer" OR Rails+C++ ', phrase, phrase.upcase ].map do |keyword|
+        described_class.call(keyword: keyword, cursor: cursor, provider: provider).value
+      end
+      expect(results.first[:listings].map(&:provider_id)).to eq([ 72, 71 ])
+      expect(results.map { |page| [ page[:listings].map(&:id), page[:retrieved_at], page[:next_cursor] ] }.uniq.size).to eq(1)
+    end
     expect(JobBoardSearchPage.count).to eq(2)
-    expect(provider).to have_received(:call).with(keyword: '"Software Engineer" OR Rails', remote_only: false, cursor: nil)
+  end
+
+  it "bypasses revision-one lowercase pages and their continuation chain" do
+    old_listing = create(:job_board_listing, provider_id: 71, payload: listing)
+    [ nil, "NextToken" ].each do |cursor|
+      digest = Digest::SHA256.hexdigest(JSON.generate([ 1, "software engineer", false, cursor ]))
+      JobBoardSearchPage.create!(query_digest: digest, keyword: "software engineer", remote_only: false,
+        cursor: cursor, listing_ids: [ old_listing.id ], next_cursor: "OldToken", retrieved_at: Time.current)
+      expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, cursor: cursor)
+        .and_return(successful_page([ listing.merge("id" => 72) ], next_cursor: "NewToken"))
+      result = described_class.call(keyword: "software engineer", cursor: cursor, provider: provider).value
+      expect(result[:listings].map(&:provider_id)).to eq([ 72 ])
+      expect(result[:next_cursor]).to eq("NewToken")
+    end
+    expect(JobBoardSearchPage.count).to eq(4)
   end
 
   it "preserves provider order and deduplicates IDs across overlapping pages" do

@@ -19,12 +19,17 @@ All business logic, as service objects grouped by domain folder.
   ordered, validated US listings and an opaque next cursor without persistence or detail calls.
   Uses `CLEANJOBDATA_API_KEY`, fixed HTTPS endpoint, an eight-second overall deadline, and at
   most one retry for the documented per-second 429 message. Country confirmation uses only
-  `locations[].country_code`; mixed-country listings retain only US rows and derived labels.
+  `locations[].country_code`; mixed-country listings retain only US rows.
+  `listing_location.rb` shares confirmed-label/city/state formatting and original-text fallback
+  with new imports, including legacy catalogue snapshots; existing Jobs stay unchanged.
   Contract references: https://cleanjobdata.com/docs/api/jobs and https://cleanjobdata.com/docs/api/errors.
 - `job_board/search_catalogue_service.rb` — shared catalogue search and 24-hour page cache.
+  Cache identity includes a normalization revision to bypass older normalized pages.
   Accepts keyword, remote-only, exact cursor; returns ordered `JobBoardListing` records,
   retrieval time, next cursor, and stale/errors metadata. Keyword normalization collapses
-  spaces and trims outer whitespace, preserving case, punctuation, and phrase syntax.
+  spaces, trims outer whitespace, and lowercases letters while preserving punctuation
+  and quote characters. Case variants share provider requests, cache pages, and locks;
+  cursors stay exact and remote filters stay distinct.
   The bounded provider call runs under a transaction advisory lock for the exact page;
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids

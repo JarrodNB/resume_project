@@ -5,6 +5,7 @@ behavior even when rendering or file writes fail.
 """
 import json
 import multiprocessing
+import re
 from uuid import uuid4
 
 import pytest
@@ -58,6 +59,12 @@ def test_nested_calls_fallback_and_generation_redelivery(monkeypatch, task_depen
                   "Generation: 1", "Generation: 2", "Receive count: 2"):
         assert value in text
     assert text.count("Outcome: needs_user_input result published") == 2
+    files = list(tmp_path.glob("conversation_logs/**/*.md"))
+    assert [path.name for path in files] == [f"task-{task_id}.md"]
+    assert "## INITIAL ATTEMPT — delivery 1" in text
+    assert "## RETRY / REDELIVERY — delivery 2" in text
+    attempts = re.findall(r"^Attempt: ([0-9a-f-]+)$", text, re.MULTILINE)
+    assert len(attempts) == 2 and len(set(attempts)) == 2
 
 
 @pytest.mark.parametrize("broken", ["none", "disk", "format"])
@@ -106,6 +113,8 @@ def test_retry_and_original_publication_errors_survive_logging(monkeypatch, task
     assert caught.value is original
     if broken == "none":
         text = next(tmp_path.glob("conversation_logs/**/*.md")).read_text()
+        assert "### RETRY PENDING — Attempt " in text
+        assert "### PUBLICATION FAILURE — Attempt " in text
         assert "Outcome: retry pending; usage published" in text
         assert "failed result publication failed (ConnectionError)" in text
 

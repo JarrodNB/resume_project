@@ -16,6 +16,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
+from conversation_logging import ConversationLogging
 from documents.experience_source import ExperienceSource
 from prompts.resume_parsing_instructions import (
     RESUME_PARSING_INSTRUCTIONS,
@@ -80,7 +81,7 @@ resume_parsing_agent = Agent(
     instructions=RESUME_PARSING_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

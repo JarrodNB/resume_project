@@ -14,6 +14,7 @@ from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from job_postings.extract_job_posting import BulletSortingRun
 from prompts.job_requirements_sorting_instructions import (
     JOB_REQUIREMENTS_SORTING_INSTRUCTIONS,
@@ -33,7 +34,7 @@ job_requirements_sorting_agent = Agent(
     output_type=SortedRequirementBullets,
     instructions=JOB_REQUIREMENTS_SORTING_INSTRUCTIONS,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

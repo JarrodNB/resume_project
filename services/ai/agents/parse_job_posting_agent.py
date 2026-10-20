@@ -16,6 +16,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from prompts.parse_job_posting_instructions import (
     PARSE_JOB_POSTING_INSTRUCTIONS,
@@ -37,7 +38,7 @@ parse_job_posting_agent = Agent(
     instructions=PARSE_JOB_POSTING_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

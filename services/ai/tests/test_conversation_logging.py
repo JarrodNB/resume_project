@@ -1,7 +1,7 @@
-"""
-Description: Transcript acceptance tests through real task and model interfaces.
-Index:
-    - test_*: task/model capture, grouping, environment gates, rendering and disk failures
+"""Check readable local transcripts through real task and model interfaces.
+
+Verify separate task files, local gates, masked exchanges and nonfatal writes
+without sending requests to external providers.
 """
 from dataclasses import replace
 from uuid import uuid4
@@ -61,33 +61,32 @@ def test_disabled_logging_creates_nothing(monkeypatch, tmp_path, environment, en
     assert not (tmp_path / "conversation_logs").exists()
 
 
-def test_existing_ids_group_jobs_sets_and_imports(monkeypatch, tmp_path):
-    """Same-user job/set tasks share files; imports and different users remain separate."""
+def test_each_task_has_its_own_file_and_preserves_legacy_logs(monkeypatch, tmp_path):
+    """Separate tasks stay separate even with the same type, job or question set."""
     monkeypatch.chdir(tmp_path)
     settings = WorkerSettings(worker_environment="local")
     user, other_user, job, question_set = (uuid4() for _ in range(4))
+    directory = tmp_path / "conversation_logs" / str(user)
+    directory.mkdir(parents=True)
+    legacy = [directory / f"job-{job}.md", directory / f"question_set-{question_set}.md"]
+    for path in legacy:
+        path.write_text("historical transcript")
     tasks = [
-        ("analyze_gaps", user, {"job_id": str(job)}),
-        ("tailor_resume", user, {"job_id": str(job), "generation": 3}),
-        ("analyze_gaps", other_user, {"job_id": str(job)}),
-        ("generate_interview_questions", user, {"question_set_id": str(question_set)}),
-        ("regenerate_interview_question", user, {"question_set_id": str(question_set)}),
-        ("review_interview_answer", user, {"question_set_id": str(question_set)}),
-        ("parse_resume", user, {}),
-        ("parse_job_posting", user, {}),
-        ("scrape_job", user, {}),
-        ("analyze_gaps", user, {"job_id": "../../unsafe"}),
+        AiTaskMessage(ai_task_id=uuid4(), user_id=owner, task_type=kind,
+                      input={"job_id": str(job), "question_set_id": str(question_set)})
+        for owner in (user, other_user)
+        for kind in ("analyze_gaps", "analyze_gaps", "tailor_resume", "generate_interview_questions",
+                     "regenerate_interview_question", "review_interview_answer", "parse_resume",
+                     "parse_job_posting", "scrape_job")
     ]
-    for kind, owner, data in tasks:
-        task = AiTaskMessage(ai_task_id=uuid4(), user_id=owner, task_type=kind, input=data)
+    for task in tasks:
         with conversation_scope(task, settings, uuid4(), 1):
             pass
-    files = list(tmp_path.glob("conversation_logs/**/*.md"))
-    assert len(files) == 7
-    text = (tmp_path / "conversation_logs" / str(user) / f"job-{job}.md").read_text()
-    assert "analyze_gaps" in text and "tailor_resume" in text and "Generation: 3" in text
-    set_text = (tmp_path / "conversation_logs" / str(user) / f"question_set-{question_set}.md").read_text()
-    assert all(kind in set_text for kind in ("generate_interview_questions", "regenerate_interview_question", "review_interview_answer"))
+    assert len(list(tmp_path.glob("conversation_logs/**/*.md"))) == len(tasks) + len(legacy)
+    for task in tasks:
+        text = (tmp_path / "conversation_logs" / str(task.user_id) / f"task-{task.ai_task_id}.md").read_text()
+        assert f"Task: {task.task_type} {task.ai_task_id}" in text
+    assert all(path.read_text() == "historical transcript" for path in legacy)
 
 
 def test_synthetic_tool_messages_are_readable():

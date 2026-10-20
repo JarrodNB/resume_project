@@ -3,7 +3,7 @@
  * uploads, via the GraphQL multipart spec) go over HTTP; subscriptions go over ActionCable.
  * Index:
  *   - ApolloSession: the client plus a dispose function that closes its WebSocket connection
- *   - createApolloClient: builds the client for a JWT
+ *   - createApolloClient: builds cookie/CSRF HTTP and cookie-authenticated Cable transports
  */
 import { ApolloClient, ApolloLink, InMemoryCache } from '@apollo/client'
 import { ServerError } from '@apollo/client/errors'
@@ -20,23 +20,31 @@ export interface ApolloSession {
 }
 
 interface CreateApolloClientOptions {
-  token: string | null
-  /** Called when the API rejects the token (HTTP 401), e.g. after it expires. */
+  signedIn: boolean
+  csrfToken: string
+  /** Called when the API rejects the session or its CSRF state. */
   onUnauthorized: () => void
 }
 
-/** Creates a client that authenticates every request with `token`. */
-export function createApolloClient({ token, onUnauthorized }: CreateApolloClientOptions): ApolloSession {
+/** Creates an isolated cache and authenticated transports for one browser session. */
+export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: CreateApolloClientOptions): ApolloSession {
   const httpLink = new UploadHttpLink({
     uri: GRAPHQL_URL,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: 'include',
+    headers: { 'X-CSRF-Token': csrfToken },
   })
   const unauthorizedLink = new ErrorLink(({ error }) => {
-    if (ServerError.is(error) && error.statusCode === 401) onUnauthorized()
+    if (!ServerError.is(error)) return
+    if (error.statusCode === 401) onUnauthorized()
+    else if (error.statusCode === 422) {
+      try {
+        if (JSON.parse(error.bodyText).code === 'invalid_csrf') onUnauthorized()
+      } catch { /* Other non-JSON errors keep their normal error handling. */ }
+    }
   })
 
-  // Browsers can't set headers on WebSockets, so the cable authenticates with a query param.
-  const cable = token ? createConsumer(`${CABLE_URL}?token=${encodeURIComponent(token)}`) : null
+  // The browser supplies the HttpOnly session cookie on the WebSocket handshake.
+  const cable = signedIn ? createConsumer(CABLE_URL) : null
   const transportLink = cable
     ? ApolloLink.split(
         (operation) => operation.operationType === OperationTypeNode.SUBSCRIPTION,

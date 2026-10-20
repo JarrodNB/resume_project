@@ -6,6 +6,7 @@ when changing a contract or feature:
 
 | Guide | Read when changing |
 | --- | --- |
+| [Authentication](architecture/authentication.md) | Browser sessions, CSRF, login/logout, live connection security |
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
@@ -71,7 +72,9 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
 
 ## System decisions
 
-- **Rails-owned auth** (Devise + JWT).
+- **Rails-owned auth** (Devise + server-side Rails sessions). Browsers keep an
+  HttpOnly session cookie; credentials are not stored in localStorage.
+  See [authentication](architecture/authentication.md) for transport and rollout.
 
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
   dependency injection, and switching LLM providers is a config change. Its deferred
@@ -90,8 +93,8 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
 
 - **GraphQL subscriptions for live UI updates.** graphql-ruby subscriptions over ActionCable,
   using the Solid Cable adapter (Postgres-backed, so there's no Redis to run). The web app
-  subscribes with Apollo over an ActionCable link, passing the JWT as the `token` query
-  param on `/cable` (browsers can't set headers on WebSockets).
+  subscribes with Apollo over an ActionCable link. `/cable` authenticates the same
+  cookie session as HTTP and rechecks it before private delivery and operations.
 
 - **Per-service env files** (`services/api/.env`, `services/ai/.env`) for secrets. They match
   Kubernetes, where each deployment gets its own secrets. Local, non-secret wiring lives in

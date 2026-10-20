@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
-# Description: Devise config. Mostly generated defaults; the "API-only + JWT" block at the
-# bottom configures token auth (secret from DEVISE_JWT_SECRET_KEY, 1-day expiry).
+# Description: Devise account defaults and JSON responses. Rails sessions carry browser identity.
 #
 # Assuming you have not yet modified this file, each configuration option below
 # is set to its default value. Note that some are commented out while others
@@ -27,7 +26,10 @@ Devise.setup do |config|
   # Configure the e-mail address which will be shown in Devise::Mailer,
   # note that it will be overwritten if you use your own mailer class
   # with default "from" parameter.
-  config.mailer_sender = "please-change-me-at-config-initializers-devise@example.com"
+  config.mailer_sender = ENV.fetch("MAIL_FROM", "Careergrind <accounts@localhost>")
+  config.mailer = "AccountMailer"
+  config.confirm_within = 24.hours
+  config.paranoid = true
 
   # Configure the class responsible to send e-mails.
   # config.mailer = 'Devise::Mailer'
@@ -183,8 +185,10 @@ Devise.setup do |config|
   # config.rememberable_options = {}
 
   # ==> Configuration for :validatable
-  # Range for password length.
-  config.password_length = 6..128
+  # Newly chosen passwords only. The User validation also enforces bcrypt's byte limit.
+  config.password_length = 15..72
+  # Check every eligible entry in the gem's bundled offline SecLists top-10,000 list.
+  config.password_matches = 10_000
 
   # Email regex used to validate email formats. It simply asserts that
   # one (and only one) @ exists in the given string. This is mainly
@@ -234,7 +238,7 @@ Devise.setup do |config|
 
   # When set to false, does not sign a user in automatically after their password is
   # reset. Defaults to true, so a user is signed in automatically after a reset.
-  # config.sign_in_after_reset_password = true
+  config.sign_in_after_reset_password = false
 
   # ==> Configuration for :encryptable
   # Allow you to use another hashing or encryption algorithm besides bcrypt (default).
@@ -315,14 +319,8 @@ Devise.setup do |config|
 
   # When set to false, does not sign a user in automatically after their password is
   # changed. Defaults to true, so a user is signed in automatically after changing a password.
-  # config.sign_in_after_change_password = true
+  config.sign_in_after_change_password = false
 
-  # ==> API-only + JWT
+  # ==> JSON API responses
   config.navigational_formats = []
-
-  config.jwt do |jwt|
-    jwt.secret = ENV["DEVISE_JWT_SECRET_KEY"].presence || Rails.application.secret_key_base
-    jwt.expiration_time = 1.day.to_i
-    jwt.dispatch_requests = [ [ "POST", %r{\A/auth/sign_up\z} ] ]
-  end
 end

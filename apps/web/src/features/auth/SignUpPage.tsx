@@ -1,22 +1,24 @@
 /**
- * Description: Sign-up page. New users go straight to importing their resume.
+ * Description: Sign-up page. New users verify their email before signing in.
  * Index:
  *   - SignUpPage: page component
  */
-import { Link, useNavigate } from 'react-router'
+import { useState } from 'react'
+import { Link } from 'react-router'
 import type { AuthCredentials } from './authApi'
 import { AuthForm } from './AuthForm'
 import { AuthPageShell } from './AuthPageShell'
 import { useAuth } from './useAuth'
+import { ResendConfirmationForm } from './ResendConfirmationForm'
 
-/** Creates an account, then sends the user to the resume import page. */
+/** Requests an account without starting a session or disclosing duplicate emails. */
 export function SignUpPage() {
   const { signUp } = useAuth()
-  const navigate = useNavigate()
+  const [submitted, setSubmitted] = useState(false)
 
   async function handleSignUp(credentials: AuthCredentials) {
     await signUp(credentials)
-    navigate('/import', { replace: true })
+    setSubmitted(true)
   }
 
   return (
@@ -32,7 +34,8 @@ export function SignUpPage() {
         </span>
       }
     >
-      <AuthForm submitLabel="Create account" includeName onSubmit={handleSignUp} />
+      {submitted ? <div className="grid gap-4"><p role="status">Check your email. If this address can be registered, a verification email will arrive shortly. Check spam, or request another email below.</p><ResendConfirmationForm /></div>
+        : <AuthForm submitLabel="Create account" includeName onSubmit={handleSignUp} />}
     </AuthPageShell>
   )
 }

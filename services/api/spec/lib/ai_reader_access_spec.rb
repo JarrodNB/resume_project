@@ -71,6 +71,13 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("UPDATE jobs SET title = 'x' RETURNING id") }
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
+
+  it "cannot read account confirmation state or secrets" do
+    %w[confirmation_token confirmed_at confirmation_sent_at unconfirmed_email reset_password_token reset_password_sent_at].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM users") }
+        .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+  end
   it "reads independent certifications but cannot modify them" do
     credential = create(:certification)
     expect(select_as_ai_reader("SELECT id, name FROM certifications")).to eq([ { "id" => credential.id, "name" => credential.name } ])

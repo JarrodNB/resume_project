@@ -8,6 +8,9 @@ import { AppLayout } from '@/components/AppLayout'
 import { RequireAuth, RequireSignedOut } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { SignUpPage } from '@/features/auth/SignUpPage'
+import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
 import { AddJobFromTextPage } from '@/features/jobs/AddJobFromTextPage'
 import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
@@ -25,6 +28,10 @@ import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
 
 export const appRoutes: RouteObject[] = [
+  { path: '/verify-email', element: <VerifyEmailPage /> },
+  { path: '/forgot-password', element: <ForgotPasswordPage /> },
+  { path: '/reset-password', element: <PasswordUpdatePage /> },
+  { path: '/password-updated', element: <PasswordUpdatedPage /> },
   {
     element: <RequireSignedOut />,
     children: [
@@ -35,6 +42,7 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
+      { path: '/account/security', element: <PasswordUpdatePage change /> },
       {
         element: <AppLayout />,
         children: [

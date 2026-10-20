@@ -15,6 +15,7 @@ export function SignInPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const returnTo = (location.state as { from?: string } | null)?.from ?? '/'
+  const notice = (location.state as { notice?: string } | null)?.notice
 
   async function handleSignIn(credentials: AuthCredentials) {
     await signIn(credentials)
@@ -34,7 +35,10 @@ export function SignInPage() {
         </span>
       }
     >
+      {notice && <p role="status" className="mb-4">{notice}</p>}
       <AuthForm submitLabel="Sign in" onSubmit={handleSignIn} />
+      <Link to="/forgot-password" className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Forgot your password?</Link>
+      <Link to="/verify-email" className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Need a verification email?</Link>
     </AuthPageShell>
   )
 }

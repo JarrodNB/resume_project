@@ -11,6 +11,8 @@ adapter, and production Solid Queue (it needs a jobs process at deploy time).
 - `interview_prep/` — question-specific saved Q&A vector jobs; after-commit enqueue, temporary provider retries, missing-key skip, no AI-task accounting.
 
 - `application_job.rb` — generated base class
+- `account_mail_delivery_job.rb` — Devise mail via Rails/Solid Queue; private arguments,
+  sanitized SMTP errors, at most three attempts. Production needs `bin/jobs`.
 - `career_library/sync_library_embeddings_job.rb` — `perform(user_id)` runs
   `CareerLibrary::SyncLibraryEmbeddingsService`; enqueued only after the surrounding transaction
   commits (`enqueue_after_transaction_commit`), retries OpenAI connection errors, timeouts, 429s,

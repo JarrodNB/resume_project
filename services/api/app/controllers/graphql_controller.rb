@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Description: Single GraphQL endpoint. Requires a valid JWT and passes the user into context.
+# Description: Single GraphQL endpoint. Requires a valid browser session and passes the user into context.
 # Index:
 #   - execute: runs a GraphQL query or mutation
 #   - prepare_variables: normalizes variables from JSON, form data, or blank

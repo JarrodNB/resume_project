@@ -1,26 +1,31 @@
-# Description: Sign in / sign out. devise-jwt adds the JWT to the Authorization response
-# header on sign-in and revokes it on sign-out.
-# Index:
-#   - respond_with: JSON body for a successful sign-in
-#   - respond_to_on_destroy: JSON body for sign-out
+# Safe browser session bootstrap and Devise sign-in/sign-out JSON responses.
 module Auth
   class SessionsController < Devise::SessionsController
-    include FakeRackSession
+    skip_before_action :verify_signed_out_user, only: :destroy
+    before_action :validate_credentials_shape, only: :create
+    def show
+      render json: { user: current_user&.slice(:id, :email, :name), csrfToken: form_authenticity_token }
+    end
+
+    def destroy
+      sign_out
+      reset_session
+      render json: { message: "Signed out" }
+    end
 
     private
 
-    # Renders the signed-in user. The token itself is in the Authorization header.
-    def respond_with(user, _options = {})
-      render json: { user: { id: user.id, email: user.email, name: user.name } }, status: :ok
+    def validate_credentials_shape
+      credentials = params[:user]
+      unless credentials.is_a?(ActionController::Parameters) && credentials[:email].is_a?(String) && credentials[:password].is_a?(String)
+        render json: { error: "Invalid Email or password." }, status: :unauthorized
+      end
     end
 
-    # Renders the sign-out result.
-    def respond_to_on_destroy(*)
-      if current_user
-        render json: { message: "Signed out" }, status: :ok
-      else
-        render json: { error: "Not signed in" }, status: :unauthorized
-      end
+    # Devise rotates the session and CSRF state on successful authentication.
+    def respond_with(user, _options = {})
+      session[:authenticated_at] = Time.current.to_i
+      render json: { user: user.slice(:id, :email, :name), csrfToken: form_authenticity_token }, status: :ok
     end
   end
 end

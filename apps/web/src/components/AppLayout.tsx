@@ -4,7 +4,7 @@
  * has its own location beside the private saved Jobs list.
  */
 import { ArrowUpRight, BookOpen, BriefcaseBusiness, FileText, FileUp, LogOut, MessagesSquare, Search } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
@@ -23,6 +23,14 @@ const NAV_ITEMS = [
 
 export function AppLayout() {
   const { signOut } = useAuth()
+  const [signOutError, setSignOutError] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  async function handleSignOut() {
+    setSigningOut(true)
+    setSignOutError(false)
+    try { await signOut() } catch { setSignOutError(true) }
+    finally { setSigningOut(false) }
+  }
   const { pathname } = useLocation()
   const navigationRef = useRef<HTMLElement>(null)
 
@@ -60,8 +68,10 @@ export function AppLayout() {
           <Link to="/jobs">Find your next step <ArrowUpRight size={15} aria-hidden /></Link>
         </div>
         <div className="workspace-account">
+          <Link to="/account/security" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Account security</Link>
           <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={() => void signOut()}><LogOut aria-hidden /> Sign out</Button>
+          <Button variant="ghost" size="sm" disabled={signingOut} onClick={() => void handleSignOut()}><LogOut aria-hidden /> Sign out</Button>
+          {signOutError && <p role="alert">Could not sign out. Please try again.</p>}
         </div>
       </aside>
       <div className="workspace-body">

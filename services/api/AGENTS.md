@@ -7,7 +7,7 @@ applications, interviews, contacts, goals.
 
 ## Stack
 
-Rails (API mode), PostgreSQL (RDS) with pgvector (`neighbor` gem), graphql-ruby, Devise + JWT
+Rails (API mode), PostgreSQL (RDS) with pgvector (`neighbor` gem), graphql-ruby, Devise + Rails sessions
 auth, Shoryuken (SQS) for publishing AI jobs and consuming results, ActionCable with Solid Cable
 for GraphQL subscriptions, the official `openai` gem for career-library and interview Q&A embeddings only.
 
@@ -45,13 +45,14 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `app/services/` — service objects (all business logic)
 - `app/graphql/` — GraphQL schema, types, mutations, subscriptions
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
-- `app/channels/` — ActionCable: JWT-authenticated WebSocket at `/cable`, GraphQL channel
+- `app/channels/` — ActionCable: cookie-authenticated WebSocket at `/cable`, GraphQL channel
 - `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
 - `app/jobs/` — Active Job background jobs (career-library and question-specific interview embedding sync)
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
-- `config/routes.rb` — `/auth/*` (REST, JWT), `/graphql`, `/up`
-- `config/initializers/devise.rb` — JWT settings at the bottom; `cors.rb` — allowed origins
+- `config/routes.rb` — `/auth/*` (REST, cookie sessions), `/graphql`, `/up`
+- `config/initializers/devise.rb` — Devise settings; `session_store.rb` — session serialization;
+  `cors.rb` — explicit credentialed origins
   (also used for WebSocket origins in `config/application.rb`)
 - `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)

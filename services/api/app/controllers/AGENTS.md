@@ -6,13 +6,17 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
 
 ## Contents
 
-- `graphql_controller.rb` — `POST /graphql`; requires a JWT, puts `current_user` in context
-- `auth/sessions_controller.rb` — `POST /auth/sign_in`, `DELETE /auth/sign_out`
+- `graphql_controller.rb` — `POST /graphql`; requires a session, puts `current_user` in context
+- `auth/sessions_controller.rb` — session bootstrap, `POST /auth/sign_in`, `DELETE /auth/sign_out`
 - `auth/registrations_controller.rb` — `POST /auth/sign_up`
-- `concerns/fake_rack_session.rb` — no-op session so Devise works in API-only mode
+- `auth/confirmations_controller.rb` — resend and explicit POST verification; no GET consumes links
+- `auth/passwords_controller.rb` — recovery request/reset and signed-in current-password change;
+  only password fields, no auto-login or account edit/delete
 
 ## Local Rules
 
-- The JWT is returned in the `Authorization` response header (`Bearer ...`) on sign-in and
-  sign-up; clients send it back in the `Authorization` request header.
+- Browser identity comes from a server-side Rails session with an HttpOnly cookie.
+  Bootstrap returns safe user state and a Rails CSRF token. Unsafe requests require
+  CSRF; do not introduce bearer-token or query-token alternatives.
+- Preserve the shared persisted-session validity check and no-store response headers.
 - Don't add REST endpoints for domain data; add GraphQL fields instead.

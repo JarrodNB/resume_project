@@ -1,46 +1,68 @@
-/**
- * Description: Holds the session JWT (persisted in localStorage) and the sign-in/up/out actions.
- * Index:
- *   - AuthProvider: context provider for useAuth
- */
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { signInRequest, signOutRequest, signUpRequest, type AuthCredentials } from './authApi'
+/** Loads the browser session before rendering routes and isolates session transitions.
+ * Cookies remain private to the browser. Failed bootstrap requests offer an explicit retry. */
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { onInvalidCsrf, sessionRequest, signInRequest, signOutRequest, signUpRequest, type AuthCredentials, type BrowserSession } from './authApi'
 import { AuthContext, type AuthContextValue } from './authContext'
-import { clearAuthToken, readAuthToken, saveAuthToken } from './authTokenStorage'
+import { productStorageKey } from '@/lib/productName'
 
-/** Provides the session to the app; starts from any token saved by a previous visit. */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(readAuthToken)
+  const [session, setSession] = useState<BrowserSession | null>(null)
+  const [error, setError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const generation = useRef(0)
+  const broadcasts = useRef<BroadcastChannel | null>(null)
 
-  const startSession = useCallback((newToken: string) => {
-    saveAuthToken(newToken)
-    setToken(newToken)
+  const expireSession = useCallback((broadcast = false) => {
+    if (broadcast) broadcasts.current?.postMessage('changed')
+    generation.current++
+    setSession(null)
+    setError(false)
+    setAttempt((value) => value + 1)
   }, [])
 
-  const expireSession = useCallback(() => {
-    clearAuthToken()
-    setToken(null)
+  useEffect(() => onInvalidCsrf(expireSession), [expireSession])
+
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const channel = new BroadcastChannel('careergrind-session')
+    broadcasts.current = channel
+    channel.onmessage = () => expireSession()
+    return () => { channel.close(); broadcasts.current = null }
+  }, [expireSession])
+
+  useEffect(() => {
+    localStorage.removeItem(productStorageKey('authToken'))
+    const controller = new AbortController()
+    const current = ++generation.current
+    sessionRequest(controller.signal).then((value) => {
+      if (current === generation.current) { setSession(value); setError(false) }
+    }).catch(() => { if (!controller.signal.aborted && current === generation.current) setError(true) })
+    return () => controller.abort()
+  }, [attempt])
+
+  const startSession = useCallback(async (request: () => Promise<BrowserSession>) => {
+    const current = ++generation.current
+    const value = await request()
+    if (current === generation.current) {
+      setSession(value)
+      broadcasts.current?.postMessage('changed')
+    }
   }, [])
-
-  const signIn = useCallback(
-    async (credentials: AuthCredentials) => startSession(await signInRequest(credentials)),
-    [startSession],
-  )
-
-  const signUp = useCallback(
-    async (credentials: AuthCredentials) => startSession(await signUpRequest(credentials)),
-    [startSession],
-  )
-
+  const signIn = useCallback(async (credentials: AuthCredentials) => {
+    if (session) await startSession(() => signInRequest(credentials, session.csrfToken))
+  }, [session, startSession])
+  const signUp = useCallback(async (credentials: AuthCredentials) => {
+    if (session) await signUpRequest(credentials, session.csrfToken)
+  }, [session])
   const signOut = useCallback(async () => {
-    if (token) await signOutRequest(token).catch(() => undefined)
+    if (!session) return
+    // Keep the session visible if the server could not confirm revocation.
+    await signOutRequest(session.csrfToken)
+    broadcasts.current?.postMessage('changed')
     expireSession()
-  }, [token, expireSession])
-
-  const value = useMemo<AuthContextValue>(
-    () => ({ token, signIn, signUp, signOut, expireSession }),
-    [token, signIn, signUp, signOut, expireSession],
-  )
-
+  }, [session, expireSession])
+  if (error) return <div role="alert">Could not check your session. <button onClick={() => { setError(false); setAttempt((value) => value + 1) }}>Try again</button></div>
+  if (!session) return <p role="status">Checking your session…</p>
+  const value: AuthContextValue = { ...session, signIn, signUp, signOut, expireSession }
   return <AuthContext value={value}>{children}</AuthContext>
 }

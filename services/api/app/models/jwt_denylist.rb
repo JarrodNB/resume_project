@@ -1,4 +1,4 @@
-# Description: Revoked JWTs. devise-jwt adds a row on sign-out and rejects tokens listed here.
+# Legacy token revocations retained for database compatibility during coordinated rollout.
+# Browser authentication never reads this table.
 class JwtDenylist < ApplicationRecord
-  include Devise::JWT::RevocationStrategies::Denylist
 end

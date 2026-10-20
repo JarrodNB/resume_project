@@ -23,7 +23,7 @@ known monthly spend. The backend monthly summary also retains the incomplete-att
 no new user-facing spend display or usage subscription is added.
 
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
-IP and by email, sign-up by IP, and `/graphql` by user (JWT `sub`) and by IP. Throttled
+IP and by email, sign-up and session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
 requests get a JSON 429 with `Retry-After`.
 
 ## Decisions

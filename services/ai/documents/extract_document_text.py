@@ -2,6 +2,7 @@
 
 Keep DOCX paragraphs and tables in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
+Malformed link destinations remain source text without aborting extraction.
 """
 
 from io import BytesIO
@@ -121,7 +122,10 @@ def _pdf_link_label(
 
 def _known_link_label(uri: str) -> str | None:
     """Returns a canonical label for links whose service name is unambiguous."""
-    hostname = (urlparse(uri).hostname or "").lower()
+    try:
+        hostname = (urlparse(uri).hostname or "").lower()
+    except ValueError:
+        return None
     known_labels = {"linkedin.com": "LinkedIn", "github.com": "GitHub"}
     for domain, label in known_labels.items():
         if hostname == domain or hostname.endswith(f".{domain}"):

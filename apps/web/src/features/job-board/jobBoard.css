@@ -1,0 +1,63 @@
+/* Job board layout within the career folio workspace. Search stays prominent,
+   while ruled results and compact metadata support comparing roles on any screen. */
+.job-board { max-width: 1040px; margin: 0 auto; min-width: 0; }
+.board-search { margin-top: 28px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.board-search > label { margin-bottom: 12px; }
+.board-search-field { display: flex; gap: 12px; }
+.board-keyword { position: relative; flex: 1; min-width: 0; }
+.board-keyword > svg { position: absolute; left: 14px; top: 15px; color: var(--muted-foreground); pointer-events: none; }
+.board-keyword input { height: 48px; padding-left: 42px; background: var(--background); font-size: 14px; caret-color: var(--primary); }
+.board-search-submit { min-height: 48px; padding-inline: 20px; }
+.board-search-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+.board-remote { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
+.board-remote:hover { background: var(--muted); }
+.board-remote[data-checked=true] { background: var(--secondary); border-color: var(--primary); color: var(--secondary-foreground); }
+.board-region { display: inline-flex; align-items: center; gap: 7px; color: var(--muted-foreground); font-size: 12px; }
+.board-introduction { display: grid; justify-items: center; text-align: center; padding: 56px 20px 48px; }
+.board-introduction-icon { color: var(--primary); margin-bottom: 18px; }
+.board-introduction h2, .board-no-results h2 { font-size: 22px; font-weight: 500; line-height: 1.35; letter-spacing: -0.025em; }
+.board-introduction > p { max-width: 49ch; margin-top: 12px; font-size: 14px; line-height: 1.7; color: var(--muted-foreground); }
+.board-search-ideas { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
+.board-search-ideas button { gap: 10px; min-height: 36px; font-weight: 400; }
+.board-results-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 36px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+.board-results-title { font-size: 16px; font-weight: 600; }
+.board-results-query { margin-top: 5px; font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.board-results-count { flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.board-listings { min-width: 0; }
+.board-listing { padding: 26px 0; border-bottom: 1px solid var(--border); }
+.board-listing-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.board-listing-identity { min-width: 0; flex: 1; }
+.board-listing-title { font-size: 19px; font-weight: 550; line-height: 1.4; letter-spacing: -0.02em; overflow-wrap: anywhere; }
+.board-listing-company { margin-top: 4px; font-size: 14px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.board-listing-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; font-size: 12px; color: var(--muted-foreground); }
+.board-listing-meta > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.board-listing-meta .board-remote-tag { background: var(--secondary); color: var(--secondary-foreground); padding: 3px 8px; border-radius: 5px; }
+.board-listing-action { min-height: 38px; }
+.board-description-toggle { width: fit-content; min-height: 44px; margin-top: 12px; padding-right: 8px; color: var(--muted-foreground); font-size: 13px; }
+.board-description-toggle:hover { color: var(--foreground); background: var(--muted); }
+.board-description { max-width: 72ch; margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; }
+.board-description-missing { margin-top: 16px; color: var(--muted-foreground); font-size: 13px; }
+.board-results-footer { display: grid; justify-items: center; gap: 24px; padding-top: 24px; }
+.board-retrieval { width: 100%; display: grid; gap: 12px; color: var(--muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
+.board-no-results { display: grid; justify-items: center; gap: 12px; padding: 48px 16px; text-align: center; }
+.board-no-results > svg { color: var(--muted-foreground); }
+.board-no-results p, .board-loading { font-size: 14px; color: var(--muted-foreground); }
+.board-loading { padding-block: 18px; }
+.board-skeleton { padding: 24px 0; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
+.board-skeleton span { display: block; height: 14px; width: 34%; background: var(--muted); border-radius: 4px; }
+.board-skeleton span:first-child { height: 22px; width: 56%; }
+.board-skeleton span:last-child { width: 24%; }
+.job-board ::selection { background: var(--secondary); color: var(--secondary-foreground); }
+@media (max-width: 599px) {
+  .board-search { margin-top: 24px; padding: 16px; }
+  .board-search-field { flex-direction: column; }
+  .board-search-submit { width: 100%; }
+  .board-search-options { flex-wrap: wrap; }
+  .board-introduction { padding: 40px 4px; }
+  .board-introduction h2, .board-no-results h2 { font-size: 20px; }
+  .board-search-ideas { gap: 8px; }
+  .board-listing-header { flex-direction: column; gap: 16px; }
+  .board-listing-action { width: 100%; }
+  .board-listing { padding-block: 22px; }
+  .board-results-heading { align-items: flex-start; }
+}

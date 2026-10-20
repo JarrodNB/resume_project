@@ -5,13 +5,16 @@ module Interviews
   class ClaimOperationService < ApplicationService
     include ExecutionPolicy
 
-    def initialize(operation:)
-      @operation = operation
+    def initialize(operation:, execution_mode: "fake")
+      @operation, @execution_mode = operation, execution_mode
     end
 
     # @return [ServiceResult<Hash>] claim identity and canonical execution inputs
     def call
+      return failure("Interview execution mode unavailable") unless ExecutionConfiguration::PRESETS.key?(@execution_mode)
+
       with_operation_lock do |interview|
+        next failure("Interview execution mode mismatch") unless interview.execution_mode == @execution_mode
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
         if @operation.turn?
@@ -60,7 +63,7 @@ module Interviews
             question: @operation.question.content, model_history: @operation.question.model_history,
             history_version: @operation.question.history_version, fixture_context: interview.fixture_context }
         end
-        success({ operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,
+        success({ execution_mode: interview.execution_mode, execution_config: interview.execution_config, operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,
           claim_generation: @operation.claim_generation, lease_expires_at: @operation.lease_expires_at,
           execution_deadline: @operation.execution_deadline, payload: payload })
       end

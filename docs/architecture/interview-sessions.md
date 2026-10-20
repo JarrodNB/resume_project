@@ -30,9 +30,35 @@ both model validation and Postgres. No complex or interactive type is implemente
 slice keeps its existing two-answer constraints and fixture defaults; a future type's behavior
 and corresponding constraint changes need a separate change.
 
+## Saved execution mode
+
+Rails saves immutable `execution_mode` and `execution_config` on each session.
+Existing rows and default fixture creation use `fake`, with versioned fake model
+names and the eSpeak fixture voice. Internal fixture creation may save the approved
+`real` preset (gpt-transcribe, gpt-6-luna, gpt-4o-mini-tts and marin); this ticket
+implements no real executor. The public creation mutation still accepts no mode and
+creates only fake sessions. Model names and voice never come from browser input.
+Database constraints reject unapproved mode/configuration combinations. Rails readonly
+attributes reject configuration edits after creation; direct database maintenance must
+preserve that invariant. Future presets must retain old saved presets as valid.
+
+Discovery takes `execution_mode` and filters both cleanup candidates and eligible work.
+Claim takes the same mode and checks the persisted session while holding its locks,
+before expiry, lease recovery, admission or accounting changes. Omitted mode means
+fake for compatibility with existing offline clients. Unknown modes fail clearly.
+Turn, opening/reply speech, retries and recovery all retain the same owning session's
+configuration. Claims return typed `execution_mode` and `execution_config`; public
+owner-scoped snapshots expose only the mode. These labels are scheduling isolation,
+not separate authorization credentials: internal callbacks still require the service secret.
+
+Rollback disables admission of new real sessions and retains saved real work for a
+compatible real runtime to resume or cleanup to retire. Never convert real sessions to
+fake or deploy an older fake-only runtime against them. Public real admission remains
+disabled until the full provider pipeline is delivered.
+
 ## Durable domain interface
 
-`Interviews::CreateFixtureService.call(user:, question_count: 1)` atomically saves a
+`Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
 Only the service fixture permits a second question.
 

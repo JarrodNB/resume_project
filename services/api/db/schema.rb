@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -239,7 +239,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_010000) do
     t.index ["staging_key"], name: "index_interview_session_media_on_staging_key", unique: true
     t.check_constraint "byte_size IS NULL OR byte_size > 0", name: "interview_media_bytes"
     t.check_constraint "deletion_attempts >= 0", name: "interview_media_deletions"
-    t.check_constraint "interview_session_id IS NOT NULL AND question_id IS NOT NULL AND (kind::text = 'recording'::text OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL) OR interview_session_id IS NULL AND question_id IS NULL AND operation_id IS NULL AND message_id IS NULL AND attempt_id IS NULL AND claim_generation IS NULL AND (status::text = ANY (ARRAY['delete_pending'::character varying, 'deleted'::character varying]::text[])) AND metadata = '{}'::jsonb AND checksum IS NULL AND byte_size IS NULL AND (staging_key IS NOT NULL OR sealed_key IS NOT NULL)", name: "interview_media_identity"
+    t.check_constraint "interview_session_id IS NOT NULL AND question_id IS NOT NULL AND (kind::text = 'recording'::text OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL) OR interview_session_id IS NULL AND question_id IS NULL AND operation_id IS NULL AND message_id IS NULL AND attempt_id IS NULL AND claim_generation IS NULL AND (status::text = ANY (ARRAY['delete_pending'::character varying::text, 'deleted'::character varying::text])) AND metadata = '{}'::jsonb AND checksum IS NULL AND byte_size IS NULL AND (staging_key IS NOT NULL OR sealed_key IS NOT NULL)", name: "interview_media_identity"
     t.check_constraint "kind::text = ANY (ARRAY['recording'::character varying::text, 'speech'::character varying::text])", name: "interview_media_kind"
     t.check_constraint "status::text = ANY (ARRAY['reserved'::character varying::text, 'ready'::character varying::text, 'delete_pending'::character varying::text, 'deleted'::character varying::text])", name: "interview_media_status"
   end
@@ -332,7 +332,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_010000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "content_purged_at"
+    t.string "execution_mode", default: "fake", null: false
+    t.jsonb "execution_config", default: {"voice" => "espeak", "speech_model" => "fake-speech-v1", "interviewer_model" => "fake-interviewer-v1", "transcription_model" => "fake-transcription-v1"}, null: false
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
+    t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 2", name: "interview_session_counters"
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text])", name: "interview_session_status"

@@ -4,7 +4,7 @@ require "rails_helper"
 RSpec.describe "Spoken interview demo GraphQL" do
   let(:user) { create(:user) }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
-  let(:snapshot) { "id status revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
+  let(:snapshot) { "id status executionMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
 
   before do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
@@ -15,8 +15,20 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(result["errors"]).to be_nil
     payload = result.dig("data", "startInterviewDemo")
     expect(payload["errors"]).to eq([])
+    expect(payload.dig("interview", "executionMode")).to eq("fake")
     expect(payload.dig("interview", "messages").size).to eq(1)
     expect(payload.dig("interview", "operations", 0, "status")).to eq("pending")
+  end
+
+
+  it "keeps real configuration private and rejects public real creation" do
+    real = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
+    query = "query($id: ID!) { interviewSession(id: $id) { id executionMode } }"
+    expect(execute_graphql(query, user: user, variables: { id: real.id }).dig("data", "interviewSession", "executionMode")).to eq("real")
+    expect(execute_graphql(query, user: create(:user), variables: { id: real.id }).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "real"}) { errors } }', user: user)
+    expect(result["errors"]).to be_present
+    expect(Types::InterviewSessionType.fields.keys).not_to include("executionConfig")
   end
 
   it "returns the owner snapshot and hides another owner's interview" do

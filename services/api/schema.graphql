@@ -847,6 +847,7 @@ type InterviewRecordingUpload {
 type InterviewSession {
   answerCap: Int!
   currentQuestionPosition: Int!
+  executionMode: String!
   expiresAt: ISO8601DateTime!
   id: ID!
   interviewType: String!

@@ -11,7 +11,7 @@ from typing import Any, Literal
 from urllib.parse import quote, urlsplit
 
 import httpx
-from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
 
 class TurnPayload(BaseModel):
@@ -28,10 +28,32 @@ class SpeechPayload(BaseModel):
     message_id: str
 
 
+class ExecutionConfiguration(BaseModel):
+    """Rails-owned approved model and voice names, never provider endpoints."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    transcription_model: str
+    interviewer_model: str
+    speech_model: str
+    voice: str
+
+
+FAKE_CONFIGURATION = ExecutionConfiguration(
+    transcription_model="fake-transcription-v1", interviewer_model="fake-interviewer-v1",
+    speech_model="fake-speech-v1", voice="espeak",
+)
+REAL_CONFIGURATION = ExecutionConfiguration(
+    transcription_model="gpt-transcribe", interviewer_model="gpt-6-luna",
+    speech_model="gpt-4o-mini-tts", voice="marin",
+)
+
+
 class Claim(BaseModel):
     """Canonical inputs and fenced identity for one execution."""
 
     model_config = ConfigDict(frozen=True)
+    execution_mode: Literal["fake", "real"] = "fake"
+    execution_config: ExecutionConfiguration = Field(default_factory=lambda: FAKE_CONFIGURATION)
     operation_id: str
     kind: Literal["turn", "speech"]
     attempt_id: str
@@ -42,6 +64,9 @@ class Claim(BaseModel):
 
     @model_validator(mode="after")
     def matching_payload(self):
+        configuration = FAKE_CONFIGURATION if self.execution_mode == "fake" else REAL_CONFIGURATION
+        if self.execution_config != configuration:
+            raise ValueError("Invalid saved execution configuration")
         expected = TurnPayload if self.kind == "turn" else SpeechPayload
         if not isinstance(self.payload, expected):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
@@ -75,7 +100,11 @@ class RailsTransportError(RuntimeError):
 class RailsInterviewClient:
     """Fixed-origin HTTP with finite waits and byte-identical bounded retries."""
 
-    def __init__(self, origin: str, secret: str, *, transport=None, max_body_bytes=512_000):
+    def __init__(self, origin: str, secret: str, *, transport=None, max_body_bytes=512_000,
+                 execution_mode: Literal["fake", "real"] = "fake"):
+        if execution_mode not in {"fake", "real"}:
+            raise ValueError("Invalid interview execution mode")
+        self._execution_mode = execution_mode
         parsed = urlsplit(origin)
         if (
             parsed.scheme not in {"http", "https"}
@@ -165,7 +194,7 @@ class RailsInterviewClient:
         return "operations/" + quote(str(operation_id), safe="") + ("/" + action if action else "")
 
     async def discover(self) -> list[str]:
-        result = await self._request("GET", "operations")
+        result = await self._request("GET", "operations?execution_mode=" + self._execution_mode)
         ids = result.get("operation_ids")
         if not isinstance(ids, list) or any(not isinstance(value, str) for value in ids):
             raise RailsTransportError("Invalid operation discovery")
@@ -173,10 +202,11 @@ class RailsInterviewClient:
 
     async def claim(self, operation_id) -> Claim:
         # This endpoint has no idempotency key; never replay ambiguous claim creation.
-        result = await self._request("POST", self._path(operation_id, "claim"), {}, retry=False)
+        result = await self._request("POST", self._path(operation_id, "claim"),
+                                     {"execution_mode": self._execution_mode}, retry=False)
         try:
             claim = Claim.model_validate(result)
-            if claim.operation_id != str(operation_id):
+            if claim.operation_id != str(operation_id) or claim.execution_mode != self._execution_mode:
                 raise ValueError("Wrong operation")
             return claim
         except (ValidationError, ValueError):

@@ -3,6 +3,7 @@ module Types
   class InterviewSessionType < Types::BaseObject
     field :id, ID, null: false
     field :status, String, null: false
+    field :execution_mode, String, null: false
     field :interview_type, String, null: false
     field :revision, Integer, null: false
     field :answer_cap, Integer, null: false

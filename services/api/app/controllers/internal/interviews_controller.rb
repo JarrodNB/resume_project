@@ -9,7 +9,12 @@ module Internal
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
 
     def discover
-      render json: { operation_ids: Interviews::DiscoverOperationsService.call.value }
+      result = Interviews::DiscoverOperationsService.call(execution_mode: params.fetch(:execution_mode, "fake"))
+      if result.success?
+        render json: { operation_ids: result.value }
+      else
+        respond result
+      end
     end
 
     def cleanup
@@ -17,7 +22,7 @@ module Internal
     end
 
     def claim
-      respond Interviews::ClaimOperationService.call(operation: @operation)
+      respond Interviews::ClaimOperationService.call(operation: @operation, execution_mode: params.fetch(:execution_mode, "fake"))
     end
 
     def heartbeat

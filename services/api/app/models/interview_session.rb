@@ -5,6 +5,9 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
   STATUSES = %w[active completed expired].freeze
   INTERVIEW_TYPES = %w[basic].freeze
+  attr_readonly :execution_mode, :execution_config
+  validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
+  validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }
   belongs_to :user
   has_many :questions, -> { order(:position) }, class_name: "InterviewSessionQuestion", dependent: :destroy
   has_many :messages, -> { order(:position) }, class_name: "InterviewSessionMessage", dependent: :destroy

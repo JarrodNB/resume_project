@@ -17,7 +17,7 @@ vi.mock('./useInterviewRecorder', async () => {
 vi.mock('./InterviewAudio', () => ({ InterviewAudio: () => <p>Saved audio</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
-  id: 'session', status: 'active', interviewType: 'basic', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],

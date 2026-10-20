@@ -225,3 +225,61 @@ def test_other_endpoints_reject_boolean_receipts(action, receipt):
                     await getattr(client, action)(Claim.model_validate(CLAIM))
 
     run(check())
+
+
+def test_runtime_requests_mode_and_rejects_mismatched_claim():
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        if request.method == "GET":
+            assert request.url.params["execution_mode"] == "real"
+            return httpx.Response(200, json={"operation_ids": ["op"]})
+        assert json.loads(request.content)["execution_mode"] == "real"
+        return httpx.Response(200, json={**CLAIM, "execution_mode": "fake"})
+
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "secret", execution_mode="real",
+                                       transport=httpx.MockTransport(respond)) as client:
+            assert await client.discover() == ["op"]
+            with pytest.raises(RailsTransportError, match="Invalid claim"):
+                await client.claim("op")
+    run(check())
+
+
+def test_claim_contains_frozen_validated_saved_execution_configuration():
+    claim = Claim.model_validate(CLAIM)
+    assert claim.execution_mode == "fake"
+    assert claim.execution_config.speech_model == "fake-speech-v1"
+    explicit = Claim.model_validate({**CLAIM, "execution_mode": "fake",
+                                     "execution_config": claim.execution_config.model_dump()})
+    assert explicit.execution_config == claim.execution_config
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        Claim.model_validate({**CLAIM, "execution_mode": "real"})
+    with pytest.raises(ValidationError):
+        Claim.model_validate({**CLAIM, "execution_config": {"voice": "espeak"}})
+
+
+@pytest.mark.parametrize("kind", ["speech", "turn"])
+def test_real_claim_validates_full_saved_configuration(kind):
+    configuration = {
+        "transcription_model": "gpt-transcribe", "interviewer_model": "gpt-6-luna",
+        "speech_model": "gpt-4o-mini-tts", "voice": "marin",
+    }
+    payload = CLAIM["payload"] if kind == "speech" else {
+        "recording_id": "recording", "expected_revision": 0, "question": "Question?",
+        "model_history": [], "history_version": 1, "fixture_context": {"synthetic": True},
+    }
+    receipt = {**CLAIM, "kind": kind, "payload": payload,
+               "execution_mode": "real", "execution_config": configuration}
+
+    async def check():
+        async with RailsInterviewClient(
+            "http://api:3000", "secret", execution_mode="real",
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, json=receipt)),
+        ) as client:
+            claim = await client.claim("op")
+            assert claim.execution_mode == "real"
+            assert claim.execution_config.model_dump() == configuration
+    run(check())

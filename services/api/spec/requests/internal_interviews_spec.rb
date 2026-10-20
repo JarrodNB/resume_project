@@ -15,6 +15,24 @@ RSpec.describe "Internal interview execution", type: :request do
     ENV["INTERVIEW_SERVICE_SECRET"] = original
   end
 
+
+  it "validates requested execution mode and filters real work for legacy callers" do
+    real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
+    real_operation = real.operations.first
+    get "/internal/interviews/operations", headers: headers
+    expect(response.parsed_body["operation_ids"]).not_to include(real_operation.id)
+    get "/internal/interviews/operations", params: { execution_mode: "real" }, headers: headers
+    expect(response.parsed_body["operation_ids"]).to include(real_operation.id)
+    get "/internal/interviews/operations", params: { execution_mode: "invalid" }, headers: headers
+    expect(response).to have_http_status(:conflict)
+    post "/internal/interviews/operations/#{real_operation.id}/claim", params: {}, headers: headers, as: :json
+    expect(response).to have_http_status(:conflict)
+    expect(real_operation.reload.execution_count).to eq(0)
+    post "/internal/interviews/operations/#{real_operation.id}/claim", params: { execution_mode: "real" }, headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["execution_config"]).to eq(real.execution_config)
+  end
+
   it "rejects missing credentials even with an owner ID" do
     post "#{path}/claim", params: { user_id: interview.user_id }, as: :json
     expect(response).to have_http_status(:unauthorized)

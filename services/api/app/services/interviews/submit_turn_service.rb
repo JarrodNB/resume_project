@@ -2,7 +2,7 @@
 # their original inputs even after the interview advances; no media authority is issued.
 require "digest"
 
-module BasicInterviews
+module Interviews
   class SubmitTurnService < ApplicationService
     def initialize(interview:, question_id:, recording_id:, expected_revision:, submission_key:)
       @interview = interview
@@ -12,7 +12,7 @@ module BasicInterviews
 
     # The caller supplies an already-authorized interview and, once media exists, an
     # already-authorized recording identity. This internal seam has no HTTP entrypoint.
-    # @return [ServiceResult<BasicInterviewOperation>] original or newly reserved turn
+    # @return [ServiceResult<InterviewSessionOperation>] original or newly reserved turn
     def call
       return failure("Invalid submission") unless valid_input?
 

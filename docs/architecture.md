@@ -9,7 +9,7 @@ when changing a contract or feature:
 | [Authentication](architecture/authentication.md) | Browser sessions, CSRF, login/logout, live connection security |
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |
-| [Basic Interview](architecture/basic-interviews.md) | Spoken demo records, atomic acceptance, HTTP boundary and recovery ownership |
+| [Interview sessions](architecture/interview-sessions.md) | Spoken demo records, atomic acceptance, HTTP boundary and recovery ownership |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |

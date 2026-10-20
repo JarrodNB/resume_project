@@ -1,6 +1,6 @@
 # Creates fictional interview context, its first accepted opening, and saved-text speech
 # work in one transaction. Nothing calls providers, queues, or storage here.
-module BasicInterviews
+module Interviews
   class CreateFixtureService < ApplicationService
     OPENINGS = [
       "Tell me about a time you helped a team solve a difficult problem.",
@@ -11,12 +11,12 @@ module BasicInterviews
       @user, @question_count = user, question_count
     end
 
-    # @return [ServiceResult<BasicInterview>] committed demo with one pending opening speech
+    # @return [ServiceResult<InterviewSession>] committed demo with one pending opening speech
     def call
       return failure("Fixture must contain one or two questions") unless [ 1, 2 ].include?(@question_count)
 
       @user.with_lock do
-        interview = @user.basic_interviews.create!(
+        interview = @user.interview_sessions.create!(
           fixture_context: { synthetic: true, version: 1, role: "Fictional software engineer", career: "Built a small team scheduling tool." },
           expires_at: 7.days.from_now
         )

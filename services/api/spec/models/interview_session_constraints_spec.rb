@@ -2,7 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "Basic Interview database invariants" do
-  let(:interview) { BasicInterviews::CreateFixtureService.call(user: create(:user)).value }
+  let(:interview) { Interviews::CreateFixtureService.call(user: create(:user)).value }
   let(:question) { interview.questions.first }
   before { question }
 
@@ -13,7 +13,7 @@ RSpec.describe "Basic Interview database invariants" do
   end
 
   it "requires turn inputs including revision, and coherent running and accepted identities" do
-    turn = BasicInterviews::SubmitTurnService.call(interview: interview, question_id: question.id,
+    turn = Interviews::SubmitTurnService.call(interview: interview, question_id: question.id,
       recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "one").value
     expect_constraint { turn.update_columns(expected_revision: nil) }
     expect_constraint { turn.update_columns(status: "running") }
@@ -22,7 +22,7 @@ RSpec.describe "Basic Interview database invariants" do
   end
 
   it "protects the active turn slot and submission identity without model validations" do
-    turn = BasicInterviews::SubmitTurnService.call(interview: interview, question_id: question.id,
+    turn = Interviews::SubmitTurnService.call(interview: interview, question_id: question.id,
       recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "one").value
     duplicate = turn.dup
     duplicate.submission_key = "different"
@@ -57,7 +57,7 @@ RSpec.describe "Basic Interview database invariants" do
   end
 
   it "prevents a foreign question or mismatched message from crossing interview boundaries" do
-    foreign = BasicInterviews::CreateFixtureService.call(user: create(:user)).value
+    foreign = Interviews::CreateFixtureService.call(user: create(:user)).value
     foreign.operations.speech.destroy_all
     expect_constraint(ActiveRecord::InvalidForeignKey) { interview.messages.sole.update_columns(question_id: foreign.questions.first.id, kind: "follow_up") }
     expect_constraint(ActiveRecord::InvalidForeignKey) { interview.operations.sole.update_columns(question_id: foreign.questions.first.id) }

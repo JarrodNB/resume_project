@@ -1,6 +1,7 @@
-# Basic Interview
+# Interview sessions
 
-Basic Interview is a development-only spoken demo, separate from written InterviewPrep.
+Interview sessions own spoken interview dialogue and progress, separate from written
+InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
 The initial fixture uses fictional context, one prepared question, and at most two accepted
 answers. A two-question service fixture verifies advancement. Paid providers and production
 deployment are deferred.
@@ -17,9 +18,21 @@ The first delivery slice implements persistence and lifecycle services only. HTT
 recovery handlers, accounting, media authorization/cleanup, Python execution, and the public
 demo are subsequent slices. Nothing in the first slice is a new public API or upload grant.
 
+## Shared domain and Basic type
+
+`InterviewSession` owns `InterviewSessionQuestion`, `InterviewSessionMessage`, and
+`InterviewSessionOperation` records through `interview_session_id`. The matching tables are
+`interview_sessions` and `interview_session_questions/messages/operations`; the lifecycle
+services live in `Interviews`. Existing written `InterviewQuestion` records keep their names.
+
+The persisted `interview_type` defaults to `basic`, is required, and rejects other values in
+both model validation and Postgres. No complex or interactive type is implemented. The current
+slice keeps its existing two-answer constraints and fixture defaults; a future type's behavior
+and corresponding constraint changes need a separate change.
+
 ## Durable domain interface
 
-`BasicInterviews::CreateFixtureService.call(user:, question_count: 1)` atomically saves a
+`Interviews::CreateFixtureService.call(user:, question_count: 1)` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
 Only the service fixture permits a second question.
 

@@ -84,7 +84,7 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 - Long-running AI work goes through SQS (ElasticMQ locally). Basic Interview is the
   scoped exception: its separate AI-service FastAPI runtime claims durable Rails-owned
   operations over authenticated internal HTTP and runs them asynchronously. Browser
-  requests never wait for model execution. See docs/architecture/basic-interviews.md.
+  requests never wait for model execution. See docs/architecture/interview-sessions.md.
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,
  `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),

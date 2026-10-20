@@ -2,7 +2,7 @@
 # answer counts, and progress; a replay returns the saved result without writing again.
 require "digest"
 
-module BasicInterviews
+module Interviews
   class AcceptTurnService < ApplicationService
     MAX_HISTORY_BYTES = 262_144
     CLOSING = "Thank you. This interview is complete.".freeze
@@ -20,7 +20,7 @@ module BasicInterviews
     def call
       return failure("Invalid acceptance payload") unless valid_payload?
 
-      interview = @operation.basic_interview
+      interview = @operation.interview_session
       interview.user.with_lock do
         interview.lock!
         @questions = interview.questions.lock.to_a

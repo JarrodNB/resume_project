@@ -188,7 +188,7 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 - **Queued features use plain Python workers.** Their communication stays on SQS; no
   HTTP layer or token streaming is added to those workers. Basic Interview has a scoped
-  [internal HTTP exception](basic-interviews.md): a separate FastAPI runtime claims
+  [internal HTTP exception](interview-sessions.md): a separate FastAPI runtime claims
   Rails-owned durable operations. It does not change existing queue contracts.
 
 - **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job

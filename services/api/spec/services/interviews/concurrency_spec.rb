@@ -6,7 +6,7 @@ RSpec.describe "Basic Interview concurrency" do
 
   before do
     @user = create(:user)
-    @interview = BasicInterviews::CreateFixtureService.call(user: @user).value
+    @interview = Interviews::CreateFixtureService.call(user: @user).value
     @question = @interview.questions.first
   end
 
@@ -33,7 +33,7 @@ RSpec.describe "Basic Interview concurrency" do
   end
 
   def submit(key)
-    BasicInterviews::SubmitTurnService.call(interview: @user.basic_interviews.find(@interview.id),
+    Interviews::SubmitTurnService.call(interview: @user.interview_sessions.find(@interview.id),
       question_id: @question.id, recording_id: @recording_id, expected_revision: 0, submission_key: key)
   end
 
@@ -60,8 +60,8 @@ RSpec.describe "Basic Interview concurrency" do
       turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
         lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
       results = race do |index|
-        operation = @user.basic_interviews.find(@interview.id).operations.find(turn.id)
-        BasicInterviews::AcceptTurnService.call(operation: operation, attempt_id: turn.attempt_id, claim_generation: 1,
+        operation = @user.interview_sessions.find(@interview.id).operations.find(turn.id)
+        Interviews::AcceptTurnService.call(operation: operation, attempt_id: turn.attempt_id, claim_generation: 1,
           transcript: conflict ? "Answer #{index}" : "Same answer", decision: "advance", reply: nil,
           history_version: 1, model_history: [ { "kind" => "request", "parts" => [] } ])
       end

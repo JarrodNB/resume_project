@@ -18,7 +18,7 @@ separate FastAPI runtime planned; this first slice implements its Rails persiste
   Basic Interview is the scoped exception: a separate FastAPI process claims durable
   operations and returns results through authenticated internal Rails HTTP. Rails still
   owns every domain write; existing queued features keep their transport and behavior.
-  See docs/architecture/basic-interviews.md for the boundary and staged implementation.
+  See docs/architecture/interview-sessions.md for the boundary and staged implementation.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
   analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
   the embeddings; the worker only embeds search queries. Every query is scoped by the task

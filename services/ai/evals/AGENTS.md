@@ -110,7 +110,7 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  thirteen question cases and thirteen feedback cases for general/technical/knowledge full sets and replacements,
+  fifteen question cases and thirteen feedback cases for general/technical/knowledge full sets and replacements,
   software and nonsoftware practical work, sparse education, complete/incomplete answers, and introductions.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.

@@ -118,16 +118,29 @@ Per task type:
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
-  `introduction`, `strengths`, `development`, `goals`, and `behavioral` for general sets,
+  `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and
+  `initiative_judgment` for general sets,
   or `work_overview`, `tools_methods`, `decisions_tradeoffs`, `problem_solving`, and
   `improvement_quality` for technical sets; or `concepts`, `mechanisms`, `application`,
   `reasoning`, and `limitations` for knowledge sets, one of each. Knowledge excerpts ground
   topic relevance, while model subject knowledge supplies subject questions.
+  General sets contain one introduction and four realistic behavioral story invitations.
+  Standard invitations about conflict or setbacks need no proof that an event occurred;
+  specific personalized incidents still require evidence. Sparse backgrounds may draw on
+  study, projects, volunteering or other real experience. Technical personal-experience
+  grounding remains strict. Rails also accepts complete legacy general category sets
+  (`introduction`, `strengths`, `development`, `goals`, `behavioral`) from in-flight older
+  workers, but rejects mixtures of old and new categories. No category is persisted on slots.
+  Deploy the compatible Rails consumer before the updated AI worker, since older Rails
+  rejects the new categories. For rollback, restore the older worker before removing Rails
+  compatibility. Existing saved questions and answers need no migration or rewrite.
 - `regenerate_interview_question`: input `{question_set_id, question_id, question_text,
   answer_text, question_revision, answer_revision, other_questions, set_type}`; the subject is the
   selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
   The worker uses the current library and returns the same question result shape with one
   draft, excluding both the old question and the other four.
+  General replacements use current themes even in old saved sets; older in-flight single
+  replacements with legacy categories remain accepted. Other saved slots are untouched.
 - `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
   question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.
   The result is `{interview_feedback: {strengths, improvements, example_answer,

@@ -8,6 +8,19 @@ cases:
   - name: sparse-first-job
     inputs:
       library: "Recent history graduate. Volunteered at a community book exchange."
+  - name: general-skills-only-behavioral-invitations
+    inputs:
+      library: "Skills: source comparison. Education: history diploma. No employment experience recorded."
+  - name: general-replacement-new-behavioral-set
+    inputs:
+      count: 1
+      library: "Retail assistant. Helped customers find products. Restocked shelves. Learned the stock checking process."
+      excluded:
+        - "Tell me about your retail background."
+        - "Tell me about a time you worked with a colleague to help a customer."
+        - "Describe a difficult customer problem and how you approached it."
+        - "Tell me about a time you had to learn a new process."
+        - "Describe a time you decided which task to prioritize."
   - name: technical-career-nontechnical-interview
     inputs:
       library: "Software developer using Python and PostgreSQL. Worked with designers to clarify accessibility issues. Presented project progress to nontechnical stakeholders."

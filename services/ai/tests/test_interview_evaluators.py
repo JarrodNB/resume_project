@@ -25,7 +25,7 @@ from schemas.interview_questions import (
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 13
+    assert len(dataset.cases) == 15
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
@@ -34,6 +34,10 @@ def test_question_structure() -> None:
             QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
         context = SimpleNamespace(inputs=case.inputs, output=output, metadata=case.metadata)
         assert all(QuestionStructure().evaluate(context).values())
+        if case.inputs.set_type == "general" and case.inputs.count == 5:
+            output.questions[1].category = "tools_methods"
+            assert not QuestionStructure().evaluate(context)["category_variety"]
+            output.questions[1].category = "collaboration"
         output.questions[0].evidence_quotes = ["Invented management promotion"]
         assert not QuestionStructure().evaluate(context)["question_evidence"]
         if case.inputs.count == 5:

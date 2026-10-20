@@ -43,12 +43,13 @@ def _output(count=5, set_type="general"):
     """Distinct synthetic drafts grounded in a sparse skill library."""
     questions = [
         "How does Python fit into your background?",
-        "What strengths do you bring when using Python?",
-        "What would you like to develop in your Python work?",
-        "How would you like Python to fit your career goals?",
-        "Can you describe an experience learning or using Python?",
+        "Tell me about a time you worked with someone to achieve a goal.",
+        "Tell me about a time you tackled a difficult problem.",
+        "Tell me about a time you adapted after receiving feedback.",
+        "Tell me about a time you had to decide what to prioritize.",
     ]
-    categories = QUESTION_CATEGORIES[set_type]
+    categories = (("introduction", "collaboration", "problem_solving", "learning_adaptation", "initiative_judgment")
+                  if set_type == "general" else QUESTION_CATEGORIES[set_type])
     return {"questions": [{"question_text": text, "category": category,
                             "evidence_quotes": ["Python"]}
         for text, category in zip(questions[:count],
@@ -123,14 +124,42 @@ def test_empty_context_fails_before_model(task_dependencies, library):
     assert "Add usable" in handle_ai_task(_task(), deps).error_message
 
 
-@pytest.mark.parametrize("problem", ["duplicate", "unsupported_quote", "wrong_count", "old_question"])
+@pytest.mark.parametrize("legacy", [False, True])
+def test_general_replacement_keeps_all_saved_intents_excluded(task_dependencies, monkeypatch, legacy):
+    """New behavioral categories work in legacy sets without rewriting or recategorizing saved text."""
+    task = _task(True, "general")
+    saved = (["Tell me about your background.", "What are your strengths?", "What do you want to develop?",
+              "What are your career goals?", "Describe collaborating on a project."] if legacy else
+             [question["question_text"] for question in _output()["questions"]])
+    task.input.update(question_text=saved[0], other_questions=saved[1:])
+    deps = replace(task_dependencies, read_career_library=lambda user_id:
+                   CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect_context(prompt, **kwargs):
+        """Checks all five original intents reach generation as exclusions, not evidence."""
+        assert set(prompt.excluded) == set(saved)
+        assert all(text in prompt.text for text in saved)
+        assert all(text not in prompt.library_text for text in saved)
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
+    draft = {"questions": [{"question_text": "Tell me about a time you changed your approach after a setback.",
+                            "category": "learning_adaptation", "evidence_quotes": ["Python"]}]}
+    with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
+        result = handle_ai_task(task, deps)
+    assert result.status == "completed"
+    assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
+
+
+@pytest.mark.parametrize("problem", ["duplicate", "unsupported_quote", "wrong_count", "old_question", "other_question"])
 @pytest.mark.parametrize("set_type", ["general", "knowledge"])
 def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     """Exhausted validation retries produce an actionable failure."""
     deps = replace(task_dependencies, read_career_library=lambda user_id:
         CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
     output = _output(set_type=set_type)
-    replacement = problem == "old_question"
+    replacement = problem in {"old_question", "other_question"}
     if problem == "duplicate":
         output["questions"][1] = output["questions"][0]
     elif problem == "unsupported_quote":
@@ -139,7 +168,8 @@ def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
         output["questions"].pop()
     else:
         output = _output(1, set_type)
-        output["questions"][0]["question_text"] = _task(True).input["question_text"]
+        output["questions"][0]["question_text"] = (_task(True).input["question_text"] if problem == "old_question"
+                                                    else _task(True).input["other_questions"][-1])
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement, set_type), deps)
     assert result.status == "failed"

@@ -1,9 +1,7 @@
-"""
-Description: Local transcript capture independent of provider accounting.
-Index:
-    - conversation_scope: task identity and validated file grouping
-    - observe_request: masked model exchange and provider error capture
-    - publish_result / record_outcome: nonfatal task delivery outcomes
+"""Capture local task transcripts independently of provider accounting.
+
+Record masked model exchanges and delivery outcomes in task-grouped files.
+Logging failures must never change task results or replace provider errors.
 """
 import fcntl
 import logging
@@ -99,7 +97,7 @@ async def observe_request(model, messages, model_settings, parameters):
         try:
             transcript.append(f"{prefix} - Provider error: {type(error).__name__} - {_timestamp()}\n\n"
                               "Partial response unavailable: the provider returned no response object.")
-        except Exception:
+        except Exception:  # noqa: BLE001 - preserve the original provider error if logging fails
             logger.warning("Conversation provider error could not be rendered")
         raise
     if transcript:
@@ -130,5 +128,5 @@ def record_outcome(outcome):
         transcript = _current.get()
         if transcript:
             transcript.append(f"### Attempt {transcript.attempt} - {_timestamp()}\n\nOutcome: {outcome}")
-    except Exception:
+    except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
         logger.warning("Conversation outcome could not be rendered")

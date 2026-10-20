@@ -1,9 +1,7 @@
-"""
-Description: LinkedIn descriptions are one block of text separated by <br> tags, with headings
-written as <strong>Heading<br><br></strong>. This turns each line into its own <p> so the
-shared heading splitter sees "Heading" as an all-bold paragraph.
-Index:
-    - linkedin_description_to_html: the description markup with <br>-separated lines as <p>s
+"""Turn LinkedIn description lines into paragraphs for heading extraction.
+
+Split line breaks inside nested inline formatting while retaining the wrappers
+and their attributes. Existing lists and block elements stay intact.
 """
 
 from bs4 import BeautifulSoup, NavigableString, Tag
@@ -30,7 +28,7 @@ def linkedin_description_to_html(markup_html: str) -> str:
             output.append(child.extract())
         elif isinstance(child, Tag) and child.name == "br":
             end_line()
-        elif isinstance(child, Tag) and child.find("br", recursive=False):
+        elif isinstance(child, Tag) and child.find("br"):
             for piece in _split_at_line_breaks(child, output):
                 if piece is None:
                     end_line()
@@ -43,14 +41,20 @@ def linkedin_description_to_html(markup_html: str) -> str:
 
 
 def _split_at_line_breaks(tag: Tag, output: BeautifulSoup) -> list[Tag | None]:
-    """Splits `<strong>A<br>B</strong>` into [<strong>A</strong>, None, <strong>B</strong>],
-    where None marks a line break."""
+    """Split inline wrappers recursively, using None to mark each line break."""
     pieces: list[Tag | None] = []
     current = output.new_tag(tag.name, attrs=dict(tag.attrs))
     for child in list(tag.children):
         if isinstance(child, Tag) and child.name == "br":
             pieces.extend([current, None])
             current = output.new_tag(tag.name, attrs=dict(tag.attrs))
+        elif isinstance(child, Tag) and child.name not in BLOCK_TAGS and child.find("br"):
+            for piece in _split_at_line_breaks(child, output):
+                if piece is None:
+                    pieces.extend([current, None])
+                    current = output.new_tag(tag.name, attrs=dict(tag.attrs))
+                else:
+                    current.append(piece)
         else:
             current.append(child.extract())
     pieces.append(current)

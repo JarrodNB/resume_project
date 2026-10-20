@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
+import { interviewDemoEnabled } from '@/features/interviews/interviewDemoEnabled'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ITEMS = [
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { to: '/jobs', label: 'Jobs', Icon: BriefcaseBusiness, group: 'Your applications' },
   { to: '/resumes', label: 'Resumes', Icon: FileText, group: 'Your applications' },
   { to: '/interview-prep', label: 'Interview prep', Icon: MessagesSquare, group: 'Your practice' },
+  ...(interviewDemoEnabled() ? [{ to: '/interviews/demo', label: 'Basic Interview demo', Icon: MessagesSquare, group: 'Your practice' }] : []),
 ]
 
 export function AppLayout() {

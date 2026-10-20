@@ -1,6 +1,7 @@
 # Durable turn or saved-text speech work. Recording UUIDs identify owned private media;
 # services authorize sealed bytes and current claims before granting execution access.
 class InterviewSessionOperation < ApplicationRecord
+  include PublishesInterviewSnapshot
   KINDS = %w[turn speech].freeze
   STATUSES = %w[pending running accepted failed expired].freeze
   belongs_to :interview_session

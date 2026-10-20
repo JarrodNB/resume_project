@@ -11,6 +11,19 @@
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
+    field :interview_demo_enabled, Boolean, null: false
+    field :interview_session, Types::InterviewSessionType, null: false do
+      argument :id, ID, required: true
+    end
+
+    def interview_demo_enabled
+      !!context[:current_user] && Interviews::DemoAccess.enabled?
+    end
+
+    def interview_session(id:)
+      Interviews::DemoAccess.find!(context[:current_user], id)
+    end
+
     field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false
     field :interview_question_set, Types::InterviewQuestionSetType, null: false do
       argument :id, ID, required: true

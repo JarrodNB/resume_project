@@ -1,5 +1,6 @@
 # One accepted public utterance. Semantic identities prevent duplicate openings or answers.
 class InterviewSessionMessage < ApplicationRecord
+  include PublishesInterviewSnapshot
   KINDS = %w[opening answer follow_up closing].freeze
   belongs_to :interview_session
   belongs_to :question, class_name: "InterviewSessionQuestion"

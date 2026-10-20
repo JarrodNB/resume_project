@@ -1,0 +1,79 @@
+/** Reload and network recovery use a canonical owned read before any explicit resend. */
+import { act, renderHook, waitFor } from '@testing-library/react'
+import { MockedProvider } from '@apollo/client/testing/react'
+import type { MockLink } from '@apollo/client/testing'
+import { GraphQLError } from 'graphql'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useInterviewSession } from './useInterviewSession'
+import { savePendingSubmission } from './pendingSubmission'
+import { AUTHORIZE_RECORDING, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
+const snapshot = {
+  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
+  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', position: 0, acceptedAnswerCount: 0 }],
+  messages: [], operations: [],
+}
+const pending = { questionId: 'question', recordingId: 'recording', expectedRevision: 0, submissionKey: 'stable-key' }
+const query = { query: INTERVIEW_QUERY, variables: { id: 'session' } }
+const subscription = { request: { query: INTERVIEW_UPDATED, variables: { id: 'session' } }, result: { data: { interviewSessionUpdated: snapshot } } }
+function mount(mocks: MockLink.MockedResponse[]) {
+  return renderHook(() => useInterviewSession('session', 'owner'), { wrapper: ({ children }) => <MockedProvider mocks={[subscription, ...mocks]}>{children}</MockedProvider> })
+}
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+describe('useInterviewSession', () => {
+  it('reconciles an ambiguously accepted submission on reload without resending expired recording input', async () => {
+    savePendingSubmission('owner', 'session', pending)
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
+    const resend = vi.fn(() => ({ data: { submitInterviewTurn: { interview: accepted, errors: [] } } }))
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: query, result: { data: { interviewSession: accepted } } },
+      { request: { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...pending } } }, result: resend },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(() => result.current.checkSavedStatus(true))
+    expect(result.current.unresolved).toBeNull()
+    expect(resend).not.toHaveBeenCalled()
+  })
+  it('uploads exact signed headers and preserves the same submit identity after a lost reply', async () => {
+    const key = '11111111-1111-4111-8111-111111111111'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
+    const put = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', put)
+    const identity = { ...pending, submissionKey: key }
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+    const submitRequest = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity } } }
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm', 'Content-MD5': 'kAFQmDzST7DWlj99KOF/cg==' }, expiresIn: 60 } } } } },
+      { request: { query: REGISTER_RECORDING, variables: { input: { interviewId: 'session', mediaId: 'recording' } } }, result: { data: { registerInterviewRecording: { __typename: 'RegisterInterviewRecordingPayload', interview: snapshot, errors: [] } } } },
+      { request: submitRequest, error: new Error('Lost response') },
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: submitRequest, result: { data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } } },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const blob = new Blob(['abc'], { type: 'audio/webm;codecs=opus' })
+    Object.defineProperty(blob, 'arrayBuffer', { value: async () => new Uint8Array([97, 98, 99]).buffer })
+    let discard = false
+    await act(async () => { discard = await result.current.answer(blob) })
+    expect(discard).toBe(true)
+    expect(result.current.unresolved).toEqual(identity)
+    expect(put).toHaveBeenCalledWith('https://storage.test/upload', expect.objectContaining({ method: 'PUT', credentials: 'omit', body: blob, headers: { 'Content-Type': 'audio/webm', 'Content-MD5': 'kAFQmDzST7DWlj99KOF/cg==' } }))
+    await act(() => result.current.checkSavedStatus(true))
+    expect(result.current.unresolved).toBeNull()
+    expect(put).toHaveBeenCalledOnce()
+  })
+  it('never resends after an authorization error during reconciliation', async () => {
+    savePendingSubmission('owner', 'session', pending)
+    const resend = vi.fn(() => ({ data: {} }))
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: query, result: { errors: [new GraphQLError('Unauthorized')] } },
+      { request: { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...pending } } }, result: resend },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(() => result.current.checkSavedStatus(true))
+    expect(result.current.unresolved).toEqual(pending)
+    expect(resend).not.toHaveBeenCalled()
+    expect(result.current.error).toContain('Unauthorized')
+  })
+})

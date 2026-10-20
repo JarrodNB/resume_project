@@ -1,6 +1,7 @@
 # Rails-owned spoken interview session. Basic is the first supported interview type. Its services change dialogue and progress together;
 # the existing written practice records remain independent.
 class InterviewSession < ApplicationRecord
+  include PublishesInterviewSnapshot
   STATUSES = %w[active completed expired].freeze
   INTERVIEW_TYPES = %w[basic].freeze
   belongs_to :user

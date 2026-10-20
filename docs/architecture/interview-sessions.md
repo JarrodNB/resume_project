@@ -15,8 +15,8 @@ not write the database. Browser requests never wait for the interviewer. Existin
 features continue to use SQS and `ai_results` without changes.
 
 The delivered foundation includes persistence, private HTTP claims/recovery, accounting,
-private media services and offline audio validation. The offline runtime executes this boundary; public GraphQL and the demo remain a
-later slice.
+private media services and offline audio validation. The offline runtime executes this boundary;
+the owned GraphQL demo exposes accepted dialogue and safe operation progress.
 
 ## Shared domain and Basic type
 
@@ -107,8 +107,8 @@ Speech reserves one artifact per operation/attempt and binds it to the saved mes
 Registration fixes synthesized byte count/checksum and validates/seals those bytes. Completion
 requires the current claim and exact saved-message identity; identical completion returns its
 receipt. Playback selects only the accepted receipt's artifact through an already owner-scoped
-interview, rather than choosing an arbitrary ready upload. No public GraphQL media surface is
-included yet.
+interview, rather than choosing an arbitrary ready upload. The public GraphQL media mutations
+issue short-lived upload and playback capabilities only after owner and demo-gate checks.
 
 Local Compose stores S3Mock files in the named `s3_data` volume, sets
 `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/s3mockroot` and enables
@@ -288,3 +288,48 @@ waits for accepted dialogue and attached speech, checks accounting and removes t
 account. It requires development mode and the service secret. It does not perform
 browser QA or prove provider quality. Use a unique Compose project and port overrides
 when another stack is running; `docker compose -p <project> down` stops that stack.
+
+## Public development demo contract
+
+`INTERVIEW_DEMO_ENABLED=true` enables the surface only when Rails runs in development.
+The default is disabled. `interviewDemoEnabled` lets the authenticated UI discover this gate;
+every query, mutation, and subscription checks it independently. `startInterviewDemo` creates
+fictional context; `interviewSession(id)` and `interviewSessionUpdated(id)` read through the
+current user's sessions. Initial subscription delivery and reconnect return a fresh snapshot.
+Expired sessions reject reads immediately, even if scheduled cleanup has not run.
+
+`authorizeInterviewRecording`, `registerInterviewRecording`, `submitInterviewTurn`,
+`retryInterviewOperation`, and `interviewPlayback` delegate to the existing owned lifecycle
+and media services. Upload grants and playback URLs appear only in those explicit responses,
+never in snapshots. Snapshots include saved public messages, question counts, revision,
+operation status, safe checkpoints/failure codes, and submission keys for ambiguous-submit
+reconciliation. They omit model history, context snapshots, recording IDs, claim credentials,
+provider payloads, storage keys, and accepted-result internals.
+
+Session, question, message, and operation changes publish after commit. Rollback publishes
+nothing; delivery failure leaves durable state available through query/reconnect. Multiple
+notifications can describe the same revision, so clients reconcile snapshots by session
+identity and reload when connection delivery is uncertain.
+
+The React entrypoint is `/interviews/demo` (and `/interviews/demo/:id` for reloads).
+Set `VITE_INTERVIEW_DEMO_ENABLED=true` explicitly for the development web server as well
+as `INTERVIEW_DEMO_ENABLED=true` for Rails. Compose passes both settings with false defaults.
+Production builds hide the route content even if the frontend flag is set; Rails independently
+denies public demo operations outside development. Written practice remains at `/interview-prep`.
+
+The browser selects supported WebM/MP4 recording, stops the microphone with **Done answering**,
+and submits only after that explicit action. Permission, format, disconnect, size and time-limit
+errors discard or preserve bytes as appropriate without submitting. A pre-submission upload failure
+keeps the recording for an explicit retry. Once a durable submission identity is saved, the browser
+may release its bytes even if the response is lost. Only that minimal question/recording/revision/key
+identity is kept in local storage, scoped by owner and interview; a successful owned read reconciles
+it before an explicit same-key resend. No mutation is automatically replayed after an auth error.
+Queries on mount and fresh subscription snapshots on reconnect restore canonical progress without
+polling. Playback obtains a fresh grant for the same saved message; it never retries reasoning or
+speech generation. Expired grants can be renewed while the artifact itself remains retained.
+
+For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to
+`http://localhost:9090`; override it when QA uses a different published storage port. The direct
+PUT uses exactly the signed headers and never sends account cookies. S3Mock's browser CORS support
+and actual microphone/playback behavior still need human browser QA; automated checks use browser
+resource fakes rather than browser automation.

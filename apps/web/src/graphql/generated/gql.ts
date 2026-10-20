@@ -51,6 +51,15 @@ type Documents = {
     "\n  mutation SaveInterviewAnswer($questionSetId: ID!, $questionId: ID!, $answerText: String!) {\n    saveInterviewAnswer(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {\n      errors question { id answerText answerRevision feedbackOutdated }\n    }\n  }\n": typeof types.SaveInterviewAnswerDocument,
     "\n  mutation RequestInterviewFeedback($questionSetId: ID!, $questionId: ID!, $answerText: String!) {\n    requestInterviewAnswerFeedback(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n": typeof types.RequestInterviewFeedbackDocument,
     "\n  mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {\n    regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n": typeof types.RegenerateInterviewQuestionDocument,
+    "\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n": typeof types.InterviewSnapshotFragmentDoc,
+    "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionDocument,
+    "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionUpdatedDocument,
+    "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n": typeof types.StartInterviewDemoDocument,
+    "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": typeof types.AuthorizeInterviewRecordingDocument,
+    "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RegisterInterviewRecordingDocument,
+    "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SubmitInterviewTurnDocument,
+    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RetryInterviewOperationDocument,
+    "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": typeof types.InterviewPlaybackDocument,
     "\n  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String) {\n    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor) {\n      listings {\n        id\n        title\n        company\n        location\n        description\n        hasRemote\n        savedJob { id }\n      }\n      nextCursor\n      retrievedAt\n      stale\n      errors\n    }\n  }\n": typeof types.JobBoardSearchDocument,
     "\n  mutation ImportJobBoardListing($listingId: ID!) {\n    importJobBoardListing(input: { listingId: $listingId }) {\n      job { id }\n      warnings\n      errors\n    }\n  }\n": typeof types.ImportJobBoardListingDocument,
     "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
@@ -109,6 +118,15 @@ const documents: Documents = {
     "\n  mutation SaveInterviewAnswer($questionSetId: ID!, $questionId: ID!, $answerText: String!) {\n    saveInterviewAnswer(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {\n      errors question { id answerText answerRevision feedbackOutdated }\n    }\n  }\n": types.SaveInterviewAnswerDocument,
     "\n  mutation RequestInterviewFeedback($questionSetId: ID!, $questionId: ID!, $answerText: String!) {\n    requestInterviewAnswerFeedback(input: { questionSetId: $questionSetId, questionId: $questionId, answerText: $answerText }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n": types.RequestInterviewFeedbackDocument,
     "\n  mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {\n    regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n": types.RegenerateInterviewQuestionDocument,
+    "\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n": types.InterviewSnapshotFragmentDoc,
+    "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionDocument,
+    "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionUpdatedDocument,
+    "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n": types.StartInterviewDemoDocument,
+    "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": types.AuthorizeInterviewRecordingDocument,
+    "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RegisterInterviewRecordingDocument,
+    "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SubmitInterviewTurnDocument,
+    "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RetryInterviewOperationDocument,
+    "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n": types.InterviewPlaybackDocument,
     "\n  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String) {\n    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor) {\n      listings {\n        id\n        title\n        company\n        location\n        description\n        hasRemote\n        savedJob { id }\n      }\n      nextCursor\n      retrievedAt\n      stale\n      errors\n    }\n  }\n": types.JobBoardSearchDocument,
     "\n  mutation ImportJobBoardListing($listingId: ID!) {\n    importJobBoardListing(input: { listingId: $listingId }) {\n      job { id }\n      warnings\n      errors\n    }\n  }\n": types.ImportJobBoardListingDocument,
     "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": types.JobsDocument,
@@ -292,6 +310,42 @@ export function graphql(source: "\n  mutation RequestInterviewFeedback($question
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {\n    regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n"): (typeof documents)["\n  mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {\n    regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {\n      errors aiTask { id status taskType errorMessage }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n"): (typeof documents)["\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n"): (typeof documents)["\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n"): (typeof documents)["\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n"): (typeof documents)["\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n"): (typeof documents)["\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation RetryInterviewOperation($input: RetryInterviewOperationInput!) {\n    retryInterviewOperation(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n"): (typeof documents)["\n  mutation InterviewPlayback($input: InterviewPlaybackInput!) {\n    interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

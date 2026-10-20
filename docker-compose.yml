@@ -68,6 +68,8 @@ services:
     environment:
       <<: [*local-aws, *api-bootsnap]
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+      INTERVIEW_DEMO_ENABLED: ${INTERVIEW_DEMO_ENABLED:-false}
+      INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
       DB_PASSWORD: postgres
@@ -174,6 +176,8 @@ services:
       retries: 3
 
   web:
+    environment:
+      VITE_INTERVIEW_DEMO_ENABLED: ${VITE_INTERVIEW_DEMO_ENABLED:-false}
     build:
       context: ./apps/web
       dockerfile: Dockerfile.dev

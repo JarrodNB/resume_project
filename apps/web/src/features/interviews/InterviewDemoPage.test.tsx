@@ -1,11 +1,11 @@
 /** The spoken demo presents saved state and keeps turn recovery separate from speech replay. */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn() },
   recorder: { status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -22,8 +22,8 @@ const snapshot = {
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
 }
-function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage /> }) }
-beforeEach(() => { vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
+function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
+beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
 describe('InterviewDemoPage', () => {
   it('discloses scripted output and keeps explicit recording and submission controls', async () => {
     renderDemo()
@@ -33,13 +33,16 @@ describe('InterviewDemoPage', () => {
     expect(recorder.start).toHaveBeenCalledOnce()
     expect(state.answer).not.toHaveBeenCalled()
   })
-  it('submits exactly once after Done answering and the final recorder blob arrives', async () => {
+  it('reviews after Done answering without uploading until explicit Submit', async () => {
     recorder.status = 'recording'
     renderDemo()
     await userEvent.dblClick(screen.getByRole('button', { name: 'Done answering' }))
     expect(state.answer).not.toHaveBeenCalled()
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     act(() => recorder.refresh())
+    expect(state.answer).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Your recording preview')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
     await waitFor(() => expect(state.answer).toHaveBeenCalledOnce())
     expect(state.answer).toHaveBeenCalledWith(recorder.recording)
     act(() => recorder.refresh())
@@ -49,6 +52,82 @@ describe('InterviewDemoPage', () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderDemo()
     expect(state.answer).not.toHaveBeenCalled()
+  })
+  it('locks conflicting actions and prevents duplicate explicit submissions', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    let resolve!: (saved: boolean) => void
+    state.answer.mockReturnValue(new Promise((done) => { resolve = done }))
+    renderDemo()
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Submit recording' }))
+    expect(state.answer).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Discard recording' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Re-record' })).toBeDisabled()
+    await act(async () => resolve(true))
+    expect(recorder.reset).toHaveBeenCalledOnce()
+  })
+  it('lets the user discard or explicitly replace a review recording', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Re-record' }))
+    expect(recorder.start).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Discard recording' }))
+    expect(recorder.reset).toHaveBeenCalledOnce()
+    expect(state.answer).not.toHaveBeenCalled()
+  })
+  it('keeps submit and re-record available after preview playback fails', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    renderDemo()
+    fireEvent.error(screen.getByLabelText('Your recording preview'))
+    expect(screen.getByRole('alert')).toHaveTextContent('could not play')
+    expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Re-record' })).toBeEnabled()
+  })
+  it('warns on reload and in-app navigation, and clears the warning after discard', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    const { router } = renderDemo()
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+    await userEvent.click(screen.getByRole('link', { name: 'Open written interview practice' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Leave without submitting?')
+    await userEvent.click(screen.getByRole('button', { name: 'Keep reviewing' }))
+    expect(router.state.location.pathname).toBe('/interviews/demo/session')
+    recorder.recording = null; recorder.status = 'idle'
+    act(() => recorder.refresh())
+    const cleanUnload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(cleanUnload)
+    expect(cleanUnload.defaultPrevented).toBe(false)
+  })
+  it('clears the local preview and warning after durable submission', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    recorder.reset.mockImplementationOnce(() => {
+      recorder.status = 'idle'; recorder.recording = null; recorder.refresh()
+    })
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
+    expect(screen.queryByLabelText('Your recording preview')).not.toBeInTheDocument()
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview')
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(false)
+  })
+  it('can explicitly leave and releases the local preview', async () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    const { router } = renderDemo()
+    await userEvent.click(screen.getByRole('link', { name: 'Open written interview practice' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Discard and leave' }))
+    expect(router.state.location.pathname).toBe('/interview-prep')
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview')
+    expect(state.answer).not.toHaveBeenCalled()
+  })
+  it('keeps warning when a saved-state refresh fails during local review', () => {
+    recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
+    renderDemo()
+    state.loadError = new Error('offline')
+    act(() => recorder.refresh())
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
   })
   it('blocks recording while speech is unavailable and offers only speech retry', async () => {
     state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'failed', failureCode: 'speech_failed' }] }

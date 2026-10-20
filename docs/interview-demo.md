@@ -54,7 +54,9 @@ IP addresses by default. Published ports bind only to this loopback address.
 
 1. Start the demo. Check the fictional-context and scripted-transcript labels.
 2. Play the opening; allow microphone access, record an answer, and choose **Done answering**.
-   Confirm submission only follows that explicit action and the visible transcript is scripted.
+   Confirm the microphone stops and a local audio preview appears without uploading. Listen,
+   discard, or re-record, then choose **Submit recording**. Only Submit uploads; the visible
+   transcript remains scripted. Before submitting, try leaving or reloading and confirm a warning.
 3. Reload during processing. Confirm saved messages return and the same submission does not
    append another accepted answer. Reload after completion and renew playback of retained audio.
    Disconnect/reconnect, then leave the page open and confirm live updates arrive without

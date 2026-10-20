@@ -1,13 +1,15 @@
 /** A small spoken demo alongside written practice. Saved server state controls progression;
  * recording is explicit, and fake output is never presented as understanding the microphone.
  */
-import { useEffect, useRef } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { SectionCard } from '@/components/SectionCard'
 import { useAuth } from '@/features/auth/useAuth'
 import { interviewDemoEnabled } from './interviewDemoEnabled'
+import { RecordingReview } from './RecordingReview'
+import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { InterviewAudio } from './InterviewAudio'
 import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewSession, useStartInterview } from './useInterviewSession'
@@ -37,21 +39,17 @@ function OwnedInterview({ id }: { id: string }) {
   const { user } = useAuth()
   const state = useInterviewSession(id, user?.id ?? '')
   const recorder = useInterviewRecorder()
-  const { recording: completedRecording, error: recordingError, reset: resetRecording } = recorder
-  const { answer: saveAnswer } = state
-  const submitAfterStop = useRef(false)
-  useEffect(() => {
-    if (submitAfterStop.current && completedRecording) {
-      submitAfterStop.current = false
-      void saveAnswer(completedRecording).then((saved) => { if (saved) resetRecording() })
-    }
-    if (recordingError) submitAfterStop.current = false
-  }, [completedRecording, recordingError, saveAnswer, resetRecording])
+  const submitting = useRef(false)
+  const [savingRecording, setSavingRecording] = useState(false)
+  const recordingWarning = <RecordingUnsavedChanges dirty={Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting'} />
   const interview = state.interview
-  if (!interview || state.loadError) return <div className="grid gap-3">
-    <p role={state.loadError ? 'alert' : 'status'}>{state.loadError ? 'Could not load this interview. It may be unavailable, expired, or outside your account.' : 'Loading saved interview…'}</p>
-    {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
-  </div>
+  if (!interview || state.loadError) return <>
+    {recordingWarning}
+    <div className="grid gap-3">
+      <p role={state.loadError ? 'alert' : 'status'}>{state.loadError ? 'Could not load this interview. It may be unavailable, expired, or outside your account.' : 'Loading saved interview…'}</p>
+      {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
+    </div>
+  </>
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -59,9 +57,15 @@ function OwnedInterview({ id }: { id: string }) {
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
   const canRecord = interview.status === 'active' && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && speech?.status === 'accepted'
-  async function done() { if (recorder.status === 'recording') { submitAfterStop.current = true; recorder.stop() } }
-  async function submit() { if (recorder.recording) { if (await state.answer(recorder.recording)) recorder.reset() } }
+  async function submit() {
+    if (!recorder.recording || submitting.current || !canRecord) return
+    submitting.current = true; setSavingRecording(true)
+    try { if (await state.answer(recorder.recording)) recorder.reset() }
+    finally { submitting.current = false; setSavingRecording(false) }
+  }
+  const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   return <>
+    {recordingWarning}
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
       <p>{interview.status === 'completed' ? 'Interview complete. Your accepted dialogue is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} answers accepted.`}</p>
       {turnActive && <p>Answer processing: {currentTurn.checkpoint?.replaceAll('_', ' ') || currentTurn.status}. You can reload safely.</p>}
@@ -85,11 +89,12 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status or retry the same submission; this keeps the original answer identity.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. No answer allowance was used.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-3 border-t pt-5">
-      <p className="text-sm text-muted-foreground">Done answering stops the microphone and submits your recording. Silence never submits.</p>
+      <p className="text-sm text-muted-foreground">Done answering stops the microphone so you can listen, submit, or re-record. Nothing is uploaded until you submit. Silence never submits.</p>
       <div className="flex flex-wrap gap-3">
-        {recorder.status === 'recording' ? <Button onClick={() => void done()}>Done answering</Button> : <Button disabled={!canRecord || recorder.status === 'requesting' || recorder.status === 'ready'} onClick={() => void recorder.start()}>{recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
-        {recorder.recording && <><Button disabled={!canRecord} onClick={() => void submit()}>Submit recording</Button><Button variant="outline" disabled={state.busy} onClick={recorder.reset}>Discard recording</Button></>}
+        {recorder.status === 'recording' ? <Button onClick={recorder.stop}>Done answering</Button> : <Button disabled={!canRecord || recorder.status === 'requesting' || recorder.status === 'ready'} onClick={() => void recorder.start()}>{recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
+        {recorder.recording && <><Button disabled={!canRecord || savingRecording} onClick={() => void submit()}>Submit recording</Button><Button variant="outline" disabled={recordingLocked} onClick={recorder.reset}>Discard recording</Button><Button variant="outline" disabled={!canRecord || savingRecording} onClick={() => void recorder.start()}>Re-record</Button></>}
       </div>
+      {recorder.recording && <RecordingReview recording={recorder.recording} />}
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
       {!canRecord && !turnActive && interview.status === 'active' && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">Recording is available once the current reply's speech is ready. Listening first is optional.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}

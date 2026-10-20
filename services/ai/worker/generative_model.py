@@ -1,12 +1,13 @@
-"""
-Description: The OpenAI model a generative agent runs, with a fallback for provider errors.
-Index:
-    - generative_model: the primary model, or a FallbackModel when the fallback name differs
+"""Choose generative providers while keeping recovery policy separate from logging.
+
+Provider errors can try a different configured model. A logging-owned observer
+marks actual fallback execution without deciding when recovery should happen.
 """
 
 from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 
+from conversation_logging import observe_fallback_model
 from worker.task_usage import accounted_model
 
 
@@ -19,4 +20,5 @@ def generative_model(primary: str, fallback: str) -> Model | str:
     """
     if fallback == primary:
         return accounted_model(primary)
-    return FallbackModel(accounted_model(primary), accounted_model(fallback))
+    primary_model, fallback_model = accounted_model(primary), accounted_model(fallback)
+    return FallbackModel(primary_model, observe_fallback_model(primary_model, fallback_model))

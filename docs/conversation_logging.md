@@ -42,6 +42,13 @@ omitted because provider errors can include arbitrary private payloads. No
 partial response is invented when the provider supplies no response object.
 Hidden reasoning and unexposed network data are unavailable.
 
+`FALLBACK EXECUTION` marks entry into an explicitly configured generative or
+screening fallback. It includes the source/destination models, a unique fallback
+execution ID, and the enclosing agent run ID when available. Screening can run
+outside an agent run, so its run identity may be unavailable. These events mark
+execution, not success: the following response, validation or provider failure
+shows what happened. Model changes and adjacent requests alone never imply fallback.
+
 Outcomes distinguish published results, retries with published usage, and
 publication failures. `RETRY PENDING` marks successfully published end-of-attempt
 usage before another task delivery. `PUBLICATION FAILURE` marks a failed queue
@@ -57,7 +64,8 @@ this ordering alone does not mean a retry. Use request IDs to pair them.
 To disable logging locally, set `CONVERSATION_LOGGING_ENABLED=false` in
 `services/ai/.env` and recreate the AI worker. Logging requires
 `WORKER_ENVIRONMENT=local`; other environments remain disabled even when the
-logging setting is true. A Logfire environment label does not enable it.
+logging setting is true. A Logfire environment label does not enable it. Production uses tracing only;
+transcript settings do not disable or reconfigure Logfire instrumentation.
 
 Logs stay across worker restarts. Delete individual Markdown files, a user's
 directory, or the entire `services/ai/conversation_logs/` directory manually

@@ -66,7 +66,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   including later detected import contact. Import task spans omit pre-detection input metadata
 - `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
   when `generative_fallback_model` names a different model. Provider errors switch; output
-  validation retries do not. Safety classifiers do not use it; screening owns a separate fallback policy
+  validation retries do not. A logging-owned wrapper observes entry into the configured
+  fallback target without changing policy. Safety classifiers do not use it; screening owns a separate fallback policy
 - `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
   to «name», «email», and «phone»
 - `contact_mask.py` — adapts known-contact and opaque import privacy sessions on model requests, telemetry export, and

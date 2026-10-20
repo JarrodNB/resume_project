@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from pydantic_ai.capabilities import AbstractCapability
 from pydantic_ai.exceptions import ModelRetry, ToolRetryError, UnexpectedModelBehavior
 from pydantic_ai.messages import ModelRequest, RetryPromptPart
+from pydantic_ai.models.wrapper import WrapperModel
 
 from conversation_logging.render import render_instructions, render_messages
 
@@ -32,6 +33,7 @@ class _RunObservation:
 
 
 _run = ContextVar("conversation_run", default=None)
+_fallback = ContextVar("conversation_fallback", default=None)
 
 
 class ConversationLogging(AbstractCapability):
@@ -51,9 +53,14 @@ class ConversationLogging(AbstractCapability):
             logger.warning("Conversation run could not be initialized")
             state = None
         token = _run.set(state)
+        fallback = _fallback.get()
+        fallback_token = _fallback.set(
+            (fallback[0], ctx.run_id) if fallback and fallback[1] is None else None
+        )
         try:
             return await handler()
         finally:
+            _fallback.reset(fallback_token)
             _run.reset(token)
 
     async def wrap_node_run(self, ctx, *, node, handler):
@@ -180,7 +187,8 @@ async def observe_request(model, messages, model_settings, parameters):
             if state is not None:
                 state.request_id, state.model = request_id, model.model_id
                 state.provider_error = None
-            transcript.append(f"{prefix} — Request snapshot — {_timestamp()}\n\nModel: {model.model_id}\n\n"
+            transcript.append(f"{prefix} — Request snapshot — {_timestamp()}\n\nModel: {model.model_id}\n"
+                              f"Fallback execution: {_fallback.get()[0] if _fallback.get() else None}\n\n"
                               + render_instructions(parameters) + render_messages(messages, parameters))
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation request could not be rendered")
@@ -228,3 +236,59 @@ def record_outcome(outcome, *, event="Outcome"):
             transcript.append(f"### {event} — Attempt {transcript.attempt} — {_timestamp()}\n\nOutcome: {outcome}")
     except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
         logger.warning("Conversation outcome could not be rendered")
+
+
+def record_fallback(source, destination, *, kind, execution):
+    """Announce an explicit execution boundary without copying input or error payloads."""
+    try:
+        transcript = _current.get()
+        if transcript is None:
+            return
+        state = _run.get()
+        transcript.append(f"### FALLBACK EXECUTION — Attempt {transcript.attempt} — {_timestamp()}\n\n"
+                          f"Fallback execution: {execution}\nKind: {kind}\n"
+                          f"Run: {state.run_id if state else 'unavailable'}\n"
+                          f"From model: {source}\nTo model: {destination}")
+    except Exception:  # noqa: BLE001 - preserve fallback policy and execution
+        logger.warning("Conversation fallback could not be rendered")
+
+
+class _FallbackExecution(WrapperModel):
+    """Observe only entry into an explicitly configured fallback target, never adjacency."""
+
+    def __init__(self, model, source):
+        super().__init__(model)
+        self.source = source if isinstance(source, str) else source.model_id
+
+    async def request(self, messages, model_settings, model_request_parameters):
+        with fallback_execution(self.source, self.wrapped.model_id, kind="generative"):
+            return await self.wrapped.request(messages, model_settings, model_request_parameters)
+
+
+def observe_fallback_model(source, destination):
+    """Keep disabled paths unchanged; wrap the target of the owner's fallback chain."""
+    if _current.get() is None:
+        return destination
+    return _FallbackExecution(destination, source)
+
+
+@contextmanager
+def fallback_execution(source, destination, *, kind):
+    """Link explicit fallback execution and its requests with isolated, nonfatal state."""
+    if _current.get() is None:
+        yield
+        return
+    try:
+        execution = uuid4()
+        state = _run.get()
+        run_id = state.run_id if state and kind == "generative" else None
+        record_fallback(source, destination, kind=kind, execution=execution)
+        token = _fallback.set((execution, run_id))
+    except Exception:  # noqa: BLE001 - setup failure cannot prevent provider execution
+        logger.warning("Conversation fallback scope could not be initialized")
+        token = None
+    try:
+        yield
+    finally:
+        if token is not None:
+            _fallback.reset(token)

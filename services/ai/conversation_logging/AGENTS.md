@@ -9,3 +9,7 @@ Follow parent Python header/docstring rules. Never restore contact text. Logging
 not replace provider results or exceptions. Telemetry labels never enable transcripts.
 Validation observation reuses the privacy boundary's outbound masking because validators
 can receive restored contact text. It never restores text or changes retry policy.
+
+Explicit fallback targets use the logging-owned model wrapper; screening drivers notify
+just before executing their fallback. Never infer fallback from model changes or adjacency.
+Fallback events record identities only, never screening input or provider error payloads.

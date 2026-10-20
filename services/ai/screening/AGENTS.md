@@ -21,7 +21,8 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   returns `unchecked`. Limits and cancellation propagate. Blank text is free.
   `model_usages` retains completed calls by model; compatibility totals exist only for
   single-model passes. Cached decisions return no usage. Worker request accounting remains
-  authoritative for failed runs and output-validation retries.
+  authoritative for failed runs and output-validation retries. Drivers notify the independent
+  logging module immediately before fallback execution; no input text is included.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 

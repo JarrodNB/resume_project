@@ -1,5 +1,5 @@
-# Durable turn or saved-text speech work. A recording UUID is internal correlation only,
-# never upload authority; media authorization belongs to the later media boundary.
+# Durable turn or saved-text speech work. Recording UUIDs identify owned private media;
+# services authorize sealed bytes and current claims before granting execution access.
 class InterviewSessionOperation < ApplicationRecord
   KINDS = %w[turn speech].freeze
   STATUSES = %w[pending running accepted failed expired].freeze

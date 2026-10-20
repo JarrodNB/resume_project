@@ -14,9 +14,9 @@ internal Rails HTTP, runs asynchronously, and submits results for Rails acceptan
 not write the database. Browser requests never wait for the interviewer. Existing queue
 features continue to use SQS and `ai_results` without changes.
 
-The first two delivery slices implement persistence, lifecycle services, private HTTP
-claims/recovery, and accounting. Media authorization/cleanup, Python execution and the
-public demo are subsequent slices. These internal APIs grant no browser or upload authority.
+The delivered foundation includes persistence, private HTTP claims/recovery, accounting,
+private media services and offline audio validation. Runtime scheduling and execution follow
+in ticket 04; public GraphQL and the demo follow in ticket 05.
 
 ## Shared domain and Basic type
 
@@ -38,8 +38,8 @@ Only the service fixture permits a second question.
 
 `SubmitTurnService.call(interview:, question_id:, recording_id:, expected_revision:,
 submission_key:)` reserves one turn before acknowledging submission. Callers pass an
-already-authorized interview. The recording UUID is currently internal correlation only;
-the media slice must authorize an owned recording before exposing submission externally.
+already-authorized interview. The recording must be ready, unexpired, owned by the same interview and current question,
+and unused by another submission. An arbitrary recording UUID grants no authority.
 The immutable fingerprint covers question, recording and expected revision. An identical key
 and fingerprint return the original operation even after revision changes. A changed input
 conflicts. Different submissions cannot share an active answer slot.
@@ -82,13 +82,63 @@ identical/conflicting acceptance. Atomicity specs inject a failed speech write a
 unchanged dialogue, counts, history and lifecycle. Existing written-practice regressions run
 alongside the new service and database-constraint checks.
 
+## Private audio boundary
+
+`InterviewSessionMedia` stores reservations, sealed artifacts and deletion receipts. Recording
+reservation fixes the current question/revision, content type, byte count and base64 MD5.
+Clients receive a PUT capability for a random staging key. Registration streams bounded bytes,
+checks size, MD5, declared type and detected magic bytes, then writes and verifies a separate
+sealed snapshot. Staging grants cannot overwrite that server-only sealed key. Object I/O runs
+outside database locks; authority is checked again before registration commits. Existing
+Active Storage uploads keep their own behavior; interview media has no public Active Storage
+signed download route and accepts no caller-supplied object URL/key.
+
+Capabilities last at most 60 seconds and never outlive media expiry. Executor recording reads
+also stop at the current lease. `INTERVIEW_BROWSER_STORAGE_ORIGIN` signs browser-reachable
+URLs separately from executor/server `S3_ENDPOINT_URL`; signatures are never repaired by URL
+rewriting. Python uses exact configured storage origins, finite timeouts, no redirects and a
+separate storage client without application credentials. Rails sets a 10 MiB maximum,
+configurable downward with `INTERVIEW_RECORDING_MAX_BYTES`. Python checks expected MD5/size
+and fully decodes audio before any provider call, rejecting invalid, truncated, non-audio or
+overlong input. Its `MediaLimits` supports lower byte/duration bounds; duration is at most
+120 seconds. The runtime must wire those helpers before provider execution.
+
+Speech reserves one artifact per operation/attempt and binds it to the saved message.
+Registration fixes synthesized byte count/checksum and validates/seals those bytes. Completion
+requires the current claim and exact saved-message identity; identical completion returns its
+receipt. Playback selects only the accepted receipt's artifact through an already owner-scoped
+interview, rather than choosing an arbitrary ready upload. No public GraphQL media surface is
+included yet.
+
+Local Compose stores S3Mock files in the named `s3_data` volume, sets
+`COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/s3mockroot` and enables
+`COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT`. Together these preserve objects across
+container recreation, following the [S3Mock configuration documentation](https://github.com/adobe/S3Mock/blob/main/README.md#configuration).
+S3Mock accepts presigned URLs without checking signatures or expiry, so local tests prove
+Rails authorization and byte handling; production S3 capability enforcement needs its own QA.
+
 ## Retention and rollout boundary
 
-The approved media policy removes source recordings on acceptance or permanent failure,
-with unaccepted recordings expiring after one hour. Generated speech lasts through the active
-interview and expires one hour after completion. Dialogue/history expire after seven days;
-active sessions also expire then. This slice stores the interview expiry and checks it before
-submission/acceptance. Actual media cleanup and expiry orchestration belong to later slices.
+Source recordings become expired when their turn is accepted or permanently fails; otherwise
+they expire after one hour. Unaccepted speech reservations expire after one hour. Accepted
+speech lasts through the active interview and at most one hour after completion, bounded by
+session expiry. Read and callback services enforce these deadlines before physical cleanup.
+
+`Interviews::CleanupService.call(limit: 10)` processes bounded batches (limit 1–100). It is
+also callable through authenticated `POST /internal/interviews/cleanup`; periodic scheduling
+belongs to ticket 04. Deletion marks durable pending state before storage I/O and retries
+failures after five minutes with a safe error code. Deleted rows retain random object keys
+only as tombstones, with content metadata removed. An hourly reaper deletes those keys again:
+a delayed upload grant, paused registration or crash can otherwise recreate an object after
+its first deletion. Reaping has a separate bounded quota, ordered by next due time, so old
+tombstones do not starve newly expired objects. This incurs continuing S3 delete requests;
+provider lifecycle rules or stronger write fencing are deferred options.
+
+After seven days cleanup expires the session, fails pending/running linked tasks, scrubs
+fixture context, dialogue, private history, accepted payloads and task input/results, and marks
+content purged once. Minimal operation identities, fingerprints and billing/usage records
+remain for duplicate callbacks and late accounting. Cleanup does not delete AiTask or usage
+rows. These minimal records are not a retained dialogue archive.
 
 The schema is additive and requires no backfill of written practice. Do not remove tables as
 an operational rollback: stop the new runtime and disable creation, retaining accepted data
@@ -96,8 +146,8 @@ and accounting until an explicit data-loss decision.
 
 ## Internal execution HTTP contract
 
-The second slice adds private Rails callbacks; it still exposes no public demo or
-recording authority. `/internal/interviews/operations` is the generic shared route.
+Private Rails callbacks expose execution and media authority to the authenticated service;
+they expose no public demo. `/internal/interviews/operations` is the generic shared route.
 Set `INTERVIEW_SERVICE_SECRET` to a separate random credential and send exactly
 `Authorization: Bearer <secret>`. An unset credential disables these routes. Browser
 cookies and caller-supplied user IDs confer no authority. Request bodies are capped at
@@ -110,7 +160,7 @@ All callbacks receive an operation ID whose persisted session establishes its ow
 `GET /internal/interviews/operations` returns at most ten eligible IDs. Discovery retires
 at most ten expired operations each pass; canonical status also retires expired work.
 This releases the active-turn slot and marks linked tasks failed while leaving incomplete
-usage visible. Physical media deletion remains the media slice's responsibility.
+usage visible. Physical media deletion runs through the cleanup service described above.
 
 For `/internal/interviews/operations/:id`:
 
@@ -132,6 +182,18 @@ For `/internal/interviews/operations/:id`:
 - `GET` returns canonical status, failure/retry metadata and an acceptance receipt;
   it omits current claim credentials, recordings and model history.
 
+The media callbacks under the same operation route take `attempt_id` and integer
+`claim_generation`:
+
+- `POST /recording` returns the current turn's sealed recording `download_url`, checksum,
+  byte size, content type and expiry.
+- `POST /reserve_audio` takes `content_type` and returns `media_id`, `upload_url`, required
+  headers and expiry for this speech attempt.
+- `POST /register_audio` takes `media_id`, base64 MD5 `checksum` and integer `byte_size`;
+  it verifies and seals the uploaded speech, returning its media identity.
+- `POST /complete_audio` takes `media_id` and returns the persisted media/message/claim
+  identity receipt, completing speech without changing saved dialogue.
+
 Leases last 30 seconds, heartbeat is intended every ten seconds, and each execution has
 an absolute 120-second deadline. A replacement claim increments the generation and gets a
 new UUID. After lease/deadline loss, claim schedules recovery and the next discovery pass
@@ -141,8 +203,7 @@ backoff is never used once the three-execution cap is reached. Explicit retry st
 fresh bounded cycle. Turn recovery stops at the recording's one-hour lifetime. Speech
 recovery stops at session expiry or one hour after completion, whichever is earlier.
 Expired claims cannot heartbeat, checkpoint, accept or start another provider call.
-Speech attachment/completion belongs to the media slice, which must preserve these claim
-and saved-message checks; this slice intentionally has no speech completion endpoint.
+Speech attachment/completion preserves these claim and saved-message checks.
 
 ## HTTP execution accounting
 

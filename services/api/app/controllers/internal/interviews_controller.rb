@@ -4,12 +4,16 @@ module Internal
   class InterviewsController < ActionController::API
     before_action :authenticate_service
     around_action :bound_database_waits
-    before_action :find_operation, except: :discover
+    before_action :find_operation, except: [ :discover, :cleanup ]
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: [ "Record not found" ] }, status: :not_found }
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
 
     def discover
       render json: { operation_ids: Interviews::DiscoverOperationsService.call.value }
+    end
+
+    def cleanup
+      respond Interviews::CleanupService.call
     end
 
     def claim
@@ -18,6 +22,26 @@ module Internal
 
     def heartbeat
       respond Interviews::RenewClaimService.call(operation: @operation, **claim_identity, checkpoint: params[:checkpoint])
+    end
+
+    def recording
+      respond Interviews::ReadRecordingService.call(operation: @operation, **claim_identity)
+    end
+
+    def reserve_audio
+      respond Interviews::ReserveSpeechMediaService.call(operation: @operation, **claim_identity,
+        content_type: params.require(:content_type))
+    end
+
+    def register_audio
+      media = InterviewSessionMedia.find_by!(id: params.require(:media_id), operation: @operation, kind: "speech")
+      respond Interviews::RegisterMediaService.call(media: media, **claim_identity,
+        checksum: params.require(:checksum), byte_size: params.require(:byte_size))
+    end
+
+    def complete_audio
+      media = InterviewSessionMedia.find_by!(id: params.require(:media_id), operation: @operation, kind: "speech")
+      respond Interviews::CompleteSpeechService.call(media: media, **claim_identity)
     end
 
     def accept
@@ -65,18 +89,19 @@ module Internal
       response.set_header("Cache-Control", "no-store")
     end
 
-    # PostgreSQL cancels waits safely inside a savepoint; Ruby Timeout cannot safely
-    # interrupt a database transaction. Restore settings for pooled connections.
+    # Restore connection limits before returning it to the pool. The request itself
+    # must not hold a transaction open across media I/O after service locks release.
     def bound_database_waits
       ApplicationRecord.connection_pool.with_connection do |connection|
-        connection.transaction(requires_new: true) do
-          previous_lock = connection.select_value("SHOW lock_timeout")
-          previous_statement = connection.select_value("SHOW statement_timeout")
-          connection.execute("SET LOCAL lock_timeout = '2s'")
-          connection.execute("SET LOCAL statement_timeout = '5s'")
+        previous_lock = connection.select_value("SHOW lock_timeout")
+        previous_statement = connection.select_value("SHOW statement_timeout")
+        begin
+          connection.execute("SET lock_timeout = '2s'")
+          connection.execute("SET statement_timeout = '5s'")
           yield
-          connection.execute("SET LOCAL lock_timeout = #{connection.quote(previous_lock)}")
-          connection.execute("SET LOCAL statement_timeout = #{connection.quote(previous_statement)}")
+        ensure
+          connection.execute("SET lock_timeout = #{connection.quote(previous_lock)}")
+          connection.execute("SET statement_timeout = #{connection.quote(previous_statement)}")
         end
       end
     rescue ActiveRecord::LockWaitTimeout, ActiveRecord::QueryCanceled

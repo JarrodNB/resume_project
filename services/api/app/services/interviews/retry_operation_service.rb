@@ -16,6 +16,9 @@ module Interviews
         if @operation.turn?
           next failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision
           next failure("An answer is already processing") if interview.operations.turn.where(status: %w[pending running]).exists?
+          recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
+            question_id: @operation.question_id, kind: "recording", status: "ready")
+          next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
         end
         next failure("Media expired") if @operation.speech? && interview.completed_at && interview.completed_at <= 1.hour.ago
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)

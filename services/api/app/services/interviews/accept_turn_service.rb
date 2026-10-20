@@ -28,10 +28,14 @@ module Interviews
         @operation.lock!
         @operation.ai_task&.lock!
         fingerprint = Digest::SHA256.hexdigest(JSON.generate(canonical_payload))
+        next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
         if @operation.accepted?
           next @operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts with its original payload")
         end
         next failure("Claim is stale or expired") unless current_claim?
+        recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
+          question_id: question.id, kind: "recording", status: "ready")
+        next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
         next failure("Interview is not active") unless interview.active? && interview.expires_at > Time.current
         next failure("Interview revision is stale") unless @operation.expected_revision == interview.revision && question.position == interview.current_question_position
 
@@ -47,6 +51,8 @@ module Interviews
           "message_ids" => [ answer.id, response.id ], "question_id" => question.id }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
         @operation.ai_task&.update!(status: "completed", completed_at: Time.current)
+        InterviewSessionMedia.where(id: @operation.recording_id, interview_session: interview, kind: "recording")
+          .update_all(expires_at: Time.current)
         success(receipt)
       end
     rescue ActiveRecord::RecordInvalid => error

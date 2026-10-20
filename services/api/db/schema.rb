@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_041000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -207,6 +207,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_041000) do
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
   end
 
+  create_table "interview_session_media", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "question_id", null: false
+    t.uuid "operation_id"
+    t.uuid "message_id"
+    t.string "kind", null: false
+    t.string "status", default: "reserved", null: false
+    t.string "staging_key"
+    t.string "sealed_key"
+    t.string "content_type", null: false
+    t.bigint "byte_size"
+    t.string "checksum"
+    t.uuid "attempt_id"
+    t.integer "claim_generation"
+    t.datetime "expires_at", null: false
+    t.datetime "deleted_at"
+    t.integer "deletion_attempts", default: 0, null: false
+    t.datetime "next_delete_at"
+    t.string "last_delete_error"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_interview_session_media_on_expires_at"
+    t.index ["interview_session_id"], name: "index_interview_session_media_on_interview_session_id"
+    t.index ["message_id"], name: "index_interview_session_media_on_message_id"
+    t.index ["operation_id", "attempt_id"], name: "index_interview_session_media_on_operation_id_and_attempt_id", unique: true, where: "((kind)::text = 'speech'::text)"
+    t.index ["operation_id"], name: "index_interview_session_media_on_operation_id"
+    t.index ["question_id"], name: "index_interview_session_media_on_question_id"
+    t.index ["sealed_key"], name: "index_interview_session_media_on_sealed_key", unique: true
+    t.index ["staging_key"], name: "index_interview_session_media_on_staging_key", unique: true
+    t.check_constraint "byte_size IS NULL OR byte_size > 0", name: "interview_media_bytes"
+    t.check_constraint "deletion_attempts >= 0", name: "interview_media_deletions"
+    t.check_constraint "kind::text = 'recording'::text AND question_id IS NOT NULL OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL", name: "interview_media_identity"
+    t.check_constraint "kind::text = ANY (ARRAY['recording'::character varying, 'speech'::character varying]::text[])", name: "interview_media_kind"
+    t.check_constraint "status::text = ANY (ARRAY['reserved'::character varying, 'ready'::character varying, 'delete_pending'::character varying, 'deleted'::character varying]::text[])", name: "interview_media_status"
+  end
+
   create_table "interview_session_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "interview_session_id", null: false
     t.uuid "question_id", null: false
@@ -252,6 +289,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_041000) do
     t.string "failure_code"
     t.string "checkpoint"
     t.index ["ai_task_id"], name: "interview_operation_unique_task", unique: true
+    t.index ["interview_session_id", "question_id", "id"], name: "interview_operation_media_identity", unique: true
     t.index ["interview_session_id", "submission_key"], name: "interview_session_submission_identity", unique: true, where: "((kind)::text = 'turn'::text)"
     t.index ["interview_session_id"], name: "index_interview_session_operations_on_interview_session_id"
     t.index ["interview_session_id"], name: "interview_session_one_active_turn", unique: true, where: "(((kind)::text = 'turn'::text) AND ((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text])))"
@@ -293,6 +331,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_041000) do
     t.datetime "completed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "content_purged_at"
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 2", name: "interview_session_counters"
@@ -485,6 +524,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_041000) do
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"
   add_foreign_key "interview_questions", "interview_question_sets"
+  add_foreign_key "interview_session_media", "interview_session_messages", column: "message_id"
+  add_foreign_key "interview_session_media", "interview_session_messages", column: ["interview_session_id", "question_id", "message_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_media_owned_message"
+  add_foreign_key "interview_session_media", "interview_session_operations", column: "operation_id"
+  add_foreign_key "interview_session_media", "interview_session_operations", column: ["interview_session_id", "question_id", "operation_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_media_owned_operation"
+  add_foreign_key "interview_session_media", "interview_session_questions", column: "question_id"
+  add_foreign_key "interview_session_media", "interview_session_questions", column: ["interview_session_id", "question_id"], primary_key: ["interview_session_id", "id"], name: "interview_media_owned_question"
+  add_foreign_key "interview_session_media", "interview_sessions"
   add_foreign_key "interview_session_messages", "interview_session_questions", column: "question_id", on_delete: :cascade
   add_foreign_key "interview_session_messages", "interview_session_questions", column: ["interview_session_id", "question_id"], primary_key: ["interview_session_id", "id"], name: "interview_session_message_owned_question", on_delete: :cascade
   add_foreign_key "interview_session_messages", "interview_sessions", on_delete: :cascade

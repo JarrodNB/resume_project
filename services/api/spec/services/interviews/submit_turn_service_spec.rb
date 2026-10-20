@@ -4,8 +4,25 @@ require "rails_helper"
 RSpec.describe "Basic Interview submission" do
   let(:interview) { Interviews::CreateFixtureService.call(user: create(:user)).value }
   let(:input) do
-    { interview: interview, question_id: interview.questions.first.id, recording_id: SecureRandom.uuid,
+    { interview: interview, question_id: interview.questions.first.id, recording_id: ready_interview_recording(interview).id,
       expected_revision: 0, submission_key: "browser-request-1" }
+  end
+
+  it "rejects absent, foreign, unsealed, expired and reused recordings" do
+    foreign = Interviews::CreateFixtureService.call(user: create(:user)).value
+    foreign_recording = ready_interview_recording(foreign)
+    own = ready_interview_recording(interview)
+    [ SecureRandom.uuid, foreign_recording.id ].each do |id|
+      expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: id))).not_to be_success
+    end
+    own.update!(status: "reserved")
+    expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: own.id))).not_to be_success
+    own.update!(status: "ready", expires_at: 1.second.ago)
+    expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: own.id))).not_to be_success
+    own.update!(expires_at: 1.hour.from_now)
+    original = Interviews::SubmitTurnService.call(**input.merge(recording_id: own.id)).value
+    original.update!(status: "failed")
+    expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: own.id, submission_key: "reuse"))).not_to be_success
   end
 
   it "persists a turn once and resolves the same fingerprint even after revision changes" do
@@ -29,7 +46,7 @@ RSpec.describe "Basic Interview submission" do
 
   it "refuses another active turn and permits a new recording after a failed turn" do
     first = Interviews::SubmitTurnService.call(**input).value
-    another = input.merge(submission_key: "other-key", recording_id: SecureRandom.uuid)
+    another = input.merge(submission_key: "other-key", recording_id: ready_interview_recording(interview).id)
     expect(Interviews::SubmitTurnService.call(**another)).not_to be_success
     first.update!(status: "failed")
     expect(Interviews::SubmitTurnService.call(**another)).to be_success

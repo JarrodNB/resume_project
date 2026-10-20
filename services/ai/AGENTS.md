@@ -10,7 +10,8 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
 retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
-separate FastAPI runtime planned; this first slice implements its Rails persistence only.
+separate FastAPI runtime planned. Its private audio helpers already validate sealed
+capabilities and decode audio offline; execution and scheduling follow in the runtime slice.
 
 ## Local Rules
 
@@ -25,6 +26,9 @@ separate FastAPI runtime planned; this first slice implements its Rails persiste
   message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
   (`lib/ai_reader_access.rb`); a new table needs a grant there. Queued-task uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
+- Interview audio uses Rails-issued capabilities through a separate client with no application
+  credentials. Validate exact storage origins, checksum/size and fully decoded duration before
+  provider calls; never rewrite signed URLs or use bucket credentials for interview audio.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.
 - **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.

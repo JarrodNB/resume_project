@@ -4,7 +4,7 @@ require "rails_helper"
 RSpec.describe Interviews::DiscoverOperationsService do
   it "expires an old recording and its logical task, allowing a fresh submission" do
     interview = Interviews::CreateFixtureService.call(user: create(:user)).value
-    input = { interview: interview, question_id: interview.questions.first.id, recording_id: SecureRandom.uuid,
+    input = { interview: interview, question_id: interview.questions.first.id, recording_id: ready_interview_recording(interview).id,
       expected_revision: 0, submission_key: "old" }
     operation = Interviews::SubmitTurnService.call(**input).value
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
@@ -12,7 +12,7 @@ RSpec.describe Interviews::DiscoverOperationsService do
     expect(described_class.call).to be_success
     expect(operation.reload).to have_attributes(status: "expired", failure_code: "media_expired")
     expect(operation.ai_task.reload).to be_failed
-    expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: SecureRandom.uuid, submission_key: "fresh"))).to be_success
+    expect(Interviews::SubmitTurnService.call(**input.merge(recording_id: ready_interview_recording(interview).id, submission_key: "fresh"))).to be_success
     expect(Interviews::OperationStatusService.call(operation: operation).value[:status]).to eq("expired")
   end
 

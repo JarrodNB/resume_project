@@ -14,7 +14,7 @@ RSpec.describe "Basic Interview database invariants" do
 
   it "requires turn inputs including revision, and coherent running and accepted identities" do
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: question.id,
-      recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "one").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 0, submission_key: "one").value
     expect_constraint { turn.update_columns(expected_revision: nil) }
     expect_constraint { turn.update_columns(status: "running") }
     expect_constraint { turn.update_columns(status: "accepted") }
@@ -23,7 +23,7 @@ RSpec.describe "Basic Interview database invariants" do
 
   it "protects the active turn slot and submission identity without model validations" do
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: question.id,
-      recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "one").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 0, submission_key: "one").value
     duplicate = turn.dup
     duplicate.submission_key = "different"
     expect_constraint(ActiveRecord::RecordNotUnique) { duplicate.save!(validate: false) }
@@ -62,5 +62,16 @@ RSpec.describe "Basic Interview database invariants" do
     expect_constraint(ActiveRecord::InvalidForeignKey) { interview.messages.sole.update_columns(question_id: foreign.questions.first.id, kind: "follow_up") }
     expect_constraint(ActiveRecord::InvalidForeignKey) { interview.operations.sole.update_columns(question_id: foreign.questions.first.id) }
     expect_constraint(ActiveRecord::InvalidForeignKey) { interview.operations.sole.update_columns(message_id: foreign.messages.first.id) }
+  end
+
+  it "binds private media to a non-null owned question and matching saved message" do
+    media = InterviewSessionMedia.create!(interview_session: interview, question: question,
+      operation: interview.operations.sole, message: interview.messages.sole, kind: "speech", content_type: "audio/wav",
+      attempt_id: SecureRandom.uuid, claim_generation: 1, expires_at: 1.hour.from_now)
+    expect_constraint(ActiveRecord::NotNullViolation) { media.update_columns(question_id: nil) }
+    foreign = Interviews::CreateFixtureService.call(user: create(:user)).value
+    expect_constraint(ActiveRecord::InvalidForeignKey) { media.update_columns(question_id: foreign.questions.first.id) }
+    expect_constraint(ActiveRecord::InvalidForeignKey) { media.update_columns(message_id: foreign.messages.first.id) }
+    expect_constraint(ActiveRecord::InvalidForeignKey) { media.update_columns(operation_id: foreign.operations.sole.id) }
   end
 end

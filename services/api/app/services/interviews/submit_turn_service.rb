@@ -10,8 +10,8 @@ module Interviews
       @expected_revision, @submission_key = expected_revision, submission_key
     end
 
-    # The caller supplies an already-authorized interview and, once media exists, an
-    # already-authorized recording identity. This internal seam has no HTTP entrypoint.
+    # The caller supplies an authorized interview; recording ownership and readiness
+    # are checked here under the same lock as the processing-slot reservation.
     # @return [ServiceResult<InterviewSessionOperation>] original or newly reserved turn
     def call
       return failure("Invalid submission") unless valid_input?
@@ -28,6 +28,10 @@ module Interviews
 
         question = @interview.questions.lock.find_by(id: @question_id, position: @interview.current_question_position)
         next failure("Question is not current") unless question
+        recording = InterviewSessionMedia.lock.find_by(id: @recording_id, interview_session: @interview,
+          question: question, kind: "recording", status: "ready")
+        next failure("Recording is not available") unless recording && recording.expires_at > Time.current
+        next failure("Recording has already been submitted") if @interview.operations.turn.where(recording_id: @recording_id).exists?
         next failure("An answer is already processing") if @interview.operations.turn.where(status: %w[pending running]).exists?
 
         success(@interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,

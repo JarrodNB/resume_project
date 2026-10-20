@@ -122,8 +122,10 @@ All business logic, as service objects grouped by domain folder.
 
 - Interview feedback application uses `interview_prep/apply_feedback_service.rb` under the same owner/task lock order; feedback stores reviewed revisions and never changes the answer.
 
-- `interviews/` — separate spoken demo persistence: fixture creation, immutable
-  submission identity, and atomic acceptance. Lock owner, interview, ordered questions,
-  then operation; see `docs/architecture/interview-sessions.md`. Internal recording IDs are
-  correlation only until the media boundary authorizes them. Do not expose these seams
-  as public endpoints without the later authentication/media/feature-gate contracts.
+- `interviews/` — spoken interview lifecycle, private media reservations/sealing,
+  claim-bound speech and bounded cleanup. Lock owner, interview, ordered questions,
+  then operation/task/media; perform object/provider I/O outside locks and recheck
+  authority before committing. Submission requires owned ready unexpired audio for
+  the current question. Keep deletion tombstones for delayed-write reaping and preserve
+  billing records when scrubbing expired dialogue. See `docs/architecture/interview-sessions.md`.
+  Public endpoints still need the later authentication and development feature gate.

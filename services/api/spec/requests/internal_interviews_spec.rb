@@ -42,7 +42,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
   let(:interview) { Interviews::CreateFixtureService.call(user: create(:user)).value }
   let(:turn) do
     Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
-      recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "callback").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 0, submission_key: "callback").value
   end
   let(:path) { "/internal/interviews/operations/#{turn.id}" }
   let(:headers) { { "Authorization" => "Bearer callback-test" } }

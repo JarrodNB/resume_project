@@ -29,9 +29,10 @@ Rails.application.routes.draw do
   end
 
   namespace :internal do
+    post "interviews/cleanup", to: "interviews#cleanup"
     get "interviews/operations", to: "interviews#discover"
     get "interviews/operations/:id", to: "interviews#status"
-    %w[claim heartbeat accept fail usage retry start_provider].each do |callback|
+    %w[claim heartbeat accept fail usage retry start_provider recording reserve_audio register_audio complete_audio].each do |callback|
       post "interviews/operations/:id/#{callback}", to: "interviews##{callback}"
     end
   end

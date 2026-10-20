@@ -80,7 +80,7 @@ RSpec.describe "Interview execution recovery" do
 
   it "rejects recording retries after the one-hour retention bound" do
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
-      recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "answer").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 0, submission_key: "answer").value
     travel 1.hour + 1.second
     expect(Interviews::ClaimOperationService.call(operation: turn)).not_to be_success
   end
@@ -97,7 +97,7 @@ RSpec.describe "Interview admission", type: :service do
   it "does not execute a stale turn or expired completed-session speech" do
     interview = Interviews::CreateFixtureService.call(user: create(:user)).value
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
-      recording_id: SecureRandom.uuid, expected_revision: 0, submission_key: "stale").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 0, submission_key: "stale").value
     interview.update!(revision: 1)
     expect(Interviews::ClaimOperationService.call(operation: turn)).not_to be_success
     interview.update!(status: "completed", completed_at: 2.hours.ago)

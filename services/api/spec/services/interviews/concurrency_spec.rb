@@ -5,12 +5,15 @@ RSpec.describe "Basic Interview concurrency" do
   self.use_transactional_tests = false
 
   before do
-    @user = create(:user)
+    @user = create(:user, email: "interview-race-#{SecureRandom.uuid}@example.com")
     @interview = Interviews::CreateFixtureService.call(user: @user).value
     @question = @interview.questions.first
   end
 
-  after { @user.destroy! }
+  after do
+    InterviewSessionMedia.where(interview_session: @interview).delete_all
+    @user&.destroy!
+  end
 
   def race
     ready, start = Queue.new, Queue.new
@@ -38,7 +41,7 @@ RSpec.describe "Basic Interview concurrency" do
   end
 
   it "lets only one competing submission occupy the processing slot" do
-    @recording_id = SecureRandom.uuid
+    @recording_id = ready_interview_recording(@interview).id
     results = race { |index| submit("submission-#{index}") }
     expect(results.count(&:success?)).to eq(1)
     expect(@interview.operations.turn.count).to eq(1)
@@ -46,7 +49,7 @@ RSpec.describe "Basic Interview concurrency" do
   end
 
   it "resolves simultaneous identical submissions to the same operation" do
-    @recording_id = SecureRandom.uuid
+    @recording_id = ready_interview_recording(@interview).id
     results = race { submit("same-submission") }
     expect(results).to all(be_success)
     expect(results.map { |result| result.value.id }.uniq.size).to eq(1)
@@ -55,7 +58,7 @@ RSpec.describe "Basic Interview concurrency" do
 
   [ false, true ].each do |conflict|
     it "commits one result for #{conflict ? 'conflicting' : 'identical'} concurrent acceptance" do
-      @recording_id = SecureRandom.uuid
+      @recording_id = ready_interview_recording(@interview).id
       turn = submit("one-turn").value
       turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
         lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)

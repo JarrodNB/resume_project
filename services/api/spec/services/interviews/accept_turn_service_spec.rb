@@ -6,7 +6,7 @@ RSpec.describe "Basic Interview acceptance" do
   let(:question) { interview.questions.first }
   let(:operation) do
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: question.id,
-      recording_id: SecureRandom.uuid, expected_revision: interview.revision, submission_key: SecureRandom.uuid).value
+      recording_id: ready_interview_recording(interview).id, expected_revision: interview.revision, submission_key: SecureRandom.uuid).value
     turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
       lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
     turn
@@ -45,7 +45,7 @@ RSpec.describe "Basic Interview acceptance" do
   it "forces completion at the cap even when the executor asks to continue" do
     expect(Interviews::AcceptTurnService.call(**input)).to be_success
     next_turn = Interviews::SubmitTurnService.call(interview: interview.reload, question_id: question.id,
-      recording_id: SecureRandom.uuid, expected_revision: 1, submission_key: "second").value
+      recording_id: ready_interview_recording(interview).id, expected_revision: 1, submission_key: "second").value
     next_turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
       lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
     result = Interviews::AcceptTurnService.call(**input.merge(operation: next_turn, attempt_id: next_turn.attempt_id))
@@ -72,7 +72,7 @@ RSpec.describe "Basic Interview acceptance" do
       expect(interview.messages.where(question: next_question, kind: "opening").count).to eq(1)
 
       turn = Interviews::SubmitTurnService.call(interview: interview, question_id: next_question.id,
-        recording_id: SecureRandom.uuid, expected_revision: 1, submission_key: "next-question").value
+        recording_id: ready_interview_recording(interview, question: next_question).id, expected_revision: 1, submission_key: "next-question").value
       turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
         lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
       final = Interviews::AcceptTurnService.call(**first_input.merge(operation: turn, attempt_id: turn.attempt_id))

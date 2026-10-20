@@ -48,10 +48,13 @@ services:
 
   s3:
     image: adobe/s3mock
-    # Files live in the container and are lost when it is recreated; that's fine for dev,
-    # since an upload is only needed until the AI worker has parsed it.
+    # Keep private interview audio across recreation until Rails cleanup removes it.
     environment:
       COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: careergrind-uploads
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes:
+      - s3_data:/s3mockroot
     ports:
       - "9090:9090"
 
@@ -162,6 +165,7 @@ services:
       - /app/node_modules
 
 volumes:
+  s3_data:
   db_data:
   api_bundle:
   api_bootsnap:

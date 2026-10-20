@@ -93,6 +93,11 @@ Uploads use Active Storage on the `amazon` service (`config/storage.yml`): S3Moc
 development (`S3_ENDPOINT_URL`, `S3_UPLOADS_BUCKET` from docker compose), local disk in tests.
 Production still points at `:local` and must switch to `:amazon` at deploy time.
 
+Spoken interview media uses `Interviews::MediaStorage` directly in a private S3 namespace,
+outside Active Storage signed routes. Rails seals staged bytes and grants brief object-only
+URLs. Browser URLs use `INTERVIEW_BROWSER_STORAGE_ORIGIN`; executor URLs use
+`S3_ENDPOINT_URL`. Local S3Mock storage is persistent; Rails cleanup owns retention.
+
 Every service that changes career library text must enqueue
 `CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(user_id)` (it runs after commit, and an
 extra sync is harmless). `OPENAI_API_KEY` must be set in `services/api/.env` for embeddings;

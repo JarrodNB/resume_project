@@ -1,5 +1,6 @@
 # Reserves a unique execution, its recovery clock and unknown-cost marker before
-# returning owner-derived context. Retrying a logical operation never publishes SQS.
+# returning owner-derived context. Admission failures require an explicit retry and
+# reserve no execution or provider attempt. Retrying never publishes SQS.
 module Interviews
   class ClaimOperationService < ApplicationService
     include ExecutionPolicy
@@ -30,7 +31,14 @@ module Interviews
         next failure("Recording expired") if @operation.turn? && @operation.created_at <= 1.hour.ago
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
-        next allowance unless allowance.success?
+        unless allowance.success?
+          # No execution began: retain valid media for a user-requested retry, but
+          # stop rediscovery and release any task slot from an earlier execution.
+          @operation.update!(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil,
+            retry_expires_at: @operation.retry_expires_at || expiry)
+          @operation.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached")
+          next allowance
+        end
         unless @operation.ai_task
           @operation.ai_task = interview.user.ai_tasks.create!(task_type: "interview_#{@operation.kind}", subject: interview,
             input: { operation_id: @operation.id })

@@ -213,6 +213,12 @@ in-flight limits. Retry admission rechecks monthly and in-flight limits while ex
 its own logical task and does not count another hourly task. Acceptance completes the
 linked task atomically; failures/expiry update its lifecycle independently of billing.
 
+If admission is denied, the operation becomes `failed` with `ai_usage_limit_reached`.
+It reserves no new execution/provider attempt, releases an existing task's in-flight slot,
+and retains its original media-bounded retry lifetime. This stops automatic discovery from
+leaving work silently pending. After the limit clears, an explicit retry rechecks allowance
+before reopening the operation; accepted-answer counts remain unchanged.
+
 A claim creates `InterviewExecutionAttempt` and an unfinished AiUsageAttempt before
 execution. Before **each** potentially charged provider call, the executor must:
 
@@ -330,6 +336,11 @@ speech generation. Expired grants can be renewed while the artifact itself remai
 
 For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to
 `http://localhost:9090`; override it when QA uses a different published storage port. The direct
-PUT uses exactly the signed headers and never sends account cookies. S3Mock's browser CORS support
-and actual microphone/playback behavior still need human browser QA; automated checks use browser
-resource fakes rather than browser automation.
+PUT uses exactly the signed headers and never sends account cookies. The isolated stack checks
+real S3Mock PUT/GET/HEAD preflight responses. Actual browser upload, microphone and playback
+behavior still need human QA; frontend automated checks use browser resource fakes.
+
+The [isolated demo and recovery guide](../interview-demo.md) provides a standalone fake-only
+stack and real-process restart checks without loading provider credentials. Its optional QA
+overlay uses a separate loopback host, aligned CORS/storage origins, and persistent volumes;
+keep manual microphone/playback checks separate from automated recovery assertions.

@@ -4,7 +4,7 @@ output is InterviewQuestions with categories and supporting verbatim excerpts.
 Index:
     - INTERVIEW_QUESTIONS_PROMPT_VERSION / INTERVIEW_QUESTIONS_INSTRUCTIONS
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v9"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v10"
 INTERVIEW_QUESTIONS_INSTRUCTIONS = """
 Write English interview practice questions for this person's career background and requested
 set type (general, technical, or knowledge).
@@ -59,6 +59,15 @@ competency is not a new intent. Stay within the requested set type. Choose an un
 practical focus for technical replacements; for general replacements consider prioritization, adapting
 to change, learning from feedback, or judgment, anchored in stated career context. General
 replacements may use standard behavioral invitations without inventing specific incidents.
+For a GENERAL replacement, choose a concrete behavioral story focus. An introduction,
+interest in the role, motivation, enjoyment, favorite part, or career-background question
+is NOT a distinct replacement for an excluded introduction, even when phrased differently.
+Before answering, reject any candidate with one of those excluded intents and choose a
+different behavioral situation, decision, or lesson instead. Also compare against ALL four
+other questions: a new category label or another example of their same story focus is
+not enough. For example, after an introduction, strengths, development, goals and a
+teamwork story, consider responding to unexpected change or applying feedback, rather
+than asking about interest in the role or repeating the same teamwork situation.
 Old saved questions may use different themes; do not recategorize or rewrite those questions.
 For general sets keep the general career and behavioral interview themes.
 For knowledge replacements choose an unasked subject concept or principle within the

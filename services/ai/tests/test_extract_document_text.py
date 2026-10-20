@@ -1,8 +1,4 @@
-"""
-Description: Tests for turning uploaded DOCX files into text.
-Index:
-    - test_*: one behavior per test
-"""
+"""Check resume text extraction, document order, links, lists, and import limits."""
 
 from io import BytesIO
 
@@ -40,6 +36,32 @@ def test_docx_text_preserves_list_bullet_markers_for_exact_highlight_mapping() -
     text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
 
     assert text == "• Built a reliable API"
+
+
+def test_docx_text_keeps_tables_between_surrounding_paragraphs() -> None:
+    """Table-based job details stay under their original section heading."""
+    document = Document()
+    document.add_paragraph("Experience")
+    table = document.add_table(rows=1, cols=2)
+    table.cell(0, 0).text = "Example Company"
+    table.cell(0, 1).text = "Software Engineer"
+    document.add_paragraph("Education")
+    table = document.add_table(rows=1, cols=1)
+    table.cell(0, 0).text = "Example University"
+    document.add_paragraph("Skills")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert text.splitlines() == [
+        "Experience",
+        "Example Company",
+        "Software Engineer",
+        "Education",
+        "Example University",
+        "Skills",
+    ]
 
 
 def test_docx_text_detects_numbering_metadata_on_normal_style_paragraph() -> None:

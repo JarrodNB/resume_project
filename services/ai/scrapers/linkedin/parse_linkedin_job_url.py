@@ -1,10 +1,7 @@
-"""
-Description: Reads the job id out of the LinkedIn job links people copy, and builds the
-canonical link for a job id.
-Index:
-    - is_linkedin_url: whether the URL is on linkedin.com (any subdomain)
-    - parse_linkedin_job_id: the job id, or None when the URL doesn't point at one job
-    - linkedin_job_url: the canonical https://www.linkedin.com/jobs/view/{id}/ link
+"""Read a job ID from a copied LinkedIn link and build its canonical URL.
+
+Malformed URLs are rejected just like unsupported links, so pasted input does
+not interrupt scraper selection or job ID parsing.
 """
 
 import re
@@ -25,7 +22,10 @@ def is_linkedin_url(url: str) -> bool:
 def parse_linkedin_job_id(url: str) -> str | None:
     """Supports /jobs/view/{id}, /jobs/view/{title-slug}-{id}, email links (/comm/jobs/view/),
     and search or collection pages with a job open (?currentJobId={id})."""
-    parsed_url = urlparse(url.strip())
+    try:
+        parsed_url = urlparse(url.strip())
+    except ValueError:
+        return None
     if parsed_url.scheme not in ("http", "https") or not is_linkedin_url(url):
         return None
 
@@ -46,4 +46,7 @@ def linkedin_job_url(job_id: str) -> str:
 
 def _host(url: str) -> str:
     """The URL's lower-cased host name, without a port."""
-    return (urlparse(url.strip()).hostname or "").lower()
+    try:
+        return (urlparse(url.strip()).hostname or "").lower()
+    except ValueError:
+        return ""

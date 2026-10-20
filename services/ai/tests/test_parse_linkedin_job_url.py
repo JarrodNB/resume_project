@@ -1,8 +1,4 @@
-"""
-Description: Tests for reading the job id out of LinkedIn job links, and the site registry.
-Index:
-    - test_*: one behavior per test
-"""
+"""Check copied LinkedIn links and scraper selection, including malformed input."""
 
 import pytest
 
@@ -56,6 +52,21 @@ def test_rejects_urls_that_are_not_one_job(url: str) -> None:
 def test_canonical_url_has_no_tracking() -> None:
     """The canonical link is the bare /jobs/view/{id}/ form."""
     assert linkedin_job_url("42") == "https://www.linkedin.com/jobs/view/42/"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://[linkedin.com/jobs/view/1",
+        "https://[not-an-ip]/jobs/view/1",
+        "https://www.linkedin.com\uff0f.evil.com/jobs/view/1",
+    ],
+)
+def test_malformed_urls_are_rejected(url: str) -> None:
+    """Invalid authorities do not raise while inspecting pasted links."""
+    assert not is_linkedin_url(url)
+    assert parse_linkedin_job_id(url) is None
+    assert find_job_site_scraper(url) is None
 
 
 def test_registry_finds_linkedin_by_host() -> None:

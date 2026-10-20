@@ -1,10 +1,7 @@
-"""
-Description: Extracts text, DOCX list markers, and hyperlink labels/targets from uploaded resume files (PDF and DOCX).
-Index:
-    - PDF_CONTENT_TYPE / DOCX_CONTENT_TYPE: supported MIME types
-    - UnsupportedDocumentError: raised for other file types or files with no text
-    - DocumentTooLongError: raised when the page count or extracted text is over the import cap
-    - extract_document_text: returns the text of a file given its bytes and content type
+"""Extract resume text from PDF and DOCX uploads within the import limits.
+
+Keep DOCX paragraphs and tables in document order, retaining list markers and
+hyperlink labels and targets so the resume parser can use their context.
 """
 
 from io import BytesIO
@@ -14,6 +11,7 @@ from urllib.parse import urlparse
 
 from docx import Document
 from docx.oxml.ns import qn
+from docx.text.paragraph import Paragraph
 from pypdf import PdfReader
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
@@ -142,13 +140,16 @@ def _text_inside_rectangle(
 
 
 def _extract_docx_text(file_bytes: bytes) -> str:
-    """Joins DOCX paragraphs and table cells while retaining hyperlink destinations."""
+    """Joins paragraphs and table cells in order, retaining hyperlink destinations."""
     document = Document(BytesIO(file_bytes))
-    lines = [_docx_paragraph_text(paragraph) for paragraph in document.paragraphs]
-    for table in document.tables:
-        for row in table.rows:
-            for cell in row.cells:
-                lines.extend(_docx_paragraph_text(paragraph) for paragraph in cell.paragraphs)
+    lines: list[str] = []
+    for block in document.iter_inner_content():
+        if isinstance(block, Paragraph):
+            lines.append(_docx_paragraph_text(block))
+        else:
+            for row in block.rows:
+                for cell in row.cells:
+                    lines.extend(_docx_paragraph_text(paragraph) for paragraph in cell.paragraphs)
     return "\n".join(lines)
 
 

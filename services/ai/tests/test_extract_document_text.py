@@ -195,3 +195,20 @@ def test_unsupported_content_type_raises() -> None:
     """Only PDF and DOCX are supported."""
     with pytest.raises(UnsupportedDocumentError):
         extract_document_text(b"hello", "text/plain")
+
+
+@pytest.mark.parametrize("uri", ["https://[broken/profile", "https://example.com\uff0f.evil/profile"])
+def test_pdf_malformed_link_does_not_abort_extraction(uri: str) -> None:
+    """An invalid destination still leaves its annotation available as source text."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=300, height=300)
+    writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url=uri))
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert f'url="{uri}"' in text

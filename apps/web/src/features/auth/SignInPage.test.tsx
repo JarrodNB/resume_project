@@ -4,16 +4,21 @@ import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
+import { useAuth } from './useAuth'
 import { RequireAuth, RequireSignedOut } from './RequireAuth'
 import { SignInPage } from './SignInPage'
 import { productStorageKey } from '@/lib/productName'
 const signedIn = { user: { id: '1', email: 'ada@example.com', name: 'Ada' }, csrfToken: 'new-csrf' }
 const signedOut = { user: null, csrfToken: 'csrf' }
 const json = (body: unknown) => new Response(JSON.stringify(body))
+function SessionHome() {
+  const { signOut } = useAuth()
+  return <><p>Home page</p><button onClick={() => { void signOut().catch(() => {}) }}>Sign out</button></>
+}
 function renderApp(initialUrl: string) {
   const router = createMemoryRouter([
     { element: <RequireSignedOut />, children: [{ path: '/sign-in', element: <SignInPage /> }] },
-    { element: <RequireAuth />, children: [{ path: '/', element: <p>Home page</p> }, { path: '/library', element: <p>Library page</p> }] },
+    { element: <RequireAuth />, children: [{ path: '/', element: <SessionHome /> }, { path: '/library', element: <p>Library page</p> }] },
   ], { initialEntries: [initialUrl] })
   render(<AuthProvider><RouterProvider router={router} /></AuthProvider>)
 }
@@ -76,4 +81,31 @@ it('drops cached page state and ignores a stale bootstrap after another tab chan
   expect(await screen.findByLabelText('Email')).toBeInTheDocument()
   await act(async () => finishOld(json(signedIn)))
   expect(screen.queryByText('Library page')).not.toBeInTheDocument()
+})
+
+it('refreshes stale anonymous CSRF state without replaying credentials', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(json(signedOut))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'invalid_csrf', errors: ['Invalid CSRF token'] }), { status: 422 }))
+    .mockResolvedValueOnce(json({ ...signedOut, csrfToken: 'fresh-csrf' }))
+    .mockResolvedValueOnce(json(signedIn))
+  vi.stubGlobal('fetch', fetch)
+  renderApp('/sign-in')
+  await submitCredentials('a quiet orchard after rain')
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
+  expect(await screen.findByLabelText('Password')).toHaveValue('')
+  await submitCredentials('a quiet orchard after rain')
+  expect(await screen.findByText('Home page')).toBeInTheDocument()
+  expect(fetch.mock.calls[3][1].headers['X-CSRF-Token']).toBe('fresh-csrf')
+})
+
+it('recovers a stale signed-in cookie after a rejected logout without claiming a successful write', async () => {
+  const fetch = vi.fn().mockResolvedValueOnce(json(signedIn))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ code: 'invalid_csrf', errors: ['Invalid CSRF token'] }), { status: 422 }))
+    .mockResolvedValueOnce(json(signedOut))
+  vi.stubGlobal('fetch', fetch)
+  renderApp('/')
+  await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
+  expect(await screen.findByLabelText('Email')).toBeInTheDocument()
+  expect(screen.queryByText('Home page')).not.toBeInTheDocument()
+  expect(fetch).toHaveBeenCalledTimes(3)
 })

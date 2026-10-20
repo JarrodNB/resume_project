@@ -288,3 +288,10 @@ records inspected paths, executed checks and unresolved tooling/environment limi
 Rate limits identify actions through Rails route recognition, so optional format
 URLs such as `.json` share their canonical route allowance. Route recognition is
 cached only in the current request; unmatched paths continue to normal routing.
+
+An invalid CSRF request remains rejected with HTTP422 and `code: "invalid_csrf"`.
+The browser refreshes safe session/bootstrap state for that explicit failure,
+replacing the old Apollo cache and socket. It never replays the rejected write.
+This recovers an open tab whose cookie expired while its old CSRF token remained
+in memory; normal validation422 responses do not reset session state. A stale
+account form is remounted with empty password fields and requires a fresh submit.

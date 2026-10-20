@@ -83,6 +83,20 @@ RSpec.describe "Browser sessions", type: :request do
     expect(replay.response.parsed_body["user"]).to be_nil
   end
 
+  it "identifies stale CSRF state after the browser loses its cookie without running the action" do
+    login
+    token = bootstrap
+    fresh_browser = ActionDispatch::Integration::Session.new(Rails.application)
+    fresh_browser.post "/graphql", params: { query: "{ me { email } }" }.to_json,
+      headers: headers.merge("X-CSRF-Token" => token)
+    expect(fresh_browser.response).to have_http_status(:unprocessable_content)
+    expect(fresh_browser.response.parsed_body["code"]).to eq("invalid_csrf")
+    expect(fresh_browser.response.parsed_body["data"]).to be_nil
+    fresh_browser.get "/auth/session", headers: headers
+    expect(fresh_browser.response.parsed_body["user"]).to be_nil
+    expect(fresh_browser.response.parsed_body["csrfToken"]).to be_present
+  end
+
   it "rotates the session ID and CSRF secret on login" do
     old_csrf = bootstrap
     old_cookie = cookies["_careergrind_session"]

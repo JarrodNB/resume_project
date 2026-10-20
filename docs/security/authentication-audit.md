@@ -149,3 +149,9 @@ the account's token or create another persisted anonymous session.
 Follow-up probes also reproduced optional-format URL bypasses. Limits now use
 Rails route recognition rather than exact path strings. Mixed canonical/`.json`
 mail, GraphQL and HEAD/GET session regressions pass with the shared counters.
+
+A further blind review reproduced stale-cookie CSRF422 responses that the client
+previously failed to recover from. The explicit `invalid_csrf` response contract
+now triggers safe bootstrap for REST/account and GraphQL requests, with regression
+coverage for anonymous sign-in, logout, missing-cookie API rejection and GraphQL.
+No rejected write is retried, and ordinary validation422 responses retain errors.

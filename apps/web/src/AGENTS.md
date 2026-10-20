@@ -29,7 +29,7 @@ Source of the web app, organized by feature.
 - `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in
   `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,
-  401 handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
+  401/explicit CSRF rejection handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`
   (friendly message for HTTP 429 rate limiting); `generated/` is
   GraphQL Code Generator output (don't edit)
 - `lib/` — `productName.ts` (product name; localStorage keys are derived from it), `textLimits.ts`
@@ -42,7 +42,8 @@ Source of the web app, organized by feature.
 
 - Auth uses an HttpOnly cookie. Bootstrap retrieves safe user state and a CSRF token;
   HTTP requests send credentials and unsafe requests include the Rails CSRF header.
-  WebSockets use the same cookie, without URL credentials. A GraphQL 401 ends local auth.
+  WebSockets use the same cookie, without URL credentials. A GraphQL 401 or explicit `invalid_csrf` rejection refreshes local session state
+  without replaying writes.
 - Signing in or out replaces the Apollo client, so no cached data leaks between users.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.

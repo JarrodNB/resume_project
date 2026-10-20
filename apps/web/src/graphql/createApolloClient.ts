@@ -22,7 +22,7 @@ export interface ApolloSession {
 interface CreateApolloClientOptions {
   signedIn: boolean
   csrfToken: string
-  /** Called when the API rejects the session (HTTP 401). */
+  /** Called when the API rejects the session or its CSRF state. */
   onUnauthorized: () => void
 }
 
@@ -34,7 +34,13 @@ export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: Crea
     headers: { 'X-CSRF-Token': csrfToken },
   })
   const unauthorizedLink = new ErrorLink(({ error }) => {
-    if (ServerError.is(error) && error.statusCode === 401) onUnauthorized()
+    if (!ServerError.is(error)) return
+    if (error.statusCode === 401) onUnauthorized()
+    else if (error.statusCode === 422) {
+      try {
+        if (JSON.parse(error.bodyText).code === 'invalid_csrf') onUnauthorized()
+      } catch { /* Other non-JSON errors keep their normal error handling. */ }
+    }
   })
 
   // The browser supplies the HttpOnly session cookie on the WebSocket handshake.

@@ -30,3 +30,15 @@ it('expires auth on an HTTP 401', async () => {
   expect(onUnauthorized).toHaveBeenCalledOnce()
   session.dispose()
 })
+
+it.each([
+  [{ code: 'invalid_csrf', errors: ['Invalid CSRF token'] }, true],
+  [{ errors: ['Ordinary validation error'] }, false],
+])('refreshes session state only for an explicit CSRF rejection', async (body, invalid) => {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status: 422, headers: { 'Content-Type': 'application/json' } })))
+  const onUnauthorized = vi.fn()
+  const session = createApolloClient({ signedIn: true, csrfToken: 'old-csrf', onUnauthorized })
+  await expect(session.client.query({ query })).rejects.toThrow()
+  expect(onUnauthorized).toHaveBeenCalledTimes(invalid ? 1 : 0)
+  session.dispose()
+})

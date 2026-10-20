@@ -1,7 +1,7 @@
 /** Loads the browser session before rendering routes and isolates session transitions.
  * Cookies remain private to the browser. Failed bootstrap requests offer an explicit retry. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { sessionRequest, signInRequest, signOutRequest, signUpRequest, type AuthCredentials, type BrowserSession } from './authApi'
+import { onInvalidCsrf, sessionRequest, signInRequest, signOutRequest, signUpRequest, type AuthCredentials, type BrowserSession } from './authApi'
 import { AuthContext, type AuthContextValue } from './authContext'
 import { productStorageKey } from '@/lib/productName'
 
@@ -19,6 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(false)
     setAttempt((value) => value + 1)
   }, [])
+
+  useEffect(() => onInvalidCsrf(expireSession), [expireSession])
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return

@@ -16,6 +16,13 @@ export class AuthRequestError extends Error {
     this.status = status
   }
 }
+// Account pages and GraphQL share a provider, but REST failures arrive outside Apollo.
+const invalidCsrfListeners = new Set<() => void>()
+/** Refresh session state after an explicit CSRF rejection; never replay the write. */
+export function onInvalidCsrf(listener: () => void): () => void {
+  invalidCsrfListeners.add(listener)
+  return () => { invalidCsrfListeners.delete(listener) }
+}
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' }
 
 export async function sessionRequest(signal?: AbortSignal): Promise<BrowserSession> {
@@ -67,7 +74,8 @@ async function requestSession(path: string, credentials: AuthCredentials, csrfTo
   return response.json()
 }
 async function readErrorMessages(response: Response): Promise<string[]> {
-  const body: { errors?: string[]; error?: string } = await response.json().catch(() => ({}))
+  const body: { code?: string; errors?: string[]; error?: string } = await response.json().catch(() => ({}))
+  if (response.status === 422 && body.code === 'invalid_csrf') invalidCsrfListeners.forEach((listener) => listener())
   if (body.errors?.length) return body.errors
   if (body.error) return [body.error]
   return [`Something went wrong (HTTP ${response.status}). Please try again.`]

@@ -5,7 +5,7 @@ class ApplicationController < ActionController::Base
   before_action :prevent_auth_caching
 
   rescue_from ActionController::InvalidAuthenticityToken do
-    render json: { errors: [ "Invalid CSRF token" ] }, status: :unprocessable_content
+    render json: { code: "invalid_csrf", errors: [ "Invalid CSRF token" ] }, status: :unprocessable_content
   end
 
   private

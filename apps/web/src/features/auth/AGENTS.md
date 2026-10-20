@@ -24,6 +24,8 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
   browser storage or read cookies from JavaScript. Clear legacy stored JWTs.
 - Bootstrap has loading, signed-out, signed-in, and retryable failure states.
   Unsafe requests include the Rails CSRF token; do not silently retry mutations.
+  Explicit `invalid_csrf` failures refresh bootstrap through the provider, clearing
+  stale account forms; ordinary validation errors do not reset session state.
 - Pages navigate after signing in; `RequireSignedOut` only redirects users who arrive already
   signed in (otherwise it races the page's own navigation).
 - Signup requests verification without creating a session. `/verify-email` is public

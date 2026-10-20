@@ -7,7 +7,7 @@ or deployed. The behavior and API contracts live in
 and test evidence live in [the audit](../security/authentication-audit.md).
 
 Careergrind currently runs only in local development. Production steps below are
-future setup guidance; local review uses file mail and needs no SMTP provider.
+future setup guidance; local review uses Letter Opener Web and needs no SMTP provider.
 
 The unreleased auth migrations now use `20261020010000` and `20261020020000` to
 avoid numbers independently used by the job-board migrations on master. A normal
@@ -101,7 +101,7 @@ release readiness. Queue failures produce generic public email-request responses
 and sanitized operational events; users can retry after recovery. Watch generic
 `Account email enqueue failed` / `Account email delivery failed` events and failed
 job counts. Mail bodies/job arguments and SQL DEBUG are intentionally hidden.
-Restrict database/backups/local `tmp/mails` to operators; delete local mail after QA.
+Restrict database/backups/local Letter Opener Web inboxes to operators; delete captured mail after QA.
 
 ## Rollback
 
@@ -149,12 +149,12 @@ auth_review up -d api web
 Open `http://127.0.0.5:5179`. API uses `http://127.0.0.5:3005`; neither is production
 HTTPS. No AI worker or paid/provider call starts. A resume upload is stored and
 queued but will remain pending without an AI worker. Development account mail is
-written to `services/api/tmp/mails` in this checkout; open the latest file privately
-and follow the actual fragment link. Synthetic previews are at
+captured in Letter Opener Web at `http://127.0.0.5:3005/letter_opener`; open the newest email and
+follow its verification link. Synthetic previews are at
 `http://127.0.0.5:3005/rails/mailers/account_mailer/confirmation_instructions` and
 `http://127.0.0.5:3005/rails/mailers/account_mailer/reset_password_instructions`.
 Previews use fake tokens and cannot verify an account. Preflight intentionally
-requires production SMTP configuration and does not pass with local file delivery.
+requires production SMTP configuration and does not pass with local Letter Opener Web delivery.
 
 Run tests independently of the development DB:
 

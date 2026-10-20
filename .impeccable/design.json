@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-19T16:01:06.694463+00:00",
+  "generatedAt": "2026-10-20T03:36:07.613121+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
     "shadows": [
@@ -865,6 +865,14 @@
       "description": "Ruled record as implemented in the web workspace.",
       "html": "<a class=\"ds-record\" href=\"#record\"><strong>Saved resume</strong><span>Updated recently</span></a>",
       "css": ".ds-record{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:grid;gap:5px;padding:24px 16px;border-top:1px solid var(--border);border-radius:8px;color:var(--foreground);text-decoration:none;transition:background-color 160ms}.ds-record strong{font-weight:550}.ds-record span{font-size:13px;color:var(--muted-foreground)}.ds-record:hover{background:var(--accent)}.ds-record:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+    },
+    {
+      "name": "Authentication input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Authentication field with a card background, 44px minimum height, and 16px mobile text.",
+      "html": "<input class=\"ds-auth-input\" aria-label=\"Email\" type=\"email\" autocomplete=\"email\" placeholder=\"you@example.com\">",
+      "css": ".ds-auth-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:44px;min-height:44px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:var(--card);caret-color:var(--primary);color:var(--foreground);transition:border-color 150ms}.ds-auth-input::placeholder{color:var(--muted-foreground)}.ds-auth-input:hover{border-color:var(--input)}.ds-auth-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}@media(max-width:599px){.ds-auth-input{font-size:16px}}"
     }
   ],
   "narrative": {

@@ -130,9 +130,12 @@ before app mount/bootstrap, and is sent only by an explicit CSRF-protected POST.
 Email scanners cannot consume links through GET. Refresh/cancel loses the in-memory
 token: reopen the link or request another. Nothing stores the token in localStorage.
 
-Action Mailer and Devise provide delivery, with no new gems/provider SDK. Development
-uses Rails' file delivery (`services/api/tmp/mails`, private local files; delete after
-use), the in-process async queue, and synthetic previews at
+Action Mailer and Devise provide delivery. Development uses the development-only
+`letter_opener_web` gem and delivery adapter, with an inbox mounted inside Rails at
+`http://localhost:3000/letter_opener`. Messages are saved to
+`services/api/tmp/letter_opener` without SMTP or opening a browser inside Docker;
+delete captured emails from the inbox after testing. The inbox route is absent
+outside development. Delivery uses the in-process async queue. Synthetic previews are at
 `http://localhost:3000/rails/mailers/account_mailer/confirmation_instructions`.
 Restarting development can lose pending mail; resend recovers. Tests use Rails' test
 queue/delivery adapters. Production uses existing Solid Queue in the separate Rails

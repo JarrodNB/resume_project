@@ -1,6 +1,6 @@
 # Isolates human auth QA from the normal stack, including cookies (ports alone do not).
 # Merge with root docker-compose.yml using the explicit retained checkout in the runbook.
-# The runbook starts only API/web, clears the API env file, and keeps mail in local files.
+# The runbook starts only API/web, clears the API env file, and captures mail in the Rails Letter Opener inbox.
 services:
   db:
     ports: !reset []

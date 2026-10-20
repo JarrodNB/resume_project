@@ -11,7 +11,6 @@ it('describes new passwords and shows the value without submitting or losing it'
   render(<AuthForm submitLabel="Create account" includeName onSubmit={onSubmit} />)
   const password = screen.getByLabelText('Password')
   expect(password).toHaveAccessibleDescription(/at least 15 characters/i)
-  expect(password).toHaveAccessibleDescription(/72 bytes/i)
   expect(password).toHaveAttribute('autocomplete', 'new-password')
   await user.type(password, 'a quiet orchard after rain')
   await user.click(screen.getByRole('button', { name: 'Show password' }))

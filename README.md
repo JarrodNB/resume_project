@@ -181,3 +181,11 @@ To remove local database data and other named volumes, run `docker compose down 
 - [Repository conventions](AGENTS.md) — code organization and contribution guidelines.
 
 Keep credentials in the ignored environment files. Commit environment templates without secrets.
+
+### Local email inbox
+
+Development verification and password-reset emails appear in [Letter Opener Web](http://localhost:3000/letter_opener),
+inside the Rails app. Sign up or request a new email, then open the newest message
+and click its link. No extra container or SMTP credentials are needed, and no
+messages reach real inboxes. Emails are saved under `services/api/tmp/letter_opener`;
+delete them from the inbox after testing.

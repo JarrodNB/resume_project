@@ -6,6 +6,8 @@
 #   - POST /graphql
 #   - GET /up: health check
 Rails.application.routes.draw do
+  mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
+
   # Registrations are skipped so Devise's account edit/update/delete routes don't exist; only
   # sign-up is added back. Devise owns the sign-in/sign-out routes.
   devise_for :users,

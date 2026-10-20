@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { AuthPageShell } from './AuthPageShell'
 import { PasswordInput } from './PasswordInput'
+import { PasswordGuidance } from './PasswordGuidance'
 import { AuthRequestError, changePasswordRequest, resetPasswordRequest } from './authApi'
 import { forgetResetPasswordToken, readResetPasswordToken } from './resetPasswordLink'
 import { useAuth } from './useAuth'
@@ -51,7 +52,7 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
       </div>}
       <div className="grid gap-2"><Label htmlFor="new-password">New password</Label>
         <PasswordInput id="new-password" autoComplete="new-password" required value={password} onChange={(event) => setPassword(event.target.value)} aria-describedby={`new-password-guidance${errors.length ? ' password-update-errors' : ''}`} aria-invalid={errors.length > 0 || undefined} />
-        <p id="new-password-guidance" className="text-sm text-muted-foreground">Use at least 15 characters and at most 72 bytes. Some characters, such as emoji, use more than one byte. Try a unique passphrase; common passwords are rejected. No special mix of letters, numbers, or symbols is required.</p>
+        <PasswordGuidance id="new-password-guidance" />
       </div>
       <div className="grid gap-2"><Label htmlFor="confirm-password">Confirm new password</Label>
         <PasswordInput id="confirm-password" autoComplete="new-password" required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} aria-describedby={errors.length ? 'password-update-errors' : undefined} />

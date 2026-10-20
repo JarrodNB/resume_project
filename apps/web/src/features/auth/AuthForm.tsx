@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { AuthRequestError, type AuthCredentials } from './authApi'
 import { PasswordInput } from './PasswordInput'
+import { PasswordGuidance } from './PasswordGuidance'
 
 interface AuthFormProps {
   submitLabel: string
@@ -69,11 +70,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
           onChange={(event) => setPassword(event.target.value)}
         />
         {includeName && (
-          <p id="password-guidance" className="text-sm text-muted-foreground">
-            Use at least 15 characters and at most 72 bytes. Some characters, such as emoji,
-            use more than one byte. Try a unique passphrase; common passwords are rejected.
-            No special mix of letters, numbers, or symbols is required.
-          </p>
+          <PasswordGuidance id="password-guidance" />
         )}
       </div>
       <Button type="submit" size="lg" disabled={submitting}>

@@ -1,4 +1,4 @@
-# Built-in mail delivery: local files in development, SMTP in production, no provider calls at boot.
+# Captures development email in Letter Opener Web; production uses authenticated SMTP and tests keep mail in memory.
 Rails.application.configure do
   # Bulk queue INSERT statements inline serialized tokens, bypassing bind filters.
   # A separate INFO logger keeps SQL out even when application debug logging is enabled.
@@ -6,8 +6,7 @@ Rails.application.configure do
   config.action_mailer.raise_delivery_errors = true
   # Rails' mail log subscriber uses Base.logger, including message bodies at debug level.
   config.action_mailer.logger = nil
-  config.action_mailer.delivery_method = Rails.env.production? ? :smtp : (Rails.env.test? ? :test : :file)
-  config.action_mailer.file_settings = { location: Rails.root.join("tmp", "mails") }
+  config.action_mailer.delivery_method = Rails.env.production? ? :smtp : (Rails.env.test? ? :test : :letter_opener_web)
   config.action_mailer.smtp_settings = {
     address: ENV["SMTP_HOST"], port: ENV.fetch("SMTP_PORT", "587").to_i,
     user_name: ENV["SMTP_USERNAME"], password: ENV["SMTP_PASSWORD"],

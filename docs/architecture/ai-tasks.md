@@ -139,7 +139,8 @@ Per task type:
   selected `InterviewQuestion`. `other_questions` contains the other four saved questions.
   The worker uses the current library and returns the same question result shape with one
   draft, excluding both the old question and the other four.
-  General replacements use current themes even in old saved sets; older in-flight single
+  General replacements use behavioral themes, not another introduction or role motivation,
+  even in old saved sets; the worker retries an introduction category. Older in-flight single
   replacements with legacy categories remain accepted. Other saved slots are untouched.
 - `review_interview_answer`: input `{question_set_id, question_id, question_text, answer_text,
   question_revision, answer_revision, set_type}`; the subject is the selected `InterviewQuestion`.

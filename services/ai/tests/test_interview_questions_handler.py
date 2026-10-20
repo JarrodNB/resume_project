@@ -3,10 +3,13 @@ Description: Interview generation dispatch, sparse context, validation, limits, 
 Index:
     - test_*: isolated worker behavior with fake readers and TestModel
 """
+import json
 from dataclasses import replace
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 import text_limits
@@ -50,6 +53,8 @@ def _output(count=5, set_type="general"):
     ]
     categories = (("introduction", "collaboration", "problem_solving", "learning_adaptation", "initiative_judgment")
                   if set_type == "general" else QUESTION_CATEGORIES[set_type])
+    if count == 1 and set_type == "general":
+        questions, categories = questions[3:4], categories[3:4]
     return {"questions": [{"question_text": text, "category": category,
                             "evidence_quotes": ["Python"]}
         for text, category in zip(questions[:count],
@@ -149,6 +154,36 @@ def test_general_replacement_keeps_all_saved_intents_excluded(task_dependencies,
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
         result = handle_ai_task(task, deps)
     assert result.status == "completed"
+    assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
+
+
+def test_general_replacement_rejects_another_introduction(task_dependencies):
+    """Every saved set already has an excluded introduction; replacement must explore a behavioral theme."""
+    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
+    draft = {"questions": [{"question_text": "What draws you to a career using Python?",
+                            "category": "introduction", "evidence_quotes": ["Python"]}]}
+    with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
+        result = handle_ai_task(_task(True, "general"), deps)
+    assert result.status == "failed"
+
+
+def test_general_replacement_retries_introduction_then_accepts_story(task_dependencies):
+    """Validation feedback lets the actual agent recover to a distinct behavioral draft."""
+    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
+    calls = []
+
+    def respond(messages, info):
+        """First reproduce the live motivation output, then return a valid story question."""
+        calls.append(messages)
+        draft = (_output(1) if len(calls) > 1 else {"questions": [{
+            "question_text": "What draws you to work using Python?", "category": "introduction",
+            "evidence_quotes": ["Python"]}]})
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, json.dumps(draft))])
+
+    with interview_questions_agent.override(model=FunctionModel(respond)):
+        result = handle_ai_task(_task(True, "general"), deps)
+    assert result.status == "completed"
+    assert len(calls) == 2
     assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
 
 

@@ -31,7 +31,8 @@ def test_question_structure() -> None:
             question_text=f"What can you share about career theme number {index}?",
             category=category, evidence_quotes=[case.inputs.library],
         ) for index, category in enumerate(
-            QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
+            QUESTION_CATEGORIES["general"][1:2] if case.inputs.set_type == "general" and case.inputs.count == 1
+            else QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
         context = SimpleNamespace(inputs=case.inputs, output=output, metadata=case.metadata)
         assert all(QuestionStructure().evaluate(context).values())
         if case.inputs.set_type == "general" and case.inputs.count == 5:
@@ -47,6 +48,9 @@ def test_question_structure() -> None:
             output.questions.pop()
             assert not QuestionStructure().evaluate(context)["question_count"]
         else:
+            if case.inputs.set_type == "general":
+                output.questions[0].category = "introduction"
+                assert not QuestionStructure().evaluate(context)["category_variety"]
             output.questions[0].question_text = case.inputs.excluded[0].upper() + "!"
             assert not QuestionStructure().evaluate(context)["distinct_wording"]
 

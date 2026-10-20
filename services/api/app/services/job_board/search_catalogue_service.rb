@@ -4,9 +4,9 @@ require "digest"
 
 module JobBoard
   class SearchCatalogueService < ApplicationService
-    NORMALIZATION_REVISION = 1
+    NORMALIZATION_REVISION = 2
 
-    # @param keyword [String] a provider search phrase; case and punctuation are preserved
+    # @param keyword [String] a provider search phrase; casing is canonicalized, punctuation preserved
     # @param remote_only [Boolean] require remote listings
     # @param cursor [String, nil] exact opaque continuation token; nil is the first page
     # @param provider [#call] normalized list boundary (no per-listing detail calls)
@@ -22,7 +22,7 @@ module JobBoard
       return failure("Enter a keyword of 1 to 200 characters.") unless valid_text?(@keyword, 200)
       return failure("Invalid search filters.") unless [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
 
-      @keyword = @keyword.strip.gsub(/ +/, " ")
+      @keyword = @keyword.strip.gsub(/ +/, " ").downcase
       @query_digest = Digest::SHA256.hexdigest(JSON.generate([ NORMALIZATION_REVISION, @keyword, @remote_only, @cursor ]))
       JobBoardSearchPage.transaction do
         # A transaction-scoped advisory lock also protects the first miss (no row exists).

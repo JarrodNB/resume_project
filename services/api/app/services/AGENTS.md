@@ -27,7 +27,9 @@ All business logic, as service objects grouped by domain folder.
   Cache identity includes a normalization revision to bypass older normalized pages.
   Accepts keyword, remote-only, exact cursor; returns ordered `JobBoardListing` records,
   retrieval time, next cursor, and stale/errors metadata. Keyword normalization collapses
-  spaces and trims outer whitespace, preserving case, punctuation, and phrase syntax.
+  spaces, trims outer whitespace, and lowercases letters while preserving punctuation
+  and quote characters. Case variants share provider requests, cache pages, and locks;
+  cursors stay exact and remote filters stay distinct.
   The bounded provider call runs under a transaction advisory lock for the exact page;
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids

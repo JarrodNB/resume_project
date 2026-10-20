@@ -14,7 +14,12 @@ accepted. Unknown countries are excluded, including for remote listings.
 
 `JobBoardListing` is shared across users and unique by provider ID. Later list
 responses update its payload without changing personal saved Job snapshots.
-`JobBoardSearchPage` stores the exact keyword/filter/cursor page for 24 hours.
+`SearchCatalogueService` trims keywords, collapses repeated spaces, and lowercases
+letters before provider requests and page locking; punctuation and quote characters
+are preserved. The browser keeps the entered text. `JobBoardSearchPage` caches this
+canonical keyword/filter/cursor page for 24 hours. Case variants share first and
+continuation pages; opaque cursor case and remote-only filters remain distinct.
+Remote-only off omits the provider remote filter, allowing both remote and non-remote jobs.
 Its identity includes a normalization revision, so older normalized pages cannot hide
 changed provider handling; old pages are bypassed rather than used as stale fallback.
 `SearchCatalogueService` serializes identical misses with a database advisory lock,

@@ -185,3 +185,58 @@ def test_upload_rejects_broad_headers():
             content_type="audio/wav",
             headers={"Authorization": "Bearer private"},
         )
+
+
+@pytest.mark.parametrize(
+    "data,limits,code",
+    [
+        (b"", MediaLimits(), "empty_audio"),
+        (wav_bytes(0), MediaLimits(), "empty_audio"),
+        (wav_bytes(), MediaLimits(max_bytes=100), "audio_too_large"),
+        (wav_bytes(0.2), MediaLimits(max_duration_seconds=0.1), "audio_too_long"),
+        (b"not audio", MediaLimits(), "invalid_recording"),
+    ],
+)
+def test_validation_returns_distinct_safe_failure_codes(data, limits, code):
+    with pytest.raises(MediaError) as failure:
+        validate_audio(data, limits=limits)
+    assert failure.value.code == code
+
+
+@pytest.mark.parametrize("method", ["download", "upload"])
+def test_storage_failures_are_retryable_without_exposing_private_errors(method):
+    def unavailable(_):
+        raise httpx.ReadTimeout("https://storage/private?secret=token")
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(unavailable)) as client,
+        pytest.raises(MediaError) as failure,
+    ):
+        if method == "download":
+            download_audio(
+                "https://media.test/audio",
+                client=client,
+                allowed_origins={"https://media.test"},
+            )
+        else:
+            upload_audio(
+                "https://media.test/audio",
+                wav_bytes(),
+                client=client,
+                allowed_origins={"https://media.test"},
+                content_type="audio/wav",
+            )
+    assert failure.value.code == "storage_unavailable"
+    assert "secret" not in str(failure.value)
+
+
+def test_unsafe_origin_keeps_terminal_code_and_existing_error_message():
+    with (
+        httpx.Client() as client,
+        pytest.raises(MediaError, match="Unapproved media capability") as failure,
+    ):
+        download_audio(
+            "https://evil.test/audio", client=client, allowed_origins={"https://media.test"}
+        )
+    assert failure.value.code == "invalid_recording"
+    assert MediaError("Existing message").code == "invalid_recording"

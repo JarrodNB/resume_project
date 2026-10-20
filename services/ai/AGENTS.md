@@ -10,8 +10,9 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
 retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
-separate FastAPI runtime planned. Its private audio helpers already validate sealed
-capabilities and decode audio offline; execution and scheduling follow in the runtime slice.
+separate development-only fake FastAPI runtime. Its lifespan supervises durable
+Rails claims and cleanup; private audio helpers validate sealed capabilities and decode
+audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
 
 ## Local Rules
 
@@ -31,6 +32,9 @@ capabilities and decode audio offline; execution and scheduling follow in the ru
   provider calls; never rewrite signed URLs or use bucket credentials for interview audio.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.
+- The separate fake interview runtime intentionally disables real provider requests and
+  remote telemetry, even if unrelated provider credentials exist in its environment. Its
+  injected fake classifiers still exercise shared screening and guardrails.
 - **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
   - One agent per file (`agents/gap_analysis_agent.py`), with a Pydantic model as its `output_type`.
   - Keep related tools together in their domain and register them on the agents that need them.

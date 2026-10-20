@@ -20,7 +20,15 @@ import httpx
 
 
 class MediaError(ValueError):
-    """Audio or its storage capability cannot be safely used."""
+    """Audio or its storage capability cannot be safely used.
+
+    The stable code selects recovery behavior; the existing message stays useful
+    to local callers without exposing storage URLs or provider errors.
+    """
+
+    def __init__(self, message: str, *, code: str = "invalid_recording"):
+        self.code = code
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -70,8 +78,10 @@ def _run(command: list[str], limits: MediaLimits) -> bytes:
 
 def validate_audio(data: bytes, *, limits: MediaLimits = DEFAULT_LIMITS) -> AudioInfo:
     """Check the container and fully decode bounded audio; reject truncated input."""
-    if not data or len(data) > limits.max_bytes:
-        raise MediaError("Audio is empty or exceeds the byte limit")
+    if not data:
+        raise MediaError("Audio is empty or exceeds the byte limit", code="empty_audio")
+    if len(data) > limits.max_bytes:
+        raise MediaError("Audio is empty or exceeds the byte limit", code="audio_too_large")
     with tempfile.TemporaryDirectory(prefix="interview-audio-") as directory:
         source = Path(directory) / "input"
         decoded = Path(directory) / "decoded.pcm"
@@ -104,9 +114,10 @@ def validate_audio(data: bytes, *, limits: MediaLimits = DEFAULT_LIMITS) -> Audi
             container not in {"wav", "matroska,webm", "ogg", "mp3", "mov,mp4,m4a,3gp,3g2,mj2"}
             or not streams
             or any(s.get("codec_type") != "audio" for s in streams)
-            or (math.isfinite(duration) and duration > limits.max_duration_seconds)
         ):
             raise MediaError("Unsupported audio container or duration")
+        if math.isfinite(duration) and duration > limits.max_duration_seconds:
+            raise MediaError("Unsupported audio container or duration", code="audio_too_long")
         _run(
             [
                 "ffmpeg",
@@ -138,7 +149,10 @@ def validate_audio(data: bytes, *, limits: MediaLimits = DEFAULT_LIMITS) -> Audi
         )
         duration = decoded.stat().st_size / 16000
         if not 0 < duration <= limits.max_duration_seconds:
-            raise MediaError("Audio is empty or exceeds the duration limit")
+            raise MediaError(
+                "Audio is empty or exceeds the duration limit",
+                code="empty_audio" if duration <= 0 else "audio_too_long",
+            )
         return AudioInfo(duration_seconds=duration, container=container)
 
 
@@ -186,18 +200,18 @@ def download_audio(
     try:
         with client.stream("GET", url, follow_redirects=False, timeout=15) as response:
             if response.status_code != 200:
-                raise MediaError("Media download failed")
+                raise MediaError("Media download failed", code="storage_unavailable")
             if response.headers.get("content-encoding", "identity") != "identity":
                 raise MediaError("Compressed storage responses are unsupported")
             data = bytearray()
             for chunk in response.iter_bytes(chunk_size=64 * 1024):
                 if time.monotonic() > deadline:
-                    raise MediaError("Media download timed out")
+                    raise MediaError("Media download timed out", code="storage_unavailable")
                 if len(data) + len(chunk) > limits.max_bytes:
-                    raise MediaError("Audio exceeds the byte limit")
+                    raise MediaError("Audio exceeds the byte limit", code="audio_too_large")
                 data.extend(chunk)
     except httpx.HTTPError:
-        raise MediaError("Media download failed") from None
+        raise MediaError("Media download failed", code="storage_unavailable") from None
     result = bytes(data)
     if expected_byte_size is not None and len(result) != expected_byte_size:
         raise MediaError("Audio does not match the reserved byte size")
@@ -238,6 +252,6 @@ def upload_audio(
             timeout=15,
         )
         if not 200 <= response.status_code < 300:
-            raise MediaError("Media upload failed")
+            raise MediaError("Media upload failed", code="storage_unavailable")
     except httpx.HTTPError:
-        raise MediaError("Media upload failed") from None
+        raise MediaError("Media upload failed", code="storage_unavailable") from None

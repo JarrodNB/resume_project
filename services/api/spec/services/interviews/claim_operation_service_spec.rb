@@ -121,3 +121,42 @@ RSpec.describe "Interview admission", type: :service do
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
   end
 end
+
+RSpec.describe "Invalid interview input recovery", type: :service do
+  %w[transcript_too_long empty_audio audio_too_large audio_too_long invalid_recording context_limit].each do |failure_code|
+    it "records #{failure_code} as terminal and expires its recording without accepting an answer" do
+      interview = Interviews::CreateFixtureService.call(user: create(:user)).value
+      recording = ready_interview_recording(interview)
+      operation = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
+        recording_id: recording.id, expected_revision: 0, submission_key: "oversized").value
+      expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
+
+      result = Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+        claim_generation: operation.claim_generation, code: failure_code, retryable: true)
+
+      expect(result).to be_success
+      expect(operation.reload).to have_attributes(status: "failed", failure_code: failure_code, retry_at: nil)
+      expect(recording.reload.expires_at).to be <= Time.current
+      expect(operation.ai_task.reload).to have_attributes(status: "failed", error_message: failure_code)
+      expect(interview.questions.first.reload.accepted_answer_count).to eq(0)
+      expect(Interviews::RetryOperationService.call(operation: operation)).not_to be_success
+    end
+  end
+end
+
+RSpec.describe "Interview storage recovery", type: :service do
+  it "preserves a recording and schedules bounded recovery when storage is unavailable" do
+    interview = Interviews::CreateFixtureService.call(user: create(:user)).value
+    recording = ready_interview_recording(interview)
+    operation = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
+      recording_id: recording.id, expected_revision: 0, submission_key: "storage").value
+    expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
+    result = Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
+      claim_generation: operation.claim_generation, code: "storage_unavailable", retryable: true)
+    expect(result).to be_success
+    expect(operation.reload).to have_attributes(status: "pending", failure_code: "storage_unavailable")
+    expect(operation.retry_at).to be > Time.current
+    expect(recording.reload.expires_at).to be > Time.current
+    expect(interview.questions.first.reload.accepted_answer_count).to eq(0)
+  end
+end

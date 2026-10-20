@@ -15,8 +15,8 @@ not write the database. Browser requests never wait for the interviewer. Existin
 features continue to use SQS and `ai_results` without changes.
 
 The delivered foundation includes persistence, private HTTP claims/recovery, accounting,
-private media services and offline audio validation. Runtime scheduling and execution follow
-in ticket 04; public GraphQL and the demo follow in ticket 05.
+private media services and offline audio validation. The offline runtime executes this boundary; public GraphQL and the demo remain a
+later slice.
 
 ## Shared domain and Basic type
 
@@ -57,8 +57,8 @@ filler on advancement. Accepted history, count, revision and new speech work com
 Speech refers to exactly the saved response and its question; it cannot generate dialogue.
 History is private, separate from accepted public messages, versioned (currently version 1),
 and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rails treats the
-history as a JSON message envelope; the future Python executor validates pinned Pydantic
-message/tool structure and screened provenance before proposing it.
+history as a JSON message envelope; the Python executor validates pinned Pydantic message/tool structure and re-screens
+retained untrusted history before proposing it.
 
 ## Lock order and database invariants
 
@@ -101,7 +101,7 @@ separate storage client without application credentials. Rails sets a 10 MiB max
 configurable downward with `INTERVIEW_RECORDING_MAX_BYTES`. Python checks expected MD5/size
 and fully decodes audio before any provider call, rejecting invalid, truncated, non-audio or
 overlong input. Its `MediaLimits` supports lower byte/duration bounds; duration is at most
-120 seconds. The runtime must wire those helpers before provider execution.
+120 seconds. The runtime wires these helpers before fake provider execution.
 
 Speech reserves one artifact per operation/attempt and binds it to the saved message.
 Registration fixes synthesized byte count/checksum and validates/seals those bytes. Completion
@@ -125,8 +125,7 @@ speech lasts through the active interview and at most one hour after completion,
 session expiry. Read and callback services enforce these deadlines before physical cleanup.
 
 `Interviews::CleanupService.call(limit: 10)` processes bounded batches (limit 1–100). It is
-also callable through authenticated `POST /internal/interviews/cleanup`; periodic scheduling
-belongs to ticket 04. Deletion marks durable pending state before storage I/O and retries
+also callable through authenticated `POST /internal/interviews/cleanup`; the runtime schedules it once per minute. Deletion marks durable pending state before storage I/O and retries
 failures after five minutes with a safe error code. Deleted rows retain random object keys
 only as tombstones, with content metadata removed. An hourly reaper deletes those keys again:
 a delayed upload grant, paused registration or crash can otherwise recreate an object after
@@ -239,3 +238,53 @@ add cost twice. Persisted matching stale-execution observations can still report
 including after domain acceptance; they cannot change dialogue or current claims. Missing
 observations remain unknown rather than silently becoming known zero. A completed
 execution marker does not resolve its unfinished provider markers.
+
+## Offline runtime
+
+`interviews.app:app` is a separate FastAPI process. Its lifespan owns a supervised
+recovery loop, discovering every two seconds in batches of ten and running at most
+two claims at once. Each execution renews its 30-second Rails lease every ten seconds;
+Rails retains the 120-second deadline and all retry limits. A lost heartbeat stops
+local execution. Shutdown stops discovery and cancels active work, leaving durable
+leases for another process. Cleanup runs in bounded Rails batches every minute.
+`GET /health` reports liveness; `/ready` requires enabled configuration and recent
+successful Rails discovery. Neither health route consumes work.
+
+The Compose `interview-demo` profile explicitly enables fake execution. Set the same
+`INTERVIEW_SERVICE_SECRET` in the Compose environment for Rails and the runtime.
+The runtime deliberately does not load the worker `.env`, use worker startup,
+resolve provider model names, or configure tracing. Real Pydantic model requests and
+remote OpenTelemetry/Logfire export are disabled in this process. Existing SQS workers
+keep their settings and transport. Production runtime/provider deployment is deferred.
+
+The Rails client uses an exact configured origin, dedicated service authentication,
+bounded request/response bodies, no redirects or environment proxies, and finite
+request deadlines. Callback retries keep the same serialized identity; ambiguous
+claims are not repeated. Storage has its own unauthenticated client and explicit
+allowed origins, so Rails credentials never reach capabilities. Full audio decoding
+runs off the event loop so lease renewals remain responsive.
+
+Fake transcription is scripted and does not interpret recordings. Fake screening uses
+injected classifiers through the shared policy. The interviewer uses the pinned
+Pydantic AI FunctionModel, official input guardrail and typed restored history;
+`advance_to_next_question` returns intent for Rails to apply. Each fake stage is
+registered before execution and reports explicit zero cost. Saved-text speech uses
+four fixed synthetic eSpeak WAV fixtures, generated offline at 155 words per minute;
+unknown text has no fallback synthesis. Their text mapping lives in
+`interviews/fake.py`. These fixtures exercise real upload, sealing and playback.
+
+Run the dependency image and focused offline checks from this checkout:
+
+```bash
+docker compose build interview-runtime
+docker compose run --rm --no-deps interview-runtime pytest -m 'not db' tests/test_interview_runtime.py tests/test_interview_client.py tests/test_interview_executor.py tests/test_interview_media.py
+```
+
+For a local backend smoke check, start Rails/database/storage and the runtime with
+`docker compose --profile interview-demo up -d api s3 interview-runtime`, then run
+`docker compose run --rm api bundle exec rails runner script/interview_runtime_smoke.rb`.
+The script creates a fictional disposable account, submits two generated WAV inputs,
+waits for accepted dialogue and attached speech, checks accounting and removes the
+account. It requires development mode and the service secret. It does not perform
+browser QA or prove provider quality. Use a unique Compose project and port overrides
+when another stack is running; `docker compose -p <project> down` stops that stack.

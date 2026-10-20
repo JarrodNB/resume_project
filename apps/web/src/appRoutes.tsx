@@ -42,10 +42,10 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
-      { path: '/account/security', element: <PasswordUpdatePage change /> },
       {
         element: <AppLayout />,
         children: [
+          { path: '/account/security', element: <PasswordUpdatePage change /> },
           { index: true, element: <Navigate to="/library" replace /> },
           { path: '/library', element: <CareerLibraryPage /> },
           { path: '/import', element: <ResumeUploadPage /> },

@@ -42,7 +42,7 @@ export function AppLayout() {
       navigation.scrollLeft = activeLink.offsetLeft - navigation.offsetLeft - (navigation.clientWidth - activeLink.clientWidth) / 2
     }
   }, [pathname])
-  const currentPage = NAV_ITEMS.find((item) => pathname.startsWith(item.to))?.label ?? 'Workspace'
+  const currentPage = pathname === '/account/security' ? 'Account security' : NAV_ITEMS.find((item) => pathname.startsWith(item.to))?.label ?? 'Workspace'
 
   return (
     <div className="workspace">
@@ -68,7 +68,7 @@ export function AppLayout() {
           <Link to="/jobs">Find your next step <ArrowUpRight size={15} aria-hidden /></Link>
         </div>
         <div className="workspace-account">
-          <Link to="/account/security" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Account security</Link>
+          <NavLink to="/account/security" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4 aria-[current=page]:font-semibold">Account security</NavLink>
           <ThemeToggle />
           <Button variant="ghost" size="sm" disabled={signingOut} onClick={() => void handleSignOut()}><LogOut aria-hidden /> Sign out</Button>
           {signOutError && <p role="alert">Could not sign out. Please try again.</p>}

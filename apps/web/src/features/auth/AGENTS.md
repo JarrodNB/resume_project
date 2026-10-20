@@ -33,3 +33,5 @@ Sign-up, sign-in, sign-out against Rails REST endpoints (`/auth/*`), and cookie-
 - `/reset-password` is public even for signed-in browsers. Capture/clear its fragment before
   startup and send the token only on explicit submit. Password success refreshes local and
   sibling-tab sessions, preserving an unrelated account as reported by server bootstrap.
+- `/account/security` stays inside the signed-in workspace. Show the current account and
+  explain session sign-out before password submission; public reset pages use the auth shell.

@@ -202,7 +202,17 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .workspace-nav-link.is-active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 600; }
 .workspace-sidebar-note { margin-top: auto; padding: 44px 12px 26px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
 .workspace-sidebar-note a { display: flex; align-items: center; gap: 6px; color: var(--primary); margin-top: 12px; font-weight: 500; }
-.workspace-account { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--sidebar-border); }
+.workspace-account { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--sidebar-border); }
+.workspace-account > a { flex-basis: 100%; }
+.account-security-page { max-width: 600px; }
+.security-account-identity { padding: 0 0 24px; border-bottom: 1px solid var(--border); }
+.security-password-section { padding-top: 28px; }
+.security-password-section input { min-height: 44px; background: var(--card); caret-color: var(--primary); }
+.security-password-section a:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.security-session-notice { border-top: 1px solid var(--border); padding-top: 20px; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+@media (max-width: 599px) {
+  .security-password-section input { font-size: 16px; }
+}
 .workspace-body { margin-left: 238px; min-width: 0; }
 .workspace-topbar { height: 76px; padding: 0 44px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
 .breadcrumb-divider { padding: 0 12px; color: var(--input); }

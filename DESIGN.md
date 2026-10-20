@@ -185,6 +185,8 @@ Password visibility sits inside the field as a quiet 44px touch target. Account-
 
 Account emails use the same paper, forest, and ruled separators in a fluid 520px layout with inline styles and system sans-serif fallbacks for email clients. One green action leads each email; expiry and ignore instructions sit below. Verification shows only the active task; signup reveals resend help on request. Completed verification and password recovery offer a prominent sign-in action.
 
+Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Account actions wrap rather than overflow the navigation spine. Public password recovery retains the authentication layout.
+
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.

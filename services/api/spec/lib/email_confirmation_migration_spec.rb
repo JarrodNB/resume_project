@@ -1,6 +1,6 @@
 # Runs the actual migration against a temporary users table, preserving the real application table.
 require "rails_helper"
-require Rails.root.join("db/migrate/20261019030000_add_email_confirmation_to_users")
+require Rails.root.join("db/migrate/20261020020000_add_email_confirmation_to_users")
 
 RSpec.describe AddEmailConfirmationToUsers do
   it "confirms only existing rows without changing identity, hashes or profile data" do

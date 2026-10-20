@@ -6,11 +6,22 @@ or deployed. The behavior and API contracts live in
 [Browser authentication](../architecture/authentication.md); the inspected code
 and test evidence live in [the audit](../security/authentication-audit.md).
 
+Careergrind currently runs only in local development. Production steps below are
+future setup guidance; local review uses file mail and needs no SMTP provider.
+
+The unreleased auth migrations now use `20261020010000` and `20261020020000` to
+avoid numbers independently used by the job-board migrations on master. A normal
+master development database upgrades with `db:prepare`, preserving existing data.
+Disposable auth review databases created from the earlier ticket branches have
+the old numbers and should be recreated using only their dedicated QA project.
+Do not edit migration history or reset the main application database to fix a
+review database; preserve any real data and investigate its schema separately.
+
 ## Before production traffic
 
 1. Back up the primary database and test restore access. Rehearse additive migrations
-   against a representative sanitized database. `20261019020000` adds the session
-   table/indexes; `20261019030000` adds confirmation columns/index and confirms only
+   against a representative sanitized database. `20261020010000` adds the session
+   table/indexes; `20261020020000` adds confirmation columns/index and confirms only
    users present during migration. Existing reset digest/timestamp columns need no
    new migration. Do not run the confirmation backfill again manually.
 2. Pause registration while migrating and deploying. Old code can still insert

@@ -25,7 +25,7 @@ SQS and AI/provider effects are replaced at their existing test boundaries.
 | Browser state/account transitions | `apps/web/src/features/auth/AuthProvider.tsx`, `authApi.ts`, `RequireAuth.tsx`, `apps/web/src/graphql/{SessionApolloProvider.tsx,createApolloClient.ts}` | colocated auth/GraphQL tests: bootstrap retry, stale response ignored, credentialed CSRF uploads, cache/client replacement and socket disposal, broadcast notices contain no credentials, 401 clears old account state |
 | Token links and logging | `apps/web/src/main.tsx`, `features/auth/{confirmationLink,resetPasswordLink}.ts`, `services/api/app/mailers/account_mailer.rb`, `app/jobs/account_mail_delivery_job.rb`, `config/initializers/{account_email,filter_parameter_logging}.rb` | `EmailVerification.test.tsx`, `PasswordRecovery.test.tsx`, `spec/requests/{email_verification,password_recovery}_spec.rb`, `spec/jobs/account_mail_{delivery_job,queue_privacy}_spec.rb`: fragment captured/cleared before mount, explicit POST/PUT only, configured web host, sanitized bounded retries, actual Solid Queue argument SQL hidden even at application DEBUG |
 | Throttles/origins/request size | `services/api/config/initializers/{rack_attack,cors,text_limits}.rb`, `config/environments/production.rb` | `spec/requests/{rack_attack,browser_session_abuse,browser_sessions,max_request_body}_spec.rb`: explicit credentialed origins, JSON 429/Retry-After, normalized email, malformed JSON shapes, byte-bound body; proxy/client-IP/shared-store deployment assumptions still require environment verification |
-| Migration and restricted reader | `services/api/db/migrate/20261019030000_add_email_confirmation_to_users.rb`, `lib/ai_reader_access.rb` | `spec/lib/{email_confirmation_migration,ai_reader_access}_spec.rb`: only migration-time accounts grandfathered; IDs/hashes/data retained; auth columns and session/queue tables absent from AI-reader grants |
+| Migration and restricted reader | `services/api/db/migrate/20261020020000_add_email_confirmation_to_users.rb`, `lib/ai_reader_access.rb` | `spec/lib/{email_confirmation_migration,ai_reader_access}_spec.rb`: only migration-time accounts grandfathered; IDs/hashes/data retained; auth columns and session/queue tables absent from AI-reader grants |
 
 The `app/...`, `config/...` and `spec/...` shorthand in API cells means
 `services/api/` paths. These are representative ownership paths, not an exhaustive
@@ -121,3 +121,19 @@ No browser automation/manual browser review, production provisioning/deployment,
 real provider email, paid AI call, broad storage audit, or penetration test was
 performed. Human QA and production setup remain required. Full final review of
 the integrated feature belongs to the coordinator's later delivery gates.
+
+## Integration with current master
+
+The later integration with master `c091a044e8f454764fc2a933b152400cafe12483`
+exposed duplicate migration numbers shared with the job-board work. The unreleased
+auth migrations were renumbered to `20261020010000` and `20261020020000`; Rails
+regenerated the schema. Actual fresh migration history and ordinary fresh local
+`db:prepare` both passed afterward. A separate database loaded from that master's
+schema preserved a synthetic user's ID, hash, profile and owned job through the
+upgrade, confirmed the existing user, accepted the legacy password and left a new
+account unconfirmed. No application database was reset for this check.
+
+The new job-board navigation test was also adapted from the removed JWT helper
+to the real session-bootstrap boundary. The integrated auth/navigation checks
+passed 34 tests, followed by TypeScript and frontend lint. These are compatibility
+repairs; the earlier audit results above describe their recorded snapshot.

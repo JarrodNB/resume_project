@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input'
 export function PasswordInput({ className, ...props }: Omit<ComponentProps<typeof Input>, 'type'>) {
   const [visible, setVisible] = useState(false)
   return (
-    <div className="flex min-w-0 items-start gap-2">
-      <Input {...props} type={visible ? 'text' : 'password'} className={cn('min-h-11 min-w-0 flex-1', className)} />
+    <div className="relative min-w-0">
+      <Input {...props} type={visible ? 'text' : 'password'} className={cn('min-h-11 min-w-0 pr-16', className)} />
       <Button
         type="button"
-        variant="outline"
-        className="min-h-11"
+        variant="ghost"
+        className="absolute right-0 top-0 min-h-11 min-w-14 rounded-l-none text-xs text-muted-foreground hover:text-foreground"
+        disabled={props.disabled}
         aria-controls={props.id}
         aria-label={visible ? 'Hide password' : 'Show password'}
         aria-pressed={visible}

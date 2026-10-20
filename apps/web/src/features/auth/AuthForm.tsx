@@ -26,6 +26,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (submitting) return
     setSubmitting(true)
     setErrors([])
     try {
@@ -37,7 +38,7 @@ export function AuthForm({ submitLabel, includeName = false, onSubmit }: AuthFor
   }
 
   return (
-    <form className="grid gap-4" onSubmit={handleSubmit}>
+    <form className="grid gap-4" onSubmit={handleSubmit} aria-busy={submitting}>
       {errors.length > 0 && <div id="auth-errors"><ErrorAlert messages={errors} /></div>}
       {includeName && (
         <div className="grid gap-2">

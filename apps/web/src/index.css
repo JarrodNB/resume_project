@@ -247,6 +247,46 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .auth-form-content { width: 100%; max-width: 360px; }
 .auth-form-content input { min-height: 44px; background: var(--card); }
 .auth-form-content button[type=submit] { min-height: 44px; margin-top: 8px; }
+.auth-form-content { min-width: 0; }
+.auth-form-content header p,
+.auth-form-content form > p,
+.auth-form-content [id$="guidance"] { line-height: 1.65; }
+.auth-form-content input { caret-color: var(--primary); }
+.auth-form-content [role="status"] {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 14px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.auth-help-links { display: grid; margin-top: 16px; }
+.auth-help-links a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  width: fit-content;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.auth-form-content a:hover { color: var(--primary); }
+.auth-form-content a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+.auth-resend-form { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 8px; }
+@media (max-width: 899px) and (min-width: 600px) {
+  .auth-introduction { padding: 32px 24px; }
+  .auth-form-region { padding: 32px 24px; }
+  .auth-message h1 { font-size: 2rem; }
+}
+@media (max-width: 599px) {
+  .auth-form-content input { font-size: 16px; }
+}
 @media (max-width: 1199px) {
   .workspace-content { padding: 36px 28px 64px; }
   .workspace-topbar { padding: 0 28px; }

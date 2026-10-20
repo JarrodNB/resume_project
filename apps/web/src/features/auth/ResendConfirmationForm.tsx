@@ -21,7 +21,7 @@ export function ResendConfirmationForm() {
     catch (error) { setErrors(error instanceof AuthRequestError ? error.messages : ['Could not reach the server. Please try again.']) }
     finally { setPending(false) }
   }
-  return <form onSubmit={submit} className="grid gap-4">
+  return <form onSubmit={submit} className="auth-resend-form grid gap-4" aria-busy={pending}>
     {message && <p role="status">{message}</p>}
     {errors.length > 0 && <ErrorAlert messages={errors} />}
     <div className="grid gap-2"><Label htmlFor="resend-email">Email</Label><Input id="resend-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>

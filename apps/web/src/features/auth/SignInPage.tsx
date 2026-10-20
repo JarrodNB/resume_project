@@ -1,7 +1,5 @@
-/**
- * Description: Sign-in page. After signing in, returns the user to the page they were sent from.
- * Index:
- *   - SignInPage: page component
+/** Returns users to their requested page after sign-in.
+ * Recovery and verification links remain separate, accessible account-help actions.
  */
 import { Link, useLocation, useNavigate } from 'react-router'
 import type { AuthCredentials } from './authApi'
@@ -37,8 +35,10 @@ export function SignInPage() {
     >
       {notice && <p role="status" className="mb-4">{notice}</p>}
       <AuthForm submitLabel="Sign in" onSubmit={handleSignIn} />
-      <Link to="/forgot-password" className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Forgot your password?</Link>
-      <Link to="/verify-email" className="mt-4 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Need a verification email?</Link>
+      <nav aria-label="Account help" className="auth-help-links">
+        <Link to="/forgot-password">Forgot your password?</Link>
+        <Link to="/verify-email">Need a verification email?</Link>
+      </nav>
     </AuthPageShell>
   )
 }

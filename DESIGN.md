@@ -181,6 +181,8 @@ Buttons retain generated primary, outline, secondary, ghost, destructive, and li
 
 Inputs have a fine input-colored border, transparent light background by default, and a tinted dark background. Focus changes the border and adds a ring; invalid fields use destructive color. Auth inputs use the card background.
 
+Password visibility sits inside the field as a quiet 44px touch target. Account-help links occupy separate rows. Auth status messages use a bordered secondary surface, and resend forms start below a fine divider. Between 600px and 899px, auth columns keep 24px horizontal padding and 2rem introduction headings; mobile inputs use 16px text.
+
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.

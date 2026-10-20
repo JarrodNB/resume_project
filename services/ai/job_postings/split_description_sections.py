@@ -1,18 +1,14 @@
-"""
-Description: Splits a job description's HTML into requirement, responsibility, and nice-to-have
-bullets using the posting's own headings ("Requirements", "Responsibilities", "Nice to have", ...).
-Deterministic; no LLM.
-Index:
-    - DescriptionSections: bullets under those headings, and all bullets
-    - classify_heading: "requirements", "responsibilities", "nice_to_haves", or "other"
-    - split_description_sections: walks the HTML in order and files each bullet under its heading
+"""Split job posting bullets by their nearest section heading without an LLM.
+
+Keep each bullet's own text and rendered word boundaries. Nested lists become
+separate bullets, while inline formatting keeps its original punctuation.
 """
 
 import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 HeadingKind = Literal["requirements", "responsibilities", "nice_to_haves", "other"]
 
@@ -101,10 +97,22 @@ def _heading_text(element: Tag) -> str | None:
 
 def _list_item_text(item: Tag) -> str:
     """The item's own text, without the text of lists nested inside it."""
-    own_list = item.find_parent(["ul", "ol"])
-    parts = [
-        text for text in item.find_all(string=True) if text.find_parent(["ul", "ol"]) is own_list
-    ]
+    parts: list[str] = []
+
+    def collect_text(element: Tag) -> None:
+        """Keep inline runs together and add whitespace at rendered block boundaries."""
+        for child in element.children:
+            if isinstance(child, NavigableString):
+                parts.append(str(child))
+            elif isinstance(child, Tag) and child.name not in {"ul", "ol"}:
+                is_break = child.name in {"br", "p", "div", "blockquote", *HEADING_TAGS}
+                if is_break:
+                    parts.append(" ")
+                collect_text(child)
+                if is_break:
+                    parts.append(" ")
+
+    collect_text(item)
     return _clean("".join(parts))
 
 

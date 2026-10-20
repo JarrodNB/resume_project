@@ -1,7 +1,7 @@
-"""
-Description: Tests for the heading-based requirements split and the plain-text description.
-Index:
-    - test_*: one behavior per test
+"""Check heading-based job sections and readable description text.
+
+Bullets retain rendered word boundaries, inline punctuation, and their own
+text when nested lists appear.
 """
 
 import pytest
@@ -98,3 +98,22 @@ def test_description_text_keeps_paragraphs_and_bullets() -> None:
     )
 
     assert text == "About\n\nWe build payments.\nRemote friendly.\n\n- Python\n- SQL\n\nApply now."
+
+
+@pytest.mark.parametrize(
+    ("bullet_html", "expected"),
+    [
+        ("Python<br>SQL", "Python SQL"),
+        ("<p>Build APIs</p><p>Maintain services</p>", "Build APIs Maintain services"),
+        ("<div>Python</div><div>SQL</div>", "Python SQL"),
+        ("Use <b>Python</b>, daily", "Use Python, daily"),
+        ("Cloud<br>experience:<ul><li>AWS</li></ul>", "Cloud experience:"),
+    ],
+)
+def test_bullet_rendered_breaks_separate_words(bullet_html: str, expected: str) -> None:
+    """Rendered breaks separate words without altering inline text or copying nested lists."""
+    sections = split_description_sections(f"<h3>Requirements</h3><ul><li>{bullet_html}</li></ul>")
+
+    assert sections.requirements[0] == expected
+    if "<ul>" in bullet_html:
+        assert sections.requirements == [expected, "AWS"]

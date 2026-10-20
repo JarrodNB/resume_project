@@ -3,7 +3,9 @@
 #   - call: validates task identity, revisions, draft shape, and distinctness before persistence
 module InterviewPrep
   class ApplyQuestionsService < ApplicationService
-    CATEGORIES = %w[introduction strengths development goals behavioral].freeze
+    CATEGORIES = %w[introduction collaboration problem_solving learning_adaptation initiative_judgment].freeze
+    # Accept complete results still in flight from an older worker during deployment.
+    LEGACY_GENERAL_CATEGORIES = %w[introduction strengths development goals behavioral].freeze
     TECHNICAL_CATEGORIES = %w[work_overview tools_methods decisions_tradeoffs problem_solving improvement_quality].freeze
     KNOWLEDGE_CATEGORIES = %w[concepts mechanisms application reasoning limitations].freeze
     CATEGORIES_BY_TYPE = { "general" => CATEGORIES, "technical" => TECHNICAL_CATEGORIES,
@@ -82,6 +84,12 @@ module InterviewPrep
       categories = CATEGORIES_BY_TYPE[@task.input.fetch("set_type", "general")]
       return unless categories
       return unless drafts.is_a?(Array) && drafts.length == count
+      if @task.input.fetch("set_type", "general") == "general"
+        received_categories = drafts.filter_map { |draft| draft["category"] if draft.is_a?(Hash) }
+        if received_categories.all? { |category| LEGACY_GENERAL_CATEGORIES.include?(category) }
+          categories = LEGACY_GENERAL_CATEGORIES
+        end
+      end
       return unless drafts.all? do |draft|
         draft.is_a?(Hash) && draft["question_text"].is_a?(String) &&
           draft["question_text"].strip.length.between?(10, 1000) &&

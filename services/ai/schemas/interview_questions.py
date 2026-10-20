@@ -1,5 +1,6 @@
 """
-Description: Grounded interview question drafts and per-run validation context.
+Description: Interview question drafts and per-run validation context. General practice has
+one introduction and four behavioral themes; excerpts ground background, not invited events.
 Index:
     - InterviewQuestionDraft / InterviewQuestions: structured agent output
     - InterviewQuestionContext: prompt, evidence, expected count, excluded questions
@@ -14,7 +15,7 @@ from pydantic import BaseModel, Field
 
 InterviewSetType = Literal["general", "technical", "knowledge"]
 QUESTION_CATEGORIES = {
-    "general": ("introduction", "strengths", "development", "goals", "behavioral"),
+    "general": ("introduction", "collaboration", "problem_solving", "learning_adaptation", "initiative_judgment"),
     "technical": ("work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality"),
     "knowledge": ("concepts", "mechanisms", "application", "reasoning", "limitations"),
 }
@@ -24,7 +25,7 @@ class InterviewQuestionDraft(BaseModel):
     """A scoped question with exact library excerpts establishing topic relevance."""
 
     question_text: str = Field(min_length=10, max_length=1000)
-    category: Literal["introduction", "strengths", "development", "goals", "behavioral",
+    category: Literal["introduction", "collaboration", "learning_adaptation", "initiative_judgment",
                       "work_overview", "tools_methods", "decisions_tradeoffs", "problem_solving", "improvement_quality",
                       "concepts", "mechanisms", "application", "reasoning", "limitations"]
     evidence_quotes: list[str] = Field(min_length=1, description="Exact excerpts from library data supporting any stated facts. Do not treat these excerpts as proof of unstated assumptions.")

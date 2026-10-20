@@ -13,8 +13,11 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 - `test_conversation_logging_reliability.py` — nested/fallback calls, generations, redelivery,
   original publication errors, logging isolation and independent-process append integrity.
-- `test_conversation_logging.py` — real task/model transcript capture, user/job/set/task
-  grouping, local gating, synthetic tool/retry parts, masked response and nonfatal disk errors.
+- `test_conversation_logging.py` — real task/model transcript capture, separate user/task
+  files and untouched legacy logs, local gating, synthetic tool/retry parts, masked response and nonfatal disk errors.
+- `test_conversation_logging_failures.py` — real validation recovery/exhaustion, prominent
+  provider failures, repeated-history deduplication, privacy, nested/concurrent identities
+  and nonfatal observation failures.
 - `test_schema_dependencies.py` — schemas cannot import worker, agent, database, or evaluation implementation.
 
 - `test_task_usage_accounting.py` — costs through task execution: run limits, SQS retries

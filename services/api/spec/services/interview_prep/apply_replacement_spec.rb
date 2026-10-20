@@ -18,7 +18,7 @@ RSpec.describe "Applying an interview question replacement" do
   let(:message) do
     { "ai_task_id" => task.id, "status" => "completed",
       "result" => { "interview_questions" => { "questions" => [
-        { "question_text" => "What would you like to develop next?", "category" => "development",
+        { "question_text" => "Tell me about a time you learned from feedback.", "category" => "learning_adaptation",
           "evidence_quotes" => [ "Career details" ] }
       ] } }, "usage" => [ { "cost_microdollars" => 30 } ] }
   end
@@ -79,12 +79,19 @@ RSpec.describe "Applying an interview question replacement" do
     other_attributes = questions.drop(1).map(&:attributes)
     2.times { apply }
     expect(task.reload).to be_completed
-    expect(question.reload).to have_attributes(question_text: "What would you like to develop next?",
+    expect(question.reload).to have_attributes(question_text: "Tell me about a time you learned from feedback.",
       question_revision: 2, answer_revision: 3, answer_text: "", feedback: {},
       feedback_question_revision: nil, feedback_answer_revision: nil)
     expect(questions.drop(1).map { |record| record.reload.attributes }).to eq(other_attributes)
     expect(task.cost_microdollars).to eq(30)
     expect(question.embedding).to be_nil
+  end
+
+  it "accepts an older worker replacement for an existing saved set" do
+    message["result"]["interview_questions"]["questions"][0]["category"] = "development"
+    apply
+    expect(task.reload).to be_completed
+    expect(question.reload.answer_text).to eq("")
   end
 
   it "preserves question, answer, and feedback on worker failure" do

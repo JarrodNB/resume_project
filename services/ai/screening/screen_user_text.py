@@ -10,6 +10,7 @@ import asyncio
 import logging
 import os
 from collections.abc import Awaitable, Callable, Generator
+from contextlib import nullcontext
 from time import monotonic
 from typing import Any, NamedTuple
 
@@ -18,6 +19,7 @@ from pydantic_ai.usage import RunUsage
 
 from agents.user_text_fallback_agent import screen_fallback_message, screen_fallback_message_async
 from agents.user_text_screen_agent import JEV_REQUEST_TIMEOUT_SECONDS, screen_user_message
+from conversation_logging import fallback_execution
 from screening.guardrail_usage import record_guardrail_usage
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.session import current_session
@@ -73,7 +75,8 @@ def screen_user_text(
             try:
                 classifier = screen_fallback_message if fallback else screen_user_message
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
-                run = classifier(chunk, model=selected, timeout_seconds=timeout)
+                with fallback_execution(model, selected, kind="screening") if fallback else nullcontext():
+                    run = classifier(chunk, model=selected, timeout_seconds=timeout)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -126,9 +129,11 @@ async def _drive_async(
         while True:
             try:
                 if fallback:
-                    run = await (classify_fallback or screen_fallback_message_async)(
-                        chunk, load_settings().user_text_screen_fallback_model, timeout,
-                    )
+                    selected = load_settings().user_text_screen_fallback_model
+                    with fallback_execution(model, selected, kind="screening"):
+                        run = await (classify_fallback or screen_fallback_message_async)(
+                            chunk, selected, timeout,
+                        )
                 else:
                     run = await classify(chunk, model, timeout)
                 selected = load_settings().user_text_screen_fallback_model if fallback else model

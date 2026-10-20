@@ -12,6 +12,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from prompts.resume_tailoring_instructions import (
     RESUME_TAILORING_INSTRUCTIONS,
     RESUME_TAILORING_PROMPT_VERSION,
@@ -34,7 +35,7 @@ resume_tailoring_agent = Agent(
     instructions=RESUME_TAILORING_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

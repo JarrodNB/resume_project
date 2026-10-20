@@ -11,7 +11,7 @@ RSpec.describe "Applying interview question generation" do
            input: { "question_set_id" => question_set.id })
   end
   let(:drafts) do
-    %w[introduction strengths development goals behavioral].map.with_index do |category, index|
+    %w[introduction collaboration problem_solving learning_adaptation initiative_judgment].map.with_index do |category, index|
       { "question_text" => "Question about your career number #{index}?", "category" => category,
         "evidence_quotes" => [ "Career details" ] }
     end
@@ -65,6 +65,20 @@ RSpec.describe "Applying interview question generation" do
     expect(task.reload).to have_attributes(status: "completed", input_tokens: 20,
                                           output_tokens: 10, cost_microdollars: 30)
     expect(ApiSchema.subscriptions).to have_received(:trigger).once
+  end
+
+  it "accepts a complete legacy category set from an in-flight older worker" do
+    drafts.zip(%w[introduction strengths development goals behavioral]).each { |draft, category| draft["category"] = category }
+    apply
+    expect(task.reload).to be_completed
+    expect(question_set.questions.count).to eq(5)
+  end
+
+  it "rejects a mixture of legacy and current categories atomically" do
+    drafts[1]["category"] = "strengths"
+    apply
+    expect(task.reload).to be_failed
+    expect(question_set.questions).to be_empty
   end
 
   [ nil, {}, { "interview_questions" => [] },

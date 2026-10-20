@@ -39,6 +39,27 @@ cases:
       answer: "After working in hospitality I went to college. A lecturer recommended me for an internship at Northbridge during my final semester. I started with small backlog tasks and progressed to harder work. I was hired full time and still work there. Our stack was Rails and React. I later worked on a mobile web app, AI services, and a cloud migration."
     metadata:
       needs_placeholder: true
+  - name: no-matching-conflict-example
+    inputs:
+      question: "Tell me about a time you disagreed with a colleague."
+      answer: "I cannot think of a matching example. I have not had a paid job yet."
+      library: "Student. Completed a group geography project."
+    metadata:
+      needs_placeholder: true
+  - name: incomplete-story-actions-before-context
+    inputs:
+      question: "Tell me about a time you took initiative."
+      answer: "I emailed the tutor and made a shared list. Our group project deadline was Friday and nobody knew which sections were unfinished. I was responsible for the references."
+    metadata:
+      needs_placeholder: true
+  - name: negative-outcome-kept-honest
+    inputs:
+      question: "Tell me about a time a plan did not work out."
+      answer: "Our volunteer event had too few helpers. I was responsible for the welcome desk. I asked the organizer to move one helper from setup. Nobody was available and visitors still waited a long time."
+  - name: complete-story-result-first
+    inputs:
+      question: "Tell me about a time you worked with someone to solve a problem."
+      answer: "The next shift found the handover easier to follow. I worked with another library volunteer to combine our notes into one page. Visitors' reserved books had been hard to locate between shifts. I was responsible for recording reservations, and my partner checked the shelf locations."
   - name: technical-software-reasoning
     inputs:
       set_type: technical

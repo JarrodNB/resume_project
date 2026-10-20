@@ -13,6 +13,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from prompts.interview_question_instructions import (
     INTERVIEW_QUESTIONS_INSTRUCTIONS,
     INTERVIEW_QUESTIONS_PROMPT_VERSION,
@@ -38,7 +39,7 @@ interview_questions_agent = Agent(
     instructions=INTERVIEW_QUESTIONS_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 
@@ -51,6 +52,10 @@ def check_labels(context: RunContext[InterviewQuestionContext], analysis: Interv
         problems.append(f"Use only {context.deps.set_type} categories: {', '.join(categories)}.")
     if len(analysis.questions) != context.deps.count:
         problems.append(f"Return exactly {context.deps.count} questions.")
+    if context.deps.set_type == "general" and context.deps.count == 1 and any(
+        question.category == "introduction" for question in analysis.questions
+    ):
+        problems.append("A general replacement must use a behavioral category, not introduction or role motivation.")
     if context.deps.count == 5 and len({q.category for q in analysis.questions}) != 5:
         problems.append("Use each of the five interview categories once.")
     seen = {normalize_question(text) for text in context.deps.excluded}

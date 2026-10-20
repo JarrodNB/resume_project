@@ -4,7 +4,7 @@ Index:
     - interview_feedback_agent / check_labels: agent and output validation
     - InterviewFeedbackRun / generate_interview_feedback: bounded run and billed usage
     - source_excerpt: removes presentation quotes only when the contents match source text
-    - interview_feedback_instructions: selects trusted scope-specific instructions
+    - interview_feedback_instructions: selects trusted scope policy and general-only STAR guidance
 """
 import asyncio
 import re
@@ -16,6 +16,7 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
 from prompts.interview_feedback_instructions import (
+    GENERAL_BEHAVIORAL_COACHING_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_INSTRUCTIONS,
     INTERVIEW_FEEDBACK_PROMPT_VERSION,
 )
@@ -46,9 +47,11 @@ interview_feedback_agent = Agent(
 
 @interview_feedback_agent.instructions
 def interview_feedback_instructions(context: RunContext[InterviewFeedbackContext]) -> str:
-    """Keeps subject corrections separate from general/technical personal-fact scaffolds."""
+    """Adds STAR guidance only to general coaching; keeps other scope policies separate."""
     if context.deps is not None and context.deps.set_type == "knowledge":
         return INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS
+    if context.deps is not None and context.deps.set_type == "general":
+        return INTERVIEW_FEEDBACK_INSTRUCTIONS + GENERAL_BEHAVIORAL_COACHING_INSTRUCTIONS
     return INTERVIEW_FEEDBACK_INSTRUCTIONS
 
 

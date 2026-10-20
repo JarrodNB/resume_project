@@ -73,7 +73,9 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
         checks = {
             "question_count": len(questions) == ctx.inputs.count,
             "category_variety": all(q.category in QUESTION_CATEGORIES[ctx.inputs.set_type] for q in questions)
-            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5),
+            and (ctx.inputs.count != 5 or len({q.category for q in questions}) == 5)
+            and not (ctx.inputs.set_type == "general" and ctx.inputs.count == 1
+                     and any(q.category == "introduction" for q in questions)),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
                 quote.strip() and quote in ctx.inputs.library for quote in q.evidence_quotes

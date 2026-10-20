@@ -12,6 +12,10 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
 from agents.interview_feedback_agent import interview_feedback_agent
+from prompts.interview_feedback_instructions import INTERVIEW_FEEDBACK_INSTRUCTIONS
+from prompts.interview_knowledge_feedback_instructions import (
+    INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS,
+)
 from schemas.gap_analysis_context import CareerLibrary
 from screening.screen_user_text import ScreenOutcome
 from worker.queue_messages import AiTaskMessage
@@ -44,7 +48,11 @@ def test_provider_receives_scope_specific_instructions(task_dependencies, monkey
     assert result.status == "completed"
     assert seen and all(instructions for instructions in seen)
     for instructions in seen:
+        assert ("GENERAL BEHAVIORAL COACHING" in instructions) == (set_type == "general")
+        if set_type == "technical":
+            assert instructions == INTERVIEW_FEEDBACK_INSTRUCTIONS.strip()
         if set_type == "knowledge":
+            assert instructions == INTERVIEW_KNOWLEDGE_FEEDBACK_INSTRUCTIONS.strip()
             assert "Supply a DIRECT, corrected illustrative SUBJECT answer" in instructions
             assert "Do not replace missing subject knowledge" in instructions
             assert "Professional knowledge and your coaching suggestions are NOT" not in instructions

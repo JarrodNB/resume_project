@@ -25,15 +25,20 @@ from schemas.interview_questions import (
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 13
+    assert len(dataset.cases) == 15
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
             category=category, evidence_quotes=[case.inputs.library],
         ) for index, category in enumerate(
-            QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
+            QUESTION_CATEGORIES["general"][1:2] if case.inputs.set_type == "general" and case.inputs.count == 1
+            else QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
         context = SimpleNamespace(inputs=case.inputs, output=output, metadata=case.metadata)
         assert all(QuestionStructure().evaluate(context).values())
+        if case.inputs.set_type == "general" and case.inputs.count == 5:
+            output.questions[1].category = "tools_methods"
+            assert not QuestionStructure().evaluate(context)["category_variety"]
+            output.questions[1].category = "collaboration"
         output.questions[0].evidence_quotes = ["Invented management promotion"]
         assert not QuestionStructure().evaluate(context)["question_evidence"]
         if case.inputs.count == 5:
@@ -43,6 +48,9 @@ def test_question_structure() -> None:
             output.questions.pop()
             assert not QuestionStructure().evaluate(context)["question_count"]
         else:
+            if case.inputs.set_type == "general":
+                output.questions[0].category = "introduction"
+                assert not QuestionStructure().evaluate(context)["category_variety"]
             output.questions[0].question_text = case.inputs.excluded[0].upper() + "!"
             assert not QuestionStructure().evaluate(context)["distinct_wording"]
 
@@ -50,7 +58,7 @@ def test_question_structure() -> None:
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 13
+    assert len(dataset.cases) == 17
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],

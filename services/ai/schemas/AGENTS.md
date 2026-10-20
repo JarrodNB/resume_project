@@ -51,5 +51,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - `interview_questions.py` — question drafts, category/evidence metadata, and generation constraints. Results use `interview_questions: {questions: [...]}`; Rails `InterviewPrep::ApplyQuestionsService` validates and persists them.
 - `InterviewSetType` accepts general, technical, and knowledge; knowledge categories are exactly `concepts`, `mechanisms`, `application`, `reasoning`, and `limitations` across Python and Rails.
+- General generation uses `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and `initiative_judgment`. Standard behavioral invitations need background relevance, not evidence that an invited event occurred; specific personal assertions still need evidence. Rails additionally accepts complete legacy general outputs during rolling deployment.
 
 - `interview_feedback.py` — strengths, improvements, scope-aware example descriptions, evidence quotes, and trusted source context; results use `interview_feedback`. Knowledge examples may correct subject facts without personal-fact placeholders; all scopes forbid invented personal experience.

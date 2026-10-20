@@ -1,8 +1,7 @@
-"""
-Description: Tests for turning LinkedIn's <br>-separated description into paragraphs that the
-heading splitter understands.
-Index:
-    - test_*: one behavior per test
+"""Check LinkedIn description paragraphs and the headings they expose.
+
+Nested inline formatting must preserve line breaks, attributes, and punctuation
+so the shared heading splitter can file bullets without a model call.
 """
 
 from job_postings.split_description_sections import split_description_sections
@@ -40,3 +39,32 @@ def test_headings_split_real_linkedin_layout() -> None:
 
     assert sections.requirements == ["5+ years of Python"]
     assert sections.nice_to_haves == ["Kafka"]
+
+
+def test_nested_inline_line_breaks_preserve_section_headings() -> None:
+    """Formatting wrappers do not hide a heading below introductory prose."""
+    markup = (
+        '<span class="outer"><span class="inner">Join our team.<br>'
+        '<strong>Requirements</strong><br></span></span><ul><li>Python</li></ul>'
+        '<span><em>More about you<br><b>Preferred Qualifications</b><br></em></span>'
+        '<ul><li>Go</li></ul>'
+    )
+
+    html = linkedin_description_to_html(markup)
+    sections = split_description_sections(html)
+
+    assert sections.requirements == ["Python"]
+    assert sections.nice_to_haves == ["Go"]
+    assert '<span class="outer"><span class="inner"><strong>Requirements</strong>' in html
+
+
+def test_nested_breaks_keep_inline_punctuation_and_links() -> None:
+    """Splitting nested formatting retains attributes and surrounding inline text."""
+    html = linkedin_description_to_html(
+        'Use <span><em>Python<br><a href="https://example.com">SQL</a></em></span>, daily.'
+    )
+
+    assert html == (
+        '<p>Use <span><em>Python</em></span></p>'
+        '<p><span><em><a href="https://example.com">SQL</a></em></span>, daily.</p>'
+    )

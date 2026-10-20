@@ -27,5 +27,5 @@ it('shows a separate active Job Board link for signed-in users', async () => {
   expect(screen.getByRole('link', { name: 'Job Board' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Jobs' })).not.toHaveAttribute('aria-current')
   expect(screen.getByRole('link', { name: 'Jobs' })).toHaveAttribute('href', '/jobs')
-  expect(screen.getByText('Enter a keyword to find US-based opportunities.')).toBeInTheDocument()
+  expect(screen.getByText('Find a role worth your next step.')).toBeInTheDocument()
 })

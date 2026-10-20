@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -208,8 +208,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_050000) do
   end
 
   create_table "interview_session_media", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "interview_session_id", null: false
-    t.uuid "question_id", null: false
+    t.uuid "interview_session_id"
+    t.uuid "question_id"
     t.uuid "operation_id"
     t.uuid "message_id"
     t.string "kind", null: false
@@ -239,9 +239,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_050000) do
     t.index ["staging_key"], name: "index_interview_session_media_on_staging_key", unique: true
     t.check_constraint "byte_size IS NULL OR byte_size > 0", name: "interview_media_bytes"
     t.check_constraint "deletion_attempts >= 0", name: "interview_media_deletions"
-    t.check_constraint "kind::text = 'recording'::text AND question_id IS NOT NULL OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL", name: "interview_media_identity"
-    t.check_constraint "kind::text = ANY (ARRAY['recording'::character varying, 'speech'::character varying]::text[])", name: "interview_media_kind"
-    t.check_constraint "status::text = ANY (ARRAY['reserved'::character varying, 'ready'::character varying, 'delete_pending'::character varying, 'deleted'::character varying]::text[])", name: "interview_media_status"
+    t.check_constraint "interview_session_id IS NOT NULL AND question_id IS NOT NULL AND (kind::text = 'recording'::text OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL) OR interview_session_id IS NULL AND question_id IS NULL AND operation_id IS NULL AND message_id IS NULL AND attempt_id IS NULL AND claim_generation IS NULL AND (status::text = ANY (ARRAY['delete_pending'::character varying, 'deleted'::character varying]::text[])) AND metadata = '{}'::jsonb AND checksum IS NULL AND byte_size IS NULL AND (staging_key IS NOT NULL OR sealed_key IS NOT NULL)", name: "interview_media_identity"
+    t.check_constraint "kind::text = ANY (ARRAY['recording'::character varying::text, 'speech'::character varying::text])", name: "interview_media_kind"
+    t.check_constraint "status::text = ANY (ARRAY['reserved'::character varying::text, 'ready'::character varying::text, 'delete_pending'::character varying::text, 'deleted'::character varying::text])", name: "interview_media_status"
   end
 
   create_table "interview_session_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -11,8 +11,11 @@ RSpec.describe "Basic Interview concurrency" do
   end
 
   after do
-    InterviewSessionMedia.where(interview_session: @interview).delete_all
+    media_ids = InterviewSessionMedia.where(interview_session: @interview).pluck(:id)
     @user&.destroy!
+    # These synthetic rows never had storage objects. Remove only this example's
+    # detached receipts after exercising real destruction, to isolate later specs.
+    InterviewSessionMedia.where(id: media_ids).delete_all
   end
 
   def race

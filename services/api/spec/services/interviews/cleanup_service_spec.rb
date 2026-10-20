@@ -11,6 +11,55 @@ RSpec.describe Interviews::CleanupService do
       expires_at: 1.minute.ago, metadata: { "private" => "content" } }.merge(attributes))
   end
 
+  it "keeps collectible key-only tombstones when the session and then owner are destroyed" do
+    record = audio(expires_at: 1.hour.from_now)
+    interview.destroy!
+    expect(record.reload).to have_attributes(interview_session_id: nil, question_id: nil,
+      status: "delete_pending", metadata: {}, checksum: nil, byte_size: nil)
+    interview.user.destroy!
+    allow(storage).to receive(:delete).and_raise(StandardError, "temporary")
+    described_class.call(storage: storage)
+    expect(record.reload.last_delete_error).to eq("storage_delete_failed")
+    travel 5.minutes + 1.second
+    allow(storage).to receive(:delete).and_return(nil)
+    expect(described_class.call(storage: storage).value[:deleted_media]).to eq(1)
+    travel 1.hour + 1.second
+    expect(described_class.call(storage: storage).value[:reaped_media]).to eq(1)
+    expect(storage).to have_received(:delete).with("private/sealed").twice
+  end
+
+  it "retains already deleted receipts through owner destruction and removes late object writes" do
+    record = audio
+    described_class.call(storage: storage)
+    speech = audio(kind: "speech", staging_key: nil, sealed_key: "private/speech",
+      operation_id: interview.operations.first.id, message_id: interview.messages.first.id,
+      attempt_id: SecureRandom.uuid, claim_generation: 1, expires_at: 6.days.from_now)
+    owner = interview.user
+    owner.destroy!
+    expect(speech.reload).to have_attributes(interview_session_id: nil, question_id: nil,
+      operation_id: nil, message_id: nil, attempt_id: nil, claim_generation: nil, status: "delete_pending")
+    expect(record.reload).to have_attributes(interview_session_id: nil, question_id: nil,
+      operation_id: nil, message_id: nil, attempt_id: nil, claim_generation: nil, metadata: {})
+    objects = { "private/sealed" => "late bytes" }
+    allow(storage).to receive(:delete) { |key| objects.delete(key) }
+    described_class.call(storage: storage)
+    expect(objects).to be_empty
+    objects["private/sealed"] = "another delayed writer"
+    travel 1.hour + 1.second
+    described_class.call(storage: storage)
+    expect(objects).to be_empty
+    expect(record.reload).to be_deleted
+  end
+
+  it "rejects detached media that still contains private metadata at the database boundary" do
+    record = audio
+    expect do
+      InterviewSessionMedia.transaction(requires_new: true) do
+        record.update_columns(interview_session_id: nil, question_id: nil, status: "delete_pending")
+      end
+    end.to raise_error(ActiveRecord::StatementInvalid, /interview_media_identity/)
+  end
+
   it "deletes expired object copies and leaves a scrubbed tombstone" do
     record = audio
     expect(described_class.call(storage: storage).value[:deleted_media]).to eq(1)

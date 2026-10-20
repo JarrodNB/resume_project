@@ -1,5 +1,6 @@
 /** Own the demo's GraphQL state and explicit writes. Reconnect snapshots restore durable work.
- * Ambiguous submissions keep their exact input; a fresh owned read always precedes a manual resend.
+ * Rejected submissions release their identity and keep the recording. Ambiguous submissions keep
+ * their exact input; a fresh owned read always precedes a manual resend.
  */
 import { useEffect, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
@@ -8,6 +9,8 @@ import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { AUTHORIZE_RECORDING, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
+
+class RejectedSubmission extends Error {}
 
 function requirePayload<T extends { errors: string[] }>(payload: T | null | undefined): T {
   if (!payload) throw new Error('No response was received. Check saved status before trying again.')
@@ -63,7 +66,12 @@ export function useInterviewSession(id: string, ownerId: string) {
     if (snapshot) client.cache.writeQuery({ query: INTERVIEW_QUERY, variables: { id }, data: { interviewSession: snapshot } })
   }
   async function send(input: PendingSubmission) {
-    const result = requirePayload((await submit({ variables: { input: { interviewId: id, ...input } } })).data?.submitInterviewTurn)
+    const payload = (await submit({ variables: { input: { interviewId: id, ...input } } })).data?.submitInterviewTurn
+    if (payload?.errors.length) {
+      forgetPending()
+      throw new RejectedSubmission(payload.errors.join(' '))
+    }
+    const result = requirePayload(payload)
     update(result.interview)
     forgetPending()
   }
@@ -92,7 +100,11 @@ export function useInterviewSession(id: string, ownerId: string) {
       if (!savePendingSubmission(ownerId, id, input)) throw new Error('Browser storage is unavailable. Enable it before submitting so reloads can recover safely.')
       durable = true
       setPending(input)
-      await send(input)
+      try { await send(input) }
+      catch (cause) {
+        if (cause instanceof RejectedSubmission) durable = false
+        throw cause
+      }
     })
     return saved || durable
   }

@@ -130,8 +130,15 @@ failures after five minutes with a safe error code. Deleted rows retain random o
 only as tombstones, with content metadata removed. An hourly reaper deletes those keys again:
 a delayed upload grant, paused registration or crash can otherwise recreate an object after
 its first deletion. Reaping has a separate bounded quota, ordered by next due time, so old
-tombstones do not starve newly expired objects. This incurs continuing S3 delete requests;
-provider lifecycle rules or stronger write fencing are deferred options.
+tombstones do not starve newly expired objects.
+
+Session or user destruction first detaches media receipts in the same database transaction,
+removing owner, question, message, execution identifiers and content metadata before dependent
+records disappear. A database constraint allows detached rows only as key-only deletion
+receipts. Bounded cleanup also selects these orphaned receipts, preserving storage retries
+and late-write reaping after domain deletion. No object I/O runs in the destroy transaction.
+
+This incurs continuing S3 delete requests; provider lifecycle rules or stronger write fencing are deferred options.
 
 After seven days cleanup expires the session, fails pending/running linked tasks, scrubs
 fixture context, dialogue, private history, accepted payloads and task input/results, and marks
@@ -141,7 +148,9 @@ rows. These minimal records are not a retained dialogue archive.
 
 The schema is additive and requires no backfill of written practice. Do not remove tables as
 an operational rollback: stop the new runtime and disable creation, retaining accepted data
-and accounting until an explicit data-loss decision.
+and accounting until an explicit data-loss decision. The media-detachment migration is
+intentionally irreversible: detached receipts must remain collectible. Fix it forward rather
+than rolling the schema back and losing those cleanup obligations.
 
 ## Internal execution HTTP contract
 

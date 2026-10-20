@@ -68,7 +68,7 @@ RSpec.describe "Basic Interview database invariants" do
     media = InterviewSessionMedia.create!(interview_session: interview, question: question,
       operation: interview.operations.sole, message: interview.messages.sole, kind: "speech", content_type: "audio/wav",
       attempt_id: SecureRandom.uuid, claim_generation: 1, expires_at: 1.hour.from_now)
-    expect_constraint(ActiveRecord::NotNullViolation) { media.update_columns(question_id: nil) }
+    expect_constraint(ActiveRecord::CheckViolation) { media.update_columns(question_id: nil) }
     foreign = Interviews::CreateFixtureService.call(user: create(:user)).value
     expect_constraint(ActiveRecord::InvalidForeignKey) { media.update_columns(question_id: foreign.questions.first.id) }
     expect_constraint(ActiveRecord::InvalidForeignKey) { media.update_columns(message_id: foreign.messages.first.id) }

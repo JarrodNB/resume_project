@@ -11,8 +11,8 @@ module Interviews
     def call
       sessions = InterviewSession.where(content_purged_at: nil).where("expires_at <= ?", Time.current).order(:expires_at, :id).limit(@limit)
       purged = sessions.count { |interview| purge_content(interview) }
-      media = InterviewSessionMedia.joins(:interview_session).where.not(status: "deleted")
-        .where("interview_session_media.expires_at <= :now OR interview_sessions.expires_at <= :now OR (interview_session_media.kind = 'speech' AND interview_sessions.completed_at <= :cutoff)", now: Time.current, cutoff: 1.hour.ago)
+      media = InterviewSessionMedia.left_joins(:interview_session).where.not(status: "deleted")
+        .where("interview_session_media.interview_session_id IS NULL OR interview_session_media.expires_at <= :now OR interview_sessions.expires_at <= :now OR (interview_session_media.kind = 'speech' AND interview_sessions.completed_at <= :cutoff)", now: Time.current, cutoff: 1.hour.ago)
         .where("next_delete_at IS NULL OR next_delete_at <= ?", Time.current).order(:expires_at, :id).limit(@limit)
       deleted = media.count { |record| delete_media(record) }
       # Separate budgets keep old tombstones from starving freshly expired objects.

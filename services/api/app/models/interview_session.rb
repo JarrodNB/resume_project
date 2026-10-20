@@ -2,6 +2,7 @@
 # the existing written practice records remain independent.
 class InterviewSession < ApplicationRecord
   include PublishesInterviewSnapshot
+  before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
   STATUSES = %w[active completed expired].freeze
   INTERVIEW_TYPES = %w[basic].freeze
   belongs_to :user

@@ -5,7 +5,7 @@ import type { MockLink } from '@apollo/client/testing'
 import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession } from './useInterviewSession'
-import { savePendingSubmission } from './pendingSubmission'
+import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
 import { AUTHORIZE_RECORDING, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
 const snapshot = {
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
@@ -61,6 +61,44 @@ describe('useInterviewSession', () => {
     await act(() => result.current.checkSavedStatus(true))
     expect(result.current.unresolved).toBeNull()
     expect(put).toHaveBeenCalledOnce()
+  })
+  it('keeps the recording available when the submitted upload is definitively expired', async () => {
+    const key = '11111111-1111-4111-8111-111111111111'
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
+    const put = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', put)
+    const identity = { ...pending, submissionKey: key }
+    const submitRequest = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity } } }
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm', 'Content-MD5': 'kAFQmDzST7DWlj99KOF/cg==' }, expiresIn: 60 } } } } },
+      { request: { query: REGISTER_RECORDING, variables: { input: { interviewId: 'session', mediaId: 'recording' } } }, result: { data: { registerInterviewRecording: { __typename: 'RegisterInterviewRecordingPayload', interview: snapshot, errors: [] } } } },
+      { request: submitRequest, result: { data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: null, errors: ['This recording has expired.'] } } } },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const blob = new Blob(['abc'], { type: 'audio/webm;codecs=opus' })
+    Object.defineProperty(blob, 'arrayBuffer', { value: async () => new Uint8Array([97, 98, 99]).buffer })
+    let discard = false
+    await act(async () => { discard = await result.current.answer(blob) })
+    expect(discard).toBe(false)
+    expect(result.current.unresolved).toBeNull()
+    expect(loadPendingSubmission('owner', 'session')).toBeNull()
+    expect(result.current.error).toBe('This recording has expired.')
+    expect(put).toHaveBeenCalledWith('https://storage.test/upload', expect.objectContaining({ method: 'PUT', credentials: 'omit', body: blob, headers: { 'Content-Type': 'audio/webm', 'Content-MD5': 'kAFQmDzST7DWlj99KOF/cg==' } }))
+    expect(put).toHaveBeenCalledOnce()
+  })
+  it.each(['The interview changed. Reload and try again.', 'This recording has expired.'])('releases a definitively rejected identity: %s', async (message) => {
+    savePendingSubmission('owner', 'session', pending)
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...pending } } }, result: { data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: null, errors: [message] } } } },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(() => result.current.checkSavedStatus(true))
+    expect(result.current.error).toBe(message)
+    expect(result.current.unresolved).toBeNull()
+    expect(loadPendingSubmission('owner', 'session')).toBeNull()
   })
   it('never resends after an authorization error during reconciliation', async () => {
     savePendingSubmission('owner', 'session', pending)

@@ -19,10 +19,11 @@ RSpec.describe "Job Board search" do
   end
 
   it "returns plain text without creating a saved job" do
-    provider_page(data: [ provider_listing.merge(description: "<p>Hello</p><script>bad()</script>") ])
+    provider_page(data: [ provider_listing.merge(description: "<p>Hello</p><script>bad()</script>", locations: [ { country_code: "US", city_name: "Alpharetta", state_code: "GA" } ]) ])
     page = search.dig("data", "jobBoardSearch")
     expect(page["errors"]).to eq([])
     expect(page["listings"].first["description"]).to eq("Hello")
+    expect(page["listings"].first["location"]).to eq("Alpharetta, GA, US")
     expect(Job.count).to eq(0)
   end
   def provider_page(data:, next_cursor: nil, status: "200")

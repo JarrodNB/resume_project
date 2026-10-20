@@ -34,7 +34,7 @@ module JobBoard
       payload = @listing.payload
       description = ListingDescription.new(payload["description"].to_s)
       fields = { title: shorten(payload["title"], TextLimits::SHORT), company: shorten(payload.dig("company", "name"), TextLimits::SHORT).presence,
-                 location: shorten(payload["location"], TextLimits::SHORT), description: shorten(description.text, TextLimits::JOB_DESCRIPTION), url: application_url(payload["application_url"]) }
+                 location: shorten(ListingLocation.call(payload), TextLimits::SHORT), description: shorten(description.text, TextLimits::JOB_DESCRIPTION), url: application_url(payload["application_url"]) }
       description.sections.each do |key, bullets|
         kept = bullets.select { |bullet| bullet.length <= TextLimits::BULLET }.first(TextLimits::MAX_REQUIREMENTS)
         warn_omitted if kept.size != bullets.size

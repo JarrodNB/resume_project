@@ -5,6 +5,7 @@ RSpec.describe "Job Board import" do
   let(:user) { create(:user) }
   let(:listing) do
     create(:job_board_listing, payload: { "title" => "Engineer", "company" => { "name" => "Acme" },
+      "locations" => [ { "country_code" => "US", "city_name" => "Alpharetta", "state_code" => "GA" } ],
       "description" => "<h2>Requirements</h2><ul><li>Ruby</li></ul>", "application_url" => "https://example.com/apply?utm_source=board" })
   end
 
@@ -12,7 +13,7 @@ RSpec.describe "Job Board import" do
     execute_graphql(<<~GQL, user: owner, variables: { id: id })
       mutation($id: ID!) {
         importJobBoardListing(input: { listingId: $id }) {
-          job { id title company stage description requirements } warnings errors
+          job { id title company location stage description requirements } warnings errors
         }
       }
     GQL
@@ -23,7 +24,7 @@ RSpec.describe "Job Board import" do
     expect { @first = import }.to change(Job, :count).by(1).and change(AiTask, :count).by(0)
     payload = @first.dig("data", "importJobBoardListing")
     expect(payload).to include("errors" => [], "warnings" => [])
-    expect(payload["job"]).to include("title" => "Engineer", "company" => "Acme", "stage" => "UNAPPLIED", "requirements" => [ "Ruby" ])
+    expect(payload["job"]).to include("title" => "Engineer", "company" => "Acme", "location" => "Alpharetta, GA, US", "stage" => "UNAPPLIED", "requirements" => [ "Ruby" ])
     job = user.jobs.find(payload["job"]["id"])
     job.update!(title: "Edited")
     expect { @again = import }.not_to change(Job, :count)

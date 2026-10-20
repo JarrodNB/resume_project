@@ -6,7 +6,7 @@ require_relative "../../../app/services/job_board/search_clean_job_data_service"
 
 RSpec.describe JobBoard::SearchCleanJobDataService do
   let(:http) { instance_double(Net::HTTP) }
-  let(:listing) { { "id" => 42, "title" => "Engineer", "locations" => [ { "country_code" => "US" } ], "description" => "<p>Build things</p>" } }
+  let(:listing) { { "id" => 42, "title" => "Engineer", "locations" => [ { "country_code" => "US" } ], "description" => "<p>Build things</p>", "location" => "US" } }
   let(:body) { { "data" => [ listing ], "pagination" => { "limit" => 20, "next_page" => "next+/=" }, "meta" => {} } }
 
   def respond_with(code = "200", payload = body)
@@ -54,6 +54,39 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     expect(result.value[:listings].first).to eq(listing.merge("locations" => [ us ], "location" => "Austin, TX, US"))
     expect(result.value[:listings].last).not_to have_key("description")
     expect(result.value[:listings].last).not_to have_key("company")
+  end
+
+  it "builds a display location from confirmed structured fields when labels are missing" do
+    body["data"] = [ listing.merge("location" => "Original provider text", "locations" => [
+      { "country_code" => "CA", "display_label" => "Toronto" },
+      { "country_code" => "US", "city_name" => "Alpharetta", "state_code" => "GA" }
+    ]) ]
+    respond_with
+    expect(search.value[:listings].first["location"]).to eq("Alpharetta, GA, US")
+  end
+
+  it "prefers usable US labels, deduplicates them, and ignores malformed optional values" do
+    rows = [
+      { "country_code" => "CA", "display_label" => "Toronto" },
+      { "country_code" => "US", "display_label" => " Austin, TX, US ", "city_name" => "Wrong" },
+      { "country_code" => "US", "display_label" => [], "city_name" => "Alpharetta", "state_code" => "GA" },
+      { "country_code" => "US", "display_label" => "Austin, TX, US" },
+      { "country_code" => "US", "city_name" => 9, "state_code" => [], "state_name" => "California" },
+      { "country_code" => "US", "display_label" => false }
+    ]
+    body["data"] = [ listing.merge("locations" => rows, "location" => "Ignore original") ]
+    respond_with
+    normalized = search.value[:listings].first
+    expect(normalized["location"]).to eq("Austin, TX, US; Alpharetta, GA, US; California, US")
+    expect(normalized["locations"].map { |row| row["country_code"] }.uniq).to eq([ "US" ])
+  end
+
+  it "uses original text for country-only locations, otherwise keeps the confirmed country" do
+    [ [ " Continental United States ", "Continental United States" ], [ " ", "US" ], [ [], "US" ] ].each do |original, expected|
+      body["data"] = [ listing.merge("location" => original) ]
+      respond_with
+      expect(search.value[:listings].first["location"]).to eq(expected)
+    end
   end
 
   it "accepts provider IDs serialized as numeric strings" do

@@ -3,6 +3,7 @@
 require "net/http"
 require "json"
 require "timeout"
+require_relative "listing_location"
 
 module JobBoard
   class SearchCleanJobDataService < ApplicationService
@@ -17,7 +18,8 @@ module JobBoard
     # @param cursor [String, nil] opaque token from the same search's previous page
     # @return [ServiceResult] {listings: Array<Hash>, next_cursor: String | nil}
     #   Listings keep provider field names, with only confirmed US locations and a
-    #   display location derived from those rows. Optional fields remain missing/null.
+    #   display location preferring those rows, with original-text fallback.
+    #   Optional fields remain missing/null.
     #   Failure messages are safe to show and never contain raw provider responses.
     def initialize(keyword:, api_key: ENV["CLEANJOBDATA_API_KEY"], remote_only: false, cursor: nil)
       @keyword, @api_key, @remote_only, @cursor = keyword, api_key, remote_only, cursor
@@ -124,8 +126,7 @@ module JobBoard
 
       normalized = listing.slice("title").merge("id" => provider_id)
       normalized["locations"] = locations.map { |row| row.slice("country_code", "display_label", "city_name", "state_name", "state_code") }
-      labels = locations.filter_map { |row| row["display_label"] if row["display_label"].is_a?(String) && !row["display_label"].strip.empty? }.uniq
-      normalized["location"] = labels.join("; ") unless labels.empty?
+      normalized["location"] = ListingLocation.call(listing)
       STRING_FIELDS.each { |key| normalized[key] = listing[key] if listing.key?(key) && (listing[key].nil? || listing[key].is_a?(String)) }
       %w[has_remote is_active].each { |key| normalized[key] = listing[key] if [ true, false ].include?(listing[key]) }
       normalized["application_url"] = safe_application_url(listing["application_url"]) if listing.key?("application_url")

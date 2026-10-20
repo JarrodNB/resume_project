@@ -24,6 +24,29 @@ RSpec.describe JobBoard::SearchCatalogueService do
     ServiceResult.new(success: true, value: { listings: listings, next_cursor: next_cursor }, errors: [])
   end
 
+  it "bypasses a pre-normalization empty cache page without changing listing identity" do
+    old_listing = create(:job_board_listing, provider_id: 71, payload: listing)
+    digest = Digest::SHA256.hexdigest(JSON.generate([ "Software Engineer", false, nil ]))
+    JobBoardSearchPage.create!(query_digest: digest, keyword: "Software Engineer", remote_only: false,
+      listing_ids: [], next_cursor: "old-cursor", retrieved_at: Time.current)
+    expect(provider).to receive(:call).and_return(successful_page([ listing.merge("location" => "Alpharetta, GA, US") ], next_cursor: "new-cursor"))
+    result = search.value
+    expect(result[:listings].map(&:id)).to eq([ old_listing.id ])
+    expect(result[:next_cursor]).to eq("new-cursor")
+    expect(JobBoardSearchPage.count).to eq(2)
+  end
+
+  it "does not fall back to a legacy page if the revised first fetch fails" do
+    digest = Digest::SHA256.hexdigest(JSON.generate([ "Software Engineer", false, nil ]))
+    JobBoardSearchPage.create!(query_digest: digest, keyword: "Software Engineer", remote_only: false,
+      listing_ids: [], next_cursor: "old-cursor", retrieved_at: Time.current)
+    allow(provider).to receive(:call).and_return(ServiceResult.new(success: false, value: nil, errors: [ "Unavailable" ]))
+    result = search
+    expect(result).not_to be_success
+    expect(result.errors).to eq([ "Unavailable" ])
+    expect(JobBoardSearchPage.count).to eq(1)
+  end
+
   it "refreshes exactly at 24 hours and updates the same catalogue UUID" do
     travel_to(Time.utc(2026, 10, 19, 1)) do
       allow(provider).to receive(:call).and_return(successful_page)

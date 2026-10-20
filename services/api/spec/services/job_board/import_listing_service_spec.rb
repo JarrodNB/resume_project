@@ -17,12 +17,26 @@ RSpec.describe JobBoard::ImportListingService do
     described_class.call(user: owner, listing: source)
   end
 
+  it "derives new import locations from a legacy catalogue snapshot" do
+    listing.update!(payload: listing.payload.except("location").merge("locations" => [
+      { "country_code" => "US", "city_name" => "Alpharetta", "state_code" => "GA" }
+    ]))
+    expect(import.value[:job].location).to eq("Alpharetta, GA, US")
+  end
+
+  it "preserves an existing blank location when the provider gains a location" do
+    job = import.value[:job]
+    job.update!(location: nil)
+    listing.update!(payload: listing.payload.merge("locations" => [ { "country_code" => "US", "city_name" => "Alpharetta", "state_code" => "GA" } ]))
+    expect(import.value[:job].reload.location).to be_nil
+  end
+
   it "keeps edits and application state on repeated imports" do
     job = import.value[:job]
-    job.update!(title: "My edited title", stage: "applied", url: "https://edited.test")
+    job.update!(title: "My edited title", location: "My location", stage: "applied", url: "https://edited.test")
     listing.update!(payload: listing.payload.merge("title" => "Provider refresh"))
     expect { expect(import.value[:job]).to eq(job) }.not_to change(Job, :count)
-    expect(job.reload).to have_attributes(title: "My edited title", stage: "applied", url: "https://edited.test")
+    expect(job.reload).to have_attributes(title: "My edited title", location: "My location", stage: "applied", url: "https://edited.test")
   end
 
   it "reuses a tracked URL match without overwriting the saved application" do

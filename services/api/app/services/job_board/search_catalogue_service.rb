@@ -4,6 +4,8 @@ require "digest"
 
 module JobBoard
   class SearchCatalogueService < ApplicationService
+    NORMALIZATION_REVISION = 1
+
     # @param keyword [String] a provider search phrase; case and punctuation are preserved
     # @param remote_only [Boolean] require remote listings
     # @param cursor [String, nil] exact opaque continuation token; nil is the first page
@@ -21,7 +23,7 @@ module JobBoard
       return failure("Invalid search filters.") unless [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
 
       @keyword = @keyword.strip.gsub(/ +/, " ")
-      @query_digest = Digest::SHA256.hexdigest(JSON.generate([ @keyword, @remote_only, @cursor ]))
+      @query_digest = Digest::SHA256.hexdigest(JSON.generate([ NORMALIZATION_REVISION, @keyword, @remote_only, @cursor ]))
       JobBoardSearchPage.transaction do
         # A transaction-scoped advisory lock also protects the first miss (no row exists).
         # Signed 64-bit SHA prefix is stable across Ruby processes; collisions only serialize.

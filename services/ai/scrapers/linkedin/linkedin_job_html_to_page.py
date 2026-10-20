@@ -1,9 +1,7 @@
-"""
-Description: Reads a LinkedIn guest job page into a JobPage, and the scraper entry point that
-ties URL parsing, fetching, and reading together.
-Index:
-    - linkedin_job_html_to_page: JobPage from the page's top card and description markup
-    - scrape_linkedin_job: URL -> JobPage; raises UnsupportedJobUrlError for other URLs
+"""Read one LinkedIn guest posting into its title, employer, location, and HTML.
+
+Keep location spans out of the employer fallback. Fetch through the supplied
+HTTP client and reject pages without a readable job title.
 """
 
 import re
@@ -18,7 +16,7 @@ from scrapers.linkedin.parse_linkedin_job_url import linkedin_job_url, parse_lin
 
 SOURCE_NAME = "linkedin"
 TITLE_SELECTOR = ".top-card-layout__title, .topcard__title"
-COMPANY_SELECTORS = (".topcard__org-name-link", ".topcard__flavor")
+COMPANY_SELECTORS = (".topcard__org-name-link", ".topcard__flavor:not(.topcard__flavor--bullet)")
 LOCATION_SELECTOR = ".topcard__flavor.topcard__flavor--bullet"
 DESCRIPTION_SELECTORS = (".show-more-less-html__markup", ".description__text")
 WHITESPACE = re.compile(r"\s+")

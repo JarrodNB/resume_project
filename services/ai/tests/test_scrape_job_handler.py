@@ -1,10 +1,7 @@
-"""
-Description: Tests for the scrape_job handler against a fake LinkedIn (httpx.MockTransport), with
-the sorting agent on TestModel.
-Index:
-    - load_linkedin_fixture: a synthetic LinkedIn guest job page from tests/fixtures/linkedin
-    - build_scrape_job_task: a scrape_job task for a URL
-    - test_*: one behavior per test
+"""Check scrape-job results and failures against synthetic LinkedIn pages.
+
+Use a fake HTTP transport and test model so extraction, field mapping, and
+retry behavior can be verified without real site or provider requests.
 """
 
 from pathlib import Path
@@ -161,3 +158,28 @@ def test_throttling_and_server_errors_propagate_for_a_retry(
         handle_ai_task(
             build_scrape_job_task("https://www.linkedin.com/jobs/view/4001"), task_dependencies
         )
+
+
+@pytest.mark.parametrize("company", ["", "Example Company"])
+def test_location_is_not_used_as_company(
+    company: str, task_dependencies: TaskDependencies, fake_job_site: FakeJobSite
+) -> None:
+    """A location before an optional employer span never becomes the employer."""
+    employer = f'<span class="topcard__flavor">{company}</span>' if company else ""
+    fake_job_site.pages[GUEST_JOB_URL.format(job_id="4010")] = (
+        '<h2 class="top-card-layout__title">Engineer</h2>'
+        '<span class="topcard__flavor topcard__flavor--bullet">Seattle, WA</span>'
+        f'{employer}<div class="show-more-less-html__markup">'
+        '<h3>Requirements</h3><ul><li>Python</li></ul></div>'
+    )
+
+    result = handle_ai_task(
+        build_scrape_job_task("https://www.linkedin.com/jobs/view/4010"), task_dependencies
+    )
+
+    assert result.status == "completed"
+    posting = ScrapedJobPosting.model_validate(result.result["scraped_job"])
+    assert posting.company == company
+    assert posting.location == "Seattle, WA"
+    assert posting.requirements == ["Python"]
+    assert result.usage == []

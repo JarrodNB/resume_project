@@ -1,6 +1,6 @@
 """Capture local task transcripts independently of provider accounting.
 
-Record masked model exchanges and delivery outcomes in task-grouped files.
+Record masked model exchanges and delivery outcomes in one file per AI task.
 Logging failures must never change task results or replace provider errors.
 """
 import fcntl
@@ -38,18 +38,6 @@ class Transcript:
 _current = ContextVar("conversation_transcript", default=None)
 
 
-def _group(task):
-    """Groups only validated UUIDs; missing/invalid identifiers use the task."""
-    key = "job_id" if task.task_type in ("analyze_gaps", "tailor_resume") else "question_set_id"
-    if task.task_type in ("analyze_gaps", "tailor_resume", "generate_interview_questions",
-                          "regenerate_interview_question", "review_interview_answer"):
-        try:
-            return key.removesuffix("_id"), UUID(str(task.input.get(key)))
-        except (ValueError, TypeError, AttributeError):
-            pass
-    return "task", task.ai_task_id
-
-
 def _timestamp():
     """Returns readable UTC time for each observed block."""
     return datetime.now(UTC).isoformat()
@@ -61,10 +49,11 @@ def conversation_scope(task, settings, attempt_id, receive_count):
     transcript = None
     if settings.worker_environment == "local" and settings.conversation_logging_enabled:
         try:
-            kind, group = _group(task)
-            transcript = Transcript(Path("conversation_logs") / str(task.user_id) / f"{kind}-{group}.md", attempt_id)
-            transcript.append(f"## Attempt {attempt_id} — {_timestamp()}\n\n"
-                              f"User: {task.user_id}\nGroup: {kind} {group}\n"
+            transcript = Transcript(Path("conversation_logs") / str(task.user_id) / f"task-{task.ai_task_id}.md", attempt_id)
+            label = "INITIAL ATTEMPT" if receive_count == 1 else "RETRY / REDELIVERY"
+            transcript.append(f"## {label} — delivery {receive_count} — {_timestamp()}\n\n"
+                              f"Attempt: {attempt_id}\n"
+                              f"User: {task.user_id}\n"
                               f"Task: {task.task_type} {task.ai_task_id}\nReceive count: {receive_count}\n"
                               f"Generation: {task.input.get('generation')}\n"
                               "Status: started (unfinished until an outcome is recorded)")
@@ -114,19 +103,20 @@ def publish_result(queue, result):
     try:
         queue.send_message(result.model_dump_json())
     except BaseException as error:
-        record_outcome(f"{result.status} result publication failed ({type(error).__name__}); task will redeliver")
+        record_outcome(f"{result.status} result publication failed ({type(error).__name__}); task will redeliver",
+                       event="PUBLICATION FAILURE")
         raise
     if result.status != "usage":
         record_outcome(f"{result.status} result published")
     elif result.attempt_finished:
-        record_outcome("retry pending; usage published")
+        record_outcome("retry pending; usage published", event="RETRY PENDING")
 
 
-def record_outcome(outcome):
+def record_outcome(outcome, *, event="Outcome"):
     """Records lifecycle outcomes without changing queue or accounting behavior."""
     try:
         transcript = _current.get()
         if transcript:
-            transcript.append(f"### Attempt {transcript.attempt} - {_timestamp()}\n\nOutcome: {outcome}")
+            transcript.append(f"### {event} — Attempt {transcript.attempt} — {_timestamp()}\n\nOutcome: {outcome}")
     except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
         logger.warning("Conversation outcome could not be rendered")

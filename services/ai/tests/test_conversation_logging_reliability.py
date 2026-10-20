@@ -1,7 +1,7 @@
-"""
-Description: Transcript lifecycle, failure isolation, and multiprocess append regressions.
-Index:
-    - test_*: fallback, redelivery, generations, publication and append integrity
+"""Check local transcripts across retries, failures, and concurrent writes.
+
+Use fake providers and queues to verify logging preserves original task
+behavior even when rendering or file writes fail.
 """
 import json
 import multiprocessing
@@ -11,8 +11,8 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelHTTPError
 from pydantic_ai.messages import ModelResponse, TextPart
-
 from pydantic_ai.models.function import FunctionModel
+
 from conversation_logging import Transcript
 from tests.test_process_task_message import FakeResultQueue, build_task_body
 from worker import main
@@ -155,10 +155,12 @@ def test_logging_failure_preserves_provider_exception(monkeypatch, tmp_path, bro
         """Raises an identifiable provider exception."""
         raise original
     task = AiTaskMessage.model_validate_json(build_task_body())
-    with conversation_logging.conversation_scope(task, WorkerSettings(worker_environment="local"), uuid4(), 1):
-        with collect_task_usage() as usage:
-            model = FunctionModel(fail, model_name="synthetic")
-            with pytest.raises(ValueError) as caught:
-                Agent(generative_model(model, model)).run_sync("request")
-            assert caught.value is original
-            assert usage.incomplete is True
+    with (
+        conversation_logging.conversation_scope(task, WorkerSettings(worker_environment="local"), uuid4(), 1),
+        collect_task_usage() as usage,
+    ):
+        model = FunctionModel(fail, model_name="synthetic")
+        with pytest.raises(ValueError) as caught:
+            Agent(generative_model(model, model)).run_sync("request")
+        assert caught.value is original
+        assert usage.incomplete is True

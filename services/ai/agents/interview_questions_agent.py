@@ -13,6 +13,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from prompts.interview_question_instructions import (
     INTERVIEW_QUESTIONS_INSTRUCTIONS,
     INTERVIEW_QUESTIONS_PROMPT_VERSION,
@@ -38,7 +39,7 @@ interview_questions_agent = Agent(
     instructions=INTERVIEW_QUESTIONS_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

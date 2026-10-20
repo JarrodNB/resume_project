@@ -12,6 +12,7 @@ from pydantic_ai import Agent
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RunUsage
 
+from conversation_logging import ConversationLogging
 from prompts.user_text_fallback_instructions import (
     USER_TEXT_FALLBACK_INSTRUCTIONS,
     USER_TEXT_FALLBACK_PROMPT_VERSION,
@@ -25,6 +26,7 @@ from worker.tracing import record_prompt_version
 user_text_fallback_agent = Agent(
     name="user_text_fallback_agent", output_type=UserTextFallbackScreen,
     instructions=USER_TEXT_FALLBACK_INSTRUCTIONS, defer_model_check=True,
+    capabilities=[ConversationLogging()],
 )
 
 

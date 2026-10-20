@@ -15,6 +15,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.decision import DecisionModelSettings
 from pydantic_ai.usage import RunUsage
 
+from conversation_logging import ConversationLogging
 from prompts.user_text_screen_instructions import (
     USER_TEXT_SCREEN_INSTRUCTIONS,
     USER_TEXT_SCREEN_PROMPT_VERSION,
@@ -35,6 +36,7 @@ user_text_screen_agent = Agent(
     output_type=UserTextScreen,
     instructions=USER_TEXT_SCREEN_INSTRUCTIONS,
     defer_model_check=True,
+    capabilities=[ConversationLogging()],
 )
 
 

@@ -49,6 +49,8 @@ instructions from `prompts/`.
   builders bind exact prompts to screened source values; unknown direct input and history
   are screened, while approved sources do not incur a second assembled-prompt pass.
   Keep existing structured-output validators. Both safety classifiers are exempt to prevent recursion.
+- Every agent also declares `ConversationLogging()` to observe validation feedback and
+  exhaustion. Logging owns its state and presentation; agents keep their validation policy.
 - Create agents with `defer_model_check=True` and pass the model per run (from
   `WorkerSettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.

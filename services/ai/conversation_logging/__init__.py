@@ -7,14 +7,115 @@ import fcntl
 import logging
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
+from pydantic import ValidationError
+from pydantic_ai.capabilities import AbstractCapability
+from pydantic_ai.exceptions import ModelRetry, ToolRetryError, UnexpectedModelBehavior
+from pydantic_ai.messages import ModelRequest, RetryPromptPart
+
 from conversation_logging.render import render_instructions, render_messages
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _RunObservation:
+    run_id: str | None
+    request_id: UUID | None = None
+    model: str | None = None
+    provider_error: BaseException | None = None
+    seen: set[int] = field(default_factory=set)
+
+
+_run = ContextVar("conversation_run", default=None)
+
+
+class ConversationLogging(AbstractCapability):
+    """Observe new validation feedback at node boundaries, including terminal rejection.
+
+    Per-run context isolates nested/concurrent agents. Initial history is retained in
+    snapshots, but never announced as newly observed failures.
+    """
+
+    async def wrap_run(self, ctx, *, handler):
+        """Restore parent observation state after success, failure or cancellation."""
+        if _current.get() is None:
+            return await handler()
+        try:
+            state = _RunObservation(ctx.run_id, seen={id(part) for message in ctx.messages for part in message.parts})
+        except Exception:  # noqa: BLE001 - failed observation must still execute the agent
+            logger.warning("Conversation run could not be initialized")
+            state = None
+        token = _run.set(state)
+        try:
+            return await handler()
+        finally:
+            _run.reset(token)
+
+    async def wrap_node_run(self, ctx, *, node, handler):
+        """Observe feedback only after execution, without recovering execution errors."""
+        try:
+            result = await handler(node)
+        except UnexpectedModelBehavior as error:
+            _observe_exhaustion(error)
+            raise
+        else:
+            _observe_feedback(ctx.messages)
+            return result
+
+
+def _observe_exhaustion(error):
+    """Read only explicit validation causes; unrelated run errors have no such event."""
+    try:
+        state = _run.get()
+        if state is None or error is state.provider_error:
+            return
+        cause = error.__cause__
+        if isinstance(cause, ToolRetryError):
+            _validation_event(cause.tool_retry, exhausted=True)
+        elif isinstance(cause, ValidationError):
+            _validation_event(RetryPromptPart(cause.errors(include_url=False)), exhausted=True)
+        elif isinstance(cause, ModelRetry):
+            _validation_event(RetryPromptPart(cause.message), exhausted=True)
+    except Exception:  # noqa: BLE001 - preserve the original execution error
+        logger.warning("Conversation validation exhaustion could not be observed")
+
+
+def _observe_feedback(messages):
+    """Announce newly appended retry parts once, retaining full snapshot histories."""
+    try:
+        state = _run.get()
+        if state is not None:
+            for message in messages:
+                if isinstance(message, ModelRequest):
+                    for part in message.parts:
+                        if isinstance(part, RetryPromptPart) and id(part) not in state.seen:
+                            state.seen.add(id(part))
+                            _validation_event(part)
+    except Exception:  # noqa: BLE001 - preserve a completed node's result
+        logger.warning("Conversation validation feedback could not be observed")
+
+
+def _validation_event(part, *, exhausted=False):
+    """Render only available masked retry feedback, preserving the original outcome."""
+    try:
+        transcript, state = _current.get(), _run.get()
+        if transcript is None or state is None:
+            return
+        # Validation runs after response restoration; mask again at this capture boundary.
+        from pydantic_ai.models import ModelRequestParameters
+
+        from worker.contact_mask import mask_outbound
+        feedback = mask_outbound(render_messages([ModelRequest(parts=[part])], ModelRequestParameters()))
+        label = "VALIDATION EXHAUSTED" if exhausted else "VALIDATION FAILURE / RETRY"
+        transcript.append(f"### {label} — Attempt {transcript.attempt} — {_timestamp()}\n\n"
+                          f"Run: {state.run_id}\nRequest: {state.request_id}\nModel: {state.model}\n\n" + feedback)
+    except Exception:  # noqa: BLE001 - observation cannot replace a validation result/error
+        logger.warning("Conversation validation event could not be rendered")
 
 
 @dataclass
@@ -75,6 +176,10 @@ async def observe_request(model, messages, model_settings, parameters):
     prefix = f"### Attempt {transcript.attempt} / Request {request_id}" if transcript else ""
     if transcript:
         try:
+            state = _run.get()
+            if state is not None:
+                state.request_id, state.model = request_id, model.model_id
+                state.provider_error = None
             transcript.append(f"{prefix} — Request snapshot — {_timestamp()}\n\nModel: {model.model_id}\n\n"
                               + render_instructions(parameters) + render_messages(messages, parameters))
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
@@ -84,7 +189,10 @@ async def observe_request(model, messages, model_settings, parameters):
     except BaseException as error:
         # Provider exception text can contain restored contact values or arbitrary payloads.
         try:
-            transcript.append(f"{prefix} - Provider error: {type(error).__name__} - {_timestamp()}\n\n"
+            if state is not None:
+                state.provider_error = error
+            transcript.append(f"### PROVIDER FAILURE — Attempt {transcript.attempt} / Request {request_id} — {_timestamp()}\n\n"
+                              f"Model: {model.model_id}\nProvider error: {type(error).__name__}\n\n"
                               "Partial response unavailable: the provider returned no response object.")
         except Exception:  # noqa: BLE001 - preserve the original provider error if logging fails
             logger.warning("Conversation provider error could not be rendered")

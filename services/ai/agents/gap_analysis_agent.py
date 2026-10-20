@@ -17,6 +17,7 @@ from pydantic_ai.settings import ModelSettings, ThinkingEffort
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
+from conversation_logging import ConversationLogging
 from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt
 from gap_analysis.find_gap_analysis_problems import find_gap_analysis_problems
 from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS, GAP_ANALYSIS_PROMPT_VERSION
@@ -36,7 +37,7 @@ gap_analysis_agent = Agent(
     instructions=GAP_ANALYSIS_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
-    capabilities=[InputGuardrail(guard=screen_prompt)],
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 

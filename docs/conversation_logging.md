@@ -30,7 +30,14 @@ responses are recorded before contact restoration.
 System instructions remain readable text. Request parameter dumps, tool definitions,
 and output JSON schemas are omitted to keep exchanges easy to read.
 
-A provider failure keeps its request and error type. Exception messages are
+`VALIDATION FAILURE / RETRY` marks newly observed validation feedback. The heading
+includes the run, concrete request and model identity; feedback stays readable below
+it. `VALIDATION EXHAUSTED` marks the terminal rejection, including when no further
+provider request is made. Full request snapshots still repeat earlier feedback under
+the ordinary `Validation retry` label; those repetitions are not new failure events.
+Validation feedback is masked again because validators can see restored contact text.
+
+`PROVIDER FAILURE` keeps its concrete request/model identity and error type. Exception messages are
 omitted because provider errors can include arbitrary private payloads. No
 partial response is invented when the provider supplies no response object.
 Hidden reasoning and unexposed network data are unavailable.

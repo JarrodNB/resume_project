@@ -1,0 +1,24 @@
+# Isolates human auth QA from the normal stack, including cookies (ports alone do not).
+# Merge with root docker-compose.yml using the explicit retained checkout in the runbook.
+# The runbook starts only API/web, clears the API env file, and keeps mail in local files.
+services:
+  db:
+    ports: !reset []
+  sqs:
+    ports: !reset []
+  s3:
+    ports: !reset []
+  api:
+    env_file: !reset []
+    environment:
+      CORS_ORIGINS: http://127.0.0.5:5179
+      WEB_APP_URL: http://127.0.0.5:5179
+      MAIL_FROM: Careergrind QA <qa@example.test>
+      OPENAI_API_KEY: ""
+    ports: !override
+      - "127.0.0.5:3005:3000"
+  web:
+    environment:
+      VITE_API_URL: http://127.0.0.5:3005
+    ports: !override
+      - "127.0.0.5:5179:5173"

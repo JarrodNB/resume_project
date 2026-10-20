@@ -271,3 +271,10 @@ library's lookup or cryptography.
 - [Offline password validator release source and tests](https://github.com/HCLarsen/devise-uncommon_password/tree/v0.4.9)
 - [Validator MIT license](https://github.com/HCLarsen/devise-uncommon_password/blob/v0.4.9/MIT-LICENSE)
 - [SecLists source and MIT license](https://github.com/danielmiessler/SecLists)
+
+## Release and audit records
+
+Use the [account rollout and human QA runbook](../operations/authentication-rollout.md)
+for coordinated migration/deployment, production delivery setup, rollback and the
+cookie-isolated local review stack. The [focused boundary audit](../security/authentication-audit.md)
+records inspected paths, executed checks and unresolved tooling/environment limits.

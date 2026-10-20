@@ -176,3 +176,22 @@ def test_unsupported_content_type_raises() -> None:
     """Only PDF and DOCX are supported."""
     with pytest.raises(UnsupportedDocumentError):
         extract_document_text(b"hello", "text/plain")
+
+
+def test_docx_text_includes_nested_tables_in_cell_order() -> None:
+    """Nested resume layouts keep their details between surrounding cell paragraphs."""
+    document = Document()
+    cell = document.add_table(rows=1, cols=1).cell(0, 0)
+    cell.paragraphs[0].text = "Experience"
+    nested_cell = cell.add_table(rows=1, cols=1).cell(0, 0)
+    nested_cell.paragraphs[0].text = "Example Company"
+    nested_cell.add_table(rows=1, cols=1).cell(0, 0).text = "Built Python APIs"
+    cell.add_paragraph("Education")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert [line for line in text.splitlines() if line] == [
+        "Experience", "Example Company", "Built Python APIs", "Education",
+    ]

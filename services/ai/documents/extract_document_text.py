@@ -1,7 +1,7 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
-Keep DOCX paragraphs and tables in document order, retaining list markers and
-hyperlink labels and targets so the resume parser can use their context.
+Keep DOCX paragraphs and tables, including nested tables, in document order.
+Retain list markers and hyperlink labels and targets for the resume parser.
 """
 
 from io import BytesIO
@@ -142,15 +142,20 @@ def _text_inside_rectangle(
 def _extract_docx_text(file_bytes: bytes) -> str:
     """Joins paragraphs and table cells in order, retaining hyperlink destinations."""
     document = Document(BytesIO(file_bytes))
+    return "\n".join(_docx_block_lines(document))
+
+
+def _docx_block_lines(container: Any) -> list[str]:
+    """Read document or cell blocks in order, descending into nested tables."""
     lines: list[str] = []
-    for block in document.iter_inner_content():
+    for block in container.iter_inner_content():
         if isinstance(block, Paragraph):
             lines.append(_docx_paragraph_text(block))
         else:
             for row in block.rows:
                 for cell in row.cells:
-                    lines.extend(_docx_paragraph_text(paragraph) for paragraph in cell.paragraphs)
-    return "\n".join(lines)
+                    lines.extend(_docx_block_lines(cell))
+    return lines
 
 
 def _docx_paragraph_text(paragraph: Any) -> str:

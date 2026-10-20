@@ -33,6 +33,8 @@ module Types
 
     field :update_profile, mutation: Mutations::Users::UpdateProfile
 
+    field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
+
     field :create_job, mutation: Mutations::Jobs::CreateJob
     field :update_job, mutation: Mutations::Jobs::UpdateJob
     field :move_job_to_stage, mutation: Mutations::Jobs::MoveJobToStage

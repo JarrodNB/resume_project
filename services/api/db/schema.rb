@@ -184,6 +184,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_030000) do
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
   end
 
+  create_table "job_board_listings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.bigint "provider_id", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["provider_id"], name: "index_job_board_listings_on_provider_id", unique: true
+  end
+
+  create_table "job_board_search_pages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "query_digest", null: false
+    t.string "keyword", null: false
+    t.boolean "remote_only", default: false, null: false
+    t.text "cursor"
+    t.uuid "listing_ids", default: [], null: false, array: true
+    t.text "next_cursor"
+    t.datetime "retrieved_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["query_digest"], name: "index_job_board_search_pages_on_query_digest", unique: true
+  end
+
   create_table "job_gap_responses", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "job_id", null: false
     t.text "requirement", null: false
@@ -211,6 +232,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_030000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.jsonb "responsibilities", default: [], null: false
+    t.uuid "job_board_listing_id"
+    t.index ["job_board_listing_id"], name: "index_jobs_on_job_board_listing_id"
+    t.index ["user_id", "job_board_listing_id"], name: "index_jobs_on_user_id_and_job_board_listing_id", unique: true
     t.index ["user_id", "stage"], name: "index_jobs_on_user_id_and_stage"
     t.index ["user_id"], name: "index_jobs_on_user_id"
   end
@@ -346,6 +370,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_030000) do
   add_foreign_key "interview_questions", "interview_question_sets"
   add_foreign_key "job_gap_responses", "jobs"
   add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
+  add_foreign_key "jobs", "job_board_listings", on_delete: :nullify
   add_foreign_key "jobs", "users"
   add_foreign_key "library_embeddings", "users", on_delete: :cascade
   add_foreign_key "library_facts", "users"

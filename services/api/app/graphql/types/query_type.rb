@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# Description: Root query fields. Everything is read through `current_user` associations, so a
-# user can only ever see their own records.
+# Root queries keep private records owner-scoped. Authenticated Job Board search
+# reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
@@ -14,6 +14,17 @@ module Types
     field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false
     field :interview_question_set, Types::InterviewQuestionSetType, null: false do
       argument :id, ID, required: true
+    end
+
+    field :job_board_search, Types::JobBoardSearchPageType, null: false do
+      argument :keyword, String, required: true
+      argument :remote_only, Boolean, required: false, default_value: false
+      argument :cursor, String, required: false
+    end
+
+    def job_board_search(keyword:, remote_only: false, cursor: nil)
+      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, cursor: cursor)
+      result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
     end
 
     field :me, Types::UserType, null: false

@@ -426,6 +426,7 @@ DEPENDENCIES
   graphql
   image_processing (~> 1.2)
   neighbor (~> 1.2)
+  nokogiri
   openai (~> 0.99.0)
   pg (~> 1.1)
   puma (>= 5.0)

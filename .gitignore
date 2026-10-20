@@ -76,7 +76,8 @@ crash.*.log
 /running_notes.txt
 /docs/pydanticAI/
 /docs/evals/*
-docs/research/*
+/docs/research/*
+!docs/research/cleanjobdata-api.md
 /docs/plans/*
 Workflow.md
 KANBAN.md

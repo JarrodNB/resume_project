@@ -26,3 +26,7 @@ GraphQL mutations grouped by domain, including interview_prep/.
 ## Local Rules
 
 Resolve records through current_user, then delegate to services. Question operations scope questionId through an owned questionSetId. Preserve errors in mutation payloads.
+
+Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
+All saved Job lookup remains scoped to the current user, including listing/URL matches via
+JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.

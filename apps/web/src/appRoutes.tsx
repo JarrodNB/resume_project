@@ -1,7 +1,7 @@
 /**
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
- *   - appRoutes: public auth pages, then signed-in pages inside AppLayout
+ *   - appRoutes: public auth pages, then signed-in pages inside AppLayout, including shared Job Board discovery
  */
 import { Navigate, type RouteObject } from 'react-router'
 import { AppLayout } from '@/components/AppLayout'
@@ -17,6 +17,7 @@ import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
 import { JobDetailPage } from '@/features/jobs/JobDetailPage'
 import { JobPasteTaskPage } from '@/features/jobs/JobPasteTaskPage'
 import { JobScrapeTaskPage } from '@/features/jobs/JobScrapeTaskPage'
+import { JobBoardPage } from '@/features/job-board/JobBoardPage'
 import { JobsPage } from '@/features/jobs/JobsPage'
 import { ResumeImportTaskPage } from '@/features/resume-import/ResumeImportTaskPage'
 import { ResumeUploadPage } from '@/features/resume-import/ResumeUploadPage'
@@ -49,6 +50,7 @@ export const appRoutes: RouteObject[] = [
           { path: '/library', element: <CareerLibraryPage /> },
           { path: '/import', element: <ResumeUploadPage /> },
           { path: '/import/:aiTaskId', element: <ResumeImportTaskPage /> },
+          { path: '/job-board', element: <JobBoardPage /> },
           { path: '/jobs', element: <JobsPage /> },
           { path: '/jobs/new', element: <AddJobFromUrlPage /> },
           { path: '/jobs/new/:aiTaskId', element: <JobScrapeTaskPage /> },

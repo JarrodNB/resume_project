@@ -1,7 +1,7 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
-Keep DOCX paragraphs and tables, including nested tables, in document order.
-Retain list markers and hyperlink labels and targets for the resume parser.
+Keep DOCX paragraphs and tables in document order, retaining list markers and
+hyperlink labels and targets so the resume parser can use their context.
 """
 
 from io import BytesIO

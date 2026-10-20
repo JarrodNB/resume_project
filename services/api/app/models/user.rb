@@ -5,7 +5,7 @@
 #   - profile columns: name, contact_email, phone, location, links, summary
 #   - career library: experiences, projects, educations (most recent first), certifications (issued date), skills (by position),
 #     library_facts (answers the user added from gap analysis, by created_at)
-#   - jobs, resumes, ai_tasks, interview_question_sets
+#   - jobs, resumes, ai_tasks, interview_question_sets, basic_interviews
 #   - library_embeddings: vectors of the career library entries (derived data)
 class User < ApplicationRecord
   devise :database_authenticatable, :registerable, :validatable, :uncommon_password, :confirmable, :recoverable
@@ -19,6 +19,7 @@ class User < ApplicationRecord
   has_many :jobs, dependent: :destroy
   has_many :resumes, dependent: :destroy
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
+  has_many :basic_interviews, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_tasks, dependent: :destroy
   has_many :library_embeddings, dependent: :delete_all
 

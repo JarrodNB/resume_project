@@ -77,10 +77,14 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 ## Cross-Service Rules
 
 - Rails is the source of truth for domain data. The AI service connects with a read-only
-  database role and returns everything it produces via the `ai_results` queue.
+  database role and returns everything it produces via the `ai_results` queue, except
+  Basic Interview results accepted through the scoped internal HTTP boundary below.
 - SQS can deliver a message more than once. Every handler on either side of the queue must
   be safe to run twice (see [Duplicate Messages](docs/architecture/ai-tasks.md#duplicate-messages)).
-- Long-running AI work goes through SQS (ElasticMQ locally), never synchronous HTTP.
+- Long-running AI work goes through SQS (ElasticMQ locally). Basic Interview is the
+  scoped exception: its separate AI-service FastAPI runtime claims durable Rails-owned
+  operations over authenticated internal HTTP and runs them asynchronously. Browser
+  requests never wait for model execution. See docs/architecture/basic-interviews.md.
 - All LLM calls go through the AI service and are traced in Logfire. One exception: Rails
  embeds career library entries and saved interview Q&A itself (OpenAI embeddings API,
  `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),

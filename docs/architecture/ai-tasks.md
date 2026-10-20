@@ -186,10 +186,10 @@ The worker retries through SQS redelivery instead of in-process loops:
   Because subscription triggers come from that process, ActionCable uses Solid Cable in
   development too.
 
-- **Plain Python workers, no FastAPI.** All communication is over SQS, so the AI service
-  needs no HTTP layer. Trade-off: SQS can't stream LLM tokens to the browser. If live
-  streaming is needed later (e.g. the gap analysis chat), add a small HTTP/WebSocket
-  service at that point.
+- **Queued features use plain Python workers.** Their communication stays on SQS; no
+  HTTP layer or token streaming is added to those workers. Basic Interview has a scoped
+  [internal HTTP exception](basic-interviews.md): a separate FastAPI runtime claims
+  Rails-owned durable operations. It does not change existing queue contracts.
 
 - **AI tasks outlive their job.** `Job has_many :ai_tasks, dependent: :nullify`: deleting a job
   clears the tasks' subject but keeps them, so their cost still counts toward the monthly

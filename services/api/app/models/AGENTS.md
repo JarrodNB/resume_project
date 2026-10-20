@@ -60,3 +60,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - Practice set scopes are immutable `general`, `technical`, or `knowledge`; legacy data defaults to general.
 
 - Interview task types: `generate_interview_questions`, `regenerate_interview_question`, and `review_interview_answer`; Python handlers return structured results, and `InterviewPrep` services apply them through `AiTasks::ApplyAiResultService`.
+
+- `basic_interview*` — separate spoken demo sessions, prepared questions, accepted
+  dialogue and durable turn/speech work. Composite foreign keys keep linked records in
+  one interview. Lifecycle policy stays in `BasicInterviews` services.

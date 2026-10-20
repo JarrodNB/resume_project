@@ -7,18 +7,23 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 
 ## Stack
 
-Python SQS workers (no web framework; ElasticMQ locally), boto3, Pydantic, Pydantic AI
+Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
-retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
+retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
+separate FastAPI runtime planned; this first slice implements its Rails persistence only.
 
 ## Local Rules
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
+  Basic Interview is the scoped exception: a separate FastAPI process claims durable
+  operations and returns results through authenticated internal Rails HTTP. Rails still
+  owns every domain write; existing queued features keep their transport and behavior.
+  See docs/architecture/basic-interviews.md for the boundary and staged implementation.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
   analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
   the embeddings; the worker only embeds search queries. Every query is scoped by the task
   message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
-  (`lib/ai_reader_access.rb`); a new table needs a grant there. Uploaded files are read (never written) from the S3 uploads bucket by
+  (`lib/ai_reader_access.rb`); a new table needs a grant there. Queued-task uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.

@@ -29,7 +29,8 @@ application stages, and deleted.
   without comparing. "Open resume" goes to `/resumes/:id` when one is already
   saved, and that page's breadcrumb returns here.
   requirements, responsibilities, nice-to-haves, notes, description (those cards start collapsed, remembered per
-  job), the applied date once set, and a link to the original posting
+  job), the applied date once set, and a "Visit website" link to the saved URL. The link
+  opens a new tab and does not change the application stage; omit it when no URL is saved.
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared
   add and edit form; every field is sent, and a blank optional string is stored as null
 - `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `ConfirmWriteResumeDialog.tsx`,

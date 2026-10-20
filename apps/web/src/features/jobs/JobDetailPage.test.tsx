@@ -1,5 +1,5 @@
 /**
- * Description: Editing a job, moving its stage, deleting it, and starting a resume from the job page.
+ * Checks saved-job actions: editing, stages, deletion, resumes, and visiting the saved website.
  */
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -50,6 +50,35 @@ const savedAttributes = {
   responsibilities: [],
   niceToHaves: [],
 }
+
+it('offers the saved website in a new tab without changing the application stage', async () => {
+  const user = userEvent.setup()
+  const moveStage = vi.fn(() => ({ data: { moveJobToStage: { __typename: 'MoveJobToStagePayload', errors: [] } } }))
+  renderPage({
+    path: '/jobs/:id',
+    url: '/jobs/job-1',
+    element: <JobDetailPage />,
+    mocks: [
+      jobQuery(job({ url: 'https://example.com/careers/engineer' })),
+      { request: { query: MOVE_JOB_TO_STAGE_MUTATION, variables: () => true }, result: moveStage },
+    ],
+  })
+
+  const website = await screen.findByRole('link', { name: 'Visit website' })
+  expect(website).toHaveAttribute('href', 'https://example.com/careers/engineer')
+  expect(website).toHaveAttribute('target', '_blank')
+  expect(website).toHaveAttribute('rel', 'noreferrer')
+  await user.click(website)
+  expect(moveStage).not.toHaveBeenCalled()
+  expect(screen.getByRole('combobox', { name: 'Stage' })).toHaveValue('UNAPPLIED')
+})
+
+it('omits the website action when no URL is saved', async () => {
+  renderPage({ path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />, mocks: [jobQuery(job())] })
+
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.queryByRole('link', { name: 'Visit website' })).not.toBeInTheDocument()
+})
 
 it('saves an edit and clears an optional field', async () => {
   const user = userEvent.setup()

@@ -137,3 +137,15 @@ The new job-board navigation test was also adapted from the removed JWT helper
 to the real session-bootstrap boundary. The integrated auth/navigation checks
 passed 34 tests, followed by TypeScript and frontend lint. These are compatibility
 repairs; the earlier audit results above describe their recorded snapshot.
+
+A later blind correctness review reproduced two request-throttle gaps: form mail
+requests bypassed the JSON-only address key, and HEAD bootstrap requests bypassed
+the GET-only session counter. Both were repaired with regression tests in
+`spec/requests/rack_attack_spec.rb`. Throttle keys now use Rails' own parameter
+parser and query precedence across accepted encodings; HEAD and GET share the
+bootstrap allowance. The regressions also verify a blocked request does not rotate
+the account's token or create another persisted anonymous session.
+
+Follow-up probes also reproduced optional-format URL bypasses. Limits now use
+Rails route recognition rather than exact path strings. Mixed canonical/`.json`
+mail, GraphQL and HEAD/GET session regressions pass with the shared counters.

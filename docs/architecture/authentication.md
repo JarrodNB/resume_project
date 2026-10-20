@@ -222,6 +222,12 @@ and account per ten minutes. Rails returns JSON 429 with Retry-After. These coun
 use the configured Rails cache; deployment must provide a shared supported cache
 when running multiple API replicas. They do not replace password or token checks.
 
+Address limits use Rails' parsed parameters, including JSON, form and multipart
+bodies and the same query-parameter precedence as controllers. Changing an accepted
+encoding cannot create a separate mailbox allowance. Anonymous session bootstrap
+GET and HEAD requests share one limit of thirty per IP per minute, because either
+method can create persisted session state.
+
 ## New passwords
 
 Devise validates newly chosen passwords at the User boundary: at least 15 Unicode
@@ -278,3 +284,7 @@ Use the [account rollout and human QA runbook](../operations/authentication-roll
 for coordinated migration/deployment, production delivery setup, rollback and the
 cookie-isolated local review stack. The [focused boundary audit](../security/authentication-audit.md)
 records inspected paths, executed checks and unresolved tooling/environment limits.
+
+Rate limits identify actions through Rails route recognition, so optional format
+URLs such as `.json` share their canonical route allowance. Route recognition is
+cached only in the current request; unmatched paths continue to normal routing.

@@ -605,3 +605,14 @@ needed. Scripted service fixtures keep provider playback. Existing saved provide
 and accounting are preserved in browser mode; old real speech reservations are excluded
 from discovery and new claims. Work already executing can finish normally. Preparation,
 transcription, screening and interview reply generation are unchanged.
+
+Browser delivery prefers Google UK English Female, then another British English
+(`en-GB` or `en_GB`) voice, before named English voices, the browser's default English
+voice, or another English voice. An empty voice list gets up to 300 ms to
+load through `voiceschanged`; otherwise playback requests `en-US` with the engine's
+fallback. One selected voice is held through the reply, with rate 1.02 and pitch 0.95.
+Saved text is spoken in sentence/clause chunks of at most 180 Unicode characters.
+The recording interlock remains held across the entire sequence. Stop, mute, capture,
+navigation, errors or stalled chunks cancel the sequence; stale callbacks cannot
+restart it. Actual voice quality depends on the available browser/OS voices and needs
+human listening checks.

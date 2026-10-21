@@ -1,5 +1,45 @@
 # Spoken interview verification — 21 October 2026
 
+## Real speech repair after renewed authorization
+
+The human explicitly authorized short paid diagnostics and a draft fix PR. The retained
+`cg-interview-12-paid` database was used throughout, with no ledger reset. The original
+unknown observation remains unresolved at its US$0.25 estimate. Only that exact historical
+UUID was explicitly reviewed for diagnostic admission; new unknowns still block dispatch.
+The earlier stop instructions below describe the state before this authorization.
+
+Short “Hello.” requests established HTTP 200 and terminal token usage. Two independent
+wire-format failures were reproduced: a trailing `data: [DONE]` after `speech.audio.done`
+was parsed as JSON, and the generated WAV had `0xffffffff` RIFF/data sizes. The latter
+made strict FFmpeg decoding fail with a corrupt-packet error despite complete PCM samples.
+The parser now accepts the transport marker only after valid usage and rejects subsequent
+data. After verified terminal usage, the exact observed 24 kHz mono 16-bit streaming WAV
+header is finalized using the received byte lengths. User recording validation is unchanged.
+The API parameters/model/voice are unchanged; see the official
+[speech endpoint](https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create).
+
+Live verification used manually selected operation claims, with heartbeats, rather than
+starting discovery against old pending work. A short real speech returned a validated
+43,244-byte WAV. A fresh synthetic session then saved its opening speech, transcribed a
+few-second offline Flite recording about a scheduling tool, screened it, accepted the answer
+and the follow-up “What changed for the team after you added the shared calendar?”, and
+saved the follow-up speech through private storage. No prompt/model changes were needed.
+Owner-authorized playback fetched both saved WAV artifacts (259,244 and 160,844 bytes).
+The paid project was then stopped with volumes retained; no provider supervisor is running.
+
+Ten new provider calls reconciled to 4,951 microdollars (US$0.004951), including diagnostic
+calls and the real loop. Two diagnostic usage reports were reconciled through the original
+observation callbacks after inspecting terminal usage; no zero charge was invented. One
+historical unknown reservation remains. Total known spend plus its estimate is US$0.254951.
+The initial cause of the historical attempt cannot be proven retroactively because its
+response was discarded; the new calls establish and repair the two current failures.
+
+Focused checks: 79 offline Python tests passed (audio adapters, real executor, paid runtime,
+strict media); 19 Rails accounting examples passed; focused Ruff and RuboCop passed.
+The SSE regression failed before the parser repair. Browser microphone/playback QA, full
+two-answer live completion, production rollout, and enabling real mode in the fake QA
+database remain outside this fix. The retained fake demo is unchanged.
+
 The offline candidate is retained at
 `/home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi`.
 The preserved `cg-interview-qa` stack serves

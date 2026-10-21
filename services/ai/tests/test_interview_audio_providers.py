@@ -228,6 +228,53 @@ def test_speech_without_terminal_usage_stays_unknown():
     assert rails.usage.call_args.kwargs["incomplete"]
 
 
+def test_speech_accepts_openai_done_sentinel_after_terminal_usage():
+    rails = AsyncMock()
+
+    async def run():
+        async with AudioProviders(
+            rails, api_key="synthetic",
+            transport=httpx.MockTransport(lambda _: httpx.Response(
+                200, content=speech_stream(audio()) + b"data: [DONE]\n\n",
+            )),
+        ) as provider:
+            assert await provider.speak(claim(), "Hello.") == audio()
+
+    asyncio.run(run())
+    assert rails.usage.call_args.args[1][0]["cost_microdollars"] == 1221
+    assert not rails.usage.call_args.kwargs["incomplete"]
+
+
+def test_live_streaming_wav_is_finalized_without_changing_samples():
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(24000)
+        wav.writeframes(b"\x01\x00" * 2400)
+    expected = output.getvalue()
+    streamed = expected[:4] + b"\xff" * 4 + expected[8:40] + b"\xff" * 4 + expected[44:]
+    rails = AsyncMock()
+
+    async def run():
+        async with AudioProviders(
+            rails, api_key="synthetic",
+            transport=httpx.MockTransport(lambda _: httpx.Response(
+                200, content=speech_stream(streamed) + b"data: [DONE]\n\n",
+            )),
+        ) as provider:
+            assert await provider.speak(claim(), "Hello.") == expected
+
+    asyncio.run(run())
+    assert not rails.usage.call_args.kwargs["incomplete"]
+
+
+def test_streaming_wav_finalization_does_not_repair_other_or_partial_headers():
+    malformed = audio()[:4] + b"\xff" * 4 + audio()[8:40] + b"\xff" * 4 + audio()[44:]
+    assert AudioProviders._finalize_speech_wav(malformed) == malformed
+    assert AudioProviders._finalize_speech_wav(b"RIFF") == b"RIFF"
+
+
 def test_cancellation_keeps_unknown_and_invalid_speech_does_not_reserve():
     rails = AsyncMock()
 
@@ -303,6 +350,10 @@ def test_redirects_and_response_bounds_leave_unknown_without_retry(response):
         b'data: {"type":"speech.audio.delta","audio":"$$"}\n\n',
         speech_stream(audio(), {"input_tokens": True, "output_tokens": 1, "total_tokens": 2}),
         speech_stream(audio()) + b'data: {"type":"speech.audio.done"}\n\n',
+        b"data: [DONE]\n\n",
+        b"data: [DONE]\n\n" + speech_stream(audio()),
+        speech_stream(audio()) + b"data: [DONE]\n\ndata: [DONE]\n\n",
+        speech_stream(audio()) + b'data: [DONE]\n\ndata: {"type":"speech.audio.delta","audio":"AA=="}\n\n',
     ],
 )
 def test_malformed_sse_never_becomes_zero_usage(raw):

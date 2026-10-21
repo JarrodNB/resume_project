@@ -23,10 +23,14 @@ case "${1:-}" in
     "${compose[@]}" up -d --no-build api-results-worker ai
     "${compose[@]}" exec -T api bundle exec rails runner '
       raise "Retained paid ledger missing; do not create a replacement allowance" unless InterviewVerificationReservation.exists?
-      raise "Unreviewed unknown provider usage: paid execution remains stopped" if Interviews::VerificationBudget.unreviewed_reservations.exists?
       used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
-      raise "Verification allowance exhausted" if used >= Interviews::VerificationBudget::LIMIT_MICRODOLLARS
-      puts "Verification allowance: #{used} microdollars used or reserved"
+      if Interviews::VerificationBudget.enforced?
+        raise "Unreviewed unknown provider usage: paid execution remains stopped" if Interviews::VerificationBudget.unreviewed_reservations.exists?
+        raise "Verification allowance exhausted" if used >= Interviews::VerificationBudget::LIMIT_MICRODOLLARS
+      else
+        puts "Local interview spending gates disabled; usage and estimates remain recorded"
+      end
+      puts "Recorded usage or estimates: #{used} microdollars (not a provider hold or invoice total)"
       puts "Recoverable real operations: #{InterviewSessionOperation.joins(:interview_session).where(interview_sessions: { execution_mode: "real" }, status: %w[pending running]).count}"
     '
     "${compose[@]}" run --rm --no-deps storage-setup

@@ -136,3 +136,5 @@ All business logic, as service objects grouped by domain folder.
   `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
   root link. Interview monthly spend and in-flight checks include every spoken stage,
   independently of general AI limits and the general public usage summary.
+  `interviews/local_testing.rb` defines the explicit development-only unmetered QA mode:
+  spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.

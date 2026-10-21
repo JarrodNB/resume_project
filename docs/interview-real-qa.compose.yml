@@ -9,6 +9,9 @@ services:
       WEB_APP_URL: http://127.0.0.2:15176
       INTERVIEW_BROWSER_STORAGE_ORIGIN: http://127.0.0.2:19096
       SQS_ENDPOINT_URL: http://sqs:9324
+      # Local interview testing records usage without spend or unknown-cost stop gates.
+      # Rails ignores this opt-in outside development; resource limits remain active.
+      INTERVIEW_LOCAL_TESTING_UNMETERED: "true"
   sqs:
     image: softwaremill/elasticmq-native
     volumes:

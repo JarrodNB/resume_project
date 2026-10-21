@@ -1,6 +1,6 @@
-# Reserve conservative costs against one durable $5 verification target.
+# Record conservative cost estimates and optionally enforce a durable $5 verification target.
 # Call inside the owner/operation transaction. The shared lock always comes last, and
-# no provider or network work runs while it is held. Unknown costs keep their reservation.
+# no provider or network work runs while it is held. Local unmetered testing retains all records.
 module Interviews
   module VerificationBudget
     LIMIT_MICRODOLLARS = 5_000_000
@@ -9,7 +9,7 @@ module Interviews
     # estimate for <=4,000 characters; NOT a proven provider billing ceiling.
     # Token stages use conservative estimates with bounded prompts and 1,024 OpenAI
     # output tokens for dialogue/screening, 4,096 for complete preparation. Actual usage
-    # reconciles every dispatch; new unknown usage stops all.
+    # reconciles every dispatch. These are local estimates, not provider charges or holds.
     RESERVATIONS = { %w[transcription openai gpt-transcribe] => 9_000,
       %w[speech openai gpt-4o-mini-tts] => 250_000,
       %w[screening typesafe jev-1.13.0] => 10_000,
@@ -21,20 +21,25 @@ module Interviews
       return false unless amount
 
       lock
-      # At most one new unresolved paid dispatch globally. Reviewed historical
-      # unknowns retain their estimates; no reservation is automatically released.
-      return false if unreviewed_reservations.exists?
+      # Enforced verification permits one unresolved dispatch globally. Local
+      # unmetered testing skips that stop while retaining every estimate.
+      if enforced?
+        return false if unreviewed_reservations.exists?
 
-      used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
-      return false if used + amount > LIMIT_MICRODOLLARS
+        used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
+        return false if used + amount > LIMIT_MICRODOLLARS
+      end
 
       InterviewVerificationReservation.create!(observation_id: observation_id, reserved_microdollars: amount)
       true
     end
 
-    # A human may authorize a diagnostic despite specific older unknown receipts.
-    # They remain charged at their full estimate; a new unknown still stops work.
-    # Only the explicit development verification process can opt in.
+    def self.enforced?
+      !LocalTesting.unmetered?
+    end
+
+    # Enforced verification can carry explicitly reviewed historical estimates.
+    # Local unmetered QA never consults this list to admit requests.
     def self.unreviewed_reservations
       reviewed = if Rails.env.development? && ENV["INTERVIEW_PAID_VERIFICATION"] == "true"
         ENV.fetch("INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS", "").split(",").select do |id|

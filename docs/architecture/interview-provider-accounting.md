@@ -37,7 +37,22 @@ need account-level paid checks; no silent replacement is permitted.
 
 ## One cumulative verification target
 
-### Explicitly reviewed historical unknowns
+### Development-only unmetered local testing
+
+The real browser-QA overlay explicitly sets `INTERVIEW_LOCAL_TESTING_UNMETERED=true`.
+Only Rails development honors it. This mode skips unknown-cost and cumulative US$5
+verification admission gates, plus interview monthly/hourly allowance gates. It retains
+the original ledger, preregistered provider identities, pricing allowlist, all estimates,
+actual reconciliation, owner scoping, lease fences and resource/attempt limits. General AI
+allowances and non-development admission are unchanged. The launcher honors the same mode;
+local testing no longer requires approving each new unresolved observation.
+
+The 250,000-microdollar speech estimate is local bookkeeping, not money reserved with
+OpenAI, a confirmed charge or a card hold. Unknown estimates stay recorded without being
+assigned zero or deleted. Outside this explicit local mode, the verification rules below
+remain enforced.
+
+### Explicitly reviewed historical unknowns when verification is enforced
 
 The default remains stop-on-unknown. After new human authorization, a development-only
 paid verification process may set `INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS` to a comma-separated
@@ -79,7 +94,7 @@ Admission locks owner → interview → questions → operation/task, then takes
 transaction-scoped PostgreSQL advisory lock for the verification ledger. All admission
 and known-cost reconciliation use that final lock. The transaction includes registration
 and the unfinished usage marker; no provider I/O runs under database locks. Existing
-user allowance and operation/attempt caps still apply.
+user allowance applies when enabled; resource and operation/attempt caps always apply.
 
 By default, at most **one unresolved paid reservation** may exist globally. While a request is in
 flight, another paid admission is refused. A crash, lost receipt or unknown/error report
@@ -101,8 +116,9 @@ occurred may establish actual zero; this operator path permits zero, while autom
 real-provider usage reports continue to reject it as an unsafe fallback. Do not create an automatic release,
 a public reconciliation endpoint, or an inferred zero charge. The helper requires an open
 transaction so its transaction-scoped advisory lock remains held until the update commits.
-If reliable evidence is unavailable, keep paid verification stopped and report the unknown
-charge; never delete ledger rows to keep testing. Old fake QA data remain retained offline.
+If reliable evidence is unavailable, keep the actual cost unknown. Enforced verification
+remains stopped; local unmetered QA can continue without changing that record. Never delete
+ledger rows to keep testing. Old fake QA data remain retained offline.
 
 ## Accounted reasoning and screening
 
@@ -128,8 +144,9 @@ Actual usage is reconciled as before.
 
 Full prepared sessions share one hourly admission, while preparation, every turn and every
 speech retain separate task/attempt/provider bills. The current hourly default is 30;
-session grouping does not bypass the separate interview monthly budget/concurrency limits or
-this permanent US$5 verification ledger. General AI allowances exclude spoken interview work;
+session grouping does not itself bypass interview allowances. Local unmetered QA explicitly
+skips spend/start enforcement, while concurrency and this permanent ledger remain intact.
+General AI allowances exclude spoken interview work;
 its actual bills and unknown markers remain intact in the same durable accounting tables. See [session accounting](interview-sessions.md#http-execution-accounting)
 for ownership checks, finite submission limits and task-month attribution.
 
@@ -139,7 +156,8 @@ Luna uses `prompt_cache_options: {"mode": "explicit"}` without breakpoint marker
 confirms this creates no cache writes. The pinned Pydantic mapper preserves total write
 tokens but drops the 30-minute/12-hour split, so silently pricing writes as ordinary input
 would undercount. Unexpected Luna write tokens leave usage unknown and stop later paid
-dispatch. Nano retains its older implicit caching behavior; unrelated worker pricing is
+dispatch when verification is enforced. Local unmetered QA retains the unknown record without
+that global stop. Nano retains its older implicit caching behavior; unrelated worker pricing is
 unchanged.
 
 The feature supports Luna's Standard short-context rates only. If reported input exceeds
@@ -147,7 +165,7 @@ The feature supports Luna's Standard short-context rates only. If reported input
 The [model contract](https://developers.openai.com/api/docs/models/gpt-6-luna) applies
 higher rates above that boundary. The existing character-bound prompt checks are not a
 token-count guarantee; this post-response guard preserves truthful accounting and the
-unknown-cost stop rule rather than promising a provider-side maximum bill.
+unknown-cost record (and enforced stop where enabled), rather than promising a provider-side maximum bill.
 
 Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
 is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)

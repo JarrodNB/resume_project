@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -339,6 +339,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_020000) do
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 2", name: "interview_session_counters"
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text])", name: "interview_session_status"
+  end
+
+  create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "observation_id", null: false
+    t.bigint "reserved_microdollars", null: false
+    t.bigint "actual_microdollars"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["observation_id"], name: "index_interview_verification_reservations_on_observation_id", unique: true
+    t.check_constraint "reserved_microdollars > 0 AND (actual_microdollars IS NULL OR actual_microdollars >= 0)", name: "interview_verification_nonnegative_costs"
   end
 
   create_table "job_board_listings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

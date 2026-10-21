@@ -9,7 +9,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
 
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
-  finalized reports are immutable and independent of task outcome.
+  finalized reports are immutable and independent of task outcome. Spoken interview
+  unknown reports may reconcile once to known through `Interviews::RecordUsageService`;
+  known reports remain immutable.
 
 - `user.rb` — account (Devise + Rails sessions); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume

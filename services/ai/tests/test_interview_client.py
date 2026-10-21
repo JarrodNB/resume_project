@@ -283,3 +283,13 @@ def test_real_claim_validates_full_saved_configuration(kind):
             assert claim.execution_mode == "real"
             assert claim.execution_config.model_dump() == configuration
     run(check())
+
+
+@pytest.mark.parametrize("receipt", [{}, {"observation_id": "different"}])
+def test_provider_admission_requires_matching_durable_receipt(receipt):
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "synthetic",
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, json=receipt))) as client:
+            with pytest.raises(RailsTransportError, match="Invalid provider admission receipt"):
+                await client.start_provider(Claim.model_validate(CLAIM), "observation", "speech", "fake", "scripted")
+    run(check())

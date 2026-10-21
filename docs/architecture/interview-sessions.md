@@ -358,8 +358,8 @@ as `INTERVIEW_DEMO_ENABLED=true` for Rails. Compose passes both settings with fa
 Production builds hide the route content even if the frontend flag is set; Rails independently
 denies public demo operations outside development. Written practice remains at `/interview-prep`.
 
-The browser selects supported WebM/MP4 recording, stops the microphone with **Done answering**,
-and submits only after that explicit action. Permission, format, disconnect, size and time-limit
+The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
+The user can then listen, discard, or re-record; only the separate **Submit** action sends it. Permission, format, disconnect, size and time-limit
 errors discard or preserve bytes as appropriate without submitting. A pre-submission upload failure
 keeps the recording for an explicit retry. Once a durable submission identity is saved, the browser
 may release its bytes even if the response is lost. Only that minimal question/recording/revision/key
@@ -379,3 +379,21 @@ The [isolated demo and recovery guide](../interview-demo.md) provides a standalo
 stack and real-process restart checks without loading provider credentials. Its optional QA
 overlay uses a separate loopback host, aligned CORS/storage origins, and persistent volumes;
 keep manual microphone/playback checks separate from automated recovery assertions.
+
+### Real audio adapters and verification spending
+
+The real audio HTTP adapters exist separately from the fake executor; they are not wired
+into a real runtime yet. They do no interviewer reasoning. `AudioProviders.transcribe`
+validates the actual container/duration before one multipart gpt-transcribe request.
+`AudioProviders.speak` sends its supplied saved text unchanged with gpt-4o-mini-tts and
+marin, collects bounded WAV audio, and validates it before returning playable bytes.
+Pydantic AI remains the only dialogue-agent boundary. Audio HTTP has no SDK or hidden
+provider retries. A response has finite byte/time bounds, redirects are refused, and each
+actual dispatch is fenced by the execution's remaining deadline.
+
+`ProviderCalls` preregisters each dispatch with Rails and assigns a new observation UUID,
+including future screening and model retries. Admission failure or an ambiguous admission
+receipt causes no provider request. The internal receipt registers the shared unfinished
+usage marker before any potentially charged I/O. See
+[the audio/provider accounting contract](interview-provider-accounting.md) for documented
+rate units, conservative reservations, unknown-cost recovery, and the paid-check target.

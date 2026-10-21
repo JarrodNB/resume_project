@@ -273,7 +273,7 @@ class RailsInterviewClient:
     async def start_provider(
         self, claim: Claim, observation_id: str, stage: str, provider: str, model: str
     ):
-        return await self._callback(
+        result = await self._callback(
             claim,
             "start_provider",
             observation_id=observation_id,
@@ -281,6 +281,9 @@ class RailsInterviewClient:
             provider=provider,
             model=model,
         )
+        if result.get("observation_id") != observation_id:
+            raise RailsTransportError("Invalid provider admission receipt")
+        return result
 
     async def usage(
         self,

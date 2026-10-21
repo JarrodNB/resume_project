@@ -35,7 +35,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
 - The separate fake interview runtime intentionally disables real provider requests and
   remote telemetry, even if unrelated provider credentials exist in its environment. Its
   injected fake classifiers still exercise shared screening and guardrails.
-- **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
+- **All dialogue/reasoning LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
+  The approved spoken-interview audio exception uses bounded HTTP adapters only for
+  transcription and exact saved-text speech, behind Rails-owned per-dispatch accounting.
+  It does not perform dialogue reasoning. See docs/architecture/interview-provider-accounting.md.
   - One agent per file (`agents/gap_analysis_agent.py`), with a Pydantic model as its `output_type`.
   - Keep related tools together in their domain and register them on the agents that need them.
   - Workers inject per-task context (user ID, retrieved memories) through the agent's `deps`.

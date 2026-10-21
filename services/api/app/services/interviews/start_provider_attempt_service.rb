@@ -14,7 +14,7 @@ module Interviews
     def call
       return failure("Invalid provider start") unless valid_input?
 
-      with_operation_lock do
+      with_operation_lock do |interview|
         execution = @operation.execution_attempts.find_by(attempt_id: @attempt_id, claim_generation: @generation)
         next failure("Unknown execution") unless execution
         existing = execution.provider_attempts.find_by(observation_id: @observation_id)
@@ -24,6 +24,14 @@ module Interviews
         next failure("Claim is stale or expired") unless current_claim?
         next failure("Provider attempt limit reached") if execution.provider_attempts.count >= MAX_PROVIDER_ATTEMPTS
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
+        if interview.execution_mode == "real"
+          allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+          next allowance unless allowance.success?
+          next failure("Verification budget or provider pricing unavailable") unless VerificationBudget.reserve(
+            observation_id: @observation_id, stage: @stage, provider: @provider, model: @model)
+        elsif @provider != "fake"
+          next failure("Fake execution cannot start paid providers")
+        end
         execution.provider_attempts.create!(observation_id: @observation_id, **labels)
         AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => @observation_id, "attempt_finished" => false })

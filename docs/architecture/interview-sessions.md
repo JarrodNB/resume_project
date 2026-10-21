@@ -482,6 +482,10 @@ audio**; replay and pause remain available, with a mute choice scoped to the ope
 Historical speech plays only on request and pauses any other interviewer audio. Microphone
 capture disables playback, and playing speech blocks a new recording until paused. Message
 changes, abandonment and navigation stop playback and ignore late grant/play completions.
+Saved question text is sufficient to record and submit an answer: pending, failed or expired
+speech does not disable answering. Speech accepted during microphone capture does not autoplay
+over that recording. Missing question text, active answer processing and ambiguous submissions
+still prevent conflicting new answers.
 Playback obtains a fresh grant for the same saved message; it never retries reasoning or
 speech generation. Expired grants can be renewed while the artifact itself remains retained.
 

@@ -37,6 +37,18 @@ need account-level paid checks; no silent replacement is permitted.
 
 ## One cumulative verification target
 
+### Explicitly reviewed historical unknowns
+
+The default remains stop-on-unknown. After new human authorization, a development-only
+paid verification process may set `INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS` to a comma-separated
+list of exact historical observation UUIDs. This requires both Rails development mode and
+`INTERVIEW_PAID_VERIFICATION=true`; the paid Compose overlay passes the list to Rails.
+Reviewed rows remain unresolved and count at their full reserved estimates toward the same
+US$5 target. A new unknown observation blocks all subsequent calls again. This neither
+reconciles old charges nor resumes old operations. Inspect pending work first and claim only
+the explicitly selected diagnostic operations; the general paid harness still refuses old
+unknown usage and pending work. Remove the override after the diagnostic and stop execution.
+
 The human approved conservative estimates on 21 October 2026: aim for US$5 total,
 reconcile actual charges, and stop after any unknown charge. This is a local verification
 target, not a provider-side billing guarantee. The speech API exposes no documented hard
@@ -68,7 +80,7 @@ and known-cost reconciliation use that final lock. The transaction includes regi
 and the unfinished usage marker; no provider I/O runs under database locks. Existing
 user allowance and operation/attempt caps still apply.
 
-At most **one unresolved paid reservation** may exist globally. While a request is in
+By default, at most **one unresolved paid reservation** may exist globally. While a request is in
 flight, another paid admission is refused. A crash, lost receipt or unknown/error report
 leaves that reservation unresolved and blocks every subsequent paid verification call,
 even when budget remains or the old claim expires. There is no automatic timeout release.

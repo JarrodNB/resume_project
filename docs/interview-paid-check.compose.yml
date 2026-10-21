@@ -6,6 +6,9 @@ services:
     environment:
       INTERVIEW_REAL_ADMISSION_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
+      # Only explicitly reviewed historical unknown receipts may be carried forward.
+      # Their full reservations still count; a new unknown stops admission again.
+      INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS: ${INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS:-}
       INTERVIEW_REAL_RUNTIME_ORIGIN: http://interview-runtime:8000
   interview-runtime:
     image: cg-interview-qa-interview-runtime

@@ -10,6 +10,7 @@ import base64
 import binascii
 import json
 import math
+import struct
 from decimal import ROUND_CEILING, Decimal
 
 import httpx
@@ -152,13 +153,34 @@ class AudioProviders:
             return self._speech_result(raw)
 
         data = await self._calls.run(claim, "speech", "openai", "gpt-4o-mini-tts", dispatch)
+        data = self._finalize_speech_wav(data)
         await asyncio.to_thread(validate_audio, data)
+        return data
+
+    @staticmethod
+    def _finalize_speech_wav(data: bytes) -> bytes:
+        """Seal the provider's streamed PCM WAV after terminal usage was verified.
+
+        Streaming WAV has unknown RIFF/data lengths (0xffffffff). Our saved file
+        needs actual lengths for strict decoding. Recognize only the observed
+        24 kHz, mono, 16-bit PCM header; all other files retain strict validation.
+        Never apply this to user recordings or incomplete provider streams.
+        """
+        header = (
+            b"RIFF\xff\xff\xff\xffWAVEfmt \x10\x00\x00\x00"
+            b"\x01\x00\x01\x00\xc0\x5d\x00\x00\x80\xbb\x00\x00"
+            b"\x02\x00\x10\x00data\xff\xff\xff\xff"
+        )
+        if data.startswith(header) and len(data) > 44 and (len(data) - 44) % 2 == 0:
+            return (data[:4] + struct.pack("<I", len(data) - 8) + data[8:40]
+                    + struct.pack("<I", len(data) - 44) + data[44:])
         return data
 
     @staticmethod
     def _speech_result(raw):
         audio = bytearray()
         usage = None
+        stream_done = False
         try:
             # A finite complete response is parsed after bounded download. SSE data
             # fields may span lines; comments and event labels carry no payload.
@@ -168,7 +190,17 @@ class AudioProviders:
                 ]
                 if not fields:
                     continue
-                event = json.loads("\n".join(fields))
+                if stream_done:
+                    raise ValueError("Data after stream terminator")
+                payload = "\n".join(fields)
+                # The live API sends this non-JSON transport sentinel after the
+                # speech.audio.done usage event. It supplies no usage itself.
+                if payload == "[DONE]":
+                    if usage is None:
+                        raise ValueError("Stream ended before terminal usage")
+                    stream_done = True
+                    continue
+                event = json.loads(payload)
                 if usage is not None:
                     raise ValueError("Data after terminal event")
                 if event["type"] == "speech.audio.delta":

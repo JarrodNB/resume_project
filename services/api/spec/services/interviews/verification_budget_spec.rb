@@ -79,6 +79,46 @@ RSpec.describe "Interview verification allowance" do
     expect(InterviewVerificationReservation.count).to eq(0)
   end
 
+  it "retains reviewed unknown estimates and stops at the next unknown diagnostic" do
+    old_id = SecureRandom.uuid
+    old = InterviewVerificationReservation.create!(observation_id: old_id, reserved_microdollars: 250_000)
+    allow(Rails.env).to receive(:development?).and_return(true)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_PAID_VERIFICATION").and_return("true")
+    allow(ENV).to receive(:fetch).and_call_original
+    allow(ENV).to receive(:fetch).with("INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS", "").and_return(old_id)
+    id = SecureRandom.uuid
+    expect(start(id)).to be_success
+    expect(old.reload.actual_microdollars).to be_nil
+    expect(start).not_to be_success
+    expect(InterviewVerificationReservation.sum(:reserved_microdollars)).to eq(259_000)
+  end
+
+  [ [ false, "true" ], [ true, "false" ] ].each do |development, verification|
+    it "rejects reviewed unknowns when development=#{development} and verification=#{verification}" do
+      old_id = SecureRandom.uuid
+      InterviewVerificationReservation.create!(observation_id: old_id, reserved_microdollars: 250_000)
+      allow(Rails.env).to receive(:development?).and_return(development)
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with("INTERVIEW_PAID_VERIFICATION").and_return(verification)
+      allow(ENV).to receive(:fetch).and_call_original
+      allow(ENV).to receive(:fetch).with("INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS", "").and_return(old_id)
+      expect(start).not_to be_success
+    end
+  end
+
+  it "counts reviewed unknown estimates toward the same cumulative target" do
+    old_id = SecureRandom.uuid
+    InterviewVerificationReservation.create!(observation_id: old_id, reserved_microdollars: 4_995_000)
+    allow(Rails.env).to receive(:development?).and_return(true)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_PAID_VERIFICATION").and_return("true")
+    allow(ENV).to receive(:fetch).and_call_original
+    allow(ENV).to receive(:fetch).with("INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS", "").and_return(old_id)
+    expect(start).not_to be_success
+    expect(InterviewVerificationReservation.count).to eq(1)
+  end
+
   it "does not release an unknown reservation on execution completion or accept false zero" do
     id = SecureRandom.uuid
     expect(start(id)).to be_success

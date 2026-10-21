@@ -20,7 +20,7 @@ from pydantic_ai_harness import InputBlocked
 from agents.user_text_screen_agent import UserTextScreenRun
 from interviews.client import RailsTransportError
 from interviews.fake import SCENARIOS, TRANSCRIPT, make_agent, speech_bytes
-from interviews.history import restore_history, serialize_history
+from interviews.history import compact_turn_history, restore_history, serialize_history
 from interviews.media import MediaError, download_audio, upload_audio
 from schemas.user_text_screen import UserTextScreen
 from screening.prompt_guardrail import _input_parts
@@ -173,6 +173,8 @@ class InterviewExecutor:
         with contact_scope(contact), screening_session(120):
             source = mask_outbound(json.dumps({"question": payload.question,
                 **payload.context_input(), "transcript": transcript}, sort_keys=True))
+            context = {key: value for key, value in json.loads(source).items() if key != "transcript"}
+            history = compact_turn_history(history, context)
             input_texts = _input_parts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
             if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
@@ -191,7 +193,7 @@ class InterviewExecutor:
             agent, options = self._interviewer(claim, guard)
             result = await agent.run(prompt, message_history=history,
                                      usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
-            saved = serialize_history(result.all_messages())
+            saved = serialize_history(compact_turn_history(result.all_messages(), context))
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
                                             reply=result.output.reply, history_version=1, model_history=saved)

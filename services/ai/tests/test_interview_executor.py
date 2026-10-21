@@ -247,14 +247,22 @@ def test_continue_at_cap_still_returns_intent_for_rails_to_enforce_cap():
     assert client.accepted[0]["reply"] == FOLLOW_UP
 
 
-def test_known_fixture_contact_is_masked_before_saved_provider_history():
+def test_known_fixture_contact_is_masked_before_screening_and_absent_from_saved_history(monkeypatch):
+    screened = []
+    original = InterviewExecutor._screen
+
+    async def capture(self, claim, text):
+        screened.append(text)
+        await original(self, claim, text)
+    monkeypatch.setattr(InterviewExecutor, "_screen", capture)
     request = claim()
     request.payload.fixture_context.update({"names": ["Demo Person"], "career": "Demo Person built tools"})
     client = Client()
     execute(client, request)
     saved = str(client.accepted[0]["model_history"])
     assert "Demo Person" not in saved
-    assert "«name»" in saved
+    assert all("Demo Person" not in text for text in screened)
+    assert any("«name»" in text for text in screened)
 
 
 @pytest.mark.parametrize("scenario,kind", [
@@ -302,10 +310,11 @@ def test_earlier_public_dialogue_is_freshly_screened_masked_and_present_in_promp
         execute(client, request)
         assert not client.failed
         saved = str(client.accepted[0]["model_history"])
-        assert "repaired the sensor" in saved
         assert "Demo Person" not in saved
-        assert "earlier_dialogue" in saved
+        assert "earlier_dialogue" not in saved
     assert sum("repaired the sensor" in text for text in screened) >= 2
+    assert all("Demo Person" not in text for text in screened)
+    assert any("«name»" in text for text in screened)
 
 
 @pytest.mark.parametrize("text,expected", [

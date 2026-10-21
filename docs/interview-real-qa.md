@@ -1,5 +1,13 @@
 # Real spoken interview browser QA
 
+**Current status, 21 October:** paid execution is stopped. A bounded live smoke completed
+preparation, opening speech and one saved answer, then follow-up speech failed with a new
+unknown receipt. The original ledger now has US$0.018132 known cost plus two unresolved
+US$0.25 reservations. Only the older observation is reviewed; startup correctly refuses the
+new unknown. Do not add it to the exception list or reset the ledger. The guide below remains
+the manual QA procedure once that blocker is resolved. The API and web can run for inspection
+with the real runtime stopped; new real interviews remain unavailable.
+
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
 Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three

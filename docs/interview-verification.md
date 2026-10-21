@@ -1,3 +1,45 @@
+# Final candidate checks and bounded live smoke — 21 October 2026
+
+The two independent blind reviews of the full implementation both reproduced a context-growth
+bug: an allowed near-limit library plus earlier dialogue was copied into each saved model
+prompt, so the third response could fail permanently with `context_limit`. A regression first
+failed on response three. The repair retains transcripts and paired model/tool conversation,
+removes only exact copies of the current immutable masked context, and supplies/screens that
+context once per execution. Regressions cover three responses, older full-envelope histories,
+and unfamiliar historical input that must still be screened. The repaired full offline AI suite passed **926 tests**, with nine database tests deselected
+and four upstream/configuration warnings; focused Ruff passed. The final review round follows
+this repair. Rails/frontend and full process results below describe their recorded checkpoints;
+those unchanged surfaces were not rerun after this Python-only repair.
+
+The coordinator ran the bounded live smoke on the original `cg-interview-12-paid` ledger,
+using offline-generated synthetic laboratory-technician recordings and the approved models.
+Preparation produced a coherent laboratory-maintenance role and nine distinct interleaved
+questions. No speech existed before Begin. Begin replay produced one opening, its saved WAV
+was generated successfully, and the first recording's transcript matched the synthetic source.
+The interviewer advanced to the prepared calibration-downtime question. These are observed
+samples, not a general quality evaluation; microphone capture and perceived audio quality
+remain human QA.
+
+Follow-up speech then failed `dependency_unavailable`, leaving a new unknown observation
+`a269e85e-ccd9-4b73-87b9-b98961f8437d` with a US$0.25 reservation. Admission blocked its next
+attempt without another provider dispatch; the runtime was stopped. No cause is inferred
+from the safe error code. Three-response live progression and final speech were **not**
+completed. No unknown was reconciled, assigned zero, or added to reviewed exceptions.
+
+The retained ledger changed from 30 observations / US$0.015414 known / US$0.25 unresolved
+to 38 observations / **US$0.018132 known / US$0.50 unresolved**. Known incremental cost was
+US$0.002718; actual cost of the two unknown observations remains unknown. The cumulative
+US$5 target and original historical exception are unchanged. Paid QA remains stopped.
+
+The temporary operator driver initially mistook an in-flight reservation for unresolved
+usage and exited. Preparation finished and reconciled normally; the corrected driver resumed
+the same ready session. That setup mistake did not create a second session or allowance.
+The later speech failure above is the genuine paid stop condition. All ledger and synthetic
+session records were retained. No browser automation, quality judge, model substitution,
+merge or deployment occurred.
+
+---
+
 # Current full-session offline verification — 21 October 2026
 
 The current public development flow freezes owned career details and optional focus,

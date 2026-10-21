@@ -522,7 +522,12 @@ with required frozen context, question and current transcript. The existing 120,
 prompt/history guard counts that complete source plus current-question model history before
 interviewer dispatch and on subsequent model requests. Oversized required inputs fail with
 `context_limit`; screening rejection/unavailability retains its explicit failure code.
-Current-question typed version-1 private history is restored unchanged and remains separate.
+Current-question typed version-1 private history preserves accepted transcripts, model output
+and paired tools. Exact copies of the current masked context envelope are replaced by their
+transcript alone, both when restoring older histories and saving new ones. Each execution
+supplies and screens the complete current context once; unfamiliar or changed historical
+inputs remain intact for screening and size checks. This avoids multiplying a large library
+and earlier dialogue across all three responses without discarding conversational history.
 Instructions treat prior answers as candidate claims, frozen library evidence as sourced
 facts, and fictional role requirements as imagined requirements, never personal achievements.
 

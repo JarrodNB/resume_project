@@ -27,9 +27,18 @@ The format of an interview session. Basic is the only supported type today.
 The initial turn-based spoken interview type, using prepared questions and limited
 follow-ups without coaching.
 
+**Interview preparation**:
+The creation of a fictional role and questions from the user's saved career details,
+ready for the user to review before beginning a spoken interview.
+
+**Fictional interview role**:
+An imagined job used to frame interview practice. Its responsibilities and requirements
+describe that job, not experience or qualifications the user claims to have.
+
 **Accepted answer**:
 An answer included in an interview session's saved dialogue and answer allowance. Failed or
-rejected attempts do not count as accepted answers.
+rejected attempts do not count as accepted answers. Acceptance means the response was saved,
+not that it was correct or good; responses to follow-ups and brief detours count too.
 
 **Interview turn**:
 One submitted answer and its resulting interviewer response within an interview session.

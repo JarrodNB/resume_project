@@ -9,6 +9,8 @@ module Interviews
 
     def call
       interview = @operation.interview_session
+      return failure("Interview abandoned") if interview.abandoned?
+      return failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
       return failure("Operation cannot be retried") unless @operation.failed? && @operation.execution_count < 6 &&
         @operation.retry_expires_at && @operation.retry_expires_at > Time.current && interview.expires_at > Time.current &&
         !%w[invalid_recording transcript_too_long empty_audio audio_too_large audio_too_long context_limit screening_blocked].include?(@operation.failure_code)

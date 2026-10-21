@@ -2,9 +2,24 @@
 
 Interview sessions own spoken interview dialogue and progress, separate from written
 InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
-The initial fixture uses fictional context, one prepared question, and at most two accepted
-answers. A two-question service fixture verifies advancement. Real providers are available
+New sessions prepare a frozen fictional role and nine typed questions from the owner's career
+library, then begin explicitly after review. Each question allows at most three accepted
+answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
 for explicitly enabled local browser QA; production deployment is deferred.
+
+The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
+ready, active or completed states. Preparing/ready sessions reopen their saved preparation
+or role review; active sessions restore accepted dialogue and progress; completed sessions
+reopen for review. Scripted fixtures and abandoned/expired sessions do not appear in this list.
+
+An explicit confirmed abandonment ends a preparing, ready or active session. Under the
+owner/session locks it increments the revision once, expires unfinished operations, releases
+their task slots and invalidates all media. Repeating abandonment returns the same saved
+terminal snapshot. It never deletes logical tasks, execution/provider identities, known charges
+or unknown usage. New claims, provider starts (including repeat start receipts), heartbeats,
+retry, media grants, registration and completion cannot continue abandoned work. Late usage
+reports and harmless saved acceptance receipts remain readable. Existing accepted dialogue
+remains until normal content expiry; abandonment does not create a restart or skip action.
 
 ## Ownership and transport decision
 
@@ -14,7 +29,7 @@ internal Rails HTTP, runs asynchronously, and submits results for Rails acceptan
 not write the database. Browser requests never wait for the interviewer. Existing queue
 features continue to use SQS and `ai_results` without changes.
 
-The delivered foundation includes persistence, private HTTP claims/recovery, accounting,
+The delivered foundation includes library-informed preparation, persistence, private HTTP claims/recovery, accounting,
 private media services and offline audio validation. The offline runtime executes this boundary;
 the owned GraphQL demo exposes accepted dialogue and safe operation progress.
 
@@ -26,9 +41,8 @@ the owned GraphQL demo exposes accepted dialogue and safe operation progress.
 services live in `Interviews`. Existing written `InterviewQuestion` records keep their names.
 
 The persisted `interview_type` defaults to `basic`, is required, and rejects other values in
-both model validation and Postgres. No complex or interactive type is implemented. The current
-slice keeps its existing two-answer constraints and fixture defaults; a future type's behavior
-and corresponding constraint changes need a separate change.
+both model validation and Postgres. No complex or interactive type is implemented. New prepared sessions save cap three explicitly; the database default remains two for
+legacy fixtures. Model and database upper bounds are three without rewriting old records.
 
 ## Saved execution mode
 
@@ -59,9 +73,51 @@ paid verification database and its cumulative ledger, not a new per-QA allowance
 
 ## Durable domain interface
 
+### Library-informed preparation
+
+Public creation now starts durable preparation instead of creating the fixture opening.
+`StartPreparationService` freezes only owned usable career-library text and its source
+identity, plus an optional career focus of at most 200 characters. Job-derived library-fact
+requirements are excluded. Sparse library content is usable; an empty library or a snapshot
+over 40,000 JSON bytes returns an actionable error without creating work. Later library edits
+cannot change a saved preparation's input. Raw frozen sources remain private.
+
+A `preparing` session has one `preparation` operation with no question, recording or message.
+The existing private discovery, lease, heartbeat, failure, retry and accounting contracts
+apply. The preparation claim contains `frozen_context`; it requires no storage capability.
+The real executor screens/masks that source, runs a guarded Pydantic AI preparation agent
+through the accounted approved Luna model, and posts `accept_preparation` with claim identity,
+`role` and `questions`. Preparation uses the existing interviewer accounting stage, with a
+4,096-output-token cap so the complete question plan fits; dialogue remains capped at 1,024.
+
+Rails validates a short fictional role (title, responsibilities and requirements) and exactly
+nine distinct questions, interleaved behavioral/technical/knowledge three times. Acceptance
+atomically saves the entire role and question list, marks the operation accepted and session
+`ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
+changed output or a stale generation cannot replace it. Failure leaves no partial question
+list, and bounded retries reuse the same frozen input. `BeginService` (the owned public `beginInterview` mutation) changes ready to active and saves
+the first opening plus one speech operation atomically. Concurrent/repeated begin returns
+the saved state without duplicate messages or speech. Begin can also replay after progress
+or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
+speech or recording.
+
+Public snapshots expose the prepared fictional role and safe preparation progress, never
+raw personal source snapshots or execution credentials. Question type is persisted separately
+from its position. Existing fixture sessions, their two-answer caps and saved configurations
+are preserved; the fixture service remains available to deterministic tests.
+
+Seven-day expiry retires preparation and scrubs frozen sources and generated role along with
+dialogue/history, retaining the existing accounting markers. Preparation does not create
+career-library facts, saved jobs, coaching or assessment. Automated interview-quality
+evaluators remain deferred; offline tests establish contracts rather than generated quality.
+
+### Begin and active-turn interfaces
+
 `Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
-Only the service fixture permits a second question.
+The service fixture remains a legacy offline seam with one or two questions. Public prepared
+sessions conduct all nine, preserving their interleaved question types. The UI shows current
+question/total alongside accepted responses/current cap.
 
 `SubmitTurnService.call(interview:, question_id:, recording_id:, expected_revision:,
 submission_key:)` reserves one turn before acknowledging submission. Callers pass an
@@ -87,6 +143,14 @@ and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rai
 history as a JSON message envelope; the Python executor validates pinned Pydantic message/tool structure and re-screens
 retained untrusted history before proposing it.
 
+Prepared turn claims carry versioned `interview_context`: `personal_evidence` is the original
+frozen source snapshot (including provenance/contact masking inputs), while `fictional_role`
+is the imagined vacancy. These sources stay distinct in the prompt so vacancy requirements
+cannot become personal facts. Legacy turn claims retain `fixture_context`; Python accepts
+exactly one of the two sources. Frozen context and current-question private history are
+bounded and freshly screened before dispatch, with contact masking preserved. Earlier-question
+dialogue is not included yet; it belongs to the following context slice.
+
 ## Lock order and database invariants
 
 All lifecycle services acquire the owner row first, then interview, ordered question rows,
@@ -95,8 +159,8 @@ including any next question it may introduce. New messages and speech work come 
 accounting and media code must preserve owner → interview → question → operation → linked
 usage records → message/recording order. Never perform provider or storage I/O under locks.
 
-Postgres enforces required fields, valid states, nonnegative counters and the two-answer
-maximum. Unique indexes protect ordered question/message positions, semantic message
+Postgres enforces required fields, valid states, nonnegative counters and the three-answer
+maximum. Saved session caps still determine advancement. Unique indexes protect ordered question/message positions, semantic message
 identity, one opening per question, one speech operation per saved message, submission keys,
 and one pending/running turn per interview. Composite foreign keys keep questions, messages
 and operations within the same interview and bind speech to its message's question. A running
@@ -150,6 +214,10 @@ Source recordings become expired when their turn is accepted or permanently fail
 they expire after one hour. Unaccepted speech reservations expire after one hour. Accepted
 speech lasts through the active interview and at most one hour after completion, bounded by
 session expiry. Read and callback services enforce these deadlines before physical cleanup.
+Abandonment immediately marks audio for deletion and denies fresh application access,
+including accepted playback. URL signing runs outside locks and rechecks authority before
+returning a grant. A URL already returned before abandonment can remain usable until object
+deletion or its short expiry; durable cleanup and late-write reaping remove the objects.
 
 `Interviews::CleanupService.call(limit: 10)` processes bounded batches (limit 1–100). It is
 also callable through authenticated `POST /internal/interviews/cleanup`; the runtime schedules it once per minute. Deletion marks durable pending state before storage I/O and retries
@@ -167,8 +235,8 @@ and late-write reaping after domain deletion. No object I/O runs in the destroy 
 
 This incurs continuing S3 delete requests; provider lifecycle rules or stronger write fencing are deferred options.
 
-After seven days cleanup expires the session, fails pending/running linked tasks, scrubs
-fixture context, dialogue, private history, accepted payloads and task input/results, and marks
+After seven days cleanup expires the session (preserving an abandoned terminal status), fails pending/running linked tasks, scrubs
+fixture/frozen context, prepared role, dialogue, private history, accepted payloads and task input/results, and marks
 content purged once. Minimal operation identities, fingerprints and billing/usage records
 remain for duplicate callbacks and late accounting. Cleanup does not delete AiTask or usage
 rows. These minimal records are not a retained dialogue archive.
@@ -242,12 +310,48 @@ Speech attachment/completion preserves these claim and saved-message checks.
 
 ## HTTP execution accounting
 
-Each admitted logical operation links a generic `interview_turn` or `interview_speech`
-AiTask without calling the SQS enqueue service. Admission acquires the owner lock before
-session/question/operation/task locks. It applies the existing monthly, hourly and
-in-flight limits. Retry admission rechecks monthly and in-flight limits while excluding
-its own logical task and does not count another hourly task. Acceptance completes the
-linked task atomically; failures/expiry update its lifecycle independently of billing.
+Preparation creates its `interview_preparation` AiTask in the same transaction as the
+session and operation, before acknowledging creation. This task is the session's one
+hourly admission. Each later turn or speech keeps a separate AiTask, linked immutably to
+that preparation task through `hourly_admission_task_id`; no SQS message is published.
+The allowance module verifies the persisted owner, session, preparation identity and
+operation purpose before creating or reusing a child task. Missing or forged prepared-session
+admission fails closed. Existing fixture operations use the interview allowance but retain
+their individual hourly admissions. General AI tasks use a separate allowance.
+
+Spoken interviews have their own per-user limits: **$3/month**, **30 session starts/hour**, and
+**three concurrent operations**, configured by `INTERVIEW_MONTHLY_BUDGET_USD`,
+`INTERVIEW_SESSIONS_PER_HOUR`, and `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and
+its per-user override columns do not consume or change these limits. Conversely, spoken
+interview preparation/turn/speech costs, hourly starts and in-flight tasks do not consume
+general AI allowances or appear in the general `me { aiUsage }` summary. Written interview
+question practice remains in the general bucket. No bills or unknown markers are removed.
+
+Only hourly admission groups interview stages: interview monthly spend sums every spoken
+stage task, and interview concurrency counts every recently queued spoken task. A claim
+excludes only its own task from concurrency, never the preparation root or another operation.
+Claims, explicit retries and every provider start recheck the interview allowance. New child
+creation and admission rejection commit together, leaving no execution/provider attempt on
+denial. The global retained paid-verification allowance and new-unknown stop remain unchanged.
+The current monthly accounting policy remains task-creation-month attribution, including
+late retry charges. New child tasks use their creation month; sharing an older hourly root
+does not move new task bills into that root's month. This change does not rewrite historical
+or unrelated task accounting.
+
+The owner lock admits at most one unexpired preparing/ready/active **prepared** session per
+user. Resume or abandon it before preparing another; completed, expired and abandoned
+sessions do not occupy that slot. A prepared question permits six distinct submitted
+recordings, including failures, independently of its three-accepted-answer cap. Retrying
+the same operation or replaying its submission key does not use another recording slot.
+Thus nine questions permit at most 54 turn operations, 28 saved-message speech operations
+and one preparation operation; existing six-execution and per-execution provider caps remain.
+Failed inputs never increment accepted-answer counts. When the submission cap is exhausted,
+the user must abandon and prepare another session under ordinary new-session admission.
+
+Admission acquires the owner lock before session/question/operation/task locks. Acceptance
+completes the linked task atomically; failures/expiry update its lifecycle independently
+of billing. Account destruction may null a child-to-root reference but never cascades
+through it to delete another task's usage or the permanent verification ledger.
 
 If admission is denied, the operation becomes `failed` with `ai_usage_limit_reached`.
 It reserves no new execution/provider attempt, releases an existing task's in-flight slot,
@@ -404,3 +508,48 @@ rate units, conservative reservations, unknown-cost recovery, and the paid-check
 New real sessions additionally require Rails `INTERVIEW_REAL_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the dedicated real process. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
 
 Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See [real browser QA](../interview-real-qa.md) for startup and [offline recovery](../interview-demo.md) for deterministic integration commands.
+
+## Earlier accepted dialogue
+
+Turn claims add optional `earlier_dialogue` version 1 alongside the mutually exclusive
+prepared `interview_context` or legacy `fixture_context`. Older claims without it remain
+valid. Rails selects only persisted public opening/answer/follow-up messages belonging to
+questions before the current position, requiring an accepted answer. Rejected/provisional
+transcripts and private per-question model/tool history are never selection sources.
+
+Selection scans question positions newest first, using a 12,000 Unicode-character budget
+summed over complete message content (including openings and follow-ups). A group that does
+not fit is omitted whole; selection continues to older groups that might fit. Exact fits
+are retained. Selected groups and their messages return in chronological order; sorted
+`omitted_question_positions` records every eligible group excluded by the budget. No
+summaries, partial messages, or truncation of personal facts are produced.
+
+Python validates the version, budget, unique ordered positions, disjoint omission positions,
+and complete opening/answer/follow-up sequencing, then checks the aggregate content cap.
+Every execution freshly screens the masked source containing this public dialogue together
+with required frozen context, question and current transcript. The existing 120,000-character
+prompt/history guard counts that complete source plus current-question model history before
+interviewer dispatch and on subsequent model requests. Oversized required inputs fail with
+`context_limit`; screening rejection/unavailability retains its explicit failure code.
+Current-question typed version-1 private history preserves accepted transcripts, model output
+and paired tools. Exact copies of the current masked context envelope are replaced by their
+transcript alone, both when restoring older histories and saving new ones. Each execution
+supplies and screens the complete current context once; unfamiliar or changed historical
+inputs remain intact for screening and size checks. This avoids multiplying a large library
+and earlier dialogue across all three responses without discarding conversational history.
+Instructions treat prior answers as candidate claims, frozen library evidence as sourced
+facts, and fictional role requirements as imagined requirements, never personal achievements.
+
+Offline verification uses canonical Rails claims and the Python executor with fake providers;
+no paid summarization, provider calls, or quality judges are required for this contract.
+
+## Deterministic full-session process evidence
+
+`script/interview_full_session_check.sh` runs the current preparation/review/begin and all
+nine questions through real Rails/Postgres/private storage and the real Python executor,
+with synthetic HTTP responses at each provider SDK boundary. Its isolated internal-network
+project has no provider credentials or public fake path. It checks killed processes,
+acceptance replay/lost receipts, speech-only recovery, abandonment fencing and persistent
+playback. See [offline checks](../interview-demo.md) for the exact command and scope.
+Legacy `script/interview_recovery_check.sh` remains coverage for retained fixture sessions.
+Neither deterministic harness establishes live quality or browser microphone behavior.

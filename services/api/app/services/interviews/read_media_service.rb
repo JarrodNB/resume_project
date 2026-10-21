@@ -17,8 +17,13 @@ module Interviews
 
       seconds = [ GRANT_SECONDS, (media_expiry(media) - Time.current).floor ].min
       return failure("Audio expired") unless seconds.positive?
-      success({ playback_url: @storage.read_url(key: media.sealed_key, expires_in: seconds), expires_in: seconds,
-        content_type: media.content_type })
+      receipt = { playback_url: @storage.read_url(key: media.sealed_key, expires_in: seconds), expires_in: seconds,
+        content_type: media.content_type }
+      with_media_lock(media) do
+        next failure("Audio unavailable or expired") unless media_live?(media) && media.operation.accepted? &&
+          media.operation.accepted_result["media_id"] == media.id
+        success(receipt)
+      end
     end
   end
 end

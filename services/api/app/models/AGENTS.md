@@ -17,7 +17,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. Nullable
   `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
-  the global AI usage limits
+  the general AI usage limits; spoken interviews have separate environment-backed limits
 - `jwt_denylist.rb` — legacy token records retained for migration safety; browser
   authentication no longer accepts JWTs.
 - Career library (source of truth for the user's facts):

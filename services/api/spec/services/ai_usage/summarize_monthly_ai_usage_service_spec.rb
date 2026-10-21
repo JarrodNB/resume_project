@@ -31,3 +31,19 @@ RSpec.describe AiUsage::SummarizeMonthlyAiUsageService do
     end
   end
 end
+
+RSpec.describe "Separate spoken interview spend" do
+  it "keeps spoken interview bills and unknown markers out of the general usage summary" do
+    user = create(:user)
+    %w[interview_preparation interview_turn interview_speech].each do |kind|
+      task = create(:ai_task, user: user, task_type: kind, cost_microdollars: 100)
+      AiUsageAttempt.create!(ai_task: task, attempt_id: SecureRandom.uuid, incomplete: true)
+    end
+    create(:ai_task, user: user, task_type: "review_interview_answer", cost_microdollars: 25)
+    usage = AiUsage::SummarizeMonthlyAiUsageService.call(user: user).value
+    expect(usage.spent_microdollars).to eq(25)
+    expect(usage.incomplete_attempts).to eq(0)
+    expect(user.ai_tasks.sum(:cost_microdollars)).to eq(325)
+    expect(AiUsageAttempt.where(ai_task_id: user.ai_tasks.select(:id), incomplete: true).count).to eq(3)
+  end
+end

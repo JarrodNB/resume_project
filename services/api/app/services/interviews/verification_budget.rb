@@ -8,7 +8,8 @@ module Interviews
     # Transcription: 120 seconds at $0.0045/minute. Speech: human-approved $0.25
     # estimate for <=4,000 characters; NOT a proven provider billing ceiling.
     # Token stages use conservative estimates with bounded prompts and 1,024 OpenAI
-    # output tokens. Actual usage reconciles every dispatch; new unknown usage stops all.
+    # output tokens for dialogue/screening, 4,096 for complete preparation. Actual usage
+    # reconciles every dispatch; new unknown usage stops all.
     RESERVATIONS = { %w[transcription openai gpt-transcribe] => 9_000,
       %w[speech openai gpt-4o-mini-tts] => 250_000,
       %w[screening typesafe jev-1.13.0] => 10_000,

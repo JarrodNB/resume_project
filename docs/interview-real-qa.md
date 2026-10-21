@@ -1,16 +1,47 @@
 # Real spoken interview browser QA
 
+**Current status, 21 October:** real interviews are running again at the user's explicit
+request. The API and real runtime report ready. The two local unknown-cost observations
+are reviewed for continued admission; they are not confirmed OpenAI invoice charges.
+Their conservative reservations remain recorded without being assigned zero or deleted.
+The separate interview allowance remains $3/month, 30 session starts/hour and three
+concurrent operations. Keep the runtime running for the user's testing.
+
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
-session with fictional context, one prepared question and at most two accepted answers.
+session prepared from owned career details, with a fictional role and nine typed questions.
+Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three
+saved responses, and the interviewer may advance earlier.
 Record, choose **Done answering**, listen to the local preview, then **Submit recording**.
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
-No coaching, career-library targeting or full interview preparation is included yet.
+Preparation freezes the library at creation. Later library edits do not change this session.
+Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue.
+One full prepared session consumes one interview hourly admission (default 30/hour).
+Spoken interviews have their own $3/month budget and three concurrent-operation slots.
+They do not consume general AI limits, and general AI usage does not consume interview limits.
+Every preparation/turn/speech bill still counts against the interview budget;
+session admission does not promise enough remaining spend to finish an interview.
+Only one unfinished prepared session is allowed per account: resume or abandon it before
+preparing another. Each question permits six submitted recordings, including failed inputs,
+with at most three accepted responses. A processing retry reuses the original recording slot.
 
 The public launcher rejects scripted sessions and has no mode selector. Older scripted
 sessions are retired without changing their stored mode or deleting their records.
 The old `cg-interview-qa` fake stack is stopped; its data volumes remain intact. The normal
 root Compose fake-runtime profile was removed. Deterministic providers and their isolated
 recovery harness remain for offline tests only.
+
+## Resume uploads and other queued features
+
+This browser URL uses the same Rails app for career-library uploads and spoken interviews.
+The real QA overlay now starts local ElasticMQ (`sqs`), the Python `ai` worker and the Rails
+`api-results-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
+it must not send local development credentials to AWS SQS. The launcher provisions the
+standard local read-only `ai_reader` role and applies the repository table grants. Resume
+processing uses the original AI environment file and the general AI allowance. The existing
+interview runtime is not stopped by starting this stack.
+
+If a previous upload says “Could not queue the AI task”, retry the upload after these services
+are running. Previously failed tasks stay failed; no user resume is silently resubmitted.
 
 ## One retained database and spending allowance
 
@@ -20,10 +51,12 @@ disposable local account at the same browser URL; if verification is required, u
 [local account mail](http://127.0.0.2:13006/letter_opener).
 
 Every real STT, screening, interviewer and TTS call passes the original cumulative US$5
-verification allowance. The historical US$0.25 unknown reservation remains unresolved and
-counts at its full estimate. The user explicitly authorized continuing; only that original
-observation (`57cb5021-6d37-465e-a56a-5eeee3bbb769`) was reviewed for admission. Any **new**
-unknown receipt blocks further paid calls. Do not append new IDs automatically, invent zero
+verification allowance. The two historical US$0.25 reservations have unknown actual cost
+and remain counted at their full estimates. The user explicitly instructed restarting and
+continuing despite these local markers. Reviewed observations are
+`57cb5021-6d37-465e-a56a-5eeee3bbb769` and
+`a269e85e-ccd9-4b73-87b9-b98961f8437d`. They are not confirmed invoice charges.
+Any other unknown receipt still follows the existing admission guard. Do not append new IDs automatically, invent zero
 charges, reset volumes or start another paid database. This is an estimated local allowance,
 not a provider-side hard spending ceiling. See [accounting](architecture/interview-provider-accounting.md).
 
@@ -36,7 +69,7 @@ Rebuild them from this checkout if dependencies change.
 
 ```bash
 export INTERVIEW_VERIFICATION_AI_ENV=/home/jarrod/Desktop/resume_project/services/ai/.env
-export INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS=57cb5021-6d37-465e-a56a-5eeee3bbb769
+export INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS=57cb5021-6d37-465e-a56a-5eeee3bbb769,a269e85e-ccd9-4b73-87b9-b98961f8437d
 export INTERVIEW_REAL_QA_APPROVED=yes
 bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_real_qa.sh start
 ```
@@ -48,7 +81,7 @@ Its volumes are preserved by this command:
 docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml --profile qa stop
 ```
 
-The real launcher stops its runtime before preflight, refuses a missing retained ledger or
+The real launcher keeps an existing runtime running, refuses a missing retained ledger or
 unreviewed unknown usage, checks the allowance and storage preflights, then starts ordinary
 bounded recovery. Starting resumes saved pending real operations, including opening speech;
 it can spend money immediately. New sessions require safe runtime readiness and real admission.
@@ -68,15 +101,25 @@ uses the saved message; it never repeats an accepted answer's transcription or r
 
 ## Human browser checks
 
-1. Sign in, choose **Start interview**, and play the opening.
+1. Sign in, choose **Prepare interview**, review the fictional role, then **Begin interview** and play the opening.
 2. Record a short answer. Confirm **Done answering** offers preview/discard/re-record and
    uploads nothing until **Submit recording**.
 3. Confirm the transcript follows your answer and the follow-up is relevant. Reload during
    processing; the same saved operation should return without submitting again.
-4. Answer the follow-up. The interview must close by the second accepted answer and allow
-   saved audio playback without accepting a third answer.
+4. Answer follow-ups. Each question advances by its third saved response, or earlier if the
+   interviewer chooses. The ninth question leads to exactly one final closing.
 5. Test permission denial, playback failure, reconnect and unsaved navigation warnings.
    Keep consented recordings short. Raw recordings and speech retain the existing expiry rules.
+6. Open **Recent interviews** on the spoken start route. Resume preparing, ready and active
+   sessions; review completed sessions. Only your latest 20 unexpired real sessions appear.
+7. On an unfinished session, choose **Abandon interview**. Cancel first and confirm the
+   recording remains. Confirm abandonment and check that recording/continuation and fresh
+   playback grants stop, with the session removed from the recent list. Local audio and
+   pending submission recovery clear only after saved confirmation. The normal unsaved
+   recording warning still applies when navigating away without submitting.
+   Private objects are deleted by durable cleanup; already-issued short URLs may work until
+   expiry or deletion. Billing and unknown usage remain recorded. Completed sessions have no
+   abandon action.
 
 Local S3Mock verifies application ownership and byte handling but does not enforce production
 signed-URL expiry. This local development stack is not a production deployment.

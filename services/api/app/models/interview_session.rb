@@ -3,7 +3,7 @@
 class InterviewSession < ApplicationRecord
   include PublishesInterviewSnapshot
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
-  STATUSES = %w[active completed expired].freeze
+  STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
   attr_readonly :execution_mode, :execution_config
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
@@ -16,5 +16,5 @@ class InterviewSession < ApplicationRecord
   enum :interview_type, INTERVIEW_TYPES.index_with(&:itself), validate: true
   validates :expires_at, presence: true
   validates :revision, :current_question_position, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validates :answer_cap, inclusion: { in: 1..2 }
+  validates :answer_cap, inclusion: { in: 1..3 }
 end

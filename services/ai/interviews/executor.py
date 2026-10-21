@@ -20,7 +20,7 @@ from pydantic_ai_harness import InputBlocked
 from agents.user_text_screen_agent import UserTextScreenRun
 from interviews.client import RailsTransportError
 from interviews.fake import SCENARIOS, TRANSCRIPT, make_agent, speech_bytes
-from interviews.history import restore_history, serialize_history
+from interviews.history import compact_turn_history, restore_history, serialize_history
 from interviews.media import MediaError, download_audio, upload_audio
 from schemas.user_text_screen import UserTextScreen
 from screening.prompt_guardrail import _input_parts
@@ -71,11 +71,13 @@ class InterviewExecutor:
         try:
             if claim.kind == "turn":
                 await self._turn(claim)
+            elif claim.kind == "preparation":
+                await self._preparation(claim)
             else:
                 await self._speech(claim)
             finished = True
         except ScreeningRejected as error:
-            failure = "execution_failed" if claim.kind == "turn" else "speech_failed"
+            failure = "speech_failed" if claim.kind == "speech" else "execution_failed"
             code = {"provider_unavailable": "dependency_unavailable", "unusable_audio": "empty_audio",
                     "invalid_provider_response": failure, "provider_response_too_large": failure,
                     "invalid_speech_text": "speech_failed", "unknown_provider_usage": failure}.get(error.code, error.code)
@@ -85,7 +87,7 @@ class InterviewExecutor:
             await self.client.fail(claim, error.code, error.code == "storage_unavailable")
             finished = True
         except (ValueError, InputBlocked):
-            await self.client.fail(claim, "execution_failed" if claim.kind == "turn" else "speech_failed", False)
+            await self.client.fail(claim, "speech_failed" if claim.kind == "speech" else "execution_failed", False)
             finished = True
         finally:
             await self.client.usage(claim, [], incomplete=not finished)
@@ -93,6 +95,32 @@ class InterviewExecutor:
     def _media_options(self):
         return {"client": self.storage_client, "allowed_origins": self.allowed_origins,
                 "allow_http": self.allow_http}
+
+    def _preparer(self, claim, guard):
+        raise ValueError("Preparation requires explicitly configured real providers")
+
+    async def _preparation(self, claim):
+        context = claim.payload.frozen_context
+        contact = KnownContact.from_values(**{
+            key: context.get(key, []) for key in ("names", "emails", "phones")
+        })
+        with contact_scope(contact), screening_session(120):
+            source = mask_outbound(json.dumps(context, sort_keys=True))
+            if covered_prompt_length(source) + 2 > MAX_PROMPT_TEXT:
+                raise ScreeningRejected("context_limit")
+            await self._screen(claim, source)
+            prompt = bind_screened_prompt([source], lambda sources: sources[0])
+
+            async def guard(ctx, final_prompt):
+                for text in _input_parts(ctx, final_prompt):
+                    if not prompt_is_covered(text):
+                        await self._screen(claim, text)
+                return True
+
+            agent, options = self._preparer(claim, guard)
+            result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=2), **options)
+            output = result.output.model_dump(mode="json")
+        await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
 
     async def _screen(self, claim, text):
         async def classify(chunk, model, timeout):
@@ -125,6 +153,10 @@ class InterviewExecutor:
 
     async def _turn(self, claim):
         payload = claim.payload
+        if payload.earlier_dialogue is not None:
+            size = sum(len(message.content) for group in payload.earlier_dialogue.groups for message in group.messages)
+            if size > payload.earlier_dialogue.character_budget:
+                raise ScreeningRejected("context_limit")
         history = restore_history(payload.history_version, payload.model_history)
         grant = await self.client.recording(claim)
         data = await asyncio.to_thread(download_audio, grant["download_url"],
@@ -136,11 +168,13 @@ class InterviewExecutor:
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
             raise ScreeningRejected("transcript_too_long")
         contact = KnownContact.from_values(**{
-            key: payload.fixture_context.get(key, []) for key in ("names", "emails", "phones")
+            key: payload.personal_evidence().get(key, []) for key in ("names", "emails", "phones")
         })
         with contact_scope(contact), screening_session(120):
             source = mask_outbound(json.dumps({"question": payload.question,
-                "fixture_context": payload.fixture_context, "transcript": transcript}, sort_keys=True))
+                **payload.context_input(), "transcript": transcript}, sort_keys=True))
+            context = {key: value for key, value in json.loads(source).items() if key != "transcript"}
+            history = compact_turn_history(history, context)
             input_texts = _input_parts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
             if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
@@ -159,7 +193,7 @@ class InterviewExecutor:
             agent, options = self._interviewer(claim, guard)
             result = await agent.run(prompt, message_history=history,
                                      usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
-            saved = serialize_history(result.all_messages())
+            saved = serialize_history(compact_turn_history(result.all_messages(), context))
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
                                             reply=result.output.reply, history_version=1, model_history=saved)

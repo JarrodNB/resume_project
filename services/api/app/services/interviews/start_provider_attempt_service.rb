@@ -16,6 +16,7 @@ module Interviews
       return failure("Invalid provider start") unless valid_input?
 
       with_operation_lock do |interview|
+        next failure("Interview abandoned") if interview.abandoned?
         execution = @operation.execution_attempts.find_by(attempt_id: @attempt_id, claim_generation: @generation)
         next failure("Unknown execution") unless execution
         existing = execution.provider_attempts.find_by(observation_id: @observation_id)
@@ -26,7 +27,7 @@ module Interviews
         next failure("Provider attempt limit reached") if execution.provider_attempts.count >= MAX_PROVIDER_ATTEMPTS
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
         if interview.execution_mode == "real"
-          allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+          allowance = CheckOperationAllowanceService.call(operation: @operation)
           unless allowance.success?
             reject_allowance(expiry: @operation.retry_expires_at)
             next allowance

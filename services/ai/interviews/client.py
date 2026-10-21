@@ -14,18 +14,93 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
 
+class InterviewContext(BaseModel):
+    """Keep owned frozen facts separate from the imagined vacancy."""
+
+    version: Literal[1]
+    personal_evidence: dict[str, Any]
+    fictional_role: dict[str, Any]
+
+
+class PublicMessage(BaseModel):
+    """An accepted utterance, never a private model/tool message."""
+
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["opening", "answer", "follow_up"]
+    content: str = Field(min_length=1)
+
+
+class PublicQuestionGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question_position: int = Field(ge=0)
+    messages: list[PublicMessage] = Field(min_length=2, max_length=6)
+
+    @model_validator(mode="after")
+    def complete_dialogue(self):
+        kinds = [message.kind for message in self.messages]
+        if kinds[0] != "opening" or kinds[-1] != "answer" or any(
+            kind != ("answer" if i % 2 else "follow_up") for i, kind in enumerate(kinds[1:], 1)
+        ):
+            raise ValueError("Incomplete public question group")
+        return self
+
+
+class EarlierDialogue(BaseModel):
+    """Complete question groups selected by Rails under a content-character cap."""
+
+    model_config = ConfigDict(extra="forbid")
+    version: Literal[1]
+    character_budget: Literal[12000]
+    groups: list[PublicQuestionGroup] = Field(max_length=8)
+    omitted_question_positions: list[int] = Field(max_length=8)
+
+    @model_validator(mode="after")
+    def chronological_groups(self):
+        positions = [group.question_position for group in self.groups]
+        omitted = self.omitted_question_positions
+        if positions != sorted(set(positions)) or omitted != sorted(set(omitted)) or any(
+            position < 0 for position in omitted
+        ) or set(positions) & set(omitted):
+            raise ValueError("Invalid public question positions")
+        return self
+
+
 class TurnPayload(BaseModel):
     recording_id: str
     expected_revision: int
     question: str
     model_history: list[dict[str, Any]]
     history_version: int
-    fixture_context: dict[str, Any]
+    earlier_dialogue: EarlierDialogue | None = None
+    fixture_context: dict[str, Any] | None = None
+    interview_context: InterviewContext | None = None
+
+    @model_validator(mode="after")
+    def require_context(self):
+        if (self.fixture_context is None) == (self.interview_context is None):
+            raise ValueError("A turn requires exactly one context source")
+        return self
+
+    def personal_evidence(self) -> dict[str, Any]:
+        """Return contact/provenance input without treating a fictional role as facts."""
+        return self.interview_context.personal_evidence if self.interview_context else self.fixture_context
+
+    def context_input(self) -> dict[str, Any]:
+        """Preserve the versioned prepared source or the legacy fixture envelope."""
+        context = ({"interview_context": self.interview_context.model_dump()} if self.interview_context
+                   else {"fixture_context": self.fixture_context})
+        if self.earlier_dialogue is not None:
+            context["earlier_dialogue"] = self.earlier_dialogue.model_dump()
+        return context
 
 
 class SpeechPayload(BaseModel):
     text: str
     message_id: str
+
+
+class PreparationPayload(BaseModel):
+    frozen_context: dict[str, Any]
 
 
 class ExecutionConfiguration(BaseModel):
@@ -55,19 +130,19 @@ class Claim(BaseModel):
     execution_mode: Literal["fake", "real"] = "fake"
     execution_config: ExecutionConfiguration = Field(default_factory=lambda: FAKE_CONFIGURATION)
     operation_id: str
-    kind: Literal["turn", "speech"]
+    kind: Literal["preparation", "turn", "speech"]
     attempt_id: str
     claim_generation: StrictInt
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: TurnPayload | SpeechPayload
+    payload: TurnPayload | SpeechPayload | PreparationPayload
 
     @model_validator(mode="after")
     def matching_payload(self):
         configuration = FAKE_CONFIGURATION if self.execution_mode == "fake" else REAL_CONFIGURATION
         if self.execution_config != configuration:
             raise ValueError("Invalid saved execution configuration")
-        expected = TurnPayload if self.kind == "turn" else SpeechPayload
+        expected = {"turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
         if not isinstance(self.payload, expected):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
         return self
@@ -269,6 +344,9 @@ class RailsInterviewClient:
 
     async def fail(self, claim: Claim, code: str, retryable: bool):
         return await self._callback(claim, "fail", code=code, retryable=retryable)
+
+    async def accept_preparation(self, claim: Claim, *, role: dict, questions: list[dict]):
+        return await self._callback(claim, "accept_preparation", role=role, questions=questions)
 
     async def start_provider(
         self, claim: Claim, observation_id: str, stage: str, provider: str, model: str

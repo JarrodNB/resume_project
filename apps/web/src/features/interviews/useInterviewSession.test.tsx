@@ -6,10 +6,10 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { AUTHORIZE_RECORDING, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
 const snapshot = {
-  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
-  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', position: 0, acceptedAnswerCount: 0 }],
+  __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
+  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0 }],
   messages: [], operations: [],
 }
 const pending = { questionId: 'question', recordingId: 'recording', expectedRevision: 0, submissionKey: 'stable-key' }
@@ -20,6 +20,23 @@ function mount(mocks: MockLink.MockedResponse[]) {
 }
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('useInterviewSession', () => {
+  it('keeps ambiguous submission recovery on failed abandon and clears it only after saved confirmation', async () => {
+    savePendingSubmission('owner', 'session', pending)
+    const abandonRequest = { query: ABANDON_INTERVIEW, variables: { interviewId: 'session' } }
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: abandonRequest, error: new Error('Disconnected') },
+      { request: abandonRequest, result: { data: { abandonInterview: { __typename: 'AbandonInterviewPayload', interview: { ...snapshot, status: 'abandoned', revision: 1 }, errors: [] } } } },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(async () => { expect(await result.current.abandonInterview()).toBe(false) })
+    expect(loadPendingSubmission('owner', 'session')).toEqual(pending)
+    expect(result.current.unresolved).toEqual(pending)
+    await act(async () => { expect(await result.current.abandonInterview()).toBe(true) })
+    expect(loadPendingSubmission('owner', 'session')).toBeNull()
+    expect(result.current.unresolved).toBeNull()
+    expect(result.current.interview?.status).toBe('abandoned')
+  })
   it('reconciles an ambiguously accepted submission on reload without resending expired recording input', async () => {
     savePendingSubmission('owner', 'session', pending)
     const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
@@ -114,4 +131,36 @@ describe('useInterviewSession', () => {
     expect(resend).not.toHaveBeenCalled()
     expect(result.current.error).toContain('Unauthorized')
   })
+})
+
+it('begins reviewed preparation explicitly and updates the owned snapshot', async () => {
+  const ready = { ...snapshot, status: 'ready' }
+  const active = { ...snapshot, revision: 1 }
+  const begin = vi.fn(() => ({ data: { beginInterview: { __typename: 'BeginInterviewPayload', interview: active, errors: [] } } }))
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: ready } } },
+    { request: { query: BEGIN_INTERVIEW, variables: { interviewId: 'session' } }, result: begin, delay: 20 },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  expect(begin).not.toHaveBeenCalled()
+  await act(async () => { await Promise.all([result.current.beginInterview(), result.current.beginInterview()]) })
+  expect(begin).toHaveBeenCalledOnce()
+  expect(result.current.interview?.revision).toBe(1)
+  expect(result.current.error).toBeNull()
+})
+
+it('preserves role review after a failed begin and allows an explicit retry', async () => {
+  const ready = { ...snapshot, status: 'ready' }
+  const active = { ...snapshot, revision: 1 }
+  const request = { query: BEGIN_INTERVIEW, variables: { interviewId: 'session' } }
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: ready } } },
+    { request, error: new Error('Lost begin response') },
+    { request, result: { data: { beginInterview: { __typename: 'BeginInterviewPayload', interview: active, errors: [] } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(() => result.current.beginInterview())
+  expect(result.current.error).toContain('Lost begin response')
+  await act(() => result.current.beginInterview())
+  expect(result.current.interview?.revision).toBe(1)
 })

@@ -10,8 +10,17 @@ case "${1:-}" in
   start)
     : "${INTERVIEW_REAL_QA_APPROVED:?Set yes only when intentionally starting paid browser QA}"
     [[ "$INTERVIEW_REAL_QA_APPROVED" == yes ]] || exit 1
-    "${compose[@]}" stop interview-runtime
-    "${compose[@]}" up -d --no-build --wait db s3 api web
+    "${compose[@]}" up -d --no-build --wait db s3 sqs api web
+    "${compose[@]}" exec -T api bundle exec rails runner '
+      raise "Local development only" unless Rails.env.development?
+      require Rails.root.join("lib/ai_reader_access")
+      connection = ApplicationRecord.connection
+      unless AiReaderAccess.role_exists?(connection)
+        connection.execute("CREATE ROLE ai_reader LOGIN PASSWORD '\''ai_reader'\''")
+      end
+      AiReaderAccess.grant(connection)
+    '
+    "${compose[@]}" up -d --no-build api-results-worker ai
     "${compose[@]}" exec -T api bundle exec rails runner '
       raise "Retained paid ledger missing; do not create a replacement allowance" unless InterviewVerificationReservation.exists?
       raise "Unreviewed unknown provider usage: paid execution remains stopped" if Interviews::VerificationBudget.unreviewed_reservations.exists?

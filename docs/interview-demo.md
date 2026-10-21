@@ -1,4 +1,36 @@
-# Offline interview demo and recovery checks
+# Offline spoken interview engineering checks
+
+Run the complete current flow with real Rails/Postgres/private S3 and synthetic provider HTTP:
+
+```bash
+bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_full_session_check.sh
+```
+
+Each project `cg-interview-18-synthetic-<run-id>` has an internal Docker network, synthetic keys,
+no environment files and no host ports. Provider SDK transports return deterministic HTTP
+responses; the application follows its real execution and accounting path. This is engineering
+evidence, not live transcription, interview relevance, speech quality or microphone QA.
+The script prepares its own synthetic career library/focus, verifies complete preparation with
+no speech, explicitly begins once, and forces three saved responses on each of nine questions.
+It also tests killed preparation/turn processes, exact acceptance replays, lost receipts,
+speech-only recovery, abandoned preparation fencing, and playback after S3 recreation.
+
+The script stops its own project on exit and retains synthetic database/storage volumes for
+inspection. Each run has a fresh synthetic project and owner. Failed synthetic ledgers remain
+intact; no paid ledger or allowance is reused or reset. Failed check fixtures remain available for diagnosis. It never reads, changes or
+creates an allowance in the retained paid QA project. Existing local images
+`cg-interview-qa-api` and `cg-interview-qa-interview-runtime` must match the checkout dependencies.
+
+The standalone Ruby smoke entrypoint `services/api/script/interview_real_smoke.rb` also drives
+preparation → Begin → full progression under the synthetic runtime; use the shell command above
+for the full process-fault evidence. Paid diagnostics are separately opt-in and conservative:
+`script/interview_paid_check.sh` still refuses every historical unknown reservation. It does
+not implement the QA launcher's exact historical-observation exception.
+
+Use [real browser QA](interview-real-qa.md) for the public real-only feature. The earlier fake
+fixture and recovery commands below remain offline legacy engineering coverage only.
+
+## Offline interview demo and recovery checks
 
 This isolated stack runs the spoken interview with fictional context, scripted transcripts,
 and fixed synthetic speech. It never loads a service `.env`, starts paid providers, or starts
@@ -50,8 +82,8 @@ checks; they do not establish microphone behavior or production storage permissi
 
 | Row | Observable contract | Evidence |
 | --- | --- | --- |
-| 1 | Opening, two answers, cap, closing, saved audio | Recovery harness plus `interview_runtime_smoke.rb`; human hears audio |
-| 2 | Early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance tool/history |
+| 1 | Legacy fixture opening, two answers, cap, closing, saved audio | Recovery harness plus `interview_runtime_smoke.rb`; human hears audio |
+| 2 | Legacy fixture early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance tool/history |
 | 3 | Identical/conflicting submission identity and competing submits | Harness real DB submit race; `submit_turn_service_spec.rb`, `concurrency_spec.rb`; frontend ambiguous-submit tests |
 | 4 | Competing/expired claims and stale dialogue/audio | Harness real HTTP claim race, killed lease recovery and stale heartbeat; `concurrency_spec.rb`, `media_service_spec.rb` stale completion |
 | 5 | Reload/disconnect and lost result receipt | Harness real committed receipt loss/status and identical acceptance replay; frontend hook/page reload/reconnect tests; human reload |
@@ -62,6 +94,7 @@ checks; they do not establish microphone behavior or production storage permissi
 | 10 | Usage identity, unknown cost, fake isolation | Harness killed execution retains incomplete marker and zero known spend; `provider_accounting_spec.rb`, `test_interview_executor.py`, `test_interview_runtime.py` outbound-denial tests. No paid-cost/latency claim |
 | 11 | Retention, deletion retries and permitted metadata | Harness actual storage recreation, completed-speech expiry, object deletion and dialogue/history scrub with usage retained; `cleanup_service_spec.rb` deletion failure/tombstone races |
 | 12 | UI devices, permissions, processing, retry and written regression | Full frontend tests, GraphQL ownership/subscription tests; human QA above remains required |
+| 13 | Reviewed role begins once; nine typed questions, three-response cap, early advance and one closing | `begin_service_spec.rb`, `full_progression_spec.rb`, independent-connection `concurrency_spec.rb`, React page/hook tests; earlier-question context and session-aware allowances remain separate slices |
 
 Rails test paths in this table are under `services/api/spec/services/interviews/` except
 request tests under `spec/requests/` and `interview_demo_spec.rb` under `spec/graphql/`.

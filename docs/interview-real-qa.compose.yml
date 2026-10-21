@@ -8,6 +8,67 @@ services:
       CORS_ORIGINS: http://127.0.0.2:15176
       WEB_APP_URL: http://127.0.0.2:15176
       INTERVIEW_BROWSER_STORAGE_ORIGIN: http://127.0.0.2:19096
+      SQS_ENDPOINT_URL: http://sqs:9324
+  sqs:
+    image: softwaremill/elasticmq-native
+    volumes:
+      - ../infra/elasticmq/elasticmq.conf:/opt/elasticmq.conf:ro
+  api-results-worker:
+    image: cg-interview-qa-api
+    command: bundle exec shoryuken -R -C config/shoryuken.yml
+    restart: unless-stopped
+    environment:
+      RAILS_ENV: development
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: interview-local-only
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_EC2_METADATA_DISABLED: "true"
+      SQS_ENDPOINT_URL: http://sqs:9324
+      S3_ENDPOINT_URL: http://s3:9090
+      S3_UPLOADS_BUCKET: careergrind-uploads
+      BOOTSNAP_CACHE_DIR: /bootsnap
+      OPENAI_API_KEY: ""
+    volumes:
+      - ../services/api:/rails
+      - interview_bootsnap:/bootsnap
+    depends_on:
+      api:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+  ai:
+    image: cg-interview-qa-interview-runtime
+    command: python -m worker.main
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    env_file:
+      - ${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI env path}
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_EC2_METADATA_DISABLED: "true"
+      SQS_ENDPOINT_URL: http://sqs:9324
+      S3_ENDPOINT_URL: http://s3:9090
+      S3_UPLOADS_BUCKET: careergrind-uploads
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
+      WORKER_ENVIRONMENT: local
+      CONVERSATION_LOGGING_ENABLED: "false"
+      LOGFIRE_ENVIRONMENT: development
+    volumes:
+      - ../services/ai:/app
+    depends_on:
+      api:
+        condition: service_healthy
+      sqs:
+        condition: service_started
   s3:
     ports:
       - "127.0.0.2:19096:9090"

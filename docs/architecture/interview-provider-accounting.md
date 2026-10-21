@@ -62,7 +62,8 @@ Rails uses server-owned reservation policies, never caller-provided prices:
   at most 4,000 saved characters, not a documented maximum.
 - Jev screening: 10,000 microdollars (US$0.01); Nano safety fallback and Luna interviewer:
   50,000 microdollars each (US$0.05). These deliberately generous token estimates cover
-  bounded prompts, with OpenAI output capped at 1,024 tokens per concrete request.
+  bounded prompts, with OpenAI output capped at 1,024 tokens for dialogue/screening or
+  4,096 for the complete preparation plan per concrete request.
   They are estimates rather than hard provider ceilings; actual usage is reconciled.
 - All other stage/model/provider combinations fail closed. No generative fallback or
   configurable pricing is enabled by this policy.
@@ -118,6 +119,35 @@ reservation. Known usage is saved before Pydantic validates output. Zero/missing
 an unexpected response model remains unknown and stops processing. Only the exact approved
 model name (optionally provider-prefixed) is priced; unverified snapshot aliases fail closed.
 The existing pure worker price helper normalizes token usage, including cached tokens.
+Library-informed preparation shares the approved Luna interviewer stage and its existing
+US$0.05 reservation estimate; each concrete request still needs its own durable observation.
+Only preparation reasoning raises the bounded output cap to 4,096 tokens to fit the role
+and all nine questions. Ordinary interview dialogue and Nano screening remain at 1,024.
+No new model or rate is introduced; the cumulative verification allowance is unchanged.
+Actual usage is reconciled as before.
+
+Full prepared sessions share one hourly admission, while preparation, every turn and every
+speech retain separate task/attempt/provider bills. The current hourly default is 30;
+session grouping does not bypass the separate interview monthly budget/concurrency limits or
+this permanent US$5 verification ledger. General AI allowances exclude spoken interview work;
+its actual bills and unknown markers remain intact in the same durable accounting tables. See [session accounting](interview-sessions.md#http-execution-accounting)
+for ownership checks, finite submission limits and task-month attribution.
+
+The interview wrapper explicitly requests Standard (`service_tier: "default"`) pricing.
+Luna uses `prompt_cache_options: {"mode": "explicit"}` without breakpoint markers:
+[official caching guidance](https://developers.openai.com/api/docs/guides/prompt-caching)
+confirms this creates no cache writes. The pinned Pydantic mapper preserves total write
+tokens but drops the 30-minute/12-hour split, so silently pricing writes as ordinary input
+would undercount. Unexpected Luna write tokens leave usage unknown and stop later paid
+dispatch. Nano retains its older implicit caching behavior; unrelated worker pricing is
+unchanged.
+
+The feature supports Luna's Standard short-context rates only. If reported input exceeds
+272,000 tokens, its observation remains unknown instead of applying an unsupported rate.
+The [model contract](https://developers.openai.com/api/docs/models/gpt-6-luna) applies
+higher rates above that boundary. The existing character-bound prompt checks are not a
+token-count guarantee; this post-response guard preserves truthful accounting and the
+unknown-cost stop rule rather than promising a provider-side maximum bill.
 
 Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
 is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)

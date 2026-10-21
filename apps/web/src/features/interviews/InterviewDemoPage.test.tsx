@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
   recorder: { status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -15,6 +15,7 @@ vi.mock('./useInterviewRecorder', async () => {
   return { useInterviewRecorder: () => { const [, setTick] = useState(0); recorder.refresh = () => setTick((value) => value + 1); return recorder } }
 })
 vi.mock('./InterviewAudio', () => ({ InterviewAudio: () => <p>Saved audio</p> }))
+vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
@@ -25,6 +26,30 @@ const snapshot = {
 function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
 describe('InterviewDemoPage', () => {
+  it('requires explicit confirmation and preserves the recording when cancellation or abandonment fails', async () => {
+    recorder.recording = new Blob(['answer'], { type: 'audio/webm' }); recorder.status = 'ready'
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Your unsubmitted recording will be discarded')
+    await userEvent.click(screen.getByRole('button', { name: 'Keep interview' }))
+    expect(state.abandonInterview).not.toHaveBeenCalled()
+    expect(recorder.reset).not.toHaveBeenCalled()
+    state.abandonInterview.mockResolvedValue(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
+    expect(state.abandonInterview).toHaveBeenCalledOnce()
+    expect(recorder.reset).not.toHaveBeenCalled()
+    state.abandonInterview.mockResolvedValue(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
+    await waitFor(() => expect(recorder.reset).toHaveBeenCalledOnce())
+  })
+  it.each(['preparing', 'ready'])('allows deliberate abandonment while %s without recording', async (status) => {
+    state.interview = { ...snapshot, status }
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    expect(screen.getByRole('button', { name: 'Confirm abandonment' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+  })
   it('labels saved real sessions with submitted audio and generated voice disclosure', () => {
     state.interview = { ...snapshot, executionMode: 'real' }
     renderDemo()
@@ -43,8 +68,8 @@ describe('InterviewDemoPage', () => {
     renderDemo('/interviews/demo')
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith()
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    expect(start).toHaveBeenCalledWith('')
   })
   it('retires old scripted sessions without recording or retry controls', () => {
     state.interview = { ...snapshot, executionMode: 'fake' }
@@ -176,6 +201,7 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     expect(screen.queryByRole('button', { name: 'Retry answer processing' })).not.toBeInTheDocument()
     expect(screen.getByText('Record a new answer to continue.')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('This did not use a response slot.')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
   })
   it('hides the entrypoint when not explicitly enabled', () => {
@@ -183,5 +209,56 @@ describe('InterviewDemoPage', () => {
     renderDemo('/interviews/demo')
     expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
     expect(screen.getByText(/unavailable in this environment/i)).toBeVisible()
+  })
+})
+
+it('shows durable preparation progress and retry without recording controls', async () => {
+  state.interview = { ...snapshot, status: 'preparing', questions: [], messages: [], operations: [
+    { ...snapshot.operations[0], id: 'prep', kind: 'preparation', status: 'failed', canRetry: true, failureCode: 'dependency_unavailable' },
+  ] }
+  renderDemo()
+  expect(screen.getByRole('heading', { name: 'Preparing your interview' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Retry preparation' }))
+  expect(state.retryOperation).toHaveBeenCalledWith('prep')
+})
+
+it('shows the frozen fictional role for review before any speech or recording', () => {
+  state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician',
+    responsibilities: ['Maintain instruments'], requirements: ['Understand calibration'] }, messages: [], operations: [] }
+  renderDemo()
+  expect(screen.getByRole('heading', { name: 'Review your fictional role' })).toBeVisible()
+  expect(screen.getByText('Laboratory technician')).toBeVisible()
+  expect(screen.getByText('Maintain instruments')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+})
+
+it('passes an explicit career focus to preparation and offers a library review path', async () => {
+  renderDemo('/interviews/demo')
+  await userEvent.type(screen.getByRole('textbox', { name: 'Career focus (optional)' }), 'Laboratory equipment')
+  await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  expect(start).toHaveBeenCalledWith('Laboratory equipment')
+  expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
+})
+
+
+describe('prepared interview begin', () => {
+  it('offers explicit Begin after role review, without microphone capture', async () => {
+    state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Fictional technician', responsibilities: ['Maintain instruments'], requirements: ['Calibration'] } }
+    renderDemo()
+    expect(screen.getByText('Review your fictional role')).toBeVisible()
+    expect(state.beginInterview).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Begin interview' }))
+    expect(state.beginInterview).toHaveBeenCalledOnce()
+    expect(recorder.start).not.toHaveBeenCalled()
+  })
+
+  it('shows whole-interview and per-question progress', () => {
+    state.interview = { ...snapshot, answerCap: 3, currentQuestionPosition: 4,
+      questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
+    renderDemo()
+    expect(screen.getByText('Question 5 of 9 · Technical')).toBeVisible()
+    expect(screen.getByText('2 of 3 responses saved.')).toBeVisible()
+    expect(screen.getByRole('button', { name: /Saved conversation/ })).toBeVisible()
   })
 })

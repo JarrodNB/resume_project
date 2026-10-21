@@ -21,7 +21,9 @@ module Interviews
     end
 
     def current_claim?
-      @operation.running? && @attempt_id.present? && @attempt_id == @operation.attempt_id &&
+      !@operation.interview_session.abandoned? && !@operation.interview_session.expired? &&
+        @operation.interview_session.expires_at > Time.current &&
+        @operation.running? && @attempt_id.present? && @attempt_id == @operation.attempt_id &&
         @generation == @operation.claim_generation && @operation.lease_expires_at > Time.current &&
         @operation.execution_deadline > Time.current
     end

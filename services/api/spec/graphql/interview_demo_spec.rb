@@ -2,7 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "Spoken interview demo GraphQL" do
-  let(:user) { create(:user) }
+  let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
   let(:snapshot) { "id status executionMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
 
@@ -10,7 +10,33 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
-  it "creates a fictional interview with accepted opening and safe operation progress" do
+  it "lists only the owner's twenty most recent live real sessions across resumable and review states" do
+    config = Interviews::ExecutionConfiguration::PRESETS.fetch("real")
+    sessions = 22.times.map do |index|
+      user.interview_sessions.create!(status: %w[preparing ready active completed][index % 4],
+        execution_mode: "real", execution_config: config, expires_at: 1.day.from_now,
+        created_at: index.minutes.ago)
+    end
+    session # legacy scripted fixture is deliberately excluded
+    user.interview_sessions.create!(status: "abandoned", execution_mode: "real", execution_config: config, expires_at: 1.day.from_now)
+    user.interview_sessions.create!(status: "active", execution_mode: "real", execution_config: config, expires_at: 1.second.ago)
+    create(:user).interview_sessions.create!(status: "active", execution_mode: "real", execution_config: config, expires_at: 1.day.from_now)
+    result = execute_graphql("{ recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } } }", user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "recentInterviewSessions").map { |row| row["id"] }).to eq(sessions.first(20).map(&:id))
+    expect(execute_graphql("{ recentInterviewSessions { id } }", user: nil).dig("errors", 0, "message")).to eq("Authentication required")
+  end
+
+  it "abandons only owned unfinished sessions and returns an idempotent terminal snapshot" do
+    query = "mutation { abandonInterview(input: {interviewId: \"#{session.id}\"}) { interview { id status revision } errors } }"
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    first = execute_graphql(query, user: user)
+    expect(first["errors"]).to be_nil
+    expect(first.dig("data", "abandonInterview", "interview", "status")).to eq("abandoned")
+    expect(execute_graphql(query, user: user)).to eq(first)
+  end
+
+  it "starts owned preparation without opening speech and safe operation progress" do
     allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
     allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
     result = execute_graphql("mutation { startInterviewDemo(input: {}) { interview { #{snapshot} } errors } }", user: user)
@@ -18,8 +44,21 @@ RSpec.describe "Spoken interview demo GraphQL" do
     payload = result.dig("data", "startInterviewDemo")
     expect(payload["errors"]).to eq([])
     expect(payload.dig("interview", "executionMode")).to eq("real")
-    expect(payload.dig("interview", "messages").size).to eq(1)
+    expect(payload.dig("interview", "messages")).to be_empty
+    expect(payload.dig("interview", "status")).to eq("preparing")
     expect(payload.dig("interview", "operations", 0, "status")).to eq("pending")
+  end
+
+  it "begins only the owner's reviewed interview and returns the active snapshot" do
+    session.update!(status: "ready")
+    session.operations.destroy_all
+    session.messages.destroy_all
+    query = "mutation { beginInterview(input: {interviewId: \"#{session.id}\"}) { interview { #{snapshot} } errors } }"
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(query, user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "beginInterview", "interview", "status")).to eq("active")
+    expect(result.dig("data", "beginInterview", "interview", "messages").length).to eq(1)
   end
 
   it "rejects scripted creation even when a legacy client explicitly requests it" do
@@ -168,5 +207,23 @@ RSpec.describe "Interview snapshot subscriptions" do
       raise ActiveRecord::Rollback
     end
     expect(session.reload.revision).to eq(0)
+  end
+end
+
+RSpec.describe "Spoken preparation GraphQL privacy" do
+  it "exposes owned role progress but never raw frozen sources or another owner's session" do
+    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
+    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    owner = create(:user, summary: "Private laboratory facts")
+    result = execute_graphql('mutation { startInterviewDemo(input: {careerFocus: "laboratory"}) { interview { id status preparedRole operations { kind questionId } } errors } }', user: owner)
+    payload = result.dig("data", "startInterviewDemo")
+    expect(payload["errors"]).to be_empty
+    expect(payload.dig("interview", "operations", 0, "questionId")).to be_nil
+    expect(payload.dig("interview", "preparedRole")).to eq({})
+    expect(result.to_json).not_to include("Private laboratory facts")
+    id = payload.dig("interview", "id")
+    expect(execute_graphql("query { interviewSession(id: \"#{id}\") { preparedRole } }", user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    expect(Types::InterviewSessionType.fields.keys).not_to include("frozenContext")
   end
 end

@@ -14,9 +14,11 @@ module Interviews
       return failure("Interview execution mode unavailable") unless ExecutionConfiguration::PRESETS.key?(@execution_mode)
 
       with_operation_lock do |interview|
+        next failure("Interview abandoned") if interview.abandoned?
         next failure("Interview execution mode mismatch") unless interview.execution_mode == @execution_mode
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
+        next failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
         if @operation.turn?
           next failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision &&
             interview.current_question_position == @operation.question.position
@@ -33,7 +35,7 @@ module Interviews
         next failure("Operation is not eligible") unless @operation.pending? && (!@operation.retry_at || @operation.retry_at <= Time.current)
         next failure("Recording expired") if @operation.turn? && @operation.created_at <= 1.hour.ago
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+        allowance = CheckOperationAllowanceService.call(operation: @operation, create_task: true)
         unless allowance.success?
           reject_allowance(expiry: expiry)
           next allowance
@@ -54,10 +56,16 @@ module Interviews
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
         payload = if @operation.speech?
           { text: @operation.message.content, message_id: @operation.message_id }
+        elsif @operation.preparation?
+          { frozen_context: interview.frozen_context }
         else
           { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,
-            history_version: @operation.question.history_version, fixture_context: interview.fixture_context }
+            history_version: @operation.question.history_version,
+            earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
+              interview.frozen_context.present? ?
+                { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :
+                { fixture_context: interview.fixture_context })
         end
         success({ execution_mode: interview.execution_mode, execution_config: interview.execution_config, operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,
           claim_generation: @operation.claim_generation, lease_expires_at: @operation.lease_expires_at,

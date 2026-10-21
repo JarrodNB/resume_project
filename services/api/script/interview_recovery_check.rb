@@ -162,10 +162,16 @@ when "contracts"
   end.map(&:value)
   assert_check(results.count(&:success?) == 1 && target.operations.turn.count == 1, "Competing submissions both started")
   target = checked(Interviews::CreateFixtureService.call(user: user))
-  user.update!(monthly_ai_budget_microdollars: 0)
-  denied = Interviews::ClaimOperationService.call(operation: target.operations.first)
-  assert_check(!denied.success? && target.operations.first.reload.failure_code == "ai_usage_limit_reached", "Budget denial remained silently pending")
-  user.update!(monthly_ai_budget_microdollars: nil)
+  # A disposable synthetic bill fills only this fake owner's interview allowance.
+  # It has no provider receipts and never changes the real verification ledger/config.
+  synthetic_bill = user.ai_tasks.create!(task_type: "interview_speech", status: "completed",
+    cost_microdollars: DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS, input: { synthetic_budget_fixture: true })
+  begin
+    denied = Interviews::ClaimOperationService.call(operation: target.operations.first)
+    assert_check(!denied.success? && target.operations.first.reload.failure_code == "ai_usage_limit_reached", "Budget denial remained silently pending")
+  ensure
+    synthetic_bill.destroy!
+  end
   checked(Interviews::RetryOperationService.call(operation: target.operations.first))
   assert_check(target.operations.first.reload.pending?, "Restored budget cannot explicitly retry")
   target = checked(Interviews::CreateFixtureService.call(user: user))

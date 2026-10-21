@@ -76,6 +76,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
+  - Basic Interview preparation and spoken dialogue are an explicitly scoped first-iteration
+    exception: automated quality datasets, evaluators and LLM judges remain deferred.
+    Verify contracts offline and use bounded representative provider smoke checks; do not
+    report deterministic tests as evidence of interview quality.
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
   - Use deterministic evaluators where possible; use LLM-as-judge only for subjective

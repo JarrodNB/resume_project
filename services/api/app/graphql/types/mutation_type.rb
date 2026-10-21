@@ -22,6 +22,8 @@
 module Types
   class MutationType < Types::BaseObject
     field :start_interview_demo, mutation: Mutations::Interviews::StartInterviewDemo
+    field :begin_interview, mutation: Mutations::Interviews::BeginInterview
+    field :abandon_interview, mutation: Mutations::Interviews::AbandonInterview
     field :authorize_interview_recording, mutation: Mutations::Interviews::AuthorizeInterviewRecording
     field :register_interview_recording, mutation: Mutations::Interviews::RegisterInterviewRecording
     field :submit_interview_turn, mutation: Mutations::Interviews::SubmitInterviewTurn

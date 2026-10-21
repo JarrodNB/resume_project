@@ -86,7 +86,7 @@ RSpec.describe "Interview execution recovery" do
   end
 
   it "admits logical work through existing limits without publishing queues" do
-    interview.user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 0)
     expect(Shoryuken::Client).not_to receive(:queues)
     expect(claim).not_to be_success
     expect(operation.reload.ai_task).to be_nil
@@ -94,7 +94,7 @@ RSpec.describe "Interview execution recovery" do
       retry_at: nil, retry_expires_at: interview.expires_at)
     expect(operation.execution_attempts.count).to eq(0)
     expect(interview.questions.first.reload.accepted_answer_count).to eq(0)
-    interview.user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
     expect(claim).not_to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
     expect(claim).to be_success
@@ -107,17 +107,17 @@ RSpec.describe "Interview admission", type: :service do
     recording = ready_interview_recording(interview)
     operation = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
       recording_id: recording.id, expected_revision: 0, submission_key: "denied").value
-    interview.user.update!(max_in_flight_ai_tasks: 0)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 0)
 
     result = Interviews::ClaimOperationService.call(operation: operation)
 
-    expect(result.errors.join).to include("AI tasks running")
+    expect(result.errors.join).to include("interview operations running")
     expect(operation.reload).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached", execution_count: 0,
       retry_expires_at: recording.expires_at)
     expect(operation.execution_attempts.count).to eq(0)
     expect(interview.questions.first.reload.accepted_answer_count).to eq(0)
     expect(recording.reload.expires_at).to be > Time.current
-    interview.user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
   end
@@ -135,21 +135,21 @@ RSpec.describe "Interview admission", type: :service do
 
   it "rechecks budgets before an automatic retry without counting its own in-flight task" do
     interview = Interviews::CreateFixtureService.call(user: create(:user)).value
-    interview.user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
     operation = interview.operations.first
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
     Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation, code: "execution_failed", retryable: true)
     travel 3.seconds
     operation.ai_task.update!(cost_microdollars: 1)
-    interview.user.update!(monthly_ai_budget_microdollars: 1)
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 1)
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(operation.reload.execution_count).to eq(1)
     expect(operation).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil)
     expect(operation.ai_task.reload).to have_attributes(status: "failed", error_message: "ai_usage_limit_reached")
     expect(operation.execution_attempts.count).to eq(1)
     expect(Interviews::RetryOperationService.call(operation: operation)).not_to be_success
-    interview.user.update!(monthly_ai_budget_microdollars: 2)
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 2)
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success

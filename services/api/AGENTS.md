@@ -56,8 +56,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   (also used for WebSocket origins in `config/application.rb`)
 - `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
-- `config/initializers/ai_usage_limits.rb` — default per-user AI limits (monthly budget, tasks
-  per hour, tasks in flight) from ENV
+- `config/initializers/ai_usage_limits.rb` — independent general AI and spoken-interview
+  limits (monthly budget, hourly starts, in-flight work) from ENV
 - `config/initializers/text_limits.rb` — character and count caps for user-written text
   (`TextLimits`) and `MaxRequestBody` (JSON 413 over 8 MB, including a body with no
   Content-Length). The AI worker repeats the caps it

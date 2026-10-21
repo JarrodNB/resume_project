@@ -21,8 +21,13 @@ module Interviews
       media = result.value
       seconds = [ GRANT_SECONDS, (media_expiry(media) - Time.current).floor, (@operation.lease_expires_at - Time.current).floor ].min
       return failure("Claim is stale or expired") unless seconds.positive?
-      success({ recording_id: media.id, download_url: @storage.read_url(key: media.sealed_key, expires_in: seconds),
-        expires_in: seconds, checksum: media.checksum, byte_size: media.byte_size, content_type: media.content_type })
+      receipt = { recording_id: media.id, download_url: @storage.read_url(key: media.sealed_key, expires_in: seconds),
+        expires_in: seconds, checksum: media.checksum, byte_size: media.byte_size, content_type: media.content_type }
+      with_operation_lock do
+        media.lock!
+        next failure("Claim is stale or expired") unless current_claim? && media_live?(media)
+        success(receipt)
+      end
     end
   end
 end

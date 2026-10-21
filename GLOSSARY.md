@@ -29,7 +29,8 @@ follow-ups without coaching.
 
 **Accepted answer**:
 An answer included in an interview session's saved dialogue and answer allowance. Failed or
-rejected attempts do not count as accepted answers.
+rejected attempts do not count as accepted answers. Acceptance means the response was saved,
+not that it was correct or good; responses to follow-ups and brief detours count too.
 
 **Interview turn**:
 One submitted answer and its resulting interviewer response within an interview session.

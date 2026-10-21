@@ -143,6 +143,12 @@ false value and a separate project, as described in the demo guide.
 
 ## Live evidence: stopped after the first unknown charge
 
+Historical checkpoint, superseded by the real speech repair and real browser QA evidence
+above. It records why the first probe stopped, not the current instruction for operating
+QA. The original unknown charge remains unresolved; only its exact reviewed observation
+is excepted for admission. Follow [the current real QA guide](interview-real-qa.md) for
+startup and spending rules. Any new unknown observation still blocks further dispatch.
+
 Only the opening speech was attempted through real Rails admission, the actual audio adapter
 and the fixed `gpt-4o-mini-tts` / `marin` configuration. The one paid verification project is
 `cg-interview-12-paid`; its database volume must be retained across every restart.
@@ -177,18 +183,23 @@ reservations and actual reconciliation, not a provider-side guaranteed ceiling.
 
 ## Bounded manual use
 
-Use the running fake demo for microphone/preview/recovery QA without provider spending.
-Do not enable real admission or run pending real sessions while this charge is unresolved.
-The isolated QA database is not the paid ledger; enabling paid mode there would defeat the
-single-ledger verification accounting policy. Never reset or copy the paid database to
-bypass a reservation.
+Use [the real browser QA guide](interview-real-qa.md) for authorized manual testing on
+`cg-interview-12-paid`. Public scripted sessions are retired. Offline deterministic recovery
+checks remain available through [the recovery guide](interview-demo.md).
 
-For a future explicitly approved paid investigation, review aggregate ledger state and all
-pending real operations **before** starting execution. `script/interview_paid_check.sh`
+The original unknown observation remains counted at its reserved estimate and is the only
+human-reviewed admission exception. Any new unknown observation stops further paid calls.
+Never enable paid processing on the former fake QA database, reset or copy the paid ledger,
+or add reviewed observation IDs automatically. The cumulative US$5 target remains unchanged.
+
+Review aggregate ledger state and all pending real operations **before** starting execution.
+The separate conservative diagnostic runner, `script/interview_paid_check.sh`,
 requires the absolute original ignored AI environment-file path in
 `INTERVIEW_VERIFICATION_AI_ENV` and a deliberate `INTERVIEW_PAID_CHECK_APPROVED=yes`.
 It uses the fixed paid project, refuses unknown usage/pending work, and always stops its
-runtime on exit. It is currently expected to refuse this retained unresolved ledger.
+runtime on exit. It is expected to refuse the retained unresolved ledger; it does not
+implement the real-QA launcher's reviewed-observation exception.
 Never copy secret values into commands, documentation or a new environment file.
-The explicit paid overlay is `docs/interview-paid-check.compose.yml`; it is never included
-in normal QA startup. Keep real execution off by default and stop after any unknown cost.
+The explicit paid overlay is `docs/interview-paid-check.compose.yml`. The current real-QA
+launcher deliberately includes it for the retained paid project; offline recovery does not.
+Real execution remains opt-in. A restart resumes eligible saved work and can spend immediately.

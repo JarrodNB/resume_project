@@ -12,7 +12,7 @@ No browser automation was used.
 
 ## Offline evidence
 
-- Full Rails before the final repairs: 765 examples, zero failures; two existing opt-in storage tests pending.
+- Final integrated full Rails: 768 examples, zero failures; two existing opt-in storage tests pending.
   Actual private storage and recreation also passed the recovery harness.
 - Full frontend: 258 tests in 50 files; typecheck and lint passed with zero warnings/errors.
 - Final full offline AI: 895 passed, nine database tests deselected. External networking

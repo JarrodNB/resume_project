@@ -1,3 +1,15 @@
+# Current runtime status — 21 October 2026
+
+The user explicitly instructed restoring real interview execution and keeping it running.
+Both previously recorded unknown-cost observations are now reviewed for admission; neither
+is a confirmed OpenAI invoice charge. Actual costs remain unknown and reservations are
+preserved. No cost was assigned zero, no ledger was reset, and no additional smoke requests
+were sent. The real runtime reports ready and Rails confirms real admission and runtime
+readiness. The updated startup command is in [the real QA guide](interview-real-qa.md).
+Earlier stopped-runtime descriptions below are historical checkpoints.
+
+---
+
 # Independent interview limits — 21 October 2026
 
 Spoken interviews now have their own per-user allowance: $3/month, 30 session starts/hour,

@@ -1,12 +1,11 @@
 # Real spoken interview browser QA
 
-**Current status, 21 October:** paid execution is stopped. A bounded live smoke completed
-preparation, opening speech and one saved answer, then follow-up speech failed with a new
-unknown receipt. The original ledger now has US$0.018132 known cost plus two unresolved
-US$0.25 reservations. Only the older observation is reviewed; startup correctly refuses the
-new unknown. Do not add it to the exception list or reset the ledger. The guide below remains
-the manual QA procedure once that blocker is resolved. The API and web can run for inspection
-with the real runtime stopped; new real interviews remain unavailable.
+**Current status, 21 October:** real interviews are running again at the user's explicit
+request. The API and real runtime report ready. The two local unknown-cost observations
+are reviewed for continued admission; they are not confirmed OpenAI invoice charges.
+Their conservative reservations remain recorded without being assigned zero or deleted.
+The separate interview allowance remains $3/month, 30 session starts/hour and three
+concurrent operations. Keep the runtime running for the user's testing.
 
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
@@ -39,10 +38,12 @@ disposable local account at the same browser URL; if verification is required, u
 [local account mail](http://127.0.0.2:13006/letter_opener).
 
 Every real STT, screening, interviewer and TTS call passes the original cumulative US$5
-verification allowance. The historical US$0.25 unknown reservation remains unresolved and
-counts at its full estimate. The user explicitly authorized continuing; only that original
-observation (`57cb5021-6d37-465e-a56a-5eeee3bbb769`) was reviewed for admission. Any **new**
-unknown receipt blocks further paid calls. Do not append new IDs automatically, invent zero
+verification allowance. The two historical US$0.25 reservations have unknown actual cost
+and remain counted at their full estimates. The user explicitly instructed restarting and
+continuing despite these local markers. Reviewed observations are
+`57cb5021-6d37-465e-a56a-5eeee3bbb769` and
+`a269e85e-ccd9-4b73-87b9-b98961f8437d`. They are not confirmed invoice charges.
+Any other unknown receipt still follows the existing admission guard. Do not append new IDs automatically, invent zero
 charges, reset volumes or start another paid database. This is an estimated local allowance,
 not a provider-side hard spending ceiling. See [accounting](architecture/interview-provider-accounting.md).
 
@@ -55,7 +56,7 @@ Rebuild them from this checkout if dependencies change.
 
 ```bash
 export INTERVIEW_VERIFICATION_AI_ENV=/home/jarrod/Desktop/resume_project/services/ai/.env
-export INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS=57cb5021-6d37-465e-a56a-5eeee3bbb769
+export INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS=57cb5021-6d37-465e-a56a-5eeee3bbb769,a269e85e-ccd9-4b73-87b9-b98961f8437d
 export INTERVIEW_REAL_QA_APPROVED=yes
 bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_real_qa.sh start
 ```

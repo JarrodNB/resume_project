@@ -26,6 +26,53 @@ const snapshot = {
 function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
 describe('InterviewDemoPage', () => {
+  it('focuses the current turn once while keeping earlier dialogue available', async () => {
+    state.interview = { ...snapshot, messages: [
+      { ...snapshot.messages[0], id: 'earlier', content: 'What did you build?' },
+      { ...snapshot.messages[0], id: 'answer', kind: 'answer', content: 'I built a booking tool.' },
+      snapshot.messages[0],
+    ] }
+    renderDemo()
+    expect(screen.getByRole('heading', { name: 'Your turn' })).toBeVisible()
+    expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveTextContent('Describe a project.')
+    await userEvent.click(screen.getByRole('button', { name: /Saved conversation/ }))
+    expect(screen.getByText('What did you build?')).toBeVisible()
+    expect(screen.getByText('I built a booking tool.')).toBeVisible()
+    expect(screen.getAllByText('Describe a project.')).toHaveLength(1)
+  })
+  it.each([
+    ['recording', 'Your turn — recording'],
+    ['requesting', 'Allow microphone access'],
+    ['ready', 'Review your recording'],
+  ])('makes the next action clear while the recorder is %s', (status, title) => {
+    recorder.status = status
+    if (status === 'ready') recorder.recording = new Blob(['answer'])
+    renderDemo()
+    expect(screen.getByRole('heading', { name: title })).toBeVisible()
+  })
+  it('shows understandable processing rather than internal checkpoint names', () => {
+    state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'turn', kind: 'turn', status: 'running', checkpoint: 'transcription_saved' }] }
+    renderDemo()
+    expect(screen.getByRole('heading', { name: 'Your interviewer is thinking' })).toBeVisible()
+    expect(screen.getByText(/You can reload safely/)).toBeVisible()
+    expect(screen.queryByText(/transcription_saved/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+  })
+  it('releases microphone capture when the saved interview is abandoned elsewhere', () => {
+    recorder.status = 'recording'
+    renderDemo()
+    state.interview = { ...snapshot, status: 'abandoned' }
+    act(() => recorder.refresh())
+    expect(recorder.reset).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+  })
+  it('clearly ends an expired interview without offering recording or retries', () => {
+    state.interview = { ...snapshot, status: 'expired', operations: [{ ...snapshot.operations[0], status: 'expired', canRetry: true }] }
+    renderDemo()
+    expect(screen.getByRole('heading', { name: 'Interview expired' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry speech' })).not.toBeInTheDocument()
+  })
   it('requires explicit confirmation and preserves the recording when cancellation or abandonment fails', async () => {
     recorder.recording = new Blob(['answer'], { type: 'audio/webm' }); recorder.status = 'ready'
     renderDemo()
@@ -50,9 +97,11 @@ describe('InterviewDemoPage', () => {
     expect(screen.getByRole('button', { name: 'Confirm abandonment' })).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
   })
-  it('labels saved real sessions with submitted audio and generated voice disclosure', () => {
+  it('keeps provider and retention details available without dominating the active room', async () => {
     state.interview = { ...snapshot, executionMode: 'real' }
     renderDemo()
+    expect(screen.getByText(/submitted audio goes to OpenAI/i)).not.toBeVisible()
+    await userEvent.click(screen.getByText('Interview details and privacy'))
     expect(screen.getByText(/submitted audio goes to OpenAI/i)).toBeVisible()
     expect(screen.getByText(/voice is AI-generated/i)).toBeVisible()
     expect(screen.queryByText(/does not transcribe or assess/i)).not.toBeInTheDocument()
@@ -253,11 +302,12 @@ describe('prepared interview begin', () => {
     expect(recorder.start).not.toHaveBeenCalled()
   })
 
-  it('shows whole-interview and per-question progress', () => {
+  it('shows whole-interview progress with response counts available in saved conversation', async () => {
     state.interview = { ...snapshot, answerCap: 3, currentQuestionPosition: 4,
       questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
     renderDemo()
     expect(screen.getByText('Question 5 of 9 · Technical')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: /Saved conversation/ }))
     expect(screen.getByText('2 of 3 responses saved.')).toBeVisible()
     expect(screen.getByRole('button', { name: /Saved conversation/ })).toBeVisible()
   })

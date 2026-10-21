@@ -461,6 +461,12 @@ Production builds hide the route content even if the frontend flag is set; Rails
 denies public demo operations outside development. Written practice remains at `/interview-prep`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
+The active room presents the latest interviewer reply once, with earlier exchanges and saved
+response counts in **Saved conversation**. Turn headings distinguish recording, local review,
+submission, answer processing and speech recovery without exposing execution checkpoint names.
+Provider and retention details remain accessible in **Interview details and privacy**; preparation
+still discloses providers before starting. Terminal session updates release local microphone
+capture, including abandonment from another tab.
 The user can then listen, discard, or re-record; only the separate **Submit** action sends it. Permission, format, disconnect, size and time-limit
 errors discard or preserve bytes as appropriate without submitting. A pre-submission upload failure
 keeps the recording for an explicit retry. Once a durable submission identity is saved, the browser

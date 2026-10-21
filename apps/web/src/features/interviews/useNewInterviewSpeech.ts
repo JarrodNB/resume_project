@@ -1,4 +1,4 @@
-/** Notice newly accepted speech without treating a reload as a new interviewer turn.
+/** Notice newly available interviewer speech without treating a reload as a new interviewer turn.
  * The first owned snapshot is a baseline; stale revisions and repeated receipts never replay it.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -10,7 +10,9 @@ export function useNewInterviewSpeech(interview: InterviewSnapshotFragment | nul
   const [messageId, setMessageId] = useState<string | null>(null)
   useEffect(() => {
     if (!interview || (revision.current !== null && interview.revision < revision.current)) return
-    const accepted = interview.operations.filter((operation) => operation.kind === 'speech' && operation.status === 'accepted')
+    const accepted = interview.speechPlaybackMode === 'browser'
+      ? interview.messages.filter((message) => message.kind !== 'answer').map((message) => ({ messageId: message.id }))
+      : interview.operations.filter((operation) => operation.kind === 'speech' && operation.status === 'accepted')
     const current = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
     const fresh = revision.current !== null && current && accepted.some((operation) => operation.messageId === current.id) && !seen.current.has(current.id)
     for (const operation of accepted) if (operation.messageId) seen.current.add(operation.messageId)

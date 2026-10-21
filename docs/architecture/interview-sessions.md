@@ -96,7 +96,7 @@ atomically saves the entire role and question list, marks the operation accepted
 `ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
 changed output or a stale generation cannot replace it. Failure leaves no partial question
 list, and bounded retries reuse the same frozen input. `BeginService` (the owned public `beginInterview` mutation) changes ready to active and saves
-the first opening plus one speech operation atomically. Concurrent/repeated begin returns
+the first opening atomically, plus one speech operation only in provider playback mode. Concurrent/repeated begin returns
 the saved state without duplicate messages or speech. Begin can also replay after progress
 or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
 speech or recording.
@@ -136,7 +136,7 @@ A stale or failed operation cannot change dialogue.
 
 Acceptance appends the answer and either a follow-up, the saved next opening, or the fixed
 final closing. Rails overrides a continue decision at the answer cap and discards transition
-filler on advancement. Accepted history, count, revision and new speech work commit together.
+filler on advancement. Accepted history, count, revision and any enabled provider speech work commit together.
 Speech refers to exactly the saved response and its question; it cannot generate dialogue.
 History is private, separate from accepted public messages, versioned (currently version 1),
 and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rails treats the
@@ -474,11 +474,11 @@ may release its bytes even if the response is lost. Only that minimal question/r
 identity is kept in local storage, scoped by owner and interview; a successful owned read reconciles
 it before an explicit same-key resend. No mutation is automatically replayed after an auth error.
 Queries on mount and fresh subscription snapshots on reconnect restore canonical progress without
-polling. Newly accepted current speech automatically obtains a playback grant and attempts
-playback once during an open interview. The first loaded snapshot is a silent baseline, so
+polling. New current interviewer text attempts browser speech once during an open interview.
+In provider mode, newly accepted speech instead obtains a playback grant and attempts playback. The first loaded snapshot is a silent baseline, so
 opening or reloading a saved interview does not replay old speech. Repeated and stale receipts
 cannot trigger another automatic attempt. Blocked autoplay offers explicit **Play interviewer
-audio**; replay and pause remain available, with a mute choice scoped to the open session.
+audio**; replay and stop (pause for saved provider audio) remain available, with a mute choice scoped to the open session.
 Historical speech plays only on request and pauses any other interviewer audio. Microphone
 capture disables playback, and playing speech blocks a new recording until paused. Message
 changes, abandonment and navigation stop playback and ignore late grant/play completions.
@@ -486,7 +486,7 @@ Saved question text is sufficient to record and submit an answer: pending, faile
 speech does not disable answering. Speech accepted during microphone capture does not autoplay
 over that recording. Missing question text, active answer processing and ambiguous submissions
 still prevent conflicting new answers.
-Playback obtains a fresh grant for the same saved message; it never retries reasoning or
+Provider playback obtains a fresh grant for the same saved message; it never retries reasoning or
 speech generation. Expired grants can be renewed while the artifact itself remains retained.
 
 For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to
@@ -587,3 +587,21 @@ Hints coalesce and survive in-flight discovery reads; the existing two-second po
 remains the recovery fallback. Per-visible-operation cooldown and full discovery
 failure backoff prevent stale/no-op completions or outages from creating busy
 claim loops. Claims, concurrency, leases and accounting remain Rails-owned.
+
+### Browser speech default
+
+Real interviews read saved interviewer text with browser speech synthesis by default.
+Begin and turn acceptance save the same dialogue but do not reserve provider speech.
+The owned GraphQL snapshot exposes `speechPlaybackMode`, keeping playback and server
+scheduling in agreement. Browser voices depend on the browser and operating system and
+may use network services. Unsupported or failed speech leaves text and recording usable.
+Playback stops on mute, capture, message changes and navigation; bounded start/playback
+timers release recording even when the browser emits no completion event. New saved
+replies may autoplay; hydrated history requires an explicit Play action.
+
+Set `INTERVIEW_SPEECH_PLAYBACK=provider` on the API to enable the retained OpenAI
+speech path, including its saved audio, accounting and retries. No frontend setting is
+needed. Scripted service fixtures keep provider playback. Existing saved provider audio
+and accounting are preserved in browser mode; old real speech reservations are excluded
+from discovery and new claims. Work already executing can finish normally. Preparation,
+transcription, screening and interview reply generation are unchanged.

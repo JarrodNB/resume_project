@@ -3,12 +3,19 @@
 require "rails_helper"
 
 RSpec.describe "Unmetered local interview testing" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   let(:user) { create(:user, summary: "Maintain laboratory instruments") }
 
   def local_testing(development: true, enabled: "true")
     allow(Rails.env).to receive(:development?).and_return(development)
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with("INTERVIEW_LOCAL_TESTING_UNMETERED").and_return(enabled)
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
   end
 
   def claimed_operation

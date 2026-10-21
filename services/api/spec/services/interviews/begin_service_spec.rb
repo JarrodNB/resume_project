@@ -9,12 +9,20 @@ RSpec.describe "Explicit interview begin" do
     interview.update!(status: "ready", prepared_role: { title: "Fictional technician" }, revision: 1)
   end
 
-  it "requires ready state, then saves opening and speech exactly once across replay" do
+  it "requires ready state, then saves opening without provider speech across replay" do
     expect(Interviews::BeginService.call(interview: interview)).not_to be_success
     prepare
     2.times { expect(Interviews::BeginService.call(interview: interview)).to be_success }
     expect(interview.reload).to have_attributes(status: "active", revision: 2, answer_cap: 3)
     expect(interview.messages.pluck(:kind, :content)).to eq([ [ "opening", "Explain calibration" ] ])
+    expect(interview.operations.speech.count).to eq(0)
+  end
+
+  it "retains explicitly selected provider speech" do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+    prepare
+    expect(Interviews::BeginService.call(interview: interview)).to be_success
     expect(interview.operations.speech.count).to eq(1)
   end
 

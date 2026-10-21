@@ -2,6 +2,12 @@
 require "rails_helper"
 
 RSpec.describe "Complete prepared interview" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   let(:interview) do
     session = Interviews::StartPreparationService.call(user: create(:user, summary: "Maintain instruments")).value
     preparation = session.operations.first

@@ -2,6 +2,12 @@
 require "rails_helper"
 
 RSpec.describe "Basic Interview concurrency" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   self.use_transactional_tests = false
 
   before do
@@ -166,6 +172,12 @@ RSpec.describe "Basic Interview concurrency" do
 end
 
 RSpec.describe "Interview claim concurrency" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   self.use_transactional_tests = false
   it "assigns exactly one current execution across independent connections" do
     user = create(:user)

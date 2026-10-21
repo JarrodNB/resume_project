@@ -15,6 +15,7 @@ import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
+import { BrowserInterviewSpeech } from './BrowserInterviewSpeech'
 import { InterviewAudio } from './InterviewAudio'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useInterviewRecorder } from './useInterviewRecorder'
@@ -88,6 +89,7 @@ function OwnedInterview({ id }: { id: string }) {
   if (interview.status === 'abandoned') return <>{recordingWarning}<p role="status">This interview was abandoned. It cannot be continued. Audio is queued for deletion.</p>{recentLink}</>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
   if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}{recentLink}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}</>
+  const browserSpeech = interview.speechPlaybackMode === 'browser'
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -130,9 +132,10 @@ function OwnedInterview({ id }: { id: string }) {
       </div>
     {reply && <div className="grid gap-4">
       <p className="max-w-prose whitespace-pre-wrap break-words text-lg leading-relaxed sm:text-xl">{reply.content}</p>
-      {speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
+      {browserSpeech && <BrowserInterviewSpeech key={reply.id} messageId={reply.id} text={reply.content} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
+      {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" className="justify-self-start" aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? 'Unmute interviewer' : 'Mute interviewer'}</Button>
-      {(speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
+      {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
     {state.unresolved && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status or retry the same submission; this keeps the original answer identity.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
@@ -144,7 +147,7 @@ function OwnedInterview({ id }: { id: string }) {
       </div>
       <p className="max-w-prose text-sm text-muted-foreground">{recorder.recording ? 'Nothing is uploaded until you submit. You can discard this recording or try again.' : 'Record when you’re ready. Done answering opens a preview before you submit. Silence never submits.'}</p>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
-      {hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
+      {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}
     {state.error && <p role="alert" className="text-destructive">{state.error}</p>}
@@ -155,7 +158,8 @@ function OwnedInterview({ id }: { id: string }) {
         {interview.messages.filter((message) => message.id !== reply?.id).map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
-          {message.kind !== 'answer' && operations.some((operation) => operation.messageId === message.id && operation.kind === 'speech' && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
+          {message.kind !== 'answer' && browserSpeech && <BrowserInterviewSpeech messageId={message.id} text={message.content} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
+          {message.kind !== 'answer' && !browserSpeech && operations.some((operation) => operation.messageId === message.id && operation.kind === 'speech' && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
         </li>)}
       </ol>
       {!interview.messages.some((message) => message.id !== reply?.id) && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. The current question is above.</p>}
@@ -165,5 +169,5 @@ function OwnedInterview({ id }: { id: string }) {
 }
 
 function ProviderNotice() {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.</p>
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. Provider requests incur charges; no coaching is provided.</p>
 }

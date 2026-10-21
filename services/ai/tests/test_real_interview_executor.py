@@ -201,3 +201,23 @@ def test_known_charged_classifier_validation_failure_counts_retries_and_safety_f
     starts = [call for call in client.calls if call[0] == "start"]
     for _, identity, _ in starts:
         assert any(call[0] == "usage" and call[1] == identity and call[2] for call in client.calls)
+
+
+def test_real_speech_uses_saved_text_without_transcription_or_reasoning():
+    client, models = Client(), Models()
+    seen = []
+
+    class SpeechAudio:
+        async def speak(self, request, text):
+            seen.append(text)
+            return audio()
+
+    request = claim(kind="speech", text="Exactly the saved reply.").model_copy(
+        update={"execution_mode": "real", "execution_config": REAL_CONFIGURATION})
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200))) as storage:
+        executor = RealInterviewExecutor(client, audio=SpeechAudio(), models=models,
+            storage_client=storage, allowed_origins={"http://storage"}, allow_http=True)
+        asyncio.run(executor.execute(request))
+    assert seen == ["Exactly the saved reply."]
+    assert not models.prompts and not client.accepted and not client.failed
+    assert ("complete", "speech") in client.calls

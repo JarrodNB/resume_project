@@ -2,11 +2,13 @@
 module Mutations
   module Interviews
     class StartInterviewDemo < BaseDemoMutation
+      argument :execution_mode, String, required: false, default_value: "fake"
+
       field :interview, Types::InterviewSessionType, null: true
 
-      def resolve
+      def resolve(execution_mode:)
         authorize_demo!
-        payload_from(::Interviews::CreateFixtureService.call(user: current_user), :interview)
+        payload_from(::Interviews::StartDemoService.call(user: current_user, execution_mode: execution_mode), :interview)
       end
     end
   end

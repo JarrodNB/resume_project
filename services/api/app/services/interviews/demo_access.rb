@@ -5,6 +5,10 @@ module Interviews
       Rails.env.development? && ENV["INTERVIEW_DEMO_ENABLED"] == "true"
     end
 
+    def self.real_enabled?
+      enabled? && ENV["INTERVIEW_REAL_ADMISSION_ENABLED"] == "true"
+    end
+
     def self.find!(user, id)
       check!(user)
       interview = user.interview_sessions.find(id)

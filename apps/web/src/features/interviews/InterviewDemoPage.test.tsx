@@ -25,6 +25,13 @@ const snapshot = {
 function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
 describe('InterviewDemoPage', () => {
+  it('labels saved real sessions with submitted audio and generated voice disclosure', () => {
+    state.interview = { ...snapshot, executionMode: 'real' }
+    renderDemo()
+    expect(screen.getByText(/submitted audio goes to OpenAI/i)).toBeVisible()
+    expect(screen.getByText(/voice is AI-generated/i)).toBeVisible()
+    expect(screen.queryByText(/does not transcribe or assess/i)).not.toBeInTheDocument()
+  })
   it('discloses scripted output and keeps explicit recording and submission controls', async () => {
     renderDemo()
     expect(screen.getByRole('heading', { name: 'Basic Interview demo' })).toBeVisible()

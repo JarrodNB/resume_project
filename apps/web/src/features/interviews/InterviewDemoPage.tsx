@@ -1,5 +1,5 @@
 /** A small spoken demo alongside written practice. Saved server state controls progression;
- * recording is explicit, and fake output is never presented as understanding the microphone.
+ * recording is explicit, and saved execution mode determines provider use.
  */
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -19,7 +19,6 @@ export function InterviewDemoPage() {
   const { user } = useAuth()
   return <div className="mx-auto grid max-w-3xl gap-6">
     <PageHeading title="Basic Interview demo" description="Try one spoken question with fictional context." />
-    <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">This offline demo uses scripted transcripts and prerecorded synthetic AI speech. It does not transcribe or assess your recording. Your microphone tests private upload, audio validation, and recovery; no coaching is provided.</p>
     <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; accepted text lasts 7 days.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interview-prep">Open written interview practice</Link>
     {!interviewDemoEnabled() ? <p>This demo is disabled. Enable it explicitly in development to continue.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <StartDemo />}
@@ -28,9 +27,17 @@ export function InterviewDemoPage() {
 function StartDemo() {
   const { start, loading, error } = useStartInterview()
   const navigate = useNavigate()
-  async function begin() { const id = await start(); if (id) void navigate(`/interviews/demo/${id}`) }
+  const [mode, setMode] = useState<'fake' | 'real'>('fake')
+  async function begin() { const id = await start(mode); if (id) void navigate(`/interviews/demo/${id}`) }
   return <div className="grid gap-3">
     <p className="text-sm">One prepared question, with at most two accepted answers.</p>
+    <label className="grid gap-2 text-sm">Interview mode
+      <select aria-label="Interview mode" value={mode} onChange={(event) => setMode(event.target.value as 'fake' | 'real')} className="rounded-md border bg-background p-2">
+        <option value="fake">Offline scripted demo</option>
+        <option value="real">Real spoken interview (development only)</option>
+      </select>
+    </label>
+    <ModeNotice mode={mode} />
     <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Starting…' : 'Start demo'}</Button>
     {error && <p role="alert" className="text-destructive">{error}</p>}
   </div>
@@ -66,6 +73,7 @@ function OwnedInterview({ id }: { id: string }) {
   const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   return <>
     {recordingWarning}
+    <ModeNotice mode={interview.executionMode} />
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
       <p>{interview.status === 'completed' ? 'Interview complete. Your accepted dialogue is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} answers accepted.`}</p>
       {turnActive && <p>Answer processing: {currentTurn.checkpoint?.replaceAll('_', ' ') || currentTurn.status}. You can reload safely.</p>}
@@ -75,7 +83,7 @@ function OwnedInterview({ id }: { id: string }) {
     <SectionCard title="Accepted dialogue" tone="facts" sectionId={`interview:${id}:dialogue`}>
       <ol className="divide-y">
         {interview.messages.map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
-          <p className="text-sm font-medium">{message.kind === 'answer' ? 'Scripted demo answer' : 'Interviewer'}</p>
+          <p className="text-sm font-medium">{message.kind === 'answer' ? interview.executionMode === 'real' ? 'Your transcript' : 'Scripted demo answer' : 'Interviewer'}</p>
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
           {message.kind !== 'answer' && operations.some((operation) => operation.messageId === message.id && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} />}
         </li>)}
@@ -102,4 +110,10 @@ function OwnedInterview({ id }: { id: string }) {
     {state.busy && <p role="status">Saving…</p>}
     {state.error && <p role="alert" className="text-destructive">{state.error}</p>}
   </>
+}
+
+function ModeNotice({ mode }: { mode: string }) {
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{mode === 'real'
+    ? 'Real interview: submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.'
+    : 'Offline demo: scripted transcripts and prerecorded synthetic AI speech. It does not transcribe or assess your recording. Your recording is uploaded privately. No provider requests are made.'}</p>
 }

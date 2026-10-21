@@ -161,9 +161,12 @@ class InterviewExecutor:
                                             reply=result.output.reply, history_version=1, model_history=saved)
         await self._reconcile(claim, accept)
 
-    async def _speech(self, claim):
+    async def _synthesize(self, claim):
         async with self._stage(claim, "speech"):
-            data = speech_bytes(claim.payload.text)
+            return speech_bytes(claim.payload.text)
+
+    async def _speech(self, claim):
+        data = await self._synthesize(claim)
         reservation = await self.client.reserve_audio(claim, "audio/wav")
         await asyncio.to_thread(upload_audio, reservation["upload_url"], data,
                                 content_type="audio/wav", headers=reservation["headers"],

@@ -141,3 +141,30 @@ that browser QA ran, or that real transcription/interviewer/speech quality was e
   credentialed GraphQL CORS matched the QA origin. S3 PUT/GET/HEAD preflight checks passed.
 - Documented QA startup and teardown passed. Browser recording/playback and raw
   authenticated WebSocket delivery remain human checks.
+
+### Real spoken loop (explicit development opt-in)
+
+Fake sessions retain their saved mode and never use real providers. The new-session selector defaults to the offline demo; choosing real is authorized again by Rails. Real sessions send submitted audio to OpenAI for transcription, screened text to TypeSafe and OpenAI, and accepted saved interviewer text to OpenAI speech with an AI-generated marin voice. Done answering keeps the recording in browser memory for listening, discarding or re-recording; only Submit uploads it. Speech retry uses the same accepted message and does not repeat transcription or reasoning.
+
+The root Compose `interview-real` profile is separate from `interview-demo`. Configure `INTERVIEW_SERVICE_SECRET`, `INTERVIEW_REAL_RUNTIME_ENABLED`, `INTERVIEW_REAL_ADMISSION_ENABLED`, `INTERVIEW_OPENAI_API_KEY`, and `INTERVIEW_TYPESAFE_API_KEY` through ignored environment settings. Optional trace export uses `INTERVIEW_LOGFIRE_TOKEN`; no secret values belong in documentation. Rails checks the dedicated process `/ready` endpoint before new real creation; `/health` only means the process is alive. Stable readiness reasons identify disabled runtime, nondevelopment setup, missing service credential, missing provider credentials, invalid service origins, or unavailable Rails. A readiness check never dispatches a paid provider request.
+
+Starting the real profile enables spending on saved real work, including pending opening speech. Do not start it as a routine test. Keep the automated verification target at US$5, reserve conservatively before each request, reconcile actual usage, and stop after any unknown charge; this is not a provider-side hard ceiling. See [provider accounting](architecture/interview-provider-accounting.md). Disable `INTERVIEW_REAL_ADMISSION_ENABLED` to stop new real sessions while preserving old sessions and cleanup. Stop the real runtime to stop executing paid work; saved operations remain recoverable. Never change an old session's mode or substitute models to resume it.
+
+After configuring the named ignored environment settings, these commands explicitly start or stop paid execution in the retained checkout. Starting can dispatch pending real work immediately; do not run this for offline verification. Rails/API must be restarted with its explicit admission setting to enable new real sessions. The existing isolated QA project remains off until the later QA handoff.
+
+```sh
+docker compose --project-directory /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docker-compose.yml --profile interview-real up -d interview-real-runtime
+docker compose --project-directory /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docker-compose.yml --profile interview-real stop interview-real-runtime
+```
+
+The isolated deterministic real-process check makes no paid requests:
+
+```sh
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d db s3
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm api bundle exec rails db:prepare
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d --no-build --wait api interview-runtime
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm --no-deps api bundle exec rails runner script/interview_real_smoke.rb
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml stop
+```
+
+The check overlay uses existing local image names, synthetic credentials and a dedicated synthetic-check flag only. Its usage rows reflect synthetic positive charges in its isolated database; no provider charges are incurred. Its Python entrypoint replaces provider HTTP transports before real lifespan startup, preserving production provider URLs and accounting. It exercises real Rails/PostgreSQL/private storage, forced closing, exact saved-text speech, a known-cost speech failure, independent speech retry, and private playback. Restart its mock runtime before repeating the single injected speech-failure check. Volumes are retained. The existing QA project is not changed. Microphone permissions, preview playback and navigation remain human browser checks.

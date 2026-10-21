@@ -21,9 +21,9 @@ function requirePayload<T extends { errors: string[] }>(payload: T | null | unde
 export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
-  async function start() {
+  async function start(executionMode: 'fake' | 'real' = 'fake') {
     setError(null)
-    try { return requirePayload((await mutate()).data?.startInterviewDemo).interview?.id ?? null }
+    try { return requirePayload((await mutate({ variables: { executionMode } })).data?.startInterviewDemo).interview?.id ?? null }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the demo.')); return null }
   }
   return { start, loading, error }

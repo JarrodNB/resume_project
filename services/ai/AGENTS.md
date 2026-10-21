@@ -10,7 +10,7 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
 retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
-separate development-only fake FastAPI runtime. Its lifespan supervises durable
+separate development-only FastAPI runtimes for fake and explicitly enabled real providers. Its lifespan supervises durable
 Rails claims and cleanup; private audio helpers validate sealed capabilities and decode
 audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
 

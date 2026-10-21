@@ -1,12 +1,14 @@
 """Execute screened real turns through the same storage/history/acceptance pipeline.
 
-This is an injectable executor, not a runtime switch. Public real admission stays closed.
+The dedicated real runtime injects fixed, accounted providers.
 Rails owns durable state and per-request accounting; this layer never chooses progression.
 """
 
 import asyncio
+from contextlib import contextmanager
 from datetime import UTC, datetime
 
+import logfire
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior, UsageLimitExceeded
 
 from agents.spoken_interviewer_agent import make_interviewer
@@ -17,6 +19,9 @@ from interviews.client import RailsClientError
 from interviews.executor import InterviewExecutor, ScreeningRejected
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.screen_user_text import screen_user_text_async
+from worker.contact_mask import contact_scope
+from worker.known_contact import KnownContact
+from worker.telemetry_privacy import telemetry_scope
 from worker.tracing import record_prompt_version
 
 
@@ -27,15 +32,26 @@ class RealInterviewExecutor(InterviewExecutor):
         super().__init__(client, **kwargs)
         self.audio, self.models = audio, models
 
+    @contextmanager
+    def _trace(self, claim):
+        context = getattr(claim.payload, "fixture_context", {})
+        contact = KnownContact.from_values(**{
+            key: context.get(key, []) for key in ("names", "emails", "phones")
+        })
+        with contact_scope(contact), telemetry_scope(interview_operation_id=claim.operation_id), logfire.span(
+            "interview.operation", operation_kind=claim.kind
+        ):
+            yield
+
     async def execute(self, claim):
-        if claim.execution_mode != "real" or claim.kind != "turn":
-            raise ValueError("Real turn executor requires a real turn claim")
+        if claim.execution_mode != "real":
+            raise ValueError("Real executor requires a real claim")
         try:
             remaining = min((claim.execution_deadline - datetime.now(UTC)).total_seconds(), 120)
             if remaining <= 0:
                 raise TimeoutError
             async with asyncio.timeout(remaining):
-                with record_prompt_version(SPOKEN_INTERVIEW_PROMPT_VERSION):
+                with self._trace(claim), record_prompt_version(SPOKEN_INTERVIEW_PROMPT_VERSION):
                     await super().execute(claim)
         except (ModelAPIError, TimeoutError):
             await self.client.fail(claim, "provider_unavailable", True)
@@ -79,3 +95,9 @@ class RealInterviewExecutor(InterviewExecutor):
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 1024},
         }
+
+    async def _synthesize(self, claim):
+        try:
+            return await self.audio.speak(claim, claim.payload.text)
+        except ProviderError as error:
+            raise ScreeningRejected(str(error)) from None

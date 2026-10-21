@@ -21,14 +21,27 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
 
-  it "keeps real configuration private and rejects public real creation" do
-    real = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
-    query = "query($id: ID!) { interviewSession(id: $id) { id executionMode } }"
-    expect(execute_graphql(query, user: user, variables: { id: real.id }).dig("data", "interviewSession", "executionMode")).to eq("real")
-    expect(execute_graphql(query, user: create(:user), variables: { id: real.id }).dig("errors", 0, "message")).to eq("Record not found")
-    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "real"}) { errors } }', user: user)
-    expect(result["errors"]).to be_present
+  it "creates real only with explicit development admission and keeps saved mode after disabling" do
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
+    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    query = 'mutation { startInterviewDemo(input: {executionMode: "real"}) { interview { id executionMode } errors } }'
+    result = execute_graphql(query, user: user)
+    expect(result["errors"]).to be_nil
+    real = result.dig("data", "startInterviewDemo", "interview")
+    expect(real["executionMode"]).to eq("real")
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(false)
+    expect(execute_graphql(query, user: user).dig("data", "startInterviewDemo", "errors")).to include("Real interview unavailable. Enable the dedicated real runtime and admission in development.")
+    expect(execute_graphql("query { interviewSession(id: \"#{real['id']}\") { executionMode } }", user: user).dig("data", "interviewSession", "executionMode")).to eq("real")
     expect(Types::InterviewSessionType.fields.keys).not_to include("executionConfig")
+  end
+
+  it "fails new real admission actionably when its runtime is unavailable" do
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
+    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(false)
+    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "real"}) { interview { id } errors } }', user: user)
+    expect(result.dig("data", "startInterviewDemo", "interview")).to be_nil
+    expect(result.dig("data", "startInterviewDemo", "errors").join).to include("runtime readiness")
+    expect(user.interview_sessions.count).to eq(0)
   end
 
   it "returns the owner snapshot and hides another owner's interview" do

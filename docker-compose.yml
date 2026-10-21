@@ -69,6 +69,7 @@ services:
       <<: [*local-aws, *api-bootsnap]
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
       INTERVIEW_DEMO_ENABLED: ${INTERVIEW_DEMO_ENABLED:-false}
+      INTERVIEW_REAL_ADMISSION_ENABLED: ${INTERVIEW_REAL_ADMISSION_ENABLED:-false}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
@@ -199,6 +200,32 @@ services:
     volumes:
       - ./apps/landing:/app
       - /app/node_modules
+
+  interview-real-runtime:
+    # Separate opt-in process. Never change saved fake sessions or load worker .env.
+    profiles: [interview-real]
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile.dev
+    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000
+    init: true
+    environment:
+      INTERVIEW_REAL_RUNTIME_ENABLED: ${INTERVIEW_REAL_RUNTIME_ENABLED:-false}
+      INTERVIEW_ENVIRONMENT: development
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+      INTERVIEW_STORAGE_ORIGINS: http://s3:9090
+      OPENAI_API_KEY: ${INTERVIEW_OPENAI_API_KEY:-}
+      TYPESAFE_API_KEY: ${INTERVIEW_TYPESAFE_API_KEY:-}
+      LOGFIRE_TOKEN: ${INTERVIEW_LOGFIRE_TOKEN:-}
+      LOGFIRE_ENVIRONMENT: interview-development
+    volumes:
+      - ./services/ai:/app
+    depends_on:
+      api:
+        condition: service_started
+      s3:
+        condition: service_started
 
 volumes:
   s3_data:

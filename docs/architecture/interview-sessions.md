@@ -397,3 +397,12 @@ receipt causes no provider request. The internal receipt registers the shared un
 usage marker before any potentially charged I/O. See
 [the audio/provider accounting contract](interview-provider-accounting.md) for documented
 rate units, conservative reservations, unknown-cost recovery, and the paid-check target.
+
+
+### Explicit real runtime admission
+
+`interviews.real_app` is a separate development-only process, enabled by `INTERVIEW_REAL_RUNTIME_ENABLED=true` and an explicit `INTERVIEW_ENVIRONMENT=development`. It constructs fixed approved audio/model clients only after service/storage origins and required provider credentials pass validation. Client shutdown closes both provider SDK transports and the audio transport. The fake entrypoint retains its environment isolation and disables paid model requests.
+
+New real sessions additionally require Rails `INTERVIEW_REAL_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the dedicated real process. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
+
+Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See `docs/interview-demo.md` for synthetic HTTP integration commands and explicit paid startup cautions.

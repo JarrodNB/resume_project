@@ -454,3 +454,32 @@ rate units, conservative reservations, unknown-cost recovery, and the paid-check
 New real sessions additionally require Rails `INTERVIEW_REAL_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the dedicated real process. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
 
 Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See [real browser QA](../interview-real-qa.md) for startup and [offline recovery](../interview-demo.md) for deterministic integration commands.
+
+## Earlier accepted dialogue
+
+Turn claims add optional `earlier_dialogue` version 1 alongside the mutually exclusive
+prepared `interview_context` or legacy `fixture_context`. Older claims without it remain
+valid. Rails selects only persisted public opening/answer/follow-up messages belonging to
+questions before the current position, requiring an accepted answer. Rejected/provisional
+transcripts and private per-question model/tool history are never selection sources.
+
+Selection scans question positions newest first, using a 12,000 Unicode-character budget
+summed over complete message content (including openings and follow-ups). A group that does
+not fit is omitted whole; selection continues to older groups that might fit. Exact fits
+are retained. Selected groups and their messages return in chronological order; sorted
+`omitted_question_positions` records every eligible group excluded by the budget. No
+summaries, partial messages, or truncation of personal facts are produced.
+
+Python validates the version, budget, unique ordered positions, disjoint omission positions,
+and complete opening/answer/follow-up sequencing, then checks the aggregate content cap.
+Every execution freshly screens the masked source containing this public dialogue together
+with required frozen context, question and current transcript. The existing 120,000-character
+prompt/history guard counts that complete source plus current-question model history before
+interviewer dispatch and on subsequent model requests. Oversized required inputs fail with
+`context_limit`; screening rejection/unavailability retains its explicit failure code.
+Current-question typed version-1 private history is restored unchanged and remains separate.
+Instructions treat prior answers as candidate claims, frozen library evidence as sourced
+facts, and fictional role requirements as imagined requirements, never personal achievements.
+
+Offline verification uses canonical Rails claims and the Python executor with fake providers;
+no paid summarization, provider calls, or quality judges are required for this contract.

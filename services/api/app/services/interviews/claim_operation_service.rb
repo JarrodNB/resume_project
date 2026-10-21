@@ -60,7 +60,8 @@ module Interviews
         else
           { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,
-            history_version: @operation.question.history_version }.merge(
+            history_version: @operation.question.history_version,
+            earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
               interview.frozen_context.present? ?
                 { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :
                 { fixture_context: interview.fixture_context })

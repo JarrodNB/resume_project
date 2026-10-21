@@ -153,6 +153,10 @@ class InterviewExecutor:
 
     async def _turn(self, claim):
         payload = claim.payload
+        if payload.earlier_dialogue is not None:
+            size = sum(len(message.content) for group in payload.earlier_dialogue.groups for message in group.messages)
+            if size > payload.earlier_dialogue.character_budget:
+                raise ScreeningRejected("context_limit")
         history = restore_history(payload.history_version, payload.model_history)
         grant = await self.client.recording(claim)
         data = await asyncio.to_thread(download_audio, grant["download_url"],

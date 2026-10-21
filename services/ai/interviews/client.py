@@ -22,12 +22,56 @@ class InterviewContext(BaseModel):
     fictional_role: dict[str, Any]
 
 
+class PublicMessage(BaseModel):
+    """An accepted utterance, never a private model/tool message."""
+
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["opening", "answer", "follow_up"]
+    content: str = Field(min_length=1)
+
+
+class PublicQuestionGroup(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    question_position: int = Field(ge=0)
+    messages: list[PublicMessage] = Field(min_length=2, max_length=6)
+
+    @model_validator(mode="after")
+    def complete_dialogue(self):
+        kinds = [message.kind for message in self.messages]
+        if kinds[0] != "opening" or kinds[-1] != "answer" or any(
+            kind != ("answer" if i % 2 else "follow_up") for i, kind in enumerate(kinds[1:], 1)
+        ):
+            raise ValueError("Incomplete public question group")
+        return self
+
+
+class EarlierDialogue(BaseModel):
+    """Complete question groups selected by Rails under a content-character cap."""
+
+    model_config = ConfigDict(extra="forbid")
+    version: Literal[1]
+    character_budget: Literal[12000]
+    groups: list[PublicQuestionGroup] = Field(max_length=8)
+    omitted_question_positions: list[int] = Field(max_length=8)
+
+    @model_validator(mode="after")
+    def chronological_groups(self):
+        positions = [group.question_position for group in self.groups]
+        omitted = self.omitted_question_positions
+        if positions != sorted(set(positions)) or omitted != sorted(set(omitted)) or any(
+            position < 0 for position in omitted
+        ) or set(positions) & set(omitted):
+            raise ValueError("Invalid public question positions")
+        return self
+
+
 class TurnPayload(BaseModel):
     recording_id: str
     expected_revision: int
     question: str
     model_history: list[dict[str, Any]]
     history_version: int
+    earlier_dialogue: EarlierDialogue | None = None
     fixture_context: dict[str, Any] | None = None
     interview_context: InterviewContext | None = None
 
@@ -43,8 +87,11 @@ class TurnPayload(BaseModel):
 
     def context_input(self) -> dict[str, Any]:
         """Preserve the versioned prepared source or the legacy fixture envelope."""
-        return ({"interview_context": self.interview_context.model_dump()} if self.interview_context
-                else {"fixture_context": self.fixture_context})
+        context = ({"interview_context": self.interview_context.model_dump()} if self.interview_context
+                   else {"fixture_context": self.fixture_context})
+        if self.earlier_dialogue is not None:
+            context["earlier_dialogue"] = self.earlier_dialogue.model_dump()
+        return context
 
 
 class SpeechPayload(BaseModel):

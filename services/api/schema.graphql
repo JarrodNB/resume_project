@@ -912,6 +912,7 @@ type InterviewSession {
   preparedRole: JSON!
   questions: [InterviewSessionQuestion!]!
   revision: Int!
+  speechPlaybackMode: String!
   status: String!
 }
 

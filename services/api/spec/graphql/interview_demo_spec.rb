@@ -4,7 +4,7 @@ require "rails_helper"
 RSpec.describe "Spoken interview demo GraphQL" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
-  let(:snapshot) { "id status executionMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
+  let(:snapshot) { "id status executionMode speechPlaybackMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
 
   before do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
@@ -44,6 +44,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     payload = result.dig("data", "startInterviewDemo")
     expect(payload["errors"]).to eq([])
     expect(payload.dig("interview", "executionMode")).to eq("real")
+    expect(payload.dig("interview", "speechPlaybackMode")).to eq("browser")
     expect(payload.dig("interview", "messages")).to be_empty
     expect(payload.dig("interview", "status")).to eq("preparing")
     expect(payload.dig("interview", "operations", 0, "status")).to eq("pending")

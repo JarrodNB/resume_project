@@ -9,14 +9,18 @@ import asyncio
 import base64
 import binascii
 import json
+import logging
 import math
 import struct
+import time
 from decimal import ROUND_CEILING, Decimal
 
 import httpx
 
 from interviews.media import validate_audio
 from interviews.provider_calls import ProviderCalls
+
+logger = logging.getLogger(__name__)
 
 
 class ProviderError(ValueError):
@@ -45,23 +49,72 @@ class AudioProviders:
         await self._http.aclose()
 
     async def _request(self, endpoint, *, limit: int, **kwargs) -> bytes:
+        started = time.monotonic()
+        phase, status, received = "headers", None, 0
         try:
             async with asyncio.timeout(40):
                 async with self._http.stream(
                     "POST", "https://api.openai.com/v1/audio/" + endpoint, **kwargs
                 ) as response:
+                    status = response.status_code
                     if response.status_code != 200:
                         raise ProviderError("provider_unavailable")
                     if response.headers.get("content-encoding", "identity") != "identity":
                         raise ProviderError("invalid_provider_response")
                     data = bytearray()
-                    async for chunk in response.aiter_bytes(chunk_size=64 * 1024):
+                    pending_event = bytearray()
+                    phase = "body"
+                    async for chunk in response.aiter_bytes():
+                        received += len(chunk)
                         if len(data) + len(chunk) > limit:
                             raise ProviderError("provider_response_too_large")
                         data.extend(chunk)
+                        if endpoint == "speech":
+                            # The documented done event completes speech independently
+                            # of HTTP EOF. Keep partial events across arbitrary chunks.
+                            pending_event.extend(chunk)
+                            frames = pending_event.replace(b"\r\n", b"\n").split(b"\n\n")
+                            pending_event = bytearray(frames.pop())
+                            if any(self._speech_done_event(frame) for frame in frames):
+                                # Validate complete trailing frames already received,
+                                # but don't parse a partial optional transport trailer.
+                                complete = data.replace(b"\r\n", b"\n")
+                                if pending_event:
+                                    complete = complete[:-len(pending_event)]
+                                self._speech_result(complete)
+                                return bytes(complete)
                     return bytes(data)
-        except (httpx.HTTPError, TimeoutError):
+        except (httpx.HTTPError, TimeoutError) as error:
+            self._log_request_failure(endpoint, phase, status, received, started, type(error).__name__)
             raise ProviderError("provider_unavailable") from None
+        except (ProviderError, asyncio.CancelledError) as error:
+            self._log_request_failure(endpoint, phase, status, received, started, type(error).__name__)
+            raise
+
+    @staticmethod
+    def _log_request_failure(endpoint, phase, status, received, started, error_type):
+        # Fixed labels and numeric metadata only: exception messages, request IDs,
+        # provider headers, audio, input text and credentials never enter this log.
+        try:
+            logger.warning(
+                "Interview audio request failed: endpoint=%s phase=%s status=%s "
+                "error=%s received_bytes=%s elapsed_ms=%.1f",
+                endpoint, phase, status, error_type, received, (time.monotonic() - started) * 1000,
+            )
+        except Exception:  # noqa: BLE001, S110 - diagnostics must not replace the original failure
+            pass
+
+    @staticmethod
+    def _speech_done_event(frame):
+        fields = [line[5:].lstrip(b" ") for line in frame.splitlines() if line.startswith(b"data:")]
+        if not fields:
+            return False
+        try:
+            event = json.loads(b"\n".join(fields))
+            return isinstance(event, dict) and event.get("type") == "speech.audio.done"
+        except (ValueError, UnicodeError):
+            # The complete parser rejects malformed events without exposing payloads.
+            return False
 
     async def transcribe(self, claim, data: bytes) -> str:
         """Validate actual bytes, send one multipart recording, return usable text.

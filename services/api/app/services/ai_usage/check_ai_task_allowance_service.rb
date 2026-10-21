@@ -1,6 +1,6 @@
 # Checks monthly spend, hourly starts and in-flight work within one independent allowance.
 # Spoken interview work never consumes general AI allowances, or the other way around.
-# Costs are known after execution, so concurrency bounds potential budget overshoot.
+# Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
 # Index:
 #   - call: succeeds when the user may start a task; fails with a user-facing reason otherwise
 module AiUsage
@@ -17,9 +17,11 @@ module AiUsage
 
     # Checks each limit in turn and fails with the first one that's reached.
     def call
-      monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, interview: @interview).value
-      return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
-      return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
+      unless @interview && Interviews::LocalTesting.unmetered?
+        monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, interview: @interview).value
+        return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
+        return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
+      end
       return failure([ "You already have #{@interview ? 'interview operations' : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?
 
       success

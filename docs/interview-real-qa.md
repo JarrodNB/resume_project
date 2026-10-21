@@ -1,11 +1,11 @@
 # Real spoken interview browser QA
 
-**Current status, 21 October:** real interviews are running again at the user's explicit
-request. The API and real runtime report ready. The two local unknown-cost observations
-are reviewed for continued admission; they are not confirmed OpenAI invoice charges.
-Their conservative reservations remain recorded without being assigned zero or deleted.
-The separate interview allowance remains $3/month, 30 session starts/hour and three
-concurrent operations. Keep the runtime running for the user's testing.
+**Current local testing policy, 21 October:** real interviews stay running at the user's
+explicit request. The real-QA overlay enables `INTERVIEW_LOCAL_TESTING_UNMETERED=true`.
+In development this removes the local unknown-cost/$5 verification stop and interview
+monthly/hourly gates. Every provider attempt, estimate and actual cost is still recorded;
+unknown costs stay unknown and never become fabricated zeroes. Resource concurrency and
+execution caps remain active. This opt-in has no effect outside development or on general AI work.
 
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
@@ -15,11 +15,11 @@ Record, choose **Done answering**, listen to the local preview, then **Submit re
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
 Preparation freezes the library at creation. Later library edits do not change this session.
 Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue.
-One full prepared session consumes one interview hourly admission (default 30/hour).
-Spoken interviews have their own $3/month budget and three concurrent-operation slots.
+One full prepared session records one interview hourly admission. Normal admission defaults
+remain 30 starts/hour and $3/month; this local QA mode does not enforce those spend/start gates.
+Spoken interviews still have three concurrent-operation slots.
 They do not consume general AI limits, and general AI usage does not consume interview limits.
-Every preparation/turn/speech bill still counts against the interview budget;
-session admission does not promise enough remaining spend to finish an interview.
+Every preparation/turn/speech bill remains in the interview usage records.
 Only one unfinished prepared session is allowed per account: resume or abandon it before
 preparing another. Each question permits six submitted recordings, including failed inputs,
 with at most three accepted responses. A processing retry reuses the original recording slot.
@@ -43,22 +43,22 @@ interview runtime is not stopped by starting this stack.
 If a previous upload says “Could not queue the AI task”, retry the upload after these services
 are running. Previously failed tasks stay failed; no user resume is silently resubmitted.
 
-## One retained database and spending allowance
+## One retained database and truthful accounting
 
 Browser QA now uses **cg-interview-12-paid**, the original paid verification database, not
 the former fake QA database. Accounts from the fake database are not copied. Create a new
 disposable local account at the same browser URL; if verification is required, use
 [local account mail](http://127.0.0.2:13006/letter_opener).
 
-Every real STT, screening, interviewer and TTS call passes the original cumulative US$5
-verification allowance. The two historical US$0.25 reservations have unknown actual cost
-and remain counted at their full estimates. The user explicitly instructed restarting and
-continuing despite these local markers. Reviewed observations are
-`57cb5021-6d37-465e-a56a-5eeee3bbb769` and
-`a269e85e-ccd9-4b73-87b9-b98961f8437d`. They are not confirmed invoice charges.
-Any other unknown receipt still follows the existing admission guard. Do not append new IDs automatically, invent zero
-charges, reset volumes or start another paid database. This is an estimated local allowance,
-not a provider-side hard spending ceiling. See [accounting](architecture/interview-provider-accounting.md).
+Every real STT, screening, interviewer and TTS call keeps its original accounting identity
+and reports actual usage when available. A speech marker of US$0.25 is a conservative local
+estimate for a request whose final cost is not yet known: it is **not a charge, payment
+reservation, hold or provider billing ceiling**. The user explicitly rejected blocking
+local interviews on these estimates. The QA overlay therefore records estimates without
+enforcing the verification stop or requiring lists of individually reviewed unknown IDs.
+Do not erase markers, invent zero charges, reset volumes or start another paid database.
+Normal admission remains unchanged without this development-only opt-in.
+See [accounting](architecture/interview-provider-accounting.md).
 
 ## Start, inspect or stop
 
@@ -69,7 +69,6 @@ Rebuild them from this checkout if dependencies change.
 
 ```bash
 export INTERVIEW_VERIFICATION_AI_ENV=/home/jarrod/Desktop/resume_project/services/ai/.env
-export INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS=57cb5021-6d37-465e-a56a-5eeee3bbb769,a269e85e-ccd9-4b73-87b9-b98961f8437d
 export INTERVIEW_REAL_QA_APPROVED=yes
 bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_real_qa.sh start
 ```
@@ -81,9 +80,10 @@ Its volumes are preserved by this command:
 docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml --profile qa stop
 ```
 
-The real launcher keeps an existing runtime running, refuses a missing retained ledger or
-unreviewed unknown usage, checks the allowance and storage preflights, then starts ordinary
-bounded recovery. Starting resumes saved pending real operations, including opening speech;
+The real launcher keeps an existing runtime running, refuses a missing retained ledger,
+checks storage preflights, then starts ordinary bounded recovery. In local unmetered mode
+unknown costs and the verification target are informational; they do not block startup.
+Starting resumes saved pending real operations, including opening speech;
 it can spend money immediately. New sessions require safe runtime readiness and real admission.
 
 With the same environment settings, inspect or stop without deleting data:

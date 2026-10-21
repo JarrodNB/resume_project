@@ -19,7 +19,7 @@ vi.mock('./useInterviewRecorder', async () => {
 vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
@@ -31,8 +31,38 @@ function playbackMock(messageId = 'opening') {
   } } }
 }
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
-afterEach(() => { cleanup(); vi.restoreAllMocks() })
+afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
+  it('reads saved text with browser speech without a provider artifact and releases recording', async () => {
+    const speak = vi.fn()
+    vi.stubGlobal('speechSynthesis', { speak, cancel: vi.fn() })
+    vi.stubGlobal('SpeechSynthesisUtterance', class { text: string; constructor(text: string) { this.text = text } })
+    state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [] }
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+    expect(speak.mock.calls[0][0].text).toBe('Describe a project.')
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Stop interviewer audio' }))
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
+    state.interview = { ...snapshot, speechPlaybackMode: 'browser', revision: 1, operations: [], messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'followup', content: 'What changed?' }] }
+    act(() => recorder.refresh())
+    await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
+    expect(speak.mock.calls[1][0].text).toBe('What changed?')
+  })
+
+  it.each(['pending', 'failed', 'expired'])('allows a saved question to be answered when speech is %s', async (status) => {
+    state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status, failureCode: status === 'pending' ? null : 'speech_failed' }] }
+    renderDemo()
+    expect(screen.getByText('Describe a project.')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+    expect(recorder.start).toHaveBeenCalledOnce()
+    const recording = new Blob(['answer'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.recording = recording
+    act(() => recorder.refresh())
+    expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
+    expect(state.answer).toHaveBeenCalledWith(recording)
+  })
   it('leaves hydrated speech and earlier conversation silent until explicitly played', async () => {
     renderDemo('/interviews/demo/session', [playbackMock()])
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
@@ -92,6 +122,25 @@ describe('InterviewDemoPage', () => {
     act(() => recorder.refresh())
     expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+  it('keeps late speech silent when answering began before its audio was ready', async () => {
+    vi.useFakeTimers()
+    try {
+      state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'pending' }] }
+      renderDemo()
+      expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
+      recorder.status = 'recording'
+      act(() => recorder.refresh())
+      state.interview = { ...snapshot, revision: 1 }
+      act(() => recorder.refresh())
+      await act(async () => vi.runAllTimersAsync())
+      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+      recorder.status = 'idle'
+      act(() => recorder.refresh())
+      await act(async () => vi.runAllTimersAsync())
+      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+      expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
   })
   it('keeps the session muted across replies and stops speech when abandoned', async () => {
     renderDemo('/interviews/demo/session', [playbackMock('reply')])
@@ -202,7 +251,7 @@ describe('InterviewDemoPage', () => {
     expect(screen.getByText(/submitted audio goes to OpenAI/i)).not.toBeVisible()
     await userEvent.click(screen.getByText('Interview details and privacy'))
     expect(screen.getByText(/submitted audio goes to OpenAI/i)).toBeVisible()
-    expect(screen.getByText(/voice is AI-generated/i)).toBeVisible()
+    expect(screen.getByText(/Interviewer text is read by your browser/i)).toBeVisible()
     expect(screen.queryByText(/does not transcribe or assess/i)).not.toBeInTheDocument()
   })
   it('keeps explicit recording and submission controls for real sessions', async () => {
@@ -322,12 +371,18 @@ describe('InterviewDemoPage', () => {
     window.dispatchEvent(unload)
     expect(unload.defaultPrevented).toBe(true)
   })
-  it('blocks recording while speech is unavailable and offers only speech retry', async () => {
+  it('keeps speech retry independent of answering the saved question', async () => {
     state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'failed', failureCode: 'speech_failed' }] }
     renderDemo()
-    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
     await userEvent.click(screen.getByRole('button', { name: 'Retry speech' }))
     expect(state.retryOperation).toHaveBeenCalledWith('speech')
+  })
+  it.each([{ messages: [] }, { messages: [{ ...snapshot.messages[0], content: '   ' }] }])('waits for visible question text before recording', ({ messages }) => {
+    state.interview = { ...snapshot, messages }
+    renderDemo()
+    expect(screen.getByRole('heading', { name: 'Waiting for your question' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
   })
   it('preserves ambiguous submission recovery and disables new recording', async () => {
     state.unresolved = { submissionKey: 'stable' }

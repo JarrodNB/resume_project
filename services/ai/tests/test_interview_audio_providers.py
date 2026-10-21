@@ -228,6 +228,82 @@ def test_speech_without_terminal_usage_stays_unknown():
     assert rails.usage.call_args.kwargs["incomplete"]
 
 
+@pytest.mark.parametrize("partial_trailer", [b"", b"data: [DO", b": comment \xc3"])
+def test_completed_speech_does_not_wait_for_http_eof_and_keeps_usage(partial_trailer):
+    rails = AsyncMock()
+
+    class CompletedStream(httpx.AsyncByteStream):
+        closed = False
+
+        async def __aiter__(self):
+            # Complete SSE is smaller than the previous 64 KiB read buffer.
+            raw = (": café\n\n".encode() + speech_stream(audio()).replace(
+                b', "usage":', b',\ndata: "usage":'
+            )).replace(b"\n", b"\r\n")
+            final_frame = raw.rfind(b"data: ")
+            # Split a UTF-8 codepoint and a CRLF delimiter across reads.
+            for start, end in [(0, 3), (3, final_frame - 3),
+                               (final_frame - 3, final_frame - 2), (final_frame - 2, final_frame)]:
+                yield raw[start:end]
+            yield raw[final_frame:] + partial_trailer
+            raise httpx.ReadTimeout("HTTP body stayed open after speech completed")
+
+        async def aclose(self):
+            self.closed = True
+
+    stream = CompletedStream()
+
+    async def run():
+        async with AudioProviders(
+            rails, api_key="synthetic",
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=stream)),
+        ) as provider:
+            assert await provider.speak(claim(), "Saved reply") == audio()
+
+    asyncio.run(run())
+    assert stream.closed
+    assert not rails.usage.call_args.kwargs["incomplete"]
+    assert rails.usage.call_args.args[1][0]["cost_microdollars"] == 1221
+
+
+@pytest.mark.parametrize("failure", ["headers_timeout", "body_timeout", "http_status"])
+def test_audio_failure_diagnostics_are_content_free_and_keep_unknown_usage(caplog, failure):
+    rails = AsyncMock()
+    sensitive = "private-answer-and-secret-key"
+
+    class BrokenStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            yield b": provider heartbeat\n\n"
+            raise httpx.ReadTimeout(sensitive)
+
+    def respond(_request):
+        if failure == "headers_timeout":
+            raise httpx.ReadTimeout(sensitive)
+        if failure == "body_timeout":
+            return httpx.Response(200, stream=BrokenStream())
+        return httpx.Response(503, text=sensitive, headers={"x-request-id": sensitive})
+
+    async def run():
+        async with AudioProviders(
+            rails, api_key=sensitive, transport=httpx.MockTransport(respond),
+        ) as provider:
+            with pytest.raises(ProviderError, match="provider_unavailable"):
+                await provider.speak(claim(), sensitive)
+
+    asyncio.run(run())
+    assert sensitive not in caplog.text
+    assert "Interview audio request failed" in caplog.text
+    assert "endpoint=speech" in caplog.text
+    assert "elapsed_ms=" in caplog.text
+    if failure == "headers_timeout":
+        assert "phase=headers" in caplog.text and "error=ReadTimeout" in caplog.text
+    elif failure == "body_timeout":
+        assert "phase=body" in caplog.text and "received_bytes=22" in caplog.text
+    else:
+        assert "status=503" in caplog.text
+    assert rails.usage.call_args.kwargs["incomplete"]
+
+
 def test_speech_accepts_openai_done_sentinel_after_terminal_usage():
     rails = AsyncMock()
 

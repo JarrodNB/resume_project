@@ -2,6 +2,18 @@
 require "rails_helper"
 
 RSpec.describe Interviews::DiscoverOperationsService do
+  it "does not discover old real speech reservations in browser mode" do
+    interview = Interviews::CreateFixtureService.call(user: create(:user)).value
+    InterviewSession.where(id: interview.id).update_all(execution_mode: "real", execution_config: Interviews::ExecutionConfiguration::REAL)
+    speech = interview.operations.speech.first
+    expect(described_class.call(execution_mode: "real").value).not_to include(speech.id)
+    expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).not_to be_success
+    expect(speech.reload.execution_count).to eq(0)
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+    expect(described_class.call(execution_mode: "real").value).to include(speech.id)
+  end
+
   it "expires an old recording and its logical task, allowing a fresh submission" do
     interview = Interviews::CreateFixtureService.call(user: create(:user)).value
     input = { interview: interview, question_id: interview.questions.first.id, recording_id: ready_interview_recording(interview).id,

@@ -37,6 +37,11 @@ use the interview bucket, retaining their existing individual hourly admissions.
 paid verification database has an additional global allowance/unknown-receipt stop independent
 of both per-user buckets; separating allowances does not clear that stop.
 
+The real browser-QA overlay opts into `INTERVIEW_LOCAL_TESTING_UNMETERED=true`. Only
+development honors this mode: spoken-interview monthly/hourly and verification spend/unknown
+gates are skipped, while cost records, concurrency, execution limits and all general AI
+admission stay intact. It does not forgive, erase or assign zero to unknown costs.
+
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
 IP and by email, sign-up and session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled
 requests get a JSON 429 with `Retry-After`.

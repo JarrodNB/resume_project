@@ -168,3 +168,11 @@ docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktr
 ```
 
 The check overlay uses existing local image names, synthetic credentials and a dedicated synthetic-check flag only. Its usage rows reflect synthetic positive charges in its isolated database; no provider charges are incurred. Its Python entrypoint replaces provider HTTP transports before real lifespan startup, preserving production provider URLs and accounting. It exercises real Rails/PostgreSQL/private storage, forced closing, exact saved-text speech, a known-cost speech failure, independent speech retry, and private playback. Restart its mock runtime before repeating the single injected speech-failure check. Volumes are retained. The existing QA project is not changed. Microphone permissions, preview playback and navigation remain human browser checks.
+
+## Verification on 21 October 2026
+
+See [the current verification evidence](interview-verification.md) for final offline
+checks, the repaired real-provider failure callback and the live-test limitation.
+The first paid opening-speech attempt left an unknown charge; paid verification stopped.
+The retained QA URL runs fake execution with real admission disabled. Do not enable paid
+execution in that QA database or restart the paid verification runtime while unresolved.

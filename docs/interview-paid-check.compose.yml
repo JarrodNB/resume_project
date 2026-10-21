@@ -1,0 +1,23 @@
+# Explicit paid verification only. Keep this project's database volume across every run.
+# Requires the original ignored AI environment file; never duplicate its secrets.
+services:
+  api:
+    image: cg-interview-qa-api
+    environment:
+      INTERVIEW_REAL_ADMISSION_ENABLED: "true"
+      INTERVIEW_PAID_VERIFICATION: "true"
+      INTERVIEW_REAL_RUNTIME_ORIGIN: http://interview-runtime:8000
+  interview-runtime:
+    image: cg-interview-qa-interview-runtime
+    command: python -m scripts.interview_paid_runtime
+    env_file:
+      - ${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI env path}
+    environment:
+      INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
+      INTERVIEW_REAL_RUNTIME_ENABLED: "true"
+      INTERVIEW_PAID_VERIFICATION: "true"
+      INTERVIEW_ENVIRONMENT: development
+      LOGFIRE_TOKEN: ""
+      LOGFIRE_SEND_TO_LOGFIRE: "false"
+      OTEL_SDK_DISABLED: "false"
+      CONVERSATION_LOGGING_ENABLED: "false"

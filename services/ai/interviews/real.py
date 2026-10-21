@@ -53,8 +53,10 @@ class RealInterviewExecutor(InterviewExecutor):
             async with asyncio.timeout(remaining):
                 with self._trace(claim), record_prompt_version(SPOKEN_INTERVIEW_PROMPT_VERSION):
                     await super().execute(claim)
-        except (ModelAPIError, TimeoutError):
-            await self.client.fail(claim, "provider_unavailable", True)
+        except ModelAPIError:
+            await self.client.fail(claim, "dependency_unavailable", True)
+        except TimeoutError:
+            await self.client.fail(claim, "execution_timeout", True)
         except (UnexpectedModelBehavior, UsageLimitExceeded):
             await self.client.fail(claim, "execution_failed", False)
         except RailsClientError:

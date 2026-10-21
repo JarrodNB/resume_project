@@ -125,7 +125,7 @@ def test_blank_transcript_cannot_consume_answer(monkeypatch):
     client, models = Client(), Models()
     run(client, models)
     assert not client.accepted and not models.prompts
-    assert client.failed == [("unusable_audio", False)]
+    assert client.failed == [("empty_audio", False)]
 
 
 def test_expired_execution_never_dispatches(monkeypatch):
@@ -135,7 +135,7 @@ def test_expired_execution_never_dispatches(monkeypatch):
     request = claim().model_copy(update={"execution_deadline": datetime.now(UTC) - timedelta(seconds=1)})
     run(client, models, request)
     assert not client.accepted and not models.prompts
-    assert client.failed == [("provider_unavailable", True)]
+    assert client.failed == [("execution_timeout", True)]
 
 
 @pytest.mark.parametrize("failure", ["http", "timeout"])
@@ -156,7 +156,7 @@ def test_interviewer_failure_never_accepts_and_retains_unknown_usage(monkeypatch
     client = Client()
     run(client, FailingModels())
     assert not client.accepted
-    assert client.failed == [("provider_unavailable", True)]
+    assert client.failed == [("execution_timeout" if failure == "timeout" else "dependency_unavailable", True)]
     assert any(call[0] == "usage" and call[2] == [] and call[1] for call in client.calls)
 
 
@@ -221,3 +221,42 @@ def test_real_speech_uses_saved_text_without_transcription_or_reasoning():
     assert seen == ["Exactly the saved reply."]
     assert not models.prompts and not client.accepted and not client.failed
     assert ("complete", "speech") in client.calls
+
+
+@pytest.mark.parametrize("provider_code, expected", [
+    ("provider_unavailable", "dependency_unavailable"),
+    ("unusable_audio", "empty_audio"),
+    ("invalid_provider_response", "execution_failed"),
+])
+def test_audio_failures_use_rails_failure_contract(monkeypatch, provider_code, expected):
+    from interviews.audio_providers import ProviderError
+
+    async def reject(*args):
+        raise ProviderError(provider_code)
+
+    monkeypatch.setattr(Audio, "transcribe", reject)
+    client = Client()
+    run(client, Models())
+    assert client.failed == [(expected, expected == "dependency_unavailable")]
+    assert not client.accepted
+
+
+@pytest.mark.parametrize("provider_code, expected", [
+    ("provider_unavailable", "dependency_unavailable"),
+    ("invalid_provider_response", "speech_failed"),
+])
+def test_speech_provider_failure_uses_supported_rails_code(provider_code, expected):
+    from interviews.audio_providers import ProviderError
+
+    class FailingAudio:
+        async def speak(self, request, text):
+            raise ProviderError(provider_code)
+
+    client = Client()
+    request = claim(kind="speech", text="Saved text").model_copy(
+        update={"execution_mode": "real", "execution_config": REAL_CONFIGURATION})
+    executor = RealInterviewExecutor(client, audio=FailingAudio(), models=Models(),
+        storage_client=None, allowed_origins=set())
+    asyncio.run(executor.execute(request))
+    assert client.failed == [(expected, expected == "dependency_unavailable")]
+    assert not any(call[0] == "complete" for call in client.calls)

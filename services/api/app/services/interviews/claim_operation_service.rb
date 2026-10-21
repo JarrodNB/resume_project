@@ -35,11 +35,7 @@ module Interviews
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
         unless allowance.success?
-          # No execution began: retain valid media for a user-requested retry, but
-          # stop rediscovery and release any task slot from an earlier execution.
-          @operation.update!(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil,
-            retry_expires_at: @operation.retry_expires_at || expiry)
-          @operation.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached")
+          reject_allowance(expiry: expiry)
           next allowance
         end
         unless @operation.ai_task

@@ -75,7 +75,11 @@ class InterviewExecutor:
                 await self._speech(claim)
             finished = True
         except ScreeningRejected as error:
-            await self.client.fail(claim, error.code, error.code in {"screening_unavailable", "provider_unavailable"})
+            failure = "execution_failed" if claim.kind == "turn" else "speech_failed"
+            code = {"provider_unavailable": "dependency_unavailable", "unusable_audio": "empty_audio",
+                    "invalid_provider_response": failure, "provider_response_too_large": failure,
+                    "invalid_speech_text": "speech_failed", "unknown_provider_usage": failure}.get(error.code, error.code)
+            await self.client.fail(claim, code, code in {"screening_unavailable", "dependency_unavailable"})
             finished = True
         except MediaError as error:
             await self.client.fail(claim, error.code, error.code == "storage_unavailable")
@@ -128,7 +132,7 @@ class InterviewExecutor:
                                 expected_byte_size=grant["byte_size"], **self._media_options())
         transcript = await self._transcribe(claim, data)
         if not isinstance(transcript, str) or not transcript.strip():
-            raise ScreeningRejected("unusable_audio")
+            raise ScreeningRejected("empty_audio")
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
             raise ScreeningRejected("transcript_too_long")
         contact = KnownContact.from_values(**{

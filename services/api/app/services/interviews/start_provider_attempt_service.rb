@@ -1,5 +1,6 @@
 # Reserves a separate billing identity before each potentially charged provider call.
 # Repeated starts are idempotent; an expired execution cannot start another call.
+# Denied spend stops discovery and preserves valid media for an explicit retry.
 module Interviews
   class StartProviderAttemptService < ApplicationService
     include ExecutionPolicy
@@ -26,9 +27,14 @@ module Interviews
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
         if interview.execution_mode == "real"
           allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
-          next allowance unless allowance.success?
-          next failure("Verification budget or provider pricing unavailable") unless VerificationBudget.reserve(
-            observation_id: @observation_id, stage: @stage, provider: @provider, model: @model)
+          unless allowance.success?
+            reject_allowance(expiry: @operation.retry_expires_at)
+            next allowance
+          end
+          unless VerificationBudget.reserve(observation_id: @observation_id, stage: @stage, provider: @provider, model: @model)
+            reject_allowance(expiry: @operation.retry_expires_at)
+            next failure("Verification budget or provider pricing unavailable")
+          end
         elsif @provider != "fake"
           next failure("Fake execution cannot start paid providers")
         end

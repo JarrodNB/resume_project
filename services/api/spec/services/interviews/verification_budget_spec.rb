@@ -14,6 +14,11 @@ RSpec.describe "Interview verification allowance" do
       provider: "openai", model: "gpt-transcribe", **labels)
   end
 
+  def resume
+    expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
+    expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success
+  end
+
   [ [ "screening", "typesafe", "jev-1.13.0", 10_000 ],
     [ "screening", "openai", "gpt-5-nano", 50_000 ],
     [ "interviewer", "openai", "gpt-6-luna", 50_000 ] ].each do |stage, provider, model, amount|
@@ -25,6 +30,7 @@ RSpec.describe "Interview verification allowance" do
       report = { operation: operation, attempt_id: operation.attempt_id, observation_id: id }
       expect(Interviews::RecordUsageService.call(**report, usage: [ { "input_tokens" => 100,
         "output_tokens" => 10, "cost_microdollars" => 15 } ])).to be_success
+      resume
       expect(start(stage: stage, provider: provider, model: model)).to be_success
     end
   end
@@ -55,6 +61,7 @@ RSpec.describe "Interview verification allowance" do
     expect(Interviews::RecordUsageService.call(**report, usage: [], incomplete: true)).to be_success
     expect(start).not_to be_success
     expect(Interviews::RecordUsageService.call(**report, usage: [ { "cost_microdollars" => 1_221 } ])).to be_success
+    resume
     expect(start).to be_success
   end
 

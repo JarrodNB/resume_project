@@ -13,6 +13,7 @@ services:
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
       INTERVIEW_REAL_RUNTIME_ENABLED: "true"
       INTERVIEW_ENVIRONMENT: development
+      INTERVIEW_CHECK_AUDIO_FAILURE: ${INTERVIEW_CHECK_AUDIO_FAILURE:-false}
       OPENAI_API_KEY: synthetic-offline
       TYPESAFE_API_KEY: synthetic-offline
       LOGFIRE_TOKEN: ""

@@ -31,6 +31,8 @@ def wav():
 
 
 def audio_response(request):
+    if os.getenv("INTERVIEW_CHECK_AUDIO_FAILURE") == "true":
+        return httpx.Response(503, json={"error": "synthetic outage"})
     if request.url.path.endswith("transcriptions"):
         return httpx.Response(200, json={"text": "I improved a scheduling tool and reduced the wait by fifteen minutes.",
             "usage": {"type": "duration", "seconds": 0.1}})

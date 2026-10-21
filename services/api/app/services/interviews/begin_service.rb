@@ -1,5 +1,5 @@
-# Begins a reviewed interview once. The first saved question and speech reservation
-# commit together under the owner lock; provider execution happens later.
+# Begins a reviewed interview once. The first question is saved under the owner lock;
+# provider speech is reserved only when explicitly enabled, and executes later.
 module Interviews
   class BeginService < ApplicationService
     def initialize(interview:)
@@ -18,7 +18,7 @@ module Interviews
         next failure("Prepared questions unavailable") unless question
         message = @interview.messages.create!(question: question, kind: "opening", position: 0,
           semantic_key: "question:#{question.id}:opening", content: question.content)
-        @interview.operations.create!(kind: "speech", question: question, message: message)
+        @interview.operations.create!(kind: "speech", question: question, message: message) if SpeechPlayback.provider?(@interview)
         @interview.update!(status: "active", revision: @interview.revision + 1)
         success(@interview)
       end

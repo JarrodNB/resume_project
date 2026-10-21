@@ -2,6 +2,12 @@
 require "rails_helper"
 
 RSpec.describe "Interview verification allowance" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   let(:interview) { Interviews::CreateFixtureService.call(user: create(:user), execution_mode: "real").value }
   let(:operation) { interview.operations.first }
   before do
@@ -130,6 +136,12 @@ RSpec.describe "Interview verification allowance" do
 end
 
 RSpec.describe "Interview allowance concurrency" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   self.use_transactional_tests = false
 
   it "serializes the cumulative allowance across owners and retains it after owner deletion" do
@@ -170,6 +182,12 @@ RSpec.describe "Interview allowance concurrency" do
 end
 
 RSpec.describe "Interview usage reconciliation conflicts" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   it "does not replace known usage or release unknown costs with an empty final summary" do
     interview = Interviews::CreateFixtureService.call(user: create(:user), execution_mode: "real").value
     operation = interview.operations.first
@@ -187,6 +205,12 @@ RSpec.describe "Interview usage reconciliation conflicts" do
 end
 
 RSpec.describe "Verified operator reconciliation" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   it "unblocks the target after evidence proves an admitted request incurred zero cost" do
     id = SecureRandom.uuid
     reservation = InterviewVerificationReservation.create!(observation_id: id, reserved_microdollars: 9_000)

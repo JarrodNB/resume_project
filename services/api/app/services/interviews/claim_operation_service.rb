@@ -16,6 +16,7 @@ module Interviews
       with_operation_lock do |interview|
         next failure("Interview abandoned") if interview.abandoned?
         next failure("Interview execution mode mismatch") unless interview.execution_mode == @execution_mode
+        next failure("Provider speech is disabled") if @operation.speech? && !SpeechPlayback.provider?(interview)
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
         next failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?

@@ -2,6 +2,12 @@
 require "rails_helper"
 
 RSpec.describe "Interview execution modes", type: :service do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   let(:user) { create(:user) }
   let(:fake) { Interviews::CreateFixtureService.call(user: user).value }
   let(:real) { Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value }

@@ -18,6 +18,13 @@ RSpec.describe "Basic Interview acceptance" do
       model_history: [ { "kind" => "request", "parts" => [ { "part_kind" => "user-prompt", "content" => "screened transcript" } ] } ] }
   end
 
+  it "saves real interview replies without scheduling provider speech by default" do
+    InterviewSession.where(id: interview.id).update_all(execution_mode: "real", execution_config: Interviews::ExecutionConfiguration::REAL)
+    interview.reload
+    expect { expect(Interviews::AcceptTurnService.call(**input)).to be_success }
+      .not_to change { interview.operations.speech.count }
+  end
+
   it "accepts an answer, saved follow-up and history together, incrementing only once" do
     result = Interviews::AcceptTurnService.call(**input)
     expect(result).to be_success

@@ -3,6 +3,12 @@
 require "rails_helper"
 
 RSpec.describe "Prepared interview allowances" do
+  # These scenarios exercise the retained provider-speech path explicitly.
+  before do
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
+  end
+
   let(:user) { create(:user, summary: "Maintain laboratory instruments") }
   before { stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1) }
 

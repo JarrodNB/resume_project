@@ -1,3 +1,40 @@
+# Independent interview limits — 21 October 2026
+
+Spoken interviews now have their own per-user allowance: $3/month, 30 session starts/hour,
+and three concurrent operations. These are independently configurable with
+`INTERVIEW_MONTHLY_BUDGET_USD`, `INTERVIEW_SESSIONS_PER_HOUR`, and
+`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and general per-user overrides do not
+consume or change interview allowances; interview preparation/turn/speech work does not
+consume general budgets, hourly starts or concurrency. The public general usage summary
+excludes spoken interview bills and incomplete markers. Written interview Q&A stays general.
+Every provider bill and unknown marker remains recorded; the separate paid-verification stop
+below is unchanged.
+
+The full Rails suite passed **829 examples, zero failures, two existing opt-in storage checks
+pending**. Focused service/GraphQL checks passed 164 examples with the same two pending.
+The coordinator independently repeated 39 allowance/full-session/usage/GraphQL examples,
+all passing. RuboCop inspected 16 files without offenses; Zeitwerk and the full-suite schema
+contract passed. Regressions first showed interview costs leaking into general summaries and
+both allowance buckets blocking one another, then passed after scoping. Own interview limits,
+legacy operations and the full 27-response session remain covered. The legacy recovery runner's
+synthetic budget fixture was adapted and linted; that process runner was not rerun.
+
+Fresh blind correctness and design reviewers assessed the full code diff from
+`6ad369b7c021ba6c096a2d104bd19e7327a41594` to
+`e9c439abfe883c6f599d4add2c14fc263cd30548`, excluding operational/evidence reports, and returned
+**no actionable findings**. Their independent network-isolated AI selections passed 59 and
+60 tests. No Python/frontend behavior changed in this revision, so earlier full AI/frontend
+results below remain their recorded checkpoints. This follow-up record is editorial only.
+
+The API was restarted to load the new configuration. `/library` at
+`http://127.0.0.2:15176/library` and API `/up` both returned HTTP 200, and the live API reported
+3,000,000 interview microdollars/month, 30 sessions/hour and three concurrent operations.
+The real interview runtime remains stopped; no additional paid calls or ledger changes ran.
+No database migration or frontend rebuild was needed. The library is active with this code;
+new spoken interview execution remains unavailable because of the recorded unknown receipt.
+
+---
+
 # Final candidate checks and bounded live smoke — 21 October 2026
 
 The two independent blind reviews of the full implementation both reproduced a context-growth

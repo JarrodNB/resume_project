@@ -474,7 +474,15 @@ may release its bytes even if the response is lost. Only that minimal question/r
 identity is kept in local storage, scoped by owner and interview; a successful owned read reconciles
 it before an explicit same-key resend. No mutation is automatically replayed after an auth error.
 Queries on mount and fresh subscription snapshots on reconnect restore canonical progress without
-polling. Playback obtains a fresh grant for the same saved message; it never retries reasoning or
+polling. Newly accepted current speech automatically obtains a playback grant and attempts
+playback once during an open interview. The first loaded snapshot is a silent baseline, so
+opening or reloading a saved interview does not replay old speech. Repeated and stale receipts
+cannot trigger another automatic attempt. Blocked autoplay offers explicit **Play interviewer
+audio**; replay and pause remain available, with a mute choice scoped to the open session.
+Historical speech plays only on request and pauses any other interviewer audio. Microphone
+capture disables playback, and playing speech blocks a new recording until paused. Message
+changes, abandonment and navigation stop playback and ignore late grant/play completions.
+Playback obtains a fresh grant for the same saved message; it never retries reasoning or
 speech generation. Expired grants can be renewed while the artifact itself remains retained.
 
 For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to

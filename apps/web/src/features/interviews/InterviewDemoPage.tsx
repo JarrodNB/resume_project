@@ -1,7 +1,7 @@
 /** Keep the current interview turn in focus, with earlier dialogue and details nearby.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,7 @@ import { RecentInterviews } from './RecentInterviews'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { InterviewAudio } from './InterviewAudio'
+import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewSession, useStartInterview } from './useInterviewSession'
 
@@ -55,8 +56,15 @@ function OwnedInterview({ id }: { id: string }) {
   const recorder = useInterviewRecorder()
   const submitting = useRef(false)
   const [savingRecording, setSavingRecording] = useState(false)
+  const [muted, setMuted] = useState(false)
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null)
+  const speechPlaying = playingMessageId !== null
+  const playbackChanged = useCallback((playing: boolean, messageId: string) => {
+    setPlayingMessageId((current) => playing ? messageId : current === messageId ? null : current)
+  }, [])
   const recordingWarning = <RecordingUnsavedChanges dirty={Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting'} />
   const interview = state.interview
+  const newSpeech = useNewInterviewSpeech(interview)
   const terminal = interview?.status === 'abandoned' || interview?.status === 'completed' || interview?.status === 'expired'
   const { status: recordingStatus, reset: resetRecording } = recorder
   useEffect(() => {
@@ -85,7 +93,7 @@ function OwnedInterview({ id }: { id: string }) {
   const speech = reply && operations.find((operation) => operation.messageId === reply.id && operation.kind === 'speech')
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
-  const canRecord = interview.status === 'active' && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && speech?.status === 'accepted'
+  const canRecord = interview.status === 'active' && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying && speech?.status === 'accepted'
   async function submit() {
     if (!recorder.recording || submitting.current || !canRecord) return
     submitting.current = true; setSavingRecording(true)
@@ -103,6 +111,7 @@ function OwnedInterview({ id }: { id: string }) {
     : recorder.recording ? 'Review your recording'
     : speech?.status === 'failed' || speech?.status === 'expired' ? 'Interviewer audio needs attention'
     : speech?.status !== 'accepted' ? 'Preparing interviewer audio'
+    : speechPlaying ? 'Your interviewer is speaking'
     : 'Your turn'
   return <>
     {recordingWarning}
@@ -120,7 +129,8 @@ function OwnedInterview({ id }: { id: string }) {
       </div>
     {reply && <div className="grid gap-4">
       <p className="max-w-prose whitespace-pre-wrap break-words text-lg leading-relaxed sm:text-xl">{reply.content}</p>
-      {speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} />}
+      {speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
+      <Button variant="ghost" className="justify-self-start" aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? 'Unmute interviewer' : 'Mute interviewer'}</Button>
       {(speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
     {state.unresolved && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status or retry the same submission; this keeps the original answer identity.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
@@ -144,7 +154,7 @@ function OwnedInterview({ id }: { id: string }) {
         {interview.messages.filter((message) => message.id !== reply?.id).map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
-          {message.kind !== 'answer' && operations.some((operation) => operation.messageId === message.id && operation.kind === 'speech' && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} />}
+          {message.kind !== 'answer' && operations.some((operation) => operation.messageId === message.id && operation.kind === 'speech' && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
         </li>)}
       </ol>
       {!interview.messages.some((message) => message.id !== reply?.id) && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. The current question is above.</p>}

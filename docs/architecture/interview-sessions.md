@@ -14,7 +14,7 @@ internal Rails HTTP, runs asynchronously, and submits results for Rails acceptan
 not write the database. Browser requests never wait for the interviewer. Existing queue
 features continue to use SQS and `ai_results` without changes.
 
-The delivered foundation includes persistence, private HTTP claims/recovery, accounting,
+The delivered foundation includes library-informed preparation, persistence, private HTTP claims/recovery, accounting,
 private media services and offline audio validation. The offline runtime executes this boundary;
 the owned GraphQL demo exposes accepted dialogue and safe operation progress.
 
@@ -58,6 +58,43 @@ fake or deploy an older fake-only runtime against them. Real browser QA uses the
 paid verification database and its cumulative ledger, not a new per-QA allowance.
 
 ## Durable domain interface
+
+### Library-informed preparation
+
+Public creation now starts durable preparation instead of creating the fixture opening.
+`StartPreparationService` freezes only owned usable career-library text and its source
+identity, plus an optional career focus of at most 200 characters. Job-derived library-fact
+requirements are excluded. Sparse library content is usable; an empty library or a snapshot
+over 40,000 JSON bytes returns an actionable error without creating work. Later library edits
+cannot change a saved preparation's input. Raw frozen sources remain private.
+
+A `preparing` session has one `preparation` operation with no question, recording or message.
+The existing private discovery, lease, heartbeat, failure, retry and accounting contracts
+apply. The preparation claim contains `frozen_context`; it requires no storage capability.
+The real executor screens/masks that source, runs a guarded Pydantic AI preparation agent
+through the accounted approved Luna model, and posts `accept_preparation` with claim identity,
+`role` and `questions`. Preparation uses the existing interviewer accounting stage, with a
+4,096-output-token cap so the complete question plan fits; dialogue remains capped at 1,024.
+
+Rails validates a short fictional role (title, responsibilities and requirements) and exactly
+nine distinct questions, interleaved behavioral/technical/knowledge three times. Acceptance
+atomically saves the entire role and question list, marks the operation accepted and session
+`ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
+changed output or a stale generation cannot replace it. Failure leaves no partial question
+list, and bounded retries reuse the same frozen input. An explicit begin transition belongs
+to the subsequent progression slice; role review alone does not begin recording or speech.
+
+Public snapshots expose the prepared fictional role and safe preparation progress, never
+raw personal source snapshots or execution credentials. Question type is persisted separately
+from its position. Existing fixture sessions, their two-answer caps and saved configurations
+are preserved; the fixture service remains available to deterministic tests.
+
+Seven-day expiry retires preparation and scrubs frozen sources and generated role along with
+dialogue/history, retaining the existing accounting markers. Preparation does not create
+career-library facts, saved jobs, coaching or assessment. Automated interview-quality
+evaluators remain deferred; offline tests establish contracts rather than generated quality.
+
+### Legacy fixture and active-turn interfaces
 
 `Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.

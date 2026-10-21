@@ -43,8 +43,8 @@ describe('InterviewDemoPage', () => {
     renderDemo('/interviews/demo')
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
     expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
-    expect(start).toHaveBeenCalledWith()
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    expect(start).toHaveBeenCalledWith('')
   })
   it('retires old scripted sessions without recording or retry controls', () => {
     state.interview = { ...snapshot, executionMode: 'fake' }
@@ -184,4 +184,33 @@ describe('InterviewDemoPage', () => {
     expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
     expect(screen.getByText(/unavailable in this environment/i)).toBeVisible()
   })
+})
+
+it('shows durable preparation progress and retry without recording controls', async () => {
+  state.interview = { ...snapshot, status: 'preparing', questions: [], messages: [], operations: [
+    { ...snapshot.operations[0], id: 'prep', kind: 'preparation', status: 'failed', canRetry: true, failureCode: 'dependency_unavailable' },
+  ] }
+  renderDemo()
+  expect(screen.getByRole('heading', { name: 'Preparing your interview' })).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Retry preparation' }))
+  expect(state.retryOperation).toHaveBeenCalledWith('prep')
+})
+
+it('shows the frozen fictional role for review before any speech or recording', () => {
+  state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician',
+    responsibilities: ['Maintain instruments'], requirements: ['Understand calibration'] }, messages: [], operations: [] }
+  renderDemo()
+  expect(screen.getByRole('heading', { name: 'Review your fictional role' })).toBeVisible()
+  expect(screen.getByText('Laboratory technician')).toBeVisible()
+  expect(screen.getByText('Maintain instruments')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+})
+
+it('passes an explicit career focus to preparation and offers a library review path', async () => {
+  renderDemo('/interviews/demo')
+  await userEvent.type(screen.getByRole('textbox', { name: 'Career focus (optional)' }), 'Laboratory equipment')
+  await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  expect(start).toHaveBeenCalledWith('Laboratory equipment')
+  expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
 })

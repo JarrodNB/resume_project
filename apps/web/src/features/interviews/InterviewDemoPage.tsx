@@ -5,9 +5,11 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { SectionCard } from '@/components/SectionCard'
 import { useAuth } from '@/features/auth/useAuth'
 import { interviewDemoEnabled } from './interviewDemoEnabled'
+import { InterviewPreparation } from './InterviewPreparation'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { InterviewAudio } from './InterviewAudio'
@@ -18,7 +20,7 @@ export function InterviewDemoPage() {
   const { id } = useParams()
   const { user } = useAuth()
   return <div className="mx-auto grid max-w-3xl gap-6">
-    <PageHeading title="Spoken interview" description="Practice one question with an AI interviewer for a fictional role." />
+    <PageHeading title="Spoken interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; accepted text lasts 7 days.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interview-prep">Open written interview practice</Link>
     {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <StartDemo />}
@@ -27,11 +29,15 @@ export function InterviewDemoPage() {
 function StartDemo() {
   const { start, loading, error } = useStartInterview()
   const navigate = useNavigate()
-  async function begin() { const id = await start(); if (id) void navigate(`/interviews/demo/${id}`) }
+  const [careerFocus, setCareerFocus] = useState('')
+  async function begin() { const id = await start(careerFocus); if (id) void navigate(`/interviews/demo/${id}`) }
   return <div className="grid gap-3">
-    <p className="text-sm">One prepared question, with at most two accepted answers.</p>
+    <p className="max-w-prose text-sm">Prepare nine questions: three behavioral, three technical and three knowledge questions. Review the fictional role before starting.</p>
+    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
+    <p id="interview-focus-help" className="max-w-prose text-sm text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details.</p>
+    <Link className="justify-self-start text-sm underline underline-offset-4" to="/library">Review your career library</Link>
     <ProviderNotice />
-    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Starting…' : 'Start interview'}</Button>
+    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Preparing…' : 'Prepare interview'}</Button>
     {error && <p role="alert" className="text-destructive">{error}</p>}
   </div>
 }
@@ -54,6 +60,7 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Start a new interview</Link>
   </div>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} />
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -110,5 +117,5 @@ function OwnedInterview({ id }: { id: string }) {
 }
 
 function ProviderNotice() {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.</p>
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.</p>
 }

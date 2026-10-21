@@ -3,8 +3,8 @@ import { graphql } from '@/graphql/generated'
 
 export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
-    id status interviewType executionMode revision answerCap currentQuestionPosition expiresAt
-    questions { id content position acceptedAnswerCount }
+    id status interviewType executionMode preparedRole revision answerCap currentQuestionPosition expiresAt
+    questions { id content questionType position acceptedAnswerCount }
     messages { id questionId kind position content }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }
   }
@@ -16,7 +16,7 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }
+  mutation StartInterviewDemo($careerFocus: String) { startInterviewDemo(input: {careerFocus: $careerFocus}) { interview { ...InterviewSnapshot } errors } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {

@@ -1,5 +1,6 @@
 # A prepared question and its accepted execution history, separate from public dialogue.
 class InterviewSessionQuestion < ApplicationRecord
+  validates :question_type, inclusion: { in: %w[behavioral technical knowledge] }
   include PublishesInterviewSnapshot
   belongs_to :interview_session
   has_many :messages, class_name: "InterviewSessionMessage", foreign_key: :question_id, dependent: :destroy

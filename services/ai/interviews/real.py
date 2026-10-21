@@ -11,12 +11,14 @@ from datetime import UTC, datetime
 import logfire
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior, UsageLimitExceeded
 
+from agents.interview_preparation_agent import make_preparer
 from agents.spoken_interviewer_agent import make_interviewer
 from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
 from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.audio_providers import ProviderError
 from interviews.client import RailsClientError
 from interviews.executor import InterviewExecutor, ScreeningRejected
+from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.screen_user_text import screen_user_text_async
 from worker.contact_mask import contact_scope
@@ -34,7 +36,7 @@ class RealInterviewExecutor(InterviewExecutor):
 
     @contextmanager
     def _trace(self, claim):
-        context = getattr(claim.payload, "fixture_context", {})
+        context = getattr(claim.payload, "frozen_context", getattr(claim.payload, "fixture_context", {}))
         contact = KnownContact.from_values(**{
             key: context.get(key, []) for key in ("names", "emails", "phones")
         })
@@ -51,7 +53,8 @@ class RealInterviewExecutor(InterviewExecutor):
             if remaining <= 0:
                 raise TimeoutError
             async with asyncio.timeout(remaining):
-                with self._trace(claim), record_prompt_version(SPOKEN_INTERVIEW_PROMPT_VERSION):
+                version = INTERVIEW_PREPARATION_PROMPT_VERSION if claim.kind == "preparation" else SPOKEN_INTERVIEW_PROMPT_VERSION
+                with self._trace(claim), record_prompt_version(version):
                     await super().execute(claim)
         except ModelAPIError:
             await self.client.fail(claim, "dependency_unavailable", True)
@@ -96,6 +99,12 @@ class RealInterviewExecutor(InterviewExecutor):
         return make_interviewer(guard), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 1024},
+        }
+
+    def _preparer(self, claim, guard):
+        return make_preparer(guard), {
+            "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
+            "model_settings": {"thinking": "low", "max_tokens": 4096},
         }
 
     async def _synthesize(self, claim):

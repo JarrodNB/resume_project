@@ -55,6 +55,11 @@ module Internal
         history_version: params.require(:history_version), model_history: params[:model_history].as_json)
     end
 
+    def accept_preparation
+      respond Interviews::AcceptPreparationService.call(operation: @operation, **claim_identity,
+        role: params[:role].as_json, questions: params[:questions].as_json)
+    end
+
     def fail
       respond Interviews::FailOperationService.call(operation: @operation, **claim_identity,
         code: params.require(:code), retryable: params[:retryable])

@@ -28,6 +28,10 @@ class SpeechPayload(BaseModel):
     message_id: str
 
 
+class PreparationPayload(BaseModel):
+    frozen_context: dict[str, Any]
+
+
 class ExecutionConfiguration(BaseModel):
     """Rails-owned approved model and voice names, never provider endpoints."""
 
@@ -55,19 +59,19 @@ class Claim(BaseModel):
     execution_mode: Literal["fake", "real"] = "fake"
     execution_config: ExecutionConfiguration = Field(default_factory=lambda: FAKE_CONFIGURATION)
     operation_id: str
-    kind: Literal["turn", "speech"]
+    kind: Literal["preparation", "turn", "speech"]
     attempt_id: str
     claim_generation: StrictInt
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: TurnPayload | SpeechPayload
+    payload: TurnPayload | SpeechPayload | PreparationPayload
 
     @model_validator(mode="after")
     def matching_payload(self):
         configuration = FAKE_CONFIGURATION if self.execution_mode == "fake" else REAL_CONFIGURATION
         if self.execution_config != configuration:
             raise ValueError("Invalid saved execution configuration")
-        expected = TurnPayload if self.kind == "turn" else SpeechPayload
+        expected = {"turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
         if not isinstance(self.payload, expected):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
         return self
@@ -269,6 +273,9 @@ class RailsInterviewClient:
 
     async def fail(self, claim: Claim, code: str, retryable: bool):
         return await self._callback(claim, "fail", code=code, retryable=retryable)
+
+    async def accept_preparation(self, claim: Claim, *, role: dict, questions: list[dict]):
+        return await self._callback(claim, "accept_preparation", role=role, questions=questions)
 
     async def start_provider(
         self, claim: Claim, observation_id: str, stage: str, provider: str, model: str

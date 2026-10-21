@@ -5,6 +5,7 @@ module Types
     field :status, String, null: false
     field :execution_mode, String, null: false
     field :interview_type, String, null: false
+    field :prepared_role, GraphQL::Types::JSON, null: false
     field :revision, Integer, null: false
     field :answer_cap, Integer, null: false
     field :current_question_position, Integer, null: false

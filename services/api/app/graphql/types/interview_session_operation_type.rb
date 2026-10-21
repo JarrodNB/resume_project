@@ -5,7 +5,7 @@ module Types
     field :checkpoint, String, null: true
     field :submission_key, String, null: true
     field :id, ID, null: false
-    field :question_id, ID, null: false
+    field :question_id, ID, null: true
     field :message_id, ID, null: true
     field :kind, String, null: false
     field :status, String, null: false

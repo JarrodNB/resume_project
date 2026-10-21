@@ -2,12 +2,12 @@
 # services authorize sealed bytes and current claims before granting execution access.
 class InterviewSessionOperation < ApplicationRecord
   include PublishesInterviewSnapshot
-  KINDS = %w[turn speech].freeze
+  KINDS = %w[preparation turn speech].freeze
   STATUSES = %w[pending running accepted failed expired].freeze
   belongs_to :interview_session
   belongs_to :ai_task, optional: true
   has_many :execution_attempts, class_name: "InterviewExecutionAttempt", foreign_key: :operation_id, dependent: :destroy
-  belongs_to :question, class_name: "InterviewSessionQuestion"
+  belongs_to :question, class_name: "InterviewSessionQuestion", optional: true
   belongs_to :message, class_name: "InterviewSessionMessage", optional: true
   enum :kind, KINDS.index_with(&:itself), validate: true
   enum :status, STATUSES.index_with(&:itself), validate: true

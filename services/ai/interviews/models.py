@@ -35,7 +35,8 @@ class InterviewModel(WrapperModel):
 
         async def dispatch():
             nonlocal known
-            model_settings = {**(settings or {}), **({"max_tokens": 1024} if self.provider_name == "openai" else {})}
+            output_cap = 4096 if self.claim.kind == "preparation" and self.stage == "interviewer" else 1024
+            model_settings = {**(settings or {}), **({"max_tokens": output_cap} if self.provider_name == "openai" else {})}
             response = await observe_request(self.wrapped, messages, model_settings, model_request_parameters)
             usage = response.usage
             # Never price an unknown model as the configured one or fabricate zero.

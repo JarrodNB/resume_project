@@ -1,5 +1,24 @@
 # Spoken interview verification — 21 October 2026
 
+## Library-informed preparation — offline engineering evidence
+
+New public creation now freezes the owner's usable career-library sources and optional
+career focus, then schedules durable preparation. A complete fictional role and nine
+interleaved questions are accepted atomically into a ready state for role review. No
+opening or speech is created by preparation; the explicit begin/full-progression slice
+follows separately. Existing fixture sessions and their saved configurations remain intact.
+
+Focused verification on this change: 129 Rails examples, zero failures, two existing opt-in
+storage checks pending; 92 offline Python tests; all 40 spoken frontend tests; frontend
+types/lint, changed-file RuboCop, Ruff, schema/client generation, Zeitwerk autoload and
+diff checks passed. Deterministic design detector reported no findings. Preparation tests
+cover frozen/owned evidence, atomic/replayed/stale acceptance, source privacy/contact masking,
+blocked and oversized inputs, retry and expiry without deleting accounting.
+
+No provider calls, paid ledger changes, browser automation or quality evaluations occurred
+in these checks. Earlier live one-question evidence below remains historical; it does not
+establish the generated preparation's quality or a completed nine-question live interview.
+
 ## Real browser QA and two-answer completion
 
 The public launcher now creates only real interviews; the mode selector and normal

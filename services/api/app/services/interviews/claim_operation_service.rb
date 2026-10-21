@@ -17,6 +17,7 @@ module Interviews
         next failure("Interview execution mode mismatch") unless interview.execution_mode == @execution_mode
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
+        next failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
         if @operation.turn?
           next failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision &&
             interview.current_question_position == @operation.question.position
@@ -54,6 +55,8 @@ module Interviews
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
         payload = if @operation.speech?
           { text: @operation.message.content, message_id: @operation.message_id }
+        elsif @operation.preparation?
+          { frozen_context: interview.frozen_context }
         else
           { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,

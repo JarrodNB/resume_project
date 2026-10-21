@@ -11,7 +11,7 @@
 #   - ai_usage_attempts: execution reports, including retry charges and unknown costs
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech].freeze
+                  generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
 
   belongs_to :user

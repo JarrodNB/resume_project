@@ -1,3 +1,20 @@
+# Resume queue restored — 21 October 2026
+
+The user's resume upload reached storage but queue publication failed because this retained
+QA stack omitted ElasticMQ and both queue workers. The API had no local SQS endpoint and
+AWS rejected its local development credentials. The real QA overlay now includes local SQS,
+the Python AI worker and the Rails results consumer. The launcher provisions only the standard
+local read-only worker role/grants and keeps an existing interview runtime running.
+
+A temporary local queue received a parse_resume message through the actual Rails enqueue
+service. Its synthetic user/task transaction was rolled back and the temporary queue deleted;
+no provider request or real user resume was used for this probe. Both workers remained running,
+the AI worker reported polling ai_tasks, and the interview runtime still reported ready.
+Shell syntax and diff checks passed. This is operational queue evidence, not evidence that a
+new user resume was parsed successfully. Existing failed uploads were not silently retried.
+
+---
+
 # Current runtime status — 21 October 2026
 
 The user explicitly instructed restoring real interview execution and keeping it running.

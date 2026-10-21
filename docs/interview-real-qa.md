@@ -30,6 +30,19 @@ The old `cg-interview-qa` fake stack is stopped; its data volumes remain intact.
 root Compose fake-runtime profile was removed. Deterministic providers and their isolated
 recovery harness remain for offline tests only.
 
+## Resume uploads and other queued features
+
+This browser URL uses the same Rails app for career-library uploads and spoken interviews.
+The real QA overlay now starts local ElasticMQ (`sqs`), the Python `ai` worker and the Rails
+`api-results-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
+it must not send local development credentials to AWS SQS. The launcher provisions the
+standard local read-only `ai_reader` role and applies the repository table grants. Resume
+processing uses the original AI environment file and the general AI allowance. The existing
+interview runtime is not stopped by starting this stack.
+
+If a previous upload says “Could not queue the AI task”, retry the upload after these services
+are running. Previously failed tasks stay failed; no user resume is silently resubmitted.
+
 ## One retained database and spending allowance
 
 Browser QA now uses **cg-interview-12-paid**, the original paid verification database, not
@@ -68,7 +81,7 @@ Its volumes are preserved by this command:
 docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml --profile qa stop
 ```
 
-The real launcher stops its runtime before preflight, refuses a missing retained ledger or
+The real launcher keeps an existing runtime running, refuses a missing retained ledger or
 unreviewed unknown usage, checks the allowance and storage preflights, then starts ordinary
 bounded recovery. Starting resumes saved pending real operations, including opening speech;
 it can spend money immediately. New sessions require safe runtime readiness and real admission.

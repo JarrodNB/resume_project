@@ -17,3 +17,17 @@ it('uses another English voice before a non-English device default', () => {
 it('keeps decimal and version punctuation within a sentence', () => {
   expect(interviewSpeechChunks('Use version 3.12. Explain why.')).toEqual(['Use version 3.12.', 'Explain why.'])
 })
+it('prefers Google UK English Female regardless of browser voice order', () => {
+  const us = { name: 'Google US English', lang: 'en-US', default: true } as SpeechSynthesisVoice
+  const genericBritish = { name: 'British device voice', lang: 'en-GB' } as SpeechSynthesisVoice
+  const googleBritish = { name: 'google uk english female', lang: 'en-GB' } as SpeechSynthesisVoice
+  expect(selectInterviewVoice([us, genericBritish, googleBritish])).toBe(googleBritish)
+  expect(selectInterviewVoice([googleBritish, genericBritish, us])).toBe(googleBritish)
+})
+it('uses another British voice before a named US voice, including underscore locales', () => {
+  const us = { name: 'Google US English', lang: 'en-US' } as SpeechSynthesisVoice
+  const british = { name: 'British device voice', lang: 'en_GB' } as SpeechSynthesisVoice
+  expect(selectInterviewVoice([us, british])).toBe(british)
+  expect(selectInterviewVoice([us])).toBe(us)
+  expect(selectInterviewVoice([{ name: 'French', lang: 'fr-FR' } as SpeechSynthesisVoice])).toBeNull()
+})

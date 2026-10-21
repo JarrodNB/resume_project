@@ -1,9 +1,11 @@
-/** Choose a consistent English voice and short speaking phrases from saved dialogue.
+/** Prefer a British English voice and short speaking phrases from saved dialogue.
  * Voice availability belongs to the browser; text is only split, never rewritten.
  */
 export function selectInterviewVoice(voices: SpeechSynthesisVoice[]) {
   const english = voices.filter((voice) => /^en(?:[-_]|$)/i.test(voice.lang))
-  return english.find((voice) => /google us english|google uk english female|microsoft aria|microsoft jenny|samantha/i.test(voice.name))
+  return english.find((voice) => /^google uk english female$/i.test(voice.name.trim()))
+    ?? english.find((voice) => /^en[-_]GB(?:[-_]|$)/i.test(voice.lang))
+    ?? english.find((voice) => /google us english|microsoft aria|microsoft jenny|samantha/i.test(voice.name))
     ?? english.find((voice) => voice.default) ?? english[0] ?? null
 }
 

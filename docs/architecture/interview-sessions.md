@@ -606,8 +606,9 @@ and accounting are preserved in browser mode; old real speech reservations are e
 from discovery and new claims. Work already executing can finish normally. Preparation,
 transcription, screening and interview reply generation are unchanged.
 
-Browser delivery prefers an available named English voice, then the browser's default
-English voice, then another English voice. An empty voice list gets up to 300 ms to
+Browser delivery prefers Google UK English Female, then another British English
+(`en-GB` or `en_GB`) voice, before named English voices, the browser's default English
+voice, or another English voice. An empty voice list gets up to 300 ms to
 load through `voiceschanged`; otherwise playback requests `en-US` with the engine's
 fallback. One selected voice is held through the reply, with rate 1.02 and pitch 0.95.
 Saved text is spoken in sentence/clause chunks of at most 180 Unicode characters.

@@ -67,6 +67,21 @@ describe('InterviewDemoPage', () => {
     act(() => recorder.refresh())
     expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce()
   })
+  it('keeps new speech eligible when a duplicate receipt arrives before autoplay dispatch', async () => {
+    vi.useFakeTimers()
+    try {
+      state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'pending' }] }
+      renderDemo('/interviews/demo/session', [playbackMock()])
+      state.interview = { ...snapshot, revision: 1 }
+      act(() => recorder.refresh())
+      state.interview = { ...snapshot, revision: 1 }
+      act(() => recorder.refresh())
+      expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+      await act(async () => vi.runAllTimersAsync())
+      expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce()
+      expect(screen.getByRole('button', { name: 'Pause interviewer audio' })).toBeEnabled()
+    } finally { vi.useRealTimers() }
+  })
   it('does not automatically play a new reply accepted while microphone capture is active', async () => {
     recorder.status = 'recording'
     renderDemo()

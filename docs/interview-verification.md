@@ -10,8 +10,16 @@ A temporary local queue received a parse_resume message through the actual Rails
 service. Its synthetic user/task transaction was rolled back and the temporary queue deleted;
 no provider request or real user resume was used for this probe. Both workers remained running,
 the AI worker reported polling ai_tasks, and the interview runtime still reported ready.
-Shell syntax and diff checks passed. This is operational queue evidence, not evidence that a
-new user resume was parsed successfully. Existing failed uploads were not silently retried.
+Shell syntax, Compose validation and diff checks passed. After restoration, the live aggregate
+showed a recent resume-parsing task completed successfully through the workers. Existing
+failed uploads were not silently retried by the coordinator.
+
+Fresh full-code correctness/design reviews through commit 2120006 found no additional runtime
+defect. Both identified that preparation tests depended on an ambient screening key. The
+coordinator reproduced three failures, then added a synthetic-key fixture without changing
+assertions, coverage or production code. The five focused modules passed 60 tests with no
+ambient credentials and network disabled; focused Ruff passed. This mechanical test setup
+change and documentation were inspected directly; no further behavior review round was needed.
 
 ---
 

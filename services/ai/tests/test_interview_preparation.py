@@ -16,6 +16,12 @@ from tests.test_interview_executor import Client
 pytestmark = pytest.mark.real_guardrail
 
 
+@pytest.fixture(autouse=True)
+def synthetic_screening_credentials(monkeypatch):
+    """Exercise real screening policy through the fake adapter without ambient keys."""
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+
+
 def preparation_claim():
     return Claim(operation_id="prepare", kind="preparation", execution_mode="real",
         execution_config=REAL_CONFIGURATION, attempt_id="attempt", claim_generation=1,

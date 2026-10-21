@@ -2,8 +2,8 @@
 
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
-Review the role and explicitly choose **Begin interview**; each question permits up to three
-accepted answers, and the interviewer may advance earlier.
+Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three
+saved responses, and the interviewer may advance earlier.
 Record, choose **Done answering**, listen to the local preview, then **Submit recording**.
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
 Preparation freezes the library at creation. Later library edits do not change this session.
@@ -82,7 +82,7 @@ uses the saved message; it never repeats an accepted answer's transcription or r
    uploads nothing until **Submit recording**.
 3. Confirm the transcript follows your answer and the follow-up is relevant. Reload during
    processing; the same saved operation should return without submitting again.
-4. Answer follow-ups. Each question advances by its third accepted answer, or earlier if the
+4. Answer follow-ups. Each question advances by its third saved response, or earlier if the
    interviewer chooses. The ninth question leads to exactly one final closing.
 5. Test permission denial, playback failure, reconnect and unsaved navigation warnings.
    Keep consented recordings short. Raw recordings and speech retain the existing expiry rules.

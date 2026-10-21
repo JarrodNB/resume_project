@@ -23,7 +23,7 @@ export function InterviewDemoPage() {
   const { user } = useAuth()
   return <div className="mx-auto grid max-w-3xl gap-6">
     <PageHeading title="Spoken interview" description="Practice a complete interview for a fictional role drawn from your career library." />
-    <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; accepted text lasts 7 days.</p>
+    <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; saved text lasts 7 days.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interview-prep">Open written interview practice</Link>
     {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <><StartDemo /><RecentInterviews /></>}
   </div>
@@ -87,12 +87,12 @@ function OwnedInterview({ id }: { id: string }) {
     <ProviderNotice />
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
       {question && <p>Question {question.position + 1} of {interview.questions.length}{question.questionType ? ` · ${question.questionType.charAt(0).toUpperCase()}${question.questionType.slice(1)}` : ''}</p>}
-      <p>{interview.status === 'completed' ? 'Interview complete. Your accepted dialogue is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} answers accepted.`}</p>
+      <p>{interview.status === 'completed' ? 'Interview complete. Your conversation is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} responses saved.`}</p>
       {turnActive && <p>Answer processing: {currentTurn.checkpoint?.replaceAll('_', ' ') || currentTurn.status}. You can reload safely.</p>}
       {reply && speech?.status !== 'accepted' && <p>Saved reply speech: {speech?.status ?? 'unavailable'}.</p>}
     </div>
     {(state.loadError || state.subscriptionError) && <div className="grid gap-2"><p role="alert">Live updates are unavailable. Check saved status to recover the current state.</p><Button variant="outline" className="justify-self-start" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button></div>}
-    <SectionCard title="Accepted dialogue" tone="facts" sectionId={`interview:${id}:dialogue`}>
+    <SectionCard title="Saved conversation" tone="facts" sectionId={`interview:${id}:dialogue`}>
       <ol className="divide-y">
         {interview.messages.map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
@@ -107,7 +107,7 @@ function OwnedInterview({ id }: { id: string }) {
       {(speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
     {state.unresolved && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status or retry the same submission; this keeps the original answer identity.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
-    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. No answer allowance was used.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
+    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-3 border-t pt-5">
       <p className="text-sm text-muted-foreground">Done answering stops the microphone so you can listen, submit, or re-record. Nothing is uploaded until you submit. Silence never submits.</p>
       <div className="flex flex-wrap gap-3">

@@ -1,3 +1,77 @@
+# Current full-session offline verification — 21 October 2026
+
+The current public development flow freezes owned career details and optional focus,
+prepares a fictional role and nine interleaved questions, waits for role review, and begins
+explicitly. Each question saves at most three responses; this is persistence, not grading.
+The public labels now say “responses saved” and “Saved conversation”. Older fixture sessions
+retain their two-response cap. Current resume/abandon and session admission behavior is
+covered by the full offline suites; the [human QA guide](interview-real-qa.md) describes the
+real-only browser path.
+
+Verification commands were run from the retained checkout:
+
+```bash
+docker compose -p cg-interview-13 -f docs/interview-demo.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps api bundle exec rspec
+docker run --rm --network none -e OPENAI_API_KEY=synthetic-offline -e TYPESAFE_API_KEY=synthetic-offline -v "$PWD/services/ai:/app" -w /app cg-interview-qa-interview-runtime pytest -m 'not db'
+docker compose -p cg-interview-13 -f docs/interview-demo.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps -e VITE_API_URL=http://localhost:3000 web npm test -- --maxWorkers=1
+bash script/interview_full_session_check.sh
+```
+
+The Rails suite passed **821 examples, zero failures**, with two existing opt-in private
+storage checks pending. The full offline AI suite passed **923 tests**, with nine database
+tests deselected and four upstream deprecation warnings. Synthetic keys are setup values;
+provider networking is unavailable in the AI unit-test container. Initial AI setup omitted
+those keys and was corrected. The demo Compose browser origin also needs the explicit
+localhost override above for the existing Apollo socket test.
+
+The full frontend suite passed **272 tests in 51 files** with the localhost override above.
+Frontend types/lint, full AI Ruff, focused Ruby driver RuboCop, Rails Zeitwerk autoload,
+shell syntax and the UI detector passed. The full Rails run includes the schema-dump
+contract; this slice changes no GraphQL schema or generated client. No browser automation,
+paid provider calls, quality judges or quality datasets ran in this slice.
+
+A focused mock-provider regression failed with `StopIteration` when the preparation agent
+requested its complete role/question tool. The synthetic HTTP runtime now returns a typed
+complete plan, and that regression passes. Existing synthetic smoke, failure and conservative
+paid drivers now seed usable career details, wait for preparation and explicitly begin.
+The paid shell's historical-unknown refusal is unchanged and was not exercised against the
+paid database by this worker.
+
+The adapted synthetic HTTP 503 check also passed: preparation completed, Begin created speech,
+and Rails persisted `dependency_unavailable`, kept the speech observation's actual cost
+unknown and did not accept failed speech. Preparation's known charges remained distinct.
+Its synthetic project `cg-interview-18-failure` is stopped with diagnostic volumes retained.
+
+The process harness uses unique `cg-interview-18-synthetic-<run-id>` projects on internal Docker
+networks with synthetic credentials, mocked SDK transports and real Rails/Postgres/private S3.
+Early interrupted synthetic diagnostic runs are stopped with volumes preserved, including
+an intentionally unresolved synthetic reservation. They were not reconciled or deleted.
+Fresh synthetic runs are engineering fixtures; they do not renew the retained paid allowance.
+
+The final process project was `cg-interview-18-synthetic-20261021100144-16516`.
+It passed preparation after a killed execution (two executions, with the original unknown
+execution marker retained), ready/no speech, idempotent Begin, acceptance replay/lost receipt,
+speech-only retry with unchanged dialogue/history/counts/turn-provider identities, and an
+executor kill after accepted dialogue. It then completed **27 saved responses**, exactly
+**9 openings, 18 follow-ups and one closing**, with **55 child tasks sharing one hourly root**.
+Stale callbacks and abandoned preparation could not mutate the session; accounting remained.
+
+The initial final storage step exposed a check-driver readiness race after S3 recreation
+(connection refused before S3Mock started). The shell now waits for recreation and repeats the actual S3 HTTP preflight; the image
+health check alone did not establish readiness of its HTTP port.
+The corrected storage step is verified separately on the same completed session; all earlier
+full-flow/fault evidence remains from that project. This is a harness setup correction,
+not a production storage change. Logs are retained locally as `/tmp/interview18-process-pass.log`
+and `/tmp/interview18-storage-ready.log`. All synthetic process services are stopped with
+volumes retained; the test database project remains available.
+
+All earlier paid costs, browser observations and smaller fixture-session runs below are
+historical evidence. They do not establish the new generated role's quality, nine-question
+live progression, microphone capture, real speech quality or current paid ledger state.
+Coordinator-owned paid smoke and human QA remain separate release evidence.
+
+---
+
 # Spoken interview verification — 21 October 2026
 
 ## Owned resume and abandonment — offline engineering evidence

@@ -1,4 +1,36 @@
-# Offline interview demo and recovery checks
+# Offline spoken interview engineering checks
+
+Run the complete current flow with real Rails/Postgres/private S3 and synthetic provider HTTP:
+
+```bash
+bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_full_session_check.sh
+```
+
+Each project `cg-interview-18-synthetic-<run-id>` has an internal Docker network, synthetic keys,
+no environment files and no host ports. Provider SDK transports return deterministic HTTP
+responses; the application follows its real execution and accounting path. This is engineering
+evidence, not live transcription, interview relevance, speech quality or microphone QA.
+The script prepares its own synthetic career library/focus, verifies complete preparation with
+no speech, explicitly begins once, and forces three saved responses on each of nine questions.
+It also tests killed preparation/turn processes, exact acceptance replays, lost receipts,
+speech-only recovery, abandoned preparation fencing, and playback after S3 recreation.
+
+The script stops its own project on exit and retains synthetic database/storage volumes for
+inspection. Each run has a fresh synthetic project and owner. Failed synthetic ledgers remain
+intact; no paid ledger or allowance is reused or reset. Failed check fixtures remain available for diagnosis. It never reads, changes or
+creates an allowance in the retained paid QA project. Existing local images
+`cg-interview-qa-api` and `cg-interview-qa-interview-runtime` must match the checkout dependencies.
+
+The standalone Ruby smoke entrypoint `services/api/script/interview_real_smoke.rb` also drives
+preparation → Begin → full progression under the synthetic runtime; use the shell command above
+for the full process-fault evidence. Paid diagnostics are separately opt-in and conservative:
+`script/interview_paid_check.sh` still refuses every historical unknown reservation. It does
+not implement the QA launcher's exact historical-observation exception.
+
+Use [real browser QA](interview-real-qa.md) for the public real-only feature. The earlier fake
+fixture and recovery commands below remain offline legacy engineering coverage only.
+
+## Offline interview demo and recovery checks
 
 This isolated stack runs the spoken interview with fictional context, scripted transcripts,
 and fixed synthetic speech. It never loads a service `.env`, starts paid providers, or starts

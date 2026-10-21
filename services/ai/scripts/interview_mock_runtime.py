@@ -41,6 +41,7 @@ def audio_response(request):
         "Tell me about a time you helped a team solve a difficult problem.",
         "How did you measure the shorter wait?",
         "Thank you. This interview is complete.",
+        *[question["content"] for question in preparation()["questions"]],
     }
     events = [
         {"type": "speech.audio.delta", "audio": base64.b64encode(wav()).decode()},
@@ -49,13 +50,24 @@ def audio_response(request):
     return httpx.Response(200, text="".join("data: " + json.dumps(event) + "\n\n" for event in events))
 
 
+def preparation():
+    """A complete synthetic plan, used only by the isolated HTTP verification runtime."""
+    return {"role": {"title": "Fictional scheduling coordinator",
+        "responsibilities": ["Improve team scheduling"], "requirements": ["Explain scheduling decisions"]},
+        "questions": [{"question_type": kind, "content": f"Question {index + 1}: explain a scheduling {kind} example."}
+                      for index, kind in enumerate(["behavioral", "technical", "knowledge"] * 3)]}
+
+
 def reasoning_response(request):
     payload = json.loads(request.content)
-    tool = next(tool["name"] for tool in payload["tools"] if "decision" in tool.get("parameters", {}).get("properties", {}))
+    tool = next(tool for tool in payload["tools"]
+                if {"decision", "role"} & tool.get("parameters", {}).get("properties", {}).keys())
+    result = preparation() if "role" in tool["parameters"]["properties"] else {
+        "decision": "continue", "reply": "How did you measure the shorter wait?"}
     return httpx.Response(200, json={"id": "resp_synthetic", "object": "response", "created_at": 1,
         "status": "completed", "model": "gpt-6-luna",
         "output": [{"type": "function_call", "id": "fc_synthetic", "call_id": "call_synthetic",
-                    "name": tool, "arguments": json.dumps({"decision": "continue", "reply": "How did you measure the shorter wait?"})}],
+                    "name": tool["name"], "arguments": json.dumps(result)}],
         "usage": {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120}})
 
 
@@ -73,7 +85,8 @@ class MockAudio(audio_providers.AudioProviders):
 
     async def speak(self, claim, text):
         data = await super().speak(claim, text)
-        if text == "How did you measure the shorter wait?" and not self.failed_once:
+        if (os.getenv("INTERVIEW_CHECK_SPEECH_FAILURE") == "true"
+                and text == "How did you measure the shorter wait?" and not self.failed_once):
             self.failed_once = True
             # Known charged speech result followed by a local delivery failure.
             # Manual recovery must regenerate only this saved message.
@@ -87,8 +100,11 @@ class MockModels(models.InterviewModels):
                          typesafe_transport=httpx2.MockTransport(screening_response))
 
 
-audio_providers.AudioProviders = MockAudio
-models.InterviewModels = MockModels
+def install_mock_providers():
+    """Install HTTP-only substitutes in this explicitly synthetic process."""
+    audio_providers.AudioProviders = MockAudio
+    models.InterviewModels = MockModels
 
 if __name__ == "__main__":
+    install_mock_providers()
     uvicorn.run(app, host="0.0.0.0", port=8000, access_log=False)

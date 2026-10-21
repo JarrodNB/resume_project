@@ -201,6 +201,7 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     expect(screen.queryByRole('button', { name: 'Retry answer processing' })).not.toBeInTheDocument()
     expect(screen.getByText('Record a new answer to continue.')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent('This did not use a response slot.')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
   })
   it('hides the entrypoint when not explicitly enabled', () => {
@@ -257,6 +258,7 @@ describe('prepared interview begin', () => {
       questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
     renderDemo()
     expect(screen.getByText('Question 5 of 9 · Technical')).toBeVisible()
-    expect(screen.getByText('2 of 3 answers accepted.')).toBeVisible()
+    expect(screen.getByText('2 of 3 responses saved.')).toBeVisible()
+    expect(screen.getByRole('button', { name: /Saved conversation/ })).toBeVisible()
   })
 })

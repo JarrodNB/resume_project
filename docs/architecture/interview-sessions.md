@@ -528,3 +528,14 @@ facts, and fictional role requirements as imagined requirements, never personal 
 
 Offline verification uses canonical Rails claims and the Python executor with fake providers;
 no paid summarization, provider calls, or quality judges are required for this contract.
+
+## Deterministic full-session process evidence
+
+`script/interview_full_session_check.sh` runs the current preparation/review/begin and all
+nine questions through real Rails/Postgres/private storage and the real Python executor,
+with synthetic HTTP responses at each provider SDK boundary. Its isolated internal-network
+project has no provider credentials or public fake path. It checks killed processes,
+acceptance replay/lost receipts, speech-only recovery, abandonment fencing and persistent
+playback. See [offline checks](../interview-demo.md) for the exact command and scope.
+Legacy `script/interview_recovery_check.sh` remains coverage for retained fixture sessions.
+Neither deterministic harness establishes live quality or browser microphone behavior.

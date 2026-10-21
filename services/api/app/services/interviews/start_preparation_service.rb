@@ -36,11 +36,17 @@ module Interviews
         context = { version: 1, sources: sources, career_focus: @career_focus,
           names: [ @user.name ].compact, emails: [ @user.contact_email ].compact, phones: [ @user.phone ].compact }
         return failure("Your career library is too long for interview preparation. Shorten its entries and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
+        if @user.interview_sessions.where(status: %w[preparing ready active]).where("expires_at > ?", Time.current)
+            .where.not(frozen_context: {}).exists?
+          next failure("Resume or abandon your unfinished interview before preparing another.")
+        end
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
         next allowance unless allowance.success?
         interview = @user.interview_sessions.create!(status: "preparing", answer_cap: 3, execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), frozen_context: context, expires_at: 7.days.from_now)
-        interview.operations.create!(kind: "preparation")
+        operation = interview.operations.create!(kind: "preparation")
+        operation.update!(ai_task: @user.ai_tasks.create!(task_type: "interview_preparation", subject: interview,
+          input: { operation_id: operation.id }))
         success(interview)
       end
     end

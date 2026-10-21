@@ -2,6 +2,8 @@
 
 Accounting wraps the provider, below agent validation retries. Missing or unexpected
 usage remains unknown, and transport retries are disabled in both provider clients.
+Luna caching is explicitly disabled because the pinned usage mapper loses write-lifetime
+details. Unsupported long-context or unexpected write usage cannot become a known bill.
 """
 
 from contextlib import AsyncExitStack
@@ -37,13 +39,22 @@ class InterviewModel(WrapperModel):
             nonlocal known
             output_cap = 4096 if self.claim.kind == "preparation" and self.stage == "interviewer" else 1024
             model_settings = {**(settings or {}), **({"max_tokens": output_cap} if self.provider_name == "openai" else {})}
+            if self.provider_name == "openai":
+                model_settings["openai_service_tier"] = "default"
+            if self.configured == "gpt-6-luna":
+                # Explicit mode without breakpoints makes no cache reads/writes. The pinned
+                # Responses adapter forwards this option; Nano uses its older cache policy.
+                model_settings["openai_prompt_cache_options"] = {"mode": "explicit"}
             response = await observe_request(self.wrapped, messages, model_settings, model_request_parameters)
             usage = response.usage
             # Never price an unknown model as the configured one or fabricate zero.
             entries = []
             if response.model_name in {self.configured, f"{self.provider_name}:{self.configured}"} and (
                 usage.input_tokens > 0 or usage.output_tokens > 0
-            ):
+            ) and (self.configured != "gpt-6-luna" or (
+                0 <= usage.cache_read_tokens <= usage.input_tokens <= 272_000 and
+                usage.output_tokens >= 0 and usage.cache_write_tokens == 0
+            )):
                 known = True
                 priced = build_model_usage(f"{self.provider_name}:{self.configured}", usage)
                 entries = [priced.model_dump(exclude={"model"}, exclude_none=True)]

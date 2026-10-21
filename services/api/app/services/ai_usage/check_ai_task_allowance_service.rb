@@ -27,10 +27,11 @@ module AiUsage
 
     private
 
-    # Returns true when the user started as many tasks as allowed in the last hour.
+    # Prepared interview children share their root's hourly admission only; all other
+    # tasks keep their existing count, including failures and finished work.
     def hourly_limit_reached?
       limit = @user.ai_tasks_per_hour_limit || DEFAULT_AI_TASKS_PER_HOUR
-      @user.ai_tasks.where(created_at: 1.hour.ago..).count >= limit
+      @user.ai_tasks.hourly_admissions.where(created_at: 1.hour.ago..).count >= limit
     end
 
     # Returns true when the user has as many recently queued tasks as allowed. Tasks waiting on

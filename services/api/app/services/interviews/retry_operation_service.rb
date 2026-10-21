@@ -12,7 +12,7 @@ module Interviews
       with_operation_lock do |interview|
         eligibility = RetryEligibilityService.call(operation: @operation, lock_recording: true)
         next eligibility unless eligibility.success?
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+        allowance = CheckOperationAllowanceService.call(operation: @operation)
         next allowance unless allowance.success?
         @operation.update!(status: "pending", cycle_execution_count: 0, retry_at: Time.current, failure_code: nil)
         @operation.ai_task&.update!(status: "queued", completed_at: nil, error_message: nil)

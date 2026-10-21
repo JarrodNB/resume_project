@@ -310,12 +310,39 @@ Speech attachment/completion preserves these claim and saved-message checks.
 
 ## HTTP execution accounting
 
-Each admitted logical operation links a generic `interview_turn` or `interview_speech`
-AiTask without calling the SQS enqueue service. Admission acquires the owner lock before
-session/question/operation/task locks. It applies the existing monthly, hourly and
-in-flight limits. Retry admission rechecks monthly and in-flight limits while excluding
-its own logical task and does not count another hourly task. Acceptance completes the
-linked task atomically; failures/expiry update its lifecycle independently of billing.
+Preparation creates its `interview_preparation` AiTask in the same transaction as the
+session and operation, before acknowledging creation. This task is the session's one
+hourly admission. Each later turn or speech keeps a separate AiTask, linked immutably to
+that preparation task through `hourly_admission_task_id`; no SQS message is published.
+The allowance module verifies the persisted owner, session, preparation identity and
+operation purpose before creating or reusing a child task. Missing or forged prepared-session
+admission fails closed. Existing fixture sessions and unrelated tasks keep their hourly rules.
+
+The current hourly default is **30** (with a per-user override), not the historical ten.
+Only hourly admission groups these tasks: monthly spend sums **all** tasks and in-flight
+checks count **all** queued tasks. A claim excludes only its own task from concurrency,
+never the preparation root or another operation. Claims, explicit retries and every
+provider start recheck the existing owner limits. New child creation and admission rejection
+commit together, leaving no execution/provider attempt when allowance is denied.
+The current monthly accounting policy remains task-creation-month attribution, including
+late retry charges. New child tasks use their creation month; sharing an older hourly root
+does not move new task bills into that root's month. This change does not rewrite historical
+or unrelated task accounting.
+
+The owner lock admits at most one unexpired preparing/ready/active **prepared** session per
+user. Resume or abandon it before preparing another; completed, expired and abandoned
+sessions do not occupy that slot. A prepared question permits six distinct submitted
+recordings, including failures, independently of its three-accepted-answer cap. Retrying
+the same operation or replaying its submission key does not use another recording slot.
+Thus nine questions permit at most 54 turn operations, 28 saved-message speech operations
+and one preparation operation; existing six-execution and per-execution provider caps remain.
+Failed inputs never increment accepted-answer counts. When the submission cap is exhausted,
+the user must abandon and prepare another session under ordinary new-session admission.
+
+Admission acquires the owner lock before session/question/operation/task locks. Acceptance
+completes the linked task atomically; failures/expiry update its lifecycle independently
+of billing. Account destruction may null a child-to-root reference but never cascades
+through it to delete another task's usage or the permanent verification ledger.
 
 If admission is denied, the operation becomes `failed` with `ai_usage_limit_reached`.
 It reserves no new execution/provider attempt, releases an existing task's in-flight slot,

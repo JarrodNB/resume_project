@@ -131,3 +131,6 @@ All business logic, as service objects grouped by domain folder.
   billing records when scrubbing expired dialogue. See `docs/architecture/interview-sessions.md`.
   Public GraphQL demo endpoints require explicit `INTERVIEW_DEMO_ENABLED=true` and Rails
   development mode, owner scoping, and unexpired sessions; snapshots exclude execution secrets.
+  Prepared sessions persist one preparation-task hourly admission before acknowledgment;
+  `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
+  root link. Monthly spend and in-flight checks still include every task.

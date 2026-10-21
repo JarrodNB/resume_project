@@ -4,6 +4,7 @@ require "digest"
 
 module Interviews
   class SubmitTurnService < ApplicationService
+    MAX_PREPARED_SUBMISSIONS_PER_QUESTION = 6
     def initialize(interview:, question_id:, recording_id:, expected_revision:, submission_key:)
       @interview = interview
       @question_id, @recording_id = question_id, recording_id
@@ -33,6 +34,9 @@ module Interviews
         next failure("Recording is not available") unless recording && recording.expires_at > Time.current
         next failure("Recording has already been submitted") if @interview.operations.turn.where(recording_id: @recording_id).exists?
         next failure("An answer is already processing") if @interview.operations.turn.where(status: %w[pending running]).exists?
+        if @interview.frozen_context.present? && @interview.operations.turn.where(question: question).count >= MAX_PREPARED_SUBMISSIONS_PER_QUESTION
+          next failure("This question reached its recording submission limit. Abandon this interview and prepare another to continue.")
+        end
 
         success(@interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,
           expected_revision: @expected_revision, submission_key: @submission_key, request_fingerprint: fingerprint))

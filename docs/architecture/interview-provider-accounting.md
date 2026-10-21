@@ -123,7 +123,30 @@ Library-informed preparation shares the approved Luna interviewer stage and its 
 US$0.05 reservation estimate; each concrete request still needs its own durable observation.
 Only preparation reasoning raises the bounded output cap to 4,096 tokens to fit the role
 and all nine questions. Ordinary interview dialogue and Nano screening remain at 1,024.
-No new model, rate or automatic allowance is introduced. Actual usage is reconciled as before.
+No new model or rate is introduced; the cumulative verification allowance is unchanged.
+Actual usage is reconciled as before.
+
+Full prepared sessions share one hourly admission, while preparation, every turn and every
+speech retain separate task/attempt/provider bills. The current hourly default is 30;
+session grouping does not bypass monthly spend, in-flight concurrency or this permanent
+US$5 verification ledger. See [session accounting](interview-sessions.md#http-execution-accounting)
+for ownership checks, finite submission limits and task-month attribution.
+
+The interview wrapper explicitly requests Standard (`service_tier: "default"`) pricing.
+Luna uses `prompt_cache_options: {"mode": "explicit"}` without breakpoint markers:
+[official caching guidance](https://developers.openai.com/api/docs/guides/prompt-caching)
+confirms this creates no cache writes. The pinned Pydantic mapper preserves total write
+tokens but drops the 30-minute/12-hour split, so silently pricing writes as ordinary input
+would undercount. Unexpected Luna write tokens leave usage unknown and stop later paid
+dispatch. Nano retains its older implicit caching behavior; unrelated worker pricing is
+unchanged.
+
+The feature supports Luna's Standard short-context rates only. If reported input exceeds
+272,000 tokens, its observation remains unknown instead of applying an unsupported rate.
+The [model contract](https://developers.openai.com/api/docs/models/gpt-6-luna) applies
+higher rates above that boundary. The existing character-bound prompt checks are not a
+token-count guarantee; this post-response guard preserves truthful accounting and the
+unknown-cost stop rule rather than promising a provider-side maximum bill.
 
 Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
 is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)

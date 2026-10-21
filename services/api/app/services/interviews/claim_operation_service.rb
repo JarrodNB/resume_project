@@ -35,7 +35,7 @@ module Interviews
         next failure("Operation is not eligible") unless @operation.pending? && (!@operation.retry_at || @operation.retry_at <= Time.current)
         next failure("Recording expired") if @operation.turn? && @operation.created_at <= 1.hour.ago
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+        allowance = CheckOperationAllowanceService.call(operation: @operation, create_task: true)
         unless allowance.success?
           reject_allowance(expiry: expiry)
           next allowance

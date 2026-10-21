@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_090000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -64,10 +64,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_090000) do
     t.bigint "cost_microdollars", default: 0, null: false
     t.integer "generation", default: 0, null: false
     t.integer "usage_generation", default: -1, null: false
+    t.uuid "hourly_admission_task_id"
+    t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
     t.index ["subject_type", "subject_id"], name: "index_ai_tasks_on_subject"
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -343,7 +346,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_090000) do
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
-    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying, 'ready'::character varying, 'active'::character varying, 'completed'::character varying, 'expired'::character varying, 'abandoned'::character varying]::text[])", name: "interview_session_status"
+    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying::text, 'ready'::character varying::text, 'active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text, 'abandoned'::character varying::text])", name: "interview_session_status"
   end
 
   create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -531,6 +534,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_090000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "certifications", "users"

@@ -27,7 +27,7 @@ module Interviews
         next failure("Provider attempt limit reached") if execution.provider_attempts.count >= MAX_PROVIDER_ATTEMPTS
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
         if interview.execution_mode == "real"
-          allowance = AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+          allowance = CheckOperationAllowanceService.call(operation: @operation)
           unless allowance.success?
             reject_allowance(expiry: @operation.retry_expires_at)
             next allowance

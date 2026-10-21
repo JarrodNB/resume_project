@@ -7,8 +7,13 @@ accepted answers, and the interviewer may advance earlier.
 Record, choose **Done answering**, listen to the local preview, then **Submit recording**.
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
 Preparation freezes the library at creation. Later library edits do not change this session.
-Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue;
-session allowances remain a pending slice, so a maximal paid session may still hit existing hourly task limits.
+Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue.
+One full prepared session consumes one hourly admission (the current default is 30).
+Monthly spend, concurrent work and every provider bill are still counted independently;
+session admission does not promise enough remaining spend to finish an interview.
+Only one unfinished prepared session is allowed per account: resume or abandon it before
+preparing another. Each question permits six submitted recordings, including failed inputs,
+with at most three accepted responses. A processing retry reuses the original recording slot.
 
 The public launcher rejects scripted sessions and has no mode selector. Older scripted
 sessions are retired without changing their stored mode or deleting their records.

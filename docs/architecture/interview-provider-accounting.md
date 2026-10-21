@@ -101,14 +101,15 @@ real-provider usage reports continue to reject it as an unsafe fallback. Do not 
 a public reconciliation endpoint, or an inferred zero charge. The helper requires an open
 transaction so its transaction-scoped advisory lock remains held until the update commits.
 If reliable evidence is unavailable, keep paid verification stopped and report the unknown
-charge; never delete ledger rows to keep testing. Existing fake QA data remain available.
+charge; never delete ledger rows to keep testing. Old fake QA data remain retained offline.
 
 ## Accounted reasoning and screening
 
 The real turn executor reuses the fake executor's validated storage, transcript limits,
 masked prompt assembly, required screening, history restoration and acceptance callback.
 It injects real transcription and a fresh single-run Pydantic AI interviewer. Public real
-admission and runtime startup remain disabled until the next delivery slice. Rails still
+admission and runtime startup require explicit development enablement. The
+[real QA guide](../interview-real-qa.md) uses the retained paid ledger. Rails still
 chooses progression and creates speech work only from accepted saved text.
 
 Every concrete Pydantic AI model request runs through `InterviewModel` and `ProviderCalls`,

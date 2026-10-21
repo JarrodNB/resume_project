@@ -145,37 +145,6 @@ services:
       s3:
         condition: service_started
 
-  interview-runtime:
-    # Fake only, opt in with --profile interview-demo. Never load the worker .env.
-    profiles: [interview-demo]
-    build:
-      context: ./services/ai
-      dockerfile: Dockerfile.dev
-    command: uvicorn interviews.app:app --host 0.0.0.0 --port 8000
-    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
-    init: true
-    environment:
-      INTERVIEW_FAKE_RUNTIME_ENABLED: "true"
-      INTERVIEW_PROVIDER_MODE: fake
-      INTERVIEW_RAILS_ORIGIN: http://api:3000
-      INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
-      INTERVIEW_STORAGE_ORIGINS: http://s3:9090
-      INTERVIEW_FAKE_SCENARIO: ${INTERVIEW_FAKE_SCENARIO:-normal}
-      LOGFIRE_SEND_TO_LOGFIRE: "false"
-      OTEL_SDK_DISABLED: "true"
-    volumes:
-      - ./services/ai:/app
-    depends_on:
-      api:
-        condition: service_started
-      s3:
-        condition: service_started
-    healthcheck:
-      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-
   web:
     environment:
       VITE_INTERVIEW_DEMO_ENABLED: ${VITE_INTERVIEW_DEMO_ENABLED:-false}

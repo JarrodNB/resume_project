@@ -16,7 +16,7 @@ export const INTERVIEW_UPDATED = graphql(`
   subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }
 `)
 export const START_INTERVIEW = graphql(`
-  mutation StartInterviewDemo($executionMode: String = "fake") { startInterviewDemo(input: { executionMode: $executionMode }) { interview { ...InterviewSnapshot } errors } }
+  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }
 `)
 export const AUTHORIZE_RECORDING = graphql(`
   mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {

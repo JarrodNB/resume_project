@@ -17,7 +17,7 @@ vi.mock('./useInterviewRecorder', async () => {
 vi.mock('./InterviewAudio', () => ({ InterviewAudio: () => <p>Saved audio</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
@@ -32,13 +32,26 @@ describe('InterviewDemoPage', () => {
     expect(screen.getByText(/voice is AI-generated/i)).toBeVisible()
     expect(screen.queryByText(/does not transcribe or assess/i)).not.toBeInTheDocument()
   })
-  it('discloses scripted output and keeps explicit recording and submission controls', async () => {
+  it('keeps explicit recording and submission controls for real sessions', async () => {
     renderDemo()
-    expect(screen.getByRole('heading', { name: 'Basic Interview demo' })).toBeVisible()
-    expect(screen.getByText(/does not transcribe or assess/i)).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Spoken interview' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Record answer' }))
     expect(recorder.start).toHaveBeenCalledOnce()
     expect(state.answer).not.toHaveBeenCalled()
+  })
+  it('starts real interviews without offering a scripted mode', async () => {
+    renderDemo('/interviews/demo')
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Start interview' }))
+    expect(start).toHaveBeenCalledWith()
+  })
+  it('retires old scripted sessions without recording or retry controls', () => {
+    state.interview = { ...snapshot, executionMode: 'fake' }
+    renderDemo()
+    expect(screen.getByText(/older scripted session is retired/i)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Start a new interview' })).toBeVisible()
   })
   it('reviews after Done answering without uploading until explicit Submit', async () => {
     recorder.status = 'recording'
@@ -168,7 +181,7 @@ describe('InterviewDemoPage', () => {
   it('hides the entrypoint when not explicitly enabled', () => {
     vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'false')
     renderDemo('/interviews/demo')
-    expect(screen.queryByRole('button', { name: 'Start demo' })).not.toBeInTheDocument()
-    expect(screen.getByText(/demo is disabled/i)).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Start interview' })).not.toBeInTheDocument()
+    expect(screen.getByText(/unavailable in this environment/i)).toBeVisible()
   })
 })

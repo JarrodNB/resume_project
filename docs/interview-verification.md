@@ -1,5 +1,46 @@
 # Spoken interview verification — 21 October 2026
 
+## Real browser QA and two-answer completion
+
+The public launcher now creates only real interviews; the mode selector and normal
+fake-runtime Compose profile are removed. Legacy fake creation requests are rejected.
+The fake QA containers are stopped with volumes retained. Offline test doubles remain.
+The [real QA guide](interview-real-qa.md) documents the running browser stack and its
+single retained paid ledger, startup preflight and stop command.
+
+A new real session completed opening → first answer → relevant follow-up → second answer
+→ fixed closing. Both answers used short, distinct offline-generated Flite recordings.
+All three saved speech artifacts were fetched through owner-authorized playback (199,244,
+160,844 and 156,044 bytes). The real model chose advancement on the second answer;
+the continue-at-cap override remains covered deterministically by Rails service tests.
+
+After the first accepted answer, one test-only storage transport returned HTTP 503 for
+the generated speech upload. A test-only callback made that delivery failure terminal
+for an explicit retry rather than automatic recovery. The retry succeeded with real TTS
+and storage. Exact before/after snapshots verified unchanged dialogue, private history,
+answer count, turn execution counts and all turn provider observation identities; only
+the speech operation gained its second execution. No fault switch was added to product code.
+
+These full-flow/retry checks added 13 provider calls and 5,718 microdollars (US$0.005718).
+The cumulative known cost at completion was 10,669 microdollars, plus the preserved US$0.25
+historical unknown estimate. Two abandoned diagnostic sessions were explicitly expired
+before ordinary recovery was started, dispatching no old work. Later browser QA calls
+continue to use this same ledger and allowance.
+
+Browser automation then signed into a disposable synthetic local account, started a real
+session, observed accepted opening speech and enabled recording, loaded its owner-authorized
+audio, and played it successfully (`readyState=4`, 4.15-second duration, no media error).
+Reload restored the same session. Desktop and 390 px layouts were inspected with no horizontal
+page overflow. This added one opening-speech call (1,317 microdollars), bringing known spend
+to US$0.011986, with the original unknown US$0.25 estimate unchanged. The runtime is left
+healthy for authorized human browser QA; the fake stack remains stopped.
+
+Current focused checks: 37 interview frontend tests; 53 Rails examples covering public
+creation, schema, accounting, media/retry and continue-at-cap acceptance; frontend typecheck
+and lint, focused RuboCop, Compose validation, shell syntax and UI detector all passed.
+Schema and client documents were regenerated together. Microphone capture, permission
+prompts and perceived speech quality remain human checks.
+
 ## Real speech repair after renewed authorization
 
 The human explicitly authorized short paid diagnostics and a draft fix PR. The retained
@@ -42,13 +83,9 @@ database remain outside this fix. The retained fake demo is unchanged.
 
 The offline candidate is retained at
 `/home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi`.
-The preserved `cg-interview-qa` stack serves
-[the interview demo](http://127.0.0.2:15176/interviews/demo).
-It defaults to fake execution; real admission is disabled. Existing fake sessions and
-storage are retained. Follow the exact absolute startup, storage-readiness and teardown
-commands in [the demo guide](interview-demo.md#human-qa). Browser microphone, local
-preview, playback, navigation warnings and reconnect behavior still require human QA.
-No browser automation was used.
+The browser URL now serves the real stack described above. Earlier evidence below records
+the state before that switch. Browser microphone capture, local preview and playback sound
+still need the human QA described in [the real guide](interview-real-qa.md).
 
 ## Offline evidence
 

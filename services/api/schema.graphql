@@ -1978,7 +1978,7 @@ input StartInterviewDemoInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
-  executionMode: String = "fake"
+  executionMode: String = "real"
 }
 
 """

@@ -11,13 +11,22 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
   it "creates a fictional interview with accepted opening and safe operation progress" do
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
+    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
     result = execute_graphql("mutation { startInterviewDemo(input: {}) { interview { #{snapshot} } errors } }", user: user)
     expect(result["errors"]).to be_nil
     payload = result.dig("data", "startInterviewDemo")
     expect(payload["errors"]).to eq([])
-    expect(payload.dig("interview", "executionMode")).to eq("fake")
+    expect(payload.dig("interview", "executionMode")).to eq("real")
     expect(payload.dig("interview", "messages").size).to eq(1)
     expect(payload.dig("interview", "operations", 0, "status")).to eq("pending")
+  end
+
+  it "rejects scripted creation even when a legacy client explicitly requests it" do
+    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "fake"}) { interview { id } errors } }', user: user)
+    expect(result.dig("data", "startInterviewDemo", "interview")).to be_nil
+    expect(result.dig("data", "startInterviewDemo", "errors").join).to include("Scripted interviews are retired")
+    expect(user.interview_sessions.count).to eq(0)
   end
 
 

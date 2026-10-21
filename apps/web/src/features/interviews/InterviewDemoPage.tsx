@@ -1,4 +1,5 @@
 /** Keep the current interview turn in focus, with earlier dialogue and details nearby.
+ * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -93,7 +94,8 @@ function OwnedInterview({ id }: { id: string }) {
   const speech = reply && operations.find((operation) => operation.messageId === reply.id && operation.kind === 'speech')
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
-  const canRecord = interview.status === 'active' && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying && speech?.status === 'accepted'
+  const hasQuestionText = Boolean(question && reply?.content.trim())
+  const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying
   async function submit() {
     if (!recorder.recording || submitting.current || !canRecord) return
     submitting.current = true; setSavingRecording(true)
@@ -109,8 +111,7 @@ function OwnedInterview({ id }: { id: string }) {
     : recorder.status === 'recording' ? 'Your turn — recording'
     : recorder.status === 'requesting' ? 'Allow microphone access'
     : recorder.recording ? 'Review your recording'
-    : speech?.status === 'failed' || speech?.status === 'expired' ? 'Interviewer audio needs attention'
-    : speech?.status !== 'accepted' ? 'Preparing interviewer audio'
+    : !hasQuestionText ? 'Waiting for your question'
     : speechPlaying ? 'Your interviewer is speaking'
     : 'Your turn'
   return <>
@@ -143,7 +144,7 @@ function OwnedInterview({ id }: { id: string }) {
       </div>
       <p className="max-w-prose text-sm text-muted-foreground">{recorder.recording ? 'Nothing is uploaded until you submit. You can discard this recording or try again.' : 'Record when you’re ready. Done answering opens a preview before you submit. Silence never submits.'}</p>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
-      {!canRecord && !turnActive && interview.status === 'active' && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">Recording is available once the current reply's speech is ready. Listening first is optional.</p>}
+      {hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}
     {state.error && <p role="alert" className="text-destructive">{state.error}</p>}

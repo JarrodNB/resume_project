@@ -33,6 +33,19 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
 describe('InterviewDemoPage', () => {
+  it.each(['pending', 'failed', 'expired'])('allows a saved question to be answered when speech is %s', async (status) => {
+    state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status, failureCode: status === 'pending' ? null : 'speech_failed' }] }
+    renderDemo()
+    expect(screen.getByText('Describe a project.')).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+    expect(recorder.start).toHaveBeenCalledOnce()
+    const recording = new Blob(['answer'], { type: 'audio/webm' })
+    recorder.status = 'ready'; recorder.recording = recording
+    act(() => recorder.refresh())
+    expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
+    expect(state.answer).toHaveBeenCalledWith(recording)
+  })
   it('leaves hydrated speech and earlier conversation silent until explicitly played', async () => {
     renderDemo('/interviews/demo/session', [playbackMock()])
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
@@ -92,6 +105,25 @@ describe('InterviewDemoPage', () => {
     act(() => recorder.refresh())
     expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  })
+  it('keeps late speech silent when answering began before its audio was ready', async () => {
+    vi.useFakeTimers()
+    try {
+      state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'pending' }] }
+      renderDemo()
+      expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
+      recorder.status = 'recording'
+      act(() => recorder.refresh())
+      state.interview = { ...snapshot, revision: 1 }
+      act(() => recorder.refresh())
+      await act(async () => vi.runAllTimersAsync())
+      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+      recorder.status = 'idle'
+      act(() => recorder.refresh())
+      await act(async () => vi.runAllTimersAsync())
+      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+      expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
   })
   it('keeps the session muted across replies and stops speech when abandoned', async () => {
     renderDemo('/interviews/demo/session', [playbackMock('reply')])
@@ -322,12 +354,18 @@ describe('InterviewDemoPage', () => {
     window.dispatchEvent(unload)
     expect(unload.defaultPrevented).toBe(true)
   })
-  it('blocks recording while speech is unavailable and offers only speech retry', async () => {
+  it('keeps speech retry independent of answering the saved question', async () => {
     state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status: 'failed', failureCode: 'speech_failed' }] }
     renderDemo()
-    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
     await userEvent.click(screen.getByRole('button', { name: 'Retry speech' }))
     expect(state.retryOperation).toHaveBeenCalledWith('speech')
+  })
+  it.each([{ messages: [] }, { messages: [{ ...snapshot.messages[0], content: '   ' }] }])('waits for visible question text before recording', ({ messages }) => {
+    state.interview = { ...snapshot, messages }
+    renderDemo()
+    expect(screen.getByRole('heading', { name: 'Waiting for your question' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
   })
   it('preserves ambiguous submission recovery and disables new recording', async () => {
     state.unresolved = { submissionKey: 'stable' }

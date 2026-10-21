@@ -26,7 +26,7 @@ const snapshot = {
 }
 function renderDemo(url = '/interviews/demo/session', mocks: MockLink.MockedResponse[] = []) { return renderPage({ path: '/interviews/demo/:id?', url, mocks, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
 function playbackMock(messageId = 'opening') {
-  return { request: { query: INTERVIEW_PLAYBACK, variables: { input: { interviewId: 'session', messageId } } }, result: { data: {
+  return { delay: 0, request: { query: INTERVIEW_PLAYBACK, variables: { input: { interviewId: 'session', messageId } } }, result: { data: {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }

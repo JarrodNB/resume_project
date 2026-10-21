@@ -3,7 +3,9 @@
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MockedProvider } from '@apollo/client/testing/react'
-import type { MockLink } from '@apollo/client/testing'
+import { MockLink } from '@apollo/client/testing'
+import { ApolloLink } from '@apollo/client'
+import { Observable } from 'rxjs'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { InterviewAudio } from './InterviewAudio'
@@ -61,11 +63,23 @@ it('pauses when muted and requires deliberate playback after unmuting', async ()
 
 it.each(['message change', 'recording', 'unmount'])('discards a late signed grant after %s', async (change) => {
   const result = vi.fn(() => grant('https://storage.test/late'))
-  const view = mount([mock(undefined, { delay: 30, result })], { automatic: true })
+  let release!: () => void
+  // Keep the actual request behind a gate, rather than racing a 30ms response.
+  // MockLink still validates the owned operation and variables when released.
+  const gate = new ApolloLink((operation, forward) => new Observable((observer) => {
+    let subscription: { unsubscribe: () => void } | undefined
+    release = () => { subscription = forward(operation).subscribe(observer) }
+    return () => subscription?.unsubscribe()
+  }))
+  const link = gate.concat(new MockLink([mock(undefined, { delay: 0, result })]))
+  const view = render(<InterviewAudio interviewId="session" messageId="message" automatic />, {
+    wrapper: ({ children }) => <MockedProvider link={link}>{children}</MockedProvider>,
+  })
   expect(await screen.findByRole('button', { name: 'Loading audio…' })).toBeDisabled()
   if (change === 'message change') view.rerender(<InterviewAudio interviewId="session" messageId="new" />)
   else if (change === 'recording') view.rerender(<InterviewAudio interviewId="session" messageId="message" automatic disabled />)
-  else view.unmount()
+  else view.rerender(<></>)
+  await act(async () => release())
   await waitFor(() => expect(result).toHaveBeenCalledOnce())
   expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
   if (change !== 'unmount') expect(screen.getByLabelText('Saved interviewer speech')).not.toHaveAttribute('src')

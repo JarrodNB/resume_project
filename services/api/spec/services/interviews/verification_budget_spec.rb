@@ -14,6 +14,21 @@ RSpec.describe "Interview verification allowance" do
       provider: "openai", model: "gpt-transcribe", **labels)
   end
 
+  [ [ "screening", "typesafe", "jev-1.13.0", 10_000 ],
+    [ "screening", "openai", "gpt-5-nano", 50_000 ],
+    [ "interviewer", "openai", "gpt-6-luna", 50_000 ] ].each do |stage, provider, model, amount|
+    it "admits the reviewed #{stage}/#{model} policy and retains unknown usage" do
+      id = SecureRandom.uuid
+      expect(start(id, stage: stage, provider: provider, model: model)).to be_success
+      expect(InterviewVerificationReservation.find_by!(observation_id: id).reserved_microdollars).to eq(amount)
+      expect(start(stage: stage, provider: provider, model: model)).not_to be_success
+      report = { operation: operation, attempt_id: operation.attempt_id, observation_id: id }
+      expect(Interviews::RecordUsageService.call(**report, usage: [ { "input_tokens" => 100,
+        "output_tokens" => 10, "cost_microdollars" => 15 } ])).to be_success
+      expect(start(stage: stage, provider: provider, model: model)).to be_success
+    end
+  end
+
   it "reserves before dispatch and reconciles unknown then late known charges exactly once" do
     id = SecureRandom.uuid
     expect(start(id)).to be_success

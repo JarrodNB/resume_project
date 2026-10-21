@@ -48,8 +48,12 @@ Rails uses server-owned reservation policies, never caller-provided prices:
 - gpt-transcribe: 9,000 microdollars (120 seconds at the documented rate).
 - gpt-4o-mini-tts: 250,000 microdollars (US$0.25), a deliberately generous **estimate** for
   at most 4,000 saved characters, not a documented maximum.
-- Other stage/model/provider combinations currently fail closed. Screening/interviewer
-  stages must add a reviewed policy before real wiring. They cannot bypass the budget.
+- Jev screening: 10,000 microdollars (US$0.01); Nano safety fallback and Luna interviewer:
+  50,000 microdollars each (US$0.05). These deliberately generous token estimates cover
+  bounded prompts, with OpenAI output capped at 1,024 tokens per concrete request.
+  They are estimates rather than hard provider ceilings; actual usage is reconciled.
+- All other stage/model/provider combinations fail closed. No generative fallback or
+  configurable pricing is enabled by this policy.
 
 `InterviewVerificationReservation` is an anonymous permanent ledger with no cascading
 owner/session association. It survives expiry, deletion, process restarts and retries.
@@ -86,3 +90,45 @@ a public reconciliation endpoint, or an inferred zero charge. The helper require
 transaction so its transaction-scoped advisory lock remains held until the update commits.
 If reliable evidence is unavailable, keep paid verification stopped and report the unknown
 charge; never delete ledger rows to keep testing. Existing fake QA data remain available.
+
+## Accounted reasoning and screening
+
+The real turn executor reuses the fake executor's validated storage, transcript limits,
+masked prompt assembly, required screening, history restoration and acceptance callback.
+It injects real transcription and a fresh single-run Pydantic AI interviewer. Public real
+admission and runtime startup remain disabled until the next delivery slice. Rails still
+chooses progression and creates speech work only from accepted saved text.
+
+Every concrete Pydantic AI model request runs through `InterviewModel` and `ProviderCalls`,
+below output validation. Retries and the tool-return request each need a fresh durable
+reservation. Known usage is saved before Pydantic validates output. Zero/missing usage or
+an unexpected response model remains unknown and stops processing. Only the exact approved
+model name (optionally provider-prefixed) is priced; unverified snapshot aliases fail closed.
+The existing pure worker price helper normalizes token usage, including cached tokens.
+
+Verified 21 October 2026: [Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)
+is US$0.10/0.01/0.50 per million input/cached/output tokens; [Nano](https://developers.openai.com/api/docs/models/gpt-5-nano)
+is US$0.05/0.005/0.40. [Jev 1.13](https://docs.typesafe.ai/models) is US$0.042/million
+input tokens with free output. Standard default service tier is used. The pinned SDK
+source (`typesafe_sdk.AsyncTypeSafeClient`, `pydantic_ai.providers.typesafe`) supports
+`RetryPolicy(max_retries=0)`; OpenAI uses `AsyncOpenAI(max_retries=0)`. Both transports
+also disable retries and environment proxy configuration. No provider request runs at import.
+
+Required transcripts and unknown user/tool history use the repository's shared Jev policy
+and official InputGuardrail. Missing TypeSafe credentials fail closed. After an attempted
+Jev failure the shared Nano fallback is still selected, but it too must pass fresh Rails
+admission: an unresolved Jev charge blocks it. Known input/output usage from an invalid
+classifier result can be reconciled before that fallback. A failed classifier cannot become
+an assumed zero charge to permit more spending. The interviewer never silently substitutes
+another generative model.
+
+`python -m evals.run_spoken_interviewer_evals` checks synthetic dataset/schema/evaluator
+wiring offline only. Its deterministic label scores do not demonstrate model quality.
+Paid quality evaluation needs a later runner using the admitted execution boundary and remains deferred.
+
+The pinned Pydantic AI 2.53.0 TypeSafe `DecisionModel.request` can send route and field
+requests separately for more complex agents. This path is deliberately limited to the
+existing safety agent's one structured output containing two boolean fields, with no
+function tools. Its single-output branch executes exactly one `_decide`; a successful
+real-SDK mocked-transport regression proves one HTTP request per observation. Widening
+that classifier's schema or adding tools requires revisiting accounting at the wire seam.

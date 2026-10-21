@@ -1,7 +1,8 @@
-"""Run one fenced offline interview operation without owning durable state.
+"""Run one fenced interview operation without owning durable state.
 
-Rails grants media access and accepts results. Each local fake provider stage reports
-explicit zero cost; speech uses saved text and never runs interviewer reasoning again.
+Rails grants media access and accepts results. Provider hooks share validation, history,
+screening and acceptance. Default fake stages report explicit zero cost; real turns inject
+accounted providers. Speech uses saved text and never runs interviewer reasoning again.
 """
 
 import asyncio
@@ -42,7 +43,7 @@ class ScreeningRejected(ValueError):
 
 
 class InterviewExecutor:
-    """Execute a canonical claim with fake-only providers and scoped storage access."""
+    """Execute a canonical claim with scoped storage and replaceable provider stages."""
 
     def __init__(self, client, *, storage_client, allowed_origins: set[str],
                  allow_http=False, scenario="normal"):
@@ -74,7 +75,7 @@ class InterviewExecutor:
                 await self._speech(claim)
             finished = True
         except ScreeningRejected as error:
-            await self.client.fail(claim, error.code, error.code == "screening_unavailable")
+            await self.client.fail(claim, error.code, error.code in {"screening_unavailable", "provider_unavailable"})
             finished = True
         except MediaError as error:
             await self.client.fail(claim, error.code, error.code == "storage_unavailable")
@@ -108,15 +109,26 @@ class InterviewExecutor:
             raise ScreeningRejected("screening_unavailable" if outcome.unchecked else
                                     "context_limit" if outcome.too_long else "screening_blocked")
 
+    async def _transcribe(self, claim, data):
+        async with self._stage(claim, "transcription"):
+            return TRANSCRIPT if self.scenario != "oversized" else "x" * 300000
+
+    def _interviewer(self, claim, guard):
+        async def provider_call(function):
+            async with self._stage(claim, "interviewer"):
+                return function()
+        return make_agent(self.scenario, guard, provider_call), {}
+
     async def _turn(self, claim):
         payload = claim.payload
         history = restore_history(payload.history_version, payload.model_history)
         grant = await self.client.recording(claim)
-        await asyncio.to_thread(download_audio, grant["download_url"],
+        data = await asyncio.to_thread(download_audio, grant["download_url"],
                                 expected_checksum=grant["checksum"],
                                 expected_byte_size=grant["byte_size"], **self._media_options())
-        async with self._stage(claim, "transcription"):
-            transcript = TRANSCRIPT if self.scenario != "oversized" else "x" * 300000
+        transcript = await self._transcribe(claim, data)
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise ScreeningRejected("unusable_audio")
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
             raise ScreeningRejected("transcript_too_long")
         contact = KnownContact.from_values(**{
@@ -140,13 +152,9 @@ class InterviewExecutor:
                         await self._screen(claim, text)
                 return True
 
-            async def provider_call(function):
-                async with self._stage(claim, "interviewer"):
-                    return function()
-
-            agent = make_agent(self.scenario, guard, provider_call)
+            agent, options = self._interviewer(claim, guard)
             result = await agent.run(prompt, message_history=history,
-                                     usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2))
+                                     usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
             saved = serialize_history(result.all_messages())
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,

@@ -7,8 +7,13 @@ module Interviews
     LOCK_ID = 741_009
     # Transcription: 120 seconds at $0.0045/minute. Speech: human-approved $0.25
     # estimate for <=4,000 characters; NOT a proven provider billing ceiling.
+    # Token stages use conservative estimates with bounded prompts and 1,024 OpenAI
+    # output tokens. Actual usage reconciles every dispatch; unknown usage stops all.
     RESERVATIONS = { %w[transcription openai gpt-transcribe] => 9_000,
-      %w[speech openai gpt-4o-mini-tts] => 250_000 }.freeze
+      %w[speech openai gpt-4o-mini-tts] => 250_000,
+      %w[screening typesafe jev-1.13.0] => 10_000,
+      %w[screening openai gpt-5-nano] => 50_000,
+      %w[interviewer openai gpt-6-luna] => 50_000 }.freeze
 
     def self.reserve(observation_id:, stage:, provider:, model:)
       amount = RESERVATIONS[[ stage, provider, model ]]

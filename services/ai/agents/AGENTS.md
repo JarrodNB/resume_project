@@ -78,3 +78,10 @@ instructions from `prompts/`.
   Trusted dependency scope selects a separate knowledge instruction file, so personal-fact-only scaffold rules never reach knowledge provider requests.
   Knowledge examples retry when they exceed 120 words; output schema descriptions distinguish subject corrections from personal-fact examples.
   Quality checks run in `evals/run_interview_feedback_evals.py`.
+
+- `spoken_interviewer_agent.py` — fresh single-run structured spoken follow-up with an
+  advance-intent tool. Its injected official guard uses shared required screening and
+  masking; its model wrapper registers every concrete dispatch with Rails. This approved
+  spoken path intentionally keeps gpt-6-luna without generative model substitution;
+  the shared Jev → Nano safety fallback remains. Offline eval fixture checks are in
+  `evals/run_spoken_interviewer_evals.py`; paid quality checks are deferred.

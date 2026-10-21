@@ -154,3 +154,315 @@ def test_runtime_reports_discovery_and_claim_wait_without_returned_claim_data(mo
     assert {"discovery", "claim"} <= stages
     assert "private-transcript" not in str(events)
     assert "private-operation" not in str(events)
+
+
+def test_completed_turn_wakes_durable_discovery_before_idle_poll_deadline():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        speech_claimed = asyncio.Event()
+        pending = ["turn"]
+        discoveries = []
+
+        class Client:
+            async def discover(self):
+                discoveries.append(list(pending))
+                return list(pending)
+
+            async def claim(self, identity):
+                pending.remove(identity)
+                if identity == "speech":
+                    speech_claimed.set()
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                if claim.operation_id == "turn":
+                    pending.append("speech")
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=1)
+        await runtime.start()
+        try:
+            await asyncio.wait_for(speech_claimed.wait(), timeout=0.2)
+            assert discoveries[:2] == [["turn"], ["speech"]]
+        finally:
+            await runtime.stop()
+        assert not runtime.active
+
+    asyncio.run(scenario())
+
+
+def test_completion_during_inflight_discovery_is_not_lost():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        pending = ["first", "second"]
+        reading = asyncio.Event()
+        release_read = asyncio.Event()
+        release_second = asyncio.Event()
+        second_completed = asyncio.Event()
+        speech_claimed = asyncio.Event()
+        discoveries = 0
+
+        class Client:
+            async def discover(self):
+                nonlocal discoveries
+                discoveries += 1
+                snapshot = list(pending)
+                if discoveries == 2:
+                    reading.set()
+                    await release_read.wait()
+                return snapshot
+
+            async def claim(self, identity):
+                pending.remove(identity)
+                if identity == "speech":
+                    speech_claimed.set()
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                if claim.operation_id == "second":
+                    await release_second.wait()
+                    pending.append("speech")
+                    second_completed.set()
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=1)
+        await runtime.start()
+        try:
+            await asyncio.wait_for(reading.wait(), timeout=0.2)
+            release_second.set()
+            await asyncio.wait_for(second_completed.wait(), timeout=0.2)
+            release_read.set()
+            await asyncio.wait_for(speech_claimed.wait(), timeout=0.2)
+            assert discoveries >= 3
+        finally:
+            await runtime.stop()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("failure", ["none", "claim", "discovery", "execution"])
+def test_stale_operations_and_failures_keep_bounded_retry_load(failure):
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        discoveries = 0
+        claims = 0
+        unhandled = []
+        asyncio.get_running_loop().set_exception_handler(lambda loop, context: unhandled.append(context))
+
+        class Client:
+            async def discover(self):
+                nonlocal discoveries
+                discoveries += 1
+                if failure == "discovery":
+                    raise RuntimeError("private dependency failure")
+                return ["stale"]
+
+            async def claim(self, identity):
+                nonlocal claims
+                claims += 1
+                if failure == "claim":
+                    raise RuntimeError("stale claim")
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                if failure == "execution":
+                    raise RuntimeError("private execution failure")
+                # A stale/no-op executor may return without changing discovery.
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=0.025)
+        await runtime.start()
+        await asyncio.sleep(0.085)
+        await runtime.stop()
+        assert 1 <= discoveries <= 8
+        assert claims <= 4
+        assert not unhandled
+        assert not runtime.active
+
+    asyncio.run(scenario())
+
+
+def test_shutdown_cancels_waits_and_same_runtime_can_recover_after_restart():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        started = asyncio.Event()
+        cancelled = asyncio.Event()
+        recovered = asyncio.Event()
+        claims = 0
+
+        class Client:
+            async def discover(self):
+                return ["recoverable"]
+
+            async def claim(self, identity):
+                nonlocal claims
+                claims += 1
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                if claims == 1:
+                    started.set()
+                    try:
+                        await asyncio.Event().wait()
+                    finally:
+                        cancelled.set()
+                else:
+                    recovered.set()
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=1)
+        await runtime.start()
+        await asyncio.wait_for(started.wait(), timeout=0.2)
+        await runtime.stop()
+        assert cancelled.is_set()
+        assert not runtime.ready
+        await runtime.start()
+        try:
+            await asyncio.wait_for(recovered.wait(), timeout=0.2)
+            assert claims == 2
+        finally:
+            await runtime.stop()
+        assert not runtime.active
+
+    asyncio.run(scenario())
+
+
+def test_completion_hint_during_discovery_outage_does_not_bypass_backoff():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        pending = ["first", "second"]
+        failed_read = asyncio.Event()
+        release_read = asyncio.Event()
+        finish_second = asyncio.Event()
+        completed_second = asyncio.Event()
+        speech_claimed = asyncio.Event()
+        discoveries = 0
+
+        class Client:
+            async def discover(self):
+                nonlocal discoveries
+                discoveries += 1
+                if discoveries == 2:
+                    failed_read.set()
+                    await release_read.wait()
+                    raise RuntimeError("dependency unavailable")
+                return list(pending)
+
+            async def claim(self, identity):
+                pending.remove(identity)
+                if identity == "speech":
+                    speech_claimed.set()
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                if claim.operation_id == "second":
+                    await finish_second.wait()
+                    pending.append("speech")
+                    completed_second.set()
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=0.2)
+        await runtime.start()
+        try:
+            await asyncio.wait_for(failed_read.wait(), timeout=0.1)
+            finish_second.set()
+            await asyncio.wait_for(completed_second.wait(), timeout=0.1)
+            release_read.set()
+            await asyncio.sleep(0.04)
+            assert discoveries == 2
+            await asyncio.wait_for(speech_claimed.wait(), timeout=0.4)
+        finally:
+            await runtime.stop()
+
+    asyncio.run(scenario())
+
+
+def test_concurrent_completions_coalesce_without_losing_dependent_work():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        pending = ["turn-a", "turn-b"]
+        both_started = asyncio.Event()
+        release = asyncio.Event()
+        both_speech_claimed = asyncio.Event()
+        started = 0
+        speech_claims = []
+        discoveries = 0
+
+        class Client:
+            async def discover(self):
+                nonlocal discoveries
+                discoveries += 1
+                return list(pending)
+
+            async def claim(self, identity):
+                pending.remove(identity)
+                if identity.startswith("speech"):
+                    speech_claims.append(identity)
+                    if len(speech_claims) == 2:
+                        both_speech_claimed.set()
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                nonlocal started
+                if claim.operation_id.startswith("turn"):
+                    started += 1
+                    if started == 2:
+                        both_started.set()
+                    await release.wait()
+                    pending.append(claim.operation_id.replace("turn", "speech"))
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=1)
+        await runtime.start()
+        try:
+            await asyncio.wait_for(both_started.wait(), timeout=0.2)
+            release.set()
+            await asyncio.wait_for(both_speech_claimed.wait(), timeout=0.2)
+            assert sorted(speech_claims) == ["speech-a", "speech-b"]
+            assert discoveries <= 4
+        finally:
+            await runtime.stop()
+
+    asyncio.run(scenario())

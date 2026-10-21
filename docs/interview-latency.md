@@ -109,3 +109,43 @@ docker run --rm --network none -e TYPESAFE_API_KEY=synthetic-offline \
 Real-provider measurements require actual comparable samples and must remain
 within existing authorization/accounting controls. No paid calls were needed
 for this baseline. Human microphone/playback and perceived-speed QA remain separate.
+
+## Completion-triggered discovery
+
+The runtime now wakes durable discovery after normal local execution completes.
+This is a hint, not an operation queue: Rails still discovers eligible IDs,
+claims work, fences attempts and owns all results. Concurrent hints coalesce.
+The hint is cleared before discovery/cleanup requests so completion during an
+in-flight read is not lost. The two-second poll remains the fallback for work
+created elsewhere, process restart and dependency recovery.
+
+A visible operation cannot be redispatched more often than the configured poll
+interval. This prevents stale/no-op success from creating an immediate retry
+loop. The cooldown map retains only currently visible or active IDs. Failed
+claims/heartbeats/execution do not produce completion hints, and discovery or
+cleanup failures keep the full polling backoff even if a hint arrives. The
+existing two-operation concurrency bound is unchanged.
+
+Matched offline result, five samples at the same two-second interval and phase
+offsets, Python 3.13.11:
+
+| Synthetic turn work | Completion → speech claim before | After | Discovery requests before / after |
+| --- | --- | --- | --- |
+| 100 ms | 1902.600 ms | 1.635 ms | 2 / 2 |
+| 500 ms | 1501.568 ms | 1.410 ms | 2 / 2 |
+| 1000 ms | 1000.088 ms | 1.434 ms | 2 / 2 |
+| 1500 ms | 499.832 ms | 1.123 ms | 2 / 2 |
+| 1900 ms | 97.783 ms | 1.167 ms | 2 / 2 |
+
+Median falls from 1000.088 to **1.410 ms**; sample p95 from 1902.600 to
+**1.635 ms**. These values show the targeted synthetic orchestration wait was
+removed, not that a real interview becomes one second faster in every case.
+The original baseline predates stage instrumentation in discovery; subsequent
+runs include its small local overhead, which is not subtracted from the result.
+
+Completion wake-ups can add an immediate empty discovery after terminal work,
+and up to one normal execution per visible ID per poll interval can trigger
+additional reads. They do not increase idle polling frequency. Normal failed
+claims retain the poll cadence. Synthetic tests cover same-ID no-op results,
+concurrent completions, hints during blocked/failed discovery, shutdown and
+restart; live production throughput and real provider speed are unmeasured.

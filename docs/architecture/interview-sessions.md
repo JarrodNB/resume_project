@@ -568,3 +568,10 @@ transcription, screening, reasoning, speech storage and durable acceptance.
 They do not expand public snapshots or replace Rails timestamps/accounting.
 See [latency measurements](../interview-latency.md) for exact stage coverage,
 clock-domain limits and the isolated offline scheduler probe.
+
+Normal local execution completion now hints the supervisor to rediscover durable
+work immediately, allowing newly created speech to avoid the remaining idle poll.
+Hints coalesce and survive in-flight discovery reads; the existing two-second poll
+remains the recovery fallback. Per-visible-operation cooldown and full discovery
+failure backoff prevent stale/no-op completions or outages from creating busy
+claim loops. Claims, concurrency, leases and accounting remain Rails-owned.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -297,7 +297,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_070000) do
     t.index ["message_id"], name: "index_interview_session_operations_on_message_id"
     t.index ["message_id"], name: "interview_session_one_speech_per_message", unique: true, where: "((kind)::text = 'speech'::text)"
     t.index ["question_id"], name: "index_interview_session_operations_on_question_id"
-    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying, 'turn'::character varying, 'speech'::character varying]::text[])) AND (status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying, 'expired'::character varying]::text[])) AND claim_generation >= 0", name: "interview_session_operation_states"
+    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying::text, 'turn'::character varying::text, 'speech'::character varying::text])) AND (status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text, 'expired'::character varying::text])) AND claim_generation >= 0", name: "interview_session_operation_states"
     t.check_constraint "execution_count >= 0 AND execution_count <= 6 AND cycle_execution_count >= 0 AND cycle_execution_count <= 3", name: "interview_operation_execution_caps"
     t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND recording_id IS NOT NULL AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
     t.check_constraint "status::text <> 'accepted'::text OR accepted_at IS NOT NULL AND result_fingerprint IS NOT NULL", name: "interview_session_operation_accepted_result"
@@ -317,9 +317,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_070000) do
     t.index ["interview_session_id", "id"], name: "interview_session_question_owner_identity", unique: true
     t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_ef5940a581", unique: true
     t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
-    t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 2 AND history_version > 0", name: "interview_session_question_counters"
+    t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3 AND history_version > 0", name: "interview_session_question_counters"
     t.check_constraint "jsonb_typeof(model_history) = 'array'::text", name: "interview_session_question_history_array"
-    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_type"
+    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_type"
   end
 
   create_table "interview_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -342,8 +342,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_070000) do
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
-    t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 2", name: "interview_session_counters"
-    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying, 'ready'::character varying, 'active'::character varying, 'completed'::character varying, 'expired'::character varying]::text[])", name: "interview_session_status"
+    t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
+    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying::text, 'ready'::character varying::text, 'active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text])", name: "interview_session_status"
   end
 
   create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

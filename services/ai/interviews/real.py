@@ -36,7 +36,8 @@ class RealInterviewExecutor(InterviewExecutor):
 
     @contextmanager
     def _trace(self, claim):
-        context = getattr(claim.payload, "frozen_context", getattr(claim.payload, "fixture_context", {}))
+        context = (claim.payload.personal_evidence() if claim.kind == "turn"
+                   else getattr(claim.payload, "frozen_context", {}))
         contact = KnownContact.from_values(**{
             key: context.get(key, []) for key in ("names", "emails", "phones")
         })

@@ -11,6 +11,7 @@ interface Props {
   disconnected: boolean
   retry: (id: string) => Promise<void>
   refresh: () => Promise<void>
+  begin: () => Promise<void>
 }
 
 function roleData(value: unknown) {
@@ -20,7 +21,7 @@ function roleData(value: unknown) {
   return { title: record.title, responsibilities: record.responsibilities.filter((item): item is string => typeof item === 'string'), requirements: record.requirements.filter((item): item is string => typeof item === 'string') }
 }
 
-export function InterviewPreparation({ interview, busy, error, disconnected, retry, refresh }: Props) {
+export function InterviewPreparation({ interview, busy, error, disconnected, retry, refresh, begin }: Props) {
   const operation = interview.operations.find((item) => item.kind === 'preparation')
   const role = roleData(interview.preparedRole)
   return <div className="grid gap-5">
@@ -35,6 +36,8 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
         <div className="grid gap-2"><h4 className="font-medium">Role requirements</h4><ul className="list-disc space-y-2 pl-5 text-sm">{role.requirements.map((item, index) => <li className="break-words" key={index}>{item}</li>)}</ul></div>
       </div>
       <p role="status" className="text-sm">Your {interview.questions.length} questions are prepared. Your interview is ready.</p>
+      <p className="text-sm text-muted-foreground">Begin to hear your first question. Each question allows up to {interview.answerCap} accepted answers; the interviewer may move on sooner.</p>
+      <Button className="justify-self-start" disabled={busy} onClick={() => void begin()}>{busy ? 'Beginning…' : 'Begin interview'}</Button>
     </> : <>
       <h2 className="text-xl font-medium">Preparing your interview</h2>
       <p className="max-w-prose text-sm">We are preparing a fictional role and nine questions from your saved career details. Progress is saved; you can reload safely.</p>

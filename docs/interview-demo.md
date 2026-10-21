@@ -50,8 +50,8 @@ checks; they do not establish microphone behavior or production storage permissi
 
 | Row | Observable contract | Evidence |
 | --- | --- | --- |
-| 1 | Opening, two answers, cap, closing, saved audio | Recovery harness plus `interview_runtime_smoke.rb`; human hears audio |
-| 2 | Early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance tool/history |
+| 1 | Legacy fixture opening, two answers, cap, closing, saved audio | Recovery harness plus `interview_runtime_smoke.rb`; human hears audio |
+| 2 | Legacy fixture early advance and two-question openings exactly once | `accept_turn_service_spec.rb`, `create_fixture_service_spec.rb`; `test_interview_executor.py` early-advance tool/history |
 | 3 | Identical/conflicting submission identity and competing submits | Harness real DB submit race; `submit_turn_service_spec.rb`, `concurrency_spec.rb`; frontend ambiguous-submit tests |
 | 4 | Competing/expired claims and stale dialogue/audio | Harness real HTTP claim race, killed lease recovery and stale heartbeat; `concurrency_spec.rb`, `media_service_spec.rb` stale completion |
 | 5 | Reload/disconnect and lost result receipt | Harness real committed receipt loss/status and identical acceptance replay; frontend hook/page reload/reconnect tests; human reload |
@@ -62,6 +62,7 @@ checks; they do not establish microphone behavior or production storage permissi
 | 10 | Usage identity, unknown cost, fake isolation | Harness killed execution retains incomplete marker and zero known spend; `provider_accounting_spec.rb`, `test_interview_executor.py`, `test_interview_runtime.py` outbound-denial tests. No paid-cost/latency claim |
 | 11 | Retention, deletion retries and permitted metadata | Harness actual storage recreation, completed-speech expiry, object deletion and dialogue/history scrub with usage retained; `cleanup_service_spec.rb` deletion failure/tombstone races |
 | 12 | UI devices, permissions, processing, retry and written regression | Full frontend tests, GraphQL ownership/subscription tests; human QA above remains required |
+| 13 | Reviewed role begins once; nine typed questions, three-response cap, early advance and one closing | `begin_service_spec.rb`, `full_progression_spec.rb`, independent-connection `concurrency_spec.rb`, React page/hook tests; earlier-question context and session-aware allowances remain separate slices |
 
 Rails test paths in this table are under `services/api/spec/services/interviews/` except
 request tests under `spec/requests/` and `interview_demo_spec.rb` under `spec/graphql/`.

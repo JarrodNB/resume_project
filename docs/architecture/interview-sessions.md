@@ -2,8 +2,9 @@
 
 Interview sessions own spoken interview dialogue and progress, separate from written
 InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
-The initial fixture uses fictional context, one prepared question, and at most two accepted
-answers. A two-question service fixture verifies advancement. Real providers are available
+New sessions prepare a frozen fictional role and nine typed questions from the owner's career
+library, then begin explicitly after review. Each question allows at most three accepted
+answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
 for explicitly enabled local browser QA; production deployment is deferred.
 
 ## Ownership and transport decision
@@ -26,9 +27,8 @@ the owned GraphQL demo exposes accepted dialogue and safe operation progress.
 services live in `Interviews`. Existing written `InterviewQuestion` records keep their names.
 
 The persisted `interview_type` defaults to `basic`, is required, and rejects other values in
-both model validation and Postgres. No complex or interactive type is implemented. The current
-slice keeps its existing two-answer constraints and fixture defaults; a future type's behavior
-and corresponding constraint changes need a separate change.
+both model validation and Postgres. No complex or interactive type is implemented. New prepared sessions save cap three explicitly; the database default remains two for
+legacy fixtures. Model and database upper bounds are three without rewriting old records.
 
 ## Saved execution mode
 
@@ -81,8 +81,11 @@ nine distinct questions, interleaved behavioral/technical/knowledge three times.
 atomically saves the entire role and question list, marks the operation accepted and session
 `ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
 changed output or a stale generation cannot replace it. Failure leaves no partial question
-list, and bounded retries reuse the same frozen input. An explicit begin transition belongs
-to the subsequent progression slice; role review alone does not begin recording or speech.
+list, and bounded retries reuse the same frozen input. `BeginService` (the owned public `beginInterview` mutation) changes ready to active and saves
+the first opening plus one speech operation atomically. Concurrent/repeated begin returns
+the saved state without duplicate messages or speech. Begin can also replay after progress
+or completion. Expired and not-yet-ready sessions cannot begin; role review alone creates no
+speech or recording.
 
 Public snapshots expose the prepared fictional role and safe preparation progress, never
 raw personal source snapshots or execution credentials. Question type is persisted separately
@@ -94,11 +97,13 @@ dialogue/history, retaining the existing accounting markers. Preparation does no
 career-library facts, saved jobs, coaching or assessment. Automated interview-quality
 evaluators remain deferred; offline tests establish contracts rather than generated quality.
 
-### Legacy fixture and active-turn interfaces
+### Begin and active-turn interfaces
 
 `Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
-Only the service fixture permits a second question.
+The service fixture remains a legacy offline seam with one or two questions. Public prepared
+sessions conduct all nine, preserving their interleaved question types. The UI shows current
+question/total alongside accepted responses/current cap.
 
 `SubmitTurnService.call(interview:, question_id:, recording_id:, expected_revision:,
 submission_key:)` reserves one turn before acknowledging submission. Callers pass an
@@ -124,6 +129,14 @@ and bounded to 256 KiB. Transcript/reply text uses the existing prose limit. Rai
 history as a JSON message envelope; the Python executor validates pinned Pydantic message/tool structure and re-screens
 retained untrusted history before proposing it.
 
+Prepared turn claims carry versioned `interview_context`: `personal_evidence` is the original
+frozen source snapshot (including provenance/contact masking inputs), while `fictional_role`
+is the imagined vacancy. These sources stay distinct in the prompt so vacancy requirements
+cannot become personal facts. Legacy turn claims retain `fixture_context`; Python accepts
+exactly one of the two sources. Frozen context and current-question private history are
+bounded and freshly screened before dispatch, with contact masking preserved. Earlier-question
+dialogue is not included yet; it belongs to the following context slice.
+
 ## Lock order and database invariants
 
 All lifecycle services acquire the owner row first, then interview, ordered question rows,
@@ -132,8 +145,8 @@ including any next question it may introduce. New messages and speech work come 
 accounting and media code must preserve owner → interview → question → operation → linked
 usage records → message/recording order. Never perform provider or storage I/O under locks.
 
-Postgres enforces required fields, valid states, nonnegative counters and the two-answer
-maximum. Unique indexes protect ordered question/message positions, semantic message
+Postgres enforces required fields, valid states, nonnegative counters and the three-answer
+maximum. Saved session caps still determine advancement. Unique indexes protect ordered question/message positions, semantic message
 identity, one opening per question, one speech operation per saved message, submission keys,
 and one pending/running turn per interview. Composite foreign keys keep questions, messages
 and operations within the same interview and bind speech to its message's question. A running

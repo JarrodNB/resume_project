@@ -43,3 +43,9 @@ export const INTERVIEW_PLAYBACK = graphql(`
     interviewPlayback(input: $input) { playback { playbackUrl expiresIn contentType } errors }
   }
 `)
+
+export const BEGIN_INTERVIEW = graphql(`
+  mutation BeginInterview($interviewId: ID!) {
+    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }
+  }
+`)

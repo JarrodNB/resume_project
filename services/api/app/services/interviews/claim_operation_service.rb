@@ -60,7 +60,10 @@ module Interviews
         else
           { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,
-            history_version: @operation.question.history_version, fixture_context: interview.fixture_context }
+            history_version: @operation.question.history_version }.merge(
+              interview.frozen_context.present? ?
+                { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :
+                { fixture_context: interview.fixture_context })
         end
         success({ execution_mode: interview.execution_mode, execution_config: interview.execution_config, operation_id: @operation.id, kind: @operation.kind, attempt_id: attempt_id,
           claim_generation: @operation.claim_generation, lease_expires_at: @operation.lease_expires_at,

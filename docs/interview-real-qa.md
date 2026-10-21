@@ -1,10 +1,14 @@
 # Real spoken interview browser QA
 
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
-session with fictional context, one prepared question and at most two accepted answers.
+session prepared from owned career details, with a fictional role and nine typed questions.
+Review the role and explicitly choose **Begin interview**; each question permits up to three
+accepted answers, and the interviewer may advance earlier.
 Record, choose **Done answering**, listen to the local preview, then **Submit recording**.
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
-No coaching, career-library targeting or full interview preparation is included yet.
+Preparation freezes the library at creation. Later library edits do not change this session.
+Coaching remains outside this flow; earlier-question dialogue and session allowances are
+separate pending slices, so a maximal paid session may still hit existing hourly task limits.
 
 The public launcher rejects scripted sessions and has no mode selector. Older scripted
 sessions are retired without changing their stored mode or deleting their records.

@@ -60,7 +60,7 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Start a new interview</Link>
   </div>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} />
+  if (interview.status === 'preparing' || interview.status === 'ready') return <InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -79,6 +79,7 @@ function OwnedInterview({ id }: { id: string }) {
     {recordingWarning}
     <ProviderNotice />
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
+      {question && <p>Question {question.position + 1} of {interview.questions.length}{question.questionType ? ` · ${question.questionType.charAt(0).toUpperCase()}${question.questionType.slice(1)}` : ''}</p>}
       <p>{interview.status === 'completed' ? 'Interview complete. Your accepted dialogue is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} answers accepted.`}</p>
       {turnActive && <p>Answer processing: {currentTurn.checkpoint?.replaceAll('_', ' ') || currentTurn.status}. You can reload safely.</p>}
       {reply && speech?.status !== 'accepted' && <p>Saved reply speech: {speech?.status ?? 'unavailable'}.</p>}

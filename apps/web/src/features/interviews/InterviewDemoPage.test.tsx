@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn() },
   recorder: { status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -213,4 +213,25 @@ it('passes an explicit career focus to preparation and offers a library review p
   await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(start).toHaveBeenCalledWith('Laboratory equipment')
   expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
+})
+
+
+describe('prepared interview begin', () => {
+  it('offers explicit Begin after role review, without microphone capture', async () => {
+    state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Fictional technician', responsibilities: ['Maintain instruments'], requirements: ['Calibration'] } }
+    renderDemo()
+    expect(screen.getByText('Review your fictional role')).toBeVisible()
+    expect(state.beginInterview).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Begin interview' }))
+    expect(state.beginInterview).toHaveBeenCalledOnce()
+    expect(recorder.start).not.toHaveBeenCalled()
+  })
+
+  it('shows whole-interview and per-question progress', () => {
+    state.interview = { ...snapshot, answerCap: 3, currentQuestionPosition: 4,
+      questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
+    renderDemo()
+    expect(screen.getByText('Question 5 of 9 · Technical')).toBeVisible()
+    expect(screen.getByText('2 of 3 answers accepted.')).toBeVisible()
+  })
 })

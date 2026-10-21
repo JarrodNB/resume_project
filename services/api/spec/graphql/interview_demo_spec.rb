@@ -23,6 +23,18 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(payload.dig("interview", "operations", 0, "status")).to eq("pending")
   end
 
+  it "begins only the owner's reviewed interview and returns the active snapshot" do
+    session.update!(status: "ready")
+    session.operations.destroy_all
+    session.messages.destroy_all
+    query = "mutation { beginInterview(input: {interviewId: \"#{session.id}\"}) { interview { #{snapshot} } errors } }"
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(query, user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "beginInterview", "interview", "status")).to eq("active")
+    expect(result.dig("data", "beginInterview", "interview", "messages").length).to eq(1)
+  end
+
   it "rejects scripted creation even when a legacy client explicitly requests it" do
     result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "fake"}) { interview { id } errors } }', user: user)
     expect(result.dig("data", "startInterviewDemo", "interview")).to be_nil

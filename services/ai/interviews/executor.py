@@ -164,11 +164,11 @@ class InterviewExecutor:
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
             raise ScreeningRejected("transcript_too_long")
         contact = KnownContact.from_values(**{
-            key: payload.fixture_context.get(key, []) for key in ("names", "emails", "phones")
+            key: payload.personal_evidence().get(key, []) for key in ("names", "emails", "phones")
         })
         with contact_scope(contact), screening_session(120):
             source = mask_outbound(json.dumps({"question": payload.question,
-                "fixture_context": payload.fixture_context, "transcript": transcript}, sort_keys=True))
+                **payload.context_input(), "transcript": transcript}, sort_keys=True))
             input_texts = _input_parts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
             if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")

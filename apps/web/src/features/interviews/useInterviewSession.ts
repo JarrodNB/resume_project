@@ -2,12 +2,12 @@
  * Rejected submissions release their identity and keep the recording. Ambiguous submissions keep
  * their exact input; a fresh owned read always precedes a manual resend.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import SparkMD5 from 'spark-md5'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { AUTHORIZE_RECORDING, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
+import { AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
 
 class RejectedSubmission extends Error {}
@@ -43,6 +43,8 @@ export function useInterviewSession(id: string, ownerId: string) {
   const [register] = useMutation(REGISTER_RECORDING)
   const [submit] = useMutation(SUBMIT_TURN)
   const [retry] = useMutation(RETRY_OPERATION)
+  const [begin] = useMutation(BEGIN_INTERVIEW)
+  const beginning = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingSubmission | null>(() => loadPendingSubmission(ownerId, id))
@@ -118,8 +120,16 @@ export function useInterviewSession(id: string, ownerId: string) {
       else if (resend && pending) await send(pending)
     })
   }
+  /** Begin is explicitly requested and safe to repeat after a lost response. */
+  async function beginInterview() {
+    if (beginning.current) return
+    beginning.current = true
+    try {
+      await run(async () => update(requirePayload((await begin({ variables: { interviewId: id } })).data?.beginInterview).interview))
+    } finally { beginning.current = false }
+  }
   async function retryOperation(operationId: string) {
     await run(async () => update(requirePayload((await retry({ variables: { input: { interviewId: id, operationId } } })).data?.retryInterviewOperation).interview))
   }
-  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, checkSavedStatus, retryOperation }
+  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, checkSavedStatus, retryOperation, beginInterview }
 }

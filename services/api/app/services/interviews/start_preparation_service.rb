@@ -38,7 +38,7 @@ module Interviews
         return failure("Your career library is too long for interview preparation. Shorten its entries and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
         next allowance unless allowance.success?
-        interview = @user.interview_sessions.create!(status: "preparing", execution_mode: "real",
+        interview = @user.interview_sessions.create!(status: "preparing", answer_cap: 3, execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), frozen_context: context, expires_at: 7.days.from_now)
         interview.operations.create!(kind: "preparation")
         success(interview)

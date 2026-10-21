@@ -14,13 +14,37 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
 
+class InterviewContext(BaseModel):
+    """Keep owned frozen facts separate from the imagined vacancy."""
+
+    version: Literal[1]
+    personal_evidence: dict[str, Any]
+    fictional_role: dict[str, Any]
+
+
 class TurnPayload(BaseModel):
     recording_id: str
     expected_revision: int
     question: str
     model_history: list[dict[str, Any]]
     history_version: int
-    fixture_context: dict[str, Any]
+    fixture_context: dict[str, Any] | None = None
+    interview_context: InterviewContext | None = None
+
+    @model_validator(mode="after")
+    def require_context(self):
+        if (self.fixture_context is None) == (self.interview_context is None):
+            raise ValueError("A turn requires exactly one context source")
+        return self
+
+    def personal_evidence(self) -> dict[str, Any]:
+        """Return contact/provenance input without treating a fictional role as facts."""
+        return self.interview_context.personal_evidence if self.interview_context else self.fixture_context
+
+    def context_input(self) -> dict[str, Any]:
+        """Preserve the versioned prepared source or the legacy fixture envelope."""
+        return ({"interview_context": self.interview_context.model_dump()} if self.interview_context
+                else {"fixture_context": self.fixture_context})
 
 
 class SpeechPayload(BaseModel):

@@ -43,6 +43,45 @@ RSpec.describe "Basic Interview concurrency" do
       question_id: @question.id, recording_id: @recording_id, expected_revision: 0, submission_key: key)
   end
 
+  it "begins reviewed preparation once across independent connections and replay" do
+    @interview.destroy!
+    @user.update!(summary: "Laboratory experience")
+    @interview = Interviews::StartPreparationService.call(user: @user).value
+    @interview.questions.create!(position: 0, content: "Explain calibration")
+    @interview.update!(status: "ready", prepared_role: { title: "Fictional technician" }, revision: 1)
+    results = race do
+      Interviews::BeginService.call(interview: @user.interview_sessions.find(@interview.id))
+    end
+    expect(results).to all(be_success)
+    expect(@interview.reload).to have_attributes(status: "active", revision: 2)
+    expect(@interview.messages.pluck(:kind)).to eq([ "opening" ])
+    expect(@interview.operations.speech.count).to eq(1)
+    expect(Interviews::BeginService.call(interview: @interview)).to be_success
+    expect(@interview.operations.speech.count).to eq(1)
+  end
+
+  it "accepts the capped response once and creates only one next opening" do
+    @interview.destroy!
+    @interview = Interviews::CreateFixtureService.call(user: @user, question_count: 2).value
+    @interview.update!(answer_cap: 3)
+    @question = @interview.questions.first
+    @question.update!(accepted_answer_count: 2)
+    @recording_id = ready_interview_recording(@interview).id
+    turn = submit("cap-response").value
+    turn.update!(status: "running", claim_generation: 1, attempt_id: SecureRandom.uuid,
+      lease_expires_at: 30.seconds.from_now, execution_deadline: 2.minutes.from_now)
+    results = race do
+      Interviews::AcceptTurnService.call(operation: @interview.operations.find(turn.id),
+        attempt_id: turn.attempt_id, claim_generation: 1, transcript: "I calibrated it",
+        decision: "continue", reply: "Ignored at cap", history_version: 1, model_history: [])
+    end
+    expect(results).to all(be_success)
+    expect(@interview.reload).to have_attributes(current_question_position: 1, revision: 1)
+    expect(@question.reload.accepted_answer_count).to eq(3)
+    opening = @interview.messages.where(question: @interview.questions.last, kind: "opening").sole
+    expect(@interview.operations.speech.where(message: opening).count).to eq(1)
+  end
+
   it "lets only one competing submission occupy the processing slot" do
     @recording_id = ready_interview_recording(@interview).id
     results = race { |index| submit("submission-#{index}") }

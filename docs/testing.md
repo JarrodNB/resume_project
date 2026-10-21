@@ -72,3 +72,7 @@ Rebuild the image if its dependencies differ from the checkout's lockfile.
 See [the isolated recovery guide](interview-demo.md) for deterministic process recovery
 without paid providers. [Real browser QA](interview-real-qa.md) uses the original paid
 ledger and `127.0.0.2`, keeping cookies separate from a main stack on `localhost`.
+
+For a bounded, no-network timing probe of spoken turn completion → dependent
+speech claim, see [interview latency measurements](interview-latency.md). It uses
+the actual recovery scheduler with synthetic work, not real providers or browser QA.

@@ -22,6 +22,7 @@ from interviews.client import RailsTransportError
 from interviews.fake import SCENARIOS, TRANSCRIPT, make_agent, speech_bytes
 from interviews.history import compact_turn_history, restore_history, serialize_history
 from interviews.media import MediaError, download_audio, upload_audio
+from interviews.timing import stage_timing
 from schemas.user_text_screen import UserTextScreen
 from screening.prompt_guardrail import _input_parts
 from screening.screen_user_text import screen_user_text_async
@@ -108,19 +109,23 @@ class InterviewExecutor:
             source = mask_outbound(json.dumps(context, sort_keys=True))
             if covered_prompt_length(source) + 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
-            await self._screen(claim, source)
+            with stage_timing(claim, "screening"):
+                await self._screen(claim, source)
             prompt = bind_screened_prompt([source], lambda sources: sources[0])
 
             async def guard(ctx, final_prompt):
                 for text in _input_parts(ctx, final_prompt):
                     if not prompt_is_covered(text):
-                        await self._screen(claim, text)
+                        with stage_timing(claim, "screening"):
+                            await self._screen(claim, text)
                 return True
 
             agent, options = self._preparer(claim, guard)
-            result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=2), **options)
+            with stage_timing(claim, "preparation"):
+                result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=2), **options)
             output = result.output.model_dump(mode="json")
-        await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
+        with stage_timing(claim, "acceptance"):
+            await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
 
     async def _screen(self, claim, text):
         async def classify(chunk, model, timeout):
@@ -158,11 +163,13 @@ class InterviewExecutor:
             if size > payload.earlier_dialogue.character_budget:
                 raise ScreeningRejected("context_limit")
         history = restore_history(payload.history_version, payload.model_history)
-        grant = await self.client.recording(claim)
-        data = await asyncio.to_thread(download_audio, grant["download_url"],
-                                expected_checksum=grant["checksum"],
-                                expected_byte_size=grant["byte_size"], **self._media_options())
-        transcript = await self._transcribe(claim, data)
+        with stage_timing(claim, "recording_download"):
+            grant = await self.client.recording(claim)
+            data = await asyncio.to_thread(download_audio, grant["download_url"],
+                                    expected_checksum=grant["checksum"],
+                                    expected_byte_size=grant["byte_size"], **self._media_options())
+        with stage_timing(claim, "transcription"):
+            transcript = await self._transcribe(claim, data)
         if not isinstance(transcript, str) or not transcript.strip():
             raise ScreeningRejected("empty_audio")
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
@@ -178,7 +185,8 @@ class InterviewExecutor:
             input_texts = _input_parts(SimpleNamespace(messages=[*history, ModelRequest(parts=[UserPromptPart(source)])]), source)
             if sum(covered_prompt_length(text) for text in input_texts) + len(input_texts) * 2 > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
-            await self._screen(claim, source)
+            with stage_timing(claim, "screening"):
+                await self._screen(claim, source)
             prompt = bind_screened_prompt([source], lambda sources: sources[0])
 
             async def guard(ctx, final_prompt):
@@ -187,31 +195,37 @@ class InterviewExecutor:
                     raise ScreeningRejected("context_limit")
                 for text in inputs:
                     if not prompt_is_covered(text):
-                        await self._screen(claim, text)
+                        with stage_timing(claim, "screening"):
+                            await self._screen(claim, text)
                 return True
 
             agent, options = self._interviewer(claim, guard)
-            result = await agent.run(prompt, message_history=history,
-                                     usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
+            with stage_timing(claim, "interviewer"):
+                result = await agent.run(prompt, message_history=history,
+                                         usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
             saved = serialize_history(compact_turn_history(result.all_messages(), context))
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
                                             reply=result.output.reply, history_version=1, model_history=saved)
-        await self._reconcile(claim, accept)
+        with stage_timing(claim, "acceptance"):
+            await self._reconcile(claim, accept)
 
     async def _synthesize(self, claim):
         async with self._stage(claim, "speech"):
             return speech_bytes(claim.payload.text)
 
     async def _speech(self, claim):
-        data = await self._synthesize(claim)
-        reservation = await self.client.reserve_audio(claim, "audio/wav")
-        await asyncio.to_thread(upload_audio, reservation["upload_url"], data,
-                                content_type="audio/wav", headers=reservation["headers"],
-                                **self._media_options())
-        checksum = base64.b64encode(hashlib.md5(data, usedforsecurity=False).digest()).decode()
-        await self.client.register_audio(claim, reservation["media_id"], checksum, len(data))
-        await self._reconcile(claim, lambda: self.client.complete_audio(claim, reservation["media_id"]))
+        with stage_timing(claim, "speech_synthesis"):
+            data = await self._synthesize(claim)
+        with stage_timing(claim, "speech_storage"):
+            reservation = await self.client.reserve_audio(claim, "audio/wav")
+            await asyncio.to_thread(upload_audio, reservation["upload_url"], data,
+                                    content_type="audio/wav", headers=reservation["headers"],
+                                    **self._media_options())
+            checksum = base64.b64encode(hashlib.md5(data, usedforsecurity=False).digest()).decode()
+            await self.client.register_audio(claim, reservation["media_id"], checksum, len(data))
+        with stage_timing(claim, "acceptance"):
+            await self._reconcile(claim, lambda: self.client.complete_audio(claim, reservation["media_id"]))
 
     async def _reconcile(self, claim, callback):
         """Resolve a lost result receipt through canonical state before replaying it."""

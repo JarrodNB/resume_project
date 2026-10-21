@@ -2,12 +2,16 @@
 
 Only Rails decides which durable operations can run. Shutdown cancels local work;
 its persisted lease expires so another process can recover it without local queues.
+Completed local work hints that dependent work may exist; polling remains the
+fallback, and repeated visible IDs keep the normal retry cadence.
 """
 
 import asyncio
 import logging
 import time
 from typing import Any
+
+from interviews.timing import stage_timing
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +30,8 @@ class RecoveryRuntime:
         self._supervisor: asyncio.Task | None = None
         self._stopping = False
         self._last_contact: float | None = None
+        self._wake = asyncio.Event()
+        self._last_dispatched: dict[str, float] = {}
 
     @property
     def ready(self) -> bool:
@@ -36,6 +42,9 @@ class RecoveryRuntime:
 
     async def start(self) -> None:
         self._stopping = False
+        self._last_contact = None
+        self._wake = asyncio.Event()
+        self._last_dispatched.clear()
         self._supervisor = asyncio.create_task(self._supervise())
 
     async def stop(self) -> None:
@@ -51,16 +60,27 @@ class RecoveryRuntime:
     async def _supervise(self) -> None:
         next_cleanup = 0.0
         while not self._stopping:
+            # Clear before requests: a completion during discovery/cleanup must
+            # survive until the wait below, even if its new work missed this read.
+            self._wake.clear()
             try:
-                ids = (await self.client.discover())[:10]
+                with stage_timing(None, "discovery"):
+                    ids = (await self.client.discover())[:10]
                 self._last_contact = time.monotonic()
+                visible = set(ids) | self.active.keys()
+                self._last_dispatched = {key: value for key, value in self._last_dispatched.items()
+                                         if key in visible}
                 for identity in ids:
                     if self._stopping or len(self.active) >= 2:
                         break
-                    if identity not in self.active:
+                    now = time.monotonic()
+                    if identity not in self.active and now - self._last_dispatched.get(
+                        identity, float("-inf")
+                    ) >= self.discovery_seconds:
+                        self._last_dispatched[identity] = now
                         task = asyncio.create_task(self._run(identity))
                         self.active[identity] = task
-                        task.add_done_callback(lambda _task, key=identity: self.active.pop(key, None))
+                        task.add_done_callback(lambda completed, key=identity: self._finished(key, completed))
                 if time.monotonic() >= next_cleanup:
                     await self.client.cleanup()
                     next_cleanup = time.monotonic() + self.cleanup_seconds
@@ -68,11 +88,25 @@ class RecoveryRuntime:
                 # Do not log capability-bearing request exceptions or response content.
                 logger.warning("Interview discovery or cleanup unavailable (%s)", type(error).__name__)
                 next_cleanup = time.monotonic() + self.cleanup_seconds
-            await asyncio.sleep(self.discovery_seconds)
+                # Completion hints must not accelerate retries against an outage.
+                await asyncio.sleep(self.discovery_seconds)
+                continue
+            try:
+                await asyncio.wait_for(self._wake.wait(), timeout=self.discovery_seconds)
+            except TimeoutError:
+                pass
 
-    async def _run(self, identity: str) -> None:
+    def _finished(self, identity: str, task: asyncio.Task) -> None:
+        self.active.pop(identity, None)
+        # Inspect completion safely: cancellations and failed claims/heartbeats
+        # must not create callback errors or immediate retry loops.
+        if not self._stopping and not task.cancelled() and task.exception() is None and task.result():
+            self._wake.set()
+
+    async def _run(self, identity: str) -> bool:
         try:
-            claim = await self.client.claim(identity)
+            with stage_timing(None, "claim"):
+                claim = await self.client.claim(identity)
             execution = asyncio.create_task(self.executor.execute(claim))
             heartbeat = asyncio.create_task(self._heartbeat(claim))
             try:
@@ -84,12 +118,14 @@ class RecoveryRuntime:
                 execution.cancel()
                 heartbeat.cancel()
                 await asyncio.gather(execution, heartbeat, return_exceptions=True)
+            return True
         except asyncio.CancelledError:
             raise
         except Exception as error:  # noqa: BLE001 - durable Rails recovery owns retry policy
             # Lost claim or network failure must never continue provider work unchecked.
             logger.warning("Interview execution stopped; durable recovery remains in Rails (%s)",
                            type(error).__name__)
+            return False
 
     async def _heartbeat(self, claim: Any) -> None:
         while True:

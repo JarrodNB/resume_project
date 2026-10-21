@@ -461,6 +461,12 @@ Production builds hide the route content even if the frontend flag is set; Rails
 denies public demo operations outside development. Written practice remains at `/interview-prep`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
+The active room presents the latest interviewer reply once, with earlier exchanges and saved
+response counts in **Saved conversation**. Turn headings distinguish recording, local review,
+submission, answer processing and speech recovery without exposing execution checkpoint names.
+Provider and retention details remain accessible in **Interview details and privacy**; preparation
+still discloses providers before starting. Terminal session updates release local microphone
+capture, including abandonment from another tab.
 The user can then listen, discard, or re-record; only the separate **Submit** action sends it. Permission, format, disconnect, size and time-limit
 errors discard or preserve bytes as appropriate without submitting. A pre-submission upload failure
 keeps the recording for an explicit retry. Once a durable submission identity is saved, the browser
@@ -468,7 +474,15 @@ may release its bytes even if the response is lost. Only that minimal question/r
 identity is kept in local storage, scoped by owner and interview; a successful owned read reconciles
 it before an explicit same-key resend. No mutation is automatically replayed after an auth error.
 Queries on mount and fresh subscription snapshots on reconnect restore canonical progress without
-polling. Playback obtains a fresh grant for the same saved message; it never retries reasoning or
+polling. Newly accepted current speech automatically obtains a playback grant and attempts
+playback once during an open interview. The first loaded snapshot is a silent baseline, so
+opening or reloading a saved interview does not replay old speech. Repeated and stale receipts
+cannot trigger another automatic attempt. Blocked autoplay offers explicit **Play interviewer
+audio**; replay and pause remain available, with a mute choice scoped to the open session.
+Historical speech plays only on request and pauses any other interviewer audio. Microphone
+capture disables playback, and playing speech blocks a new recording until paused. Message
+changes, abandonment and navigation stop playback and ignore late grant/play completions.
+Playback obtains a fresh grant for the same saved message; it never retries reasoning or
 speech generation. Expired grants can be renewed while the artifact itself remains retained.
 
 For browser-reachable local storage, Compose defaults `INTERVIEW_BROWSER_STORAGE_ORIGIN` to
@@ -553,3 +567,19 @@ acceptance replay/lost receipts, speech-only recovery, abandonment fencing and p
 playback. See [offline checks](../interview-demo.md) for the exact command and scope.
 Legacy `script/interview_recovery_check.sh` remains coverage for retained fixture sessions.
 Neither deterministic harness establishes live quality or browser microphone behavior.
+
+## Private latency evidence
+
+The existing Logfire operation/model traces are supplemented by content-free,
+monotonic stage events for discovery/claim requests, recording download,
+transcription, screening, reasoning, speech storage and durable acceptance.
+They do not expand public snapshots or replace Rails timestamps/accounting.
+See [latency measurements](../interview-latency.md) for exact stage coverage,
+clock-domain limits and the isolated offline scheduler probe.
+
+Normal local execution completion now hints the supervisor to rediscover durable
+work immediately, allowing newly created speech to avoid the remaining idle poll.
+Hints coalesce and survive in-flight discovery reads; the existing two-second poll
+remains the recovery fallback. Per-visible-operation cooldown and full discovery
+failure backoff prevent stale/no-op completions or outages from creating busy
+claim loops. Claims, concurrency, leases and accounting remain Rails-owned.

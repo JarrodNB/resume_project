@@ -11,7 +11,7 @@ RSpec.describe "Interview provider admission recovery" do
       expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success
       expiry = recording.expires_at
       if reason == :owner_limit
-        interview.user.update!(monthly_ai_budget_microdollars: 0)
+        stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 0)
       else
         InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 5_000_000,
           actual_microdollars: reason == :unknown ? nil : 5_000_000)

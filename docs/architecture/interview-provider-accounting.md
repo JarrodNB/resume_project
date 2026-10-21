@@ -128,8 +128,9 @@ Actual usage is reconciled as before.
 
 Full prepared sessions share one hourly admission, while preparation, every turn and every
 speech retain separate task/attempt/provider bills. The current hourly default is 30;
-session grouping does not bypass monthly spend, in-flight concurrency or this permanent
-US$5 verification ledger. See [session accounting](interview-sessions.md#http-execution-accounting)
+session grouping does not bypass the separate interview monthly budget/concurrency limits or
+this permanent US$5 verification ledger. General AI allowances exclude spoken interview work;
+its actual bills and unknown markers remain intact in the same durable accounting tables. See [session accounting](interview-sessions.md#http-execution-accounting)
 for ownership checks, finite submission limits and task-month attribution.
 
 The interview wrapper explicitly requests Standard (`service_tier: "default"`) pricing.

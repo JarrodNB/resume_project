@@ -90,7 +90,8 @@ All business logic, as service objects grouped by domain folder.
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
   resume (`updateResume`); type, title, and order stay put
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
-  flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
+  flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
+  per-user override columns apply only to general AI)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time
 - `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
@@ -133,4 +134,5 @@ All business logic, as service objects grouped by domain folder.
   development mode, owner scoping, and unexpired sessions; snapshots exclude execution secrets.
   Prepared sessions persist one preparation-task hourly admission before acknowledgment;
   `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
-  root link. Monthly spend and in-flight checks still include every task.
+  root link. Interview monthly spend and in-flight checks include every spoken stage,
+  independently of general AI limits and the general public usage summary.

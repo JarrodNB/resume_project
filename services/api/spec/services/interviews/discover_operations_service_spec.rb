@@ -18,7 +18,7 @@ RSpec.describe Interviews::DiscoverOperationsService do
 
   it "returns at most ten eligible IDs without returning current leased work" do
     user = create(:user)
-    user.update!(max_in_flight_ai_tasks: 20)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 20)
     interviews = 12.times.map { Interviews::CreateFixtureService.call(user: user).value }
     leased = interviews.first.operations.first
     expect(Interviews::ClaimOperationService.call(operation: leased)).to be_success

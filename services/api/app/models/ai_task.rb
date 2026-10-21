@@ -1,7 +1,8 @@
 # One logical unit of AI work and its outcome. Queue features publish it over SQS;
 # interview execution links it to durable HTTP work without publishing a queue message.
 # Prepared interview child tasks share only the root's hourly admission, never its bill
-# or concurrency slot. Existing tasks remain separate hourly admissions.
+# or concurrency slot. Spoken tasks use an independent allowance; general AI tasks
+# keep their own hourly admissions, budget and concurrency.
 # Index:
 #   - TASK_TYPES / task_type enum: parse_resume, scrape_job, parse_job_posting, analyze_gaps,
 #     tailor_resume, generate_interview_questions, regenerate_interview_question, review_interview_answer
@@ -15,6 +16,7 @@ class AiTask < ApplicationRecord
   TASK_TYPES = %w[parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
                   generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
+  SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech].freeze
 
   belongs_to :user
   belongs_to :subject, polymorphic: true, optional: true
@@ -23,6 +25,8 @@ class AiTask < ApplicationRecord
   belongs_to :hourly_admission_task, class_name: "AiTask", optional: true
   attr_readonly :hourly_admission_task_id
   scope :hourly_admissions, -> { where(hourly_admission_task_id: nil) }
+  scope :spoken_interview, -> { where(task_type: SPOKEN_INTERVIEW_TASK_TYPES) }
+  scope :general_ai, -> { where.not(task_type: SPOKEN_INTERVIEW_TASK_TYPES) }
   validate :hourly_admission_matches_interview
 
   enum :task_type, TASK_TYPES.index_with(&:itself), validate: true

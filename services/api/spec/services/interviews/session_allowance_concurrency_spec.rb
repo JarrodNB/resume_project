@@ -49,7 +49,8 @@ RSpec.describe "Prepared interview admission contention" do
     turn = Interviews::SubmitTurnService.call(interview: session, question_id: session.questions.first.id,
       recording_id: ready_interview_recording(session).id, expected_revision: session.revision, submission_key: "contended").value
     ids = [ session.operations.speech.first.id, turn.id ]
-    @user.update!(max_in_flight_ai_tasks: 1, ai_tasks_per_hour_limit: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
+    stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1)
     results = compete do |index|
       Interviews::ClaimOperationService.call(operation: InterviewSessionOperation.find(ids[index]), execution_mode: "real")
     end

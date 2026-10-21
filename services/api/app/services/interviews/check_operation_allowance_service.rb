@@ -1,5 +1,5 @@
 # Reuses one persisted preparation admission for this interview's own bounded stages.
-# Child tasks still participate in monthly spend and concurrency; only hourly admission is shared.
+# Child tasks use the separate interview spend/concurrency allowance; only hourly admission is shared.
 module Interviews
   class CheckOperationAllowanceService < ApplicationService
     def initialize(operation:, create_task: false)
@@ -35,7 +35,7 @@ module Interviews
       elsif preparation || interview.frozen_context.present? || @operation.ai_task&.hourly_admission_task_id
         return failure("Interview admission is invalid")
       end
-      AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task)
+      AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, existing_task: @operation.ai_task, interview: true)
     end
   end
 end

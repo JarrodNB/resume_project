@@ -25,14 +25,16 @@ RSpec.describe "Query scoping" do
     expect(result["errors"].first["message"]).to eq("Record not found")
   end
 
-  it "reports only the signed-in user's AI spend" do
+  it "reports only the signed-in user's general AI spend, including written practice" do
     user.update!(monthly_ai_budget_microdollars: 5_000_000)
     create(:ai_task, user: user, cost_microdollars: 1_250_000)
     create(:ai_task, user: other_user, cost_microdollars: 900_000)
+    create(:ai_task, user: user, task_type: "interview_turn", cost_microdollars: 700_000)
+    create(:ai_task, user: user, task_type: "review_interview_answer", cost_microdollars: 250_000)
 
     result = execute_graphql("{ me { aiUsage { spentThisMonthUsd monthlyBudgetUsd resetsAt } } }", user: user)
 
-    expect(result.dig("data", "me", "aiUsage")).to include("spentThisMonthUsd" => 1.25, "monthlyBudgetUsd" => 5.0)
+    expect(result.dig("data", "me", "aiUsage")).to include("spentThisMonthUsd" => 1.5, "monthlyBudgetUsd" => 5.0)
     expect(Time.zone.parse(result.dig("data", "me", "aiUsage", "resetsAt"))).to eq(Time.now.utc.beginning_of_month.next_month)
   end
 

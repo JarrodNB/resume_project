@@ -16,8 +16,10 @@ Record, choose **Done answering**, listen to the local preview, then **Submit re
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
 Preparation freezes the library at creation. Later library edits do not change this session.
 Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue.
-One full prepared session consumes one hourly admission (the current default is 30).
-Monthly spend, concurrent work and every provider bill are still counted independently;
+One full prepared session consumes one interview hourly admission (default 30/hour).
+Spoken interviews have their own $3/month budget and three concurrent-operation slots.
+They do not consume general AI limits, and general AI usage does not consume interview limits.
+Every preparation/turn/speech bill still counts against the interview budget;
 session admission does not promise enough remaining spend to finish an interview.
 Only one unfinished prepared session is allowed per account: resume or abandon it before
 preparing another. Each question permits six submitted recordings, including failed inputs,

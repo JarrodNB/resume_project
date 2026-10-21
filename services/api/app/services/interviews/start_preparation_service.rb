@@ -40,7 +40,7 @@ module Interviews
             .where.not(frozen_context: {}).exists?
           next failure("Resume or abandon your unfinished interview before preparing another.")
         end
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
+        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)
         next allowance unless allowance.success?
         interview = @user.interview_sessions.create!(status: "preparing", answer_cap: 3, execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), frozen_context: context, expires_at: 7.days.from_now)

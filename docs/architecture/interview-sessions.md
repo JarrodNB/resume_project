@@ -316,14 +316,23 @@ hourly admission. Each later turn or speech keeps a separate AiTask, linked immu
 that preparation task through `hourly_admission_task_id`; no SQS message is published.
 The allowance module verifies the persisted owner, session, preparation identity and
 operation purpose before creating or reusing a child task. Missing or forged prepared-session
-admission fails closed. Existing fixture sessions and unrelated tasks keep their hourly rules.
+admission fails closed. Existing fixture operations use the interview allowance but retain
+their individual hourly admissions. General AI tasks use a separate allowance.
 
-The current hourly default is **30** (with a per-user override), not the historical ten.
-Only hourly admission groups these tasks: monthly spend sums **all** tasks and in-flight
-checks count **all** queued tasks. A claim excludes only its own task from concurrency,
-never the preparation root or another operation. Claims, explicit retries and every
-provider start recheck the existing owner limits. New child creation and admission rejection
-commit together, leaving no execution/provider attempt when allowance is denied.
+Spoken interviews have their own per-user limits: **$3/month**, **30 session starts/hour**, and
+**three concurrent operations**, configured by `INTERVIEW_MONTHLY_BUDGET_USD`,
+`INTERVIEW_SESSIONS_PER_HOUR`, and `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and
+its per-user override columns do not consume or change these limits. Conversely, spoken
+interview preparation/turn/speech costs, hourly starts and in-flight tasks do not consume
+general AI allowances or appear in the general `me { aiUsage }` summary. Written interview
+question practice remains in the general bucket. No bills or unknown markers are removed.
+
+Only hourly admission groups interview stages: interview monthly spend sums every spoken
+stage task, and interview concurrency counts every recently queued spoken task. A claim
+excludes only its own task from concurrency, never the preparation root or another operation.
+Claims, explicit retries and every provider start recheck the interview allowance. New child
+creation and admission rejection commit together, leaving no execution/provider attempt on
+denial. The global retained paid-verification allowance and new-unknown stop remain unchanged.
 The current monthly accounting policy remains task-creation-month attribution, including
 late retry charges. New child tasks use their creation month; sharing an older hourly root
 does not move new task bills into that root's month. This change does not rewrite historical

@@ -3,7 +3,8 @@
 require "rails_helper"
 
 RSpec.describe "Prepared interview allowances" do
-  let(:user) { create(:user, summary: "Maintain laboratory instruments", ai_tasks_per_hour_limit: 1) }
+  let(:user) { create(:user, summary: "Maintain laboratory instruments") }
+  before { stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1) }
 
   def prepare(owner = user, accounted: false)
     session = Interviews::StartPreparationService.call(user: owner).value
@@ -55,11 +56,11 @@ RSpec.describe "Prepared interview allowances" do
     speech = session.operations.speech.first
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
     expect(user.ai_tasks.count).to eq(2)
-    expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).not_to be_success
+    expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).to be_success
   end
 
   it "requires resuming or abandoning an unfinished prepared session before creating another" do
-    user.update!(ai_tasks_per_hour_limit: 30)
+    stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 30)
     first = Interviews::StartPreparationService.call(user: user).value
     result = Interviews::StartPreparationService.call(user: user)
     expect(result.errors.join).to include("Resume or abandon")
@@ -110,23 +111,23 @@ RSpec.describe "Prepared interview allowances" do
     expect(user.ai_tasks.hourly_admissions.count).to eq(1)
     expect(user.ai_tasks.where.not(hourly_admission_task_id: nil).count).to eq(55)
     expect(user.ai_tasks).to all(be_completed)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user).value.spent_microdollars).to eq(110)
+    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, interview: true).value.spent_microdollars).to eq(110)
     expect(InterviewVerificationReservation.sum(:actual_microdollars)).to eq(110)
-    expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("too many AI tasks")
+    expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("too many interview sessions")
   end
 
   it "keeps monthly spend and concurrency checks for child work" do
     session = prepare
     speech = session.operations.speech.first
-    user.update!(max_in_flight_ai_tasks: 1)
-    blocker = create(:ai_task, user: user)
-    expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real").errors.join).to include("AI tasks running")
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
+    blocker = create(:ai_task, user: user, task_type: "interview_turn")
+    expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real").errors.join).to include("interview operations running")
     expect(speech.reload.ai_task).to be_failed
     blocker.update!(status: "completed")
     speech.ai_task.update!(cost_microdollars: 20)
-    user.update!(monthly_ai_budget_microdollars: 20)
-    expect(Interviews::RetryOperationService.call(operation: speech).errors.join).to include("month's AI usage")
-    user.update!(monthly_ai_budget_microdollars: 21)
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
+    expect(Interviews::RetryOperationService.call(operation: speech).errors.join).to include("month's interview usage")
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 21)
     expect(Interviews::RetryOperationService.call(operation: speech)).to be_success
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
   end
@@ -153,7 +154,7 @@ RSpec.describe "Prepared interview allowances" do
       speech = session.operations.speech.first
       expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
       speech.ai_task.update!(cost_microdollars: 20)
-      expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user).value.spent_microdollars).to eq(20)
+      expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, interview: true).value.spent_microdollars).to eq(20)
       expect(speech.ai_task.hourly_admission_task_id).to eq(root.id)
     end
   end
@@ -173,7 +174,7 @@ RSpec.describe "Prepared interview allowances" do
   end
 
   it "fails closed when a prepared session's admission is missing instead of treating it as a fixture" do
-    user.update!(ai_tasks_per_hour_limit: 30)
+    stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 30)
     session = prepare
     session.operations.preparation.first.update!(ai_task: nil)
     speech = session.operations.speech.first
@@ -205,8 +206,8 @@ RSpec.describe "Prepared interview allowances" do
   it "does not exclude the admission root from another operation's in-flight checks" do
     session = prepare
     session.operations.preparation.first.ai_task.update!(status: "queued")
-    user.update!(max_in_flight_ai_tasks: 1)
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
     result = Interviews::ClaimOperationService.call(operation: session.operations.speech.first, execution_mode: "real")
-    expect(result.errors.join).to include("AI tasks running")
+    expect(result.errors.join).to include("interview operations running")
   end
 end

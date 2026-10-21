@@ -1,5 +1,5 @@
-/** A small spoken demo alongside written practice. Saved server state controls progression;
- * recording is explicit, and saved execution mode determines provider use.
+/** A real spoken interview alongside written practice. Saved server state controls progression;
+ * recording is explicit, and older scripted sessions are retired without changing their data.
  */
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router'
@@ -18,27 +18,20 @@ export function InterviewDemoPage() {
   const { id } = useParams()
   const { user } = useAuth()
   return <div className="mx-auto grid max-w-3xl gap-6">
-    <PageHeading title="Basic Interview demo" description="Try one spoken question with fictional context." />
+    <PageHeading title="Spoken interview" description="Practice one question with an AI interviewer for a fictional role." />
     <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; accepted text lasts 7 days.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interview-prep">Open written interview practice</Link>
-    {!interviewDemoEnabled() ? <p>This demo is disabled. Enable it explicitly in development to continue.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <StartDemo />}
+    {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <StartDemo />}
   </div>
 }
 function StartDemo() {
   const { start, loading, error } = useStartInterview()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<'fake' | 'real'>('fake')
-  async function begin() { const id = await start(mode); if (id) void navigate(`/interviews/demo/${id}`) }
+  async function begin() { const id = await start(); if (id) void navigate(`/interviews/demo/${id}`) }
   return <div className="grid gap-3">
     <p className="text-sm">One prepared question, with at most two accepted answers.</p>
-    <label className="grid gap-2 text-sm">Interview mode
-      <select aria-label="Interview mode" value={mode} onChange={(event) => setMode(event.target.value as 'fake' | 'real')} className="rounded-md border bg-background p-2">
-        <option value="fake">Offline scripted demo</option>
-        <option value="real">Real spoken interview (development only)</option>
-      </select>
-    </label>
-    <ModeNotice mode={mode} />
-    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Starting…' : 'Start demo'}</Button>
+    <ProviderNotice />
+    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Starting…' : 'Start interview'}</Button>
     {error && <p role="alert" className="text-destructive">{error}</p>}
   </div>
 }
@@ -57,6 +50,10 @@ function OwnedInterview({ id }: { id: string }) {
       {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
     </div>
   </>
+  if (interview.executionMode !== 'real') return <div className="grid gap-3">
+    <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
+    <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Start a new interview</Link>
+  </div>
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -73,7 +70,7 @@ function OwnedInterview({ id }: { id: string }) {
   const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   return <>
     {recordingWarning}
-    <ModeNotice mode={interview.executionMode} />
+    <ProviderNotice />
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
       <p>{interview.status === 'completed' ? 'Interview complete. Your accepted dialogue is saved.' : `${question?.acceptedAnswerCount ?? 0} of ${interview.answerCap} answers accepted.`}</p>
       {turnActive && <p>Answer processing: {currentTurn.checkpoint?.replaceAll('_', ' ') || currentTurn.status}. You can reload safely.</p>}
@@ -83,7 +80,7 @@ function OwnedInterview({ id }: { id: string }) {
     <SectionCard title="Accepted dialogue" tone="facts" sectionId={`interview:${id}:dialogue`}>
       <ol className="divide-y">
         {interview.messages.map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
-          <p className="text-sm font-medium">{message.kind === 'answer' ? interview.executionMode === 'real' ? 'Your transcript' : 'Scripted demo answer' : 'Interviewer'}</p>
+          <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
           {message.kind !== 'answer' && operations.some((operation) => operation.messageId === message.id && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} />}
         </li>)}
@@ -112,8 +109,6 @@ function OwnedInterview({ id }: { id: string }) {
   </>
 }
 
-function ModeNotice({ mode }: { mode: string }) {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{mode === 'real'
-    ? 'Real interview: submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.'
-    : 'Offline demo: scripted transcripts and prerecorded synthetic AI speech. It does not transcribe or assess your recording. Your recording is uploaded privately. No provider requests are made.'}</p>
+function ProviderNotice() {
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Submitted audio goes to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. The voice is AI-generated. Provider requests incur charges; no coaching is provided.</p>
 }

@@ -1,0 +1,25 @@
+# Real browser QA on the original paid database. Combine with the demo base and paid
+# overlay, always using project cg-interview-12-paid so its ledger is never renewed.
+services:
+  api:
+    ports:
+      - "127.0.0.2:13006:3000"
+    environment:
+      CORS_ORIGINS: http://127.0.0.2:15176
+      WEB_APP_URL: http://127.0.0.2:15176
+      INTERVIEW_BROWSER_STORAGE_ORIGIN: http://127.0.0.2:19096
+  s3:
+    ports:
+      - "127.0.0.2:19096:9090"
+  web:
+    image: cg-interview-qa-web
+    ports:
+      - "127.0.0.2:15176:5173"
+    volumes:
+      - ../services/api/schema.graphql:/services/api/schema.graphql:ro
+  storage-setup:
+    image: cg-interview-qa-api
+  interview-runtime:
+    # Ordinary recovery supports explicit speech retries. Every paid request still
+    # needs Rails admission, bounded attempts, and the retained cumulative allowance.
+    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000

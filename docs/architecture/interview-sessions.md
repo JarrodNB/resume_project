@@ -3,8 +3,8 @@
 Interview sessions own spoken interview dialogue and progress, separate from written
 InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
 The initial fixture uses fictional context, one prepared question, and at most two accepted
-answers. A two-question service fixture verifies advancement. Paid providers and production
-deployment are deferred.
+answers. A two-question service fixture verifies advancement. Real providers are available
+for explicitly enabled local browser QA; production deployment is deferred.
 
 ## Ownership and transport decision
 
@@ -35,9 +35,10 @@ and corresponding constraint changes need a separate change.
 Rails saves immutable `execution_mode` and `execution_config` on each session.
 Existing rows and default fixture creation use `fake`, with versioned fake model
 names and the eSpeak fixture voice. Internal fixture creation may save the approved
-`real` preset (gpt-transcribe, gpt-6-luna, gpt-4o-mini-tts and marin); this ticket
-implements no real executor. The public creation mutation still accepts no mode and
-creates only fake sessions. Model names and voice never come from browser input.
+`real` preset (gpt-transcribe, gpt-6-luna, gpt-4o-mini-tts and marin). Public creation
+defaults to real and rejects fake/unknown modes. Scripted sessions are retired in the UI;
+their stored modes and data remain unchanged. Offline test fixtures still use fake providers.
+Model names and voice never come from browser input.
 Database constraints reject unapproved mode/configuration combinations. Rails readonly
 attributes reject configuration edits after creation; direct database maintenance must
 preserve that invariant. Future presets must retain old saved presets as valid.
@@ -53,8 +54,8 @@ not separate authorization credentials: internal callbacks still require the ser
 
 Rollback disables admission of new real sessions and retains saved real work for a
 compatible real runtime to resume or cleanup to retire. Never convert real sessions to
-fake or deploy an older fake-only runtime against them. Public real admission remains
-disabled until the full provider pipeline is delivered.
+fake or deploy an older fake-only runtime against them. Real browser QA uses the original
+paid verification database and its cumulative ledger, not a new per-QA allowance.
 
 ## Durable domain interface
 
@@ -291,9 +292,9 @@ leases for another process. Cleanup runs in bounded Rails batches every minute.
 `GET /health` reports liveness; `/ready` requires enabled configuration and recent
 successful Rails discovery. Neither health route consumes work.
 
-The Compose `interview-demo` profile explicitly enables fake execution. Set the same
-`INTERVIEW_SERVICE_SECRET` in the Compose environment for Rails and the runtime.
-The runtime deliberately does not load the worker `.env`, use worker startup,
+The fake runtime is retained only in the isolated offline recovery harness; its former
+root Compose `interview-demo` profile has been removed. The offline runtime deliberately
+does not load the worker `.env`, use worker startup,
 resolve provider model names, or configure tracing. Real Pydantic model requests and
 remote OpenTelemetry/Logfire export are disabled in this process. Existing SQS workers
 keep their settings and transport. Production runtime/provider deployment is deferred.
@@ -317,25 +318,22 @@ unknown text has no fallback synthesis. Their text mapping lives in
 Run the dependency image and focused offline checks from this checkout:
 
 ```bash
-docker compose build interview-runtime
-docker compose run --rm --no-deps interview-runtime pytest -m 'not db' tests/test_interview_runtime.py tests/test_interview_client.py tests/test_interview_executor.py tests/test_interview_media.py
+docker compose build ai
+docker compose run --rm --no-deps ai pytest -m 'not db' tests/test_interview_runtime.py tests/test_interview_client.py tests/test_interview_executor.py tests/test_interview_media.py
 ```
 
-For a local backend smoke check, start Rails/database/storage and the runtime with
-`docker compose --profile interview-demo up -d api s3 interview-runtime`, then run
-`docker compose run --rm api bundle exec rails runner script/interview_runtime_smoke.rb`.
-The script creates a fictional disposable account, submits two generated WAV inputs,
-waits for accepted dialogue and attached speech, checks accounting and removes the
-account. It requires development mode and the service secret. It does not perform
-browser QA or prove provider quality. Use a unique Compose project and port overrides
-when another stack is running; `docker compose -p <project> down` stops that stack.
+For offline real-process recovery checks, use `script/interview_recovery_check.sh` and
+the isolated [recovery guide](../interview-demo.md). For real browser QA, use the
+[real QA guide](../interview-real-qa.md). Do not enable paid execution in an offline
+test database or create another ledger to renew the verification allowance.
 
 ## Public development demo contract
 
 `INTERVIEW_DEMO_ENABLED=true` enables the surface only when Rails runs in development.
 The default is disabled. `interviewDemoEnabled` lets the authenticated UI discover this gate;
 every query, mutation, and subscription checks it independently. `startInterviewDemo` creates
-fictional context; `interviewSession(id)` and `interviewSessionUpdated(id)` read through the
+fictional context in real mode (legacy explicit fake requests are rejected);
+`interviewSession(id)` and `interviewSessionUpdated(id)` read through the
 current user's sessions. Initial subscription delivery and reconnect return a fresh snapshot.
 Expired sessions reject reads immediately, even if scheduled cleanup has not run.
 
@@ -375,15 +373,15 @@ PUT uses exactly the signed headers and never sends account cookies. The isolate
 real S3Mock PUT/GET/HEAD preflight responses. Actual browser upload, microphone and playback
 behavior still need human QA; frontend automated checks use browser resource fakes.
 
-The [isolated demo and recovery guide](../interview-demo.md) provides a standalone fake-only
-stack and real-process restart checks without loading provider credentials. Its optional QA
-overlay uses a separate loopback host, aligned CORS/storage origins, and persistent volumes;
-keep manual microphone/playback checks separate from automated recovery assertions.
+The [isolated recovery guide](../interview-demo.md) provides deterministic restart checks
+without provider credentials. The [real QA guide](../interview-real-qa.md) uses the same
+loopback browser URL against the original paid database. The old fake QA containers are
+stopped with data retained; no UI control creates or continues scripted interviews.
 
 ### Real audio adapters and verification spending
 
-The real audio HTTP adapters exist separately from the fake executor; they are not wired
-into a real runtime yet. They do no interviewer reasoning. `AudioProviders.transcribe`
+The real audio HTTP adapters are wired into the real executor. They do no interviewer
+reasoning. `AudioProviders.transcribe`
 validates the actual container/duration before one multipart gpt-transcribe request.
 `AudioProviders.speak` sends its supplied saved text unchanged with gpt-4o-mini-tts and
 marin, collects bounded WAV audio, and validates it before returning playable bytes.
@@ -405,4 +403,4 @@ rate units, conservative reservations, unknown-cost recovery, and the paid-check
 
 New real sessions additionally require Rails `INTERVIEW_REAL_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the dedicated real process. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
 
-Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See `docs/interview-demo.md` for synthetic HTTP integration commands and explicit paid startup cautions.
+Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See [real browser QA](../interview-real-qa.md) for startup and [offline recovery](../interview-demo.md) for deterministic integration commands.

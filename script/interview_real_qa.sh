@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Start or stop real browser QA against the one retained paid ledger. Credentials
+# stay in the original ignored environment file; this script never copies them.
+set -euo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+: "${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI environment file path}"
+[[ "$INTERVIEW_VERIFICATION_AI_ENV" == /* && -f "$INTERVIEW_VERIFICATION_AI_ENV" ]] || { echo "An existing absolute AI environment file is required" >&2; exit 1; }
+compose=(docker compose -p cg-interview-12-paid -f "$root/docs/interview-demo.compose.yml" -f "$root/docs/interview-paid-check.compose.yml" -f "$root/docs/interview-real-qa.compose.yml" --profile qa)
+case "${1:-}" in
+  start)
+    : "${INTERVIEW_REAL_QA_APPROVED:?Set yes only when intentionally starting paid browser QA}"
+    [[ "$INTERVIEW_REAL_QA_APPROVED" == yes ]] || exit 1
+    "${compose[@]}" stop interview-runtime
+    "${compose[@]}" up -d --no-build --wait db s3 api web
+    "${compose[@]}" exec -T api bundle exec rails runner '
+      raise "Retained paid ledger missing; do not create a replacement allowance" unless InterviewVerificationReservation.exists?
+      raise "Unreviewed unknown provider usage: paid execution remains stopped" if Interviews::VerificationBudget.unreviewed_reservations.exists?
+      used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
+      raise "Verification allowance exhausted" if used >= Interviews::VerificationBudget::LIMIT_MICRODOLLARS
+      puts "Verification allowance: #{used} microdollars used or reserved"
+      puts "Recoverable real operations: #{InterviewSessionOperation.joins(:interview_session).where(interview_sessions: { execution_mode: "real" }, status: %w[pending running]).count}"
+    '
+    "${compose[@]}" run --rm --no-deps storage-setup
+    "${compose[@]}" up -d --no-build --wait interview-runtime
+    echo "Real spoken interview: http://127.0.0.2:15176/interviews/demo"
+    ;;
+  stop) "${compose[@]}" stop ;;
+  status) "${compose[@]}" ps ;;
+  *) echo "Usage: $0 start|stop|status" >&2; exit 2 ;;
+esac

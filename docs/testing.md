@@ -69,6 +69,6 @@ Rebuild the image if its dependencies differ from the checkout's lockfile.
 
 ## Offline spoken interview recovery
 
-See [the isolated interview demo guide](interview-demo.md) for the real-process recovery
-harness, persistent fake-only Compose stack, and human microphone/playback checks. Its QA
-stack uses `127.0.0.2` so cookies stay separate from a main stack on `localhost`.
+See [the isolated recovery guide](interview-demo.md) for deterministic process recovery
+without paid providers. [Real browser QA](interview-real-qa.md) uses the original paid
+ledger and `127.0.0.2`, keeping cookies separate from a main stack on `localhost`.

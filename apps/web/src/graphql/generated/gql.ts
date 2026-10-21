@@ -54,7 +54,7 @@ type Documents = {
     "\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType executionMode revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n": typeof types.InterviewSnapshotFragmentDoc,
     "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionDocument,
     "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": typeof types.InterviewSessionUpdatedDocument,
-    "\n  mutation StartInterviewDemo($executionMode: String = \"fake\") { startInterviewDemo(input: { executionMode: $executionMode }) { interview { ...InterviewSnapshot } errors } }\n": typeof types.StartInterviewDemoDocument,
+    "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n": typeof types.StartInterviewDemoDocument,
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": typeof types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SubmitInterviewTurnDocument,
@@ -121,7 +121,7 @@ const documents: Documents = {
     "\n  fragment InterviewSnapshot on InterviewSession {\n    id status interviewType executionMode revision answerCap currentQuestionPosition expiresAt\n    questions { id content position acceptedAnswerCount }\n    messages { id questionId kind position content }\n    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }\n  }\n": types.InterviewSnapshotFragmentDoc,
     "\n  query InterviewSession($id: ID!) { interviewSession(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionDocument,
     "\n  subscription InterviewSessionUpdated($id: ID!) { interviewSessionUpdated(id: $id) { ...InterviewSnapshot } }\n": types.InterviewSessionUpdatedDocument,
-    "\n  mutation StartInterviewDemo($executionMode: String = \"fake\") { startInterviewDemo(input: { executionMode: $executionMode }) { interview { ...InterviewSnapshot } errors } }\n": types.StartInterviewDemoDocument,
+    "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n": types.StartInterviewDemoDocument,
     "\n  mutation AuthorizeInterviewRecording($input: AuthorizeInterviewRecordingInput!) {\n    authorizeInterviewRecording(input: $input) { upload { mediaId uploadUrl headers expiresIn } errors }\n  }\n": types.AuthorizeInterviewRecordingDocument,
     "\n  mutation RegisterInterviewRecording($input: RegisterInterviewRecordingInput!) {\n    registerInterviewRecording(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.RegisterInterviewRecordingDocument,
     "\n  mutation SubmitInterviewTurn($input: SubmitInterviewTurnInput!) {\n    submitInterviewTurn(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SubmitInterviewTurnDocument,
@@ -325,7 +325,7 @@ export function graphql(source: "\n  subscription InterviewSessionUpdated($id: I
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation StartInterviewDemo($executionMode: String = \"fake\") { startInterviewDemo(input: { executionMode: $executionMode }) { interview { ...InterviewSnapshot } errors } }\n"): (typeof documents)["\n  mutation StartInterviewDemo($executionMode: String = \"fake\") { startInterviewDemo(input: { executionMode: $executionMode }) { interview { ...InterviewSnapshot } errors } }\n"];
+export function graphql(source: "\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n"): (typeof documents)["\n  mutation StartInterviewDemo { startInterviewDemo(input: {}) { interview { ...InterviewSnapshot } errors } }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

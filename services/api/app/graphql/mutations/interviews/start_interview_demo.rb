@@ -2,7 +2,7 @@
 module Mutations
   module Interviews
     class StartInterviewDemo < BaseDemoMutation
-      argument :execution_mode, String, required: false, default_value: "fake"
+      argument :execution_mode, String, required: false, default_value: "real"
 
       field :interview, Types::InterviewSessionType, null: true
 

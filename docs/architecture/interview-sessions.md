@@ -559,3 +559,12 @@ acceptance replay/lost receipts, speech-only recovery, abandonment fencing and p
 playback. See [offline checks](../interview-demo.md) for the exact command and scope.
 Legacy `script/interview_recovery_check.sh` remains coverage for retained fixture sessions.
 Neither deterministic harness establishes live quality or browser microphone behavior.
+
+## Private latency evidence
+
+The existing Logfire operation/model traces are supplemented by content-free,
+monotonic stage events for discovery/claim requests, recording download,
+transcription, screening, reasoning, speech storage and durable acceptance.
+They do not expand public snapshots or replace Rails timestamps/accounting.
+See [latency measurements](../interview-latency.md) for exact stage coverage,
+clock-domain limits and the isolated offline scheduler probe.

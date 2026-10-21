@@ -9,6 +9,8 @@ import logging
 import time
 from typing import Any
 
+from interviews.timing import stage_timing
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +54,8 @@ class RecoveryRuntime:
         next_cleanup = 0.0
         while not self._stopping:
             try:
-                ids = (await self.client.discover())[:10]
+                with stage_timing(None, "discovery"):
+                    ids = (await self.client.discover())[:10]
                 self._last_contact = time.monotonic()
                 for identity in ids:
                     if self._stopping or len(self.active) >= 2:
@@ -72,7 +75,8 @@ class RecoveryRuntime:
 
     async def _run(self, identity: str) -> None:
         try:
-            claim = await self.client.claim(identity)
+            with stage_timing(None, "claim"):
+                claim = await self.client.claim(identity)
             execution = asyncio.create_task(self.executor.execute(claim))
             heartbeat = asyncio.create_task(self._heartbeat(claim))
             try:

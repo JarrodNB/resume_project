@@ -116,3 +116,41 @@ def test_disabled_runtime_needs_no_service_credential(monkeypatch):
     monkeypatch.delenv("INTERVIEW_FAKE_RUNTIME_ENABLED", raising=False)
     monkeypatch.delenv("INTERVIEW_SERVICE_SECRET", raising=False)
     assert not RuntimeSettings.from_environment().enabled
+
+
+def test_runtime_reports_discovery_and_claim_wait_without_returned_claim_data(monkeypatch):
+    from interviews.runtime import RecoveryRuntime
+
+    events = []
+    monkeypatch.setattr("logfire.info", lambda message, **fields: events.append((message, fields)))
+
+    async def scenario():
+        finished = asyncio.Event()
+
+        class Client:
+            async def discover(self):
+                return ["private-operation"]
+
+            async def claim(self, identity):
+                return SimpleNamespace(operation_id=identity, payload="private-transcript")
+
+            async def heartbeat(self, claim):
+                return {}
+
+            async def cleanup(self):
+                return {}
+
+        class Executor:
+            async def execute(self, claim):
+                finished.set()
+
+        runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=0.01)
+        await runtime.start()
+        await asyncio.wait_for(finished.wait(), timeout=1)
+        await runtime.stop()
+
+    asyncio.run(scenario())
+    stages = {fields["stage"] for message, fields in events if message == "interview.stage"}
+    assert {"discovery", "claim"} <= stages
+    assert "private-transcript" not in str(events)
+    assert "private-operation" not in str(events)

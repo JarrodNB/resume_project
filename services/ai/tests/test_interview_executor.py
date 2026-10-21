@@ -368,3 +368,21 @@ def test_spoken_context_instructions_preserve_claim_and_fictional_provenance():
     assert "candidate claims, not verified library facts" in SPOKEN_INTERVIEW_INSTRUCTIONS
     assert "fictional requirements into personal evidence" in SPOKEN_INTERVIEW_INSTRUCTIONS
     assert "do not guess their answers" in SPOKEN_INTERVIEW_INSTRUCTIONS
+
+
+def test_turn_reports_private_stage_durations_without_input_or_media_capabilities(monkeypatch):
+    events = []
+    monkeypatch.setattr("logfire.info", lambda message, **fields: events.append((message, fields)))
+    client = Client()
+    execute(client, claim())
+    stages = [fields["stage"] for message, fields in events if message == "interview.stage"]
+    assert {"recording_download", "transcription", "screening", "interviewer", "acceptance"} <= set(stages)
+    for message, fields in events:
+        if message != "interview.stage":
+            continue
+        assert set(fields) == {"stage", "operation_id", "attempt_id", "claim_generation", "elapsed_ms", "outcome"}
+        assert fields["elapsed_ms"] >= 0
+        assert fields["operation_id"] == "op"
+        assert fields["attempt_id"] == "attempt"
+        assert fields["claim_generation"] == 1
+        assert fields["outcome"] == "completed"

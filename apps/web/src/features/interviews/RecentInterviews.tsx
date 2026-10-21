@@ -1,0 +1,28 @@
+/** Lists owned saved sessions on the existing spoken interview start route. */
+import { Link } from 'react-router'
+import { SectionCard } from '@/components/SectionCard'
+import { Button } from '@/components/ui/button'
+import { useRecentInterviews } from './useRecentInterviews'
+
+export function RecentInterviews() {
+  const { interviews, loading, error, refresh } = useRecentInterviews()
+  return <SectionCard title="Recent interviews" tone="facts" sectionId="spoken:recent-interviews">
+    <p className="max-w-prose text-sm text-muted-foreground">Your latest 20 saved interviews appear here until their text expires. Open an unfinished interview to continue, or review a completed one.</p>
+    {loading && <p role="status">Loading saved interviews…</p>}
+    {error && <div className="grid gap-3"><p role="alert">Could not load saved interviews. Try again when connected.</p><Button className="justify-self-start" variant="outline" onClick={() => void refresh()}>Try again</Button></div>}
+    {!loading && !error && !interviews.length && <p className="text-sm">No recent interviews. Prepare one above to get started.</p>}
+    <ol className="divide-y">
+      {interviews.map((interview) => {
+        const date = new Date(interview.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+        return <li key={interview.id} className="flex flex-wrap items-center justify-between gap-3 py-4 last:pb-0">
+          <div className="grid gap-1 text-sm">
+            <p className="font-medium">{interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</p>
+            <time className="text-muted-foreground" dateTime={interview.createdAt}>{date}</time>
+            {interview.questions.length > 0 && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} questions completed` : `Question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
+          </div>
+          <Link className="text-sm underline underline-offset-4" to={`/interviews/demo/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>
+        </li>
+      })}
+    </ol>
+  </SectionCard>
+}

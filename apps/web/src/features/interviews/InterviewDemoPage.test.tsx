@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
   recorder: { status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -15,6 +15,7 @@ vi.mock('./useInterviewRecorder', async () => {
   return { useInterviewRecorder: () => { const [, setTick] = useState(0); recorder.refresh = () => setTick((value) => value + 1); return recorder } }
 })
 vi.mock('./InterviewAudio', () => ({ InterviewAudio: () => <p>Saved audio</p> }))
+vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
@@ -25,6 +26,30 @@ const snapshot = {
 function renderDemo(url = '/interviews/demo/session') { return renderPage({ path: '/interviews/demo/:id?', url, element: <InterviewDemoPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
 beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); state.answer.mockResolvedValue(true) })
 describe('InterviewDemoPage', () => {
+  it('requires explicit confirmation and preserves the recording when cancellation or abandonment fails', async () => {
+    recorder.recording = new Blob(['answer'], { type: 'audio/webm' }); recorder.status = 'ready'
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Your unsubmitted recording will be discarded')
+    await userEvent.click(screen.getByRole('button', { name: 'Keep interview' }))
+    expect(state.abandonInterview).not.toHaveBeenCalled()
+    expect(recorder.reset).not.toHaveBeenCalled()
+    state.abandonInterview.mockResolvedValue(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
+    expect(state.abandonInterview).toHaveBeenCalledOnce()
+    expect(recorder.reset).not.toHaveBeenCalled()
+    state.abandonInterview.mockResolvedValue(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
+    await waitFor(() => expect(recorder.reset).toHaveBeenCalledOnce())
+  })
+  it.each(['preparing', 'ready'])('allows deliberate abandonment while %s without recording', async (status) => {
+    state.interview = { ...snapshot, status }
+    renderDemo()
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    expect(screen.getByRole('button', { name: 'Confirm abandonment' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
+  })
   it('labels saved real sessions with submitted audio and generated voice disclosure', () => {
     state.interview = { ...snapshot, executionMode: 'real' }
     renderDemo()

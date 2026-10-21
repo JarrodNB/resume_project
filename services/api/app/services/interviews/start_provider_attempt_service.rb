@@ -16,6 +16,7 @@ module Interviews
       return failure("Invalid provider start") unless valid_input?
 
       with_operation_lock do |interview|
+        next failure("Interview abandoned") if interview.abandoned?
         execution = @operation.execution_attempts.find_by(attempt_id: @attempt_id, claim_generation: @generation)
         next failure("Unknown execution") unless execution
         existing = execution.provider_attempts.find_by(observation_id: @observation_id)

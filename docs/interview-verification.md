@@ -1,5 +1,26 @@
 # Spoken interview verification — 21 October 2026
 
+## Owned resume and abandonment — offline engineering evidence
+
+The existing spoken route now lists the owner's latest 20 unexpired real preparing, ready,
+active and completed sessions. Unfinished sessions require confirmation to abandon.
+Abandonment fences execution and media immediately, schedules durable object cleanup and
+preserves known/unknown accounting and late usage. Existing short URLs expire or disappear
+with physical deletion; abandonment does not revoke a capability already returned to a client.
+
+Focused checks: 146 Rails examples, zero failures, two existing opt-in S3 integration checks
+pending; 82 offline Python executor/client tests passed; all 49 spoken frontend tests passed.
+Frontend types/lint, schema/client generation, Zeitwerk autoload and diff checks passed.
+The design detector returned no findings. New tests cover owner/list bounds, idempotent
+abandonment, independent-connection acceptance/provider races, stale preparation/audio
+callbacks, signing across abandonment, delayed sealing/reaping and retained late charges.
+Component/hook tests cover resume links, confirmation/cancellation, and preserving recordings
+and pending submission identity until saved abandonment succeeds.
+
+No paid calls, browser automation or live QA changes occurred. Human microphone/navigation,
+responsive layout and production storage-capability behavior remain manual checks. Session
+allowances and full cross-ticket verification follow separately.
+
 ## Library-informed preparation — offline engineering evidence
 
 New public creation now freezes the owner's usable career-library sources and optional

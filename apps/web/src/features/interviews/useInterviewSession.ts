@@ -7,7 +7,7 @@ import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo
 import SparkMD5 from 'spark-md5'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
 
 class RejectedSubmission extends Error {}
@@ -44,6 +44,7 @@ export function useInterviewSession(id: string, ownerId: string) {
   const [submit] = useMutation(SUBMIT_TURN)
   const [retry] = useMutation(RETRY_OPERATION)
   const [begin] = useMutation(BEGIN_INTERVIEW)
+  const [abandon] = useMutation(ABANDON_INTERVIEW)
   const beginning = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -131,5 +132,14 @@ export function useInterviewSession(id: string, ownerId: string) {
   async function retryOperation(operationId: string) {
     await run(async () => update(requirePayload((await retry({ variables: { input: { interviewId: id, operationId } } })).data?.retryInterviewOperation).interview))
   }
-  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, checkSavedStatus, retryOperation, beginInterview }
+  /** Clear ambiguous submission recovery only after the owner confirms a saved abandonment. */
+  async function abandonInterview() {
+    return run(async () => {
+      const snapshot = requirePayload((await abandon({ variables: { interviewId: id } })).data?.abandonInterview).interview
+      if (!snapshot || snapshot.status !== 'abandoned') throw new Error('Could not confirm abandonment. Check saved status before trying again.')
+      update(snapshot)
+      forgetPending()
+    })
+  }
+  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, checkSavedStatus, retryOperation, beginInterview, abandonInterview }
 }

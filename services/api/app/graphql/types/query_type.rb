@@ -12,6 +12,7 @@
 module Types
   class QueryType < Types::BaseObject
     field :interview_demo_enabled, Boolean, null: false
+    field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
     end
@@ -22,6 +23,13 @@ module Types
 
     def interview_session(id:)
       Interviews::DemoAccess.find!(context[:current_user], id)
+    end
+
+    def recent_interview_sessions
+      Interviews::DemoAccess.check!(context[:current_user])
+      context[:current_user].interview_sessions.where(execution_mode: "real",
+        status: %w[preparing ready active completed]).where("expires_at > ?", Time.current)
+        .order(created_at: :desc, id: :desc).limit(20)
     end
 
     field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false

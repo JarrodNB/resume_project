@@ -14,6 +14,7 @@ module Interviews
       return failure("Interview execution mode unavailable") unless ExecutionConfiguration::PRESETS.key?(@execution_mode)
 
       with_operation_lock do |interview|
+        next failure("Interview abandoned") if interview.abandoned?
         next failure("Interview execution mode mismatch") unless interview.execution_mode == @execution_mode
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?

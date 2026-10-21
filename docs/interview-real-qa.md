@@ -7,8 +7,8 @@ accepted answers, and the interviewer may advance earlier.
 Record, choose **Done answering**, listen to the local preview, then **Submit recording**.
 The submitted recording influences the transcript and follow-up. The voice is AI-generated.
 Preparation freezes the library at creation. Later library edits do not change this session.
-Coaching remains outside this flow; earlier-question dialogue and session allowances are
-separate pending slices, so a maximal paid session may still hit existing hourly task limits.
+Coaching remains outside this flow. Later questions receive bounded earlier accepted dialogue;
+session allowances remain a pending slice, so a maximal paid session may still hit existing hourly task limits.
 
 The public launcher rejects scripted sessions and has no mode selector. Older scripted
 sessions are retired without changing their stored mode or deleting their records.
@@ -72,15 +72,25 @@ uses the saved message; it never repeats an accepted answer's transcription or r
 
 ## Human browser checks
 
-1. Sign in, choose **Start interview**, and play the opening.
+1. Sign in, choose **Prepare interview**, review the fictional role, then **Begin interview** and play the opening.
 2. Record a short answer. Confirm **Done answering** offers preview/discard/re-record and
    uploads nothing until **Submit recording**.
 3. Confirm the transcript follows your answer and the follow-up is relevant. Reload during
    processing; the same saved operation should return without submitting again.
-4. Answer the follow-up. The interview must close by the second accepted answer and allow
-   saved audio playback without accepting a third answer.
+4. Answer follow-ups. Each question advances by its third accepted answer, or earlier if the
+   interviewer chooses. The ninth question leads to exactly one final closing.
 5. Test permission denial, playback failure, reconnect and unsaved navigation warnings.
    Keep consented recordings short. Raw recordings and speech retain the existing expiry rules.
+6. Open **Recent interviews** on the spoken start route. Resume preparing, ready and active
+   sessions; review completed sessions. Only your latest 20 unexpired real sessions appear.
+7. On an unfinished session, choose **Abandon interview**. Cancel first and confirm the
+   recording remains. Confirm abandonment and check that recording/continuation and fresh
+   playback grants stop, with the session removed from the recent list. Local audio and
+   pending submission recovery clear only after saved confirmation. The normal unsaved
+   recording warning still applies when navigating away without submitting.
+   Private objects are deleted by durable cleanup; already-issued short URLs may work until
+   expiry or deletion. Billing and unknown usage remain recorded. Completed sessions have no
+   abandon action.
 
 Local S3Mock verifies application ownership and byte handling but does not enforce production
 signed-URL expiry. This local development stack is not a production deployment.

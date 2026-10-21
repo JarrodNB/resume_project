@@ -43,6 +43,52 @@ RSpec.describe "Basic Interview concurrency" do
       question_id: @question.id, recording_id: @recording_id, expected_revision: 0, submission_key: key)
   end
 
+  it "serializes abandonment against turn acceptance on independent connections" do
+    @recording_id = ready_interview_recording(@interview).id
+    turn = submit("abandon-race").value
+    claim = Interviews::ClaimOperationService.call(operation: turn).value
+    results = race do |index|
+      if index.zero?
+        Interviews::AbandonService.call(interview: @user.interview_sessions.find(@interview.id))
+      else
+        Interviews::AcceptTurnService.call(operation: InterviewSessionOperation.find(turn.id),
+          **claim.slice(:attempt_id, :claim_generation), transcript: "I calibrated it", decision: "continue",
+          reply: "What changed?", history_version: 1, model_history: [])
+      end
+    end
+    expect(results.first).to be_success
+    expect(@interview.reload).to be_abandoned
+    expect(@interview.messages.where(kind: "answer").count).to eq(results.last.success? ? 1 : 0)
+    count = @interview.messages.count
+    replay = Interviews::AcceptTurnService.call(operation: turn.reload,
+      **claim.slice(:attempt_id, :claim_generation), transcript: "I calibrated it", decision: "continue",
+      reply: "What changed?", history_version: 1, model_history: [])
+    expect(replay.success?).to eq(results.last.success?)
+    expect(@interview.messages.count).to eq(count)
+    expect(Interviews::DiscoverOperationsService.call.value).to be_empty
+  end
+
+  it "serializes abandon against provider starts and retains any admitted unknown charge" do
+    operation = @interview.operations.first
+    claim = Interviews::ClaimOperationService.call(operation: operation).value
+    observation_id = SecureRandom.uuid
+    results = race do |index|
+      if index.zero?
+        Interviews::AbandonService.call(interview: @user.interview_sessions.find(@interview.id))
+      else
+        Interviews::StartProviderAttemptService.call(operation: InterviewSessionOperation.find(operation.id),
+          **claim.slice(:attempt_id, :claim_generation), observation_id: observation_id,
+          stage: "speech", provider: "fake", model: "fake")
+      end
+    end
+    expect(results.first).to be_success
+    expect(@interview.reload).to be_abandoned
+    expect(operation.ai_task.ai_usage_attempts.where(attempt_id: observation_id).count).to eq(results.last.success? ? 1 : 0)
+    expect(Interviews::StartProviderAttemptService.call(operation: operation,
+      **claim.slice(:attempt_id, :claim_generation), observation_id: observation_id,
+      stage: "speech", provider: "fake", model: "fake")).not_to be_success
+  end
+
   it "begins reviewed preparation once across independent connections and replay" do
     @interview.destroy!
     @user.update!(summary: "Laboratory experience")

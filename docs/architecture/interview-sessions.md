@@ -7,6 +7,20 @@ library, then begin explicitly after review. Each question allows at most three 
 answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
 for explicitly enabled local browser QA; production deployment is deferred.
 
+The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
+ready, active or completed states. Preparing/ready sessions reopen their saved preparation
+or role review; active sessions restore accepted dialogue and progress; completed sessions
+reopen for review. Scripted fixtures and abandoned/expired sessions do not appear in this list.
+
+An explicit confirmed abandonment ends a preparing, ready or active session. Under the
+owner/session locks it increments the revision once, expires unfinished operations, releases
+their task slots and invalidates all media. Repeating abandonment returns the same saved
+terminal snapshot. It never deletes logical tasks, execution/provider identities, known charges
+or unknown usage. New claims, provider starts (including repeat start receipts), heartbeats,
+retry, media grants, registration and completion cannot continue abandoned work. Late usage
+reports and harmless saved acceptance receipts remain readable. Existing accepted dialogue
+remains until normal content expiry; abandonment does not create a restart or skip action.
+
 ## Ownership and transport decision
 
 Rails owns all records and progression. The approved transport exception is a separate
@@ -200,6 +214,10 @@ Source recordings become expired when their turn is accepted or permanently fail
 they expire after one hour. Unaccepted speech reservations expire after one hour. Accepted
 speech lasts through the active interview and at most one hour after completion, bounded by
 session expiry. Read and callback services enforce these deadlines before physical cleanup.
+Abandonment immediately marks audio for deletion and denies fresh application access,
+including accepted playback. URL signing runs outside locks and rechecks authority before
+returning a grant. A URL already returned before abandonment can remain usable until object
+deletion or its short expiry; durable cleanup and late-write reaping remove the objects.
 
 `Interviews::CleanupService.call(limit: 10)` processes bounded batches (limit 1–100). It is
 also callable through authenticated `POST /internal/interviews/cleanup`; the runtime schedules it once per minute. Deletion marks durable pending state before storage I/O and retries
@@ -217,8 +235,8 @@ and late-write reaping after domain deletion. No object I/O runs in the destroy 
 
 This incurs continuing S3 delete requests; provider lifecycle rules or stronger write fencing are deferred options.
 
-After seven days cleanup expires the session, fails pending/running linked tasks, scrubs
-fixture context, dialogue, private history, accepted payloads and task input/results, and marks
+After seven days cleanup expires the session (preserving an abandoned terminal status), fails pending/running linked tasks, scrubs
+fixture/frozen context, prepared role, dialogue, private history, accepted payloads and task input/results, and marks
 content purged once. Minimal operation identities, fingerprints and billing/usage records
 remain for duplicate callbacks and late accounting. Cleanup does not delete AiTask or usage
 rows. These minimal records are not a retained dialogue archive.

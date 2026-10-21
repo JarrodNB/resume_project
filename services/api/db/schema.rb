@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_080000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -343,7 +343,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_080000) do
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
     t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
-    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying::text, 'ready'::character varying::text, 'active'::character varying::text, 'completed'::character varying::text, 'expired'::character varying::text])", name: "interview_session_status"
+    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying, 'ready'::character varying, 'active'::character varying, 'completed'::character varying, 'expired'::character varying, 'abandoned'::character varying]::text[])", name: "interview_session_status"
   end
 
   create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

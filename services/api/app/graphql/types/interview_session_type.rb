@@ -10,6 +10,7 @@ module Types
     field :answer_cap, Integer, null: false
     field :current_question_position, Integer, null: false
     field :expires_at, GraphQL::Types::ISO8601DateTime, null: false
+    field :created_at, GraphQL::Types::ISO8601DateTime, null: false
     field :questions, [ Types::InterviewSessionQuestionType ], null: false
     field :messages, [ Types::InterviewSessionMessageType ], null: false
     field :operations, [ Types::InterviewSessionOperationType ], null: false

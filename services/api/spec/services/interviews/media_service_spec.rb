@@ -43,6 +43,56 @@ RSpec.describe "Interview private media" do
     [ media.reload, identity ]
   end
 
+  it "invalidates accepted playback, new speech grants and stale completion after abandonment" do
+    media, identity = speech_media
+    operation = media.operation
+    expect(Interviews::CompleteSpeechService.call(media: media, **identity)).to be_success
+    expect(Interviews::ReadMediaService.call(interview: interview, message_id: media.message_id, storage: storage)).to be_success
+    expect(Interviews::AbandonService.call(interview: interview)).to be_success
+    expect(Interviews::ReadMediaService.call(interview: interview, message_id: media.message_id, storage: storage)).not_to be_success
+    expect(Interviews::CompleteSpeechService.call(media: media, **identity)).not_to be_success
+    expect(Interviews::RegisterMediaService.call(media: media, **identity, checksum: media.checksum,
+      byte_size: media.byte_size, storage: storage)).not_to be_success
+    expect(Interviews::ReserveSpeechMediaService.call(operation: operation, **identity, content_type: "audio/wav", storage: storage)).not_to be_success
+    expect(Interviews::DiscoverOperationsService.call.value).not_to include(operation.id)
+    expect(reserve).not_to be_success
+  end
+
+  it "rejects a sealing write delayed across abandonment and reaps its late object" do
+    media = InterviewSessionMedia.find(reserve.value[:media_id])
+    storage.write(key: media.staging_key, bytes: bytes, content_type: "audio/wav")
+    allow(storage).to receive(:write).and_wrap_original do |original, **arguments|
+      if arguments[:key] == media.sealed_key
+        expect(Interviews::AbandonService.call(interview: interview)).to be_success
+        expect(Interviews::CleanupService.call(storage: storage).value[:deleted_media]).to eq(1)
+      end
+      original.call(**arguments)
+    end
+    expect(Interviews::RegisterMediaService.call(media: media, storage: storage)).not_to be_success
+    expect(storage.objects).to have_key(media.sealed_key)
+    expect(Interviews::CleanupService.call(storage: storage).value[:reaped_media]).to eq(1)
+    expect(storage.objects).not_to have_key(media.sealed_key)
+    expect(media.reload).to be_deleted
+  end
+
+  it "does not return an upload grant when abandonment commits during signing" do
+    allow(storage).to receive(:upload_url).and_wrap_original do |original, **arguments|
+      Interviews::AbandonService.call(interview: InterviewSession.find(interview.id))
+      original.call(**arguments)
+    end
+    expect(reserve).not_to be_success
+  end
+
+  it "does not return playback when abandonment commits during signing" do
+    media, identity = speech_media
+    expect(Interviews::CompleteSpeechService.call(media: media, **identity)).to be_success
+    allow(storage).to receive(:read_url).and_wrap_original do |original, **arguments|
+      Interviews::AbandonService.call(interview: InterviewSession.find(interview.id))
+      original.call(**arguments)
+    end
+    expect(Interviews::ReadMediaService.call(interview: interview, message_id: media.message_id, storage: storage)).not_to be_success
+  end
+
   it "rejects metadata forgery, oversized and foreign question reservations" do
     foreign = Interviews::CreateFixtureService.call(user: create(:user)).value
     result = Interviews::ReserveRecordingService.call(interview: interview, question_id: foreign.questions.first.id,

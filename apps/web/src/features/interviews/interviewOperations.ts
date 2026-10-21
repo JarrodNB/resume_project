@@ -49,3 +49,15 @@ export const BEGIN_INTERVIEW = graphql(`
     beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }
   }
 `)
+
+export const ABANDON_INTERVIEW = graphql(`
+  mutation AbandonInterview($interviewId: ID!) {
+    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }
+  }
+`)
+
+export const RECENT_INTERVIEWS = graphql(`
+  query RecentInterviewSessions {
+    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } }
+  }
+`)

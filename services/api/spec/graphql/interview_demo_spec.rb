@@ -10,6 +10,32 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "lists only the owner's twenty most recent live real sessions across resumable and review states" do
+    config = Interviews::ExecutionConfiguration::PRESETS.fetch("real")
+    sessions = 22.times.map do |index|
+      user.interview_sessions.create!(status: %w[preparing ready active completed][index % 4],
+        execution_mode: "real", execution_config: config, expires_at: 1.day.from_now,
+        created_at: index.minutes.ago)
+    end
+    session # legacy scripted fixture is deliberately excluded
+    user.interview_sessions.create!(status: "abandoned", execution_mode: "real", execution_config: config, expires_at: 1.day.from_now)
+    user.interview_sessions.create!(status: "active", execution_mode: "real", execution_config: config, expires_at: 1.second.ago)
+    create(:user).interview_sessions.create!(status: "active", execution_mode: "real", execution_config: config, expires_at: 1.day.from_now)
+    result = execute_graphql("{ recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } } }", user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "recentInterviewSessions").map { |row| row["id"] }).to eq(sessions.first(20).map(&:id))
+    expect(execute_graphql("{ recentInterviewSessions { id } }", user: nil).dig("errors", 0, "message")).to eq("Authentication required")
+  end
+
+  it "abandons only owned unfinished sessions and returns an idempotent terminal snapshot" do
+    query = "mutation { abandonInterview(input: {interviewId: \"#{session.id}\"}) { interview { id status revision } errors } }"
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    first = execute_graphql(query, user: user)
+    expect(first["errors"]).to be_nil
+    expect(first.dig("data", "abandonInterview", "interview", "status")).to eq("abandoned")
+    expect(execute_graphql(query, user: user)).to eq(first)
+  end
+
   it "starts owned preparation without opening speech and safe operation progress" do
     allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
     allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)

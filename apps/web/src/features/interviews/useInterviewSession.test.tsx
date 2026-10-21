@@ -6,7 +6,7 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
 const snapshot = {
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
   questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0 }],
@@ -20,6 +20,23 @@ function mount(mocks: MockLink.MockedResponse[]) {
 }
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('useInterviewSession', () => {
+  it('keeps ambiguous submission recovery on failed abandon and clears it only after saved confirmation', async () => {
+    savePendingSubmission('owner', 'session', pending)
+    const abandonRequest = { query: ABANDON_INTERVIEW, variables: { interviewId: 'session' } }
+    const { result } = mount([
+      { request: query, result: { data: { interviewSession: snapshot } } },
+      { request: abandonRequest, error: new Error('Disconnected') },
+      { request: abandonRequest, result: { data: { abandonInterview: { __typename: 'AbandonInterviewPayload', interview: { ...snapshot, status: 'abandoned', revision: 1 }, errors: [] } } } },
+    ])
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    await act(async () => { expect(await result.current.abandonInterview()).toBe(false) })
+    expect(loadPendingSubmission('owner', 'session')).toEqual(pending)
+    expect(result.current.unresolved).toEqual(pending)
+    await act(async () => { expect(await result.current.abandonInterview()).toBe(true) })
+    expect(loadPendingSubmission('owner', 'session')).toBeNull()
+    expect(result.current.unresolved).toBeNull()
+    expect(result.current.interview?.status).toBe('abandoned')
+  })
   it('reconciles an ambiguously accepted submission on reload without resending expired recording input', async () => {
     savePendingSubmission('owner', 'session', pending)
     const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }

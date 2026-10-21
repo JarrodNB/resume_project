@@ -10,6 +10,8 @@ import { SectionCard } from '@/components/SectionCard'
 import { useAuth } from '@/features/auth/useAuth'
 import { interviewDemoEnabled } from './interviewDemoEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
+import { AbandonInterviewButton } from './AbandonInterviewButton'
+import { RecentInterviews } from './RecentInterviews'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { InterviewAudio } from './InterviewAudio'
@@ -23,7 +25,7 @@ export function InterviewDemoPage() {
     <PageHeading title="Spoken interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Record up to 2 minutes / 10 MiB. Source audio is deleted after success or permanent failure; abandoned uploads expire after 1 hour. Saved speech expires 1 hour after completion; accepted text lasts 7 days.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interview-prep">Open written interview practice</Link>
-    {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <StartDemo />}
+    {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <><StartDemo /><RecentInterviews /></>}
   </div>
 }
 function StartDemo() {
@@ -60,7 +62,10 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Start a new interview</Link>
   </div>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />
+  const abandonControl = <AbandonInterviewButton busy={state.busy || savingRecording} dirty={Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting'} error={state.error} abandon={state.abandonInterview} onAbandoned={recorder.reset} />
+  const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Recent interviews</Link>
+  if (interview.status === 'abandoned') return <>{recordingWarning}<p role="status">This interview was abandoned. It cannot be continued. Audio is queued for deletion.</p>{recentLink}</>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}{recentLink}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}</>
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
   const reply = interview.messages.filter((message) => message.kind !== 'answer').at(-1)
@@ -77,6 +82,8 @@ function OwnedInterview({ id }: { id: string }) {
   const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   return <>
     {recordingWarning}
+    {recentLink}
+    {interview.status === 'active' && abandonControl}
     <ProviderNotice />
     <div role="status" aria-live="polite" className="grid gap-2 text-sm">
       {question && <p>Question {question.position + 1} of {interview.questions.length}{question.questionType ? ` · ${question.questionType.charAt(0).toUpperCase()}${question.questionType.slice(1)}` : ''}</p>}

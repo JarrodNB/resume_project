@@ -30,6 +30,19 @@ Generated speech must fully decode within 10 MiB and 120 seconds. A malformed/tr
 stream, excess response, provider error, cancellation or missing usage retains unknown
 cost. Known terminal usage survives a later generated-audio validation failure.
 
+The speech reader finishes at a complete, validated `speech.audio.done` event rather
+than waiting for the HTTP connection to close. The [audio event reference](https://platform.openai.com/docs/api-reference/audio)
+defines that event as synthesis complete with all audio streamed. Arbitrary network
+chunks, CRLF and multiline SSE fields are handled before recognition; all complete events
+received in the terminal chunk still undergo the existing malformed/trailing-event
+validation. The response byte cap and 40-second total/30-second inactivity bounds remain.
+
+Audio request failures emit content-free diagnostics to the runtime log: endpoint,
+header/body phase, HTTP status when available, exception class, received byte count and
+elapsed time. Request/response bodies, headers, request IDs, credentials and exception
+messages are omitted. These fields distinguish a timeout waiting for headers from a
+timeout while receiving audio; a 30-second failure alone does not establish its phase.
+
 The chosen speech model is deprecated; official
 [deprecations](https://developers.openai.com/api/docs/deprecations) list retirement on
 6 January 2027. This increment preserves the agreed model. Availability and quality still

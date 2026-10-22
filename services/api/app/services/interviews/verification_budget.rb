@@ -11,6 +11,7 @@ module Interviews
     # output tokens for dialogue/screening, 4,096 for complete preparation. Actual usage
     # reconciles every dispatch. These are local estimates, not provider charges or holds.
     RESERVATIONS = { %w[transcription openai gpt-transcribe] => 9_000,
+      %w[transcription openai gpt-live-transcribe] => 34_000,
       %w[speech openai gpt-4o-mini-tts] => 250_000,
       %w[screening typesafe jev-1.13.0] => 10_000,
       %w[screening openai gpt-5-nano] => 50_000,

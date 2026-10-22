@@ -218,6 +218,13 @@ class RailsInterviewClient:
     async def aclose(self):
         await self._client.aclose()
 
+    async def transcription_capture(self, action, payload):
+        """Send one bounded capture callback through the configured owner transport."""
+        if action not in {"redeem", "finish", "fail"}:
+            raise ValueError("Invalid capture action")
+        return await self._request("POST", "transcriptions/" + action, payload,
+                                   retry=action != "redeem")
+
     async def _request(self, method, path, payload=None, *, retry=True, allow_boolean=False):
         # A total deadline also bounds a server that trickles bytes indefinitely.
         try:

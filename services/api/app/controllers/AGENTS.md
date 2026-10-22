@@ -26,3 +26,6 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
   with the Bearer scheme, never browser identity or a supplied owner ID. It inherits
   `ActionController::API` directly and does not weaken browser session/CSRF rules.
   Persisted operations establish ownership. Business rules stay in `Interviews` services.
+- `internal/interview_transcriptions_controller.rb` uses the same service credential for
+  bounded pre-answer capture callbacks. Owned capture records establish authority;
+  browser capability issuance remains a session-authenticated GraphQL mutation.

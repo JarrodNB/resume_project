@@ -6,9 +6,13 @@ recognition is the default; the browser remembers the signed-in owner's choice.
 Choose another mode between answers. The selected mode and any recorded-audio fallback
 are shown beside recording controls.
 
-All modes keep a complete WebM or MP4 recording for preview and fallback. A ready owned
-recording is still required for answer submission. Interim words are provisional; only
-finalized text may replace complete-recording transcription. Supplied text remains
+Voice modes keep a complete WebM or MP4 recording for preview and fallback. Browser and
+streaming dictation finalize into the same editable answer box used for typing. Interim
+words are provisional: editing and another capture wait until recording and recognition
+finish. Completed dictation appends to existing authored text once; later callbacks,
+manual corrections and new interview revisions cannot overwrite the reviewed answer.
+Discarding audio keeps reviewed text. Explicit Submit sends exactly that edited text
+through the typed-answer contract, without uploading or retranscribing the recording. Supplied text remains
 untrusted candidate input and goes through the same newest-answer screening and durable
 turn acceptance as a transcribed recording. Failed recognition does not create a second
 turn. Microphone denial cannot fall back without captured audio.
@@ -54,7 +58,7 @@ fallback. Local development retains all usage records without adding new spendin
 ## Human device checks
 
 Use the retained local QA stack at `http://127.0.0.2:15176/interviews/demo`. On each mode,
-record, stop, preview, submit, and reload after acceptance. Verify the preference survives
+record, stop, edit the recognized words, submit, and reload after acceptance. Verify the preference survives
 reload and accepted dialogue advances once. Disconnect the streaming network or deny
 recognition permission while permitting microphone capture, and verify the visible fallback
 still submits the same recording. Also check cancel/re-record and rapid repeated Submit.

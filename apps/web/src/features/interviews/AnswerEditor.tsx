@@ -24,10 +24,11 @@ export function AnswerEditor({ text, onTextChange, disabled, onSubmit }: AnswerE
   }
   return <div className="grid gap-3">
     <label className="grid gap-2 text-sm" htmlFor="interview-answer">Your answer
-      <Textarea id="interview-answer" rows={5} maxLength={4_000} value={text} aria-describedby="interview-answer-help"
+      <Textarea id="interview-answer" rows={5} maxLength={4_000} value={text} aria-invalid={text.length > 4_000} aria-describedby={text.length > 4_000 ? 'interview-answer-help interview-answer-limit' : 'interview-answer-help'}
         onChange={(event) => onTextChange(event.target.value)} disabled={disabled || submitting} />
     </label>
     <p id="interview-answer-help" className="text-sm text-muted-foreground">Type your answer and review it before submitting. Unsent text stays only in this tab.</p>
+    {text.length > 4_000 && <p id="interview-answer-limit" role="alert" className="text-sm text-destructive">Shorten your answer to 4,000 characters before submitting.</p>}
     <div className="flex flex-wrap gap-2">
       <Button disabled={disabled || submitting || !text.trim() || text.length > 4_000} aria-busy={submitting} onClick={() => void submit()}>{submitting ? 'Submitting answer…' : 'Submit answer'}</Button>
       <Button variant="outline" disabled={disabled || submitting || !text} onClick={() => onTextChange('')}>Clear answer</Button>

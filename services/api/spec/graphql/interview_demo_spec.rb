@@ -10,6 +10,27 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "queues recorded review only for its owner and exposes a transcript only while current and live" do
+    recording = ready_interview_recording(session)
+    mutation = 'mutation($input: StartRecordedTranscriptionInput!) { startRecordedTranscription(input: $input) { operationId interview { revision } errors } }'
+    variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0, recordingId: recording.id } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result.dig("data", "startRecordedTranscription", "errors")).to eq([])
+    operation = session.operations.transcription.find(result.dig("data", "startRecordedTranscription", "operationId"))
+    claim = Interviews::ClaimOperationService.call(operation: operation).value
+    Interviews::AcceptTranscriptionService.call(operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: "Private capture text")
+    query = "query { interviewSession(id: \"#{session.id}\") { operations { kind reviewTranscript } } }"
+    read = -> { execute_graphql(query, user: user).dig("data", "interviewSession", "operations").find { |item| item["kind"] == "transcription" }["reviewTranscript"] }
+    expect(read.call).to eq("Private capture text")
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    session.update!(revision: 1)
+    expect(read.call).to be_nil
+    session.update!(revision: 0)
+    recording.update!(expires_at: 1.second.ago)
+    expect(read.call).to be_nil
+  end
+
   it "submits reviewed text without audio only into the owner's current interview" do
     mutation = 'mutation($input: SubmitInterviewTurnInput!) { submitInterviewTurn(input: $input) { interview { id } errors } }'
     variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0,

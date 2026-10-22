@@ -19,10 +19,17 @@ of interviewer speech playback. Typed answers submit reviewed text directly with
 request an audio grant or transcription. Any attached recording still requires owned ready
 media validation. Historical recorded/browser/streaming submissions retain their recording
 checks; a missing recording in those modes is invalid. Text-only operation recovery ends at
-one hour or session expiry, whichever comes first. Other voice-mode answers still require a ready owned recording;
-finalized candidate text is optional untrusted input, saved immutably with the turn and
-screened through the same newest-answer path. Missing or failed live recognition uses the
-retained recording. Transcription captures do not advance interview progress. See
+one hour or session expiry, whichever comes first. The room uses review-first input for
+all voice modes: finalized dictation or complete-recording transcription fills the editable
+answer box, and explicit Submit sends the reviewed text through the typed contract.
+A separate `transcription` operation binds complete audio to its owned current question and
+revision. The HTTP recovery worker downloads only sealed object grants, validates the audio,
+and uses the existing accounted transcription provider. Acceptance saves private capture text
+without creating dialogue, incrementing revision, or consuming an answer. Subscription
+snapshots expose that text only while the interview, revision and recording remain live.
+Cancellation fences late results and expires the audio; cleanup and abandonment scrub capture
+text while retaining usage identities. Retries share the existing execution bounds. Historical
+audio-turn callers keep their recording validation and transcription behavior. See
 [answer transcription](../interview-transcription.md) for lifecycle and device checks.
 
 An explicit confirmed abandonment ends a preparing, ready or active session. Under the

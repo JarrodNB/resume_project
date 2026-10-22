@@ -7,7 +7,7 @@ import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 import { INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -30,12 +30,12 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
+beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
   it.each([true, false])('shows submission loading before resolving the request (saved=%s)', async (saved) => {
     let finish!: (saved: boolean) => void
-    state.answer.mockImplementation(() => {
+    state.answerText.mockImplementation(() => {
       state.busy = true
       state.unresolved = { submissionKey: 'in-flight' }
       recorder.refresh()
@@ -44,14 +44,15 @@ describe('InterviewDemoPage', () => {
     recorder.status = 'ready'
     recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderDemo()
-    const submit = screen.getByRole('button', { name: 'Submit recording' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My reviewed answer.' } })
+    const submit = screen.getByRole('button', { name: 'Submit answer' })
     fireEvent.click(submit)
     fireEvent.click(submit)
-    expect(screen.getByRole('heading', { name: 'Saving your answer' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Saving changes' })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Submitting answer…' })).toHaveAttribute('aria-busy', 'true')
     expect(screen.getByRole('button', { name: 'Submitting answer…' })).toBeDisabled()
     expect(screen.queryByText(/submission response was not confirmed/)).not.toBeInTheDocument()
-    expect(state.answer).toHaveBeenCalledOnce()
+    expect(state.answerText).toHaveBeenCalledOnce()
     await act(async () => {
       state.busy = false
       if (saved) {
@@ -59,6 +60,7 @@ describe('InterviewDemoPage', () => {
         state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'turn', kind: 'turn', status: 'running' }] }
       }
       finish(saved)
+      recorder.refresh()
     })
     expect(screen.getByRole('heading', { name: saved ? 'Your interviewer is thinking' : 'Check your submission' })).toBeVisible()
     if (!saved) expect(screen.getByRole('alert')).toHaveTextContent('submission response was not confirmed')
@@ -145,9 +147,9 @@ describe('InterviewDemoPage', () => {
     const recording = new Blob(['answer'], { type: 'audio/webm' })
     recorder.status = 'ready'; recorder.recording = recording
     act(() => recorder.refresh())
-    expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
-    expect(state.answer).toHaveBeenCalledWith(recording)
+    expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+    expect(state.transcribeRecording).toHaveBeenCalledWith(recording)
   })
   it('leaves hydrated speech and earlier conversation silent until explicitly played', async () => {
     renderDemo('/interviews/demo/session', [playbackMock()])
@@ -254,7 +256,7 @@ describe('InterviewDemoPage', () => {
     const earlier = within(screen.getByText('Earlier question').closest('li')!)
     await userEvent.click(earlier.getByRole('button', { name: 'Play interviewer audio' }))
     await earlier.findByRole('button', { name: 'Pause interviewer audio' })
-    expect(current.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+    expect(await current.findByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
     await userEvent.click(earlier.getByRole('button', { name: 'Pause interviewer audio' }))
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
@@ -359,7 +361,7 @@ describe('InterviewDemoPage', () => {
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Start a new interview' })).toBeVisible()
   })
-  it('reviews after Done answering without uploading until explicit Submit', async () => {
+  it('reviews after Done answering without uploading until explicit Transcribe', async () => {
     recorder.status = 'recording'
     renderDemo()
     await userEvent.dblClick(screen.getByRole('button', { name: 'Done answering' }))
@@ -368,11 +370,11 @@ describe('InterviewDemoPage', () => {
     act(() => recorder.refresh())
     expect(state.answer).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Your recording preview')).toBeVisible()
-    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
-    await waitFor(() => expect(state.answer).toHaveBeenCalledOnce())
-    expect(state.answer).toHaveBeenCalledWith(recorder.recording)
+    await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+    await waitFor(() => expect(state.transcribeRecording).toHaveBeenCalledOnce())
+    expect(state.transcribeRecording).toHaveBeenCalledWith(recorder.recording)
     act(() => recorder.refresh())
-    expect(state.answer).toHaveBeenCalledOnce()
+    expect(state.transcribeRecording).toHaveBeenCalledOnce()
   })
   it('never submits a ready blob without explicit Done answering intent', () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
@@ -382,14 +384,14 @@ describe('InterviewDemoPage', () => {
   it('locks conflicting actions and prevents duplicate explicit submissions', async () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     let resolve!: (saved: boolean) => void
-    state.answer.mockReturnValue(new Promise((done) => { resolve = done }))
+    state.transcribeRecording.mockReturnValue(new Promise((done) => { resolve = done }))
     renderDemo()
-    await userEvent.dblClick(screen.getByRole('button', { name: 'Submit recording' }))
-    expect(state.answer).toHaveBeenCalledOnce()
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Transcribe recording' }))
+    expect(state.transcribeRecording).toHaveBeenCalledOnce()
     expect(screen.getByRole('button', { name: 'Discard recording' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Re-record' })).toBeDisabled()
     await act(async () => resolve(true))
-    expect(recorder.reset).toHaveBeenCalledOnce()
+    expect(recorder.reset).not.toHaveBeenCalled()
   })
   it('lets the user discard or explicitly replace a review recording', async () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'])
@@ -405,7 +407,7 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     fireEvent.error(screen.getByLabelText('Your recording preview'))
     expect(screen.getByRole('alert')).toHaveTextContent('could not play')
-    expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Re-record' })).toBeEnabled()
   })
   it('warns on reload and in-app navigation, and clears the warning after discard', async () => {
@@ -429,8 +431,10 @@ describe('InterviewDemoPage', () => {
     recorder.reset.mockImplementationOnce(() => {
       recorder.status = 'idle'; recorder.recording = null; recorder.refresh()
     })
+    state.answerText.mockResolvedValue(true)
     renderDemo()
-    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'Reviewed text.' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
     expect(screen.queryByLabelText('Your recording preview')).not.toBeInTheDocument()
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview')
     const unload = new Event('beforeunload', { cancelable: true })
@@ -477,10 +481,10 @@ describe('InterviewDemoPage', () => {
   })
   it('keeps the recording when upload or authorization fails before durable submission', async () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['audio'], { type: 'audio/webm' })
-    state.answer.mockResolvedValue(false)
+    state.transcribeRecording.mockResolvedValue(null)
     renderDemo()
-    await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
-    expect(state.answer).toHaveBeenCalledWith(recorder.recording)
+    await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+    expect(state.transcribeRecording).toHaveBeenCalledWith(recorder.recording)
     expect(recorder.reset).not.toHaveBeenCalled()
   })
   it('directs a permanent turn failure to a new recording instead of retrying invalid input', () => {
@@ -591,7 +595,7 @@ it.each(['browser', 'streaming'])('reviews %s dictation in the editor and submit
   await waitFor(() => expect(state.answerText).toHaveBeenCalledExactlyOnceWith('  My corrected final answer.  '))
   expect(state.answer).not.toHaveBeenCalled()
   expect(editor).toHaveValue('  My corrected final answer.  ')
-  expect(screen.queryByRole('button', { name: 'Submit recording' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Transcribe recording' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Discard recording' })).toBeEnabled()
 })
 it('shows the effective recorded fallback and keeps explicit submission available', () => {
@@ -599,7 +603,7 @@ it('shows the effective recorded fallback and keeps explicit submission availabl
   renderDemo()
   expect(screen.getByText('Effective mode: Recorded audio transcription')).toBeVisible()
   expect(screen.getByText(recorder.fallbackReason)).toBeVisible()
-  expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
 })
 
 
@@ -667,4 +671,67 @@ it('retains authored corrections across re-record, discard and failed recognitio
   expect(state.answer).not.toHaveBeenCalled()
   expect(state.answerText).not.toHaveBeenCalled()
   expect(JSON.stringify(localStorage)).not.toContain('My corrected answer')
+})
+
+it('transcribes recorded audio into editable text before explicit submission', async () => {
+  state.transcribeRecording.mockResolvedValue('capture')
+  state.answerText.mockResolvedValue(true)
+  renderDemo()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Answer transcription' }), { target: { value: 'recorded' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['complete audio']); recorder.effectiveMode = 'recorded'
+  act(() => recorder.refresh())
+  fireEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+  await waitFor(() => expect(state.transcribeRecording).toHaveBeenCalledOnce())
+  state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'accepted', reviewTranscript: 'I rebuilt the scheduler.' }] }
+  act(() => recorder.refresh())
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  await waitFor(() => expect(editor).toHaveValue('I rebuilt the scheduler.'))
+  expect(state.answer).not.toHaveBeenCalled()
+  expect(state.answerText).not.toHaveBeenCalled()
+  fireEvent.change(editor, { target: { value: 'I repaired the booking scheduler.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+  await waitFor(() => expect(state.answerText).toHaveBeenCalledWith('I repaired the booking scheduler.'))
+})
+
+it.each(['edit', 'discard', 'revision'])('fences late recorded text after %s', async (action) => {
+  state.transcribeRecording.mockResolvedValue('capture')
+  renderDemo()
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.effectiveMode = 'recorded'
+  act(() => recorder.refresh())
+  fireEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+  await waitFor(() => expect(state.transcribeRecording).toHaveBeenCalledOnce())
+  state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'running' }] }
+  act(() => recorder.refresh())
+  expect(screen.getByText(/You can type a replacement/)).toBeVisible()
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  if (action === 'edit') fireEvent.change(editor, { target: { value: 'My replacement.' } })
+  if (action === 'discard') fireEvent.click(screen.getByRole('button', { name: 'Discard recording' }))
+  if (action === 'revision') { state.interview = { ...snapshot, revision: 1 }; act(() => recorder.refresh()) }
+  state.interview = { ...snapshot, revision: action === 'revision' ? 1 : 0, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'accepted', reviewTranscript: 'Late transcript' }] }
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue(action === 'edit' ? 'My replacement.' : '')
+  if (action !== 'revision') expect(state.cancelTranscription).toHaveBeenCalledWith('capture')
+  expect(state.answerText).not.toHaveBeenCalled()
+})
+
+it('restores capture progress after reload and cancels it on leaving', async () => {
+  state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'running', expectedRevision: 0 }] }
+  const view = renderDemo()
+  expect(screen.getByText(/You can type a replacement/)).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Cancel transcription' })).toBeEnabled()
+  view.unmount()
+  expect(state.cancelTranscription).toHaveBeenCalledWith('capture')
+})
+
+it('restores completed private capture text only on explicit review after reload', () => {
+  state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'accepted', expectedRevision: 0, reviewTranscript: 'Recovered provider transcript.' }] }
+  renderDemo()
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  expect(editor).toHaveValue('')
+  fireEvent.click(screen.getByRole('button', { name: 'Review saved transcript' }))
+  expect(editor).toHaveValue('Recovered provider transcript.')
+  expect(screen.queryByRole('button', { name: 'Review saved transcript' })).not.toBeInTheDocument()
+  expect(state.answerText).not.toHaveBeenCalled()
 })

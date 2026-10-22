@@ -6,7 +6,7 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION } from './interviewOperations'
 const snapshot = {
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
   questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0 }],
@@ -241,5 +241,27 @@ it('asks for re-entry after reload when a typed identity is absent from the serv
   await act(() => result.current.checkSavedStatus(true))
   expect(result.current.error).toContain('type your answer again')
   expect(result.current.unresolved).toBeNull()
+  expect(loadPendingSubmission('owner', 'session')).toBeNull()
+})
+
+it('uploads recorded review once and retries its exact capture after a lost receipt without submitting an answer', async () => {
+  sessionStorage.clear()
+  const put = vi.fn().mockResolvedValue({ ok: true })
+  vi.stubGlobal('fetch', put)
+  const startRequest = { query: START_RECORDED_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, recordingId: 'recording' } } }
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm' }, expiresIn: 60 } } } } },
+    { request: { query: REGISTER_RECORDING, variables: { input: { interviewId: 'session', mediaId: 'recording' } } }, result: { data: { registerInterviewRecording: { __typename: 'RegisterInterviewRecordingPayload', interview: snapshot, errors: [] } } } },
+    { request: startRequest, error: new Error('Lost capture receipt') },
+    { request: startRequest, result: { data: { startRecordedTranscription: { __typename: 'StartRecordedTranscriptionPayload', operationId: 'capture', interview: snapshot, errors: [] } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  const blob = new Blob(['abc'], { type: 'audio/webm' })
+  await act(async () => expect(await result.current.transcribeRecording(blob)).toBeNull())
+  await act(async () => expect(await result.current.transcribeRecording(blob)).toBe('capture'))
+  expect(put).toHaveBeenCalledOnce()
+  expect(result.current.interview?.revision).toBe(0)
+  expect(result.current.interview?.operations).toEqual([])
   expect(loadPendingSubmission('owner', 'session')).toBeNull()
 })

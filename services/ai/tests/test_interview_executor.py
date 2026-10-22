@@ -398,3 +398,20 @@ def test_fake_executor_accepts_reviewed_text_without_reading_audio():
         asyncio.run(executor.execute(Claim.model_validate(request)))
     assert not client.failed
     assert client.accepted[0]["transcript"] == "I reviewed these exact words."
+
+
+def test_recorded_review_only_transcribes_and_never_screens_or_runs_interviewer():
+    client = Client()
+    client.reviewed = []
+
+    async def accept_transcription(request, transcript):
+        client.reviewed.append(transcript)
+
+    client.accept_transcription = accept_transcription
+    request = claim().model_dump()
+    request.update(kind="transcription", payload={"recording_id": "recording"})
+    execute(client, Claim.model_validate(request))
+    assert not client.failed
+    assert client.reviewed == [TRANSCRIPT]
+    assert not client.accepted
+    assert [call[2] for call in client.calls if call[0] == "start"] == ["transcription"]

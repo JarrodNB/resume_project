@@ -42,3 +42,12 @@ not that it was correct or good; responses to follow-ups and brief detours count
 
 **Interview turn**:
 One submitted answer and its resulting interviewer response within an interview session.
+
+**Answer transcription mode**:
+The candidate's choice of how spoken answers become text: browser recognition, streaming
+transcription, or transcription of the complete recording. It is independent of how the
+interviewer's voice is played.
+
+**Transcription capture**:
+One live attempt to turn a candidate's speech into text before they submit an answer.
+It does not count as an accepted answer or advance the interview.

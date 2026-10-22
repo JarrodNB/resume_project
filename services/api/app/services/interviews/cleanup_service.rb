@@ -9,6 +9,7 @@ module Interviews
 
     # @return [ServiceResult<Hash>] counts of scrubbed sessions and deleted media
     def call
+      cleanup_captures
       sessions = InterviewSession.where(content_purged_at: nil).where("expires_at <= ?", Time.current).order(:expires_at, :id).limit(@limit)
       purged = sessions.count { |interview| purge_content(interview) }
       media = InterviewSessionMedia.left_joins(:interview_session).where.not(status: "deleted")
@@ -23,6 +24,28 @@ module Interviews
     end
 
     private
+
+    def cleanup_captures
+      candidates = InterviewTranscriptionCapture.joins(:interview_session)
+        .where("(interview_transcription_captures.status IN ('authorized', 'streaming') AND (interview_transcription_captures.expires_at <= :now OR interview_sessions.expires_at <= :now OR interview_sessions.status = 'abandoned')) OR (interview_transcription_captures.transcript IS NOT NULL AND (interview_sessions.expires_at <= :now OR interview_sessions.status = 'abandoned'))", now: Time.current)
+        .order(:id).limit(@limit)
+      candidates.each do |capture|
+        interview = capture.interview_session
+        interview.user.with_lock do
+          interview.lock!
+          capture.lock!
+          capture.ai_task&.lock!
+          expired = capture.expires_at <= Time.current || interview.expires_at <= Time.current || interview.abandoned?
+          next unless expired
+          if %w[authorized streaming].include?(capture.status)
+            capture.update!(status: "failed", transcript: nil)
+            capture.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "capture_expired")
+          elsif interview.expires_at <= Time.current || interview.abandoned?
+            capture.update!(transcript: nil)
+          end
+        end
+      end
+    end
 
     def purge_content(interview)
       interview.user.with_lock do
@@ -39,7 +62,7 @@ module Interviews
             operation.ai_task.update!(attributes)
           end
           state = operation.pending? || operation.running? ? "expired" : operation.status
-          operation.update!(status: state, accepted_result: {}, retry_at: nil, checkpoint: nil)
+          operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
         interview.questions.update_all(content: "[expired]", model_history: [])
         interview.messages.update_all(content: "[expired]")

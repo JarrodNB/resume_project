@@ -323,3 +323,23 @@ def test_library_screening_rejects_incomplete_or_malformed_receipts(receipt):
             with pytest.raises(RailsTransportError):
                 await client.screen_library(Claim.model_validate(CLAIM), [2])
     run(check())
+
+
+@pytest.mark.parametrize("action,expected_requests", [("redeem", 1), ("finish", 2), ("fail", 2)])
+def test_capture_callbacks_use_fixed_owner_path_and_bounded_replay(action, expected_requests):
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        assert str(request.url) == "http://api:3000/internal/interviews/transcriptions/" + action
+        assert request.headers["Authorization"] == "Bearer service-only"
+        raise httpx.ReadTimeout("private response must not escape")
+
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "service-only", transport=httpx.MockTransport(respond)) as client:
+            with pytest.raises(RailsTransportError):
+                await client.transcription_capture(action, {"capture_id": "owned"})
+
+    run(check())
+    assert len(requests) == expected_requests
+    assert all(request.content == requests[0].content for request in requests)

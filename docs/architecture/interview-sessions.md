@@ -12,6 +12,14 @@ ready, active or completed states. Preparing/ready sessions reopen their saved p
 or role review; active sessions restore accepted dialogue and progress; completed sessions
 reopen for review. Scripted fixtures and abandoned/expired sessions do not appear in this list.
 
+Candidate input supports browser recognition (the default), live provider transcription,
+and complete-recording transcription. The owner-scoped browser preference is independent
+of interviewer speech playback. Every answer still requires a ready owned recording;
+finalized candidate text is optional untrusted input, saved immutably with the turn and
+screened through the same newest-answer path. Missing or failed live recognition uses the
+retained recording. Transcription captures do not advance interview progress. See
+[answer transcription](../interview-transcription.md) for lifecycle and device checks.
+
 An explicit confirmed abandonment ends a preparing, ready or active session. Under the
 owner/session locks it increments the revision once, expires unfinished operations, releases
 their task slots and invalidates all media. Repeating abandonment returns the same saved

@@ -8,6 +8,7 @@ import SparkMD5 from 'spark-md5'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN } from './interviewOperations'
+import type { TranscriptionMode } from './transcriptionCapture'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
 
 class RejectedSubmission extends Error {}
@@ -68,8 +69,8 @@ export function useInterviewSession(id: string, ownerId: string) {
   function update(snapshot: InterviewSnapshotFragment | null | undefined) {
     if (snapshot) client.cache.writeQuery({ query: INTERVIEW_QUERY, variables: { id }, data: { interviewSession: snapshot } })
   }
-  async function send(input: PendingSubmission) {
-    const payload = (await submit({ variables: { input: { interviewId: id, ...input } } })).data?.submitInterviewTurn
+  async function send(input: PendingSubmission, candidateTranscript?: string) {
+    const payload = (await submit({ variables: { input: { interviewId: id, ...input, ...(candidateTranscript ? { candidateTranscript } : {}) } } })).data?.submitInterviewTurn
     if (payload?.errors.length) {
       forgetPending()
       throw new RejectedSubmission(payload.errors.join(' '))
@@ -79,7 +80,7 @@ export function useInterviewSession(id: string, ownerId: string) {
     forgetPending()
   }
   /** Uploads once, persists the immutable identity, then explicitly submits. No transport retries. */
-  async function answer(blob: Blob) {
+  async function answer(blob: Blob, candidateTranscript?: string | null, transcriptionMode: TranscriptionMode = 'recorded') {
     let durable = false
     const saved = await run(async () => {
       if (!interview || unresolved) throw new Error('Check saved status before recording another answer.')
@@ -99,11 +100,12 @@ export function useInterviewSession(id: string, ownerId: string) {
       const response = await fetch(grant.uploadUrl, { method: 'PUT', headers: headers as Record<string, string>, body: blob, credentials: 'omit', redirect: 'error', signal: AbortSignal.timeout(60_000) })
       if (!response.ok) throw new Error('The recording upload failed. Try submitting your recording again.')
       requirePayload((await register({ variables: { input: { interviewId: id, mediaId: grant.mediaId } } })).data?.registerInterviewRecording)
-      const input = { questionId: question.id, recordingId: grant.mediaId, expectedRevision: interview.revision, submissionKey: crypto.randomUUID() }
+      const transcriptDigest = candidateTranscript ? Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(candidateTranscript))), (byte) => byte.toString(16).padStart(2, '0')).join('') : undefined
+      const input = { ...(transcriptDigest ? { transcriptDigest, transcriptionMode } : {}), questionId: question.id, recordingId: grant.mediaId, expectedRevision: interview.revision, submissionKey: crypto.randomUUID() }
       if (!savePendingSubmission(ownerId, id, input)) throw new Error('Browser storage is unavailable. Enable it before submitting so reloads can recover safely.')
       durable = true
       setPending(input)
-      try { await send(input) }
+      try { await send(input, candidateTranscript ?? undefined) }
       catch (cause) {
         if (cause instanceof RejectedSubmission) durable = false
         throw cause
@@ -118,7 +120,16 @@ export function useInterviewSession(id: string, ownerId: string) {
       if (!latest) throw new Error('Could not confirm saved status. Try again when connected.')
       const saved = pending && latest.operations.some((operation) => operation.submissionKey === pending.submissionKey)
       if (saved) forgetPending()
-      else if (resend && pending) await send(pending)
+      else if (resend && pending) {
+        // Text stays out of browser storage. An owned fresh read confirmed the old
+        // identity absent; explicitly retry its retained recording as a new batch turn.
+        if (pending.transcriptDigest) {
+          const fallback = { questionId: pending.questionId, recordingId: pending.recordingId, expectedRevision: pending.expectedRevision, submissionKey: crypto.randomUUID() }
+          if (!savePendingSubmission(ownerId, id, fallback)) throw new Error('Browser storage is unavailable.')
+          setPending(fallback)
+          await send(fallback)
+        } else await send(pending)
+      }
     })
   }
   /** Begin is explicitly requested and safe to repeat after a lost response. */

@@ -71,3 +71,53 @@ RSpec.describe "Basic Interview submission" do
     end
   end
 end
+
+RSpec.describe "Recognized interview answers" do
+  let(:interview) { Interviews::CreateFixtureService.call(user: create(:user)).value }
+  let(:input) do
+    { interview: interview, question_id: interview.questions.first.id, recording_id: ready_interview_recording(interview).id,
+      expected_revision: 0, submission_key: "recognized-answer", transcription_mode: "browser", candidate_transcript: "I reduced response time." }
+  end
+  it "saves final text once, exposes it only to owned execution, and rejects changed replay" do
+    result = Interviews::SubmitTurnService.call(**input)
+    expect(result).to be_success
+    expect(result.value.candidate_transcript).to eq("I reduced response time.")
+    expect(Interviews::SubmitTurnService.call(**input.merge(candidate_transcript: "Changed answer"))).not_to be_success
+    claim = Interviews::ClaimOperationService.call(operation: result.value)
+    expect(claim.value.fetch(:payload).fetch(:candidate_transcript)).to eq("I reduced response time.")
+    expect(claim.value.fetch(:payload).fetch(:transcription_mode)).to eq("browser")
+  end
+end
+
+RSpec.describe "Recognized answer recovery and retention" do
+  let(:interview) { Interviews::CreateFixtureService.call(user: create(:user)).value }
+  let(:input) do
+    { interview: interview, question_id: interview.questions.first.id, recording_id: ready_interview_recording(interview).id,
+      expected_revision: 0, submission_key: "recognized-recovery", transcription_mode: "browser", candidate_transcript: "I reduced response time." }
+  end
+  it "allows a digest-only replay of an existing answer but never creates a textless recognized answer" do
+    original = Interviews::SubmitTurnService.call(**input).value
+    recovery = input.except(:candidate_transcript).merge(transcript_digest: Digest::SHA256.hexdigest(input[:candidate_transcript]))
+    expect(Interviews::SubmitTurnService.call(**recovery).value.id).to eq(original.id)
+    expect(Interviews::SubmitTurnService.call(**recovery.merge(submission_key: "new-key"))).not_to be_success
+    expect(interview.operations.turn.count).to eq(1)
+  end
+  it "rejects invalid or oversized text and mode mismatches without consuming a slot" do
+    [ { candidate_transcript: " " }, { candidate_transcript: "x" * 4001 }, { transcription_mode: "recorded" }, { transcription_mode: "unknown" }, { transcript_digest: "0" * 64 } ].each do |change|
+      expect(Interviews::SubmitTurnService.call(**input.merge(change))).not_to be_success
+    end
+    expect(interview.operations.turn).to be_empty
+  end
+  it "scrubs unscreened candidate text on abandonment and content expiry while keeping fingerprints" do
+    operation = Interviews::SubmitTurnService.call(**input).value
+    fingerprint = operation.request_fingerprint
+    expect(Interviews::AbandonService.call(interview: interview)).to be_success
+    expect(operation.reload.candidate_transcript).to be_nil
+    expect(operation.request_fingerprint).to eq(fingerprint)
+    operation.update!(candidate_transcript: "Retained input")
+    interview.update!(expires_at: 1.second.ago)
+    storage = instance_double(Interviews::MediaStorage, delete: nil)
+    expect(Interviews::CleanupService.call(storage: storage)).to be_success
+    expect(operation.reload.candidate_transcript).to be_nil
+  end
+end

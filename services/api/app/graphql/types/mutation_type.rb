@@ -25,6 +25,7 @@ module Types
     field :begin_interview, mutation: Mutations::Interviews::BeginInterview
     field :abandon_interview, mutation: Mutations::Interviews::AbandonInterview
     field :authorize_interview_recording, mutation: Mutations::Interviews::AuthorizeInterviewRecording
+    field :authorize_interview_transcription, mutation: Mutations::Interviews::AuthorizeInterviewTranscription
     field :register_interview_recording, mutation: Mutations::Interviews::RegisterInterviewRecording
     field :submit_interview_turn, mutation: Mutations::Interviews::SubmitInterviewTurn
     field :retry_interview_operation, mutation: Mutations::Interviews::RetryInterviewOperation

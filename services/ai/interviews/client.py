@@ -67,6 +67,8 @@ class EarlierDialogue(BaseModel):
 
 
 class TurnPayload(BaseModel):
+    candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
+    transcription_mode: Literal["recorded", "browser", "streaming"] = "recorded"
     recording_id: str
     expected_revision: int
     question: str
@@ -215,6 +217,13 @@ class RailsInterviewClient:
 
     async def aclose(self):
         await self._client.aclose()
+
+    async def transcription_capture(self, action, payload):
+        """Send one bounded capture callback through the configured owner transport."""
+        if action not in {"redeem", "finish", "fail"}:
+            raise ValueError("Invalid capture action")
+        return await self._request("POST", "transcriptions/" + action, payload,
+                                   retry=action != "redeem")
 
     async def _request(self, method, path, payload=None, *, retry=True, allow_boolean=False):
         # A total deadline also bounds a server that trickles bytes indefinitely.

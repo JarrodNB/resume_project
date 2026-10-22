@@ -2,9 +2,8 @@
  * Preparation saves these choices before role review. Microphone preferences stay local to this account.
  */
 import { useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { useAuth } from '@/features/auth/useAuth'
 import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
@@ -27,7 +26,6 @@ export function InterviewSetup({ notice }: { notice: ReactNode }) {
   const navigate = useNavigate()
   const submitting = useRef(false)
   const [pending, setPending] = useState(false)
-  const [careerFocus, setCareerFocus] = useState('')
   const [questionCount, setQuestionCount] = useState(8)
   const [questionFormat, setQuestionFormat] = useState('mixed')
   const [difficulty, setDifficulty] = useState('realistic')
@@ -38,7 +36,7 @@ export function InterviewSetup({ notice }: { notice: ReactNode }) {
     if (submitting.current) return
     submitting.current = true; setPending(true)
     try {
-      const id = await start(careerFocus, { questionCount, questionFormat, difficulty, interviewer, focusAreas })
+      const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas })
       if (id) await navigate(`/interviews/${id}`)
     } finally { submitting.current = false; setPending(false) }
   }
@@ -46,11 +44,6 @@ export function InterviewSetup({ notice }: { notice: ReactNode }) {
   return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); void prepare() }}>
     <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.</p></div>
     <fieldset disabled={busy} className="interview-setup-fields">
-      <div className="interview-setup-section">
-        <label className="grid gap-2 font-medium" htmlFor="interview-career-focus">Career focus <span className="text-sm font-normal text-muted-foreground">(optional)</span><Input id="interview-career-focus" className="min-h-11" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
-        <p id="interview-focus-help" className="max-w-prose text-sm leading-relaxed text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details. Add career details to your library before preparing your first interview.</p>
-        <Link className="inline-flex min-h-11 items-center text-sm underline underline-offset-4" to="/library">Review your career library</Link>
-      </div>
       <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} />
       <Choices title="Difficulty" name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} />
       <Choices title="Your interviewer" name="interviewer" options={interviewerOptions} value={interviewer} change={setInterviewer} />

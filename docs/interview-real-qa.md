@@ -147,7 +147,7 @@ permission request should occur during setup or fictional-role review. Reload an
 confirm the same account remembers these preferences; another account should keep
 its own settings. An unsupported microphone browser must still offer typed answers.
 
-Prepare with a career focus and chosen options. The submit action should lock
+Prepare with your chosen options. The submit action should lock
 while saving. Check an empty library error, unfinished-interview recovery and a
 failed preparation retry. On the saved role review, verify the role and selected
 configuration, including focus areas, before choosing **Enter interview room**.

@@ -602,12 +602,12 @@ it('shows the frozen fictional role for review before any speech or recording', 
   expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
 })
 
-it('passes an explicit career focus to preparation and offers a library review path', async () => {
+it('prepares without a career-focus field or library review link', async () => {
   renderDemo('/interviews')
-  await userEvent.type(screen.getByRole('textbox', { name: 'Career focus (optional)' }), 'Laboratory equipment')
+  expect(screen.queryByRole('textbox', { name: /Career focus/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Review your career library' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-  expect(start).toHaveBeenCalledWith('Laboratory equipment', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
-  expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
+  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
 })
 
 

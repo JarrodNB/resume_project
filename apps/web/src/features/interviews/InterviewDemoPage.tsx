@@ -7,7 +7,8 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { SectionCard } from '@/components/SectionCard'
+import { Mic, Square, AudioLines } from 'lucide-react'
+import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { interviewDemoEnabled } from './interviewDemoEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
@@ -24,7 +25,7 @@ import { useInterviewSession, useStartInterview } from './useInterviewSession'
 export function InterviewDemoPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  return <div className="mx-auto grid max-w-3xl gap-6">
+  return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
     <PageHeading title="Spoken interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     {!interviewDemoEnabled() ? <p>Spoken interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <><StartDemo /><RecentInterviews /></>}
     <details className="border-t pt-4 text-sm text-muted-foreground">
@@ -118,20 +119,26 @@ function OwnedInterview({ id }: { id: string }) {
     : 'Your turn'
   return <>
     {recordingWarning}
-    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+    <div className="interview-progress flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
       {question && <p>Question {question.position + 1} of {interview.questions.length}{question.questionType ? ` · ${question.questionType.charAt(0).toUpperCase()}${question.questionType.slice(1)}` : ''}</p>}
       {recentLink}
     </div>
+    <div className="interview-progress-track" role="progressbar" aria-label="Interview progress" aria-valuemin={0} aria-valuemax={interview.questions.length} aria-valuenow={interview.status === 'completed' ? interview.questions.length : interview.currentQuestionPosition}>
+      <div style={{ width: `${interview.questions.length ? (interview.status === 'completed' ? 100 : interview.currentQuestionPosition / interview.questions.length * 100) : 0}%` }} />
+    </div>
     {(state.loadError || state.subscriptionError) && <div className="grid gap-2"><p role="alert">Live updates are unavailable. Check saved status to recover the current state.</p><Button variant="outline" className="justify-self-start" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button></div>}
-    <section aria-label="Current interview turn" className="grid gap-6 rounded-xl border bg-card px-5 py-6 sm:px-8 sm:py-8">
+    <div className="interview-room">
+    <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
+      <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
+      <p className="interview-identity">Your interviewer</p>
       <div role="status" aria-live="polite" className="grid gap-2">
-        <h2 className="text-xl font-semibold tracking-tight">{roomTitle}</h2>
+        <h2 className="interview-status">{roomTitle}</h2>
         {interview.status === 'completed' && <p className="text-sm text-muted-foreground">Your conversation is saved.</p>}
         {turnActive && <p className="text-sm text-muted-foreground">We’re processing your answer and preparing the next reply. You can reload safely.</p>}
         {savingRecording && <p className="text-sm text-muted-foreground">Keep this page open while your recording is submitted.</p>}
       </div>
     {reply && <div className="grid gap-4">
-      <p className="max-w-prose whitespace-pre-wrap break-words text-lg leading-relaxed sm:text-xl">{reply.content}</p>
+      <p className="interview-question whitespace-pre-wrap break-words">{reply.content}</p>
       {browserSpeech && <BrowserInterviewSpeech key={reply.id} messageId={reply.id} text={reply.content} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" className="justify-self-start" aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? 'Unmute interviewer' : 'Mute interviewer'}</Button>
@@ -141,8 +148,8 @@ function OwnedInterview({ id }: { id: string }) {
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
       {recorder.recording && <RecordingReview recording={recorder.recording} />}
-      <div className="flex flex-wrap gap-3">
-        {recorder.status === 'recording' ? <Button onClick={recorder.stop}>Done answering</Button> : <Button disabled={!canRecord || recorder.status === 'requesting' || recorder.status === 'ready'} onClick={() => void recorder.start()}>{recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
+      <div className="interview-record-controls">
+        {recorder.status === 'recording' ? <Button className="interview-mic" onClick={recorder.stop}><Square size={20} fill="currentColor" />Done answering</Button> : <Button className="interview-mic" disabled={!canRecord || recorder.status === 'requesting' || recorder.status === 'ready'} onClick={() => void recorder.start()}><Mic size={24} />{recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
         {recorder.recording && <><Button disabled={!canRecord || savingRecording} onClick={() => void submit()}>Submit recording</Button><Button variant="outline" disabled={recordingLocked} onClick={recorder.reset}>Discard recording</Button><Button variant="outline" disabled={!canRecord || savingRecording} onClick={() => void recorder.start()}>Re-record</Button></>}
       </div>
       <p className="max-w-prose text-sm text-muted-foreground">{recorder.recording ? 'Nothing is uploaded until you submit. You can discard this recording or try again.' : 'Record when you’re ready. Done answering opens a preview before you submit. Silence never submits.'}</p>
@@ -152,18 +159,21 @@ function OwnedInterview({ id }: { id: string }) {
     </div>}
     {state.error && <p role="alert" className="text-destructive">{state.error}</p>}
     </section>
-    <SectionCard title="Saved conversation" tone="facts" sectionId={`interview:${id}:dialogue`}>
+    <aside className="interview-transcript" aria-label="Saved conversation">
+      <h2 className="text-lg font-semibold">Saved conversation</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Accepted answers appear here after processing.</p>
       <p className="mb-4 text-sm text-muted-foreground">{question?.acceptedAnswerCount ?? 0} of {interview.answerCap} responses saved.</p>
-      <ol className="divide-y">
-        {interview.messages.filter((message) => message.id !== reply?.id).map((message) => <li key={message.id} className="grid gap-3 py-5 first:pt-0 last:pb-0">
+      <ol className="interview-exchanges">
+        {interview.messages.filter((message) => message.id !== reply?.id).map((message) => <li key={message.id} className="interview-exchange" data-speaker={message.kind === 'answer' ? 'you' : 'interviewer'}>
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
           {message.kind !== 'answer' && browserSpeech && <BrowserInterviewSpeech messageId={message.id} text={message.content} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
           {message.kind !== 'answer' && !browserSpeech && operations.some((operation) => operation.messageId === message.id && operation.kind === 'speech' && operation.status === 'accepted') && <InterviewAudio interviewId={id} messageId={message.id} muted={muted} disabled={recorder.status === 'requesting' || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== message.id} onPlayingChange={playbackChanged} />}
         </li>)}
       </ol>
-      {!interview.messages.some((message) => message.id !== reply?.id) && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. The current question is above.</p>}
-    </SectionCard>
+      {!interview.messages.some((message) => message.id !== reply?.id) && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. Focus on the current question when you’re ready.</p>}
+    </aside>
+    </div>
     {interview.status === 'active' && <div className="border-t pt-4">{abandonControl}</div>}
   </>
 }

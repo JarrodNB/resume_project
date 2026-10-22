@@ -12,6 +12,9 @@ services:
       # Local interview testing records usage without spend or unknown-cost stop gates.
       # Rails ignores this opt-in outside development; resource limits remain active.
       INTERVIEW_LOCAL_TESTING_UNMETERED: "true"
+      # Multi-turn history is screened again; leave room for the interviewer after
+      # those calls. The Rails hard ceiling remains twenty calls per execution.
+      INTERVIEW_PROVIDER_ATTEMPT_LIMIT: "20"
   sqs:
     image: softwaremill/elasticmq-native
     volumes:
@@ -87,3 +90,18 @@ services:
     # Ordinary recovery supports explicit speech retries. Every paid request still
     # needs Rails admission, bounded attempts, and the retained cumulative allowance.
     command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000
+    # Replace probe environment overrides, leaving credentials to env_file.
+    # A null token would still mask the env_file value, so omit it entirely.
+    environment: !override
+      INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
+      INTERVIEW_PROVIDER_MODE: fake
+      INTERVIEW_REAL_RUNTIME_ENABLED: "true"
+      INTERVIEW_PAID_VERIFICATION: "true"
+      INTERVIEW_ENVIRONMENT: development
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
+      INTERVIEW_STORAGE_ORIGINS: http://s3:9090
+      INTERVIEW_FAKE_SCENARIO: normal
+      OTEL_SDK_DISABLED: "false"
+      LOGFIRE_ENVIRONMENT: development
+      CONVERSATION_LOGGING_ENABLED: "false"

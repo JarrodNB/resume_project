@@ -7,6 +7,13 @@ monthly/hourly gates. Every provider attempt, estimate and actual cost is still 
 unknown costs stay unknown and never become fabricated zeroes. Resource concurrency and
 execution caps remain active. This opt-in has no effect outside development or on general AI work.
 
+Local browser QA permits at most twenty provider calls per execution, including
+transcription, re-screening saved dialogue, and interviewer requests. The smaller
+eight-call probe limit can be consumed by history screening before the interviewer
+runs. The real runtime exports privacy-filtered traces using `LOGFIRE_TOKEN` from
+the original AI environment file, labeled `development`; fake and isolated paid
+probes continue to disable remote export.
+
 Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
 Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three

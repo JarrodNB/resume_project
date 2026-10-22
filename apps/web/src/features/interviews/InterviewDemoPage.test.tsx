@@ -39,7 +39,7 @@ describe('InterviewDemoPage', () => {
     vi.stubGlobal('SpeechSynthesisUtterance', class { text: string; constructor(text: string) { this.text = text } })
     state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [] }
     renderDemo()
-    await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' }))
     expect(speak.mock.calls[0][0].text).toBe('Describe a project.')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Stop interviewer audio' }))
@@ -66,7 +66,7 @@ describe('InterviewDemoPage', () => {
   it('leaves hydrated speech and earlier conversation silent until explicitly played', async () => {
     renderDemo('/interviews/demo/session', [playbackMock()])
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
-    await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+    await userEvent.click(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' }))
     await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce())
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Pause interviewer audio' }))
@@ -117,10 +117,10 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     state.interview = { ...snapshot, revision: 1, messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'reply', content: 'What changed?' }], operations: [...snapshot.operations, { ...snapshot.operations[0], id: 'next-speech', messageId: 'reply' }] }
     act(() => recorder.refresh())
-    expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
     recorder.status = 'idle'
     act(() => recorder.refresh())
-    expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
   })
   it('keeps late speech silent when answering began before its audio was ready', async () => {
@@ -134,11 +134,11 @@ describe('InterviewDemoPage', () => {
       state.interview = { ...snapshot, revision: 1 }
       act(() => recorder.refresh())
       await act(async () => vi.runAllTimersAsync())
-      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+      expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
       recorder.status = 'idle'
       act(() => recorder.refresh())
       await act(async () => vi.runAllTimersAsync())
-      expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+      expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
       expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
     } finally { vi.useRealTimers() }
   })
@@ -148,11 +148,11 @@ describe('InterviewDemoPage', () => {
     state.interview = { ...snapshot, revision: 1, messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'reply', content: 'What changed?' }], operations: [...snapshot.operations, { ...snapshot.operations[0], id: 'next-speech', messageId: 'reply' }] }
     act(() => recorder.refresh())
     expect(screen.getByRole('button', { name: 'Unmute interviewer' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
     await userEvent.click(screen.getByRole('button', { name: 'Unmute interviewer' }))
     expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
-    await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
-    await screen.findByRole('button', { name: 'Pause interviewer audio' })
+    await userEvent.click(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' }))
+    await within(screen.getByRole('region', { name: 'Current interview turn' })).findByRole('button', { name: 'Pause interviewer audio' })
     const pauses = vi.mocked(HTMLMediaElement.prototype.pause).mock.calls.length
     state.interview = { ...snapshot, status: 'abandoned', revision: 2 }
     act(() => recorder.refresh())
@@ -165,7 +165,6 @@ describe('InterviewDemoPage', () => {
     const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
     await userEvent.click(current.getByRole('button', { name: 'Play interviewer audio' }))
     await current.findByRole('button', { name: 'Pause interviewer audio' })
-    await userEvent.click(screen.getByRole('button', { name: /Saved conversation/ }))
     const earlier = within(screen.getByText('Earlier question').closest('li')!)
     await userEvent.click(earlier.getByRole('button', { name: 'Play interviewer audio' }))
     await earlier.findByRole('button', { name: 'Pause interviewer audio' })
@@ -183,7 +182,6 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     expect(screen.getByRole('heading', { name: 'Your turn' })).toBeVisible()
     expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveTextContent('Describe a project.')
-    await userEvent.click(screen.getByRole('button', { name: /Saved conversation/ }))
     expect(screen.getByText('What did you build?')).toBeVisible()
     expect(screen.getByText('I built a booking tool.')).toBeVisible()
     expect(screen.getAllByText('Describe a project.')).toHaveLength(1)
@@ -461,8 +459,8 @@ describe('prepared interview begin', () => {
       questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
     renderDemo()
     expect(screen.getByText('Question 5 of 9 · Technical')).toBeVisible()
-    await userEvent.click(screen.getByRole('button', { name: /Saved conversation/ }))
     expect(screen.getByText('2 of 3 responses saved.')).toBeVisible()
-    expect(screen.getByRole('button', { name: /Saved conversation/ })).toBeVisible()
+    expect(screen.getByRole('complementary', { name: 'Saved conversation' })).toBeVisible()
+    expect(screen.getByRole('progressbar', { name: 'Interview progress' })).toHaveAttribute('aria-valuenow', '4')
   })
 })

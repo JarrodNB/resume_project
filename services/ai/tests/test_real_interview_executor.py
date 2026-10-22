@@ -114,6 +114,46 @@ def test_blocked_transcript_never_reaches_interviewer_or_acceptance(monkeypatch)
     assert {name for name, _ in models.prompts} == {"jev-1.13.0"}
 
 
+@pytest.mark.parametrize("decision", ["advance", "continue"])
+def test_repaired_interviewer_output_is_accepted_and_history_can_be_restored(monkeypatch, decision):
+    from interviews.history import restore_history
+
+    class RepairingModels(Models):
+        def accounted(self, rails, request, stage, name):
+            if stage == "screening":
+                return super().accounted(rails, request, stage, name)
+            self.interviewer_requests = 0
+
+            async def respond(messages, info):
+                self.interviewer_requests += 1
+                if decision == "advance" and self.interviewer_requests == 2:
+                    part = ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-intent")
+                else:
+                    output = {"decision": decision,
+                              "acknowledgement": "You checked the shorter waiting time against the original schedule.",
+                              "reply": None if decision == "advance" or self.interviewer_requests == 1
+                              else "How did you check the change lasted?"}
+                    part = ToolCallPart(info.output_tools[0].name, output,
+                                        tool_call_id=f"result-{self.interviewer_requests}")
+                return ModelResponse(parts=[part], usage=RequestUsage(input_tokens=100, output_tokens=10))
+
+            return InterviewModel(FunctionModel(respond, model_name=name), rails, request, stage, "openai", name)
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    client, models = Client(), RepairingModels()
+    run(client, models)
+    assert not client.failed
+    assert len(client.accepted) == 1
+    assert client.accepted[0]["decision"] == decision
+    assert restore_history(1, client.accepted[0]["model_history"])
+    retries = [part for message in client.accepted[0]["model_history"] for part in message["parts"]
+               if part["part_kind"] == "retry-prompt"]
+    assert len(retries) == 1
+    assert retries[0]["tool_call_id"] == "result-1"
+    assert retries[0]["tool_name"] == "final_result"
+    assert models.interviewer_requests == (3 if decision == "advance" else 2)
+
+
 def test_missing_screen_credentials_fails_closed(monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     client, models = Client(), Models()

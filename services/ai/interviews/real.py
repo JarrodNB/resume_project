@@ -30,6 +30,7 @@ from interviews.executor import MAX_TRANSCRIPT_CHARACTERS, InterviewExecutor, Sc
 from interviews.history import serialize_history
 from interviews.media import download_audio
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
+from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
@@ -150,7 +151,7 @@ class RealInterviewExecutor(InterviewExecutor):
     async def _preparation(self, claim):
         context = claim.payload.frozen_context
         with screening_session(120):
-            formatted = system_context(context)
+            formatted = system_context(context) + "\n\n" + interview_style(claim.payload.setup)
             if len(formatted) > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
             await self._approve_library(claim, context, include_focus=True)
@@ -169,7 +170,7 @@ class RealInterviewExecutor(InterviewExecutor):
         context = payload.personal_evidence()
         role = payload.interview_context.fictional_role if payload.interview_context else None
         with screening_session(120):
-            formatted = system_context(context, role)
+            formatted = system_context(context, role) + "\n\n" + interview_style(payload.setup)
             previous = earlier_context(payload)
             if previous:
                 formatted += "\n\n" + previous

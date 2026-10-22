@@ -1021,11 +1021,17 @@ type InterviewSessionQuestion {
 }
 
 type InterviewSetup {
+  difficulty: String!
+  focusAreas: [String!]!
+  interviewer: String!
   questionCount: Int!
   questionFormat: String!
 }
 
 input InterviewSetupInput {
+  difficulty: String = "realistic"
+  focusAreas: [String!] = []
+  interviewer: String = "daniel"
   questionCount: Int = 8
   questionFormat: String = "mixed"
 }

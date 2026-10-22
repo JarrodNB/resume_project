@@ -69,6 +69,7 @@ class EarlierDialogue(BaseModel):
 
 
 class TurnPayload(BaseModel):
+    setup: InterviewSetup = Field(default_factory=lambda: InterviewSetup(question_count=9))
     candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
     transcription_mode: Literal["recorded", "browser", "streaming", "typed"] = "recorded"
     recording_id: str | None

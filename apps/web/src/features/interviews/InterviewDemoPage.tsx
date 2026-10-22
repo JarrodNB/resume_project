@@ -58,7 +58,10 @@ function StartDemo() {
   const [careerFocus, setCareerFocus] = useState('')
   const [questionCount, setQuestionCount] = useState(8)
   const [questionFormat, setQuestionFormat] = useState('mixed')
-  async function begin() { const id = await start(careerFocus, { questionCount, questionFormat }); if (id) void navigate(`/interviews/${id}`) }
+  const [difficulty, setDifficulty] = useState('realistic')
+  const [interviewer, setInterviewer] = useState('daniel')
+  const [focusAreas, setFocusAreas] = useState<string[]>([])
+  async function begin() { const id = await start(careerFocus, { questionCount, questionFormat, difficulty, interviewer, focusAreas }); if (id) void navigate(`/interviews/${id}`) }
   return <div className="grid gap-3">
     <p className="max-w-prose text-sm">Prepare {questionCount} main questions in your selected interview format. Review the fictional role before starting. Follow-up questions may extend the interview.</p>
     <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
@@ -79,6 +82,21 @@ function StartDemo() {
         <option value={12}>Full loop · 12 questions · ~30 min</option>
       </select>
     </label>
+    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-difficulty">Difficulty
+      <select id="interview-difficulty" disabled={loading} value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
+        <option value="warm_up">Warm-up</option><option value="realistic">Realistic</option><option value="stretch">Stretch</option>
+      </select>
+    </label>
+    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-persona">Your interviewer
+      <select id="interview-persona" disabled={loading} value={interviewer} onChange={(event) => setInterviewer(event.target.value)}>
+        <option value="maya">Maya — Friendly Coach</option><option value="daniel">Daniel — Professional Hiring Manager</option><option value="priya">Priya — Tough Interviewer</option>
+      </select>
+    </label>
+    <fieldset disabled={loading}><legend>Focus areas (optional)</legend>
+      {Object.entries({ communication: 'Communication', problem_solving: 'Problem Solving', leadership: 'Leadership', teamwork: 'Teamwork', conflict: 'Conflict', impact_metrics: 'Impact & Metrics', technical_depth: 'Technical Depth', adaptability: 'Adaptability', ownership: 'Ownership', customer_focus: 'Customer Focus' }).map(([value, label]) => <label className="mr-4 inline-flex items-center gap-2" key={value}>
+        <input type="checkbox" checked={focusAreas.includes(value)} onChange={(event) => setFocusAreas((previous) => event.target.checked ? [...previous, value] : previous.filter((area) => area !== value))} />{label}
+      </label>)}
+    </fieldset>
     <ProviderNotice />
     <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Preparing…' : 'Prepare interview'}</Button>
     {error && <p role="alert" className="text-destructive">{error}</p>}

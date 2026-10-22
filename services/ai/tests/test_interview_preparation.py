@@ -36,6 +36,29 @@ def test_preparation_claim_preserves_owned_frozen_sources():
     request = preparation_claim()
     assert request.payload.frozen_context["sources"][0]["text"] == "I calibrate laboratory equipment."
 
+
+def test_preparation_applies_saved_style_without_changing_format():
+    raw = preparation_claim().model_dump()
+    raw["payload"]["setup"] = {"question_count": 9, "difficulty": "stretch", "interviewer": "priya",
+        "focus_areas": ["leadership", "impact_metrics"]}
+    models = Models()
+    client = run(models, Claim.model_validate(raw))
+    assert client.accepted == [prepared_output()]
+    prompt = models.requests[-1][1]
+    assert "harder scenarios" in prompt
+    assert "Priya" in prompt
+    assert "leadership, impact & metrics" in prompt
+    assert "never invent achievements" in prompt
+
+
+@pytest.mark.parametrize("extra", [{"difficulty": "unknown"}, {"interviewer": "unknown"},
+    {"focus_areas": ["unknown"]}, {"focus_areas": ["leadership", "leadership"]}, {"focus_areas": None}])
+def test_claim_rejects_invalid_style_configuration(extra):
+    raw = preparation_claim().model_dump()
+    raw["payload"]["setup"] = {"question_count": 8, **extra}
+    with pytest.raises(ValidationError):
+        Claim.model_validate(raw)
+
 def prepared_output(count=9, question_format="mixed"):
     cycle = {"mixed": ["behavioral", "technical", "knowledge"], "behavioral": ["behavioral"],
         "technical": ["technical", "knowledge"], "screening": ["screening"]}[question_format]

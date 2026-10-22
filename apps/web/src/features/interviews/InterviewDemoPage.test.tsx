@@ -22,7 +22,7 @@ vi.mock('./useInterviewRecorder', async () => {
 vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
-  setup: { questionCount: 9, questionFormat: 'mixed' },
+  setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
@@ -37,11 +37,19 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
+  it('submits selected difficulty, interviewer and optional focus areas', async () => {
+    renderDemo('/interviews')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Difficulty' }), 'stretch')
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Your interviewer' }), 'priya')
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Leadership' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'priya', focusAreas: ['leadership'] })
+  })
   it('passes the selected question format with the requested length', async () => {
     renderDemo('/interviews')
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Interview type' }), 'screening')
     await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening' })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('defaults to eight main questions and sends the selected interview length', async () => {
     renderDemo('/interviews')
@@ -49,7 +57,7 @@ describe('InterviewDemoPage', () => {
     expect(length).toHaveValue('8')
     await userEvent.selectOptions(length, '12')
     fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 12, questionFormat: 'mixed' })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 12, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('clarifies the latest follow-up while preserving typed draft and progress', async () => {
     state.interview = { ...snapshot, messages: [...snapshot.messages,
@@ -363,7 +371,7 @@ describe('InterviewDemoPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
     await waitFor(() => expect(recorder.reset).toHaveBeenCalledOnce())
     await waitFor(() => expect(router.state.location.pathname).toBe('/interviews'))
-    expect(screen.getByText('Interview ended. You can prepare another whenever you’re ready.')).toBeVisible()
+    expect(await screen.findByText('Interview ended. You can prepare another whenever you’re ready.')).toBeVisible()
     expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeVisible()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
@@ -395,7 +403,7 @@ describe('InterviewDemoPage', () => {
     expect(screen.queryByRole('combobox', { name: /execution mode/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed' })
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
   it('retires old scripted sessions without recording or retry controls', () => {
     state.interview = { ...snapshot, executionMode: 'fake' }
@@ -572,7 +580,7 @@ it('passes an explicit career focus to preparation and offers a library review p
   renderDemo('/interviews')
   await userEvent.type(screen.getByRole('textbox', { name: 'Career focus (optional)' }), 'Laboratory equipment')
   await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-  expect(start).toHaveBeenCalledWith('Laboratory equipment', { questionCount: 8, questionFormat: 'mixed' })
+  expect(start).toHaveBeenCalledWith('Laboratory equipment', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
 })
 

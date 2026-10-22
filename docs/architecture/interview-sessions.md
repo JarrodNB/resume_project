@@ -7,6 +7,15 @@ library, then begin explicitly after review. Each question allows at most three 
 answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
 for explicitly enabled local browser QA; production deployment is deferred.
 
+Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
+(Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions
+default to Realistic, Daniel and no focus when those fields are absent. Preparation
+and turn claims carry the same saved choices. Focus biases questions within the selected
+format; it never replaces the format or supplies career evidence. Maya is warm without
+coaching or grading; Priya asks direct, specific follow-ups after submission and never
+interrupts live answers. Personas retain the existing British speech voice, factual
+acknowledgements, screening and answer limits.
+
 The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
 ready, active or completed states. Preparing/ready sessions reopen their saved preparation
 or role review; active sessions restore accepted dialogue and progress; completed sessions

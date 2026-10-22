@@ -16,7 +16,7 @@ module Interviews
 
     # @return [ServiceResult<InterviewSession>] preparing session with immutable source snapshot
     def call
-      return failure("Choose a supported interview format and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
+      return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       @user.with_lock do
         sources = []

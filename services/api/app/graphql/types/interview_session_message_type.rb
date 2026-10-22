@@ -6,5 +6,16 @@ module Types
     field :kind, String, null: false
     field :position, Integer, null: false
     field :content, String, null: false
+    field :acknowledgement, String, null: true
+    field :clarification, Types::InterviewClarificationType, null: true
+    field :spoken_content, String, null: false
+
+    def clarification
+      object.clarification if ::Interviews::ClarificationPrompt.current?(object.interview_session, object)
+    end
+
+    def spoken_content
+      Interviews::MessageText.spoken_content(object)
+    end
   end
 end

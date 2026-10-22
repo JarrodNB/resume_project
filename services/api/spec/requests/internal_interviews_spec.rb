@@ -37,6 +37,21 @@ RSpec.describe "Internal interview execution", type: :request do
     expect(response.parsed_body["execution_config"]).to eq(real.execution_config)
   end
 
+  it "claims a queued clarification only through service authentication, once" do
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
+    clarification = Interviews::RequestClarificationService.call(interview: real, message_id: real.messages.first.id).value
+    endpoint = "/internal/interviews/clarifications/#{clarification.ai_task_id}/claim"
+    post endpoint, params: { user_id: interview.user_id }, as: :json
+    expect(response).to have_http_status(:unauthorized)
+    2.times do |index|
+      post endpoint, headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["allowed"]).to eq(index.zero?)
+      expect(response.headers["Cache-Control"]).to eq("no-store")
+    end
+  end
+
   it "rejects missing credentials even with an owner ID" do
     post "#{path}/claim", params: { user_id: interview.user_id }, as: :json
     expect(response).to have_http_status(:unauthorized)
@@ -79,7 +94,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
   it "recovers a lost acceptance reply through identical replay and canonical status" do
     post "#{path}/claim", headers: headers, as: :json
     claim = response.parsed_body.slice("attempt_id", "claim_generation")
-    payload = claim.merge(transcript: "I helped my team.", decision: "advance", history_version: 1, model_history: [])
+    payload = claim.merge(transcript: "I helped my team.", acknowledgement: "You helped your team.", decision: "advance", history_version: 1, model_history: [])
     2.times do
       post "#{path}/accept", params: payload, headers: headers, as: :json
       expect(response).to have_http_status(:ok)
@@ -89,6 +104,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
     expect(response.parsed_body["accepted_result"]).to eq(receipt)
     expect(interview.reload.revision).to eq(1)
     expect(turn.reload.ai_task).to be_completed
+    expect(interview.messages.closing.last.acknowledgement).to eq("You helped your team.")
     expect(turn.ai_task.ai_usage_attempts.first).not_to be_finalized
     post "#{path}/heartbeat", params: claim, headers: headers, as: :json
     expect(response).to have_http_status(:ok)

@@ -5,14 +5,14 @@ require "digest"
 module Interviews
   class SubmitTurnService < ApplicationService
     MAX_PREPARED_SUBMISSIONS_PER_QUESTION = 6
-    def initialize(interview:, question_id:, recording_id:, expected_revision:, submission_key:, candidate_transcript: nil, transcription_mode: "recorded", transcript_digest: nil)
+    def initialize(interview:, question_id:, expected_revision:, recording_id: nil, submission_key:, candidate_transcript: nil, transcription_mode: "recorded", transcript_digest: nil)
       @interview = interview
       @question_id, @recording_id = question_id, recording_id
       @expected_revision, @submission_key = expected_revision, submission_key
       @candidate_transcript, @transcription_mode, @transcript_digest = candidate_transcript, transcription_mode, transcript_digest
     end
 
-    # The caller supplies an authorized interview; recording ownership and readiness
+    # The caller supplies an authorized interview; any attached recording ownership/readiness
     # are checked here under the same lock as the processing-slot reservation.
     # @return [ServiceResult<InterviewSessionOperation>] original or newly reserved turn
     def call
@@ -34,13 +34,15 @@ module Interviews
 
         question = @interview.questions.lock.find_by(id: @question_id, position: @interview.current_question_position)
         next failure("Question is not current") unless question
-        recording = InterviewSessionMedia.lock.find_by(id: @recording_id, interview_session: @interview,
-          question: question, kind: "recording", status: "ready")
-        next failure("Recording is not available") unless recording && recording.expires_at > Time.current
-        next failure("Recording has already been submitted") if @interview.operations.turn.where(recording_id: @recording_id).exists?
+        if @recording_id
+          recording = InterviewSessionMedia.lock.find_by(id: @recording_id, interview_session: @interview,
+            question: question, kind: "recording", status: "ready")
+          next failure("Recording is not available") unless recording && recording.expires_at > Time.current
+          next failure("Recording has already been submitted") if @interview.operations.turn.where(recording_id: @recording_id).exists?
+        end
         next failure("An answer is already processing") if @interview.operations.turn.where(status: %w[pending running]).exists?
         if @interview.frozen_context.present? && @interview.operations.turn.where(question: question).count >= MAX_PREPARED_SUBMISSIONS_PER_QUESTION
-          next failure("This question reached its recording submission limit. Abandon this interview and prepare another to continue.")
+          next failure("This question reached its answer submission limit. Abandon this interview and prepare another to continue.")
         end
 
         success(@interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,
@@ -55,13 +57,16 @@ module Interviews
 
     def valid_input?
       uuid = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
-      return false unless %w[recorded browser streaming].include?(@transcription_mode)
+      return false unless %w[recorded browser streaming typed].include?(@transcription_mode)
       return false if @candidate_transcript && (!@candidate_transcript.is_a?(String) || @candidate_transcript.blank? || @candidate_transcript.length > 4000 || @transcription_mode == "recorded")
       return false if @transcript_digest && (!@transcript_digest.is_a?(String) || !@transcript_digest.match?(/\A[0-9a-f]{64}\z/) || @transcription_mode == "recorded")
       return false if @candidate_transcript && @transcript_digest && Digest::SHA256.hexdigest(@candidate_transcript) != @transcript_digest
 
+      return false if @transcription_mode == "typed" && !@candidate_transcript && !@transcript_digest
+      return false if @recording_id.nil? && @transcription_mode != "typed"
+
       @question_id.is_a?(String) && @question_id.match?(uuid) &&
-        @recording_id.is_a?(String) && @recording_id.match?(uuid) &&
+        (@recording_id.nil? || (@recording_id.is_a?(String) && @recording_id.match?(uuid))) &&
         @expected_revision.is_a?(Integer) && @expected_revision >= 0 &&
         @submission_key.is_a?(String) && @submission_key.present? && @submission_key.length <= 200
     end

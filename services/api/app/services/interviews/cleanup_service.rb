@@ -9,6 +9,13 @@ module Interviews
 
     # @return [ServiceResult<Hash>] counts of scrubbed sessions and deleted media
     def call
+      InterviewSessionOperation.transcription.where.not(accepted_result: {})
+        .joins("LEFT JOIN interview_session_media review_audio ON review_audio.id = interview_session_operations.recording_id")
+        .where("review_audio.id IS NULL OR review_audio.expires_at <= ?", Time.current)
+        .order(:id).limit(@limit).each do |operation|
+        media = InterviewSessionMedia.find_by(id: operation.recording_id)
+        CancelRecordedTranscriptionService.call(operation: operation) if !media || media.expires_at <= Time.current
+      end
       cleanup_captures
       sessions = InterviewSession.where(content_purged_at: nil).where("expires_at <= ?", Time.current).order(:expires_at, :id).limit(@limit)
       purged = sessions.count { |interview| purge_content(interview) }
@@ -64,8 +71,15 @@ module Interviews
           state = operation.pending? || operation.running? ? "expired" : operation.status
           operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
+        interview.clarifications.update_all(explanation: nil)
+        interview.user.ai_tasks.where(subject: interview, task_type: "interview_clarification").find_each do |task|
+          task.with_lock do
+            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_expired", completed_at: task.completed_at || Time.current)
+          end
+        end
         interview.questions.update_all(content: "[expired]", model_history: [])
-        interview.messages.update_all(content: "[expired]")
+        interview.messages.update_all(content: "[expired]", acknowledgement: nil)
         interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, frozen_context: {}, prepared_role: {}, content_purged_at: Time.current)
       end
       true

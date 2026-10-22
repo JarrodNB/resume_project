@@ -11,7 +11,11 @@ module Interviews
 
     def call
       result = with_operation_lock do |interview|
-        next failure("Claim is stale or expired") unless @operation.turn? && current_claim?
+        next failure("Claim is stale or expired") unless (@operation.turn? || @operation.transcription?) && current_claim?
+        if @operation.transcription?
+          next failure("Capture is no longer current") unless interview.active? && interview.revision == @operation.expected_revision &&
+            interview.current_question_position == @operation.question.position && !interview.operations.turn.where(status: %w[pending running]).exists?
+        end
         media = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
           question_id: @operation.question_id, kind: "recording", status: "ready")
         next failure("Recording unavailable or expired") unless media && media_live?(media)

@@ -14,10 +14,22 @@ reopen for review. Scripted fixtures and abandoned/expired sessions do not appea
 
 Candidate input supports browser recognition (the default), live provider transcription,
 and complete-recording transcription. The owner-scoped browser preference is independent
-of interviewer speech playback. Every answer still requires a ready owned recording;
-finalized candidate text is optional untrusted input, saved immutably with the turn and
-screened through the same newest-answer path. Missing or failed live recognition uses the
-retained recording. Transcription captures do not advance interview progress. See
+of interviewer speech playback. Typed answers submit reviewed text directly without a recording. They use the explicit
+`typed` input mode, preserve the exact text through screening and acceptance, and never
+request an audio grant or transcription. Any attached recording still requires owned ready
+media validation. Historical recorded/browser/streaming submissions retain their recording
+checks; a missing recording in those modes is invalid. Text-only operation recovery ends at
+one hour or session expiry, whichever comes first. The room uses review-first input for
+all voice modes: finalized dictation or complete-recording transcription fills the editable
+answer box, and explicit Submit sends the reviewed text through the typed contract.
+A separate `transcription` operation binds complete audio to its owned current question and
+revision. The HTTP recovery worker downloads only sealed object grants, validates the audio,
+and uses the existing accounted transcription provider. Acceptance saves private capture text
+without creating dialogue, incrementing revision, or consuming an answer. Subscription
+snapshots expose that text only while the interview, revision and recording remain live.
+Cancellation fences late results and expires the audio; cleanup and abandonment scrub capture
+text while retaining usage identities. Retries share the existing execution bounds. Historical
+audio-turn callers keep their recording validation and transcription behavior. See
 [answer transcription](../interview-transcription.md) for lifecycle and device checks.
 
 An explicit confirmed abandonment ends a preparing, ready or active session. Under the
@@ -180,6 +192,27 @@ Independent-connection specs contend real owner locks for competing submissions 
 identical/conflicting acceptance. Atomicity specs inject a failed speech write and observe
 unchanged dialogue, counts, history and lifecycle. Existing written-practice regressions run
 alongside the new service and database-constraint checks.
+
+### Acknowledgements and canonical interviewer text
+
+Real interviewer output carries a required acknowledgement of at most 280 characters,
+separate from its follow-up or advancement intent. It is one brief factual sentence
+about the newest candidate answer, without praise, scoring, coaching or invented facts.
+Rails saves it on the accepted follow-up, next opening or final closing, including when
+the response cap forces advancement. It never changes Rails' choice of question.
+
+Message `content` remains only the question/follow-up/closing. Optional
+`acknowledgement` metadata is exposed separately; `spokenContent` joins it to content
+with a blank line. Browser and provider speech use that canonical saved text, as do
+restored public-dialogue claims. Clarification can read content alone without copying
+candidate details from the acknowledgement. No new dialogue kind is introduced.
+Acknowledgement plus follow-up share the existing 4,000-character speech-text cap.
+
+Internal acceptance permits omission for historical runtimes and old receipts. An
+omitted acknowledgement leaves historical fingerprints unchanged, while an included
+acknowledgement participates in duplicate-result conflict detection. New real model
+output must provide a nonblank acknowledgement. Parameter logging filters it like
+reply text; expiry cleanup scrubs it with the rest of the private dialogue.
 
 ## Private audio boundary
 
@@ -488,8 +521,12 @@ Production builds hide the route content even if the frontend flag is set; Rails
 denies public demo operations outside development. Written practice remains at `/interview-prep`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
-The active room presents the latest interviewer reply once, with earlier exchanges and saved
-response counts in **Saved conversation**. Turn headings distinguish recording, local review,
+The active room keeps the original main question visible while showing the latest follow-up
+separately. It shows the initial question only once; earlier exchanges and saved response
+counts remain in **Saved conversation**. A saving request displays immediate accessible
+loading feedback; only an unresolved response after the request finishes offers submission
+recovery. Each saved interviewer turn has one play/pause-or-stop/replay control. A completed
+turn replays from the beginning; a paused provider recording resumes from its current position. Turn headings distinguish recording, local review,
 submission, answer processing and speech recovery without exposing execution checkpoint names.
 Provider and retention details remain accessible in **Interview details and privacy**; preparation
 still discloses providers before starting. Terminal session updates release local microphone
@@ -674,3 +711,60 @@ envelope. Reloads and legacy histories rebuild the same public conversation with
 copies of the library. Each new question has its own private model conversation and starts
 with that canonical context. This is one logical system context, not provider-side session
 storage: the stateless provider transport still replays the conversation on each request.
+
+
+### Reviewed typed answers
+
+The answer editor keeps authored text only in tab memory and warns before leaving with a
+draft. Explicit Submit sends exactly the reviewed characters as `candidate_transcript` with
+`transcription_mode: typed`; `recording_id` is optional for this source only. Rails validates
+nonblank text up to 4,000 characters and binds the canonical text digest to the stable
+submission key. A supplied digest must match the actual text; changing text under the same
+key conflicts. Acceptance rejects text different from the submitted reviewed answer.
+
+Reload recovery stores only owner/session/question/revision/key/source and the digest, never
+the text. A lost receipt preserves its exact text in memory for an explicit same-key retry,
+after an owned canonical read. If a reload loses that text and the server confirms no saved
+operation, release the unresolved identity and ask the candidate to type the answer again;
+never substitute audio or silently replay an empty answer. Saved accepted/pending work is
+reconciled by its original key. Existing audio-mode recovery remains supported while capture
+modes migrate to the reviewed editor.
+
+## Question clarification
+
+`requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
+saved opening/follow-up message. It creates one `InterviewClarification` per message.
+Only `message.content` enters its SQS payload, alongside the clarification identity;
+acknowledgements, spoken text, answers, library and model history are excluded.
+Prepared sessions reuse their immutable preparation hourly admission. Clarification
+spend and concurrency use the spoken-interview allowance, independently of general AI.
+
+Before screening or generation, the queue worker calls the authenticated
+`/internal/interviews/clarifications/:ai_task_id/claim` endpoint. Rails rechecks prompt,
+owner, expiry, admission and once-only execution under locks. This adds no AI database
+grants. The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
+private secret as Rails/the interview runtime); configure these in the queue worker's
+environment before enabling clarification. A blank secret fails without provider calls.
+Deploy the migration/API and compatible queue worker together; schema fields require
+regenerating the web client. Existing saved sessions and interview-runtime operations
+keep their contracts.
+
+One logical record has at most two explicitly requested task attempts. Queue duplicates
+cannot claim an attempt twice. Each task has a three-minute deadline; the UI uses a local
+timer to offer explicit retry after missing queue/worker/result delivery, without polling.
+A new attempt fences the old task. Queue publication ambiguity checks saved state rather
+than replacing an already accepted outcome. There is no automatic regeneration of a
+successful explanation. Screening plus generation has a 30-second deadline, a 4,000-character
+question cap, a 1,000-character explanation cap, and at most two generation model requests including
+fallback. The fixed policy asks only for simpler wording, without answers or coaching.
+
+Results use `ai_results`, existing per-attempt usage deduplication and `aiTaskUpdated`.
+Only current, claimed, unexpired prompt results can save an explanation. Late usage still
+counts once even when the result is obsolete. Session snapshots include clarification
+metadata for reconnect/reopen; the draft remains in the independent in-memory editor.
+Generic task reads also hide unavailable clarification input/results. Abandonment and
+expiry scrub explanation/input/result text while preserving billing records. No clarification
+messages, answer attempts, question progression or speech work are created.
+
+The offline clarification eval runner validates synthetic fixtures/evaluator wiring only;
+semantic no-coaching quality remains unmeasured until a separately authorized paid eval.

@@ -6,7 +6,7 @@ import { useBeforeUnload, useBlocker } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-export function RecordingUnsavedChanges({ dirty }: { dirty: boolean }) {
+export function RecordingUnsavedChanges({ dirty, textDraft = false }: { dirty: boolean; textDraft?: boolean }) {
   const blocker = useBlocker(dirty)
   useBeforeUnload((event) => {
     if (dirty) { event.preventDefault(); event.returnValue = '' }
@@ -20,7 +20,7 @@ export function RecordingUnsavedChanges({ dirty }: { dirty: boolean }) {
     <DialogContent>
       <DialogHeader>
         <DialogTitle>Leave without submitting?</DialogTitle>
-        <DialogDescription>Your recording is only in browser memory. Leaving will discard it.</DialogDescription>
+        <DialogDescription>{textDraft ? 'Your unsent answer is only in browser memory. Leaving will discard it and any recording.' : 'Your recording is only in browser memory. Leaving will discard it.'}</DialogDescription>
       </DialogHeader>
       <DialogFooter>
         <Button variant="outline" onClick={() => { if (blocker.state === 'blocked') blocker.proceed() }}>Discard and leave</Button>

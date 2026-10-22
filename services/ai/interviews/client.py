@@ -68,8 +68,8 @@ class EarlierDialogue(BaseModel):
 
 class TurnPayload(BaseModel):
     candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
-    transcription_mode: Literal["recorded", "browser", "streaming"] = "recorded"
-    recording_id: str
+    transcription_mode: Literal["recorded", "browser", "streaming", "typed"] = "recorded"
+    recording_id: str | None
     expected_revision: int
     question: str
     model_history: list[dict[str, Any]]
@@ -81,6 +81,11 @@ class TurnPayload(BaseModel):
 
     @model_validator(mode="after")
     def require_context(self):
+        if self.transcription_mode == "typed":
+            if not self.candidate_transcript or not self.candidate_transcript.strip():
+                raise ValueError("Reviewed text is required")
+        elif not self.recording_id:
+            raise ValueError("Audio turns require a recording")
         if (self.fixture_context is None) == (self.interview_context is None):
             raise ValueError("A turn requires exactly one context source")
         return self
@@ -96,6 +101,10 @@ class TurnPayload(BaseModel):
         if self.earlier_dialogue is not None:
             context["earlier_dialogue"] = self.earlier_dialogue.model_dump()
         return context
+
+
+class TranscriptionPayload(BaseModel):
+    recording_id: str
 
 
 class SpeechPayload(BaseModel):
@@ -134,19 +143,19 @@ class Claim(BaseModel):
     execution_mode: Literal["fake", "real"] = "fake"
     execution_config: ExecutionConfiguration = Field(default_factory=lambda: FAKE_CONFIGURATION)
     operation_id: str
-    kind: Literal["preparation", "turn", "speech"]
+    kind: Literal["preparation", "turn", "speech", "transcription"]
     attempt_id: str
     claim_generation: StrictInt
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: TurnPayload | SpeechPayload | PreparationPayload
+    payload: TurnPayload | SpeechPayload | PreparationPayload | TranscriptionPayload
 
     @model_validator(mode="after")
     def matching_payload(self):
         configuration = FAKE_CONFIGURATION if self.execution_mode == "fake" else REAL_CONFIGURATION
         if self.execution_config != configuration:
             raise ValueError("Invalid saved execution configuration")
-        expected = {"turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
+        expected = {"transcription": TranscriptionPayload, "turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
         if not isinstance(self.payload, expected):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
         return self
@@ -345,6 +354,9 @@ class RailsInterviewClient:
     async def complete_audio(self, claim: Claim, media_id: str):
         return await self._callback(claim, "complete_audio", media_id=media_id)
 
+    async def accept_transcription(self, claim, transcript):
+        return await self._callback(claim, "accept_transcription", transcript=transcript)
+
     async def accept(
         self,
         claim: Claim,
@@ -354,6 +366,7 @@ class RailsInterviewClient:
         reply: str | None,
         history_version: int,
         model_history: list[dict[str, Any]],
+        acknowledgement: str | None = None,
     ):
         return await self._callback(
             claim,
@@ -363,6 +376,7 @@ class RailsInterviewClient:
             reply=reply,
             history_version=history_version,
             model_history=model_history,
+            **({"acknowledgement": acknowledgement} if acknowledgement is not None else {}),
         )
 
     async def fail(self, claim: Claim, code: str, retryable: bool):

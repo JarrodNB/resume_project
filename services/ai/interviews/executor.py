@@ -72,6 +72,8 @@ class InterviewExecutor:
         try:
             if claim.kind == "turn":
                 await self._turn(claim)
+            elif claim.kind == "transcription":
+                await self._recorded_review(claim)
             elif claim.kind == "preparation":
                 await self._preparation(claim)
             else:
@@ -156,6 +158,17 @@ class InterviewExecutor:
                 return function()
         return make_agent(self.scenario, guard, provider_call), {}
 
+    async def _recorded_review(self, claim):
+        grant = await self.client.recording(claim)
+        data = await asyncio.to_thread(download_audio, grant["download_url"],
+            expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
+        transcript = await self._transcribe(claim, data)
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise ScreeningRejected("empty_audio")
+        if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
+            raise ScreeningRejected("transcript_too_long")
+        await self._reconcile(claim, lambda: self.client.accept_transcription(claim, transcript))
+
     async def _turn(self, claim):
         payload = claim.payload
         if payload.earlier_dialogue is not None:
@@ -163,13 +176,15 @@ class InterviewExecutor:
             if size > payload.earlier_dialogue.character_budget:
                 raise ScreeningRejected("context_limit")
         history = restore_history(payload.history_version, payload.model_history)
-        with stage_timing(claim, "recording_download"):
-            grant = await self.client.recording(claim)
-            data = await asyncio.to_thread(download_audio, grant["download_url"],
-                                    expected_checksum=grant["checksum"],
-                                    expected_byte_size=grant["byte_size"], **self._media_options())
-        with stage_timing(claim, "transcription"):
-            transcript = await self._transcribe(claim, data)
+        transcript = payload.candidate_transcript
+        if payload.transcription_mode != "typed":
+            with stage_timing(claim, "recording_download"):
+                grant = await self.client.recording(claim)
+                data = await asyncio.to_thread(download_audio, grant["download_url"],
+                                        expected_checksum=grant["checksum"],
+                                        expected_byte_size=grant["byte_size"], **self._media_options())
+            with stage_timing(claim, "transcription"):
+                transcript = await self._transcribe(claim, data)
         if not isinstance(transcript, str) or not transcript.strip():
             raise ScreeningRejected("empty_audio")
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:

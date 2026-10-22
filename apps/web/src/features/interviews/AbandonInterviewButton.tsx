@@ -3,8 +3,8 @@ import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
-export function AbandonInterviewButton({ busy, dirty, error, abandon, onAbandoned }: {
-  busy: boolean; dirty: boolean; error: string | null; abandon: () => Promise<boolean>; onAbandoned: () => void
+export function AbandonInterviewButton({ busy, dirty, textDraft = false, error, abandon, onAbandoned }: {
+  busy: boolean; dirty: boolean; textDraft?: boolean; error: string | null; abandon: () => Promise<boolean>; onAbandoned: () => void
 }) {
   const [open, setOpen] = useState(false)
   const confirming = useRef(false)
@@ -21,7 +21,7 @@ export function AbandonInterviewButton({ busy, dirty, error, abandon, onAbandone
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Abandon this interview?</DialogTitle>
-          <DialogDescription>You cannot continue this interview afterward. Audio access ends and saved audio is queued for deletion. Existing provider charges are kept.{dirty && ' Your unsubmitted recording will be discarded.'}</DialogDescription>
+          <DialogDescription>You cannot continue this interview afterward. Audio access ends and saved audio is queued for deletion. Existing provider charges are kept.{dirty && (textDraft ? ' Your unsubmitted answer and any recording will be discarded.' : ' Your unsubmitted recording will be discarded.')}</DialogDescription>
         </DialogHeader>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>

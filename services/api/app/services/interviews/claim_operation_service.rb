@@ -20,21 +20,30 @@ module Interviews
         next failure("Media expired") if expire_operation(interview)
         next failure("Interview expired") if interview.expires_at <= Time.current || interview.expired?
         next failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
-        if @operation.turn?
+        if @operation.turn? || @operation.transcription?
           next failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision &&
             interview.current_question_position == @operation.question.position
-          recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
+          unless @operation.text_only?
+            recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
             question_id: @operation.question_id, kind: "recording", status: "ready")
-          next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+            next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+          end
+          next failure("Reviewed answer unavailable") if @operation.text_only? && @operation.candidate_transcript.blank?
         end
-        expiry = @operation.turn? ? recording.expires_at : (interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at)
+        expiry = if @operation.text_only?
+          [ @operation.created_at + 1.hour, interview.expires_at ].min
+        elsif @operation.turn? || @operation.transcription?
+          recording.expires_at
+        else
+          interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at
+        end
         if @operation.running?
           next failure("Operation already claimed") if @operation.lease_expires_at > Time.current && @operation.execution_deadline > Time.current
           fail_execution(@operation.execution_deadline <= Time.current ? "execution_timeout" : "lease_expired", retryable: true)
           next failure("Recovery scheduled")
         end
         next failure("Operation is not eligible") unless @operation.pending? && (!@operation.retry_at || @operation.retry_at <= Time.current)
-        next failure("Recording expired") if @operation.turn? && @operation.created_at <= 1.hour.ago
+        next failure("Recording expired") if (@operation.turn? || @operation.transcription?) && @operation.created_at <= 1.hour.ago
         next failure("Execution limit reached") if @operation.execution_count >= 6 || @operation.cycle_execution_count >= 3
         allowance = CheckOperationAllowanceService.call(operation: @operation, create_task: true)
         unless allowance.success?
@@ -55,12 +64,14 @@ module Interviews
         AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => attempt_id, "attempt_finished" => false })
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
-        if interview.frozen_context.present? && !@operation.speech?
+        if interview.frozen_context.present? && !@operation.speech? && !@operation.transcription?
           context = FrozenLibraryScreening.hydrate(interview)
           interview.update!(frozen_context: context) if context != interview.frozen_context
         end
         payload = if @operation.speech?
-          { text: @operation.message.content, message_id: @operation.message_id }
+          { text: MessageText.spoken_content(@operation.message), message_id: @operation.message_id }
+        elsif @operation.transcription?
+          { recording_id: @operation.recording_id }
         elsif @operation.preparation?
           { frozen_context: interview.frozen_context }
         else
@@ -69,7 +80,7 @@ module Interviews
             question: @operation.question.content, model_history: @operation.question.model_history,
             history_version: @operation.question.history_version,
             current_dialogue: interview.messages.where(question: @operation.question, kind: %w[opening answer follow_up])
-              .order(:position).map { |message| { kind: message.kind, content: message.content } },
+              .order(:position).map { |message| { kind: message.kind, content: MessageText.spoken_content(message) } },
             earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
               interview.frozen_context.present? ?
                 { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :

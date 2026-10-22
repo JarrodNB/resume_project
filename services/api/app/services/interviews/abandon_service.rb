@@ -17,6 +17,7 @@ module Interviews
         @interview.operations.order(:id).lock.each do |operation|
           operation.ai_task&.lock!
           operation.update!(candidate_transcript: nil) if operation.candidate_transcript
+          operation.update!(accepted_result: {}) if operation.transcription?
           next if operation.accepted? || operation.expired?
 
           operation.update!(status: "expired", retry_at: nil, checkpoint: nil,
@@ -33,6 +34,13 @@ module Interviews
           capture.ai_task&.lock!
           capture.update!(transcript: nil, status: capture.status == "completed" ? "completed" : "failed")
           capture.ai_task&.update!(status: "failed", error_message: "interview_abandoned", completed_at: Time.current) unless capture.status == "completed"
+        end
+        @interview.clarifications.update_all(explanation: nil)
+        @interview.user.ai_tasks.where(subject: @interview, task_type: "interview_clarification").find_each do |task|
+          task.with_lock do
+            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_abandoned", completed_at: task.completed_at || Time.current)
+          end
         end
         @interview.update!(status: "abandoned", revision: @interview.revision + 1)
         success(@interview)

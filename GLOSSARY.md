@@ -16,7 +16,7 @@ The model work consumed while handling a user's AI tasks, including unsuccessful
 A readable record of the AI exchanges for one AI task, stored separately from other tasks even when they share a job or interview question set. It includes instructions, messages, tool calls and results, and repeated attempts as seen by the model. Local development transcripts also highlight observed validation/provider failures, actual fallback execution and task redeliveries; production uses tracing only.
 
 **Interview session**:
-One spoken interview with its own questions, accepted dialogue, and progress. It is separate
+One practice interview with its own questions, accepted dialogue, and progress. It is separate
 from a written interview practice set.
 _Avoid_: Basic Interview when referring to the shared session concept
 
@@ -24,12 +24,12 @@ _Avoid_: Basic Interview when referring to the shared session concept
 The format of an interview session. Basic is the only supported type today.
 
 **Basic Interview**:
-The initial turn-based spoken interview type, using prepared questions and limited
+The initial turn-based interview type, using prepared questions and limited
 follow-ups without coaching.
 
 **Interview preparation**:
 The creation of a fictional role and questions from the user's saved career details,
-ready for the user to review before beginning a spoken interview.
+ready for the user to review before beginning an interview.
 
 **Fictional interview role**:
 An imagined job used to frame interview practice. Its responsibilities and requirements
@@ -49,5 +49,18 @@ transcription, or transcription of the complete recording. It is independent of 
 interviewer's voice is played.
 
 **Transcription capture**:
-One live attempt to turn a candidate's speech into text before they submit an answer.
+One attempt to turn a candidate's speech or complete recording into text before they submit an answer.
 It does not count as an accepted answer or advance the interview.
+
+
+**Interview answer draft**:
+The candidate's editable answer before submission, written by typing or from a reviewed
+transcription. It becomes an accepted answer only after submission and acceptance.
+
+**Interviewer acknowledgement**:
+A brief factual response to a detail in the candidate's previous answer, before the
+interviewer asks a follow-up, moves to the next question, or closes the interview.
+
+**Question clarification**:
+A short explanation of what the current interviewer prompt is asking. It does not answer
+the question for the candidate or count toward their answer allowance.

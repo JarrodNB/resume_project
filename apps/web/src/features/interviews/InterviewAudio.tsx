@@ -1,5 +1,6 @@
 /** Load owner-bound saved speech and manage its playback lifetime.
- * Autoplay is attempted once for a new turn. Playback failure never regenerates speech.
+ * One control pauses/resumes or replays a completed turn. Autoplay is attempted once
+ * for a new turn; playback failure never regenerates speech.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@apollo/client/react'
@@ -30,11 +31,12 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
   const [url, setUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [playing, setPlaying] = useState(false)
-  const [played, setPlayed] = useState(false)
+  const [ended, setEnded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const notify = useCallback((value: boolean) => onPlayingChange?.(value, messageId), [onPlayingChange, messageId])
 
   const stop = useCallback(() => {
+    generation.current += 1
     audio.current?.pause()
     setPlaying(false)
     notify(false)
@@ -63,13 +65,13 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
     }
   }, [notify])
 
-  const play = useCallback(async (refresh = false, replay = false) => {
+  const play = useCallback(async (replay = false) => {
     if (!permitted.current) return
     const identity = ++generation.current
     setError(null)
     try {
       let source = url
-      if (!source || refresh) {
+      if (!source) {
         setLoading(true)
         const payload = (await request({ variables: { input: { interviewId, messageId } } })).data?.interviewPlayback
         if (identity !== generation.current || !permitted.current) return
@@ -91,7 +93,7 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
         if (!permitted.current) element.pause()
         return
       }
-      setPlaying(true); setPlayed(true); notify(true)
+      setPlaying(true); setEnded(false); notify(true)
     } catch (cause) {
       if (identity === generation.current) {
         setUrl(null)
@@ -113,15 +115,13 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
 
   function audioFailed() {
     generation.current += 1
-    stop(); setLoading(false); setUrl(null)
+    stop(); setEnded(false); setLoading(false); setUrl(null)
     setError('The playback link may have expired. Play interviewer audio to request a fresh link. Audio itself expires one hour after completion.')
   }
   return <div className="grid gap-2">
-    <audio ref={audio} preload="none" src={url ?? undefined} muted={muted} aria-label="Saved interviewer speech" onPlay={() => { if (permitted.current) { setPlaying(true); notify(true) } else audio.current?.pause() }} onEnded={stop} onPause={() => { setPlaying(false); notify(false) }} onError={audioFailed} />
+    <audio ref={audio} preload="none" src={url ?? undefined} muted={muted} aria-label="Saved interviewer speech" onPlay={() => { if (permitted.current) { setLoading(false); setPlaying(true); notify(true) } else audio.current?.pause() }} onEnded={() => { stop(); setEnded(true) }} onPause={() => { setPlaying(false); notify(false) }} onError={audioFailed} />
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={disabled || muted || loading} onClick={() => playing ? stop() : void play()}>{loading ? 'Loading audio…' : playing ? 'Pause interviewer audio' : 'Play interviewer audio'}</Button>
-      {played && <Button variant="ghost" disabled={disabled || muted || loading} onClick={() => void play(false, true)}>Replay question</Button>}
-      {url && <Button variant="ghost" disabled={disabled || muted || loading} onClick={() => void play(true)}>Refresh playback link</Button>}
+      <Button variant="outline" disabled={disabled || muted || loading} aria-busy={loading} onClick={() => playing ? stop() : void play(ended)}>{loading ? 'Loading audio…' : playing ? 'Pause interviewer audio' : ended ? 'Replay interviewer audio' : 'Play interviewer audio'}</Button>
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </div>

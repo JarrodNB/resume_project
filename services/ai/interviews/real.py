@@ -176,12 +176,13 @@ class RealInterviewExecutor(InterviewExecutor):
             if len(formatted) > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
             enforce_context_limit(history, "")
-            grant = await self.client.recording(claim)
-            data = await asyncio.to_thread(download_audio, grant["download_url"],
-                expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
             transcript = payload.candidate_transcript
-            if transcript is None:
-                transcript = await self._transcribe(claim, data)
+            if payload.transcription_mode != "typed":
+                grant = await self.client.recording(claim)
+                data = await asyncio.to_thread(download_audio, grant["download_url"],
+                    expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
+                if transcript is None:
+                    transcript = await self._transcribe(claim, data)
             if not isinstance(transcript, str) or not transcript.strip():
                 raise ScreeningRejected("empty_audio")
             if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
@@ -198,7 +199,7 @@ class RealInterviewExecutor(InterviewExecutor):
             saved = serialize_history(result.all_messages())
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
-                reply=result.output.reply, history_version=1, model_history=saved)
+                reply=result.output.reply, acknowledgement=result.output.acknowledgement, history_version=1, model_history=saved)
         await self._reconcile(claim, accept)
 
     async def _synthesize(self, claim):

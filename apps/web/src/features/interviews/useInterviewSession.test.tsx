@@ -6,7 +6,7 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION } from './interviewOperations'
 const snapshot = {
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
   questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0 }],
@@ -39,7 +39,7 @@ describe('useInterviewSession', () => {
   })
   it('reconciles an ambiguously accepted submission on reload without resending expired recording input', async () => {
     savePendingSubmission('owner', 'session', pending)
-    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
     const resend = vi.fn(() => ({ data: { submitInterviewTurn: { interview: accepted, errors: [] } } }))
     const { result } = mount([
       { request: query, result: { data: { interviewSession: snapshot } } },
@@ -57,7 +57,7 @@ describe('useInterviewSession', () => {
     const put = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', put)
     const identity = { ...pending, submissionKey: key }
-    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'accepted', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
     const submitRequest = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity } } }
     const { result } = mount([
       { request: query, result: { data: { interviewSession: snapshot } } },
@@ -173,7 +173,7 @@ it('recovers an unsaved recognized submission from retained audio after an owned
   const key = '11111111-1111-4111-8111-111111111111'
   vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
   const fallback = { ...pending, submissionKey: key }
-  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
   const submit = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
   const { result } = mount([
     { request: query, result: { data: { interviewSession: snapshot } } },
@@ -185,4 +185,83 @@ it('recovers an unsaved recognized submission from retained audio after an owned
   await act(() => result.current.checkSavedStatus(true))
   expect(submit).toHaveBeenCalledOnce()
   expect(result.current.unresolved).toBeNull()
+})
+
+it('submits canonical typed text without audio and persists only its identity', async () => {
+  const key = '11111111-1111-4111-8111-111111111111'
+  vi.stubGlobal('crypto', { randomUUID: () => key, subtle: { digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(1).buffer) } })
+  const text = 'I rebuilt the scheduler and checked duplicates stopped.'
+  const identity = { questionId: 'question', expectedRevision: 0, submissionKey: key, transcriptionMode: 'typed', transcriptDigest: '01'.repeat(32) }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const submit = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity, candidateTranscript: text } } }, result: submit },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(async () => { expect(await result.current.answerText(text)).toBe(true) })
+  expect(submit).toHaveBeenCalledOnce()
+  expect(result.current.unresolved).toBeNull()
+  expect(JSON.stringify(localStorage)).not.toContain(text)
+})
+
+it('reconciles a lost typed receipt and explicitly resends the same retained text and identity', async () => {
+  const key = '11111111-1111-4111-8111-111111111111'
+  vi.stubGlobal('crypto', { randomUUID: () => key, subtle: { digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(1).buffer) } })
+  const text = 'My edited answer stays exactly this way.'
+  const identity = { questionId: 'question', expectedRevision: 0, submissionKey: key, transcriptionMode: 'typed', transcriptDigest: '01'.repeat(32) }
+  const request = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity, candidateTranscript: text } } }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const resend = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request, error: new Error('Lost response') },
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request, result: resend },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(async () => { expect(await result.current.answerText(text)).toBe(false) })
+  expect(loadPendingSubmission('owner', 'session')).toEqual(identity)
+  expect(JSON.stringify(localStorage)).not.toContain(text)
+  expect(resend).not.toHaveBeenCalled()
+  await act(() => result.current.checkSavedStatus(true))
+  expect(resend).toHaveBeenCalledOnce()
+  expect(result.current.unresolved).toBeNull()
+})
+
+it('asks for re-entry after reload when a typed identity is absent from the server, without replaying a write', async () => {
+  const identity = { questionId: 'question', expectedRevision: 0, submissionKey: 'typed-key', transcriptionMode: 'typed' as const, transcriptDigest: 'a'.repeat(64) }
+  savePendingSubmission('owner', 'session', identity)
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: query, result: { data: { interviewSession: snapshot } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  expect(result.current.unresolved).toEqual(identity)
+  await act(() => result.current.checkSavedStatus(true))
+  expect(result.current.error).toContain('type your answer again')
+  expect(result.current.unresolved).toBeNull()
+  expect(loadPendingSubmission('owner', 'session')).toBeNull()
+})
+
+it('uploads recorded review once and retries its exact capture after a lost receipt without submitting an answer', async () => {
+  sessionStorage.clear()
+  const put = vi.fn().mockResolvedValue({ ok: true })
+  vi.stubGlobal('fetch', put)
+  const startRequest = { query: START_RECORDED_TRANSCRIPTION, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, recordingId: 'recording' } } }
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: AUTHORIZE_RECORDING, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, contentType: 'audio/webm', byteSize: 3, checksum: 'kAFQmDzST7DWlj99KOF/cg==' } } }, result: { data: { authorizeInterviewRecording: { __typename: 'AuthorizeInterviewRecordingPayload', errors: [], upload: { __typename: 'InterviewRecordingUpload', mediaId: 'recording', uploadUrl: 'https://storage.test/upload', headers: { 'Content-Type': 'audio/webm' }, expiresIn: 60 } } } } },
+    { request: { query: REGISTER_RECORDING, variables: { input: { interviewId: 'session', mediaId: 'recording' } } }, result: { data: { registerInterviewRecording: { __typename: 'RegisterInterviewRecordingPayload', interview: snapshot, errors: [] } } } },
+    { request: startRequest, error: new Error('Lost capture receipt') },
+    { request: startRequest, result: { data: { startRecordedTranscription: { __typename: 'StartRecordedTranscriptionPayload', operationId: 'capture', interview: snapshot, errors: [] } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  const blob = new Blob(['abc'], { type: 'audio/webm' })
+  await act(async () => expect(await result.current.transcribeRecording(blob)).toBeNull())
+  await act(async () => expect(await result.current.transcribeRecording(blob)).toBe('capture'))
+  expect(put).toHaveBeenCalledOnce()
+  expect(result.current.interview?.revision).toBe(0)
+  expect(result.current.interview?.operations).toEqual([])
+  expect(loadPendingSubmission('owner', 'session')).toBeNull()
 })

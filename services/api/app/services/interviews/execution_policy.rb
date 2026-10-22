@@ -31,12 +31,15 @@ module Interviews
     def expire_operation(interview)
       return false unless @operation.pending? || @operation.running? || @operation.failed?
 
-      expiry = if @operation.turn?
+      expiry = if @operation.text_only?
+        [ @operation.created_at + 1.hour, interview.expires_at ].min
+      elsif @operation.turn? || @operation.transcription?
         InterviewSessionMedia.find_by(id: @operation.recording_id, interview_session_id: interview.id, kind: "recording")&.expires_at || Time.current
       else
         interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at
       end
-      expired = interview.expires_at <= Time.current || interview.expired? || expiry <= Time.current ||
+      stale_capture = @operation.transcription? && (!interview.active? || @operation.expected_revision != interview.revision)
+      expired = stale_capture || interview.expires_at <= Time.current || interview.expired? || expiry <= Time.current ||
         (@operation.retry_expires_at && @operation.retry_expires_at <= Time.current)
       return false unless expired
 
@@ -60,7 +63,7 @@ module Interviews
         retry_at: automatic ? Time.current + BACKOFF.fetch(@operation.cycle_execution_count - 1).seconds : nil)
       @operation.ai_task&.update!(status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
         error_message: code)
-      if @operation.turn? && (!retryable || @operation.execution_count >= 6)
+      if (@operation.turn? || @operation.transcription?) && (!retryable || @operation.execution_count >= 6)
         InterviewSessionMedia.where(id: @operation.recording_id, interview_session_id: @operation.interview_session_id, kind: "recording")
           .update_all(expires_at: Time.current)
       end

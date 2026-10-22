@@ -10,6 +10,70 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "queues recorded review only for its owner and exposes a transcript only while current and live" do
+    recording = ready_interview_recording(session)
+    mutation = 'mutation($input: StartRecordedTranscriptionInput!) { startRecordedTranscription(input: $input) { operationId interview { revision } errors } }'
+    variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0, recordingId: recording.id } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result.dig("data", "startRecordedTranscription", "errors")).to eq([])
+    operation = session.operations.transcription.find(result.dig("data", "startRecordedTranscription", "operationId"))
+    claim = Interviews::ClaimOperationService.call(operation: operation).value
+    Interviews::AcceptTranscriptionService.call(operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: "Private capture text")
+    query = "query { interviewSession(id: \"#{session.id}\") { operations { kind reviewTranscript } } }"
+    read = -> { execute_graphql(query, user: user).dig("data", "interviewSession", "operations").find { |item| item["kind"] == "transcription" }["reviewTranscript"] }
+    expect(read.call).to eq("Private capture text")
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+    session.update!(revision: 1)
+    expect(read.call).to be_nil
+    session.update!(revision: 0)
+    recording.update!(expires_at: 1.second.ago)
+    expect(read.call).to be_nil
+  end
+
+  it "requests only an owned latest prompt and restores saved clarification metadata" do
+    current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    mutation = 'mutation($input: RequestInterviewClarificationInput!) { requestInterviewClarification(input: $input) { clarification { id status explanation attemptCount aiTaskId deadline } errors } }'
+    variables = { input: { interviewId: current.id, messageId: current.messages.first.id } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result["errors"]).to be_nil
+    record = current.clarifications.first!
+    expect(result.dig("data", "requestInterviewClarification", "clarification", "aiTaskId")).to eq(record.ai_task_id)
+    query = "{ interviewSession(id: \"#{current.id}\") { messages { clarification { id status } } } }"
+    expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "clarification", "id")).to eq(record.id)
+    Interviews::ClaimClarificationService.call(ai_task: record.ai_task)
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "explanation" => "Explain the question in simpler words." } })
+    current.update!(expires_at: 1.second.ago)
+    task_query = "{ aiTask(id: \"#{record.ai_task_id}\") { input result } }"
+    expect(execute_graphql(task_query, user: user).dig("data", "aiTask")).to eq("input" => {}, "result" => nil)
+    expect(execute_graphql(task_query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+  end
+
+  it "submits reviewed text without audio only into the owner's current interview" do
+    mutation = 'mutation($input: SubmitInterviewTurnInput!) { submitInterviewTurn(input: $input) { interview { id } errors } }'
+    variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0,
+      submissionKey: "typed-graphql", transcriptionMode: "typed", candidateTranscript: "I rebuilt the scheduler." } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "submitInterviewTurn", "errors")).to eq([])
+    expect(session.operations.turn.first).to have_attributes(recording_id: nil, candidate_transcript: "I rebuilt the scheduler.")
+  end
+
+  it "exposes separate acknowledgement and canonical spoken text only in the owned snapshot" do
+    message = session.messages.first
+    message.update!(acknowledgement: "You improved the booking process.")
+    query = "query { interviewSession(id: \"#{session.id}\") { messages { content acknowledgement spokenContent } } }"
+    result = execute_graphql(query, user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "interviewSession", "messages", 0)).to eq(
+      "content" => message.content, "acknowledgement" => message.acknowledgement,
+      "spokenContent" => "#{message.acknowledgement}\n\n#{message.content}")
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+  end
+
   it "lists only the owner's twenty most recent live real sessions across resumable and review states" do
     config = Interviews::ExecutionConfiguration::PRESETS.fetch("real")
     sessions = 22.times.map do |index|

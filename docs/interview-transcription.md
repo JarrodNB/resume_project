@@ -6,9 +6,14 @@ recognition is the default; the browser remembers the signed-in owner's choice.
 Choose another mode between answers. The selected mode and any recorded-audio fallback
 are shown beside recording controls.
 
-All modes keep a complete WebM or MP4 recording for preview and fallback. A ready owned
-recording is still required for answer submission. Interim words are provisional; only
-finalized text may replace complete-recording transcription. Supplied text remains
+Voice modes keep a complete WebM or MP4 recording for preview and fallback. Browser and
+streaming dictation finalize into the same editable answer box used for typing. Interim
+words are provisional: editing and another capture wait until recording and recognition
+finish. Completed dictation appends to existing authored text once; later callbacks,
+manual corrections and new interview revisions cannot overwrite the reviewed answer.
+Discarding audio keeps reviewed text. Explicit Submit sends exactly that edited text
+through the typed-answer contract. Browser and streaming results need no audio upload;
+complete-recording review uploads once for transcription and never retranscribes on Submit. Supplied text remains
 untrusted candidate input and goes through the same newest-answer screening and durable
 turn acceptance as a transcribed recording. Failed recognition does not create a second
 turn. Microphone denial cannot fall back without captured audio.
@@ -47,17 +52,25 @@ PCM length are not substitutes for provider billing receipts.
 
 ## Complete recording
 
-The existing path uploads and seals the complete recording, then the AI runtime downloads,
-validates and transcribes it with `gpt-transcribe` after submission. This mode also handles
-fallback. Local development retains all usage records without adding new spending gates.
+After stopping, choose Transcribe recording to upload and seal the complete audio. A bounded
+durable transcription operation runs asynchronously in the AI runtime using `gpt-transcribe`.
+The result arrives through the interview subscription and fills the same editable answer box.
+Review or replace it, then choose Submit answer. Transcription alone never invokes the
+interviewer, advances the question, or consumes a response slot. Recognition fallback uses
+this same flow. Transcription errors retain local audio and reviewed text; eligible failures
+have an explicit bounded Retry transcription action. Repeated starts reuse the same sealed
+recording and operation after a lost receipt. Discard, re-record, typing a replacement, and
+changed interview revisions fence late text. Private capture text expires with its audio;
+user edits stay only in memory. Local development retains provider usage records without
+adding new spending gates. Historical audio-turn API callers remain compatible.
 
 ## Human device checks
 
 Use the retained local QA stack at `http://127.0.0.2:15176/interviews/demo`. On each mode,
-record, stop, preview, submit, and reload after acceptance. Verify the preference survives
+record, stop, edit the recognized words, submit, and reload after acceptance. Verify the preference survives
 reload and accepted dialogue advances once. Disconnect the streaming network or deny
 recognition permission while permitting microphone capture, and verify the visible fallback
-still submits the same recording. Also check cancel/re-record and rapid repeated Submit.
+transcribes the same recording for editable review before final text submission. Also check cancel/re-record and rapid repeated Submit.
 
 Desktop Chrome, Edge, Safari and Firefox, plus iOS Safari and Android Chrome, require
 manual device testing over HTTPS with microphone permission. Check mobile interruption,

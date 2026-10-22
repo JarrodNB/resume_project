@@ -5,6 +5,10 @@
 .interview-stage { min-width: 0; display: grid; gap: 24px; padding: 36px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); text-align: center; }
 .interview-presence { width: 88px; height: 88px; margin: 0 auto; display: grid; place-items: center; border-radius: 50%; color: var(--primary); background: var(--secondary); transition: background 200ms ease-out; }
 .interview-stage[data-speaking="true"] .interview-presence { outline: 2px solid var(--primary); outline-offset: 6px; }
+.interview-stage[data-speaking="true"] .interview-presence svg path { animation: interview-speaking 850ms ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.interview-stage[data-speaking="true"] .interview-presence svg path:nth-child(2n) { animation-delay: -280ms; }
+.interview-stage[data-speaking="true"] .interview-presence svg path:nth-child(3n) { animation-delay: -560ms; }
+@keyframes interview-speaking { 0%, 100% { transform: scaleY(.4); } 50% { transform: scaleY(1); } }
 .interview-stage[data-recording="true"] .interview-presence { color: var(--destructive); background: var(--muted); }
 .interview-identity { font-weight: 600; margin-top: -12px; }
 .interview-status { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
@@ -25,7 +29,7 @@
 .interview-exchange button { height: auto; min-height: 36px; white-space: normal; }
 @container (max-width: 850px) { .interview-room { grid-template-columns: minmax(0, 1fr); } .interview-exchanges { max-height: 440px; } }
 @media (max-width: 600px) { .interview-stage { padding: 24px 16px; } .interview-transcript { padding: 20px 16px; } .interview-presence { width: 72px; height: 72px; } .interview-record-controls { flex-direction: column; } .interview-record-controls button { min-height: 44px; width: 100%; } }
-@media (prefers-reduced-motion: reduce) { .interview-presence { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .interview-presence { transition: none; } .interview-stage[data-speaking="true"] .interview-presence svg path { animation: none; } }
 
 /* Setup follows the same ruled record as the career library; native inputs keep keyboard behavior. */
 .interview-setup { display: grid; gap: 24px; max-width: 920px; min-width: 0; }

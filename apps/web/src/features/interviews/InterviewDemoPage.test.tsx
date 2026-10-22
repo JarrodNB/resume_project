@@ -218,11 +218,14 @@ describe('InterviewDemoPage', () => {
     vi.stubGlobal('SpeechSynthesisUtterance', class { text: string; constructor(text: string) { this.text = text } })
     state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [] }
     renderDemo()
+    expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveAttribute('data-speaking', 'false')
     await userEvent.click(within(screen.getByRole('region', { name: 'Current interview turn' })).getByRole('button', { name: 'Play interviewer audio' }))
     expect(speak.mock.calls[0][0].text).toBe('Describe a project.')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+    expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveAttribute('data-speaking', 'true')
     await userEvent.click(screen.getByRole('button', { name: 'Stop interviewer audio' }))
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
+    expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveAttribute('data-speaking', 'false')
     state.interview = { ...snapshot, speechPlaybackMode: 'browser', revision: 1, operations: [], messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'followup', content: 'What changed?' }] }
     act(() => recorder.refresh())
     await waitFor(() => expect(speak).toHaveBeenCalledTimes(2))
@@ -422,7 +425,8 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     expect(screen.queryByRole('button', { name: 'Abandon interview' })).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel preparation' }))
-    expect(screen.getByRole('dialog')).toHaveTextContent('You can set up another interview')
+    expect(screen.getByRole('dialog', { name: 'Cancel this preparation?' })).toBeVisible()
+    expect(screen.queryByText(/This preparation cannot be started|You can set up another interview/)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }))
     expect(state.abandonInterview).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
@@ -588,7 +592,7 @@ describe('InterviewDemoPage', () => {
     renderDemo()
     expect(screen.queryByRole('button', { name: 'Retry answer processing' })).not.toBeInTheDocument()
     expect(screen.getByText('Record a new answer to continue.')).toBeVisible()
-    expect(screen.getByRole('alert')).toHaveTextContent('This did not use a response slot.')
+    expect(screen.getByRole('alert')).not.toHaveTextContent('response slot')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
   })
   it('hides the entrypoint when not explicitly enabled', () => {

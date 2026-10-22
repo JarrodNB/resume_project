@@ -564,20 +564,35 @@ it('defaults to browser recognition, remembers a choice, and locks it while an a
   act(() => recorder.refresh())
   expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
 })
-it('shows live recognition and finalization, then submits finalized text only on explicit Submit', async () => {
-  recorder.status = 'recording'; recorder.transcript = 'Interim answer'
+it.each(['browser', 'streaming'])('reviews %s dictation in the editor and submits exact edits without retranscription', async (mode) => {
+  state.answerText.mockResolvedValue(false)
   renderDemo()
-  expect(screen.getByText('Interim answer')).toBeVisible()
+  await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Answer transcription' }), mode)
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'recording'; recorder.transcript = 'Interim answer'
+  act(() => recorder.refresh())
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  expect(editor).toBeDisabled()
   expect(screen.getByText(/Live recognition/)).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Done answering' }))
   recorder.status = 'finalizing'
   act(() => recorder.refresh())
+  expect(editor).toBeDisabled()
   expect(screen.getByRole('heading', { name: 'Finalizing your transcript' })).toBeVisible()
-  expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
-  expect(state.answer).not.toHaveBeenCalled()
+  expect(state.answerText).not.toHaveBeenCalled()
   recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.candidateTranscript = 'Final answer'; recorder.transcript = 'Final answer'
   act(() => recorder.refresh())
-  await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
-  expect(state.answer).toHaveBeenCalledWith(recorder.recording, 'Final answer', 'browser')
+  await waitFor(() => expect(editor).toHaveValue('Final answer'))
+  fireEvent.change(editor, { target: { value: '  My corrected final answer.  ' } })
+  recorder.candidateTranscript = 'Late words'; recorder.transcript = 'Late words'
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue('  My corrected final answer.  ')
+  fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+  await waitFor(() => expect(state.answerText).toHaveBeenCalledExactlyOnceWith('  My corrected final answer.  '))
+  expect(state.answer).not.toHaveBeenCalled()
+  expect(editor).toHaveValue('  My corrected final answer.  ')
+  expect(screen.queryByRole('button', { name: 'Submit recording' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Discard recording' })).toBeEnabled()
 })
 it('shows the effective recorded fallback and keeps explicit submission available', () => {
   recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.effectiveMode = 'recorded'; recorder.fallbackReason = 'Recognition interrupted. Recorded fallback will be used.'
@@ -604,4 +619,52 @@ it('lets a candidate type without audio, keeps failed text, and warns before lea
   state.answerText.mockResolvedValue(true)
   fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
   await waitFor(() => expect(editor).toHaveValue(''))
+})
+
+it('releases capture when another saved revision arrives and ignores its late text', async () => {
+  renderDemo()
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'finalizing'
+  act(() => recorder.refresh())
+  state.interview = { ...snapshot, revision: 1 }
+  act(() => recorder.refresh())
+  expect(recorder.reset).toHaveBeenCalledOnce()
+  recorder.status = 'idle'
+  act(() => recorder.refresh())
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  fireEvent.change(editor, { target: { value: 'An answer for the new prompt.' } })
+  recorder.status = 'ready'; recorder.recording = new Blob(['old']); recorder.candidateTranscript = 'Old prompt text'
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue('An answer for the new prompt.')
+})
+
+it('retains authored corrections across re-record, discard and failed recognition', async () => {
+  renderDemo()
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  fireEvent.change(editor, { target: { value: 'My authored introduction.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.candidateTranscript = 'First dictated detail.'
+  act(() => recorder.refresh())
+  await waitFor(() => expect(editor).toHaveValue('My authored introduction.\n\nFirst dictated detail.'))
+  fireEvent.change(editor, { target: { value: 'My corrected answer.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Re-record' }))
+  recorder.status = 'recording'; recorder.candidateTranscript = null; recorder.recording = null
+  act(() => recorder.refresh())
+  expect(editor).toBeDisabled()
+  recorder.status = 'ready'; recorder.recording = new Blob(['replacement']); recorder.candidateTranscript = 'Second detail.'
+  act(() => recorder.refresh())
+  await waitFor(() => expect(editor).toHaveValue('My corrected answer.\n\nSecond detail.'))
+  fireEvent.click(screen.getByRole('button', { name: 'Discard recording' }))
+  recorder.status = 'idle'; recorder.candidateTranscript = null; recorder.recording = null
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue('My corrected answer.\n\nSecond detail.')
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['failed recognition']); recorder.effectiveMode = 'recorded'; recorder.fallbackReason = 'Recognition failed; recording retained.'
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue('My corrected answer.\n\nSecond detail.')
+  expect(screen.getByText('Recognition failed; recording retained.')).toBeVisible()
+  expect(screen.getByLabelText('Your recording preview')).toBeVisible()
+  expect(state.answer).not.toHaveBeenCalled()
+  expect(state.answerText).not.toHaveBeenCalled()
+  expect(JSON.stringify(localStorage)).not.toContain('My corrected answer')
 })

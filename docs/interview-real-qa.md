@@ -136,6 +136,13 @@ Local development starts without paid-use approval flags. Interview spending and
 
 ## Setup room manual checks
 
+Queued question clarification needs `INTERVIEW_RAILS_ORIGIN` and the same
+`INTERVIEW_SERVICE_SECRET` as Rails on the ordinary AI queue worker, not only the
+interview runtime. The real-QA overlay supplies both. Clarification feedback opens
+in a floating panel with a fixed trigger label, so waiting/errors/explanations do
+not reflow the question controls. Check Escape/outside dismissal and narrow-screen
+panel placement. Failed clarification attempts still need an explicit Retry.
+
 Before preparing, verify Mixed, Realistic, Daniel and Standard (8 questions) are
 selected, with no focus areas. Try all four types, three difficulties and
 interviewers, Short/Standard/Full loop, and multiple focus areas using keyboard

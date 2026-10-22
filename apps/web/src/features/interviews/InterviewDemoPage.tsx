@@ -33,6 +33,12 @@ import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewStreaming } from './useInterviewStreaming'
 import { useInterviewSession } from './useInterviewSession'
 
+const TRANSCRIPTION_HELP = {
+  browser: 'Browser recognition fills your answer while you speak using your browser’s speech service.',
+  streaming: 'Streaming transcription fills your answer while you speak using OpenAI. Try it if browser recognition is unreliable.',
+  recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
+}
+
 export function InterviewDemoPage() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -209,17 +215,19 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="flex justify-end">
       {interview.status === 'active' && <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogTrigger asChild><Button variant="ghost" size="icon" className="size-11" aria-label="Interview settings" title="Interview settings"><Settings aria-hidden="true" /></Button></DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Interview settings</DialogTitle>
             <DialogDescription>Choose when the microphone opens and how your answers are transcribed. These settings are remembered for future interviews.</DialogDescription>
           </DialogHeader>
           <InterviewMicrophoneSettings microphone={microphone} />
           <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
-            <select id="interview-transcription-mode" className="rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
+            <select id="interview-transcription-mode" aria-describedby="interview-transcription-help interview-transcription-recovery" className="min-h-11 rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
               <option value="browser">Browser recognition</option><option value="streaming">Streaming transcription</option><option value="recorded">Recorded audio transcription</option>
             </select>
           </label>
+          <p id="interview-transcription-help" className="text-sm leading-relaxed text-muted-foreground">{TRANSCRIPTION_HELP[transcriptionMode]}</p>
+          <p id="interview-transcription-recovery" className="text-sm leading-relaxed text-muted-foreground">If browser recognition gives missing or inaccurate words, try Streaming transcription or Recorded audio transcription. Submit or discard your current recording before switching modes. You can always type or correct your answer.</p>
           {(recorder.status !== 'idle' || recordingLocked || turnActive) && <p className="text-sm text-muted-foreground">You can change this setting after your current answer is submitted or discarded and processing finishes.</p>}
         </DialogContent>
       </Dialog>}
@@ -262,7 +270,6 @@ function OwnedInterview({ id }: { id: string }) {
           if (saved) { draft.setText(''); recorder.reset() }
           return saved
         }} />
-      {recorder.fallbackReason && <p role="status" className="text-sm">{recorder.fallbackReason}</p>}
       {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
       {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={cancelReview}>Cancel transcription</Button></div>}
       {!recordedReview && reviewOperation?.status === 'accepted' && reviewOperation.reviewTranscript && <Button variant="outline" onClick={() => {
@@ -281,6 +288,9 @@ function OwnedInterview({ id }: { id: string }) {
         </>}
       </div>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
+      {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
+      {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>You can review the recording’s transcript before submitting, or type your answer. For another live mode, submit or discard this recording, then open Interview settings.</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}

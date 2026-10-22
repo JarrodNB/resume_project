@@ -33,6 +33,7 @@ describe('browser transcription capture', () => {
     vi.stubGlobal('SpeechRecognition', undefined)
     expect(await startBrowserTranscription({ text: vi.fn(), fallback }).finish()).toBeNull()
     expect(fallback).toHaveBeenCalledWith(expect.stringMatching(/unavailable/))
+    expect(fallback).toHaveBeenLastCalledWith(expect.stringContaining('choose Transcribe recording'))
     vi.stubGlobal('SpeechRecognition', Recognizer)
     vi.useFakeTimers()
     const capture = startBrowserTranscription({ text: vi.fn(), fallback })

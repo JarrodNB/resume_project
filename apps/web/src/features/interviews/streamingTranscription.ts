@@ -52,7 +52,7 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
   let sentBytes = 0
   let settle!: (text: string | null) => void
   const result = new Promise<string | null>(resolve => { settle = resolve })
-  let deadline = setTimeout(() => fail('Streaming could not connect. Your recording will be transcribed after submission.'), 10_000)
+  let deadline = setTimeout(() => fail('Streaming could not connect. Your recording is kept. Finish recording, then choose Transcribe recording.'), 10_000)
 
   function disconnectAudio() {
     if (processor) { processor.onaudioprocess = null; processor.disconnect(); processor = undefined }
@@ -84,7 +84,7 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
     if (!ready || committed || ended) return
     committed = true
     clearTimeout(deadline)
-    deadline = setTimeout(() => fail('Streaming did not finalize. Your recording will be transcribed after submission.'), 10_000)
+    deadline = setTimeout(() => fail('Streaming did not finalize. Your recording is kept. Finish recording, then choose Transcribe recording.'), 10_000)
     send(JSON.stringify({ type: 'commit' }))
   }
   try {
@@ -107,19 +107,19 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
             if (queuedBytes > 480_000) throw new Error('Streaming connection is too slow')
           }
         }
-      } catch { fail('Streaming was interrupted. Your recording will be transcribed after submission.') }
+      } catch { fail('Streaming was interrupted. Your recording is kept. Finish recording, then choose Transcribe recording.') }
     }
     source.connect(processor); processor.connect(audio.destination)
-    void audio.resume().catch(() => fail('Streaming audio could not start. Your recording will be transcribed after submission.'))
+    void audio.resume().catch(() => fail('Streaming audio could not start. Your recording is kept. Finish recording, then choose Transcribe recording.'))
     void authorize().then(grant => {
       if (ended) return
       captureId = grant.captureId
       socket = dependencies.socket()
       socket.onopen = () => {
         try { send(JSON.stringify({ type: 'authorize', token: grant.token })) }
-        catch { fail('Streaming could not connect. Your recording will be transcribed after submission.') }
+        catch { fail('Streaming could not connect. Your recording is kept. Finish recording, then choose Transcribe recording.') }
       }
-      socket.onerror = socket.onclose = () => fail('Streaming disconnected. Your recording will be transcribed after submission.')
+      socket.onerror = socket.onclose = () => fail('Streaming disconnected. Your recording is kept. Finish recording, then choose Transcribe recording.')
       socket.onmessage = event => {
         if (ended) return
         try {
@@ -127,7 +127,7 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
           const message = JSON.parse(event.data)
           if (message.type === 'ready' && !ready) {
             ready = true; clearTimeout(deadline)
-            deadline = setTimeout(() => fail('Streaming capture timed out. Your recording will be transcribed after submission.'), 125_000)
+            deadline = setTimeout(() => fail('Streaming capture timed out. Your recording is kept. Finish recording, then choose Transcribe recording.'), 125_000)
             for (const frame of queued) send(frame)
             queued = []; queuedBytes = 0
             if (stopping) commit()
@@ -136,17 +136,17 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
           } else if (message.type === 'final' && committed && message.captureId === captureId && typeof message.text === 'string' && message.text.trim() && message.text.length <= 4_000) {
             callbacks.text(message.text.trim()); complete(message.text.trim())
           } else if (message.type === 'error' || message.type === 'final') {
-            fail('Streaming did not produce a usable transcript. Your recording will be transcribed after submission.')
+            fail('Streaming did not produce a usable transcript. Your recording is kept. Finish recording, then choose Transcribe recording.')
           }
-        } catch { fail('Streaming returned an invalid response. Your recording will be transcribed after submission.') }
+        } catch { fail('Streaming returned an invalid response. Your recording is kept. Finish recording, then choose Transcribe recording.') }
       }
-    }).catch(() => fail('Streaming could not be authorized. Your recording will be transcribed after submission.'))
-  } catch { fail('This browser cannot stream audio. Your recording will be transcribed after submission.') }
+    }).catch(() => fail('Streaming could not be authorized. Your recording is kept. Finish recording, then choose Transcribe recording.'))
+  } catch { fail('This browser cannot stream audio. Your recording is kept. Finish recording, then choose Transcribe recording.') }
   return {
     finish() {
       if (!stopping && !ended) {
         stopping = true; disconnectAudio()
-        try { commit() } catch { fail('Streaming disconnected. Your recording will be transcribed after submission.') }
+        try { commit() } catch { fail('Streaming disconnected. Your recording is kept. Finish recording, then choose Transcribe recording.') }
       }
       return result
     },

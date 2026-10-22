@@ -670,7 +670,10 @@ it('defaults to browser recognition, remembers a choice, and locks it while an a
   await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
   const select = screen.getByRole('combobox', { name: 'Answer transcription' })
   expect(select).toHaveValue('browser')
+  expect(screen.getByText(/Browser recognition fills your answer while you speak/)).toBeVisible()
+  expect(screen.getByText(/try Streaming transcription or Recorded audio transcription/)).toBeVisible()
   await userEvent.selectOptions(select, 'recorded')
+  expect(screen.getByText(/After you finish, choose Transcribe recording/)).toBeVisible()
   first.unmount()
   renderDemo()
   await userEvent.click(screen.getByRole('button', { name: 'Interview settings' }))
@@ -678,6 +681,13 @@ it('defaults to browser recognition, remembers a choice, and locks it while an a
   recorder.status = 'recording'
   act(() => recorder.refresh())
   expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
+})
+it('shows a waiting-for-words status while live transcription has not produced text', () => {
+  recorder.status = 'recording'
+  renderDemo()
+  expect(screen.getByText(/Listening for words/)).toBeVisible()
+  expect(screen.getByText(/If you are speaking and no words appear/)).toBeVisible()
+  expect(screen.queryByText('Live transcription stopped')).not.toBeInTheDocument()
 })
 it.each(['browser', 'streaming'])('reviews %s dictation in the editor and submits exact edits without retranscription', async (mode) => {
   state.answerText.mockResolvedValue(false)
@@ -723,6 +733,7 @@ it('shows the effective recorded fallback and keeps explicit submission availabl
   expect(screen.queryByText(/Selected mode:|Effective mode:/)).not.toBeInTheDocument()
   await userEvent.keyboard('{Escape}')
   expect(screen.getByText(recorder.fallbackReason)).toBeVisible()
+  expect(screen.getByText('Live transcription stopped')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Transcribe recording' })).toBeEnabled()
 })
 

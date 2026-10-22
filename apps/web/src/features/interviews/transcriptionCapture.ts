@@ -29,10 +29,10 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
   }
   const settle = () => {
     if (!failed && [...slots.values()].some((slot) => !slot.final && slot.text)) {
-      failed = true; callbacks.fallback('Recognition ended with unfinished words. The complete recording will be transcribed after submission.')
+      failed = true; callbacks.fallback('Recognition ended with unfinished words. Your recording is kept. Finish recording, then choose Transcribe recording.')
     }
     const text = finalText()
-    if (!failed && !text) { failed = true; callbacks.fallback('No final recognition text was available. The complete recording will be transcribed after submission.') }
+    if (!failed && !text) { failed = true; callbacks.fallback('No final recognition text was available. Your recording is kept. Finish recording, then choose Transcribe recording.') }
     active = false; detach(); resolveFinish?.(failed ? null : text)
   }
   const fail = (reason: string) => {
@@ -53,30 +53,30 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
         slots.set(index, { text: result[0].transcript.trim(), final: result.isFinal })
       }
       const display = [completed, ...[...slots.entries()].sort(([a], [b]) => a - b).map(([, slot]) => slot.text)].filter(Boolean).join(' ')
-      if (display.length > 4000) { fail('Recognition text exceeded the answer limit. The complete recording will be transcribed after submission.'); return }
+      if (display.length > 4000) { fail('Recognition text exceeded the answer limit. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
       callbacks.text(display)
     }
     rec.onerror = ({ error }) => {
       if (!active || current !== rec || failed) return
       if (error === 'no-speech') return
       fail(error === 'not-allowed' || error === 'service-not-allowed'
-        ? 'Browser recognition permission was denied. If microphone recording succeeds, the complete recording will be transcribed after submission.'
-        : 'Browser recognition failed. The complete recording will be transcribed after submission.')
+        ? 'Browser recognition permission was denied. If microphone recording succeeds, finish recording, then choose Transcribe recording.'
+        : 'Browser recognition failed. Your recording is kept. Finish recording, then choose Transcribe recording.')
     }
     rec.onend = () => {
       if (!active || current !== rec || failed) return
       if (stopping) { settle(); return }
-      if ([...slots.values()].some((slot) => !slot.final && slot.text)) { fail('Recognition was interrupted before words finalized. The complete recording will be transcribed after submission.'); return }
+      if ([...slots.values()].some((slot) => !slot.final && slot.text)) { fail('Recognition was interrupted before words finalized. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
       // Each restarted recognizer gets fresh indexed results; preserve only completed slots.
       completed = finalText(); slots.clear()
       rec.onresult = null; rec.onend = null; rec.onerror = null
-      if (++restarts > 12) { fail('Browser recognition stopped repeatedly. The complete recording will be transcribed after submission.'); return }
+      if (++restarts > 12) { fail('Browser recognition stopped repeatedly. Your recording is kept. Finish recording, then choose Transcribe recording.'); return }
       restartTimer = setTimeout(start, 250)
     }
-    try { rec.start() } catch { fail('Browser recognition could not start. The complete recording will be transcribed after submission.') }
+    try { rec.start() } catch { fail('Browser recognition could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
   }
   if (Constructor) start()
-  else fail('Browser recognition is unavailable. The complete recording will be transcribed after submission.')
+  else fail('Browser recognition is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
   return {
     finish() {
       if (finishPromise) return finishPromise
@@ -84,8 +84,8 @@ export function startBrowserTranscription(callbacks: TranscriptionCallbacks): Tr
       stopping = true; clearTimeout(restartTimer)
       if (failed || !current) settle()
       else {
-        deadline = setTimeout(() => { fail('Browser recognition did not finalize. The complete recording will be transcribed after submission.') }, 1500)
-        try { current.stop() } catch { fail('Browser recognition could not finalize. The complete recording will be transcribed after submission.') }
+        deadline = setTimeout(() => { fail('Browser recognition did not finalize. Your recording is kept. Finish recording, then choose Transcribe recording.') }, 1500)
+        try { current.stop() } catch { fail('Browser recognition could not finalize. Your recording is kept. Finish recording, then choose Transcribe recording.') }
       }
       return finishPromise
     },

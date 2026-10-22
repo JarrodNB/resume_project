@@ -39,6 +39,7 @@ describe('streaming transcription', () => {
     setup.socket.onclose!({} as CloseEvent)
     expect(await capture.finish()).toBeNull()
     expect(setup.callbacks.fallback).toHaveBeenCalledOnce()
+    expect(setup.callbacks.fallback).toHaveBeenCalledWith(expect.stringContaining('choose Transcribe recording'))
     setup.message({ type: 'final', text: 'Late', captureId: 'capture' })
     expect(setup.callbacks.text).not.toHaveBeenCalled()
   })

@@ -1022,10 +1022,12 @@ type InterviewSessionQuestion {
 
 type InterviewSetup {
   questionCount: Int!
+  questionFormat: String!
 }
 
 input InterviewSetupInput {
   questionCount: Int = 8
+  questionFormat: String = "mixed"
 }
 
 """

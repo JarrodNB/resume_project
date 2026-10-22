@@ -57,12 +57,21 @@ function StartDemo() {
   const navigate = useNavigate()
   const [careerFocus, setCareerFocus] = useState('')
   const [questionCount, setQuestionCount] = useState(8)
-  async function begin() { const id = await start(careerFocus, { questionCount }); if (id) void navigate(`/interviews/${id}`) }
+  const [questionFormat, setQuestionFormat] = useState('mixed')
+  async function begin() { const id = await start(careerFocus, { questionCount, questionFormat }); if (id) void navigate(`/interviews/${id}`) }
   return <div className="grid gap-3">
-    <p className="max-w-prose text-sm">Prepare {questionCount} main questions covering behavioral, technical and role knowledge topics. Review the fictional role before starting. Follow-up questions may extend the interview.</p>
+    <p className="max-w-prose text-sm">Prepare {questionCount} main questions in your selected interview format. Review the fictional role before starting. Follow-up questions may extend the interview.</p>
     <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
     <p id="interview-focus-help" className="max-w-prose text-sm text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/library">Review your career library</Link>
+    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-question-format">Interview type
+      <select id="interview-question-format" className="rounded-md border bg-background px-3 py-2" disabled={loading} value={questionFormat} onChange={(event) => setQuestionFormat(event.target.value)}>
+        <option value="mixed">Mixed Interview</option>
+        <option value="behavioral">Behavioural</option>
+        <option value="technical">Technical / Role</option>
+        <option value="screening">HR Screening</option>
+      </select>
+    </label>
     <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-length">Interview length
       <select id="interview-length" className="rounded-md border bg-background px-3 py-2" disabled={loading} value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}>
         <option value={5}>Short · 5 questions · ~10 min</option>

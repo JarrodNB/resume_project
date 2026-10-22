@@ -11,12 +11,12 @@ module Interviews
 
     def initialize(user:, career_focus: nil, setup: nil)
       @user, @career_focus = user, career_focus.to_s.strip
-      @setup = setup.nil? ? SetupConfiguration::DEFAULT : (setup.is_a?(Hash) ? setup.stringify_keys : setup)
+      @setup = setup.nil? ? SetupConfiguration::DEFAULT : (setup.is_a?(Hash) ? SetupConfiguration::DEFAULT.merge(setup.stringify_keys) : setup)
     end
 
     # @return [ServiceResult<InterviewSession>] preparing session with immutable source snapshot
     def call
-      return failure("Choose 5, 8 or 12 interview questions") unless SetupConfiguration.valid?(@setup)
+      return failure("Choose a supported interview format and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       @user.with_lock do
         sources = []

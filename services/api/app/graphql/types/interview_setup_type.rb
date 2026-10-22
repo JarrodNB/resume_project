@@ -2,5 +2,6 @@
 module Types
   class InterviewSetupType < Types::BaseObject
     field :question_count, Integer, null: false
+    field :question_format, String, null: false
   end
 end

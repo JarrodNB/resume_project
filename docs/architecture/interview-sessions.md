@@ -108,6 +108,12 @@ apply. The preparation claim contains `frozen_context` and the immutable candida
 it requires no storage capability. New starts default to eight main questions and accept only
 5, 8 or 12. Rails saves this separately from provider execution configuration in `setup_config`;
 public snapshots expose the safe setup, so reload and retry preserve the selected length.
+The setup also freezes `question_format`: Mixed cycles behavioral/technical/knowledge;
+Behavioural uses behavioral questions only; Technical / Role alternates technical and knowledge;
+HR Screening uses the explicit screening category for motivation, background, logistics and
+culture fit. Both Python and Rails validate the saved count and exact ordered categories.
+Missing format in an older length-only setup means Mixed. This question format does not change
+the Basic session type or the saved response cap.
 Existing sessions with empty saved setup keep their nine-question preparation policy. No
 backfill changes their questions, dialogue or progression. Follow-ups are extra; the length's
 10/20/30-minute estimates are approximate rather than session deadlines.
@@ -117,7 +123,7 @@ through the accounted approved Luna model, and posts `accept_preparation` with c
 4,096-output-token cap so the complete question plan fits; dialogue remains capped at 1,024.
 
 Rails validates a short fictional role (title, responsibilities and requirements) and exactly
-the saved number of distinct main questions, cycling behavioral/technical/knowledge in order.
+the saved number of distinct main questions, using the chosen format's ordered categories.
 The Python preparation agent validates the same saved count and sequence before returning it. Acceptance
 atomically saves the entire role and question list, marks the operation accepted and session
 `ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
@@ -143,7 +149,7 @@ evaluators remain deferred; offline tests establish contracts rather than genera
 `Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
 The service fixture remains a legacy offline seam with one or two questions. Public prepared
-sessions conduct their saved number of main questions, preserving their interleaved question types.
+sessions conduct their saved number of main questions, preserving their chosen question format.
 The room keeps the current question and earlier history visible without adding response counts.
 
 `SubmitTurnService.call(interview:, question_id:, recording_id:, expected_revision:,

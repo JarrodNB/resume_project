@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -345,7 +345,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_130000) do
     t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
     t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3 AND history_version > 0", name: "interview_session_question_counters"
     t.check_constraint "jsonb_typeof(model_history) = 'array'::text", name: "interview_session_question_history_array"
-    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_type"
+    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying, 'technical'::character varying, 'knowledge'::character varying, 'screening'::character varying]::text[])", name: "interview_question_type"
   end
 
   create_table "interview_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

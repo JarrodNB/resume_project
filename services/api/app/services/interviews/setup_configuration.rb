@@ -4,19 +4,25 @@ module Interviews
   module SetupConfiguration
     QUESTION_COUNTS = [ 5, 8, 12 ].freeze
     QUESTION_TYPES = %w[behavioral technical knowledge].freeze
-    DEFAULT = { "question_count" => 8 }.freeze
-    LEGACY = { "question_count" => 9 }.freeze
+    QUESTION_TYPE_CYCLES = { "mixed" => QUESTION_TYPES, "behavioral" => %w[behavioral].freeze,
+      "technical" => %w[technical knowledge].freeze, "screening" => %w[screening].freeze }.freeze
+    QUESTION_FORMATS = QUESTION_TYPE_CYCLES.keys.freeze
+    DEFAULT = { "question_count" => 8, "question_format" => "mixed" }.freeze
+    LEGACY = { "question_count" => 9, "question_format" => "mixed" }.freeze
 
     def self.valid?(value)
-      value.is_a?(Hash) && value.keys == [ "question_count" ] && value["question_count"].is_a?(Integer) && QUESTION_COUNTS.include?(value["question_count"])
+      value.is_a?(Hash) && value.keys.sort == DEFAULT.keys.sort && value["question_count"].is_a?(Integer) &&
+        QUESTION_COUNTS.include?(value["question_count"]) && QUESTION_FORMATS.include?(value["question_format"])
     end
 
     def self.for(interview)
-      interview.setup_config.presence || LEGACY
+      LEGACY.merge(interview.setup_config)
     end
 
     def self.question_types(interview)
-      Array.new(self.for(interview).fetch("question_count")) { |index| QUESTION_TYPES[index % QUESTION_TYPES.size] }
+      setup = self.for(interview)
+      cycle = QUESTION_TYPE_CYCLES.fetch(setup.fetch("question_format"))
+      Array.new(setup.fetch("question_count")) { |index| cycle[index % cycle.size] }
     end
   end
 end

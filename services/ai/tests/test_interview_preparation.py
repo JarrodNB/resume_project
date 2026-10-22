@@ -36,10 +36,12 @@ def test_preparation_claim_preserves_owned_frozen_sources():
     request = preparation_claim()
     assert request.payload.frozen_context["sources"][0]["text"] == "I calibrate laboratory equipment."
 
-def prepared_output(count=9):
+def prepared_output(count=9, question_format="mixed"):
+    cycle = {"mixed": ["behavioral", "technical", "knowledge"], "behavioral": ["behavioral"],
+        "technical": ["technical", "knowledge"], "screening": ["screening"]}[question_format]
     return {"role": {"title": "Fictional laboratory technician", "responsibilities": ["Maintain equipment"],
             "requirements": ["Understand calibration"]}, "questions": [
-        {"question_type": ["behavioral", "technical", "knowledge"][i % 3],
+        {"question_type": cycle[i % len(cycle)],
          "content": f"Laboratory equipment topic {i}?"} for i in range(count)]}
 
 
@@ -49,10 +51,12 @@ class PreparationClient(Client):
 
 
 class Models:
-    def __init__(self, *, blocked=False, count=9):
+    def __init__(self, *, blocked=False, count=9, question_format="mixed", wrong_order=False):
         self.requests = []
         self.blocked = blocked
         self.count = count
+        self.question_format = question_format
+        self.wrong_order = wrong_order
 
     def accounted(self, rails, request, stage, name):
         async def respond(messages, info):
@@ -61,7 +65,11 @@ class Models:
                 output = {"prompt_injection": self.blocked, "harmful_request": False}
                 details = {"confidence": {"prompt_injection": 1.0, "harmful_request": 1.0}}
             else:
-                output, details = prepared_output(self.count), {}
+                output, details = prepared_output(self.count, self.question_format), {}
+                if self.wrong_order:
+                    questions = output["questions"]
+                    questions[0]["question_type"], questions[1]["question_type"] = (
+                        questions[1]["question_type"], questions[0]["question_type"])
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)],
                 usage=RequestUsage(input_tokens=100, output_tokens=500), provider_details=details)
         return InterviewModel(FunctionModel(respond, model_name=name), rails, request, stage,
@@ -143,7 +151,39 @@ def test_preparation_does_not_accept_another_allowed_length_than_the_saved_choic
     assert not client.accepted
 
 
-@pytest.mark.parametrize("setup", [{}, {"question_count": 6}, {"question_count": "8"}, {"question_count": 8, "extra": True}, None])
+@pytest.mark.parametrize("count", [5, 8, 12])
+@pytest.mark.parametrize("question_format", ["mixed", "behavioral", "technical", "screening"])
+def test_preparation_uses_saved_format_in_generation_and_validation(count, question_format):
+    raw = preparation_claim().model_dump(mode="json")
+    raw["payload"]["setup"] = {"question_count": count, "question_format": question_format}
+    models = Models(count=count, question_format=question_format)
+    client = run(models, Claim.model_validate(raw))
+    assert not client.failed
+    assert client.accepted == [prepared_output(count, question_format)]
+    assert f"format is {question_format}" in models.requests[-1][1]
+
+
+@pytest.mark.parametrize("question_format", ["mixed", "behavioral", "technical", "screening"])
+def test_preparation_rejects_output_for_another_format(question_format):
+    raw = preparation_claim().model_dump(mode="json")
+    raw["payload"]["setup"] = {"question_count": 5, "question_format": question_format}
+    other = "behavioral" if question_format == "screening" else "screening"
+    client = run(Models(count=5, question_format=other), Claim.model_validate(raw))
+    assert client.failed
+    assert not client.accepted
+
+
+@pytest.mark.parametrize("question_format", ["mixed", "technical"])
+def test_preparation_rejects_permitted_categories_in_wrong_order(question_format):
+    raw = preparation_claim().model_dump(mode="json")
+    raw["payload"]["setup"] = {"question_count": 5, "question_format": question_format}
+    client = run(Models(count=5, question_format=question_format, wrong_order=True), Claim.model_validate(raw))
+    assert client.failed
+    assert not client.accepted
+
+
+@pytest.mark.parametrize("setup", [{}, {"question_count": 6}, {"question_count": "8"}, {"question_count": 8, "extra": True},
+    {"question_count": 5, "question_format": "unknown"}, {"question_count": 5, "question_format": None}, None])
 def test_malformed_explicit_saved_setup_is_rejected_instead_of_becoming_legacy(setup):
     raw = preparation_claim().model_dump(mode="json")
     raw["payload"]["setup"] = setup

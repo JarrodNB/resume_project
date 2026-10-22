@@ -22,7 +22,7 @@ function requirePayload<T extends { errors: string[] }>(payload: T | null | unde
 export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
-  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8 }) {
+  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }) {
     setError(null)
     try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup } })).data?.startInterviewDemo).interview?.id ?? null }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }

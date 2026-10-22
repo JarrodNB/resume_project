@@ -119,7 +119,8 @@ class RealInterviewExecutor(InterviewExecutor):
         }
 
     def _preparer(self, claim, guard, *, system_prompt=""):
-        return make_preparer(guard, system_prompt=system_prompt, question_count=claim.payload.setup.question_count), {
+        return make_preparer(guard, system_prompt=system_prompt, question_count=claim.payload.setup.question_count,
+            question_format=claim.payload.setup.question_format), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 4096},
         }

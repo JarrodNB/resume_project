@@ -284,13 +284,18 @@ RSpec.describe "Spoken preparation GraphQL privacy" do
     invalid = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 6}}) { interview { id } errors } }', user: owner)
     expect(invalid.dig("data", "startInterviewDemo", "interview")).to be_nil
     expect(owner.interview_sessions).to be_empty
-    result = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 12}}) { interview { id setup { questionCount } } errors } }', user: owner)
+    invalid_format = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 5, questionFormat: "unknown"}}) { interview { id } errors } }', user: owner)
+    expect(invalid_format.dig("data", "startInterviewDemo", "interview")).to be_nil
+    expect(owner.interview_sessions).to be_empty
+    result = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 12, questionFormat: "screening"}}) { interview { id setup { questionCount questionFormat } } errors } }', user: owner)
     payload = result.dig("data", "startInterviewDemo")
     expect(payload.fetch("errors")).to be_empty
     expect(payload.dig("interview", "setup", "questionCount")).to eq(12)
+    expect(payload.dig("interview", "setup", "questionFormat")).to eq("screening")
     id = payload.dig("interview", "id")
-    restored = execute_graphql("query { interviewSession(id: \"#{id}\") { setup { questionCount } } }", user: owner)
+    restored = execute_graphql("query { interviewSession(id: \"#{id}\") { setup { questionCount questionFormat } } }", user: owner)
     expect(restored.dig("data", "interviewSession", "setup", "questionCount")).to eq(12)
+    expect(restored.dig("data", "interviewSession", "setup", "questionFormat")).to eq("screening")
     expect(execute_graphql("query { interviewSession(id: \"#{id}\") { setup { questionCount } } }", user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
   end
 

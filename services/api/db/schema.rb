@@ -70,7 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -141,6 +141,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.index ["user_id"], name: "index_experiences_on_user_id"
+  end
+
+  create_table "interview_clarifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "message_id", null: false
+    t.uuid "ai_task_id"
+    t.integer "attempt_count", default: 0, null: false
+    t.datetime "claimed_at"
+    t.datetime "deadline"
+    t.text "explanation"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_interview_clarifications_on_ai_task_id"
+    t.index ["interview_session_id"], name: "index_interview_clarifications_on_interview_session_id"
+    t.index ["message_id"], name: "index_interview_clarifications_on_message_id", unique: true
+    t.check_constraint "attempt_count >= 0 AND attempt_count <= 2 AND (explanation IS NULL OR char_length(explanation) >= 1 AND char_length(explanation) <= 1000)", name: "interview_clarification_bounds"
   end
 
   create_table "interview_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -305,7 +321,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.index ["message_id"], name: "interview_session_one_speech_per_message", unique: true, where: "((kind)::text = 'speech'::text)"
     t.index ["question_id"], name: "index_interview_session_operations_on_question_id"
     t.index ["recording_id"], name: "interview_one_recorded_transcription", unique: true, where: "((kind)::text = 'transcription'::text)"
-    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying, 'turn'::character varying, 'speech'::character varying, 'transcription'::character varying]::text[])) AND (status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying, 'expired'::character varying]::text[])) AND claim_generation >= 0", name: "interview_session_operation_states"
+    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying::text, 'turn'::character varying::text, 'speech'::character varying::text, 'transcription'::character varying::text])) AND (status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text, 'expired'::character varying::text])) AND claim_generation >= 0", name: "interview_session_operation_states"
     t.check_constraint "candidate_transcript IS NULL OR char_length(candidate_transcript) >= 1 AND char_length(candidate_transcript) <= 4000 AND transcription_mode::text <> 'recorded'::text", name: "interview_operation_candidate_transcript"
     t.check_constraint "execution_count >= 0 AND execution_count <= 6 AND cycle_execution_count >= 0 AND cycle_execution_count <= 3", name: "interview_operation_execution_caps"
     t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL OR kind::text = 'transcription'::text AND question_id IS NOT NULL AND recording_id IS NOT NULL AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
@@ -569,6 +585,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "interview_clarifications", "ai_tasks", on_delete: :nullify
+  add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
+  add_foreign_key "interview_clarifications", "interview_sessions"
   add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
   add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade

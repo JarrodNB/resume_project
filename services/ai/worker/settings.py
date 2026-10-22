@@ -18,6 +18,8 @@ from pydantic_settings import BaseSettings
 class WorkerSettings(BaseSettings):
     """Typed worker settings. Each field maps to an upper-case environment variable."""
 
+    interview_rails_origin: str = "http://api:3000"
+    interview_service_secret: str = ""
     aws_region: str = "us-east-1"
     worker_environment: str = ""
     conversation_logging_enabled: bool = True

@@ -4,9 +4,13 @@ module Internal
   class InterviewsController < ActionController::API
     before_action :authenticate_service
     around_action :bound_database_waits
-    before_action :find_operation, except: [ :discover, :cleanup ]
+    before_action :find_operation, except: [ :discover, :cleanup, :claim_clarification ]
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: [ "Record not found" ] }, status: :not_found }
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
+
+    def claim_clarification
+      respond Interviews::ClaimClarificationService.call(ai_task: AiTask.find(params.require(:id)))
+    end
 
     def discover
       result = Interviews::DiscoverOperationsService.call(execution_mode: params.fetch(:execution_mode, "fake"))

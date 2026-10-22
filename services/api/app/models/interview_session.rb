@@ -11,6 +11,7 @@ class InterviewSession < ApplicationRecord
   belongs_to :user
   has_many :questions, -> { order(:position) }, class_name: "InterviewSessionQuestion", dependent: :destroy
   has_many :messages, -> { order(:position) }, class_name: "InterviewSessionMessage", dependent: :destroy
+  has_many :clarifications, class_name: "InterviewClarification", dependent: :destroy
   has_many :operations, class_name: "InterviewSessionOperation", dependent: :destroy
   has_many :transcription_captures, class_name: "InterviewTranscriptionCapture", dependent: :destroy
   enum :status, STATUSES.index_with(&:itself), validate: true

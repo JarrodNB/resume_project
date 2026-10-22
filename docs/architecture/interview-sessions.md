@@ -729,3 +729,42 @@ operation, release the unresolved identity and ask the candidate to type the ans
 never substitute audio or silently replay an empty answer. Saved accepted/pending work is
 reconciled by its original key. Existing audio-mode recovery remains supported while capture
 modes migrate to the reviewed editor.
+
+## Question clarification
+
+`requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
+saved opening/follow-up message. It creates one `InterviewClarification` per message.
+Only `message.content` enters its SQS payload, alongside the clarification identity;
+acknowledgements, spoken text, answers, library and model history are excluded.
+Prepared sessions reuse their immutable preparation hourly admission. Clarification
+spend and concurrency use the spoken-interview allowance, independently of general AI.
+
+Before screening or generation, the queue worker calls the authenticated
+`/internal/interviews/clarifications/:ai_task_id/claim` endpoint. Rails rechecks prompt,
+owner, expiry, admission and once-only execution under locks. This adds no AI database
+grants. The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` (the same
+private secret as Rails/the interview runtime); configure these in the queue worker's
+environment before enabling clarification. A blank secret fails without provider calls.
+Deploy the migration/API and compatible queue worker together; schema fields require
+regenerating the web client. Existing saved sessions and interview-runtime operations
+keep their contracts.
+
+One logical record has at most two explicitly requested task attempts. Queue duplicates
+cannot claim an attempt twice. Each task has a three-minute deadline; the UI uses a local
+timer to offer explicit retry after missing queue/worker/result delivery, without polling.
+A new attempt fences the old task. Queue publication ambiguity checks saved state rather
+than replacing an already accepted outcome. There is no automatic regeneration of a
+successful explanation. Screening plus generation has a 30-second deadline, a 4,000-character
+question cap, a 1,000-character explanation cap, and at most two generation model requests including
+fallback. The fixed policy asks only for simpler wording, without answers or coaching.
+
+Results use `ai_results`, existing per-attempt usage deduplication and `aiTaskUpdated`.
+Only current, claimed, unexpired prompt results can save an explanation. Late usage still
+counts once even when the result is obsolete. Session snapshots include clarification
+metadata for reconnect/reopen; the draft remains in the independent in-memory editor.
+Generic task reads also hide unavailable clarification input/results. Abandonment and
+expiry scrub explanation/input/result text while preserving billing records. No clarification
+messages, answer attempts, question progression or speech work are created.
+
+The offline clarification eval runner validates synthetic fixtures/evaluator wiring only;
+semantic no-coaching quality remains unmeasured until a separately authorized paid eval.

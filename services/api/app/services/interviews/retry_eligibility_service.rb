@@ -17,11 +17,13 @@ module Interviews
       if @operation.turn?
         return failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision
         return failure("An answer is already processing") if interview.operations.turn.where(status: %w[pending running]).exists?
-        recordings = InterviewSessionMedia.where(id: @operation.recording_id, interview_session: interview,
+        unless @operation.text_only?
+          recordings = InterviewSessionMedia.where(id: @operation.recording_id, interview_session: interview,
           question_id: @operation.question_id, kind: "recording", status: "ready")
         recordings = recordings.lock if @lock_recording
         recording = recordings.first
-        return failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+          return failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+        end
       end
       return failure("Media expired") if @operation.speech? && interview.completed_at && interview.completed_at <= 1.hour.ago
       success(nil)

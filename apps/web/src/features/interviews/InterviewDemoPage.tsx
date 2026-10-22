@@ -15,6 +15,7 @@ import { interviewDemoEnabled } from './interviewDemoEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
+import { AnswerEditor } from './AnswerEditor'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { BrowserInterviewSpeech } from './BrowserInterviewSpeech'
@@ -62,6 +63,8 @@ function OwnedInterview({ id }: { id: string }) {
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
   const startStreaming = useInterviewStreaming(state.interview)
   const recorder = useInterviewRecorder({ mode: transcriptionMode, startStreaming })
+  const [draft, setDraft] = useState({ revision: -1, text: '' })
+  const draftText = state.interview?.status === 'active' && draft.revision === state.interview.revision ? draft.text : ''
   const submitting = useRef(false)
   const [savingRecording, setSavingRecording] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -70,7 +73,7 @@ function OwnedInterview({ id }: { id: string }) {
   const playbackChanged = useCallback((playing: boolean, messageId: string) => {
     setPlayingMessageId((current) => playing ? messageId : current === messageId ? null : current)
   }, [])
-  const recordingWarning = <RecordingUnsavedChanges dirty={Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} />
+  const recordingWarning = <RecordingUnsavedChanges textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} />
   const interview = state.interview
   const newSpeech = useNewInterviewSpeech(interview)
   const terminal = interview?.status === 'abandoned' || interview?.status === 'completed' || interview?.status === 'expired'
@@ -90,7 +93,7 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Start a new interview</Link>
   </div>
-  const abandonControl = <AbandonInterviewButton busy={state.busy || savingRecording} dirty={Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={recorder.reset} />
+  const abandonControl = <AbandonInterviewButton busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => { recorder.reset(); setDraft({ revision: -1, text: '' }) }} />
   const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews/demo">Recent interviews</Link>
   if (interview.status === 'abandoned') return <>{recordingWarning}<p role="status">This interview was abandoned. It cannot be continued. Audio is queued for deletion.</p>{recentLink}</>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
@@ -162,6 +165,13 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved recognized answer cannot be recovered, retry uses its retained recording for transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
+      <AnswerEditor text={draftText} onTextChange={(text) => setDraft({ revision: interview.revision, text })}
+        disabled={!canRecord || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing'}
+        onSubmit={async (text) => {
+          const saved = await state.answerText(text)
+          if (saved) { setDraft({ revision: -1, text: '' }); recorder.reset() }
+          return saved
+        }} />
       <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
         <select id="interview-transcription-mode" className="rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
           <option value="browser">Browser recognition</option><option value="streaming">Streaming transcription</option><option value="recorded">Recorded audio transcription</option>

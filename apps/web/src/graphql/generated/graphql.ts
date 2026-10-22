@@ -175,7 +175,7 @@ export type SubmitInterviewTurnInput = {
   expectedRevision: number;
   interviewId: string | number;
   questionId: string | number;
-  recordingId: string | number;
+  recordingId?: string | number | null | undefined;
   submissionKey: string;
   transcriptDigest?: string | null | undefined;
   transcriptionMode?: string | null | undefined;

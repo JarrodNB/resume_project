@@ -23,11 +23,20 @@ module Interviews
         if @operation.turn?
           next failure("Interview revision is stale") unless interview.active? && interview.revision == @operation.expected_revision &&
             interview.current_question_position == @operation.question.position
-          recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
+          unless @operation.text_only?
+            recording = InterviewSessionMedia.lock.find_by(id: @operation.recording_id, interview_session: interview,
             question_id: @operation.question_id, kind: "recording", status: "ready")
-          next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+            next failure("Recording unavailable or expired") unless recording && recording.expires_at > Time.current
+          end
+          next failure("Reviewed answer unavailable") if @operation.text_only? && @operation.candidate_transcript.blank?
         end
-        expiry = @operation.turn? ? recording.expires_at : (interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at)
+        expiry = if @operation.text_only?
+          [ @operation.created_at + 1.hour, interview.expires_at ].min
+        elsif @operation.turn?
+          recording.expires_at
+        else
+          interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at
+        end
         if @operation.running?
           next failure("Operation already claimed") if @operation.lease_expires_at > Time.current && @operation.execution_deadline > Time.current
           fail_execution(@operation.execution_deadline <= Time.current ? "execution_timeout" : "lease_expired", retryable: true)

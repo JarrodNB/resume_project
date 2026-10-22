@@ -2150,7 +2150,7 @@ input SubmitInterviewTurnInput {
   expectedRevision: Int!
   interviewId: ID!
   questionId: ID!
-  recordingId: ID!
+  recordingId: ID
   submissionKey: String!
   transcriptDigest: String
   transcriptionMode: String

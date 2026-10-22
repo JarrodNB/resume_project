@@ -31,7 +31,9 @@ module Interviews
     def expire_operation(interview)
       return false unless @operation.pending? || @operation.running? || @operation.failed?
 
-      expiry = if @operation.turn?
+      expiry = if @operation.text_only?
+        [ @operation.created_at + 1.hour, interview.expires_at ].min
+      elsif @operation.turn?
         InterviewSessionMedia.find_by(id: @operation.recording_id, interview_session_id: interview.id, kind: "recording")&.expires_at || Time.current
       else
         interview.completed_at ? interview.completed_at + 1.hour : interview.expires_at

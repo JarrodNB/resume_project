@@ -47,6 +47,8 @@ export function useInterviewSession(id: string, ownerId: string) {
   const [begin] = useMutation(BEGIN_INTERVIEW)
   const [abandon] = useMutation(ABANDON_INTERVIEW)
   const beginning = useRef(false)
+  const submittingText = useRef(false)
+  const retainedText = useRef<{ submissionKey: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingSubmission | null>(() => loadPendingSubmission(ownerId, id))
@@ -59,7 +61,7 @@ export function useInterviewSession(id: string, ownerId: string) {
     }
   }, [pending, interview, ownerId, id])
 
-  function forgetPending() { clearPendingSubmission(ownerId, id); setPending(null) }
+  function forgetPending() { clearPendingSubmission(ownerId, id); setPending(null); retainedText.current = null }
   async function run(action: () => Promise<void>) {
     setBusy(true); setError(null)
     try { await action(); return true }
@@ -113,6 +115,25 @@ export function useInterviewSession(id: string, ownerId: string) {
     })
     return saved || durable
   }
+  /** Reviewed text stays in memory; only its immutable digest/identity survives a reload. */
+  async function answerText(text: string) {
+    if (submittingText.current) return false
+    submittingText.current = true
+    try {
+      return await run(async () => {
+        if (!interview || unresolved) throw new Error('Check saved status before submitting another answer.')
+        if (!text.trim() || text.length > 4_000) throw new Error('Enter an answer between 1 and 4,000 characters.')
+        const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
+        if (!question) throw new Error('This interview has no active question.')
+        const transcriptDigest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), (byte) => byte.toString(16).padStart(2, '0')).join('')
+        const input: PendingSubmission = { questionId: question.id, expectedRevision: interview.revision, submissionKey: crypto.randomUUID(), transcriptionMode: 'typed', transcriptDigest }
+        if (!savePendingSubmission(ownerId, id, input)) throw new Error('Browser storage is unavailable. Enable it before submitting so reloads can recover safely.')
+        retainedText.current = { submissionKey: input.submissionKey, text }
+        setPending(input)
+        await send(input, text)
+      })
+    } finally { submittingText.current = false }
+  }
   /** A click reconciles first; auth/read errors exit without replaying a write. */
   async function checkSavedStatus(resend = false) {
     await run(async () => {
@@ -120,7 +141,16 @@ export function useInterviewSession(id: string, ownerId: string) {
       if (!latest) throw new Error('Could not confirm saved status. Try again when connected.')
       const saved = pending && latest.operations.some((operation) => operation.submissionKey === pending.submissionKey)
       if (saved) forgetPending()
-      else if (resend && pending) {
+      else if (pending?.transcriptionMode === 'typed' && !retainedText.current) {
+        forgetPending()
+        throw new Error('This answer was not saved. Unsent text is not retained after reload; type your answer again.')
+      } else if (resend && pending) {
+        if (pending.transcriptionMode === 'typed') {
+          const retained = retainedText.current
+          if (!retained || retained.submissionKey !== pending.submissionKey) throw new Error('Your reviewed text is unavailable. Check saved status again.')
+          await send(pending, retained.text)
+          return
+        }
         // Text stays out of browser storage. An owned fresh read confirmed the old
         // identity absent; explicitly retry its retained recording as a new batch turn.
         if (pending.transcriptDigest) {
@@ -152,5 +182,5 @@ export function useInterviewSession(id: string, ownerId: string) {
       forgetPending()
     })
   }
-  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, checkSavedStatus, retryOperation, beginInterview, abandonInterview }
+  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, answerText, checkSavedStatus, retryOperation, beginInterview, abandonInterview }
 }

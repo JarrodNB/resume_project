@@ -293,3 +293,33 @@ def test_provider_admission_requires_matching_durable_receipt(receipt):
             with pytest.raises(RailsTransportError, match="Invalid provider admission receipt"):
                 await client.start_provider(Claim.model_validate(CLAIM), "observation", "speech", "fake", "scripted")
     run(check())
+
+
+def test_library_screening_callback_is_fenced_and_retries_identical_indices():
+    requests = []
+
+    def respond(request):
+        requests.append(request)
+        if len(requests) == 1:
+            raise httpx.ReadTimeout("receipt lost")
+        return httpx.Response(200, json={"screened_source_indices": [0, 2]})
+
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "service-only", transport=httpx.MockTransport(respond)) as client:
+            receipt = await client.screen_library(Claim.model_validate(CLAIM), [2])
+            assert receipt == {"screened_source_indices": [0, 2]}
+    run(check())
+    assert len(requests) == 2
+    assert requests[0].content == requests[1].content
+    assert requests[0].url.path.endswith("/screen_library")
+    assert json.loads(requests[0].content) == {"attempt_id": "attempt", "claim_generation": 2, "source_indices": [2]}
+
+
+@pytest.mark.parametrize("receipt", [{}, {"screened_source_indices": [True]}, {"screened_source_indices": [0]}])
+def test_library_screening_rejects_incomplete_or_malformed_receipts(receipt):
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "service-only",
+                transport=httpx.MockTransport(lambda request: httpx.Response(200, json=receipt))) as client:
+            with pytest.raises(RailsTransportError):
+                await client.screen_library(Claim.model_validate(CLAIM), [2])
+    run(check())

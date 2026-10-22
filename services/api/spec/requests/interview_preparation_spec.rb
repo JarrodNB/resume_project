@@ -23,7 +23,15 @@ RSpec.describe "Internal interview preparation", type: :request do
     claim = response.parsed_body
     expect(claim.dig("payload", "frozen_context", "sources", 0, "text")).to eq(owner.summary)
     identity = claim.slice("attempt_id", "claim_generation")
-    body = identity.merge(role: { title: "Laboratory technician", responsibilities: ["Maintain instruments"], requirements: ["Calibration"] },
+    post "#{path}/screen_library", params: identity.merge(source_indices: [ 0 ]), as: :json
+    expect(response).to have_http_status(:unauthorized)
+    2.times do
+      post "#{path}/screen_library", params: identity.merge(source_indices: [ 0 ]), headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body).to eq("screened_source_indices" => [ 0 ])
+    end
+    expect(owner.reload.screened_fields).to include("summary")
+    body = identity.merge(role: { title: "Laboratory technician", responsibilities: [ "Maintain instruments" ], requirements: [ "Calibration" ] },
       questions: 9.times.map { |i| { question_type: %w[behavioral technical knowledge][i % 3], content: "Laboratory question #{i}?" } })
     2.times do
       post "#{path}/accept_preparation", params: body, headers: headers, as: :json

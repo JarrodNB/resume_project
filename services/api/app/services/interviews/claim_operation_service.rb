@@ -55,6 +55,10 @@ module Interviews
         AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => attempt_id, "attempt_finished" => false })
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)
+        if interview.frozen_context.present? && !@operation.speech?
+          context = FrozenLibraryScreening.hydrate(interview)
+          interview.update!(frozen_context: context) if context != interview.frozen_context
+        end
         payload = if @operation.speech?
           { text: @operation.message.content, message_id: @operation.message_id }
         elsif @operation.preparation?
@@ -63,6 +67,8 @@ module Interviews
           { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,
             history_version: @operation.question.history_version,
+            current_dialogue: interview.messages.where(question: @operation.question, kind: %w[opening answer follow_up])
+              .order(:position).map { |message| { kind: message.kind, content: message.content } },
             earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
               interview.frozen_context.present? ?
                 { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :

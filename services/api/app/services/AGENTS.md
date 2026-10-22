@@ -125,6 +125,7 @@ All business logic, as service objects grouped by domain folder.
 
 - `interviews/` — spoken interview lifecycle, private media reservations/sealing,
   library-informed preparation and atomic ready-state role/question acceptance,
+  exact-value frozen library screening reuse and fenced `screen_library` approval callbacks,
   claim-bound speech and bounded cleanup. Lock owner, interview, ordered questions,
   then operation/task/media; perform object/provider I/O outside locks and recheck
   authority before committing. Submission requires owned ready unexpired audio for

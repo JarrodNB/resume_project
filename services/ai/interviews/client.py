@@ -73,6 +73,7 @@ class TurnPayload(BaseModel):
     model_history: list[dict[str, Any]]
     history_version: int
     earlier_dialogue: EarlierDialogue | None = None
+    current_dialogue: list[PublicMessage] | None = Field(default=None, max_length=7)
     fixture_context: dict[str, Any] | None = None
     interview_context: InterviewContext | None = None
 
@@ -311,6 +312,15 @@ class RailsInterviewClient:
 
     async def heartbeat(self, claim: Claim, checkpoint: str | None = None):
         return await self._callback(claim, "heartbeat", checkpoint=checkpoint)
+
+    async def screen_library(self, claim: Claim, source_indices: list[int]):
+        """Persist successful exact-source checks before dependent model work."""
+        result = await self._callback(claim, "screen_library", source_indices=source_indices)
+        indices = result.get("screened_source_indices")
+        if (not isinstance(indices, list) or any(type(index) is not int or index < 0 for index in indices)
+                or not set(source_indices).issubset(indices)):
+            raise RailsTransportError("Invalid library screening receipt")
+        return result
 
     async def recording(self, claim: Claim):
         return await self._callback(claim, "recording")

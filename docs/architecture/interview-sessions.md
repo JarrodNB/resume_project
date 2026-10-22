@@ -271,6 +271,17 @@ For `/internal/interviews/operations/:id`:
   `claim_generation`, `lease_expires_at`, `execution_deadline`, and canonical `payload`.
   A turn payload contains its recording identity, question, revision, versioned model
   history and fictional context; speech contains only saved text and its message ID.
+- Frozen career sources include private per-field `screened` metadata. Creation copies
+  existing field approvals; legacy claims reuse a current owned approval only when the
+  exact field value equals the frozen source. Frozen text and source order do not change.
+  A turn claim also carries `current_dialogue`, the Rails-owned opening/answer/follow-up
+  messages for its current question in chronological order, separate from private model history.
+- `POST /screen_library` takes current claim identity and `source_indices`, positions in
+  that immutable source list. After successful screening, it durably approves those frozen
+  values before model generation and returns all `screened_source_indices`. Repeated calls
+  while the claim is current are idempotent. Live library fields earn approval only under
+  record locks when the owner and exact current value still match; edits or deletions cannot
+  accidentally approve new text. This callback does not change general AI-result screening.
 - `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
   checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
   or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.

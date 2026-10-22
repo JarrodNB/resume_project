@@ -18,16 +18,16 @@ module Interviews
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       @user.with_lock do
         sources = []
-        sources << { type: "profile", id: @user.id, field: "summary", text: @user.summary } if @user.summary.present?
+        sources << { type: "profile", id: @user.id, field: "summary", text: @user.summary, screened: @user.screened_fields.include?("summary") } if @user.summary.present?
         SOURCE_FIELDS.each do |association, fields|
           @user.public_send(association).each do |record|
             fields.each do |field|
               value = record[field] if record.has_attribute?(field)
-              sources << { type: association.to_s, id: record.id, field: field, text: value } if value.is_a?(String) && value.present?
+              sources << { type: association.to_s, id: record.id, field: field, text: value, screened: record.screened_fields.include?(field) } if value.is_a?(String) && value.present?
             end
             if association == :experiences
               record.highlights.each do |highlight|
-                sources << { type: "highlights", id: highlight.id, field: "content", text: highlight.content } if highlight.content.present?
+                sources << { type: "highlights", id: highlight.id, field: "content", text: highlight.content, screened: highlight.screened_fields.include?("content") } if highlight.content.present?
               end
             end
           end

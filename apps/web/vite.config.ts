@@ -57,6 +57,12 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
+    proxy: {
+      '/interview-transcription/stream': {
+        target: process.env.INTERVIEW_TRANSCRIPTION_TARGET ?? 'http://interview-runtime:8000',
+        ws: true,
+      },
+    },
   },
   test: {
     environment: 'jsdom',

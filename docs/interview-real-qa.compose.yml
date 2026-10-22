@@ -11,7 +11,6 @@ services:
       SQS_ENDPOINT_URL: http://sqs:9324
       # Local interview testing records usage without spend or unknown-cost stop gates.
       # Rails ignores this opt-in outside development; resource limits remain active.
-      INTERVIEW_LOCAL_TESTING_UNMETERED: "true"
       # Multi-turn history is screened again; leave room for the interviewer after
       # those calls. The Rails hard ceiling remains twenty calls per execution.
       INTERVIEW_PROVIDER_ATTEMPT_LIMIT: "20"

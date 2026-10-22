@@ -8,8 +8,6 @@ root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 compose=(docker compose -p cg-interview-12-paid -f "$root/docs/interview-demo.compose.yml" -f "$root/docs/interview-paid-check.compose.yml" -f "$root/docs/interview-real-qa.compose.yml" --profile qa)
 case "${1:-}" in
   start)
-    : "${INTERVIEW_REAL_QA_APPROVED:?Set yes only when intentionally starting paid browser QA}"
-    [[ "$INTERVIEW_REAL_QA_APPROVED" == yes ]] || exit 1
     "${compose[@]}" up -d --no-build --wait db s3 sqs api web
     "${compose[@]}" exec -T api bundle exec rails runner '
       raise "Local development only" unless Rails.env.development?
@@ -24,12 +22,6 @@ case "${1:-}" in
     "${compose[@]}" exec -T api bundle exec rails runner '
       raise "Retained paid ledger missing; do not create a replacement allowance" unless InterviewVerificationReservation.exists?
       used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")
-      if Interviews::VerificationBudget.enforced?
-        raise "Unreviewed unknown provider usage: paid execution remains stopped" if Interviews::VerificationBudget.unreviewed_reservations.exists?
-        raise "Verification allowance exhausted" if used >= Interviews::VerificationBudget::LIMIT_MICRODOLLARS
-      else
-        puts "Local interview spending gates disabled; usage and estimates remain recorded"
-      end
       puts "Recorded usage or estimates: #{used} microdollars (not a provider hold or invoice total)"
       puts "Recoverable real operations: #{InterviewSessionOperation.joins(:interview_session).where(interview_sessions: { execution_mode: "real" }, status: %w[pending running]).count}"
     '

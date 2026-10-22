@@ -1,11 +1,11 @@
 # Real spoken interview browser QA
 
-**Current local testing policy, 21 October:** real interviews stay running at the user's
-explicit request. The real-QA overlay enables `INTERVIEW_LOCAL_TESTING_UNMETERED=true`.
+**Current local testing policy, 22 October:** real interviews stay running at the user's
+explicit request. Development automatically allows local paid testing.
 In development this removes the local unknown-cost/$5 verification stop and interview
 monthly/hourly gates. Every provider attempt, estimate and actual cost is still recorded;
 unknown costs stay unknown and never become fabricated zeroes. Resource concurrency and
-execution caps remain active. This opt-in has no effect outside development or on general AI work.
+execution caps remain active. This behavior has no effect outside development or on general AI work.
 
 Local browser QA permits at most twenty provider calls per execution, including
 transcription, re-screening saved dialogue, and interviewer requests. The smaller
@@ -64,7 +64,7 @@ reservation, hold or provider billing ceiling**. The user explicitly rejected bl
 local interviews on these estimates. The QA overlay therefore records estimates without
 enforcing the verification stop or requiring lists of individually reviewed unknown IDs.
 Do not erase markers, invent zero charges, reset volumes or start another paid database.
-Normal admission remains unchanged without this development-only opt-in.
+Non-development admission remains unchanged.
 See [accounting](architecture/interview-provider-accounting.md).
 
 ## Start, inspect or stop
@@ -76,7 +76,6 @@ Rebuild them from this checkout if dependencies change.
 
 ```bash
 export INTERVIEW_VERIFICATION_AI_ENV=/home/jarrod/Desktop/resume_project/services/ai/.env
-export INTERVIEW_REAL_QA_APPROVED=yes
 bash /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/script/interview_real_qa.sh start
 ```
 
@@ -130,3 +129,5 @@ uses the saved message; it never repeats an accepted answer's transcription or r
 
 Local S3Mock verifies application ownership and byte handling but does not enforce production
 signed-URL expiry. This local development stack is not a production deployment.
+
+Local development starts without paid-use approval flags. Interview spending and unknown-cost estimates remain recorded without blocking local testing.

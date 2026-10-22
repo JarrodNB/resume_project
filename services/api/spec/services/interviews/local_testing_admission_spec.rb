@@ -32,7 +32,7 @@ RSpec.describe "Unmetered local interview testing" do
   end
 
   it "continues after unknown or over-target estimates while preserving and reconciling every record" do
-    local_testing
+    local_testing(enabled: nil)
     operation = claimed_operation
     old = InterviewVerificationReservation.create!(observation_id: SecureRandom.uuid, reserved_microdollars: 6_000_000)
     id = SecureRandom.uuid
@@ -62,7 +62,7 @@ RSpec.describe "Unmetered local interview testing" do
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: user, interview: true).errors.join).to include("operations running")
   end
 
-  [ [ false, "true" ], [ true, nil ], [ true, "false" ] ].each do |development, enabled|
+  [ [ false, "true" ], [ false, nil ] ].each do |development, enabled|
     it "preserves normal gates with development=#{development} and explicit mode=#{enabled.inspect}" do
       local_testing(development: development, enabled: enabled)
       operation = claimed_operation

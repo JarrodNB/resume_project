@@ -56,12 +56,20 @@ function StartDemo() {
   const { start, loading, error } = useStartInterview()
   const navigate = useNavigate()
   const [careerFocus, setCareerFocus] = useState('')
-  async function begin() { const id = await start(careerFocus); if (id) void navigate(`/interviews/${id}`) }
+  const [questionCount, setQuestionCount] = useState(8)
+  async function begin() { const id = await start(careerFocus, { questionCount }); if (id) void navigate(`/interviews/${id}`) }
   return <div className="grid gap-3">
-    <p className="max-w-prose text-sm">Prepare nine questions: three behavioral, three technical and three knowledge questions. Review the fictional role before starting.</p>
+    <p className="max-w-prose text-sm">Prepare {questionCount} main questions covering behavioral, technical and role knowledge topics. Review the fictional role before starting. Follow-up questions may extend the interview.</p>
     <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
     <p id="interview-focus-help" className="max-w-prose text-sm text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/library">Review your career library</Link>
+    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-length">Interview length
+      <select id="interview-length" className="rounded-md border bg-background px-3 py-2" disabled={loading} value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}>
+        <option value={5}>Short · 5 questions · ~10 min</option>
+        <option value={8}>Standard · 8 questions · ~20 min</option>
+        <option value={12}>Full loop · 12 questions · ~30 min</option>
+      </select>
+    </label>
     <ProviderNotice />
     <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Preparing…' : 'Prepare interview'}</Button>
     {error && <p role="alert" className="text-destructive">{error}</p>}

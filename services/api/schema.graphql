@@ -982,6 +982,7 @@ type InterviewSession {
   preparedRole: JSON!
   questions: [InterviewSessionQuestion!]!
   revision: Int!
+  setup: InterviewSetup!
   speechPlaybackMode: String!
   status: String!
 }
@@ -1017,6 +1018,14 @@ type InterviewSessionQuestion {
   id: ID!
   position: Int!
   questionType: String!
+}
+
+type InterviewSetup {
+  questionCount: Int!
+}
+
+input InterviewSetupInput {
+  questionCount: Int = 8
 }
 
 """
@@ -2182,6 +2191,7 @@ input StartInterviewDemoInput {
   """
   clientMutationId: String
   executionMode: String = "real"
+  setup: InterviewSetupInput
 }
 
 """

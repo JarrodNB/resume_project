@@ -73,7 +73,7 @@ module Interviews
         elsif @operation.transcription?
           { recording_id: @operation.recording_id }
         elsif @operation.preparation?
-          { frozen_context: interview.frozen_context }
+          { frozen_context: interview.frozen_context, setup: SetupConfiguration.for(interview) }
         else
           { candidate_transcript: @operation.candidate_transcript, transcription_mode: @operation.transcription_mode,
             recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,

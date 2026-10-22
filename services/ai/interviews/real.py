@@ -119,7 +119,7 @@ class RealInterviewExecutor(InterviewExecutor):
         }
 
     def _preparer(self, claim, guard, *, system_prompt=""):
-        return make_preparer(guard, system_prompt=system_prompt), {
+        return make_preparer(guard, system_prompt=system_prompt, question_count=claim.payload.setup.question_count), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 4096},
         }
@@ -153,7 +153,7 @@ class RealInterviewExecutor(InterviewExecutor):
             if len(formatted) > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
             await self._approve_library(claim, context, include_focus=True)
-            prompt = "Prepare the fictional role and nine questions from the career evidence in the system context."
+            prompt = f"Prepare the fictional role and exactly {claim.payload.setup.question_count} main questions from the career evidence in the system context."
             async def guard(ctx, final_prompt):
                 if final_prompt != prompt:
                     raise ValueError("Preparation input changed")

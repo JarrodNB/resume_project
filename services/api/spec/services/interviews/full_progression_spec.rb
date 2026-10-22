@@ -1,4 +1,4 @@
-# Proves nine typed prepared questions use three responses while legacy fixtures keep two.
+# Proves saved legacy interviews and longer configured sessions keep complete progression.
 require "rails_helper"
 
 RSpec.describe "Complete prepared interview" do
@@ -8,14 +8,20 @@ RSpec.describe "Complete prepared interview" do
     allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
   end
 
+  let(:question_count) { 9 }
   let(:interview) do
-    session = Interviews::StartPreparationService.call(user: create(:user, summary: "Maintain instruments")).value
+    session = Interviews::StartPreparationService.call(user: create(:user, summary: "Maintain instruments"),
+      setup: { question_count: question_count == 9 ? 8 : question_count }).value
+    if question_count == 9
+      InterviewSession.where(id: session.id).update_all(setup_config: {}) # Represents a pre-configuration session.
+      session.reload
+    end
     preparation = session.operations.first
     expect(Interviews::ClaimOperationService.call(operation: preparation, execution_mode: "real")).to be_success
     result = Interviews::AcceptPreparationService.call(operation: preparation, attempt_id: preparation.attempt_id,
       claim_generation: preparation.claim_generation,
       role: { "title" => "Fictional technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] },
-      questions: 9.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Instrument topic #{i}?" } })
+      questions: question_count.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Instrument topic #{i}?" } })
     expect(result).to be_success
     expect(Interviews::BeginService.call(interview: session)).to be_success
     session
@@ -111,6 +117,28 @@ RSpec.describe "Complete prepared interview" do
     expect(context.fetch(:groups).pluck(:question_position)).to eq([ 3 ])
     expect(context.fetch(:omitted_question_positions)).to eq([ 0, 1, 2 ])
     expect(context.fetch(:groups).flat_map { |group| group[:messages] }.sum { |message| message[:content].length }).to eq(12000)
+  end
+
+  context "with twelve configured main questions" do
+    let(:question_count) { 12 }
+
+    it "reaches the final question with all earlier groups and completes once" do
+      session = interview
+      11.times { answer(session, decision: "advance") }
+      question = session.questions.find_by!(position: 11)
+      operation = Interviews::SubmitTurnService.call(interview: session, question_id: question.id,
+        recording_id: ready_interview_recording(session, question: question).id,
+        expected_revision: session.revision, submission_key: "last-of-twelve").value
+      claim = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
+      expect(claim).to be_success
+      expect(claim.value.dig(:payload, :earlier_dialogue, :groups).size).to eq(11)
+      result = Interviews::AcceptTurnService.call(operation: operation, attempt_id: operation.attempt_id,
+        claim_generation: operation.claim_generation, transcript: "I maintained instruments.",
+        decision: "advance", reply: nil, history_version: 1, model_history: [])
+      expect(result).to be_success
+      expect(session.reload).to be_completed
+      expect(session.messages.where(kind: "closing").count).to eq(1)
+    end
   end
 
   it "claims prepared context with separate personal and fictional provenance" do

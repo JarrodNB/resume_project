@@ -9,12 +9,14 @@ module Interviews
     }.freeze
     MAX_CONTEXT_BYTES = 40_000
 
-    def initialize(user:, career_focus: nil)
+    def initialize(user:, career_focus: nil, setup: nil)
       @user, @career_focus = user, career_focus.to_s.strip
+      @setup = setup.nil? ? SetupConfiguration::DEFAULT : (setup.is_a?(Hash) ? setup.stringify_keys : setup)
     end
 
     # @return [ServiceResult<InterviewSession>] preparing session with immutable source snapshot
     def call
+      return failure("Choose 5, 8 or 12 interview questions") unless SetupConfiguration.valid?(@setup)
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       @user.with_lock do
         sources = []
@@ -43,7 +45,7 @@ module Interviews
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)
         next allowance unless allowance.success?
         interview = @user.interview_sessions.create!(status: "preparing", answer_cap: 3, execution_mode: "real",
-          execution_config: ExecutionConfiguration::PRESETS.fetch("real"), frozen_context: context, expires_at: 7.days.from_now)
+          execution_config: ExecutionConfiguration::PRESETS.fetch("real"), setup_config: @setup, frozen_context: context, expires_at: 7.days.from_now)
         operation = interview.operations.create!(kind: "preparation")
         operation.update!(ai_task: @user.ai_tasks.create!(task_type: "interview_preparation", subject: interview,
           input: { operation_id: operation.id }))

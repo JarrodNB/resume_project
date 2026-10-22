@@ -14,6 +14,8 @@ RSpec.describe "Prepared interview allowances" do
 
   def prepare(owner = user, accounted: false)
     session = Interviews::StartPreparationService.call(user: owner).value
+    InterviewSession.where(id: session.id).update_all(setup_config: {}) # Keep the legacy 27-answer accounting scenario.
+    session.reload
     operation = session.operations.preparation.first
     expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success
     record_provider(operation, "interviewer", "openai", "gpt-6-luna") if accounted

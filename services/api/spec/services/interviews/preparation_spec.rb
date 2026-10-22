@@ -15,7 +15,7 @@ RSpec.describe "Spoken interview preparation" do
     expect(interview.status).to eq("preparing")
     expect(interview.questions).to be_empty
     expect(interview.messages).to be_empty
-    expect(interview.operations.pluck(:kind)).to eq(["preparation"])
+    expect(interview.operations.pluck(:kind)).to eq([ "preparation" ])
     user.update!(summary: "Changed later")
     expect(interview.reload.frozen_context.fetch("sources").first.fetch("text")).to include("laboratory")
   end
@@ -26,9 +26,9 @@ RSpec.describe "Preparation execution" do
   let(:interview) { Interviews::StartPreparationService.call(user: user, career_focus: "laboratory").value }
   let(:operation) { interview.operations.first }
   let(:questions) do
-    9.times.map { |index| { "question_type" => %w[behavioral technical knowledge][index % 3], "content" => "Question about laboratory work #{index}?" } }
+    8.times.map { |index| { "question_type" => %w[behavioral technical knowledge][index % 3], "content" => "Question about laboratory work #{index}?" } }
   end
-  let(:role) { { "title" => "Fictional laboratory technician", "responsibilities" => ["Maintain instruments"], "requirements" => ["Understand calibration"] } }
+  let(:role) { { "title" => "Fictional laboratory technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Understand calibration" ] } }
   def claim
     Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
   end
@@ -46,28 +46,28 @@ RSpec.describe "Atomic preparation acceptance" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   let(:interview) { Interviews::StartPreparationService.call(user: user).value }
   let(:operation) { interview.operations.first }
-  let(:questions) { 9.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Describe laboratory topic #{i}?" } } }
-  let(:role) { { "title" => "Fictional laboratory technician", "responsibilities" => ["Maintain instruments"], "requirements" => ["Calibration"] } }
+  let(:questions) { 8.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Describe laboratory topic #{i}?" } } }
+  let(:role) { { "title" => "Fictional laboratory technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] } }
   def accept(**changes)
     Interviews::AcceptPreparationService.call(operation: operation, attempt_id: operation.attempt_id,
       claim_generation: operation.claim_generation, role: role, questions: questions, **changes)
   end
   before { expect(Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")).to be_success }
-  it "accepts all nine questions once, saving a role for review without opening speech" do
+  it "accepts all eight questions once, saving a role for review without opening speech" do
     first = accept
     expect(first).to be_success
     expect(accept.value).to eq(first.value)
     expect(interview.reload).to have_attributes(status: "ready", prepared_role: role, revision: 1)
-    expect(interview.questions.pluck(:question_type)).to eq(%w[behavioral technical knowledge] * 3)
+    expect(interview.questions.pluck(:question_type)).to eq((%w[behavioral technical knowledge] * 3).first(8))
     expect(interview.messages).to be_empty
     expect(interview.operations.count).to eq(1)
     expect(operation.reload.ai_task).to be_completed
     expect(accept(role: role.merge("title" => "Different role"))).not_to be_success
   end
   it "rejects incomplete or duplicate question sets without exposing partial preparation" do
-    expect(accept(questions: questions.first(8))).not_to be_success
+    expect(accept(questions: questions.first(7))).not_to be_success
     duplicated = questions.map(&:dup)
-    duplicated[8]["content"] = duplicated[0]["content"]
+    duplicated[7]["content"] = duplicated[0]["content"]
     expect(accept(questions: duplicated)).not_to be_success
     expect(interview.reload).to be_preparing
     expect(interview.questions).to be_empty
@@ -113,7 +113,7 @@ RSpec.describe "Preparation evidence and retention" do
     Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
     3.times do |index|
       if index.positive?
-        travel [2, 5][index - 1].seconds
+        travel [ 2, 5 ][index - 1].seconds
         Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real")
       end
       Interviews::FailOperationService.call(operation: operation, attempt_id: operation.attempt_id,

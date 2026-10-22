@@ -276,6 +276,24 @@ RSpec.describe "Interview snapshot subscriptions" do
 end
 
 RSpec.describe "Spoken preparation GraphQL privacy" do
+  it "saves selected length and restores it through the owned public snapshot" do
+    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
+    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
+    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    owner = create(:user, summary: "Private laboratory facts")
+    invalid = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 6}}) { interview { id } errors } }', user: owner)
+    expect(invalid.dig("data", "startInterviewDemo", "interview")).to be_nil
+    expect(owner.interview_sessions).to be_empty
+    result = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 12}}) { interview { id setup { questionCount } } errors } }', user: owner)
+    payload = result.dig("data", "startInterviewDemo")
+    expect(payload.fetch("errors")).to be_empty
+    expect(payload.dig("interview", "setup", "questionCount")).to eq(12)
+    id = payload.dig("interview", "id")
+    restored = execute_graphql("query { interviewSession(id: \"#{id}\") { setup { questionCount } } }", user: owner)
+    expect(restored.dig("data", "interviewSession", "setup", "questionCount")).to eq(12)
+    expect(execute_graphql("query { interviewSession(id: \"#{id}\") { setup { questionCount } } }", user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+  end
+
   it "exposes owned role progress but never raw frozen sources or another owner's session" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
     allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)

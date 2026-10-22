@@ -22,6 +22,7 @@ vi.mock('./useInterviewRecorder', async () => {
 vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved interviews</p> }))
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
+  setup: { questionCount: 9 },
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
@@ -36,6 +37,14 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
+  it('defaults to eight main questions and sends the selected interview length', async () => {
+    renderDemo('/interviews')
+    const length = screen.getByRole('combobox', { name: 'Interview length' })
+    expect(length).toHaveValue('8')
+    await userEvent.selectOptions(length, '12')
+    fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+    expect(start).toHaveBeenCalledWith('', { questionCount: 12 })
+  })
   it('clarifies the latest follow-up while preserving typed draft and progress', async () => {
     state.interview = { ...snapshot, messages: [...snapshot.messages,
       { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'How did you test it?' }] }
@@ -377,10 +386,10 @@ describe('InterviewDemoPage', () => {
   })
   it('starts real interviews without offering a scripted mode', async () => {
     renderDemo('/interviews')
-    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /execution mode/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-    expect(start).toHaveBeenCalledWith('')
+    expect(start).toHaveBeenCalledWith('', { questionCount: 8 })
   })
   it('retires old scripted sessions without recording or retry controls', () => {
     state.interview = { ...snapshot, executionMode: 'fake' }
@@ -537,6 +546,7 @@ it('shows durable preparation progress and retry without recording controls', as
   ] }
   renderDemo()
   expect(screen.getByRole('heading', { name: 'Preparing your interview' })).toBeVisible()
+  expect(screen.getByText(/fictional role and 9 main questions/)).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Retry preparation' }))
   expect(state.retryOperation).toHaveBeenCalledWith('prep')
@@ -556,7 +566,7 @@ it('passes an explicit career focus to preparation and offers a library review p
   renderDemo('/interviews')
   await userEvent.type(screen.getByRole('textbox', { name: 'Career focus (optional)' }), 'Laboratory equipment')
   await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-  expect(start).toHaveBeenCalledWith('Laboratory equipment')
+  expect(start).toHaveBeenCalledWith('Laboratory equipment', { questionCount: 8 })
   expect(screen.getByRole('link', { name: 'Review your career library' })).toHaveAttribute('href', '/library')
 })
 

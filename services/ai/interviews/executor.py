@@ -163,13 +163,15 @@ class InterviewExecutor:
             if size > payload.earlier_dialogue.character_budget:
                 raise ScreeningRejected("context_limit")
         history = restore_history(payload.history_version, payload.model_history)
-        with stage_timing(claim, "recording_download"):
-            grant = await self.client.recording(claim)
-            data = await asyncio.to_thread(download_audio, grant["download_url"],
-                                    expected_checksum=grant["checksum"],
-                                    expected_byte_size=grant["byte_size"], **self._media_options())
-        with stage_timing(claim, "transcription"):
-            transcript = await self._transcribe(claim, data)
+        transcript = payload.candidate_transcript
+        if payload.transcription_mode != "typed":
+            with stage_timing(claim, "recording_download"):
+                grant = await self.client.recording(claim)
+                data = await asyncio.to_thread(download_audio, grant["download_url"],
+                                        expected_checksum=grant["checksum"],
+                                        expected_byte_size=grant["byte_size"], **self._media_options())
+            with stage_timing(claim, "transcription"):
+                transcript = await self._transcribe(claim, data)
         if not isinstance(transcript, str) or not transcript.strip():
             raise ScreeningRejected("empty_audio")
         if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:

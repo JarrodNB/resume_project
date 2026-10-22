@@ -18,3 +18,12 @@ describe('pending interview submission', () => {
     expect(loadPendingSubmission('owner', 'session')).toBeNull()
   })
 })
+
+
+it('restores a digest-only typed identity while rejecting missing audio from older modes', () => {
+  const typed = { questionId: 'question', expectedRevision: 0, submissionKey: 'typed', transcriptionMode: 'typed' as const, transcriptDigest: 'a'.repeat(64) }
+  savePendingSubmission('owner', 'session', typed)
+  expect(loadPendingSubmission('owner', 'session')).toEqual(typed)
+  savePendingSubmission('owner', 'session', { ...typed, transcriptionMode: 'browser' })
+  expect(loadPendingSubmission('owner', 'session')).toBeNull()
+})

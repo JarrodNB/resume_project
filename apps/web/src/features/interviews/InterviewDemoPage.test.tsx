@@ -7,7 +7,7 @@ import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 import { INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -499,4 +499,23 @@ it('shows the effective recorded fallback and keeps explicit submission availabl
   expect(screen.getByText('Effective mode: Recorded audio transcription')).toBeVisible()
   expect(screen.getByText(recorder.fallbackReason)).toBeVisible()
   expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
+})
+
+
+it('lets a candidate type without audio, keeps failed text, and warns before leaving', async () => {
+  state.answerText.mockResolvedValue(false)
+  renderDemo()
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  fireEvent.change(editor, { target: { value: 'My exact typed answer.' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+  await waitFor(() => expect(state.answerText).toHaveBeenCalledWith('My exact typed answer.'))
+  expect(state.answer).not.toHaveBeenCalled()
+  expect(recorder.start).not.toHaveBeenCalled()
+  expect(editor).toHaveValue('My exact typed answer.')
+  fireEvent.click(screen.getByRole('link', { name: 'Open written interview practice' }))
+  expect(await screen.findByRole('dialog', { name: 'Leave without submitting?' })).toHaveTextContent('answer')
+  fireEvent.click(screen.getByRole('button', { name: 'Keep reviewing' }))
+  state.answerText.mockResolvedValue(true)
+  fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
+  await waitFor(() => expect(editor).toHaveValue(''))
 })

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_030000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -70,7 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -305,10 +305,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying::text, 'turn'::character varying::text, 'speech'::character varying::text])) AND (status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text, 'expired'::character varying::text])) AND claim_generation >= 0", name: "interview_session_operation_states"
     t.check_constraint "candidate_transcript IS NULL OR char_length(candidate_transcript) >= 1 AND char_length(candidate_transcript) <= 4000 AND transcription_mode::text <> 'recorded'::text", name: "interview_operation_candidate_transcript"
     t.check_constraint "execution_count >= 0 AND execution_count <= 6 AND cycle_execution_count >= 0 AND cycle_execution_count <= 3", name: "interview_operation_execution_caps"
-    t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND recording_id IS NOT NULL AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
+    t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
     t.check_constraint "status::text <> 'accepted'::text OR accepted_at IS NOT NULL AND result_fingerprint IS NOT NULL", name: "interview_session_operation_accepted_result"
     t.check_constraint "status::text <> 'running'::text OR claim_generation > 0 AND attempt_id IS NOT NULL AND lease_expires_at IS NOT NULL AND execution_deadline IS NOT NULL", name: "interview_session_operation_claim"
-    t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying::text, 'browser'::character varying::text, 'streaming'::character varying::text])", name: "interview_operation_transcription_mode"
+    t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying, 'browser'::character varying, 'streaming'::character varying, 'typed'::character varying]::text[])", name: "interview_operation_transcription_mode"
   end
 
   create_table "interview_session_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -371,7 +371,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.index ["question_id"], name: "index_interview_transcription_captures_on_question_id"
     t.index ["token_digest"], name: "index_interview_transcription_captures_on_token_digest", unique: true
     t.check_constraint "expected_revision >= 0 AND (transcript IS NULL OR char_length(transcript) <= 4000)", name: "interview_capture_limits"
-    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'streaming'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "interview_capture_status"
+    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying::text, 'streaming'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text])", name: "interview_capture_status"
   end
 
   create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

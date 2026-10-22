@@ -343,3 +343,19 @@ def test_capture_callbacks_use_fixed_owner_path_and_bounded_replay(action, expec
     run(check())
     assert len(requests) == expected_requests
     assert all(request.content == requests[0].content for request in requests)
+
+
+@pytest.mark.parametrize("payload", [
+    {"recording_id": None, "transcription_mode": "recorded"},
+    {"recording_id": None, "transcription_mode": "typed", "candidate_transcript": "   "},
+    {"recording_id": None, "transcription_mode": "typed", "candidate_transcript": None},
+])
+def test_turn_payload_distinguishes_reviewed_text_from_missing_audio(payload):
+    from pydantic import ValidationError
+
+    from tests.test_interview_executor import claim
+
+    raw = claim().model_dump()
+    raw["payload"].update(payload)
+    with pytest.raises(ValidationError):
+        Claim.model_validate(raw)

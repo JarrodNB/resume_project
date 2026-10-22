@@ -14,7 +14,12 @@ reopen for review. Scripted fixtures and abandoned/expired sessions do not appea
 
 Candidate input supports browser recognition (the default), live provider transcription,
 and complete-recording transcription. The owner-scoped browser preference is independent
-of interviewer speech playback. Every answer still requires a ready owned recording;
+of interviewer speech playback. Typed answers submit reviewed text directly without a recording. They use the explicit
+`typed` input mode, preserve the exact text through screening and acceptance, and never
+request an audio grant or transcription. Any attached recording still requires owned ready
+media validation. Historical recorded/browser/streaming submissions retain their recording
+checks; a missing recording in those modes is invalid. Text-only operation recovery ends at
+one hour or session expiry, whichever comes first. Other voice-mode answers still require a ready owned recording;
 finalized candidate text is optional untrusted input, saved immutably with the turn and
 screened through the same newest-answer path. Missing or failed live recognition uses the
 retained recording. Transcription captures do not advance interview progress. See
@@ -674,3 +679,21 @@ envelope. Reloads and legacy histories rebuild the same public conversation with
 copies of the library. Each new question has its own private model conversation and starts
 with that canonical context. This is one logical system context, not provider-side session
 storage: the stateless provider transport still replays the conversation on each request.
+
+
+### Reviewed typed answers
+
+The answer editor keeps authored text only in tab memory and warns before leaving with a
+draft. Explicit Submit sends exactly the reviewed characters as `candidate_transcript` with
+`transcription_mode: typed`; `recording_id` is optional for this source only. Rails validates
+nonblank text up to 4,000 characters and binds the canonical text digest to the stable
+submission key. A supplied digest must match the actual text; changing text under the same
+key conflicts. Acceptance rejects text different from the submitted reviewed answer.
+
+Reload recovery stores only owner/session/question/revision/key/source and the digest, never
+the text. A lost receipt preserves its exact text in memory for an explicit same-key retry,
+after an owned canonical read. If a reload loses that text and the server confirms no saved
+operation, release the unresolved identity and ask the candidate to type the answer again;
+never substitute audio or silently replay an empty answer. Saved accepted/pending work is
+reconciled by its original key. Existing audio-mode recovery remains supported while capture
+modes migrate to the reviewed editor.

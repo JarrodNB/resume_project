@@ -10,6 +10,17 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "submits reviewed text without audio only into the owner's current interview" do
+    mutation = 'mutation($input: SubmitInterviewTurnInput!) { submitInterviewTurn(input: $input) { interview { id } errors } }'
+    variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0,
+      submissionKey: "typed-graphql", transcriptionMode: "typed", candidateTranscript: "I rebuilt the scheduler." } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "submitInterviewTurn", "errors")).to eq([])
+    expect(session.operations.turn.first).to have_attributes(recording_id: nil, candidate_transcript: "I rebuilt the scheduler.")
+  end
+
   it "lists only the owner's twenty most recent live real sessions across resumable and review states" do
     config = Interviews::ExecutionConfiguration::PRESETS.fetch("real")
     sessions = 22.times.map do |index|

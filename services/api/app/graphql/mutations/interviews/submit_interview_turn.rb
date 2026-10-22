@@ -4,7 +4,7 @@ module Mutations
     class SubmitInterviewTurn < BaseDemoMutation
       argument :interview_id, ID, required: true
       argument :question_id, ID, required: true
-      argument :recording_id, ID, required: true
+      argument :recording_id, ID, required: false
       argument :expected_revision, Integer, required: true
       argument :submission_key, String, required: true
       argument :candidate_transcript, String, required: false

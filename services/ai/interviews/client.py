@@ -68,8 +68,8 @@ class EarlierDialogue(BaseModel):
 
 class TurnPayload(BaseModel):
     candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
-    transcription_mode: Literal["recorded", "browser", "streaming"] = "recorded"
-    recording_id: str
+    transcription_mode: Literal["recorded", "browser", "streaming", "typed"] = "recorded"
+    recording_id: str | None
     expected_revision: int
     question: str
     model_history: list[dict[str, Any]]
@@ -81,6 +81,11 @@ class TurnPayload(BaseModel):
 
     @model_validator(mode="after")
     def require_context(self):
+        if self.transcription_mode == "typed":
+            if not self.candidate_transcript or not self.candidate_transcript.strip():
+                raise ValueError("Reviewed text is required")
+        elif not self.recording_id:
+            raise ValueError("Audio turns require a recording")
         if (self.fixture_context is None) == (self.interview_context is None):
             raise ValueError("A turn requires exactly one context source")
         return self

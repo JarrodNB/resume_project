@@ -98,7 +98,7 @@ describe('InterviewDemoPage', () => {
     expect(await screen.findByText('Describe how you checked that the project worked.')).toBeVisible()
     expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I wrote tests and reviewed the results.')
     expect(screen.getByText('Describe a project.')).toBeVisible()
-    expect(screen.getByText('How did you test it?')).toBeVisible()
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you test it?')).toBeVisible()
     expect(state.answerText).not.toHaveBeenCalled()
     expect(state.answer).not.toHaveBeenCalled()
   })
@@ -142,7 +142,22 @@ describe('InterviewDemoPage', () => {
     if (!saved) expect(screen.getByRole('alert')).toHaveTextContent('submission response was not confirmed')
   })
 
-  it('shows the latest question with earlier prompts only in history', () => {
+  it('appends the active interviewer message to history immediately and once', () => {
+    renderDemo()
+    const history = within(screen.getByRole('complementary', { name: 'History' }))
+    expect(history.getByText('Describe a project.')).toBeVisible()
+    state.interview = { ...snapshot, messages: [...snapshot.messages,
+      { ...snapshot.messages[0], id: 'answer', kind: 'answer', content: 'I built a booking tool.' },
+      { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'How did you test it?' },
+    ] }
+    act(() => recorder.refresh())
+    expect(history.getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'InterviewerDescribe a project.', 'Your transcriptI built a booking tool.', 'InterviewerHow did you test it?',
+    ])
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('How did you test it?')).toBeVisible()
+  })
+
+  it('shows the latest question in the stage with complete dialogue in history', () => {
     state.interview = { ...snapshot, messages: [
       snapshot.messages[0],
       { ...snapshot.messages[0], id: 'answer', kind: 'answer', content: 'I built a booking tool.' },
@@ -217,7 +232,7 @@ describe('InterviewDemoPage', () => {
   it.each(['pending', 'failed', 'expired'])('allows a saved question to be answered when speech is %s', async (status) => {
     state.interview = { ...snapshot, operations: [{ ...snapshot.operations[0], status, failureCode: status === 'pending' ? null : 'speech_failed' }] }
     renderDemo()
-    expect(screen.getByText('Describe a project.')).toBeVisible()
+    expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Record answer' }))
     expect(recorder.start).toHaveBeenCalledOnce()
     const recording = new Blob(['answer'], { type: 'audio/webm' })
@@ -334,7 +349,7 @@ describe('InterviewDemoPage', () => {
     const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
     expect(current.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
   })
-  it('focuses the current turn once while keeping earlier dialogue available', async () => {
+  it('keeps the current turn in the stage and the complete dialogue in history', async () => {
     state.interview = { ...snapshot, messages: [
       { ...snapshot.messages[0], id: 'earlier', content: 'What did you build?' },
       { ...snapshot.messages[0], id: 'answer', kind: 'answer', content: 'I built a booking tool.' },
@@ -345,7 +360,7 @@ describe('InterviewDemoPage', () => {
     expect(screen.getByRole('region', { name: 'Current interview turn' })).toHaveTextContent('Describe a project.')
     expect(screen.getByText('What did you build?')).toBeVisible()
     expect(screen.getByText('I built a booking tool.')).toBeVisible()
-    expect(screen.getAllByText('Describe a project.')).toHaveLength(1)
+    expect(within(screen.getByRole('complementary', { name: 'History' })).getByText('Describe a project.')).toBeVisible()
   })
   it.each([
     ['recording', 'Your turn — recording'],
@@ -401,11 +416,15 @@ describe('InterviewDemoPage', () => {
     expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeVisible()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
-  it.each(['preparing', 'ready'])('allows deliberate abandonment while %s without recording', async (status) => {
+  it.each(['preparing', 'ready'])('cancels unstarted preparation while %s without recording', async (status) => {
     state.interview = { ...snapshot, status }
+    state.abandonInterview.mockResolvedValue(false)
     renderDemo()
-    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
-    expect(screen.getByRole('button', { name: 'Confirm abandonment' })).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Abandon interview' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel preparation' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('You can set up another interview')
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm cancellation' }))
+    expect(state.abandonInterview).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
   })
   it('keeps provider and retention details available without dominating the active room', async () => {
@@ -612,6 +631,14 @@ it('prepares without a career-focus field or library review link', async () => {
 
 
 describe('prepared interview begin', () => {
+  it('keeps role review free of recent links and describes the actual follow-up limit', () => {
+    state.interview = { ...snapshot, status: 'ready', answerCap: 3, preparedRole: { title: 'Fictional technician', responsibilities: ['Maintain instruments'], requirements: ['Calibration'] } }
+    renderDemo()
+    expect(screen.queryByRole('link', { name: 'Recent interviews' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Each main question may be followed by up to 2 related questions/)).toBeVisible()
+    expect(screen.queryByText(/saved responses/)).not.toBeInTheDocument()
+  })
+
   it('offers explicit Begin after role review, without microphone capture', async () => {
     state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Fictional technician', responsibilities: ['Maintain instruments'], requirements: ['Calibration'] } }
     renderDemo()

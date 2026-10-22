@@ -151,6 +151,12 @@ Prepare with your chosen options. The submit action should lock
 while saving. Check an empty library error, unfinished-interview recovery and a
 failed preparation retry. On the saved role review, verify the role and selected
 configuration, including focus areas, before choosing **Enter interview room**.
+The role-review page should have no Recent interviews link. Before entry, use
+Cancel preparation to release an unfinished setup; after entry, the action is
+Abandon interview. Each main question permits up to two related follow-ups under
+the current three-response cap. The active interviewer message should appear in
+History immediately, once, alongside earlier saved dialogue.
+
 After entry, check the interviewer identity and settings, playback-before-capture,
 thinking countdown, tapping the microphone early, and editable live dictation.
 Priya probes after submission; live interruptions are outside this setup.

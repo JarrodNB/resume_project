@@ -25,6 +25,7 @@ function roleData(value: unknown) {
 export function InterviewPreparation({ interview, busy, error, disconnected, retry, refresh, begin }: Props) {
   const operation = interview.operations.find((item) => item.kind === 'preparation')
   const role = roleData(interview.preparedRole)
+  const followUpLimit = Math.max(0, interview.answerCap - 1)
   return <div className="grid gap-5">
     {interview.status === 'ready' && role ? <>
       <div className="grid gap-2">
@@ -39,7 +40,7 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
       <p className="text-sm text-muted-foreground">{typeOptions.find((item) => item.value === interview.setup.questionFormat)?.label} · {difficultyOptions.find((item) => item.value === interview.setup.difficulty)?.label} · {interviewerOptions.find((item) => item.value === interview.setup.interviewer)?.label}</p>
       <p className="text-sm text-muted-foreground">Focus areas: {interview.setup.focusAreas.length ? interview.setup.focusAreas.map((area) => focusOptions[area] ?? area).join(', ') : 'Balanced round'}</p>
       <p role="status" className="text-sm">Your {interview.questions.length} questions are prepared. Your interview is ready.</p>
-      <p className="text-sm text-muted-foreground">Enter the room to hear your first question. Each question allows up to {interview.answerCap} saved responses; the interviewer may move on sooner.</p>
+      <p className="text-sm text-muted-foreground">Enter the room to hear your first question. Each main question may be followed by up to {followUpLimit} related {followUpLimit === 1 ? 'question' : 'questions'}; the interviewer may move on sooner.</p>
       <Button className="min-h-11 justify-self-start" disabled={busy} onClick={() => void begin()}>{busy ? 'Entering…' : 'Enter interview room'}</Button>
     </> : <>
       <h2 className="text-xl font-medium">Preparing your interview</h2>

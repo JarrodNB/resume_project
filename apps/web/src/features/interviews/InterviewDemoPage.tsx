@@ -1,4 +1,4 @@
-/** Keep the current interview turn in focus, with earlier dialogue and details nearby.
+/** Keep the current interview turn in focus, with the complete saved dialogue nearby.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
@@ -162,11 +162,11 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Start a new interview</Link>
   </div>
-  const abandonControl = <AbandonInterviewButton busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => setAbandoned(true)} />
+  const abandonControl = <AbandonInterviewButton beforeStart={interview.status === 'preparing' || interview.status === 'ready'} busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => setAbandoned(true)} />
   const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Recent interviews</Link>
   if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to="/interviews" replace state={{ interviewEnded: 'abandoned' }} /></>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}{recentLink}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
   const browserSpeech = interview.speechPlaybackMode === 'browser'
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
@@ -174,7 +174,7 @@ function OwnedInterview({ id }: { id: string }) {
   const speech = reply && operations.find((operation) => operation.messageId === reply.id && operation.kind === 'speech')
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const hasQuestionText = Boolean(question && reply?.content.trim())
-  const earlierMessages = interview.messages.filter((message) => message.id !== reply?.id)
+  const historyMessages = interview.messages
   const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying
   async function transcribe() {
     if (!recorder.recording || submitting.current || !canRecord) return
@@ -289,13 +289,13 @@ function OwnedInterview({ id }: { id: string }) {
     <aside className="interview-transcript" aria-label="History">
       <h2 className="mb-4 text-lg font-semibold">History</h2>
       <ol className="interview-exchanges">
-        {earlierMessages.map((message) => <li key={message.id} className="interview-exchange" data-speaker={message.kind === 'answer' ? 'you' : 'interviewer'}>
+        {historyMessages.map((message) => <li key={message.id} className="interview-exchange" data-speaker={message.kind === 'answer' ? 'you' : 'interviewer'}>
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           {message.acknowledgement && <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.acknowledgement}</p>}
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
         </li>)}
       </ol>
-      {!earlierMessages.length && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. Focus on the current question when you’re ready.</p>}
+      {!historyMessages.length && <p className="text-sm text-muted-foreground">Your conversation will appear here as the interview progresses.</p>}
     </aside>
     </div>
     {interview.status === 'active' && <div className="border-t pt-4">{abandonControl}</div>}

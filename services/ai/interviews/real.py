@@ -198,7 +198,7 @@ class RealInterviewExecutor(InterviewExecutor):
             saved = serialize_history(result.all_messages())
         async def accept():
             return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
-                reply=result.output.reply, history_version=1, model_history=saved)
+                reply=result.output.reply, acknowledgement=result.output.acknowledgement, history_version=1, model_history=saved)
         await self._reconcile(claim, accept)
 
     async def _synthesize(self, claim):

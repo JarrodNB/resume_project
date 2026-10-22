@@ -28,7 +28,7 @@ class Models:
                 output = {"prompt_injection": self.blocked or "reveal secrets" in str(messages), "harmful_request": False}
                 details = {"confidence": {"prompt_injection": 1.0, "harmful_request": 1.0}}
             else:
-                output = {"decision": "continue", "reply": "How did you measure the shorter wait?"}
+                output = {"decision": "continue", "acknowledgement": "You reduced appointment waiting time by fifteen minutes.", "reply": "How did you measure the shorter wait?"}
                 details = {}
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)],
                                  usage=RequestUsage(input_tokens=100, output_tokens=10),
@@ -62,6 +62,7 @@ def test_actual_transcript_masked_in_screen_and_interviewer_saved_once(monkeypat
     assert len(client.accepted) == 1
     assert "appointment wait" in client.accepted[0]["transcript"]
     assert "measure" in client.accepted[0]["reply"]
+    assert client.accepted[0]["acknowledgement"] == "You reduced appointment waiting time by fifteen minutes."
     assert {name for name, _ in models.prompts} == {"jev-1.13.0", "gpt-6-luna"}
     assert all("Morgan Sample" not in prompt for _, prompt in models.prompts)
     assert "15 minutes" in models.prompts[-1][1]

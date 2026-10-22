@@ -8,10 +8,11 @@ module Interviews
     CLOSING = "Thank you. This interview is complete.".freeze
 
     def initialize(operation:, attempt_id:, claim_generation:, transcript:, decision:, reply: nil,
-      history_version:, model_history:)
+      history_version:, model_history:, acknowledgement: nil)
       @operation = operation
       @attempt_id, @claim_generation = attempt_id, claim_generation
       @transcript, @decision, @reply = transcript, decision, reply
+      @acknowledgement = acknowledgement
       @history_version, @model_history = history_version, model_history
     end
 
@@ -67,16 +68,16 @@ module Interviews
         if next_question
           interview.current_question_position = next_question.position
           interview.messages.create!(question: next_question, kind: "opening", position: position,
-            semantic_key: "question:#{next_question.id}:opening", content: next_question.content)
+            semantic_key: "question:#{next_question.id}:opening", content: next_question.content, acknowledgement: @acknowledgement)
         else
           interview.status = "completed"
           interview.completed_at = Time.current
           interview.messages.create!(question: question, kind: "closing", position: position,
-            semantic_key: "interview:closing", content: CLOSING)
+            semantic_key: "interview:closing", content: CLOSING, acknowledgement: @acknowledgement)
         end
       else
         interview.messages.create!(question: question, kind: "follow_up", position: position,
-          semantic_key: "turn:#{@operation.id}:reply", content: @reply)
+          semantic_key: "turn:#{@operation.id}:reply", content: @reply, acknowledgement: @acknowledgement)
       end
     end
 
@@ -84,6 +85,12 @@ module Interviews
       return @reply.nil? || (@reply.is_a?(String) && @reply.length <= TextLimits::PROSE) if @decision == "advance"
 
       @reply.is_a?(String) && @reply.present? && @reply.length <= TextLimits::PROSE
+    end
+
+    def valid_acknowledgement?
+      @acknowledgement.nil? || (@acknowledgement.is_a?(String) && @acknowledgement.present? &&
+        @acknowledgement.length <= InterviewSessionMessage::ACKNOWLEDGEMENT_LIMIT &&
+        (@decision != "continue" || @acknowledgement.length + 2 + @reply.length <= TextLimits::PROSE))
     end
 
     def current_claim?
@@ -94,7 +101,7 @@ module Interviews
 
     def valid_payload?
       @transcript.is_a?(String) && @transcript.present? && @transcript.length <= TextLimits::PROSE &&
-        %w[continue advance].include?(@decision) && valid_reply? &&
+        %w[continue advance].include?(@decision) && valid_reply? && valid_acknowledgement? &&
         @history_version == 1 && @model_history.is_a?(Array) && @model_history.all? { |message| message.is_a?(Hash) } &&
         JSON.generate(@model_history).bytesize <= MAX_HISTORY_BYTES
     rescue JSON::GeneratorError, JSON::NestingError
@@ -110,8 +117,11 @@ module Interviews
         else value
         end
       end
-      normalize.call({ attempt_id: @attempt_id, claim_generation: @claim_generation, transcript: @transcript,
-        decision: @decision, reply: @reply, history_version: @history_version, model_history: @model_history })
+      payload = { attempt_id: @attempt_id, claim_generation: @claim_generation, transcript: @transcript,
+        decision: @decision, reply: @reply, history_version: @history_version, model_history: @model_history }
+      # Omitted acknowledgements keep historical fingerprints replayable.
+      payload[:acknowledgement] = @acknowledgement unless @acknowledgement.nil?
+      normalize.call(payload)
     end
   end
 end

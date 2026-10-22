@@ -5,7 +5,7 @@ export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
     id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     questions { id content questionType position acceptedAnswerCount }
-    messages { id questionId kind position content }
+    messages { id questionId kind position content acknowledgement spokenContent }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }
   }
 `)

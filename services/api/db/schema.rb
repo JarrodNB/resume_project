@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -70,7 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -256,6 +256,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "acknowledgement"
     t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_fb18f0ea41", unique: true
     t.index ["interview_session_id", "question_id", "id"], name: "interview_session_message_owner_identity", unique: true
     t.index ["interview_session_id", "semantic_key"], name: "idx_on_interview_session_id_semantic_key_fd3956ac09", unique: true
@@ -263,6 +264,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.index ["question_id"], name: "index_interview_session_messages_on_question_id"
     t.index ["question_id"], name: "interview_session_one_opening_per_question", unique: true, where: "((kind)::text = 'opening'::text)"
     t.check_constraint "\"position\" >= 0 AND (kind::text = ANY (ARRAY['opening'::character varying::text, 'answer'::character varying::text, 'follow_up'::character varying::text, 'closing'::character varying::text]))", name: "interview_session_message_kind"
+    t.check_constraint "acknowledgement IS NULL OR kind::text <> 'answer'::text AND char_length(acknowledgement) >= 1 AND char_length(acknowledgement) <= 280 AND btrim(acknowledgement) <> ''::text", name: "interview_message_acknowledgement"
   end
 
   create_table "interview_session_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -371,7 +373,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_020000) do
     t.index ["question_id"], name: "index_interview_transcription_captures_on_question_id"
     t.index ["token_digest"], name: "index_interview_transcription_captures_on_token_digest", unique: true
     t.check_constraint "expected_revision >= 0 AND (transcript IS NULL OR char_length(transcript) <= 4000)", name: "interview_capture_limits"
-    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'streaming'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "interview_capture_status"
+    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying::text, 'streaming'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text])", name: "interview_capture_status"
   end
 
   create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

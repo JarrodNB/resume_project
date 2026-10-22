@@ -9,7 +9,7 @@ module Interviews
       selected, omitted = [], []
       interview.questions.where("position < ?", before_position).reorder(position: :desc).each do |question|
         messages = interview.messages.where(question: question, kind: %w[opening answer follow_up]).order(:position)
-          .map { |message| { kind: message.kind, content: message.content } }
+          .map { |message| { kind: message.kind, content: MessageText.spoken_content(message) } }
         next unless messages.any? { |message| message[:kind] == "answer" }
 
         size = messages.sum { |message| message[:content].length }

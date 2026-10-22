@@ -84,7 +84,7 @@ def system_context(context: dict, role: dict | None = None) -> str:
 
 
 def conversation_history(payload, context: str):
-    """Rebuild canonical history; never forward private acknowledgements or old envelopes.
+    """Rebuild canonical history; never forward private tool receipts or old envelopes.
 
     The authenticated Rails claim supplies accepted public utterances, including for
     legacy sessions. A nonempty old history without that source cannot be restored safely.

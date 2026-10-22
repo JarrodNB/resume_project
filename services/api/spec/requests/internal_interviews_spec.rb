@@ -79,7 +79,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
   it "recovers a lost acceptance reply through identical replay and canonical status" do
     post "#{path}/claim", headers: headers, as: :json
     claim = response.parsed_body.slice("attempt_id", "claim_generation")
-    payload = claim.merge(transcript: "I helped my team.", decision: "advance", history_version: 1, model_history: [])
+    payload = claim.merge(transcript: "I helped my team.", acknowledgement: "You helped your team.", decision: "advance", history_version: 1, model_history: [])
     2.times do
       post "#{path}/accept", params: payload, headers: headers, as: :json
       expect(response).to have_http_status(:ok)
@@ -89,6 +89,7 @@ RSpec.describe "Internal interview callbacks", type: :request do
     expect(response.parsed_body["accepted_result"]).to eq(receipt)
     expect(interview.reload.revision).to eq(1)
     expect(turn.reload.ai_task).to be_completed
+    expect(interview.messages.closing.last.acknowledgement).to eq("You helped your team.")
     expect(turn.ai_task.ai_usage_attempts.first).not_to be_finalized
     post "#{path}/heartbeat", params: claim, headers: headers, as: :json
     expect(response).to have_http_status(:ok)

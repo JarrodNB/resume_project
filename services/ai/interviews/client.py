@@ -354,6 +354,7 @@ class RailsInterviewClient:
         reply: str | None,
         history_version: int,
         model_history: list[dict[str, Any]],
+        acknowledgement: str | None = None,
     ):
         return await self._callback(
             claim,
@@ -363,6 +364,7 @@ class RailsInterviewClient:
             reply=reply,
             history_version=history_version,
             model_history=model_history,
+            **({"acknowledgement": acknowledgement} if acknowledgement is not None else {}),
         )
 
     async def fail(self, claim: Claim, code: str, retryable: bool):

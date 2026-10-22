@@ -10,6 +10,18 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "exposes separate acknowledgement and canonical spoken text only in the owned snapshot" do
+    message = session.messages.first
+    message.update!(acknowledgement: "You improved the booking process.")
+    query = "query { interviewSession(id: \"#{session.id}\") { messages { content acknowledgement spokenContent } } }"
+    result = execute_graphql(query, user: user)
+    expect(result["errors"]).to be_nil
+    expect(result.dig("data", "interviewSession", "messages", 0)).to eq(
+      "content" => message.content, "acknowledgement" => message.acknowledgement,
+      "spokenContent" => "#{message.acknowledgement}\n\n#{message.content}")
+    expect(execute_graphql(query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+  end
+
   it "lists only the owner's twenty most recent live real sessions across resumable and review states" do
     config = Interviews::ExecutionConfiguration::PRESETS.fetch("real")
     sessions = 22.times.map do |index|

@@ -69,6 +69,9 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
     if (!permitted.current) return
     const identity = ++generation.current
     setError(null)
+    // Reserve the room while the playback link and audio are loading too.
+    let started = false
+    notify(true)
     try {
       let source = url
       if (!source) {
@@ -93,13 +96,19 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
         if (!permitted.current) element.pause()
         return
       }
+      started = true
       setPlaying(true); setEnded(false); notify(true)
     } catch (cause) {
       if (identity === generation.current) {
         setUrl(null)
         setError(cause instanceof Error ? cause.message : 'Could not load saved audio. Try again.')
       }
-    } finally { if (identity === generation.current) setLoading(false) }
+    } finally {
+      if (identity === generation.current) {
+        setLoading(false)
+        if (!started) notify(false)
+      }
+    }
   }, [url, request, interviewId, messageId, notify])
 
   useEffect(() => {

@@ -16,11 +16,11 @@ export function RecentInterviews() {
         const date = new Date(interview.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
         return <li key={interview.id} className="flex flex-wrap items-center justify-between gap-3 py-4 last:pb-0">
           <div className="grid gap-1 text-sm">
-            <p className="font-medium">{interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</p>
+            <p className="font-medium">{interview.status === 'abandoned' ? 'Ended' : interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</p>
             <time className="text-muted-foreground" dateTime={interview.createdAt}>{date}</time>
-            {interview.questions.length > 0 && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} questions completed` : `Question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
+            {interview.questions.length > 0 && interview.status !== 'abandoned' && interview.status !== 'expired' && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} questions completed` : `Question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
           </div>
-          <Link className="text-sm underline underline-offset-4" to={`/interviews/demo/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>
+          {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
         </li>
       })}
     </ol>

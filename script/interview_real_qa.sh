@@ -27,7 +27,7 @@ case "${1:-}" in
     '
     "${compose[@]}" run --rm --no-deps storage-setup
     "${compose[@]}" up -d --no-build --wait interview-runtime
-    echo "Real spoken interview: http://127.0.0.2:15176/interviews/demo"
+    echo "Real spoken interview: http://127.0.0.2:15176/interviews"
     ;;
   stop) "${compose[@]}" stop ;;
   status) "${compose[@]}" ps ;;

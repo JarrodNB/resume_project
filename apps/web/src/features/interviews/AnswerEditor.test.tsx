@@ -13,6 +13,8 @@ it('submits exactly edited text once and keeps it after a failed save', async ()
   }
   render(<Editor />)
   const input = screen.getByRole('textbox', { name: 'Your answer' })
+  expect(input).toHaveAttribute('placeholder', 'Your answer will appear here as you speak. You may edit your audio here, or if you prefer, you can type out your answer')
+  expect(screen.queryByText(/Unsent text stays/)).not.toBeInTheDocument()
   fireEvent.change(input, { target: { value: '  I corrected the recognition text.  ' } })
   fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }))
   fireEvent.click(screen.getByRole('button', { name: 'Submitting answer…' }))

@@ -14,7 +14,7 @@ runs. The real runtime exports privacy-filtered traces using `LOGFIRE_TOKEN` fro
 the original AI environment file, labeled `development`; fake and isolated paid
 probes continue to disable remote export.
 
-Open [Spoken interview](http://127.0.0.2:15176/interviews/demo). The launcher starts a real
+Open [Spoken interview](http://127.0.0.2:15176/interviews). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
 Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three
 saved responses, and the interviewer may advance earlier.
@@ -120,7 +120,9 @@ uses the saved message; it never repeats an accepted answer's transcription or r
    sessions; review completed sessions. Only your latest 20 unexpired real sessions appear.
 7. On an unfinished session, choose **Abandon interview**. Cancel first and confirm the
    recording remains. Confirm abandonment and check that recording/continuation and fresh
-   playback grants stop, with the session removed from the recent list. Local audio and
+   playback grants stop. The UI returns to the interview overview with an ended confirmation,
+   without a second unsaved-answer warning. Old abandoned-session links also return there.
+   Ended or expired entries never offer Resume. Local audio and
    pending submission recovery clear only after saved confirmation. The normal unsaved
    recording warning still applies when navigating away without submitting.
    Private objects are deleted by durable cleanup; already-issued short URLs may work until

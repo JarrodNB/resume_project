@@ -9,14 +9,15 @@ interface AnswerEditorProps {
   text: string
   onTextChange: (text: string) => void
   disabled: boolean
+  capturing?: boolean
   onSubmit: (text: string) => Promise<boolean>
 }
 
-export function AnswerEditor({ text, onTextChange, disabled, onSubmit }: AnswerEditorProps) {
+export function AnswerEditor({ text, onTextChange, disabled, capturing = false, onSubmit }: AnswerEditorProps) {
   const saving = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   async function submit() {
-    if (saving.current || disabled || !text.trim() || text.length > 4_000) return
+    if (saving.current || disabled || capturing || !text.trim() || text.length > 4_000) return
     saving.current = true
     setSubmitting(true)
     try { await onSubmit(text) }
@@ -24,13 +25,13 @@ export function AnswerEditor({ text, onTextChange, disabled, onSubmit }: AnswerE
   }
   return <div className="grid gap-3">
     <label className="grid gap-2 text-sm" htmlFor="interview-answer">Your answer
-      <Textarea id="interview-answer" rows={5} maxLength={4_000} value={text} aria-invalid={text.length > 4_000} aria-describedby={text.length > 4_000 ? 'interview-answer-help interview-answer-limit' : 'interview-answer-help'}
+      <Textarea id="interview-answer" rows={5} maxLength={4_000} value={text} aria-invalid={text.length > 4_000} aria-describedby={text.length > 4_000 ? 'interview-answer-limit' : undefined}
+        placeholder="Your answer will appear here as you speak. You may edit your audio here, or if you prefer, you can type out your answer"
         onChange={(event) => onTextChange(event.target.value)} disabled={disabled || submitting} />
     </label>
-    <p id="interview-answer-help" className="text-sm text-muted-foreground">Type your answer and review it before submitting. Unsent text stays only in this tab.</p>
     {text.length > 4_000 && <p id="interview-answer-limit" role="alert" className="text-sm text-destructive">Shorten your answer to 4,000 characters before submitting.</p>}
     <div className="flex flex-wrap gap-2">
-      <Button disabled={disabled || submitting || !text.trim() || text.length > 4_000} aria-busy={submitting} onClick={() => void submit()}>{submitting ? 'Submitting answer…' : 'Submit answer'}</Button>
+      <Button disabled={disabled || capturing || submitting || !text.trim() || text.length > 4_000} aria-busy={submitting} onClick={() => void submit()}>{submitting ? 'Submitting answer…' : 'Submit answer'}</Button>
       <Button variant="outline" disabled={disabled || submitting || !text} onClick={() => onTextChange('')}>Clear answer</Button>
     </div>
   </div>

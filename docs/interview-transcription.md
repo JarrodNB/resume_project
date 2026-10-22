@@ -3,13 +3,15 @@
 The input selector controls how a candidate's recorded answer becomes text. It is
 independent of browser/provider playback of the interviewer's saved reply. Browser
 recognition is the default; the browser remembers the signed-in owner's choice.
-Choose another mode between answers. The selected mode and any recorded-audio fallback
-are shown beside recording controls.
+Choose another mode between answers in Interview settings. Recorded-audio fallback
+messages remain beside the answer controls.
 
 Voice modes keep a complete WebM or MP4 recording for preview and fallback. Browser and
-streaming dictation finalize into the same editable answer box used for typing. Interim
-words are provisional: editing and another capture wait until recording and recognition
-finish. Completed dictation appends to existing authored text once; later callbacks,
+streaming dictation appear live in the same answer box used for typing. Interim words
+update in place after any existing authored text, and the final transcript replaces
+that provisional portion. The answer box stays editable during recording and finalization. Manual edits protect
+the text already shown; new dictated words continue after it. Submission and another
+capture wait until recording and recognition finish. Completed dictation appends to existing authored text once; later callbacks,
 manual corrections and new interview revisions cannot overwrite the reviewed answer.
 Discarding audio keeps reviewed text. Explicit Submit sends exactly that edited text
 through the typed-answer contract. Browser and streaming results need no audio upload;
@@ -17,6 +19,18 @@ complete-recording review uploads once for transcription and never retranscribes
 untrusted candidate input and goes through the same newest-answer screening and durable
 turn acceptance as a transcribed recording. Failed recognition does not create a second
 turn. Microphone denial cannot fall back without captured audio.
+
+## Microphone timing
+
+The interview lives at `/interviews`; older `/interviews/demo` links redirect there.
+Interview settings contain transcription mode, automatic microphone capture, and a
+thinking pause of 0, 3, 5, or 10 seconds. Turning automatic capture off also sets
+the thinking pause to Off and disables its selector. Automatic capture starts off
+until the user enables it; the browser remembers this choice for the signed-in account.
+After interviewer playback stops, the countdown runs before opening the microphone.
+The Record answer button starts sooner. Typing or manually recording cancels the
+automatic start for that prompt. Playback, settings, a hidden tab, and pending work
+pause the countdown. The microphone never submits an answer automatically.
 
 ## Browser recognition
 

@@ -6,7 +6,7 @@ import { renderPage } from '@/test/renderPage'
 import { RecentInterviews } from './RecentInterviews'
 
 vi.mock('./useRecentInterviews', () => ({ useRecentInterviews: () => ({ loading: false, error: null,
-  interviews: ['preparing', 'ready', 'active', 'completed'].map((status, index) => ({
+  interviews: ['preparing', 'ready', 'active', 'completed', 'abandoned', 'expired'].map((status, index) => ({
     id: status, status, createdAt: '2026-10-21T09:00:00Z', currentQuestionPosition: index,
     questions: status === 'preparing' ? [] : Array.from({ length: 9 }, (_, position) => ({ id: `q${position}` })),
   })) }) }))
@@ -19,11 +19,14 @@ describe('RecentInterviews', () => {
     expect(screen.getByText('Ready')).toBeVisible()
     expect(screen.getByText('Active')).toBeVisible()
     expect(screen.getByText('Completed')).toBeVisible()
+    expect(screen.getByText('Ended')).toBeVisible()
+    expect(screen.getByText('Expired')).toBeVisible()
+    expect(screen.getAllByRole('link')).toHaveLength(4)
     expect(screen.getByText('Question 3 of 9')).toBeVisible()
-    expect(screen.getAllByRole('time')).toHaveLength(4)
+    expect(screen.getAllByRole('time')).toHaveLength(6)
     expect(screen.getAllByRole('link', { name: /resume interview/i }).map((link) => link.getAttribute('href'))).toEqual([
-      '/interviews/demo/preparing', '/interviews/demo/ready', '/interviews/demo/active',
+      '/interviews/preparing', '/interviews/ready', '/interviews/active',
     ])
-    expect(screen.getByRole('link', { name: /review interview/i })).toHaveAttribute('href', '/interviews/demo/completed')
+    expect(screen.getByRole('link', { name: /review interview/i })).toHaveAttribute('href', '/interviews/completed')
   })
 })

@@ -24,3 +24,10 @@ it('submits exactly edited text once and keeps it after a failed save', async ()
   expect(input).toHaveValue('  I corrected the recognition text.  ')
   expect(JSON.stringify(localStorage)).not.toContain('recognition text')
 })
+
+it('explains when appended dictation needs shortening before it can be submitted', () => {
+  render(<AnswerEditor text={'x'.repeat(4_001)} onTextChange={vi.fn()} disabled={false} onSubmit={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent('4,000')
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Submit answer' })).toBeDisabled()
+})

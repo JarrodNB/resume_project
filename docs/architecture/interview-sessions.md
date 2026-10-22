@@ -488,8 +488,12 @@ Production builds hide the route content even if the frontend flag is set; Rails
 denies public demo operations outside development. Written practice remains at `/interview-prep`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
-The active room presents the latest interviewer reply once, with earlier exchanges and saved
-response counts in **Saved conversation**. Turn headings distinguish recording, local review,
+The active room keeps the original main question visible while showing the latest follow-up
+separately. It shows the initial question only once; earlier exchanges and saved response
+counts remain in **Saved conversation**. A saving request displays immediate accessible
+loading feedback; only an unresolved response after the request finishes offers submission
+recovery. Each saved interviewer turn has one play/pause-or-stop/replay control. A completed
+turn replays from the beginning; a paused provider recording resumes from its current position. Turn headings distinguish recording, local review,
 submission, answer processing and speech recovery without exposing execution checkpoint names.
 Provider and retention details remain accessible in **Interview details and privacy**; preparation
 still discloses providers before starting. Terminal session updates release local microphone

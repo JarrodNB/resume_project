@@ -20,7 +20,7 @@ it('speaks the exact saved text and releases recording when speech ends', () => 
   expect(changed).toHaveBeenLastCalledWith(true, 'q')
   act(() => utterance.onend())
   expect(changed).toHaveBeenLastCalledWith(false, 'q')
-  expect(screen.getByRole('button', { name: 'Replay question' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Replay interviewer audio' })).toBeEnabled()
 })
 it('stops on mute, recording, another speaker and unmount without accepting stale callbacks', () => {
   const changed = vi.fn()
@@ -154,7 +154,7 @@ it('does not advance cancelled or failed chunks, and replay starts at the beginn
   fireEvent.click(screen.getByRole('button', { name: 'Stop interviewer audio' }))
   act(() => oldEnd())
   expect(speak).toHaveBeenCalledTimes(1)
-  fireEvent.click(screen.getByRole('button', { name: 'Replay question' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
   expect(speak.mock.calls[1][0].text).toBe('First sentence.')
   act(() => speak.mock.calls[1][0].onerror())
   expect(speak).toHaveBeenCalledTimes(2)
@@ -205,7 +205,7 @@ it('uses the English fallback if voice discovery throws', async () => {
     await act(async () => vi.advanceTimersByTimeAsync(300))
     expect(speak.mock.calls[0][0].lang).toBe('en-US')
     act(() => speak.mock.calls[0][0].onend())
-    expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Replay interviewer audio' })).toBeEnabled()
   } finally { vi.useRealTimers() }
 })
 
@@ -219,4 +219,16 @@ it('cancels remaining sentences when microphone capture starts', () => {
   expect(speak).toHaveBeenCalledTimes(1)
   expect(cancel).toHaveBeenCalled()
   expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
+})
+
+it('uses one playback control for play, stop and replay after the turn ends', () => {
+  render(<BrowserInterviewSpeech messageId="q" text="One question." />)
+  fireEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+  expect(screen.getAllByRole('button')).toHaveLength(1)
+  expect(screen.getByRole('button', { name: 'Stop interviewer audio' })).toBeEnabled()
+  act(() => speak.mock.calls[0][0].onend())
+  expect(screen.getAllByRole('button')).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
+  expect(speak.mock.calls[1][0].text).toBe('One question.')
+  expect(screen.getByRole('button', { name: 'Stop interviewer audio' })).toBeEnabled()
 })

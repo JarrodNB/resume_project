@@ -1,5 +1,6 @@
 /** Speak saved interviewer text with the browser's voice engine.
- * Playback is disposable: stopping, recording, navigation or errors release the turn.
+ * One control plays, stops or replays the turn; recording, navigation and errors
+ * release its disposable playback.
  * Browser voices may use device or network services; this never requests provider audio.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -34,7 +35,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
   const allowed = useRef(!muted && !disabled)
   const attempted = useRef(false)
   const [playing, setPlaying] = useState(false)
-  const [played, setPlayed] = useState(false)
+  const [ended, setEnded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const notify = useCallback((value: boolean) => onPlayingChange?.(value, messageId), [onPlayingChange, messageId])
   const stop = useCallback(() => {
@@ -82,7 +83,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
     const speakNext = () => {
       if (!live()) return
       if (current.timer) clearTimeout(current.timer)
-      if (position === chunks.length) { stop(); return }
+      if (position === chunks.length) { stop(); setEnded(true); return }
       let utterance: SpeechSynthesisUtterance
       try { utterance = new SpeechSynthesisUtterance(chunks[position++]) } catch { fail(); return }
       current.utterance = utterance
@@ -108,7 +109,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
     }
     setError(null)
     // Reserve recording across voice loading and every sentence, including queued starts.
-    setPlaying(true); setPlayed(true); notify(true)
+    setPlaying(true); setEnded(false); notify(true)
     selectedVoice = voice()
     if (!selectedVoice && typeof speechSynthesis.getVoices === 'function' && !availableVoices().length) {
       const ready = () => {
@@ -143,8 +144,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
   if (!supported) return <p className="text-sm text-muted-foreground">Browser speech is unavailable. Read the question and record your answer.</p>
   return <div className="grid gap-2">
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={muted || disabled || !text.trim()} onClick={() => playing ? stop() : play()}>{playing ? 'Stop interviewer audio' : 'Play interviewer audio'}</Button>
-      {played && <Button variant="ghost" disabled={muted || disabled || !text.trim()} onClick={play}>Replay question</Button>}
+      <Button variant="outline" disabled={muted || disabled || !text.trim()} onClick={() => playing ? stop() : play()}>{playing ? 'Stop interviewer audio' : ended ? 'Replay interviewer audio' : 'Play interviewer audio'}</Button>
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </div>

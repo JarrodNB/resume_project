@@ -30,9 +30,78 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
+beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
+  it.each([true, false])('shows submission loading before resolving the request (saved=%s)', async (saved) => {
+    let finish!: (saved: boolean) => void
+    state.answer.mockImplementation(() => {
+      state.busy = true
+      state.unresolved = { submissionKey: 'in-flight' }
+      recorder.refresh()
+      return new Promise<boolean>((resolve) => { finish = resolve })
+    })
+    recorder.status = 'ready'
+    recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
+    renderDemo()
+    const submit = screen.getByRole('button', { name: 'Submit recording' })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+    expect(screen.getByRole('heading', { name: 'Saving your answer' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Submitting answer…' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Submitting answer…' })).toBeDisabled()
+    expect(screen.queryByText(/submission response was not confirmed/)).not.toBeInTheDocument()
+    expect(state.answer).toHaveBeenCalledOnce()
+    await act(async () => {
+      state.busy = false
+      if (saved) {
+        state.unresolved = null
+        state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'turn', kind: 'turn', status: 'running' }] }
+      }
+      finish(saved)
+    })
+    expect(screen.getByRole('heading', { name: saved ? 'Your interviewer is thinking' : 'Check your submission' })).toBeVisible()
+    if (!saved) expect(screen.getByRole('alert')).toHaveTextContent('submission response was not confirmed')
+  })
+
+  it('keeps the main question visible once while identifying the latest follow-up', () => {
+    state.interview = { ...snapshot, messages: [
+      snapshot.messages[0],
+      { ...snapshot.messages[0], id: 'answer', kind: 'answer', content: 'I built a booking tool.' },
+      { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'How did you test it?' },
+    ] }
+    renderDemo()
+    const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
+    expect(current.getByText('Describe a project.')).toBeVisible()
+    expect(current.getByRole('heading', { name: 'Follow-up' })).toBeVisible()
+    expect(current.getByText('How did you test it?')).toBeVisible()
+    expect(screen.getAllByText('Describe a project.')).toHaveLength(1)
+    expect(screen.getByText('I built a booking tool.')).toBeVisible()
+  })
+
+  it('uses the newly active question and keeps a previous prompt out of its current turn', () => {
+    state.interview = { ...snapshot, currentQuestionPosition: 2,
+      questions: [...snapshot.questions, { ...snapshot.questions[0], id: 'next-question', position: 2, content: 'How do you review code?' }],
+    }
+    renderDemo()
+    const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
+    expect(current.getByText('How do you review code?')).toBeVisible()
+    expect(current.queryByText('Describe a project.')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Waiting for your question' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
+  })
+
+  it('shows the saved closing without labelling it a follow-up after completion', () => {
+    state.interview = { ...snapshot, status: 'completed', messages: [
+      ...snapshot.messages, { ...snapshot.messages[0], id: 'closing', kind: 'closing', content: 'Thank you. This interview is complete.' },
+    ] }
+    renderDemo()
+    const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
+    expect(current.getByText('Thank you. This interview is complete.')).toBeVisible()
+    expect(current.queryByText('Describe a project.')).not.toBeInTheDocument()
+    expect(current.queryByRole('heading', { name: 'Follow-up' })).not.toBeInTheDocument()
+  })
+
   it('reads saved text with browser speech without a provider artifact and releases recording', async () => {
     const speak = vi.fn()
     vi.stubGlobal('speechSynthesis', { speak, cancel: vi.fn() })

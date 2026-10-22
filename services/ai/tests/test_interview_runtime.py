@@ -465,3 +465,47 @@ def test_concurrent_completions_coalesce_without_losing_dependent_work():
             await runtime.stop()
 
     asyncio.run(scenario())
+
+
+def test_finished_execution_heartbeat_allows_final_usage_receipt_to_complete():
+    from interviews.runtime import RecoveryRuntime
+
+    async def scenario():
+        final_usage_started = asyncio.Event()
+        release_usage_response = asyncio.Event()
+        finalized = []
+        heartbeats = []
+
+        class Client:
+            async def claim(self, identity):
+                return SimpleNamespace(operation_id=identity)
+
+            async def heartbeat(self, claim):
+                await final_usage_started.wait()
+                heartbeats.append(claim.operation_id)
+                if len(heartbeats) > 1:
+                    raise RuntimeError("Finished executions must not renew their lease")
+                return {"execution_finished": True}
+
+        class Executor:
+            async def execute(self, claim):
+                # Rails has accepted the result; only the final usage HTTP receipt remains.
+                final_usage_started.set()
+                await release_usage_response.wait()
+                finalized.append(claim.operation_id)
+
+        runtime = RecoveryRuntime(Client(), Executor(), heartbeat_seconds=0.001)
+        execution = asyncio.create_task(runtime._run("accepted-turn"))
+        try:
+            await asyncio.wait_for(final_usage_started.wait(), timeout=1)
+            await asyncio.sleep(0.02)
+            release_usage_response.set()
+            assert await asyncio.wait_for(execution, timeout=1)
+            assert finalized == ["accepted-turn"]
+            assert heartbeats == ["accepted-turn"]
+        finally:
+            release_usage_response.set()
+            await runtime.stop()
+            await asyncio.gather(execution, return_exceptions=True)
+
+    asyncio.run(scenario())

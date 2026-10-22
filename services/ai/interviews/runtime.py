@@ -3,7 +3,8 @@
 Only Rails decides which durable operations can run. Shutdown cancels local work;
 its persisted lease expires so another process can recover it without local queues.
 Completed local work hints that dependent work may exist; polling remains the
-fallback, and repeated visible IDs keep the normal retry cadence.
+fallback, and repeated visible IDs keep the normal retry cadence. A matching finished
+execution receipt ends lease renewal while its bounded final accounting completes.
 """
 
 import asyncio
@@ -114,6 +115,10 @@ class RecoveryRuntime:
                                              return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     task.result()
+                # A finished-execution heartbeat is not lease loss. The executor
+                # still owns its bounded acceptance/accounting HTTP response.
+                if heartbeat in done:
+                    await execution
             finally:
                 execution.cancel()
                 heartbeat.cancel()
@@ -130,4 +135,6 @@ class RecoveryRuntime:
     async def _heartbeat(self, claim: Any) -> None:
         while True:
             await asyncio.sleep(self.heartbeat_seconds)
-            await self.client.heartbeat(claim)
+            receipt = await self.client.heartbeat(claim)
+            if receipt.get("execution_finished") is True:
+                return

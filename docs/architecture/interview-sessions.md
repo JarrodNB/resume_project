@@ -293,6 +293,11 @@ For `/internal/interviews/operations/:id`:
 - `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
   checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
   or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.
+  A checkpoint-free heartbeat from the exact accepted execution returns
+  `{ execution_finished: true }` without renewing its lease. A matching failed or
+  retry-pending execution can return the same receipt while its original lease and
+  deadline remain valid. Unfinished expired claims, replaced identities, abandoned or
+  expired sessions, and checkpoint writes after completion remain rejected; a finished receipt never authorizes another provider call.
 - `POST /accept` takes claim identity plus the documented turn acceptance fields.
   Exact repeated acceptance returns its saved receipt even after the lease expires.
 - `POST /fail` takes claim identity, a safe failure `code`, and boolean `retryable`.
@@ -410,7 +415,10 @@ execution marker does not resolve its unfinished provider markers.
 recovery loop, discovering every two seconds in batches of ten and running at most
 two claims at once. Each execution renews its 30-second Rails lease every ten seconds;
 Rails retains the 120-second deadline and all retry limits. A lost heartbeat stops
-local execution. Shutdown stops discovery and cancels active work, leaving durable
+local execution. A finished-execution heartbeat ends renewal and lets the executor's
+bounded final acceptance/accounting response finish; it does not cancel an already
+accepted turn while awaiting its final usage receipt. Shutdown still cancels that wait.
+Shutdown stops discovery and cancels active work, leaving durable
 leases for another process. Cleanup runs in bounded Rails batches every minute.
 `GET /health` reports liveness; `/ready` requires enabled configuration and recent
 successful Rails discovery. Neither health route consumes work.
@@ -493,7 +501,12 @@ may release its bytes even if the response is lost. Only that minimal question/r
 identity is kept in local storage, scoped by owner and interview; a successful owned read reconciles
 it before an explicit same-key resend. No mutation is automatically replayed after an auth error.
 Queries on mount and fresh subscription snapshots on reconnect restore canonical progress without
-polling. New current interviewer text attempts browser speech once during an open interview.
+polling. The session Apollo provider preserves the same ActionCable consumer through
+React StrictMode's immediate cleanup/setup rehearsal. Permanent disposal stops the
+reconnect monitor, so it runs only after an actual unmount or session replacement;
+otherwise a development server reload could close the socket without automatic
+resubscription. Reconnect executes the subscription again and receives the fresh
+owned snapshot. New current interviewer text attempts browser speech once during an open interview.
 In provider mode, newly accepted speech instead obtains a playback grant and attempts playback. The first loaded snapshot is a silent baseline, so
 opening or reloading a saved interview does not replay old speech. Repeated and stale receipts
 cannot trigger another automatic attempt. Blocked autoplay offers explicit **Play interviewer

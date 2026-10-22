@@ -18,6 +18,32 @@ RSpec.describe "Basic Interview acceptance" do
       model_history: [ { "kind" => "request", "parts" => [ { "part_kind" => "user-prompt", "content" => "screened transcript" } ] } ] }
   end
 
+  it "acknowledges a finished execution heartbeat without renewing its lease or accepting stale identities" do
+    freeze_time
+    expect(Interviews::AcceptTurnService.call(**input)).to be_success
+    identity = input.slice(:operation, :attempt_id, :claim_generation)
+    saved = operation.reload.attributes
+
+    2.times do
+      result = Interviews::RenewClaimService.call(**identity)
+      expect(result).to be_success
+      expect(result.value).to eq({ execution_finished: true })
+    end
+    expect(operation.reload.attributes).to eq(saved)
+    expect(Interviews::RenewClaimService.call(**identity.merge(attempt_id: SecureRandom.uuid))).not_to be_success
+    expect(Interviews::RenewClaimService.call(**identity.merge(claim_generation: 0))).not_to be_success
+    expect(Interviews::RenewClaimService.call(**identity, checkpoint: "transcribed")).not_to be_success
+    expect(Interviews::StartProviderAttemptService.call(**identity, observation_id: SecureRandom.uuid,
+      stage: "interviewer", provider: "fake", model: "scripted-v1")).not_to be_success
+    travel_to(operation.execution_deadline + 1.second) do
+      expect(Interviews::RenewClaimService.call(**identity)).to be_success
+      expect(operation.reload.attributes).to eq(saved)
+    end
+    travel_to(interview.expires_at) { expect(Interviews::RenewClaimService.call(**identity)).not_to be_success }
+    interview.update!(status: "abandoned")
+    expect(Interviews::RenewClaimService.call(**identity)).not_to be_success
+  end
+
   it "saves real interview replies without scheduling provider speech by default" do
     InterviewSession.where(id: interview.id).update_all(execution_mode: "real", execution_config: Interviews::ExecutionConfiguration::REAL)
     interview.reload

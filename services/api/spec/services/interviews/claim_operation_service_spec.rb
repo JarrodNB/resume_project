@@ -40,6 +40,24 @@ RSpec.describe "Interview execution recovery" do
     travel_to(deadline + 1.second) { expect(Interviews::RenewClaimService.call(**identity)).not_to be_success }
   end
 
+  [ true, false ].each do |retryable|
+    it "acknowledges finished failure accounting with retryable=#{retryable} without reviving the claim" do
+      expect(claim).to be_success
+      original = identity
+      expect(Interviews::FailOperationService.call(**original, code: "dependency_unavailable", retryable: retryable)).to be_success
+      saved = operation.reload.attributes
+      result = Interviews::RenewClaimService.call(**original)
+      expect(result).to be_success
+      expect(result.value).to eq({ execution_finished: true })
+      expect(operation.reload.attributes).to eq(saved)
+      expect(Interviews::RenewClaimService.call(**original.merge(claim_generation: 0))).not_to be_success
+      expect(Interviews::StartProviderAttemptService.call(**original, observation_id: SecureRandom.uuid,
+        stage: "speech", provider: "fake", model: "scripted-v1")).not_to be_success
+      interview.update!(status: "abandoned")
+      expect(Interviews::RenewClaimService.call(**original)).not_to be_success
+    end
+  end
+
   it "replaces expired claims after backoff and retains late usage without duplicate charges" do
     claim
     old = identity
@@ -48,6 +66,7 @@ RSpec.describe "Interview execution recovery" do
     travel 31.seconds
     expect(claim).not_to be_success
     expect(operation.reload).to have_attributes(status: "pending", failure_code: "lease_expired")
+    expect(Interviews::RenewClaimService.call(**old)).not_to be_success
     expect(claim).not_to be_success
     travel 2.seconds
     expect(claim).to be_success

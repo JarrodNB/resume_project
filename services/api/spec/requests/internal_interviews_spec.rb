@@ -90,6 +90,16 @@ RSpec.describe "Internal interview callbacks", type: :request do
     expect(interview.reload.revision).to eq(1)
     expect(turn.reload.ai_task).to be_completed
     expect(turn.ai_task.ai_usage_attempts.first).not_to be_finalized
+    post "#{path}/heartbeat", params: claim, headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body).to eq("execution_finished" => true)
+    2.times do
+      post "#{path}/usage", params: claim.merge(usage: [], incomplete: false), headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+    end
+    expect(turn.ai_task.ai_usage_attempts.first.reload).to be_finalized
+    expect(turn.reload).to be_accepted
+    expect(interview.reload.revision).to eq(1)
   end
 
   it "rejects malformed history and negative or unknown-execution charges" do

@@ -12,6 +12,7 @@ class InterviewSession < ApplicationRecord
   has_many :questions, -> { order(:position) }, class_name: "InterviewSessionQuestion", dependent: :destroy
   has_many :messages, -> { order(:position) }, class_name: "InterviewSessionMessage", dependent: :destroy
   has_many :operations, class_name: "InterviewSessionOperation", dependent: :destroy
+  has_many :transcription_captures, class_name: "InterviewTranscriptionCapture", dependent: :destroy
   enum :status, STATUSES.index_with(&:itself), validate: true
   enum :interview_type, INTERVIEW_TYPES.index_with(&:itself), validate: true
   validates :expires_at, presence: true

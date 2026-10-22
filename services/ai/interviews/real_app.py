@@ -50,6 +50,7 @@ def create_app():
             return
         from interviews.audio_providers import AudioProviders
         from interviews.client import RailsInterviewClient
+        from interviews.live_transcription import CaptureOwner
         from interviews.models import InterviewModels
         from interviews.real import RealInterviewExecutor
         from worker.tracing import configure_tracing, flush_tracing
@@ -61,6 +62,7 @@ def create_app():
             AudioProviders(rails, api_key=os.environ["OPENAI_API_KEY"]) as audio,
             InterviewModels(openai_key=os.environ["OPENAI_API_KEY"], typesafe_key=os.environ["TYPESAFE_API_KEY"]) as models,
         ):
+            app.state.capture_owner = CaptureOwner(rails)
             with httpx.Client(trust_env=False, timeout=15, follow_redirects=False) as storage:
                 executor = RealInterviewExecutor(rails, audio=audio, models=models,
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
@@ -70,11 +72,15 @@ def create_app():
                 try:
                     yield
                 finally:
+                    app.state.capture_owner = None
                     await runtime.stop()
                     flush_tracing()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
                   telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
+    from interviews.live_transcription import install_streaming
+    install_streaming(app, allowed_origins=set(filter(None, os.getenv("INTERVIEW_BROWSER_ORIGINS", "").split(","))),
+                      api_key=os.getenv("OPENAI_API_KEY", ""))
 
     @app.get("/health")
     async def health():

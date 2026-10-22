@@ -29,6 +29,7 @@ Rails.application.routes.draw do
   end
 
   namespace :internal do
+    post "interviews/transcriptions/:action_name", to: "interview_transcriptions#update", constraints: { action_name: /redeem|finish|fail/ }
     post "interviews/cleanup", to: "interviews#cleanup"
     get "interviews/operations", to: "interviews#discover"
     get "interviews/operations/:id", to: "interviews#status"

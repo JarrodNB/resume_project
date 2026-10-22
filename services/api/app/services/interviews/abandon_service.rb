@@ -28,6 +28,11 @@ module Interviews
           media.update!(status: media.deleted? ? "deleted" : "delete_pending", expires_at: Time.current,
             next_delete_at: media.deleted? ? Time.current : nil)
         end
+        InterviewTranscriptionCapture.where(interview_session: @interview).order(:id).lock.each do |capture|
+          capture.ai_task&.lock!
+          capture.update!(transcript: nil, status: capture.status == "completed" ? "completed" : "failed")
+          capture.ai_task&.update!(status: "failed", error_message: "interview_abandoned", completed_at: Time.current) unless capture.status == "completed"
+        end
         @interview.update!(status: "abandoned", revision: @interview.revision + 1)
         success(@interview)
       end

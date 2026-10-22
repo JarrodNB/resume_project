@@ -97,8 +97,6 @@ services:
       INTERVIEW_REAL_RUNTIME_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
       INTERVIEW_ENVIRONMENT: development
-      # Keep periodic liveness/readiness probes out of HTTP tracing.
-      OTEL_PYTHON_FASTAPI_EXCLUDED_URLS: "/(ready|health)(\\?.*)?$"
       INTERVIEW_RAILS_ORIGIN: http://api:3000
       INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
       INTERVIEW_STORAGE_ORIGINS: http://s3:9090

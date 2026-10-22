@@ -65,3 +65,30 @@ def test_real_parent_trace_masks_contacts_and_excludes_media_capabilities(monkey
     assert "Morgan Sample" not in rendered
     assert "download_url" not in rendered and "Authorization" not in rendered
     assert all(span.attributes.get("interview_operation_id") == "op" for span in finished)
+
+
+def test_health_probes_emit_no_native_fastapi_spans(monkeypatch):
+    """Exercise actual HTTP telemetry, retaining spans for ordinary routes."""
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(trace, "_TRACER_PROVIDER", provider)
+    monkeypatch.setenv("INTERVIEW_REAL_RUNTIME_ENABLED", "false")
+    app = create_app()
+
+    @app.get("/ordinary")
+    async def ordinary():
+        return {"ok": True}
+
+    with TestClient(app) as client:
+        assert client.get("/health").status_code == 200
+        assert client.get("/ready").status_code == 503
+        assert exporter.get_finished_spans() == ()
+        assert client.get("/ordinary").status_code == 200
+    assert any(span.name == "GET /ordinary" for span in exporter.get_finished_spans())
+    provider.shutdown()

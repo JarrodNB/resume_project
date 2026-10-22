@@ -73,7 +73,8 @@ def create_app():
                     await runtime.stop()
                     flush_tracing()
 
-    app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
+                  telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
 
     @app.get("/health")
     async def health():

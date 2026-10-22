@@ -1,3 +1,4 @@
+# Reloads under the user lock so summary edits invalidate newly earned screening approvals.
 # Description: Updates the signed-in user's career-library profile (name, contact details,
 # links, summary). Blank strings are cleared. Sign-in email, password, and AI limits are not
 # attributes of this service. The summary is read live by the AI service, so this does not
@@ -15,9 +16,11 @@ module Users
 
     # Applies the profile attributes.
     def call
-      @user.assign_attributes(normalized_attributes)
-      CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
-      @user.save ? success(@user) : failure(@user.errors)
+      @user.with_lock do
+        @user.assign_attributes(normalized_attributes)
+        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @user)
+        @user.save ? success(@user) : failure(@user.errors)
+      end
     end
 
     private

@@ -1,3 +1,4 @@
+# Reloads under the row lock so field edits and screening invalidation stay atomic.
 # Description: Updates a career library role. When highlights are given, they replace the
 # existing bullet points (in the given order). Queues an embedding sync on success.
 # Index:
@@ -12,7 +13,7 @@ module Experiences
 
     # Updates the experience and, if given, replaces its highlights.
     def call
-      ActiveRecord::Base.transaction do
+      @experience.with_lock do
         @experience.assign_attributes(@attributes)
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         replace_highlights if @highlights

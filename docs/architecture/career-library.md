@@ -135,7 +135,11 @@ tailoring) instead of sending everything.
   checked field names in `screened_fields`, including summary on the user and highlight content.
   All library consumers reuse these checks; each screens only unchecked fields it uses.
   Interviews exclude fact requirements. Edits remove only changed field names; reordering
-  preserves checks. New/imported rows start unchecked. Rails applies successful check reports
+  preserves checks. Text editors reload the locked record before assigning changes, so
+  an approval earned after an editor loaded cannot remain attached to edited text.
+  Profile imports and clearing lock the owner first; merges then lock persisted rows
+  in ID order. The edited text and its field-check invalidation save atomically.
+  New/imported rows start unchecked. Rails applies successful check reports
   from completed or failed AI results to owner-scoped records; Python remains read-only.
   Other input and prompt coverage remain execution-local. Checks have no expiry or policy
   version, and results carry no edit revision check.

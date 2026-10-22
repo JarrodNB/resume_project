@@ -1,3 +1,4 @@
+# Reloads persisted facts under their row lock before editing and invalidating screening checks.
 # Description: Saves the user's answer to one requirement of a job. A blank answer removes it.
 # "Add to career library" upserts a library fact (requirement plus answer) and links it; leaving
 # it unchecked keeps the answer on the job only. Embedding sync runs only when a fact is
@@ -77,6 +78,7 @@ module GapResponses
     # Returns the fact and whether its text changed.
     def upsert_fact
       fact = @job.user.library_facts.find_or_initialize_by(requirement: @requirement)
+      fact.lock! if fact.persisted?
       return [ fact, false ] if fact.persisted? && fact.response == @body
 
       fact.response = @body

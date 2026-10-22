@@ -1,3 +1,4 @@
+# Locks the owner before deterministically locking both rows, then fills only current blanks.
 # Description: Merges one career library record into another of the same model and user. Fields
 # blank on the target are filled from the source (existing values are never overwritten); an
 # experience also gains the source's highlights it doesn't already have. A saved source is then
@@ -28,7 +29,8 @@ module CareerLibrary
       error = mismatch_error
       return failure([ error ]) if error
 
-      ActiveRecord::Base.transaction do
+      @target.user.with_lock do
+        [ @target, @source ].select(&:persisted?).sort_by(&:id).each(&:lock!)
         fill_blank_fields
         add_new_highlights if @target.is_a?(Experience)
         RecordScreeningService.discard_changed_fields(record: @target)

@@ -12,6 +12,7 @@ Verified 21 October 2026 against official sources:
 | Stage | Wire contract | Cost normalization |
 | --- | --- | --- |
 | Transcription | Multipart `/v1/audio/transcriptions`, `gpt-transcribe`, file name/content type matching validated bytes, `response_format=json`. Validate `text`, optional `languages`, and `usage.type=duration` with positive finite `seconds`. | US$0.0045/minute = 75 microdollars/second; round upward to integer microdollars. Duration is also retained as upward-rounded milliseconds. |
+| Live transcription | Server WebSocket `/v1/realtime?intent=transcription`, fixed `gpt-live-transcribe`, transcription session, PCM16 mono 24 kHz, explicit commit. A Rails-owned pre-answer capture admits one connection before provider dispatch. | US$0.017/minute, reserved conservatively as 34,000 microdollars for 120 seconds. Only a valid provider duration receipt establishes actual cost; absent or unsupported usage stays unknown. |
 | Speech | JSON `/v1/audio/speech`, `gpt-4o-mini-tts`, `voice=marin`, exact saved `input`, `response_format=wav`, `stream_format=sse`. Concatenate base64 `speech.audio.delta.audio`; require exactly one terminal `speech.audio.done.usage`. | Text input US$0.60/million tokens, generated audio US$12/million tokens = 0.60 and 12 microdollars/token. Require integer positive input/output/total tokens and matching total; round total cost upward. |
 
 Sources: [transcription model/rate](https://developers.openai.com/api/docs/models/gpt-transcribe),
@@ -22,6 +23,16 @@ Sources: [transcription model/rate](https://developers.openai.com/api/docs/model
 The SSE schema defines base64 audio deltas and terminal input/output/total token counters;
 the adapter uses this wire contract without using that SDK. Audio-file length is not a
 substitute for reported billed audio tokens. Unsupported/missing usage is unknown.
+
+Live protocol and price were checked on 22 October 2026 against the [official transcription guide](https://developers.openai.com/api/docs/guides/realtime-transcription)
+and [pricing](https://developers.openai.com/api/docs/pricing). Live captures have separate
+task and observation identities because an answer turn requires a sealed recording and
+does not exist while the candidate is speaking. Admission persists an unknown-usage marker
+before the socket opens. Disconnect, cancellation, rejected final text and missing receipts
+retain that evidence; a late actual receipt may reconcile it without accepting late text.
+Browser recognition skips a transcription provider dispatch when finalized text is saved
+with the submitted turn. See [answer modes](../interview-transcription.md) for fallback and
+device checks. No account-level paid live-model verification is implied by offline tests.
 
 Blank transcripts and `languages=[]` produce `unusable_audio`, retaining any known cost.
 The latter is the documented evidence that no language was reliably detected; it is not a

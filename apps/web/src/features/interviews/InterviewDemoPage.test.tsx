@@ -8,7 +8,7 @@ import { InterviewDemoPage } from './InterviewDemoPage'
 import { INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
-  recorder: { status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
+  recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
 vi.mock('./useInterviewSession', () => ({ useInterviewSession: () => state, useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -30,7 +30,7 @@ function playbackMock(messageId = 'opening') {
     interviewPlayback: { __typename: 'InterviewPlaybackPayload', errors: [], playback: { __typename: 'InterviewPlayback', playbackUrl: 'https://storage.test/speech', expiresIn: 60, contentType: 'audio/wav' } },
   } } }
 }
-beforeEach(() => { vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
+beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
   it('reads saved text with browser speech without a provider artifact and releases recording', async () => {
@@ -246,9 +246,9 @@ describe('InterviewDemoPage', () => {
   it('keeps provider and retention details available without dominating the active room', async () => {
     state.interview = { ...snapshot, executionMode: 'real' }
     renderDemo()
-    expect(screen.getByText(/submitted audio goes to OpenAI/i)).not.toBeVisible()
+    expect(screen.getByText(/Streaming mode sends audio to OpenAI/i)).not.toBeVisible()
     await userEvent.click(screen.getByText('Interview details and privacy'))
-    expect(screen.getByText(/submitted audio goes to OpenAI/i)).toBeVisible()
+    expect(screen.getByText(/Streaming mode sends audio to OpenAI/i)).toBeVisible()
     expect(screen.getByText(/Interviewer text is read by your browser/i)).toBeVisible()
     expect(screen.queryByText(/does not transcribe or assess/i)).not.toBeInTheDocument()
   })
@@ -463,4 +463,40 @@ describe('prepared interview begin', () => {
     expect(screen.getByRole('complementary', { name: 'Saved conversation' })).toBeVisible()
     expect(screen.getByRole('progressbar', { name: 'Interview progress' })).toHaveAttribute('aria-valuenow', '4')
   })
+})
+
+
+it('defaults to browser recognition, remembers a choice, and locks it while an answer is captured', async () => {
+  const first = renderDemo()
+  const select = screen.getByRole('combobox', { name: 'Answer transcription' })
+  expect(select).toHaveValue('browser')
+  await userEvent.selectOptions(select, 'recorded')
+  first.unmount()
+  renderDemo()
+  expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toHaveValue('recorded')
+  recorder.status = 'recording'
+  act(() => recorder.refresh())
+  expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
+})
+it('shows live recognition and finalization, then submits finalized text only on explicit Submit', async () => {
+  recorder.status = 'recording'; recorder.transcript = 'Interim answer'
+  renderDemo()
+  expect(screen.getByText('Interim answer')).toBeVisible()
+  expect(screen.getByText(/Live recognition/)).toBeVisible()
+  recorder.status = 'finalizing'
+  act(() => recorder.refresh())
+  expect(screen.getByRole('heading', { name: 'Finalizing your transcript' })).toBeVisible()
+  expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
+  expect(state.answer).not.toHaveBeenCalled()
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.candidateTranscript = 'Final answer'; recorder.transcript = 'Final answer'
+  act(() => recorder.refresh())
+  await userEvent.click(screen.getByRole('button', { name: 'Submit recording' }))
+  expect(state.answer).toHaveBeenCalledWith(recorder.recording, 'Final answer', 'browser')
+})
+it('shows the effective recorded fallback and keeps explicit submission available', () => {
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.effectiveMode = 'recorded'; recorder.fallbackReason = 'Recognition interrupted. Recorded fallback will be used.'
+  renderDemo()
+  expect(screen.getByText('Effective mode: Recorded audio transcription')).toBeVisible()
+  expect(screen.getByText(recorder.fallbackReason)).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Submit recording' })).toBeEnabled()
 })

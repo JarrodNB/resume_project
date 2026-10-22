@@ -16,6 +16,7 @@ module Interviews
         @interview.questions.order(:position).lock.load
         @interview.operations.order(:id).lock.each do |operation|
           operation.ai_task&.lock!
+          operation.update!(candidate_transcript: nil) if operation.candidate_transcript
           next if operation.accepted? || operation.expired?
 
           operation.update!(status: "expired", retry_at: nil, checkpoint: nil,

@@ -67,6 +67,8 @@ class EarlierDialogue(BaseModel):
 
 
 class TurnPayload(BaseModel):
+    candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
+    transcription_mode: Literal["recorded", "browser", "streaming"] = "recorded"
     recording_id: str
     expected_revision: int
     question: str

@@ -164,3 +164,25 @@ it('preserves role review after a failed begin and allows an explicit retry', as
   await act(() => result.current.beginInterview())
   expect(result.current.interview?.revision).toBe(1)
 })
+
+
+it('recovers an unsaved recognized submission from retained audio after an owned read without storing text', async () => {
+  const recognized = { ...pending, transcriptionMode: 'browser' as const, transcriptDigest: 'a'.repeat(64) }
+  savePendingSubmission('owner', 'session', recognized)
+  expect(JSON.stringify(loadPendingSubmission('owner', 'session'))).not.toContain('candidateTranscript')
+  const key = '11111111-1111-4111-8111-111111111111'
+  vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
+  const fallback = { ...pending, submissionKey: key }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const submit = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...fallback } } }, result: submit },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  expect(submit).not.toHaveBeenCalled()
+  await act(() => result.current.checkSavedStatus(true))
+  expect(submit).toHaveBeenCalledOnce()
+  expect(result.current.unresolved).toBeNull()
+})

@@ -24,7 +24,7 @@ def data_block(label: str, text: str) -> str:
     return f'<{label}>\n{escape(mask_outbound(text), quote=False)}\n</{label}>'
 
 
-class ContextLimitExceeded(ValueError):
+class ContextLimitExceeded(RuntimeError):
     """The assembled interview context cannot fit the bounded model input."""
 
 

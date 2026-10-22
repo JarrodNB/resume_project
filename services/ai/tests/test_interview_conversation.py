@@ -162,3 +162,36 @@ def test_synthetic_fixture_role_and_career_are_preserved(monkeypatch):
     assert 'Fictional software engineer' in models.prompts[-1][1]
     assert 'Built a team scheduling tool' in models.prompts[-1][1]
     assert 'Synthetic fixture context' in models.prompts[-1][1]
+
+
+def test_earlier_dialogue_budget_has_specific_failure_without_model_calls(monkeypatch):
+    from interviews.client import EarlierDialogue
+
+    monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
+    request = prepared_claim()
+    request.payload.earlier_dialogue = EarlierDialogue.model_validate({
+        'version': 1, 'character_budget': 12000, 'omitted_question_positions': [],
+        'groups': [{'question_position': 0, 'messages': [
+            {'kind': 'opening', 'content': 'Earlier question'},
+            {'kind': 'answer', 'content': 'x' * 12001},
+        ]}],
+    })
+    client, models = Client(), Models()
+    run(client, models, request)
+    assert client.failed == [('context_limit', False)]
+    assert not client.accepted and not models.prompts
+
+
+def test_aggregate_dialogue_budget_has_specific_failure_without_model_calls(monkeypatch):
+    monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
+    monkeypatch.setattr('interviews.conversation.MAX_PROMPT_TEXT', 1000)
+    monkeypatch.setattr('interviews.real.MAX_PROMPT_TEXT', 1000)
+    request = prepared_claim(dialogue=[
+        {'kind': 'opening', 'content': 'Describe a project.'},
+        {'kind': 'answer', 'content': 'Previously accepted detail. ' * 60},
+        {'kind': 'follow_up', 'content': 'What changed?'},
+    ])
+    client, models = Client(), Models()
+    run(client, models, request)
+    assert client.failed == [('context_limit', False)]
+    assert not client.accepted and not models.prompts

@@ -78,7 +78,7 @@ describe('InterviewDemoPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'screening', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
-  it('defaults to eight main questions and sends the selected interview length', async () => {
+  it('defaults to eight core questions and sends the selected interview length', async () => {
     renderDemo('/interviews')
     expect(screen.getByRole('radio', { name: /Standard/ })).toBeChecked()
     await userEvent.click(screen.getByRole('radio', { name: /Full loop/ }))
@@ -461,14 +461,18 @@ describe('InterviewDemoPage', () => {
     expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Start a new interview' })).toBeVisible()
   })
-  it('reviews after Done answering without uploading until explicit Transcribe', async () => {
+  it('reviews after Stop recording without uploading until explicit Transcribe', async () => {
     recorder.status = 'recording'
     renderDemo()
-    await userEvent.dblClick(screen.getByRole('button', { name: 'Done answering' }))
+    const answerActions = within(screen.getByRole('group', { name: 'Answer controls' }))
+    expect(answerActions.getByRole('button', { name: 'Stop recording' })).toBeEnabled()
+    expect(answerActions.getByRole('button', { name: 'Submit answer' })).toBeDisabled()
+    await userEvent.dblClick(screen.getByRole('button', { name: 'Stop recording' }))
     expect(state.answer).not.toHaveBeenCalled()
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     act(() => recorder.refresh())
     expect(state.answer).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByText('Review recording'))
     expect(screen.getByLabelText('Your recording preview')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
     await waitFor(() => expect(state.transcribeRecording).toHaveBeenCalledOnce())
@@ -476,7 +480,7 @@ describe('InterviewDemoPage', () => {
     act(() => recorder.refresh())
     expect(state.transcribeRecording).toHaveBeenCalledOnce()
   })
-  it('never submits a ready blob without explicit Done answering intent', () => {
+  it('never submits a ready blob without explicit Stop recording intent', () => {
     recorder.status = 'ready'; recorder.recording = new Blob(['answer'], { type: 'audio/webm' })
     renderDemo()
     expect(state.answer).not.toHaveBeenCalled()
@@ -609,7 +613,7 @@ it('shows durable preparation progress and retry without recording controls', as
   ] }
   renderDemo()
   expect(screen.getByRole('heading', { name: 'Preparing your interview' })).toBeVisible()
-  expect(screen.getByText(/fictional role and 9 main questions/)).toBeVisible()
+  expect(screen.getByText(/fictional role and 9 core questions/)).toBeVisible()
   expect(screen.queryByRole('button', { name: 'Record answer' })).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Retry preparation' }))
   expect(state.retryOperation).toHaveBeenCalledWith('prep')
@@ -639,7 +643,7 @@ describe('prepared interview begin', () => {
     state.interview = { ...snapshot, status: 'ready', answerCap: 3, preparedRole: { title: 'Fictional technician', responsibilities: ['Maintain instruments'], requirements: ['Calibration'] } }
     renderDemo()
     expect(screen.queryByRole('link', { name: 'Recent interviews' })).not.toBeInTheDocument()
-    expect(screen.getByText(/Each main question may be followed by up to 2 related questions/)).toBeVisible()
+    expect(screen.getByText(/Each core question may be followed by up to 2 related questions/)).toBeVisible()
     expect(screen.queryByText(/saved responses/)).not.toBeInTheDocument()
   })
 
@@ -709,7 +713,7 @@ it.each(['browser', 'streaming'])('reviews %s dictation in the editor and submit
   recorder.transcript = 'Revised interim answer'
   act(() => recorder.refresh())
   expect(editor).toHaveValue('Revised interim answer')
-  fireEvent.click(screen.getByRole('button', { name: 'Done answering' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }))
   recorder.status = 'finalizing'
   act(() => recorder.refresh())
   expect(editor).toBeEnabled()
@@ -803,7 +807,8 @@ it('retains authored corrections across re-record, discard and failed recognitio
   act(() => recorder.refresh())
   expect(editor).toHaveValue('My corrected answer.\n\nSecond detail.')
   expect(screen.getByText('Recognition failed; recording retained.')).toBeVisible()
-  expect(screen.getByLabelText('Your recording preview')).toBeVisible()
+  await userEvent.click(screen.getByText('Review recording'))
+    expect(screen.getByLabelText('Your recording preview')).toBeVisible()
   expect(state.answer).not.toHaveBeenCalled()
   expect(state.answerText).not.toHaveBeenCalled()
   expect(JSON.stringify(localStorage)).not.toContain('My corrected answer')

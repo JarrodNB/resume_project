@@ -22,7 +22,7 @@ describe('RecentInterviews', () => {
     expect(screen.getByText('Ended')).toBeVisible()
     expect(screen.getByText('Expired')).toBeVisible()
     expect(screen.getAllByRole('link')).toHaveLength(4)
-    expect(screen.getByText('Question 3 of 9')).toBeVisible()
+    expect(screen.getByText('Core question 3 of 9')).toBeVisible()
     expect(screen.getAllByRole('time')).toHaveLength(6)
     expect(screen.getAllByRole('link', { name: /resume interview/i }).map((link) => link.getAttribute('href'))).toEqual([
       '/interviews/preparing', '/interviews/ready', '/interviews/active',

@@ -16,9 +16,12 @@ export function RecordingReview({ recording }: { recording: Blob }) {
       return () => URL.revokeObjectURL(url)
     } catch { setSource(undefined); setFailed(true) }
   }, [recording])
-  return <div className="grid gap-2">
+  return <details className="text-sm">
+    <summary className="min-h-11 cursor-pointer py-3 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-ring">Review recording</summary>
+    <div className="grid gap-2">
     <p className="text-sm">Listen to your recording before submitting.</p>
     {source && <audio aria-label="Your recording preview" controls src={source} onError={() => setFailed(true)} />}
-    {failed && <p role="alert">This browser could not play your recording. You can still submit it or re-record.</p>}
-  </div>
+    {failed && <p role="alert">This browser could not play your recording. You can still submit your reviewed text or re-record.</p>}
+    </div>
+  </details>
 }

@@ -17,9 +17,10 @@ pytestmark = pytest.mark.real_guardrail
 
 
 class Models:
-    def __init__(self, *, blocked=False):
+    def __init__(self, *, blocked=False, acknowledgement="You reduced appointment waiting time by fifteen minutes."):
         self.prompts = []
         self.blocked = blocked
+        self.acknowledgement = acknowledgement
 
     def accounted(self, rails, request, stage, name):
         async def respond(messages, info):
@@ -28,7 +29,7 @@ class Models:
                 output = {"prompt_injection": self.blocked or "reveal secrets" in str(messages), "harmful_request": False}
                 details = {"confidence": {"prompt_injection": 1.0, "harmful_request": 1.0}}
             else:
-                output = {"decision": "continue", "acknowledgement": "You reduced appointment waiting time by fifteen minutes.", "reply": "How did you measure the shorter wait?"}
+                output = {"decision": "continue", "acknowledgement": self.acknowledgement, "reply": "How did you measure the shorter wait?"}
                 details = {}
             return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)],
                                  usage=RequestUsage(input_tokens=100, output_tokens=10),
@@ -510,3 +511,21 @@ def test_unsafe_typed_text_does_not_reach_interviewer_or_acceptance(monkeypatch)
     assert client.failed == [("screening_blocked", False)]
     assert not client.accepted
     assert {name for name, _ in models.prompts} == {"jev-1.13.0"}
+
+
+def test_executor_accepts_and_restores_public_history_without_acknowledgement(monkeypatch):
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    client, models = Client(), Models(acknowledgement=None)
+    run(client, models)
+    assert not client.failed
+    first = client.accepted[0]
+    assert first["acknowledgement"] is None
+    resumed = claim(history=first["model_history"])
+    resumed.payload.current_dialogue = [
+        PublicMessage(kind="opening", content=resumed.payload.question),
+        PublicMessage(kind="answer", content=first["transcript"]),
+        PublicMessage(kind="follow_up", content=first["reply"]),
+    ]
+    run(client, models, resumed)
+    assert len(client.accepted) == 2
+    assert "measure the shorter wait" in models.prompts[-1][1]

@@ -28,7 +28,7 @@ class SpokenLabels(BaseModel):
 class SpokenContract(Evaluator[SpokenCase, SpokenInterviewReply, SpokenLabels]):
     def evaluate(self, ctx: EvaluatorContext):
         """Check decision and simple relevance anchors, not semantic quality."""
-        return {"acknowledgement_anchors": all(term.casefold() in ctx.output.acknowledgement.casefold()
+        return {"acknowledgement_anchors": all(term.casefold() in (ctx.output.acknowledgement or "").casefold()
                                               for term in ctx.metadata.acknowledgement_terms),
                 "decision": ctx.output.decision == ctx.expected_output.decision,
                 "relevance_anchors": all(term.casefold() in (ctx.output.reply or "").casefold()

@@ -33,7 +33,7 @@ Rails.application.routes.draw do
     post "interviews/cleanup", to: "interviews#cleanup"
     get "interviews/operations", to: "interviews#discover"
     get "interviews/operations/:id", to: "interviews#status"
-    %w[claim heartbeat screen_library accept accept_preparation fail usage retry start_provider recording reserve_audio register_audio complete_audio].each do |callback|
+    %w[claim heartbeat screen_library accept accept_transcription accept_preparation fail usage retry start_provider recording reserve_audio register_audio complete_audio].each do |callback|
       post "interviews/operations/:id/#{callback}", to: "interviews##{callback}"
     end
   end

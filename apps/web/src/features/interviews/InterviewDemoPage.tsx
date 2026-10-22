@@ -76,9 +76,38 @@ function OwnedInterview({ id }: { id: string }) {
     captureTicket.current = null
   }, [recorder.status, recorder.candidateTranscript, finishCapture])
   function startCapture() {
+    cancelReview()
+    setReviewedRecording(null)
     captureTicket.current = draft.beginCapture()
     void recorder.start()
   }
+  const [reviewedRecording, setReviewedRecording] = useState<Blob | null>(null)
+  const reviewGeneration = useRef(0)
+  const [recordedReview, setRecordedReview] = useState<{ id: string; context: string; ticket: ReturnType<typeof draft.beginCapture> | null } | null>(null)
+  const reviewOperation = recordedReview?.context === draftContext
+    ? state.interview?.operations.find((item) => item.id === recordedReview.id)
+    : state.interview?.operations.filter((item) => item.kind === 'transcription' && item.expectedRevision === state.interview?.revision && item.status !== 'expired').at(-1)
+  const latestReview = useRef<{ id: string | null; cancel: typeof state.cancelTranscription }>({ id: null, cancel: state.cancelTranscription })
+  useEffect(() => { latestReview.current = { id: reviewOperation?.id ?? null, cancel: state.cancelTranscription } }, [reviewOperation?.id, state.cancelTranscription])
+  useEffect(() => () => {
+    reviewGeneration.current++
+    if (latestReview.current.id) void latestReview.current.cancel(latestReview.current.id)
+  }, [])
+  const reviewPending = reviewOperation?.status === 'pending' || reviewOperation?.status === 'running'
+  useEffect(() => {
+    if (!recordedReview?.ticket || recordedReview.context !== draftContext || reviewOperation?.status !== 'accepted' || !reviewOperation.reviewTranscript) return
+    finishCapture(recordedReview.ticket, reviewOperation.reviewTranscript)
+  }, [recordedReview, reviewOperation, draftContext, finishCapture])
+  function cancelReview() {
+    reviewGeneration.current++
+    captureTicket.current = null
+    if (reviewOperation) {
+      setReviewedRecording(recorder.recording)
+      void state.cancelTranscription(reviewOperation.id)
+    }
+    setRecordedReview(null)
+  }
+  function discardRecording() { cancelReview(); recorder.reset() }
   const submitting = useRef(false)
   const [savingRecording, setSavingRecording] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -97,6 +126,7 @@ function OwnedInterview({ id }: { id: string }) {
     const changed = previousContext.current !== draftContext
     previousContext.current = draftContext
     if (terminal || changed) {
+      reviewGeneration.current++
       captureTicket.current = null
       if (recordingStatus !== 'idle') resetRecording()
     }
@@ -128,25 +158,30 @@ function OwnedInterview({ id }: { id: string }) {
     interview.status === 'active' && message.questionId === question?.id && message.kind === 'opening' && message.content === question.content
   ))
   const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying
-  async function submit() {
+  async function transcribe() {
     if (!recorder.recording || submitting.current || !canRecord) return
+    const generation = ++reviewGeneration.current
+    const ticket = captureTicket.current ?? draft.beginCapture()
+    captureTicket.current = null
     submitting.current = true; setSavingRecording(true)
     try {
-      const saved = await state.answer(recorder.recording)
-      if (saved) recorder.reset()
-    }
-    finally { submitting.current = false; setSavingRecording(false) }
+      const operationId = await state.transcribeRecording(recorder.recording)
+      if (operationId) {
+        if (reviewGeneration.current === generation) setRecordedReview({ id: operationId, context: draftContext, ticket })
+        else void state.cancelTranscription(operationId)
+      }
+    } finally { submitting.current = false; setSavingRecording(false) }
   }
   const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   const roomTitle = interview.status === 'completed' ? 'Interview complete'
-    : savingRecording ? 'Saving your answer'
+    : savingRecording || reviewPending ? 'Transcribing your recording'
     : state.unresolved && !state.busy ? 'Check your submission'
     : state.busy ? 'Saving changes'
     : turnActive ? 'Your interviewer is thinking'
     : recorder.status === 'finalizing' ? 'Finalizing your transcript'
     : recorder.status === 'recording' ? 'Your turn — recording'
     : recorder.status === 'requesting' ? 'Allow microphone access'
-    : recorder.candidateTranscript ? 'Review your answer'
+    : draftText || recorder.candidateTranscript ? 'Review your answer'
     : recorder.recording ? 'Review your recording'
     : !hasQuestionText ? 'Waiting for your question'
     : speechPlaying ? 'Your interviewer is speaking'
@@ -165,11 +200,11 @@ function OwnedInterview({ id }: { id: string }) {
     <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
       <p className="interview-identity">Your interviewer</p>
-      <div role="status" aria-live="polite" aria-busy={savingRecording || state.busy || turnActive} className="grid gap-2">
+      <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
         <h2 className="interview-status">{roomTitle}</h2>
         {interview.status === 'completed' && <p className="text-sm text-muted-foreground">Your conversation is saved.</p>}
         {turnActive && <p className="text-sm text-muted-foreground">We’re processing your answer and preparing the next reply. You can reload safely.</p>}
-        {savingRecording && <p className="text-sm text-muted-foreground">Keep this page open while your recording is submitted.</p>}
+        {savingRecording && <p className="text-sm text-muted-foreground">Your recording is being uploaded for transcription. Review and edit the text before submitting.</p>}
       </div>
     {question && interview.status === 'active' && <p className="interview-question whitespace-pre-wrap break-words">{question.content}</p>}
     {reply && <div className="grid gap-4">
@@ -186,9 +221,10 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
-      <AnswerEditor text={draftText} onTextChange={draft.setText}
+      <AnswerEditor text={draftText} onTextChange={(text) => { cancelReview(); draft.setText(text) }}
         disabled={!canRecord || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing'}
         onSubmit={async (text) => {
+          cancelReview()
           const saved = await state.answerText(text)
           if (saved) { draft.setText(''); recorder.reset() }
           return saved
@@ -203,10 +239,21 @@ function OwnedInterview({ id }: { id: string }) {
       {transcriptionMode !== 'recorded' && <p className="max-w-prose text-sm text-muted-foreground">Dictation adds to your answer above. Finish recording before editing; clear the answer first if you want to replace it.</p>}
       {recorder.transcript && recorder.status !== 'ready' && <div className="grid gap-1 text-sm"><p className="font-medium">Live recognition — interim words may change</p><p className="whitespace-pre-wrap break-words">{recorder.transcript}</p></div>}
       {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
+      {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={cancelReview}>Cancel transcription</Button></div>}
+      {!recordedReview && reviewOperation?.status === 'accepted' && reviewOperation.reviewTranscript && <Button variant="outline" onClick={() => {
+        const ticket = draft.beginCapture()
+        finishCapture(ticket, reviewOperation.reviewTranscript!)
+        setRecordedReview({ id: reviewOperation.id, context: draftContext, ticket: null })
+      }}>Review saved transcript</Button>}
+      {(reviewOperation?.status === 'failed' || reviewOperation?.status === 'expired') && <div className="grid gap-2"><p role="alert">Transcription unavailable. Your recording and any edited text are retained.</p>{reviewOperation.canRetry && <Button variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(reviewOperation.id)}>Retry transcription</Button>}</div>}
       {recorder.recording && <RecordingReview recording={recorder.recording} />}
       <div className="interview-record-controls">
         {recorder.status === 'recording' ? <Button className="interview-mic" onClick={recorder.stop}><Square size={20} fill="currentColor" />Done answering</Button> : <Button className="interview-mic" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
-        {recorder.recording && <>{!recorder.candidateTranscript && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => void submit()}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Submitting answer…' : 'Submit recording'}</Button>}<Button variant="outline" disabled={recordingLocked} onClick={recorder.reset}>Discard recording</Button><Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button></>}
+        {recorder.recording && <>
+          {!recorder.candidateTranscript && !recordedReview && reviewedRecording !== recorder.recording && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => void transcribe()}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
+          <Button variant="outline" disabled={recordingLocked} onClick={discardRecording}>Discard recording</Button>
+          <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
+        </>}
       </div>
       <p className="max-w-prose text-sm text-muted-foreground">{recorder.recording ? 'Your recording is retained until you submit. You can discard it or try again.' : 'Record when you’re ready. Done answering opens a preview before you submit. Silence never submits.'}</p>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
@@ -236,5 +283,5 @@ function OwnedInterview({ id }: { id: string }) {
 }
 
 function ProviderNotice() {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete submitted recording to OpenAI for transcription. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. Provider requests incur charges; no coaching is provided.</p>
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete recording to OpenAI for transcription before you review and submit your answer. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. Provider requests incur charges; no coaching is provided.</p>
 }

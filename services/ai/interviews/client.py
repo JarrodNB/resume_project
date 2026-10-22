@@ -103,6 +103,10 @@ class TurnPayload(BaseModel):
         return context
 
 
+class TranscriptionPayload(BaseModel):
+    recording_id: str
+
+
 class SpeechPayload(BaseModel):
     text: str
     message_id: str
@@ -139,19 +143,19 @@ class Claim(BaseModel):
     execution_mode: Literal["fake", "real"] = "fake"
     execution_config: ExecutionConfiguration = Field(default_factory=lambda: FAKE_CONFIGURATION)
     operation_id: str
-    kind: Literal["preparation", "turn", "speech"]
+    kind: Literal["preparation", "turn", "speech", "transcription"]
     attempt_id: str
     claim_generation: StrictInt
     lease_expires_at: datetime
     execution_deadline: datetime
-    payload: TurnPayload | SpeechPayload | PreparationPayload
+    payload: TurnPayload | SpeechPayload | PreparationPayload | TranscriptionPayload
 
     @model_validator(mode="after")
     def matching_payload(self):
         configuration = FAKE_CONFIGURATION if self.execution_mode == "fake" else REAL_CONFIGURATION
         if self.execution_config != configuration:
             raise ValueError("Invalid saved execution configuration")
-        expected = {"turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
+        expected = {"transcription": TranscriptionPayload, "turn": TurnPayload, "speech": SpeechPayload, "preparation": PreparationPayload}[self.kind]
         if not isinstance(self.payload, expected):
             raise ValueError("Claim kind and payload differ")  # noqa: TRY004 - Pydantic validator
         return self
@@ -349,6 +353,9 @@ class RailsInterviewClient:
 
     async def complete_audio(self, claim: Claim, media_id: str):
         return await self._callback(claim, "complete_audio", media_id=media_id)
+
+    async def accept_transcription(self, claim, transcript):
+        return await self._callback(claim, "accept_transcription", transcript=transcript)
 
     async def accept(
         self,

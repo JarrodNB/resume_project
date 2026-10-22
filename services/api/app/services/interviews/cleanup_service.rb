@@ -9,6 +9,13 @@ module Interviews
 
     # @return [ServiceResult<Hash>] counts of scrubbed sessions and deleted media
     def call
+      InterviewSessionOperation.transcription.where.not(accepted_result: {})
+        .joins("LEFT JOIN interview_session_media review_audio ON review_audio.id = interview_session_operations.recording_id")
+        .where("review_audio.id IS NULL OR review_audio.expires_at <= ?", Time.current)
+        .order(:id).limit(@limit).each do |operation|
+        media = InterviewSessionMedia.find_by(id: operation.recording_id)
+        CancelRecordedTranscriptionService.call(operation: operation) if !media || media.expires_at <= Time.current
+      end
       cleanup_captures
       sessions = InterviewSession.where(content_purged_at: nil).where("expires_at <= ?", Time.current).order(:expires_at, :id).limit(@limit)
       purged = sessions.count { |interview| purge_content(interview) }

@@ -60,6 +60,10 @@ module Internal
         history_version: params.require(:history_version), model_history: params[:model_history].as_json)
     end
 
+    def accept_transcription
+      respond Interviews::AcceptTranscriptionService.call(operation: @operation, **claim_identity, transcript: params.require(:transcript))
+    end
+
     def accept_preparation
       respond Interviews::AcceptPreparationService.call(operation: @operation, **claim_identity,
         role: params[:role].as_json, questions: params[:questions].as_json)

@@ -12,7 +12,7 @@ module Interviews
       interview = @operation.interview_session
       return failure("Interview is no longer available") if interview.expired? || interview.abandoned? || interview.expires_at <= Time.current
       return failure("Preparation is no longer active") if @operation.preparation? && !interview.preparing?
-      return failure("Interview is not active") if @operation.turn? && !interview.active?
+      return failure("Interview is not active") if (@operation.turn? || @operation.transcription?) && !interview.active?
       return failure("Interview speech is not available") if @operation.speech? && !interview.active? && !interview.completed?
       preparation = interview.operations.preparation.first
       root = preparation&.ai_task

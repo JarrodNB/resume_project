@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -304,10 +304,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
     t.index ["message_id"], name: "index_interview_session_operations_on_message_id"
     t.index ["message_id"], name: "interview_session_one_speech_per_message", unique: true, where: "((kind)::text = 'speech'::text)"
     t.index ["question_id"], name: "index_interview_session_operations_on_question_id"
-    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying::text, 'turn'::character varying::text, 'speech'::character varying::text])) AND (status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text, 'expired'::character varying::text])) AND claim_generation >= 0", name: "interview_session_operation_states"
+    t.index ["recording_id"], name: "interview_one_recorded_transcription", unique: true, where: "((kind)::text = 'transcription'::text)"
+    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying, 'turn'::character varying, 'speech'::character varying, 'transcription'::character varying]::text[])) AND (status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying, 'expired'::character varying]::text[])) AND claim_generation >= 0", name: "interview_session_operation_states"
     t.check_constraint "candidate_transcript IS NULL OR char_length(candidate_transcript) >= 1 AND char_length(candidate_transcript) <= 4000 AND transcription_mode::text <> 'recorded'::text", name: "interview_operation_candidate_transcript"
     t.check_constraint "execution_count >= 0 AND execution_count <= 6 AND cycle_execution_count >= 0 AND cycle_execution_count <= 3", name: "interview_operation_execution_caps"
-    t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
+    t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL OR kind::text = 'transcription'::text AND question_id IS NOT NULL AND recording_id IS NOT NULL AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
     t.check_constraint "status::text <> 'accepted'::text OR accepted_at IS NOT NULL AND result_fingerprint IS NOT NULL", name: "interview_session_operation_accepted_result"
     t.check_constraint "status::text <> 'running'::text OR claim_generation > 0 AND attempt_id IS NOT NULL AND lease_expires_at IS NOT NULL AND execution_deadline IS NOT NULL", name: "interview_session_operation_claim"
     t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying::text, 'browser'::character varying::text, 'streaming'::character varying::text, 'typed'::character varying::text])", name: "interview_operation_transcription_mode"

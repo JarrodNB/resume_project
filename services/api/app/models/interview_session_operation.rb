@@ -1,8 +1,9 @@
-# Durable reviewed-text/audio turns or saved-text speech work. Recording UUIDs identify private media;
+# Durable reviewed-text/audio turns, pre-submit transcription and saved-text speech work.
+# Recording UUIDs identify private media;
 # services authorize sealed bytes and current claims before granting execution access.
 class InterviewSessionOperation < ApplicationRecord
   include PublishesInterviewSnapshot
-  KINDS = %w[preparation turn speech].freeze
+  KINDS = %w[preparation turn speech transcription].freeze
   STATUSES = %w[pending running accepted failed expired].freeze
   belongs_to :interview_session
   belongs_to :ai_task, optional: true

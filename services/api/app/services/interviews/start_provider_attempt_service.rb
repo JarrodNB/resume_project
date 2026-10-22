@@ -23,7 +23,12 @@ module Interviews
         if existing
           next existing.attributes.slice("stage", "provider", "model") == labels ? success({ observation_id: @observation_id }) : failure("Provider start conflicts")
         end
+        next failure("Capture only permits transcription") if @operation.transcription? && @stage != "transcription"
         next failure("Claim is stale or expired") unless current_claim?
+        if @operation.transcription?
+          next failure("Capture is no longer current") unless interview.active? && interview.revision == @operation.expected_revision &&
+            interview.current_question_position == @operation.question.position && !interview.operations.turn.where(status: %w[pending running]).exists?
+        end
         next failure("Provider attempt limit reached") if execution.provider_attempts.count >= MAX_PROVIDER_ATTEMPTS
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
         if interview.execution_mode == "real"

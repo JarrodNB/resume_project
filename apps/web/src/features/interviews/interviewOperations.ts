@@ -6,7 +6,7 @@ export const INTERVIEW_FIELDS = graphql(`
     id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     questions { id content questionType position acceptedAnswerCount }
     messages { id questionId kind position content acknowledgement spokenContent }
-    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }
+    operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry reviewTranscript expectedRevision }
   }
 `)
 export const INTERVIEW_QUERY = graphql(`
@@ -59,5 +59,16 @@ export const ABANDON_INTERVIEW = graphql(`
 export const RECENT_INTERVIEWS = graphql(`
   query RecentInterviewSessions {
     recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } }
+  }
+`)
+
+export const START_RECORDED_TRANSCRIPTION = graphql(`
+  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {
+    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }
+  }
+`)
+export const CANCEL_RECORDED_TRANSCRIPTION = graphql(`
+  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {
+    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }
   }
 `)

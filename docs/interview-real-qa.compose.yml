@@ -88,7 +88,7 @@ services:
   interview-runtime:
     # Ordinary recovery supports explicit speech retries. Every paid request still
     # needs Rails admission, bounded attempts, and the retained cumulative allowance.
-    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000
+    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000 --ws-max-size 32768 --ws-max-queue 8
     # Replace probe environment overrides, leaving credentials to env_file.
     # A null token would still mask the env_file value, so omit it entirely.
     environment: !override

@@ -2,6 +2,10 @@
 require "rails_helper"
 
 RSpec.describe "Interview verification allowance" do
+  # These examples exercise enforced verification, including the historical
+  # development-only reviewed-receipt override. Local unmetered admission is
+  # covered separately in local_testing_admission_spec.
+  before { allow(Interviews::LocalTesting).to receive(:unmetered?).and_return(false) }
   # These scenarios exercise the retained provider-speech path explicitly.
   before do
     allow(ENV).to receive(:[]).and_call_original

@@ -21,6 +21,7 @@ import { InterviewAudio } from './InterviewAudio'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewRecorder } from './useInterviewRecorder'
+import { useInterviewStreaming } from './useInterviewStreaming'
 import { useInterviewSession, useStartInterview } from './useInterviewSession'
 
 export function InterviewDemoPage() {
@@ -58,7 +59,8 @@ function OwnedInterview({ id }: { id: string }) {
   const { user } = useAuth()
   const state = useInterviewSession(id, user?.id ?? '')
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
-  const recorder = useInterviewRecorder({ mode: transcriptionMode })
+  const startStreaming = useInterviewStreaming(state.interview)
+  const recorder = useInterviewRecorder({ mode: transcriptionMode, startStreaming })
   const submitting = useRef(false)
   const [savingRecording, setSavingRecording] = useState(false)
   const [muted, setMuted] = useState(false)

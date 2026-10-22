@@ -5,7 +5,7 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
-import { INTERVIEW_PLAYBACK } from './interviewOperations'
+import { REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
@@ -33,6 +33,30 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true'); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewDemoPage', () => {
+  it('clarifies the latest follow-up while preserving typed draft and progress', async () => {
+    state.interview = { ...snapshot, messages: [...snapshot.messages,
+      { ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'How did you test it?' }] }
+    renderDemo('/interviews/demo/session', [{ request: { query: REQUEST_INTERVIEW_CLARIFICATION,
+      variables: { input: { interviewId: 'session', messageId: 'follow-up', retryFailed: false } } },
+      result: { data: { requestInterviewClarification: { __typename: 'RequestInterviewClarificationPayload', errors: [],
+        clarification: { __typename: 'InterviewClarification', id: 'clarification', status: 'completed', explanation: 'Describe how you checked that the project worked.',
+          attemptCount: 1, aiTaskId: null, deadline: null } } } } }])
+    await userEvent.type(screen.getByRole('textbox', { name: 'Your answer' }), 'I wrote tests and reviewed the results.')
+    fireEvent.click(screen.getByRole('button', { name: 'Clarify question' }))
+    expect(await screen.findByText('Describe how you checked that the project worked.')).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('I wrote tests and reviewed the results.')
+    expect(screen.getByText('Describe a project.')).toBeVisible()
+    expect(screen.getByText('How did you test it?')).toBeVisible()
+    expect(state.answerText).not.toHaveBeenCalled()
+    expect(state.answer).not.toHaveBeenCalled()
+  })
+
+  it('offers clarification beside the latest prompt without replacing the answer editor', async () => {
+    renderDemo()
+    expect(screen.getByRole('button', { name: 'Clarify question' })).toBeVisible()
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeVisible()
+  })
+
   it.each([true, false])('shows submission loading before resolving the request (saved=%s)', async (saved) => {
     let finish!: (saved: boolean) => void
     state.answer.mockImplementation(() => {

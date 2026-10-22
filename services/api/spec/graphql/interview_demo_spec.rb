@@ -10,6 +10,26 @@ RSpec.describe "Spoken interview demo GraphQL" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
   end
 
+  it "requests only an owned latest prompt and restores saved clarification metadata" do
+    current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    mutation = 'mutation($input: RequestInterviewClarificationInput!) { requestInterviewClarification(input: $input) { clarification { id status explanation attemptCount aiTaskId deadline } errors } }'
+    variables = { input: { interviewId: current.id, messageId: current.messages.first.id } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result["errors"]).to be_nil
+    record = current.clarifications.first!
+    expect(result.dig("data", "requestInterviewClarification", "clarification", "aiTaskId")).to eq(record.ai_task_id)
+    query = "{ interviewSession(id: \"#{current.id}\") { messages { clarification { id status } } } }"
+    expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "clarification", "id")).to eq(record.id)
+    Interviews::ClaimClarificationService.call(ai_task: record.ai_task)
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "explanation" => "Explain the question in simpler words." } })
+    current.update!(expires_at: 1.second.ago)
+    task_query = "{ aiTask(id: \"#{record.ai_task_id}\") { input result } }"
+    expect(execute_graphql(task_query, user: user).dig("data", "aiTask")).to eq("input" => {}, "result" => nil)
+    expect(execute_graphql(task_query, user: create(:user)).dig("errors", 0, "message")).to eq("Record not found")
+  end
+
   it "submits reviewed text without audio only into the owner's current interview" do
     mutation = 'mutation($input: SubmitInterviewTurnInput!) { submitInterviewTurn(input: $input) { interview { id } errors } }'
     variables = { input: { interviewId: session.id, questionId: session.questions.first.id, expectedRevision: 0,

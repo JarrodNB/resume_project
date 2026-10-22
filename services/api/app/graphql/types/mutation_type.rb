@@ -29,6 +29,7 @@ module Types
     field :register_interview_recording, mutation: Mutations::Interviews::RegisterInterviewRecording
     field :submit_interview_turn, mutation: Mutations::Interviews::SubmitInterviewTurn
     field :retry_interview_operation, mutation: Mutations::Interviews::RetryInterviewOperation
+    field :request_interview_clarification, mutation: Mutations::Interviews::RequestInterviewClarification
     field :interview_playback, mutation: Mutations::Interviews::InterviewPlayback
 
     field :generate_interview_question_set, mutation: Mutations::InterviewPrep::GenerateInterviewQuestionSet

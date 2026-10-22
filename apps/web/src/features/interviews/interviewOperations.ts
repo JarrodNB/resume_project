@@ -5,7 +5,7 @@ export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
     id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     questions { id content questionType position acceptedAnswerCount }
-    messages { id questionId kind position content acknowledgement spokenContent }
+    messages { id questionId kind position content acknowledgement spokenContent clarification { id status explanation attemptCount aiTaskId deadline } }
     operations { id questionId messageId kind status failureCode checkpoint submissionKey canRetry }
   }
 `)
@@ -59,5 +59,14 @@ export const ABANDON_INTERVIEW = graphql(`
 export const RECENT_INTERVIEWS = graphql(`
   query RecentInterviewSessions {
     recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } }
+  }
+`)
+
+export const REQUEST_INTERVIEW_CLARIFICATION = graphql(`
+  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {
+    requestInterviewClarification(input: $input) {
+      clarification { id status explanation attemptCount aiTaskId deadline }
+      errors
+    }
   }
 `)

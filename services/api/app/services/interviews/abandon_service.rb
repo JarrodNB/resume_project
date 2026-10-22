@@ -34,6 +34,13 @@ module Interviews
           capture.update!(transcript: nil, status: capture.status == "completed" ? "completed" : "failed")
           capture.ai_task&.update!(status: "failed", error_message: "interview_abandoned", completed_at: Time.current) unless capture.status == "completed"
         end
+        @interview.clarifications.update_all(explanation: nil)
+        @interview.user.ai_tasks.where(subject: @interview, task_type: "interview_clarification").find_each do |task|
+          task.with_lock do
+            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_abandoned", completed_at: task.completed_at || Time.current)
+          end
+        end
         @interview.update!(status: "abandoned", revision: @interview.revision + 1)
         success(@interview)
       end

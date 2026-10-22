@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_060000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -70,7 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -141,6 +141,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.index ["user_id"], name: "index_experiences_on_user_id"
+  end
+
+  create_table "interview_clarifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "message_id", null: false
+    t.uuid "ai_task_id"
+    t.integer "attempt_count", default: 0, null: false
+    t.datetime "claimed_at"
+    t.datetime "deadline"
+    t.text "explanation"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_interview_clarifications_on_ai_task_id"
+    t.index ["interview_session_id"], name: "index_interview_clarifications_on_interview_session_id"
+    t.index ["message_id"], name: "index_interview_clarifications_on_message_id", unique: true
+    t.check_constraint "attempt_count >= 0 AND attempt_count <= 2 AND (explanation IS NULL OR char_length(explanation) >= 1 AND char_length(explanation) <= 1000)", name: "interview_clarification_bounds"
   end
 
   create_table "interview_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -568,6 +584,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "interview_clarifications", "ai_tasks", on_delete: :nullify
+  add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
+  add_foreign_key "interview_clarifications", "interview_sessions"
   add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
   add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade

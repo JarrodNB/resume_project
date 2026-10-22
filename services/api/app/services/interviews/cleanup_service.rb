@@ -64,6 +64,13 @@ module Interviews
           state = operation.pending? || operation.running? ? "expired" : operation.status
           operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
+        interview.clarifications.update_all(explanation: nil)
+        interview.user.ai_tasks.where(subject: interview, task_type: "interview_clarification").find_each do |task|
+          task.with_lock do
+            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_expired", completed_at: task.completed_at || Time.current)
+          end
+        end
         interview.questions.update_all(content: "[expired]", model_history: [])
         interview.messages.update_all(content: "[expired]", acknowledgement: nil)
         interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, frozen_context: {}, prepared_role: {}, content_purged_at: Time.current)

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Mic, Square, AudioLines, LoaderCircle } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
+import { InterviewClarification } from './InterviewClarification'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { interviewDemoEnabled } from './interviewDemoEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
@@ -158,6 +159,7 @@ function OwnedInterview({ id }: { id: string }) {
         {interview.status === 'active' && <h3 className="text-base font-semibold">Follow-up</h3>}
         <p className="interview-question whitespace-pre-wrap break-words">{reply.content}</p>
       </div>}
+      {interview.status === 'active' && interview.executionMode === 'real' && <InterviewClarification key={`clarification:${reply.id}`} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
       {browserSpeech && <BrowserInterviewSpeech key={reply.id} messageId={reply.id} text={reply.spokenContent ?? reply.content} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" className="justify-self-start" aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? 'Unmute interviewer' : 'Mute interviewer'}</Button>

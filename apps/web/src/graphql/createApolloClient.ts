@@ -58,7 +58,7 @@ export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: Crea
     cache: new InMemoryCache(),
   })
 
-  // Disconnecting is safe to undo: ActionCable reconnects when a new subscription is created,
-  // which matters because React StrictMode runs effect cleanups twice in development.
+  // Disposal permanently stops this session's reconnect monitor. The provider
+  // keeps it alive through StrictMode's immediate cleanup/setup rehearsal.
   return { client, dispose: () => cable?.disconnect() }
 }

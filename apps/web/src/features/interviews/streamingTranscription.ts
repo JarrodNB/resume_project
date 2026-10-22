@@ -131,9 +131,9 @@ export function startStreamingTranscription(stream: MediaStream, callbacks: Call
             for (const frame of queued) send(frame)
             queued = []; queuedBytes = 0
             if (stopping) commit()
-          } else if (message.type === 'partial' && typeof message.text === 'string') {
+          } else if (message.type === 'partial' && typeof message.text === 'string' && message.text.length <= 4_000) {
             callbacks.text(message.text)
-          } else if (message.type === 'final' && committed && message.captureId === captureId && typeof message.text === 'string' && message.text.trim() && message.text.length <= 12_000) {
+          } else if (message.type === 'final' && committed && message.captureId === captureId && typeof message.text === 'string' && message.text.trim() && message.text.length <= 4_000) {
             callbacks.text(message.text.trim()); complete(message.text.trim())
           } else if (message.type === 'error' || message.type === 'final') {
             fail('Streaming did not produce a usable transcript. Your recording will be transcribed after submission.')

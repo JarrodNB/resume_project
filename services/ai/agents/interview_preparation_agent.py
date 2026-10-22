@@ -9,8 +9,8 @@ from schemas.interview_preparation import InterviewPreparation
 from worker.contact_mask import _mask_request, _unmask_response
 
 
-def make_preparer(guard):
+def make_preparer(guard, *, system_prompt=""):
     return Agent(name="spoken_interview_preparation", output_type=InterviewPreparation,
-        instructions=INTERVIEW_PREPARATION_INSTRUCTIONS, defer_model_check=True, retries=1,
+        instructions=INTERVIEW_PREPARATION_INSTRUCTIONS, system_prompt=system_prompt, defer_model_check=True, retries=1,
         capabilities=[ConversationLogging(), Hooks(before_model_request=_mask_request,
             after_model_request=_unmask_response), InputGuardrail(guard=guard)])

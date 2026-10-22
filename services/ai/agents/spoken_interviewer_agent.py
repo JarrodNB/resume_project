@@ -14,10 +14,10 @@ from schemas.spoken_interview import SpokenInterviewReply
 from worker.contact_mask import _mask_request, _unmask_response
 
 
-def make_interviewer(guard):
+def make_interviewer(guard, *, system_prompt=""):
     """Build a fresh single-run agent; progression intent never carries into another turn."""
     agent = Agent(name="spoken_interviewer", output_type=SpokenInterviewReply,
-                  instructions=SPOKEN_INTERVIEW_INSTRUCTIONS, defer_model_check=True, retries=1,
+                  instructions=SPOKEN_INTERVIEW_INSTRUCTIONS, system_prompt=system_prompt, defer_model_check=True, retries=1,
                   capabilities=[ConversationLogging(),
                                 Hooks(before_model_request=_mask_request, after_model_request=_unmask_response),
                                 InputGuardrail(guard=guard)])

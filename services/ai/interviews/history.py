@@ -1,6 +1,7 @@
 """Round-trip bounded interview history using the pinned Pydantic AI wire format.
 
-Saved history remains untrusted input and is screened on every claimed execution.
+Saved wire history is validated before reuse. The fake executor screens its restored
+history; real conversations rebuild dialogue from Rails-owned accepted public messages.
 Tool calls must have their matching return before a later execution can restore them.
 Repeated context envelopes are reduced to transcripts only when they exactly match
 the context that the current execution supplies and screens again.

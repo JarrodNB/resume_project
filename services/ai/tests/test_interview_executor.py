@@ -50,6 +50,10 @@ class Client:
     async def usage(self, claim, entries, **kwargs):
         self.calls.append(("usage", kwargs.get("observation_id"), entries))
 
+    async def screen_library(self, claim, source_indices):
+        self.calls.append(("screen_library", source_indices))
+        return source_indices
+
     async def recording(self, claim):
         data = audio()
         return {"download_url": "http://storage/recording", "byte_size": len(data),

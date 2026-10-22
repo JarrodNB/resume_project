@@ -80,8 +80,9 @@ instructions from `prompts/`.
   Quality checks run in `evals/run_interview_feedback_evals.py`.
 
 - `spoken_interviewer_agent.py` — fresh single-run structured spoken follow-up with an
-  advance-intent tool. Its injected official guard uses shared required screening and
-  masking; its model wrapper registers every concrete dispatch with Rails. This approved
+  advance-intent tool. The real runtime injects its conversational newest-message guard
+  and readable frozen system context; the fake executor retains its existing guard. Masking
+  remains active; its model wrapper registers every concrete dispatch with Rails. This approved
   spoken path intentionally keeps gpt-6-luna without generative model substitution;
   the shared Jev → Nano safety fallback remains. Offline eval fixture checks are in
   `evals/run_spoken_interviewer_evals.py`; paid quality checks are deferred.

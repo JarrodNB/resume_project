@@ -1,7 +1,7 @@
-"""Execute screened real turns through the same storage/history/acceptance pipeline.
+"""Run real interviews with approved frozen context and newest-message screening.
 
-The dedicated real runtime injects fixed, accounted providers.
-Rails owns durable state and per-request accounting; this layer never chooses progression.
+Rails supplies accepted public dialogue and persists field approvals. The runtime uses
+fixed accounted providers, preserving Rails ownership of acceptance and progression.
 """
 
 import asyncio
@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 import logfire
 from pydantic_ai.exceptions import ModelAPIError, UnexpectedModelBehavior, UsageLimitExceeded
+from pydantic_ai.usage import UsageLimits
 
 from agents.interview_preparation_agent import make_preparer
 from agents.spoken_interviewer_agent import make_interviewer
@@ -17,11 +18,24 @@ from agents.user_text_fallback_agent import screen_fallback_message_async, user_
 from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.audio_providers import ProviderError
 from interviews.client import RailsClientError
-from interviews.executor import InterviewExecutor, ScreeningRejected
+from interviews.conversation import (
+    ContextLimitExceeded,
+    conversation_history,
+    data_block,
+    earlier_context,
+    enforce_context_limit,
+    system_context,
+)
+from interviews.executor import MAX_TRANSCRIPT_CHARACTERS, InterviewExecutor, ScreeningRejected
+from interviews.history import serialize_history
+from interviews.media import download_audio
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
+from screening.conversation import screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
-from worker.contact_mask import contact_scope
+from screening.session import screening_session
+from text_limits import MAX_PROMPT_TEXT
+from worker.contact_mask import contact_scope, mask_outbound
 from worker.known_contact import KnownContact
 from worker.telemetry_privacy import telemetry_scope
 from worker.tracing import record_prompt_version
@@ -57,6 +71,8 @@ class RealInterviewExecutor(InterviewExecutor):
                 version = INTERVIEW_PREPARATION_PROMPT_VERSION if claim.kind == "preparation" else SPOKEN_INTERVIEW_PROMPT_VERSION
                 with self._trace(claim), record_prompt_version(version):
                     await super().execute(claim)
+        except ContextLimitExceeded:
+            await self.client.fail(claim, "context_limit", False)
         except ModelAPIError:
             await self.client.fail(claim, "dependency_unavailable", True)
         except TimeoutError:
@@ -96,17 +112,92 @@ class RealInterviewExecutor(InterviewExecutor):
             raise ScreeningRejected("screening_unavailable" if outcome.unchecked else
                                     "context_limit" if outcome.too_long else "screening_blocked")
 
-    def _interviewer(self, claim, guard):
-        return make_interviewer(guard), {
+    def _interviewer(self, claim, guard, *, system_prompt=""):
+        return make_interviewer(guard, system_prompt=system_prompt), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 1024},
         }
 
-    def _preparer(self, claim, guard):
-        return make_preparer(guard), {
+    def _preparer(self, claim, guard, *, system_prompt=""):
+        return make_preparer(guard, system_prompt=system_prompt), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 4096},
         }
+
+
+    async def _approve_library(self, claim, context, *, include_focus=False):
+        sources = context.get("sources", [])
+        if not isinstance(sources, list):
+            raise ValueError("Invalid frozen career sources")  # noqa: TRY004 - malformed claims fail as domain input
+        pending = [index for index, source in enumerate(sources)
+                   if isinstance(source, dict) and source.get("screened") is not True]
+        texts = []
+        for index in pending:
+            text = sources[index].get("text")
+            if not isinstance(text, str):
+                raise ValueError("Invalid frozen career source")  # noqa: TRY004 - malformed claims fail as domain input
+            texts.append(data_block("unchecked_library_field", text))
+        focus = context.get("career_focus") if include_focus else None
+        if isinstance(focus, str) and focus:
+            texts.append(data_block("career_focus", focus))
+        if texts:
+            await self._screen(claim, mask_outbound("\n\n".join(texts)))
+        if pending:
+            # Durable approval must succeed before the library can reach generation.
+            await self.client.screen_library(claim, pending)
+
+    async def _preparation(self, claim):
+        context = claim.payload.frozen_context
+        with screening_session(120):
+            formatted = system_context(context)
+            if len(formatted) > MAX_PROMPT_TEXT:
+                raise ScreeningRejected("context_limit")
+            await self._approve_library(claim, context, include_focus=True)
+            prompt = "Prepare the fictional role and nine questions from the career evidence in the system context."
+            async def guard(ctx, final_prompt):
+                if final_prompt != prompt:
+                    raise ValueError("Preparation input changed")
+                return True
+            agent, options = self._preparer(claim, guard, system_prompt=formatted)
+            result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=2), **options)
+            output = result.output.model_dump(mode="json")
+        await self._reconcile(claim, lambda: self.client.accept_preparation(claim, **output))
+
+    async def _turn(self, claim):
+        payload = claim.payload
+        context = payload.personal_evidence()
+        role = payload.interview_context.fictional_role if payload.interview_context else None
+        with screening_session(120):
+            formatted = system_context(context, role)
+            previous = earlier_context(payload)
+            if previous:
+                formatted += "\n\n" + previous
+            history = conversation_history(payload, formatted)
+            if len(formatted) > MAX_PROMPT_TEXT:
+                raise ScreeningRejected("context_limit")
+            enforce_context_limit(history, "")
+            grant = await self.client.recording(claim)
+            data = await asyncio.to_thread(download_audio, grant["download_url"],
+                expected_checksum=grant["checksum"], expected_byte_size=grant["byte_size"], **self._media_options())
+            transcript = await self._transcribe(claim, data)
+            if not isinstance(transcript, str) or not transcript.strip():
+                raise ScreeningRejected("empty_audio")
+            if len(transcript) > MAX_TRANSCRIPT_CHARACTERS:
+                raise ScreeningRejected("transcript_too_long")
+            enforce_context_limit(history, data_block("candidate_answer", mask_outbound(transcript)))
+            await self._approve_library(claim, context)
+            turn = await screen_conversation_turn(transcript,
+                screen=lambda text: self._screen(claim, text),
+                render=lambda text: data_block("candidate_answer", text))
+            enforce_context_limit(history, turn.prompt)
+            agent, options = self._interviewer(claim, turn.guard, system_prompt=formatted)
+            result = await agent.run(turn.prompt, message_history=history,
+                usage_limits=UsageLimits(request_limit=3, tool_calls_limit=2), **options)
+            saved = serialize_history(result.all_messages())
+        async def accept():
+            return await self.client.accept(claim, transcript=transcript, decision=result.output.decision,
+                reply=result.output.reply, history_version=1, model_history=saved)
+        await self._reconcile(claim, accept)
 
     async def _synthesize(self, claim):
         try:

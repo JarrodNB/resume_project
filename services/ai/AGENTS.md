@@ -72,7 +72,12 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
-  Only career-library field approvals persist across tasks, through final queue results.
+  The spoken-interview runtime is a scoped conversational exception: it reconstructs prior
+  dialogue from authenticated Rails-owned public utterances and screens only the newest
+  candidate message with `screening/conversation.py`. Frozen library field approvals are
+  carried in the private claim and newly checked fields are persisted through its fenced
+  Rails callback before generation. Existing queued features retain their current guard.
+  Only career-library field approvals persist across ordinary tasks, through final queue results.
   Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:

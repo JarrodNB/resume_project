@@ -627,3 +627,29 @@ The recording interlock remains held across the entire sequence. Stop, mute, cap
 navigation, errors or stalled chunks cancel the sequence; stale callbacks cannot
 restart it. Actual voice quality depends on the available browser/OS voices and needs
 human listening checks.
+
+## Conversational screening and readable system context
+
+Real spoken interviews use a separate conversational screening interface. Each turn checks
+only the newest candidate transcript. Accepted prior utterances come from the authenticated
+Rails claim's `current_dialogue` and bounded earlier public question groups; old answers,
+private tool returns, and framework completion acknowledgements are not re-sent to Jev.
+Private saved model history is validated for wire integrity but is rebuilt from those public
+records before the next model run. A legacy claim with nonempty private history but no
+canonical public dialogue fails closed rather than trusting an arbitrary history payload.
+This does not change the generic prompt guard or screening for queued features.
+
+Frozen sources retain field-level `screened` metadata outside model prose. Approved sources
+incur no library classifier calls. Unchecked source text is screened together; its source
+indices are reported through the fenced Rails callback before dependent generation. Failed
+screening or a missing persistence receipt cannot grant usable approval. Preparation also
+screens an optional career focus; later turns reuse the prepared immutable context.
+
+The model sees readable career entries grouped by source record, with field/source labels
+and escaped data delimiters, plus a separately labeled fictional role. Known contacts are
+masked before escaping. A single canonical system message holds this context in each model
+conversation. New answer messages contain only the newest answer, not a fresh library JSON
+envelope. Reloads and legacy histories rebuild the same public conversation without adding
+copies of the library. Each new question has its own private model conversation and starts
+with that canonical context. This is one logical system context, not provider-side session
+storage: the stateless provider transport still replays the conversation on each request.

@@ -8,6 +8,10 @@ answers strict booleans. Screening owns recovery and returns a small decision in
 
 ## Contents
 
+- `conversation.py` — interview-only newest-message screening and exact latest-prompt guard.
+  Its caller reconstructs history from authenticated Rails accepted public dialogue, never
+  caller-controlled private model history. It does not change `screen_prompt` or queued tasks.
+
 - `prompt_guardrail.py` — async `screen_prompt` policy for official Harness `InputGuardrail`,
   registered through `capabilities` on every generative agent. Enforces exact source coverage
   and screens unknown direct input and user/tool history, under the prompt cap. Blocks fail

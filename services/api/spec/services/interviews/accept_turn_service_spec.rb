@@ -18,6 +18,52 @@ RSpec.describe "Basic Interview acceptance" do
       model_history: [ { "kind" => "request", "parts" => [ { "part_kind" => "user-prompt", "content" => "screened transcript" } ] } ] }
   end
 
+  it "saves acknowledgement separately and speaks it before the accepted follow-up" do
+    acknowledgement = "You paired with a teammate to repair the scheduler."
+    expect(Interviews::AcceptTurnService.call(**input, acknowledgement: acknowledgement)).to be_success
+    response = interview.messages.follow_up.last
+    expect(response).to have_attributes(content: input[:reply], acknowledgement: acknowledgement)
+    speech = interview.operations.speech.find_by!(message: response)
+    claim = Interviews::ClaimOperationService.call(operation: speech)
+    expect(claim).to be_success
+    expect(claim.value.dig(:payload, :text)).to eq("#{acknowledgement}\n\n#{input[:reply]}")
+  end
+
+  [ [ "advance", false, true ], [ "continue", true, true ],
+    [ "advance", false, false ], [ "continue", true, false ] ].each do |decision, at_cap, has_next|
+    it "acknowledges #{decision} at_cap=#{at_cap} has_next=#{has_next} before the Rails-owned transition" do
+      next_question = interview.questions.create!(position: 1, content: "How did you prioritize the work?", question_type: "behavioral") if has_next
+      question.update!(accepted_answer_count: interview.answer_cap - 1) if at_cap
+      payload = input.merge(decision: decision, reply: decision == "advance" ? nil : input[:reply],
+        acknowledgement: "You repaired the scheduler with a teammate.")
+      first = Interviews::AcceptTurnService.call(**payload)
+      expect(first).to be_success
+      response = interview.messages.order(:position).last
+      expect(response).to have_attributes(kind: has_next ? "opening" : "closing",
+        content: has_next ? next_question.content : Interviews::AcceptTurnService::CLOSING,
+        acknowledgement: payload[:acknowledgement])
+      expect(interview.reload.current_question_position).to eq(has_next ? 1 : 0)
+      count = interview.messages.count
+      expect(Interviews::AcceptTurnService.call(**payload).value).to eq(first.value)
+      expect(interview.messages.count).to eq(count)
+      expect(Interviews::AcceptTurnService.call(**payload.merge(acknowledgement: "A different acknowledgement."))).not_to be_success
+    end
+  end
+
+  [ "", " ", "x" * 281, 123 ].each do |acknowledgement|
+    it "rejects invalid acknowledgement #{acknowledgement.inspect[0, 20]} without committing an answer" do
+      expect(Interviews::AcceptTurnService.call(**input, acknowledgement: acknowledgement)).not_to be_success
+      expect(interview.reload.revision).to eq(0)
+      expect(interview.messages.answer).to be_empty
+    end
+  end
+
+  it "rejects a combined acknowledgement and follow-up that exceeds the speech limit" do
+    expect(Interviews::AcceptTurnService.call(**input.merge(reply: "x" * TextLimits::PROSE),
+      acknowledgement: "You repaired the scheduler.")).not_to be_success
+    expect(interview.reload.revision).to eq(0)
+  end
+
   it "acknowledges a finished execution heartbeat without renewing its lease or accepting stale identities" do
     freeze_time
     expect(Interviews::AcceptTurnService.call(**input)).to be_success

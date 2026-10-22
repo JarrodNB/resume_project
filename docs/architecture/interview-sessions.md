@@ -186,6 +186,27 @@ identical/conflicting acceptance. Atomicity specs inject a failed speech write a
 unchanged dialogue, counts, history and lifecycle. Existing written-practice regressions run
 alongside the new service and database-constraint checks.
 
+### Acknowledgements and canonical interviewer text
+
+Real interviewer output carries a required acknowledgement of at most 280 characters,
+separate from its follow-up or advancement intent. It is one brief factual sentence
+about the newest candidate answer, without praise, scoring, coaching or invented facts.
+Rails saves it on the accepted follow-up, next opening or final closing, including when
+the response cap forces advancement. It never changes Rails' choice of question.
+
+Message `content` remains only the question/follow-up/closing. Optional
+`acknowledgement` metadata is exposed separately; `spokenContent` joins it to content
+with a blank line. Browser and provider speech use that canonical saved text, as do
+restored public-dialogue claims. Clarification can read content alone without copying
+candidate details from the acknowledgement. No new dialogue kind is introduced.
+Acknowledgement plus follow-up share the existing 4,000-character speech-text cap.
+
+Internal acceptance permits omission for historical runtimes and old receipts. An
+omitted acknowledgement leaves historical fingerprints unchanged, while an included
+acknowledgement participates in duplicate-result conflict detection. New real model
+output must provide a nonblank acknowledgement. Parameter logging filters it like
+reply text; expiry cleanup scrubs it with the rest of the private dialogue.
+
 ## Private audio boundary
 
 `InterviewSessionMedia` stores reservations, sealed artifacts and deletion receipts. Recording

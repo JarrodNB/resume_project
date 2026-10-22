@@ -65,7 +65,7 @@ module Interviews
           operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
         interview.questions.update_all(content: "[expired]", model_history: [])
-        interview.messages.update_all(content: "[expired]")
+        interview.messages.update_all(content: "[expired]", acknowledgement: nil)
         interview.update!(status: interview.abandoned? ? "abandoned" : "expired", fixture_context: {}, frozen_context: {}, prepared_role: {}, content_purged_at: Time.current)
       end
       true

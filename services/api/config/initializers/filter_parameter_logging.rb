@@ -6,5 +6,5 @@
 # See the ActiveSupport::ParameterFilter documentation for supported notations and behaviors.
 Rails.application.config.filter_parameters += [
   :upload_url, :download_url, :playback_url, :checksum, :media_id,
-  :observation_id, :attempt_id, :claim_generation, :recording_id, :model_history, :transcript, :reply, :authorization, :passw, :email, :secret, :token, :csrf, :cookie, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
+  :observation_id, :attempt_id, :claim_generation, :recording_id, :model_history, :transcript, :reply, :acknowledgement, :authorization, :passw, :email, :secret, :token, :csrf, :cookie, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]

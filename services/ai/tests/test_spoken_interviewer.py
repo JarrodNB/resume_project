@@ -22,7 +22,7 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool():
             return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {})],
                                  usage=RequestUsage(input_tokens=20, output_tokens=5))
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
-                             {"decision": "advance", "reply": None})],
+                             {"decision": "advance", "acknowledgement": "You repaired the appointment calendar.", "reply": None})],
                              usage=RequestUsage(input_tokens=25, output_tokens=5))
 
     async def guard(ctx, prompt):
@@ -32,6 +32,7 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool():
     result = asyncio.run(agent.run("Actual answer: I repaired the appointment calendar",
                                    model=FunctionModel(respond)))
     assert result.output.decision == "advance"
+    assert result.output.acknowledgement == "You repaired the appointment calendar."
     assert "appointment calendar" in observed[0]
     assert "Rails" in observed[0]
     assert len(observed) == 2
@@ -46,7 +47,7 @@ def test_each_validation_retry_has_a_distinct_durable_observation():
 
     async def respond(messages, info):
         dispatched.append(len([call for call in client.calls if call[0] == "start"]))
-        output = {"decision": "continue", "reply": "" if len(dispatched) == 1 else "What changed for users?"}
+        output = {"decision": "continue", "acknowledgement": "You changed the scheduling process.", "reply": "" if len(dispatched) == 1 else "What changed for users?"}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)],
                              model_name="gpt-6-luna", usage=RequestUsage(input_tokens=100, output_tokens=20))
 
@@ -69,7 +70,7 @@ def test_unexpected_model_usage_stops_before_accepting_output():
 
     async def respond(messages, info):
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
-                             {"decision": "continue", "reply": "What changed?"})],
+                             {"decision": "continue", "acknowledgement": "You changed the scheduling process.", "reply": "What changed?"})],
                              model_name="unexpected-model", usage=RequestUsage(input_tokens=100, output_tokens=20))
 
     async def guard(ctx, prompt):
@@ -165,3 +166,23 @@ def test_successful_typesafe_screen_has_one_wire_request_per_observation():
     assert len(seen) == 1
     assert [call[0] for call in client.calls] == ["start", "usage"]
     assert client.calls[-1][2][0]["cost_microdollars"] == 5
+
+
+@pytest.mark.parametrize("acknowledgement", [None, "", " ", "x" * 281])
+def test_acknowledgement_is_required_and_bounded(acknowledgement):
+    from pydantic import ValidationError
+
+    from schemas.spoken_interview import SpokenInterviewReply
+
+    with pytest.raises(ValidationError):
+        SpokenInterviewReply.model_validate({"decision": "continue", "reply": "What changed?",
+                                            "acknowledgement": acknowledgement})
+
+
+def test_acknowledgement_and_follow_up_share_the_speech_text_limit():
+    from pydantic import ValidationError
+
+    from schemas.spoken_interview import SpokenInterviewReply
+
+    with pytest.raises(ValidationError):
+        SpokenInterviewReply(acknowledgement="You changed the booking process.", decision="continue", reply="x" * 4000)

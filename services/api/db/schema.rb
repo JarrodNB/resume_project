@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_030000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -256,6 +256,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_030000) do
     t.text "content", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "acknowledgement"
     t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_fb18f0ea41", unique: true
     t.index ["interview_session_id", "question_id", "id"], name: "interview_session_message_owner_identity", unique: true
     t.index ["interview_session_id", "semantic_key"], name: "idx_on_interview_session_id_semantic_key_fd3956ac09", unique: true
@@ -263,6 +264,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_030000) do
     t.index ["question_id"], name: "index_interview_session_messages_on_question_id"
     t.index ["question_id"], name: "interview_session_one_opening_per_question", unique: true, where: "((kind)::text = 'opening'::text)"
     t.check_constraint "\"position\" >= 0 AND (kind::text = ANY (ARRAY['opening'::character varying::text, 'answer'::character varying::text, 'follow_up'::character varying::text, 'closing'::character varying::text]))", name: "interview_session_message_kind"
+    t.check_constraint "acknowledgement IS NULL OR kind::text <> 'answer'::text AND char_length(acknowledgement) >= 1 AND char_length(acknowledgement) <= 280 AND btrim(acknowledgement) <> ''::text", name: "interview_message_acknowledgement"
   end
 
   create_table "interview_session_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -308,7 +310,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_030000) do
     t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
     t.check_constraint "status::text <> 'accepted'::text OR accepted_at IS NOT NULL AND result_fingerprint IS NOT NULL", name: "interview_session_operation_accepted_result"
     t.check_constraint "status::text <> 'running'::text OR claim_generation > 0 AND attempt_id IS NOT NULL AND lease_expires_at IS NOT NULL AND execution_deadline IS NOT NULL", name: "interview_session_operation_claim"
-    t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying, 'browser'::character varying, 'streaming'::character varying, 'typed'::character varying]::text[])", name: "interview_operation_transcription_mode"
+    t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying::text, 'browser'::character varying::text, 'streaming'::character varying::text, 'typed'::character varying::text])", name: "interview_operation_transcription_mode"
   end
 
   create_table "interview_session_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

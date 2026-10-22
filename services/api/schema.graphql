@@ -949,11 +949,13 @@ type InterviewSession {
 }
 
 type InterviewSessionMessage {
+  acknowledgement: String
   content: String!
   id: ID!
   kind: String!
   position: Int!
   questionId: ID!
+  spokenContent: String!
 }
 
 type InterviewSessionOperation {

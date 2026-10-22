@@ -102,6 +102,23 @@ describe('InterviewDemoPage', () => {
     expect(current.queryByRole('heading', { name: 'Follow-up' })).not.toBeInTheDocument()
   })
 
+  it('shows the saved acknowledgement separately and speaks the whole accepted interviewer turn', async () => {
+    const speak = vi.fn()
+    vi.stubGlobal('speechSynthesis', { speak, cancel: vi.fn() })
+    vi.stubGlobal('SpeechSynthesisUtterance', class { text: string; constructor(text: string) { this.text = text } })
+    const acknowledgement = 'You rebuilt the scheduler with a teammate.'
+    const message = { ...snapshot.messages[0], acknowledgement, spokenContent: `${acknowledgement}\n\n${snapshot.messages[0].content}` }
+    state.interview = { ...snapshot, speechPlaybackMode: 'browser', operations: [], messages: [message] }
+    renderDemo()
+    const room = within(screen.getByRole('region', { name: 'Current interview turn' }))
+    expect(room.getByText(acknowledgement)).toBeVisible()
+    expect(room.getByText(message.content)).toBeVisible()
+    await userEvent.click(room.getByRole('button', { name: 'Play interviewer audio' }))
+    expect(speak.mock.calls[0][0].text).toBe(acknowledgement)
+    act(() => speak.mock.calls[0][0].onend())
+    expect(speak.mock.calls.map(([utterance]) => utterance.text).join('\n\n')).toBe(message.spokenContent)
+  })
+
   it('reads saved text with browser speech without a provider artifact and releases recording', async () => {
     const speak = vi.fn()
     vi.stubGlobal('speechSynthesis', { speak, cancel: vi.fn() })

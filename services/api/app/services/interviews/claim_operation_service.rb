@@ -69,7 +69,7 @@ module Interviews
           interview.update!(frozen_context: context) if context != interview.frozen_context
         end
         payload = if @operation.speech?
-          { text: @operation.message.content, message_id: @operation.message_id }
+          { text: MessageText.spoken_content(@operation.message), message_id: @operation.message_id }
         elsif @operation.preparation?
           { frozen_context: interview.frozen_context }
         else
@@ -78,7 +78,7 @@ module Interviews
             question: @operation.question.content, model_history: @operation.question.model_history,
             history_version: @operation.question.history_version,
             current_dialogue: interview.messages.where(question: @operation.question, kind: %w[opening answer follow_up])
-              .order(:position).map { |message| { kind: message.kind, content: message.content } },
+              .order(:position).map { |message| { kind: message.kind, content: MessageText.spoken_content(message) } },
             earlier_dialogue: EarlierDialogue.build(interview, before_position: @operation.question.position) }.merge(
               interview.frozen_context.present? ?
                 { interview_context: { version: 1, personal_evidence: interview.frozen_context, fictional_role: interview.prepared_role } } :

@@ -5,8 +5,10 @@
   history: []
   expected:
     decision: continue
+    acknowledgement: You reduced appointment waiting time using a shared calendar.
     reply: How did you measure the shorter waiting time?
   relevant_terms: [measure, waiting]
+  acknowledgement_terms: [calendar]
 - name: continuity
   question: Tell me about helping a team.
   answer: We measured it for four weeks and cancellations fell by twenty percent.
@@ -15,8 +17,10 @@
     - interviewer: How did you measure the improvement?
   expected:
     decision: continue
+    acknowledgement: You tracked cancellations for four weeks.
     reply: What did you change after reviewing those results?
   relevant_terms: [results]
+  acknowledgement_terms: [four weeks]
 - name: enough-detail
   question: Tell me about a difficult customer problem.
   answer: I listened to the complaint, fixed the booking, and confirmed the customer was satisfied.
@@ -25,5 +29,7 @@
     - candidate: The customer returned and thanked our team.
   expected:
     decision: advance
+    acknowledgement: You fixed the booking and checked the customer was satisfied.
     reply: null
   relevant_terms: []
+  acknowledgement_terms: [booking]

@@ -5,10 +5,11 @@ require "digest"
 module Interviews
   class SubmitTurnService < ApplicationService
     MAX_PREPARED_SUBMISSIONS_PER_QUESTION = 6
-    def initialize(interview:, question_id:, recording_id:, expected_revision:, submission_key:)
+    def initialize(interview:, question_id:, recording_id:, expected_revision:, submission_key:, candidate_transcript: nil, transcription_mode: "recorded", transcript_digest: nil)
       @interview = interview
       @question_id, @recording_id = question_id, recording_id
       @expected_revision, @submission_key = expected_revision, submission_key
+      @candidate_transcript, @transcription_mode, @transcript_digest = candidate_transcript, transcription_mode, transcript_digest
     end
 
     # The caller supplies an authorized interview; recording ownership and readiness
@@ -19,11 +20,15 @@ module Interviews
 
       @interview.user.with_lock do
         @interview.lock!
-        fingerprint = Digest::SHA256.hexdigest(JSON.generate([ @question_id, @recording_id, @expected_revision ]))
+        identity = [ @question_id, @recording_id, @expected_revision ]
+        digest = @candidate_transcript ? Digest::SHA256.hexdigest(@candidate_transcript) : @transcript_digest
+        identity += [ @transcription_mode, digest ] unless @transcription_mode == "recorded" && digest.nil?
+        fingerprint = Digest::SHA256.hexdigest(JSON.generate(identity))
         existing = @interview.operations.turn.find_by(submission_key: @submission_key)
         if existing
           next existing.request_fingerprint == fingerprint ? success(existing) : failure("Submission key conflicts with its original inputs")
         end
+        next failure("Final transcript is unavailable. Check saved status before submitting the recording as fallback.") if @transcript_digest && !@candidate_transcript
         next failure("Interview is not active") unless @interview.active? && @interview.expires_at > Time.current
         next failure("Interview revision is stale") unless @expected_revision == @interview.revision
 
@@ -39,7 +44,8 @@ module Interviews
         end
 
         success(@interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,
-          expected_revision: @expected_revision, submission_key: @submission_key, request_fingerprint: fingerprint))
+          expected_revision: @expected_revision, submission_key: @submission_key, request_fingerprint: fingerprint,
+          candidate_transcript: @candidate_transcript, transcription_mode: @transcription_mode))
       end
     rescue ActiveRecord::RecordInvalid => error
       failure(error.record.errors)
@@ -49,6 +55,11 @@ module Interviews
 
     def valid_input?
       uuid = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/
+      return false unless %w[recorded browser streaming].include?(@transcription_mode)
+      return false if @candidate_transcript && (!@candidate_transcript.is_a?(String) || @candidate_transcript.blank? || @candidate_transcript.length > 4000 || @transcription_mode == "recorded")
+      return false if @transcript_digest && (!@transcript_digest.is_a?(String) || !@transcript_digest.match?(/\A[0-9a-f]{64}\z/) || @transcription_mode == "recorded")
+      return false if @candidate_transcript && @transcript_digest && Digest::SHA256.hexdigest(@candidate_transcript) != @transcript_digest
+
       @question_id.is_a?(String) && @question_id.match?(uuid) &&
         @recording_id.is_a?(String) && @recording_id.match?(uuid) &&
         @expected_revision.is_a?(Integer) && @expected_revision >= 0 &&

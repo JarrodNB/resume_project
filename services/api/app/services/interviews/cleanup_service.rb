@@ -39,7 +39,7 @@ module Interviews
             operation.ai_task.update!(attributes)
           end
           state = operation.pending? || operation.running? ? "expired" : operation.status
-          operation.update!(status: state, accepted_result: {}, retry_at: nil, checkpoint: nil)
+          operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
         interview.questions.update_all(content: "[expired]", model_history: [])
         interview.messages.update_all(content: "[expired]")

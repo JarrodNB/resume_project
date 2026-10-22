@@ -8,6 +8,8 @@ export interface PendingSubmission {
   recordingId: string
   expectedRevision: number
   submissionKey: string
+  transcriptionMode?: 'browser' | 'streaming' | 'recorded'
+  transcriptDigest?: string
 }
 function storageKey(ownerId: string, interviewId: string) { return `${PRODUCT_NAME}:interview-submit:${ownerId}:${interviewId}` }
 
@@ -18,7 +20,9 @@ export function loadPendingSubmission(ownerId: string, interviewId: string): Pen
     const value = raw as Partial<PendingSubmission>
     if (typeof value.questionId !== 'string' || typeof value.recordingId !== 'string' ||
       typeof value.submissionKey !== 'string' || !Number.isInteger(value.expectedRevision) || Number(value.expectedRevision) < 0) return null
-    return { questionId: value.questionId, recordingId: value.recordingId, expectedRevision: Number(value.expectedRevision), submissionKey: value.submissionKey }
+    if (value.transcriptionMode !== undefined && !['browser', 'streaming', 'recorded'].includes(value.transcriptionMode)) return null
+    if (value.transcriptDigest !== undefined && (typeof value.transcriptDigest !== 'string' || !/^[0-9a-f]{64}$/.test(value.transcriptDigest))) return null
+    return { ...(value.transcriptionMode ? { transcriptionMode: value.transcriptionMode } : {}), ...(value.transcriptDigest ? { transcriptDigest: value.transcriptDigest } : {}), questionId: value.questionId, recordingId: value.recordingId, expectedRevision: Number(value.expectedRevision), submissionKey: value.submissionKey }
   } catch { return null }
 }
 /** Returns false when reload-safe persistence is unavailable; do not submit in that case. */

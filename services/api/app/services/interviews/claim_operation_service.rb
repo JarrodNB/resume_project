@@ -64,7 +64,8 @@ module Interviews
         elsif @operation.preparation?
           { frozen_context: interview.frozen_context }
         else
-          { recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
+          { candidate_transcript: @operation.candidate_transcript, transcription_mode: @operation.transcription_mode,
+            recording_id: @operation.recording_id, expected_revision: @operation.expected_revision,
             question: @operation.question.content, model_history: @operation.question.model_history,
             history_version: @operation.question.history_version,
             current_dialogue: interview.messages.where(question: @operation.question, kind: %w[opening answer follow_up])

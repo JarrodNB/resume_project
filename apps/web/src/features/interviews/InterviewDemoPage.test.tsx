@@ -1,7 +1,10 @@
 /** The spoken demo presents saved state and keeps turn recovery separate from speech replay. */
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { MockedProvider } from '@apollo/client/testing/react'
+import { createMemoryRouter, RouterProvider } from 'react-router'
 import type { MockLink } from '@apollo/client/testing'
-import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
@@ -740,13 +743,13 @@ it.each(['edit', 'discard', 'revision'])('fences late recorded text after %s', a
   expect(state.answerText).not.toHaveBeenCalled()
 })
 
-it('restores capture progress after reload and cancels it on leaving', async () => {
+it('restores capture progress after reload without cancelling on passive disposal', async () => {
   state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'running', expectedRevision: 0 }] }
   const view = renderDemo()
   expect(screen.getByText(/You can type a replacement/)).toBeVisible()
   expect(screen.getByRole('button', { name: 'Cancel transcription' })).toBeEnabled()
   view.unmount()
-  expect(state.cancelTranscription).toHaveBeenCalledWith('capture')
+  expect(state.cancelTranscription).not.toHaveBeenCalled()
 })
 
 it('restores completed private capture text only on explicit review after reload', () => {
@@ -757,5 +760,32 @@ it('restores completed private capture text only on explicit review after reload
   fireEvent.click(screen.getByRole('button', { name: 'Review saved transcript' }))
   expect(editor).toHaveValue('Recovered provider transcript.')
   expect(screen.queryByRole('button', { name: 'Review saved transcript' })).not.toBeInTheDocument()
+  expect(state.answerText).not.toHaveBeenCalled()
+})
+
+it.each(['running', 'accepted'])('preserves hydrated %s capture through StrictMode effect replay', (status) => {
+  state.interview = { ...snapshot, operations: [...snapshot.operations, {
+    id: 'capture', kind: 'transcription', status, expectedRevision: 0,
+    reviewTranscript: status === 'accepted' ? 'Saved capture text.' : null,
+  }] }
+  const router = createMemoryRouter([{ path: '/interviews/demo/:id', element: <InterviewDemoPage /> }], { initialEntries: ['/interviews/demo/session'] })
+  const view = render(<StrictMode><MockedProvider><RouterProvider router={router} /></MockedProvider></StrictMode>)
+  expect(state.cancelTranscription).not.toHaveBeenCalled()
+  if (status === 'accepted') expect(screen.getByRole('button', { name: 'Review saved transcript' })).toBeEnabled()
+  else expect(screen.getByRole('button', { name: 'Cancel transcription' })).toBeEnabled()
+  view.unmount()
+  expect(state.cancelTranscription).not.toHaveBeenCalled()
+})
+
+it('fences a capture receipt arriving after unmount without cancelling durable work', async () => {
+  let complete!: (id: string) => void
+  state.transcribeRecording.mockReturnValue(new Promise((resolve) => { complete = resolve }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.effectiveMode = 'recorded'
+  const view = renderDemo()
+  fireEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+  expect(state.transcribeRecording).toHaveBeenCalledOnce()
+  view.unmount()
+  await act(async () => complete('capture'))
+  expect(state.cancelTranscription).not.toHaveBeenCalled()
   expect(state.answerText).not.toHaveBeenCalled()
 })

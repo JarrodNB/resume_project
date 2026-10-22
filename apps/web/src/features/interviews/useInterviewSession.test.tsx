@@ -39,7 +39,7 @@ describe('useInterviewSession', () => {
   })
   it('reconciles an ambiguously accepted submission on reload without resending expired recording input', async () => {
     savePendingSubmission('owner', 'session', pending)
-    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'accepted', failureCode: null, checkpoint: 'interviewer_finished', submissionKey: pending.submissionKey, canRetry: false }] }
     const resend = vi.fn(() => ({ data: { submitInterviewTurn: { interview: accepted, errors: [] } } }))
     const { result } = mount([
       { request: query, result: { data: { interviewSession: snapshot } } },
@@ -57,7 +57,7 @@ describe('useInterviewSession', () => {
     const put = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', put)
     const identity = { ...pending, submissionKey: key }
-    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+    const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'accepted', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
     const submitRequest = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity } } }
     const { result } = mount([
       { request: query, result: { data: { interviewSession: snapshot } } },
@@ -173,7 +173,7 @@ it('recovers an unsaved recognized submission from retained audio after an owned
   const key = '11111111-1111-4111-8111-111111111111'
   vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
   const fallback = { ...pending, submissionKey: key }
-  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
   const submit = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
   const { result } = mount([
     { request: query, result: { data: { interviewSession: snapshot } } },
@@ -192,7 +192,7 @@ it('submits canonical typed text without audio and persists only its identity', 
   vi.stubGlobal('crypto', { randomUUID: () => key, subtle: { digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(1).buffer) } })
   const text = 'I rebuilt the scheduler and checked duplicates stopped.'
   const identity = { questionId: 'question', expectedRevision: 0, submissionKey: key, transcriptionMode: 'typed', transcriptDigest: '01'.repeat(32) }
-  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
   const submit = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
   const { result } = mount([
     { request: query, result: { data: { interviewSession: snapshot } } },
@@ -211,7 +211,7 @@ it('reconciles a lost typed receipt and explicitly resends the same retained tex
   const text = 'My edited answer stays exactly this way.'
   const identity = { questionId: 'question', expectedRevision: 0, submissionKey: key, transcriptionMode: 'typed', transcriptDigest: '01'.repeat(32) }
   const request = { query: SUBMIT_TURN, variables: { input: { interviewId: 'session', ...identity, candidateTranscript: text } } }
-  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
+  const accepted = { ...snapshot, revision: 1, operations: [{ __typename: 'InterviewSessionOperation', id: 'operation', questionId: 'question', messageId: null, kind: 'turn', reviewTranscript: null, expectedRevision: null, status: 'pending', failureCode: null, checkpoint: null, submissionKey: key, canRetry: false }] }
   const resend = vi.fn(() => ({ data: { submitInterviewTurn: { __typename: 'SubmitInterviewTurnPayload', interview: accepted, errors: [] } } }))
   const { result } = mount([
     { request: query, result: { data: { interviewSession: snapshot } } },

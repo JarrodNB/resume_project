@@ -88,11 +88,13 @@ function OwnedInterview({ id }: { id: string }) {
   const reviewOperation = recordedReview?.context === draftContext
     ? state.interview?.operations.find((item) => item.id === recordedReview.id)
     : state.interview?.operations.filter((item) => item.kind === 'transcription' && item.expectedRevision === state.interview?.revision && item.status !== 'expired').at(-1)
-  const latestReview = useRef<{ id: string | null; cancel: typeof state.cancelTranscription }>({ id: null, cancel: state.cancelTranscription })
-  useEffect(() => { latestReview.current = { id: reviewOperation?.id ?? null, cancel: state.cancelTranscription } }, [reviewOperation?.id, state.cancelTranscription])
-  useEffect(() => () => {
-    reviewGeneration.current++
-    if (latestReview.current.id) void latestReview.current.cancel(latestReview.current.id)
+  const mountedReview = useRef(false)
+  useEffect(() => {
+    mountedReview.current = true
+    return () => {
+      // React replays cleanup in StrictMode; passive disposal only fences local writes.
+      mountedReview.current = false
+    }
   }, [])
   const reviewPending = reviewOperation?.status === 'pending' || reviewOperation?.status === 'running'
   useEffect(() => {
@@ -168,8 +170,8 @@ function OwnedInterview({ id }: { id: string }) {
     try {
       const operationId = await state.transcribeRecording(recorder.recording)
       if (operationId) {
-        if (reviewGeneration.current === generation) setRecordedReview({ id: operationId, context: draftContext, ticket })
-        else void state.cancelTranscription(operationId)
+        if (mountedReview.current && reviewGeneration.current === generation) setRecordedReview({ id: operationId, context: draftContext, ticket })
+        else if (mountedReview.current) void state.cancelTranscription(operationId)
       }
     } finally { submitting.current = false; setSavingRecording(false) }
   }

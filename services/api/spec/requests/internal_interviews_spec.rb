@@ -17,6 +17,10 @@ RSpec.describe "Internal interview execution", type: :request do
 
 
   it "validates requested execution mode and filters real work for legacy callers" do
+    # This legacy fixture's first operation is provider speech; discovery is
+    # intentionally disabled for that operation in the default browser mode.
+    allow(ENV).to receive(:[]).and_call_original
+    allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
     real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
     real_operation = real.operations.first
     get "/internal/interviews/operations", headers: headers

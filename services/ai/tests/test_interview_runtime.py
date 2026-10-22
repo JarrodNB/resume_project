@@ -118,11 +118,10 @@ def test_disabled_runtime_needs_no_service_credential(monkeypatch):
     assert not RuntimeSettings.from_environment().enabled
 
 
-def test_runtime_reports_discovery_and_claim_wait_without_returned_claim_data(monkeypatch):
+def test_runtime_keeps_local_discovery_timings_without_claim_data(caplog):
     from interviews.runtime import RecoveryRuntime
 
-    events = []
-    monkeypatch.setattr("logfire.info", lambda message, **fields: events.append((message, fields)))
+    caplog.set_level("DEBUG", logger="interviews.timing")
 
     async def scenario():
         finished = asyncio.Event()
@@ -150,10 +149,10 @@ def test_runtime_reports_discovery_and_claim_wait_without_returned_claim_data(mo
         await runtime.stop()
 
     asyncio.run(scenario())
-    stages = {fields["stage"] for message, fields in events if message == "interview.stage"}
-    assert {"discovery", "claim"} <= stages
-    assert "private-transcript" not in str(events)
-    assert "private-operation" not in str(events)
+    records = [record for record in caplog.records if record.name == "interviews.timing"]
+    assert {"discovery", "claim"} <= {record.stage for record in records}
+    assert "private-transcript" not in str([record.__dict__ for record in records])
+    assert "private-operation" not in str([record.__dict__ for record in records])
 
 
 def test_completed_turn_wakes_durable_discovery_before_idle_poll_deadline():

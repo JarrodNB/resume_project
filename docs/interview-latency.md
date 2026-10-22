@@ -8,15 +8,14 @@ ledger to obtain a faster number.
 ## Available evidence and clock domains
 
 The real runtime already configures Logfire, an `interview.operation` span and
-Pydantic AI model instrumentation. `interview.stage` adds explicit numeric stage
-measurements to that existing tracing setup. Each event contains only a fixed
-stage name, elapsed milliseconds, outcome (`completed`, `failed`, `cancelled`)
-and, after claim, operation/attempt IDs and claim generation. It never includes
-transcripts, prompts, signed URLs, provider errors or personal evidence.
-Telemetry failure must not alter execution, cancellation or accounting.
+Pydantic AI model instrumentation. Stage durations stay in optional local DEBUG
+logs from `interviews.timing`; they are not exported as `interview.stage` events.
+Routine Rails operation-discovery HTTP instrumentation is suppressed only during
+that polling request. Execution tasks begin outside suppression, preserving model
+and operation traces and the runtime's safe failure warnings.
 
 Durations use the Python process's monotonic clock. Never subtract them from
-Rails wall-clock timestamps or browser clocks. Events after claim identify each
+Rails wall-clock timestamps or browser clocks. Local records after claim identify each
 fenced attempt separately; aggregate failures and retries separately rather than
 mixing them with successful-turn latency. Discovery and claim request durations
 have no claim identity because they precede a trusted claim. Their returned IDs

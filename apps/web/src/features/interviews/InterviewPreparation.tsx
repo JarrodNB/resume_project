@@ -2,6 +2,7 @@
  * Private career sources and executor history stay on the server.
  */
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
+import { difficultyOptions, focusOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -35,9 +36,11 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
         <div className="grid gap-2"><h4 className="font-medium">Responsibilities</h4><ul className="list-disc space-y-2 pl-5 text-sm">{role.responsibilities.map((item, index) => <li className="break-words" key={index}>{item}</li>)}</ul></div>
         <div className="grid gap-2"><h4 className="font-medium">Role requirements</h4><ul className="list-disc space-y-2 pl-5 text-sm">{role.requirements.map((item, index) => <li className="break-words" key={index}>{item}</li>)}</ul></div>
       </div>
+      <p className="text-sm text-muted-foreground">{typeOptions.find((item) => item.value === interview.setup.questionFormat)?.label} · {difficultyOptions.find((item) => item.value === interview.setup.difficulty)?.label} · {interviewerOptions.find((item) => item.value === interview.setup.interviewer)?.label}</p>
+      <p className="text-sm text-muted-foreground">Focus areas: {interview.setup.focusAreas.length ? interview.setup.focusAreas.map((area) => focusOptions[area] ?? area).join(', ') : 'Balanced round'}</p>
       <p role="status" className="text-sm">Your {interview.questions.length} questions are prepared. Your interview is ready.</p>
-      <p className="text-sm text-muted-foreground">Begin to hear your first question. Each question allows up to {interview.answerCap} saved responses; the interviewer may move on sooner.</p>
-      <Button className="justify-self-start" disabled={busy} onClick={() => void begin()}>{busy ? 'Beginning…' : 'Begin interview'}</Button>
+      <p className="text-sm text-muted-foreground">Enter the room to hear your first question. Each question allows up to {interview.answerCap} saved responses; the interviewer may move on sooner.</p>
+      <Button className="min-h-11 justify-self-start" disabled={busy} onClick={() => void begin()}>{busy ? 'Entering…' : 'Enter interview room'}</Button>
     </> : <>
       <h2 className="text-xl font-medium">Preparing your interview</h2>
       <p className="max-w-prose text-sm">We are preparing a fictional role and {interview.setup.questionCount} main questions from your saved career details. Progress is saved; you can reload safely.</p>

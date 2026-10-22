@@ -3,10 +3,12 @@
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useParams } from 'react-router'
+import { InterviewSetup } from './InterviewSetup'
+import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
+import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
@@ -29,7 +31,7 @@ import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewStreaming } from './useInterviewStreaming'
-import { useInterviewSession, useStartInterview } from './useInterviewSession'
+import { useInterviewSession } from './useInterviewSession'
 
 export function InterviewDemoPage() {
   const { id } = useParams()
@@ -39,7 +41,7 @@ export function InterviewDemoPage() {
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     {!interviewDemoEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
-      <StartDemo /><RecentInterviews /><InterviewPrivacy />
+      <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
   </div>
 }
@@ -51,56 +53,6 @@ function InterviewPrivacy() {
         <ProviderNotice />
       </div>
     </details>
-}
-function StartDemo() {
-  const { start, loading, error } = useStartInterview()
-  const navigate = useNavigate()
-  const [careerFocus, setCareerFocus] = useState('')
-  const [questionCount, setQuestionCount] = useState(8)
-  const [questionFormat, setQuestionFormat] = useState('mixed')
-  const [difficulty, setDifficulty] = useState('realistic')
-  const [interviewer, setInterviewer] = useState('daniel')
-  const [focusAreas, setFocusAreas] = useState<string[]>([])
-  async function begin() { const id = await start(careerFocus, { questionCount, questionFormat, difficulty, interviewer, focusAreas }); if (id) void navigate(`/interviews/${id}`) }
-  return <div className="grid gap-3">
-    <p className="max-w-prose text-sm">Prepare {questionCount} main questions in your selected interview format. Review the fictional role before starting. Follow-up questions may extend the interview.</p>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
-    <p id="interview-focus-help" className="max-w-prose text-sm text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details.</p>
-    <Link className="justify-self-start text-sm underline underline-offset-4" to="/library">Review your career library</Link>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-question-format">Interview type
-      <select id="interview-question-format" className="rounded-md border bg-background px-3 py-2" disabled={loading} value={questionFormat} onChange={(event) => setQuestionFormat(event.target.value)}>
-        <option value="mixed">Mixed Interview</option>
-        <option value="behavioral">Behavioural</option>
-        <option value="technical">Technical / Role</option>
-        <option value="screening">HR Screening</option>
-      </select>
-    </label>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-length">Interview length
-      <select id="interview-length" className="rounded-md border bg-background px-3 py-2" disabled={loading} value={questionCount} onChange={(event) => setQuestionCount(Number(event.target.value))}>
-        <option value={5}>Short · 5 questions · ~10 min</option>
-        <option value={8}>Standard · 8 questions · ~20 min</option>
-        <option value={12}>Full loop · 12 questions · ~30 min</option>
-      </select>
-    </label>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-difficulty">Difficulty
-      <select id="interview-difficulty" disabled={loading} value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>
-        <option value="warm_up">Warm-up</option><option value="realistic">Realistic</option><option value="stretch">Stretch</option>
-      </select>
-    </label>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-persona">Your interviewer
-      <select id="interview-persona" disabled={loading} value={interviewer} onChange={(event) => setInterviewer(event.target.value)}>
-        <option value="maya">Maya — Friendly Coach</option><option value="daniel">Daniel — Professional Hiring Manager</option><option value="priya">Priya — Tough Interviewer</option>
-      </select>
-    </label>
-    <fieldset disabled={loading}><legend>Focus areas (optional)</legend>
-      {Object.entries({ communication: 'Communication', problem_solving: 'Problem Solving', leadership: 'Leadership', teamwork: 'Teamwork', conflict: 'Conflict', impact_metrics: 'Impact & Metrics', technical_depth: 'Technical Depth', adaptability: 'Adaptability', ownership: 'Ownership', customer_focus: 'Customer Focus' }).map(([value, label]) => <label className="mr-4 inline-flex items-center gap-2" key={value}>
-        <input type="checkbox" checked={focusAreas.includes(value)} onChange={(event) => setFocusAreas((previous) => event.target.checked ? [...previous, value] : previous.filter((area) => area !== value))} />{label}
-      </label>)}
-    </fieldset>
-    <ProviderNotice />
-    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Preparing…' : 'Prepare interview'}</Button>
-    {error && <p role="alert" className="text-destructive">{error}</p>}
-  </div>
 }
 function OwnedInterview({ id }: { id: string }) {
   const { user } = useAuth()
@@ -262,15 +214,7 @@ function OwnedInterview({ id }: { id: string }) {
             <DialogTitle>Interview settings</DialogTitle>
             <DialogDescription>Choose when the microphone opens and how your answers are transcribed. These settings are remembered for future interviews.</DialogDescription>
           </DialogHeader>
-          <label className="flex items-center justify-between gap-4 text-sm" htmlFor="interview-auto-mic">
-            Turn the microphone on automatically
-            <input id="interview-auto-mic" type="checkbox" role="switch" className="size-5 accent-primary" checked={microphone.automatic} onChange={(event) => microphone.update({ automatic: event.target.checked })} />
-          </label>
-          <label className="grid gap-2 text-sm" htmlFor="interview-thinking-time">Thinking time before the mic opens
-            <select id="interview-thinking-time" className="min-h-11 rounded-md border bg-background px-3 py-2" value={microphone.seconds} disabled={!microphone.automatic} onChange={(event) => microphone.update({ seconds: Number(event.target.value) })}>
-              <option value={0}>Off</option><option value={3}>3 seconds</option><option value={5}>5 seconds</option><option value={10}>10 seconds</option>
-            </select>
-          </label>
+          <InterviewMicrophoneSettings microphone={microphone} />
           <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
             <select id="interview-transcription-mode" className="rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
               <option value="browser">Browser recognition</option><option value="streaming">Streaming transcription</option><option value="recorded">Recorded audio transcription</option>
@@ -284,7 +228,7 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="interview-room">
     <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
-      <p className="interview-identity">Your interviewer</p>
+      <p className="interview-identity">{interviewerOptions.find((option) => option.value === interview.setup?.interviewer)?.label ?? 'Your interviewer'}</p>
       <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
         <h2 className="interview-status">{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>
         {interview.status === 'completed' && <p className="text-sm text-muted-foreground">Your conversation is saved.</p>}

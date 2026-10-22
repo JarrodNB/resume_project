@@ -7,6 +7,7 @@ module Types
     field :speech_playback_mode, String, null: false
     field :interview_type, String, null: false
     field :prepared_role, GraphQL::Types::JSON, null: false
+    field :setup, Types::InterviewSetupType, null: false
     field :revision, Integer, null: false
     field :answer_cap, Integer, null: false
     field :current_question_position, Integer, null: false
@@ -18,6 +19,10 @@ module Types
 
     def speech_playback_mode
       Interviews::SpeechPlayback.mode(object)
+    end
+
+    def setup
+      Interviews::SetupConfiguration.for(object)
     end
 
     def operations

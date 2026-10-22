@@ -50,7 +50,7 @@ RSpec.describe "Prepared interview admission contention" do
     expect(Interviews::AcceptPreparationService.call(operation: preparation, attempt_id: preparation.attempt_id,
       claim_generation: preparation.claim_generation,
       role: { "title" => "Fictional technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] },
-      questions: 9.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Instrument topic #{i}?" } })).to be_success
+      questions: 8.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Instrument topic #{i}?" } })).to be_success
     expect(Interviews::BeginService.call(interview: session)).to be_success
     turn = Interviews::SubmitTurnService.call(interview: session, question_id: session.questions.first.id,
       recording_id: ready_interview_recording(session).id, expected_revision: session.revision, submission_key: "contended").value

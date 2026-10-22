@@ -14,6 +14,8 @@ import httpx
 import logfire
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
+from schemas.interview_setup import InterviewSetup
+
 
 class InterviewContext(BaseModel):
     """Keep owned frozen facts separate from the imagined vacancy."""
@@ -52,8 +54,8 @@ class EarlierDialogue(BaseModel):
     model_config = ConfigDict(extra="forbid")
     version: Literal[1]
     character_budget: Literal[12000]
-    groups: list[PublicQuestionGroup] = Field(max_length=8)
-    omitted_question_positions: list[int] = Field(max_length=8)
+    groups: list[PublicQuestionGroup] = Field(max_length=11)
+    omitted_question_positions: list[int] = Field(max_length=11)
 
     @model_validator(mode="after")
     def chronological_groups(self):
@@ -67,6 +69,7 @@ class EarlierDialogue(BaseModel):
 
 
 class TurnPayload(BaseModel):
+    setup: InterviewSetup = Field(default_factory=lambda: InterviewSetup(question_count=9))
     candidate_transcript: str | None = Field(default=None, min_length=1, max_length=4000)
     transcription_mode: Literal["recorded", "browser", "streaming", "typed"] = "recorded"
     recording_id: str | None
@@ -114,6 +117,7 @@ class SpeechPayload(BaseModel):
 
 class PreparationPayload(BaseModel):
     frozen_context: dict[str, Any]
+    setup: InterviewSetup = Field(default_factory=lambda: InterviewSetup(question_count=9))
 
 
 class ExecutionConfiguration(BaseModel):

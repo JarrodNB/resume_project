@@ -5,7 +5,6 @@ require "digest"
 module Interviews
   class AcceptPreparationService < ApplicationService
     include ExecutionPolicy
-    QUESTION_TYPES = %w[behavioral technical knowledge].freeze
 
     def initialize(operation:, attempt_id:, claim_generation:, role:, questions:)
       @operation, @attempt_id, @generation = operation, attempt_id, claim_generation
@@ -40,11 +39,12 @@ module Interviews
     private
 
     def valid_output?
+      types = SetupConfiguration.question_types(@operation.interview_session)
       return false unless @role.is_a?(Hash) && @role.keys.sort == %w[requirements responsibilities title] &&
         prose?(@role["title"], 120) && %w[responsibilities requirements].all? { |key| @role[key].is_a?(Array) && @role[key].size.between?(1, 6) && @role[key].all? { |item| prose?(item, 200) } }
-      return false unless @questions.is_a?(Array) && @questions.size == 9
-      return false unless @questions.each_with_index.all? { |question, index| question.is_a?(Hash) && question.keys.sort == %w[content question_type] && question["question_type"] == QUESTION_TYPES[index % 3] && prose?(question["content"], 400) }
-      @questions.map { |question| question["content"].downcase.gsub(/\s+/, " ").strip }.uniq.size == 9
+      return false unless @questions.is_a?(Array) && @questions.size == types.size
+      return false unless @questions.each_with_index.all? { |question, index| question.is_a?(Hash) && question.keys.sort == %w[content question_type] && question["question_type"] == types[index] && prose?(question["content"], 400) }
+      @questions.map { |question| question["content"].downcase.gsub(/\s+/, " ").strip }.uniq.size == types.size
     end
 
     def prose?(value, limit)

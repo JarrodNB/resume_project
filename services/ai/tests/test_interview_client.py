@@ -379,3 +379,19 @@ def test_acceptance_preserves_optional_acknowledgement_without_changing_legacy_p
     assert "acknowledgement" not in requests[0]
     assert requests[1]["acknowledgement"] == "You fixed the booking process."
     assert {key: value for key, value in requests[1].items() if key != "acknowledgement"} == requests[0]
+
+
+@pytest.mark.parametrize("omitted", [False, True])
+def test_twelfth_question_can_restore_or_omit_all_eleven_earlier_questions(omitted):
+    from tests.test_interview_executor import claim as turn_claim
+
+    request = turn_claim().model_dump(mode="json")
+    request["payload"]["earlier_dialogue"] = {
+        "version": 1, "character_budget": 12000,
+        "omitted_question_positions": list(range(11)) if omitted else [],
+        "groups": [] if omitted else [{"question_position": position, "messages": [
+            {"kind": "opening", "content": f"Question {position}?"}, {"kind": "answer", "content": "Accepted answer."}
+        ]} for position in range(11)],
+    }
+    claim = Claim.model_validate(request)
+    assert len(claim.payload.earlier_dialogue.omitted_question_positions if omitted else claim.payload.earlier_dialogue.groups) == 11

@@ -2,7 +2,7 @@
 
 Saved wire history is validated before reuse. The fake executor screens its restored
 history; real conversations rebuild dialogue from Rails-owned accepted public messages.
-Tool calls must have their matching return before a later execution can restore them.
+Tool calls must have their matching return or named validation retry before reuse.
 Repeated context envelopes are reduced to transcripts only when they exactly match
 the context that the current execution supplies and screens again.
 """
@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
     ModelMessagesTypeAdapter,
     ModelRequest,
     ModelResponse,
+    RetryPromptPart,
     ToolCallPart,
     ToolReturnPart,
     UserPromptPart,
@@ -32,7 +33,12 @@ def restore_history(version: int, value: list[dict]):
                 if part.tool_call_id in pending:
                     raise ValueError("Duplicate tool call")
                 pending[part.tool_call_id] = part.tool_name
-            if isinstance(message, ModelRequest) and isinstance(part, ToolReturnPart):
+            if isinstance(message, ModelRequest) and (
+                isinstance(part, ToolReturnPart)
+                or isinstance(part, RetryPromptPart) and part.tool_name is not None
+            ):
+                # The SDK rejects an invalid output call with a named retry instead
+                # of a return. General retries have no tool and close no call.
                 if pending.get(part.tool_call_id) != part.tool_name:
                     raise ValueError("Unpaired tool return")
                 del pending[part.tool_call_id]

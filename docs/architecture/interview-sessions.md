@@ -2,10 +2,19 @@
 
 Interview sessions own spoken interview dialogue and progress, separate from written
 InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
-New sessions prepare a frozen fictional role and nine typed questions from the owner's career
+New sessions prepare a frozen fictional role and 5, 8 or 12 typed main questions from the owner's career
 library, then begin explicitly after review. Each question allows at most three accepted
 answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
 for explicitly enabled local browser QA; production deployment is deferred.
+
+Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
+(Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions
+default to Realistic, Daniel and no focus when those fields are absent. Preparation
+and turn claims carry the same saved choices. Focus biases questions within the selected
+format; it never replaces the format or supplies career evidence. Maya is warm without
+coaching or grading; Priya asks direct, specific follow-ups after submission and never
+interrupts live answers. Personas retain the existing British speech voice, factual
+acknowledgements, screening and answer limits.
 
 The spoken start route lists the owner's latest 20 unexpired real sessions in preparing,
 ready, active or completed states. Preparing/ready sessions reopen their saved preparation
@@ -104,14 +113,27 @@ cannot change a saved preparation's input. Raw frozen sources remain private.
 
 A `preparing` session has one `preparation` operation with no question, recording or message.
 The existing private discovery, lease, heartbeat, failure, retry and accounting contracts
-apply. The preparation claim contains `frozen_context`; it requires no storage capability.
+apply. The preparation claim contains `frozen_context` and the immutable candidate `setup`;
+it requires no storage capability. New starts default to eight main questions and accept only
+5, 8 or 12. Rails saves this separately from provider execution configuration in `setup_config`;
+public snapshots expose the safe setup, so reload and retry preserve the selected length.
+The setup also freezes `question_format`: Mixed cycles behavioral/technical/knowledge;
+Behavioural uses behavioral questions only; Technical / Role alternates technical and knowledge;
+HR Screening uses the explicit screening category for motivation, background, logistics and
+culture fit. Both Python and Rails validate the saved count and exact ordered categories.
+Missing format in an older length-only setup means Mixed. This question format does not change
+the Basic session type or the saved response cap.
+Existing sessions with empty saved setup keep their nine-question preparation policy. No
+backfill changes their questions, dialogue or progression. Follow-ups are extra; the length's
+10/20/30-minute estimates are approximate rather than session deadlines.
 The real executor screens/masks that source, runs a guarded Pydantic AI preparation agent
 through the accounted approved Luna model, and posts `accept_preparation` with claim identity,
 `role` and `questions`. Preparation uses the existing interviewer accounting stage, with a
 4,096-output-token cap so the complete question plan fits; dialogue remains capped at 1,024.
 
 Rails validates a short fictional role (title, responsibilities and requirements) and exactly
-nine distinct questions, interleaved behavioral/technical/knowledge three times. Acceptance
+the saved number of distinct main questions, using the chosen format's ordered categories.
+The Python preparation agent validates the same saved count and sequence before returning it. Acceptance
 atomically saves the entire role and question list, marks the operation accepted and session
 `ready`, and creates no opening or speech. Identical receipt replay returns the saved result;
 changed output or a stale generation cannot replace it. Failure leaves no partial question
@@ -136,8 +158,8 @@ evaluators remain deferred; offline tests establish contracts rather than genera
 `Interviews::CreateFixtureService.call(user:, question_count: 1, execution_mode: "fake")` atomically saves a
 session, frozen synthetic context, ordered questions, the first opening, and pending speech.
 The service fixture remains a legacy offline seam with one or two questions. Public prepared
-sessions conduct all nine, preserving their interleaved question types. The UI shows current
-question/total alongside accepted responses/current cap.
+sessions conduct their saved number of main questions, preserving their chosen question format.
+The room keeps the current question and earlier history visible without adding response counts.
 
 `SubmitTurnService.call(interview:, question_id:, recording_id:, expected_revision:,
 submission_key:)` reserves one turn before acknowledging submission. Callers pass an
@@ -400,8 +422,10 @@ user. Resume or abandon it before preparing another; completed, expired and aban
 sessions do not occupy that slot. A prepared question permits six distinct submitted
 recordings, including failures, independently of its three-accepted-answer cap. Retrying
 the same operation or replaying its submission key does not use another recording slot.
-Thus nine questions permit at most 54 turn operations, 28 saved-message speech operations
-and one preparation operation; existing six-execution and per-execution provider caps remain.
+Thus a twelve-question interview permits at most 72 turn operations, 37 saved-message speech
+operations in provider playback mode and one preparation operation; existing six-execution and
+per-execution provider caps remain. The earlier-dialogue claim permits up to eleven complete
+question groups or omitted positions while retaining the existing 12,000-character budget.
 Failed inputs never increment accepted-answer counts. When the submission cap is exhausted,
 the user must abandon and prepare another session under ordinary new-session admission.
 

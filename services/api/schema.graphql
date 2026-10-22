@@ -982,6 +982,7 @@ type InterviewSession {
   preparedRole: JSON!
   questions: [InterviewSessionQuestion!]!
   revision: Int!
+  setup: InterviewSetup!
   speechPlaybackMode: String!
   status: String!
 }
@@ -1017,6 +1018,22 @@ type InterviewSessionQuestion {
   id: ID!
   position: Int!
   questionType: String!
+}
+
+type InterviewSetup {
+  difficulty: String!
+  focusAreas: [String!]!
+  interviewer: String!
+  questionCount: Int!
+  questionFormat: String!
+}
+
+input InterviewSetupInput {
+  difficulty: String = "realistic"
+  focusAreas: [String!] = []
+  interviewer: String = "daniel"
+  questionCount: Int = 8
+  questionFormat: String = "mixed"
 }
 
 """
@@ -2182,6 +2199,7 @@ input StartInterviewDemoInput {
   """
   clientMutationId: String
   executionMode: String = "real"
+  setup: InterviewSetupInput
 }
 
 """

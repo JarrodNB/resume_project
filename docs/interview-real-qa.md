@@ -133,3 +133,37 @@ Local S3Mock verifies application ownership and byte handling but does not enfor
 signed-URL expiry. This local development stack is not a production deployment.
 
 Local development starts without paid-use approval flags. Interview spending and unknown-cost estimates remain recorded without blocking local testing.
+
+## Setup room manual checks
+
+Queued question clarification needs `INTERVIEW_RAILS_ORIGIN` and the same
+`INTERVIEW_SERVICE_SECRET` as Rails on the ordinary AI queue worker, not only the
+interview runtime. The real-QA overlay supplies both. Clarification feedback opens
+in a floating panel with a fixed trigger label, so waiting/errors/explanations do
+not reflow the question controls. Check Escape/outside dismissal and narrow-screen
+panel placement. Failed clarification attempts still need an explicit Retry.
+
+Before preparing, verify Mixed, Realistic, Daniel and Standard (8 questions) are
+selected, with no focus areas. Try all four types, three difficulties and
+interviewers, Short/Standard/Full loop, and multiple focus areas using keyboard
+and pointer. Length estimates belong only to length choices. Check the layout at
+narrow mobile and desktop widths in both themes; labels must wrap without clipping.
+
+Change automatic microphone and thinking time (Off/3/5/10 seconds). No capture or
+permission request should occur during setup or fictional-role review. Reload and
+confirm the same account remembers these preferences; another account should keep
+its own settings. An unsupported microphone browser must still offer typed answers.
+
+Prepare with your chosen options. The submit action should lock
+while saving. Check an empty library error, unfinished-interview recovery and a
+failed preparation retry. On the saved role review, verify the role and selected
+configuration, including focus areas, before choosing **Enter interview room**.
+The role-review page should have no Recent interviews link. Before entry, use
+Cancel preparation to release an unfinished setup; after entry, the action is
+Abandon interview. Each main question permits up to two related follow-ups under
+the current three-response cap. The active interviewer message should appear in
+History immediately, once, alongside earlier saved dialogue.
+
+After entry, check the interviewer identity and settings, playback-before-capture,
+thinking countdown, tapping the microphone early, and editable live dictation.
+Priya probes after submission; live interruptions are outside this setup.

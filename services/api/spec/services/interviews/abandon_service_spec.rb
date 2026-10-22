@@ -48,7 +48,7 @@ RSpec.describe "Interview abandonment" do
     identity = Interviews::ClaimOperationService.call(operation: operation, execution_mode: "real").value.slice(:attempt_id, :claim_generation)
     expect(Interviews::AbandonService.call(interview: preparing)).to be_success
     role = { "title" => "Fictional technician", "responsibilities" => [ "Maintain instruments" ], "requirements" => [ "Calibration" ] }
-    questions = 9.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Question #{i}?" } }
+    questions = 8.times.map { |i| { "question_type" => %w[behavioral technical knowledge][i % 3], "content" => "Question #{i}?" } }
     expect(Interviews::AcceptPreparationService.call(operation: operation, **identity, role: role, questions: questions)).not_to be_success
     expect(Interviews::RenewClaimService.call(operation: operation, **identity)).not_to be_success
     expect(Interviews::FailOperationService.call(operation: operation, **identity, code: "dependency_unavailable", retryable: true)).not_to be_success

@@ -67,6 +67,9 @@ services:
       WORKER_ENVIRONMENT: local
       CONVERSATION_LOGGING_ENABLED: "false"
       LOGFIRE_ENVIRONMENT: development
+      # Queued clarification uses the same Rails claim authority as the live runtime.
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
     volumes:
       - ../services/ai:/app
     depends_on:

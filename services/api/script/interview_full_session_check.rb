@@ -80,13 +80,15 @@ if phase == "setup"
 end
 raise "Missing check user" unless user
 interview = user.interview_sessions.reorder(:created_at, :id).first
+main_count = Interviews::SetupConfiguration.for(interview).fetch("question_count")
+response_cap = interview.answer_cap
 case phase
 when "ready"
   await_saved(interview.operations.preparation.first)
-  assert_check(interview.reload.ready? && interview.questions.count == 9, "Complete preparation missing")
+  assert_check(interview.reload.ready? && interview.questions.count == main_count, "Complete preparation missing")
   assert_check(interview.messages.empty? && interview.operations.speech.empty?, "Preparation began speech")
   assert_check(interview.frozen_context["career_focus"] == "Scheduling coordination", "Focus not frozen")
-  puts "PASS frozen owned library/focus prepared atomically; nine questions ready with no speech"
+  puts "PASS frozen owned library/focus prepared atomically; #{main_count} questions ready with no speech"
 when "begin"
   2.times { checked(Interviews::BeginService.call(interview: interview)) }
   assert_check(interview.messages.opening.count == 1 && interview.operations.speech.count == 1, "Begin duplicated opening")
@@ -116,9 +118,9 @@ when "full"
     await_saved(operation)
   end
   await_saved(interview.operations.speech.order(:created_at).last)
-  assert_check(interview.questions.order(:position).pluck(:accepted_answer_count) == [ 3 ] * 9, "Full cap sequence missing")
-  assert_check(interview.messages.answer.count == 27 && interview.messages.opening.count == 9 &&
-    interview.messages.follow_up.count == 18 && interview.messages.closing.count == 1, "Wrong full-session dialogue")
+  assert_check(interview.questions.order(:position).pluck(:accepted_answer_count) == [ response_cap ] * main_count, "Full cap sequence missing")
+  assert_check(interview.messages.answer.count == main_count * response_cap && interview.messages.opening.count == main_count &&
+    interview.messages.follow_up.count == main_count * (response_cap - 1) && interview.messages.closing.count == 1, "Wrong full-session dialogue")
   if (killed = interview.operations.turn.find_by(submission_key: "after-accept"))
     assert_check(killed.execution_count == 1, "Restart reran accepted reasoning")
     lost = interview.operations.turn.find_by!(submission_key: "fault-turn")
@@ -129,11 +131,11 @@ when "full"
   end
   root = interview.operations.preparation.first.ai_task
   children = user.ai_tasks.where(hourly_admission_task_id: root.id)
-  assert_check(children.count == 55 && user.ai_tasks.where(hourly_admission_task_id: nil).count == 1, "Session admission was not shared")
+  assert_check(children.count == 2 * main_count * response_cap + 1 && user.ai_tasks.where(hourly_admission_task_id: nil).count == 1, "Session admission was not shared")
   turn = interview.operations.turn.order(:created_at).last
   stale = internal_request(turn, "heartbeat", { attempt_id: SecureRandom.uuid, claim_generation: 0 })
   assert_check(stale.code == "409", "Stale callback accepted")
-  puts "PASS 9 x 3 answers; duplicate submissions; 9 openings/18 follow-ups/one closing; 55 child tasks/one hourly root; stale callback fenced"
+  puts "PASS #{main_count} x #{response_cap} answers; duplicate submissions; full dialogue; one hourly root; stale callback fenced"
 when "retry-prepare", "retry-verify"
   speech = interview.operations.speech.order(:created_at).last
   snapshot = lambda do
@@ -163,7 +165,9 @@ when "abandon-setup"
   before = target.operations.count
   response = internal_request(operation, "accept_preparation", claim.slice("attempt_id", "claim_generation").merge(
     role: { title: "Stale", responsibilities: [ "Stale" ], requirements: [ "Stale" ] },
-    questions: 9.times.map { |index| { question_type: %w[behavioral technical knowledge][index % 3], content: "Stale question #{index}" } }))
+    questions: Interviews::SetupConfiguration.question_types(target).each_with_index.map { |type, index|
+      { question_type: type, content: "Stale question #{index}" }
+    }))
   assert_check(response.code == "409" && target.questions.empty? && target.operations.count == before, "Abandoned claim changed preparation")
   assert_check(!Interviews::BeginService.call(interview: target).success?, "Abandoned session began")
   assert_check(operation.reload.expired? && operation.ai_task.ai_usage_attempts.exists?, "Abandon lost accounting")

@@ -83,7 +83,7 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
         release(current.stream)
         if (current.discard || capture.current !== current) return
         const finalText = finalized.current ? await finalized.current.catch(() => {
-          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Recognition finalization failed. The complete recording will be transcribed after submission.') }
+          if (capture.current === current) { setEffectiveMode('recorded'); setFallbackReason('Recognition finalization failed. Your recording is kept. Finish recording, then choose Transcribe recording.') }
           return null
         }) : null
         if (current.discard || capture.current !== current) return
@@ -102,8 +102,8 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       if (mode === 'streaming') {
         if (startStreaming) {
           try { transcription.current = startStreaming(stream, callbacks) }
-          catch { callbacks.fallback('Streaming could not start. The complete recording will be transcribed after submission.') }
-        } else callbacks.fallback('Streaming is unavailable. The complete recording will be transcribed after submission.')
+          catch { callbacks.fallback('Streaming could not start. Your recording is kept. Finish recording, then choose Transcribe recording.') }
+        } else callbacks.fallback('Streaming is unavailable. Your recording is kept. Finish recording, then choose Transcribe recording.')
       }
       current.timer = setTimeout(() => fail('Recording reached 2 minutes. Please record a shorter answer.'), 120_000)
       setStatus('recording')

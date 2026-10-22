@@ -78,6 +78,33 @@ def test_actual_transcript_masked_in_screen_and_interviewer_saved_once(monkeypat
     assert "measure the shorter wait" in models.prompts[-1][1]
 
 
+def test_saved_style_reaches_first_and_resumed_turn_without_stale_persona(monkeypatch):
+    from schemas.interview_setup import InterviewSetup
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    client, models = Client(), Models()
+    request = claim()
+    request.payload.setup = InterviewSetup(question_count=9, question_format="screening", difficulty="warm_up", interviewer="maya", focus_areas=["communication"])
+    run(client, models, request)
+    prompt = models.prompts[-1][1]
+    assert prompt.count("Maya — Friendly Coach") == 1
+    assert "foundational questions" in prompt
+    assert "Selected focus areas: communication" in prompt
+    assert "Selected question format: screening" in prompt
+    first = client.accepted[0]
+    resumed = claim(history=first["model_history"])
+    resumed.payload.setup = InterviewSetup(question_count=9, question_format="screening", difficulty="stretch", interviewer="priya", focus_areas=["leadership"])
+    resumed.payload.current_dialogue = [PublicMessage(kind="opening", content=resumed.payload.question),
+        PublicMessage(kind="answer", content=first["transcript"]), PublicMessage(kind="follow_up", content=first["reply"])]
+    run(client, models, resumed)
+    prompt = models.prompts[-1][1]
+    assert prompt.count("Priya — Tough Interviewer") == 1
+    assert "Maya — Friendly Coach" not in prompt
+    assert "Selected focus areas: leadership" in prompt
+    assert "Selected question format: screening" in prompt
+    assert "after submission only" in prompt
+
+
 def test_blocked_transcript_never_reaches_interviewer_or_acceptance(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
     client, models = Client(), Models(blocked=True)
@@ -85,6 +112,46 @@ def test_blocked_transcript_never_reaches_interviewer_or_acceptance(monkeypatch)
     assert not client.accepted
     assert client.failed == [("screening_blocked", False)]
     assert {name for name, _ in models.prompts} == {"jev-1.13.0"}
+
+
+@pytest.mark.parametrize("decision", ["advance", "continue"])
+def test_repaired_interviewer_output_is_accepted_and_history_can_be_restored(monkeypatch, decision):
+    from interviews.history import restore_history
+
+    class RepairingModels(Models):
+        def accounted(self, rails, request, stage, name):
+            if stage == "screening":
+                return super().accounted(rails, request, stage, name)
+            self.interviewer_requests = 0
+
+            async def respond(messages, info):
+                self.interviewer_requests += 1
+                if decision == "advance" and self.interviewer_requests == 2:
+                    part = ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-intent")
+                else:
+                    output = {"decision": decision,
+                              "acknowledgement": "You checked the shorter waiting time against the original schedule.",
+                              "reply": None if decision == "advance" or self.interviewer_requests == 1
+                              else "How did you check the change lasted?"}
+                    part = ToolCallPart(info.output_tools[0].name, output,
+                                        tool_call_id=f"result-{self.interviewer_requests}")
+                return ModelResponse(parts=[part], usage=RequestUsage(input_tokens=100, output_tokens=10))
+
+            return InterviewModel(FunctionModel(respond, model_name=name), rails, request, stage, "openai", name)
+
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    client, models = Client(), RepairingModels()
+    run(client, models)
+    assert not client.failed
+    assert len(client.accepted) == 1
+    assert client.accepted[0]["decision"] == decision
+    assert restore_history(1, client.accepted[0]["model_history"])
+    retries = [part for message in client.accepted[0]["model_history"] for part in message["parts"]
+               if part["part_kind"] == "retry-prompt"]
+    assert len(retries) == 1
+    assert retries[0]["tool_call_id"] == "result-1"
+    assert retries[0]["tool_name"] == "final_result"
+    assert models.interviewer_requests == (3 if decision == "advance" else 2)
 
 
 def test_missing_screen_credentials_fails_closed(monkeypatch):

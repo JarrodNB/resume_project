@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo/client/react'
 import SparkMD5 from 'spark-md5'
-import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
+import type { InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION } from './interviewOperations'
 import type { TranscriptionMode } from './transcriptionCapture'
@@ -22,9 +22,9 @@ function requirePayload<T extends { errors: string[] }>(payload: T | null | unde
 export function useStartInterview() {
   const [mutate, { loading }] = useMutation(START_INTERVIEW)
   const [error, setError] = useState<string | null>(null)
-  async function start(careerFocus = "") {
+  async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }) {
     setError(null)
-    try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null } })).data?.startInterviewDemo).interview?.id ?? null }
+    try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup } })).data?.startInterviewDemo).interview?.id ?? null }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
   }
   return { start, loading, error }

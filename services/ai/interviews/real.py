@@ -30,6 +30,7 @@ from interviews.executor import MAX_TRANSCRIPT_CHARACTERS, InterviewExecutor, Sc
 from interviews.history import serialize_history
 from interviews.media import download_audio
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
+from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
@@ -119,7 +120,8 @@ class RealInterviewExecutor(InterviewExecutor):
         }
 
     def _preparer(self, claim, guard, *, system_prompt=""):
-        return make_preparer(guard, system_prompt=system_prompt), {
+        return make_preparer(guard, system_prompt=system_prompt, question_count=claim.payload.setup.question_count,
+            question_format=claim.payload.setup.question_format), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
             "model_settings": {"thinking": "low", "max_tokens": 4096},
         }
@@ -149,11 +151,11 @@ class RealInterviewExecutor(InterviewExecutor):
     async def _preparation(self, claim):
         context = claim.payload.frozen_context
         with screening_session(120):
-            formatted = system_context(context)
+            formatted = system_context(context) + "\n\n" + interview_style(claim.payload.setup)
             if len(formatted) > MAX_PROMPT_TEXT:
                 raise ScreeningRejected("context_limit")
             await self._approve_library(claim, context, include_focus=True)
-            prompt = "Prepare the fictional role and nine questions from the career evidence in the system context."
+            prompt = f"Prepare the fictional role and exactly {claim.payload.setup.question_count} main questions from the career evidence in the system context."
             async def guard(ctx, final_prompt):
                 if final_prompt != prompt:
                     raise ValueError("Preparation input changed")
@@ -168,7 +170,7 @@ class RealInterviewExecutor(InterviewExecutor):
         context = payload.personal_evidence()
         role = payload.interview_context.fictional_role if payload.interview_context else None
         with screening_session(120):
-            formatted = system_context(context, role)
+            formatted = system_context(context, role) + "\n\n" + interview_style(payload.setup)
             previous = earlier_context(payload)
             if previous:
                 formatted += "\n\n" + previous

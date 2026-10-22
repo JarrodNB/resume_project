@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_22_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -70,7 +70,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -345,7 +345,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
     t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3 AND history_version > 0", name: "interview_session_question_counters"
     t.check_constraint "jsonb_typeof(model_history) = 'array'::text", name: "interview_session_question_history_array"
-    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_type"
+    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying, 'technical'::character varying, 'knowledge'::character varying, 'screening'::character varying]::text[])", name: "interview_question_type"
   end
 
   create_table "interview_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -365,6 +365,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_22_070000) do
     t.jsonb "execution_config", default: {"voice" => "espeak", "speech_model" => "fake-speech-v1", "interviewer_model" => "fake-interviewer-v1", "transcription_model" => "fake-transcription-v1"}, null: false
     t.jsonb "frozen_context", default: {}, null: false
     t.jsonb "prepared_role", default: {}, null: false
+    t.jsonb "setup_config", default: {}, null: false
     t.index ["user_id"], name: "index_interview_sessions_on_user_id"
     t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
     t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"

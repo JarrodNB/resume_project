@@ -1,4 +1,4 @@
-"""Bound the complete fictional role and nine-question plan before Rails accepts it."""
+"""Bound complete role/question output; the agent checks the saved count and format."""
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -27,20 +27,21 @@ class FictionalInterviewRole(BaseModel):
 
 class PreparedInterviewQuestion(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    question_type: Literal["behavioral", "technical", "knowledge"]
+    question_type: Literal["behavioral", "technical", "knowledge", "screening"]
     content: str = Field(min_length=1, max_length=400)
 
 
 class InterviewPreparation(BaseModel):
     model_config = ConfigDict(extra="forbid")
     role: FictionalInterviewRole
-    questions: list[PreparedInterviewQuestion] = Field(min_length=9, max_length=9)
+    questions: list[PreparedInterviewQuestion] = Field(min_length=5, max_length=12)
 
     @model_validator(mode="after")
-    def distinct_interleaved_questions(self):
-        if [question.question_type for question in self.questions] != ["behavioral", "technical", "knowledge"] * 3:
-            raise ValueError("Interleave behavioral, technical and knowledge three times")
+    def distinct_questions(self):
+        count = len(self.questions)
+        if count not in (5, 8, 9, 12):
+            raise ValueError("Unsupported question count")
         text = [" ".join(question.content.casefold().split()) for question in self.questions]
-        if any(not value for value in text) or len(set(text)) != 9:
-            raise ValueError("Provide nine distinct nonblank questions")
+        if any(not value for value in text) or len(set(text)) != count:
+            raise ValueError("Provide distinct nonblank questions")
         return self

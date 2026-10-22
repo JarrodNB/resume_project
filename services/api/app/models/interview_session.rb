@@ -5,7 +5,7 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
-  attr_readonly :execution_mode, :execution_config
+  attr_readonly :execution_mode, :execution_config, :setup_config
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
   validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }
   belongs_to :user

@@ -80,6 +80,14 @@ adding new spending gates. Historical audio-turn API callers remain compatible.
 
 ## Human device checks
 
+Settings explains each mode and suggests streaming or recorded transcription when browser
+recognition is unreliable. The answer box fills while live words arrive. Before any words
+arrive, a Listening for words status explains how to recover; silence alone is not treated
+as a failure. Known recognition/connection errors show Live transcription stopped and keep
+the complete recording. Finish recording, then explicitly choose Transcribe recording to
+fill the answer for review. Nothing is automatically submitted. Submit or discard the
+current recording before changing modes, or type/correct the answer instead.
+
 Use the retained local QA stack at `http://127.0.0.2:15176/interviews/demo`. On each mode,
 record, stop, edit the recognized words, submit, and reload after acceptance. Verify the preference survives
 reload and accepted dialogue advances once. Disconnect the streaming network or deny

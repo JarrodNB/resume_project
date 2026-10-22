@@ -1,12 +1,14 @@
-/** Keep the current interview turn in focus, with earlier dialogue and details nearby.
+/** Keep the current interview turn in focus, with the complete saved dialogue nearby.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useParams } from 'react-router'
+import { InterviewSetup } from './InterviewSetup'
+import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
+import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
@@ -29,7 +31,13 @@ import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
 import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewStreaming } from './useInterviewStreaming'
-import { useInterviewSession, useStartInterview } from './useInterviewSession'
+import { useInterviewSession } from './useInterviewSession'
+
+const TRANSCRIPTION_HELP = {
+  browser: 'Browser recognition fills your answer while you speak using your browser’s speech service.',
+  streaming: 'Streaming transcription fills your answer while you speak using OpenAI. Try it if browser recognition is unreliable.',
+  recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
+}
 
 export function InterviewDemoPage() {
   const { id } = useParams()
@@ -39,7 +47,7 @@ export function InterviewDemoPage() {
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     {!interviewDemoEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
-      <StartDemo /><RecentInterviews /><InterviewPrivacy />
+      <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
   </div>
 }
@@ -51,21 +59,6 @@ function InterviewPrivacy() {
         <ProviderNotice />
       </div>
     </details>
-}
-function StartDemo() {
-  const { start, loading, error } = useStartInterview()
-  const navigate = useNavigate()
-  const [careerFocus, setCareerFocus] = useState('')
-  async function begin() { const id = await start(careerFocus); if (id) void navigate(`/interviews/${id}`) }
-  return <div className="grid gap-3">
-    <p className="max-w-prose text-sm">Prepare nine questions: three behavioral, three technical and three knowledge questions. Review the fictional role before starting.</p>
-    <label className="grid max-w-lg gap-2 text-sm" htmlFor="interview-career-focus">Career focus (optional)<Input id="interview-career-focus" maxLength={200} value={careerFocus} onChange={(event) => setCareerFocus(event.target.value)} aria-describedby="interview-focus-help" /></label>
-    <p id="interview-focus-help" className="max-w-prose text-sm text-muted-foreground">If your library covers several careers, name the work you want to practise. Otherwise, we will choose a coherent role from the available details.</p>
-    <Link className="justify-self-start text-sm underline underline-offset-4" to="/library">Review your career library</Link>
-    <ProviderNotice />
-    <Button className="justify-self-start" disabled={loading} onClick={() => void begin()}>{loading ? 'Preparing…' : 'Prepare interview'}</Button>
-    {error && <p role="alert" className="text-destructive">{error}</p>}
-  </div>
 }
 function OwnedInterview({ id }: { id: string }) {
   const { user } = useAuth()
@@ -175,11 +168,11 @@ function OwnedInterview({ id }: { id: string }) {
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Start a new interview</Link>
   </div>
-  const abandonControl = <AbandonInterviewButton busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => setAbandoned(true)} />
+  const abandonControl = <AbandonInterviewButton beforeStart={interview.status === 'preparing' || interview.status === 'ready'} busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => setAbandoned(true)} />
   const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Recent interviews</Link>
   if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to="/interviews" replace state={{ interviewEnded: 'abandoned' }} /></>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
-  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}{recentLink}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
+  if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
   const browserSpeech = interview.speechPlaybackMode === 'browser'
   const operations = interview.operations
   const currentTurn = operations.filter((operation) => operation.kind === 'turn').at(-1)
@@ -187,7 +180,7 @@ function OwnedInterview({ id }: { id: string }) {
   const speech = reply && operations.find((operation) => operation.messageId === reply.id && operation.kind === 'speech')
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const hasQuestionText = Boolean(question && reply?.content.trim())
-  const earlierMessages = interview.messages.filter((message) => message.id !== reply?.id)
+  const historyMessages = interview.messages
   const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying
   async function transcribe() {
     if (!recorder.recording || submitting.current || !canRecord) return
@@ -222,25 +215,19 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="flex justify-end">
       {interview.status === 'active' && <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogTrigger asChild><Button variant="ghost" size="icon" className="size-11" aria-label="Interview settings" title="Interview settings"><Settings aria-hidden="true" /></Button></DialogTrigger>
-        <DialogContent>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Interview settings</DialogTitle>
             <DialogDescription>Choose when the microphone opens and how your answers are transcribed. These settings are remembered for future interviews.</DialogDescription>
           </DialogHeader>
-          <label className="flex items-center justify-between gap-4 text-sm" htmlFor="interview-auto-mic">
-            Turn the microphone on automatically
-            <input id="interview-auto-mic" type="checkbox" role="switch" className="size-5 accent-primary" checked={microphone.automatic} onChange={(event) => microphone.update({ automatic: event.target.checked })} />
-          </label>
-          <label className="grid gap-2 text-sm" htmlFor="interview-thinking-time">Thinking time before the mic opens
-            <select id="interview-thinking-time" className="min-h-11 rounded-md border bg-background px-3 py-2" value={microphone.seconds} disabled={!microphone.automatic} onChange={(event) => microphone.update({ seconds: Number(event.target.value) })}>
-              <option value={0}>Off</option><option value={3}>3 seconds</option><option value={5}>5 seconds</option><option value={10}>10 seconds</option>
-            </select>
-          </label>
+          <InterviewMicrophoneSettings microphone={microphone} />
           <label className="grid max-w-md gap-2 text-sm" htmlFor="interview-transcription-mode">Answer transcription
-            <select id="interview-transcription-mode" className="rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
+            <select id="interview-transcription-mode" aria-describedby="interview-transcription-help interview-transcription-recovery" className="min-h-11 rounded-md border bg-background px-3 py-2" value={transcriptionMode} disabled={recorder.status !== 'idle' || recordingLocked || turnActive} onChange={(event) => setTranscriptionMode(event.target.value as typeof transcriptionMode)}>
               <option value="browser">Browser recognition</option><option value="streaming">Streaming transcription</option><option value="recorded">Recorded audio transcription</option>
             </select>
           </label>
+          <p id="interview-transcription-help" className="text-sm leading-relaxed text-muted-foreground">{TRANSCRIPTION_HELP[transcriptionMode]}</p>
+          <p id="interview-transcription-recovery" className="text-sm leading-relaxed text-muted-foreground">If browser recognition gives missing or inaccurate words, try Streaming transcription or Recorded audio transcription. Submit or discard your current recording before switching modes. You can always type or correct your answer.</p>
           {(recorder.status !== 'idle' || recordingLocked || turnActive) && <p className="text-sm text-muted-foreground">You can change this setting after your current answer is submitted or discarded and processing finishes.</p>}
         </DialogContent>
       </Dialog>}
@@ -249,7 +236,7 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="interview-room">
     <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
-      <p className="interview-identity">Your interviewer</p>
+      <p className="interview-identity">{interviewerOptions.find((option) => option.value === interview.setup?.interviewer)?.label ?? 'Your interviewer'}</p>
       <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
         <h2 className="interview-status">{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>
         {interview.status === 'completed' && <p className="text-sm text-muted-foreground">Your conversation is saved.</p>}
@@ -269,7 +256,7 @@ function OwnedInterview({ id }: { id: string }) {
       {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
-    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}. This did not use a response slot.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
+    {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
       <AnswerEditor text={draftText} onTextChange={(text) => {
         if (recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing') draft.editCapture(text)
@@ -283,7 +270,6 @@ function OwnedInterview({ id }: { id: string }) {
           if (saved) { draft.setText(''); recorder.reset() }
           return saved
         }} />
-      {recorder.fallbackReason && <p role="status" className="text-sm">{recorder.fallbackReason}</p>}
       {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
       {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={cancelReview}>Cancel transcription</Button></div>}
       {!recordedReview && reviewOperation?.status === 'accepted' && reviewOperation.reviewTranscript && <Button variant="outline" onClick={() => {
@@ -302,6 +288,9 @@ function OwnedInterview({ id }: { id: string }) {
         </>}
       </div>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
+      {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
+      {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>You can review the recording’s transcript before submitting, or type your answer. For another live mode, submit or discard this recording, then open Interview settings.</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}
@@ -310,13 +299,13 @@ function OwnedInterview({ id }: { id: string }) {
     <aside className="interview-transcript" aria-label="History">
       <h2 className="mb-4 text-lg font-semibold">History</h2>
       <ol className="interview-exchanges">
-        {earlierMessages.map((message) => <li key={message.id} className="interview-exchange" data-speaker={message.kind === 'answer' ? 'you' : 'interviewer'}>
+        {historyMessages.map((message) => <li key={message.id} className="interview-exchange" data-speaker={message.kind === 'answer' ? 'you' : 'interviewer'}>
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           {message.acknowledgement && <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.acknowledgement}</p>}
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
         </li>)}
       </ol>
-      {!earlierMessages.length && <p className="text-sm text-muted-foreground">Your earlier exchanges will appear here. Focus on the current question when you’re ready.</p>}
+      {!historyMessages.length && <p className="text-sm text-muted-foreground">Your conversation will appear here as the interview progresses.</p>}
     </aside>
     </div>
     {interview.status === 'active' && <div className="border-t pt-4">{abandonControl}</div>}

@@ -45,7 +45,8 @@ it('offers manual Play after blocked autoplay and reuses the grant for replay', 
   expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
   await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
   await screen.findByRole('button', { name: 'Pause interviewer audio' })
-  await userEvent.click(screen.getByRole('button', { name: 'Replay question' }))
+  fireEvent.ended(screen.getByLabelText('Saved interviewer speech'))
+  await userEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
   expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(3)
   expect(result).toHaveBeenCalledOnce()
 })
@@ -107,15 +108,47 @@ it('autoplays once under StrictMode without losing or duplicating the grant', as
   expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce()
 })
 
-it('does not let a stale play promise pause a newer replay', async () => {
+it('does not let a stale play promise pause a newer resumed play', async () => {
   mount([mock()], { automatic: true })
-  await screen.findByRole('button', { name: 'Replay question' })
+  await screen.findByRole('button', { name: 'Pause interviewer audio' })
+  await userEvent.click(screen.getByRole('button', { name: 'Pause interviewer audio' }))
   let resolve!: () => void
   vi.mocked(HTMLMediaElement.prototype.play).mockImplementationOnce(() => new Promise<void>((done) => { resolve = done }))
-  await userEvent.click(screen.getByRole('button', { name: 'Replay question' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Replay question' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
   const pauses = vi.mocked(HTMLMediaElement.prototype.pause).mock.calls.length
   await act(async () => resolve())
   expect(HTMLMediaElement.prototype.pause).toHaveBeenCalledTimes(pauses)
   expect(screen.getByRole('button', { name: 'Pause interviewer audio' })).toBeEnabled()
+})
+
+it('uses one playback control to pause, resume and replay a finished saved turn', async () => {
+  const result = vi.fn(() => grant('https://storage.test/first'))
+  mount([mock(undefined, { result })], { automatic: true })
+  await screen.findByRole('button', { name: 'Pause interviewer audio' })
+  expect(screen.getAllByRole('button')).toHaveLength(1)
+  const element = screen.getByLabelText('Saved interviewer speech') as HTMLAudioElement
+  element.currentTime = 8
+  await userEvent.click(screen.getByRole('button', { name: 'Pause interviewer audio' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
+  await screen.findByRole('button', { name: 'Pause interviewer audio' })
+  expect(element.currentTime).toBe(8)
+  fireEvent.ended(element)
+  await userEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
+  await screen.findByRole('button', { name: 'Pause interviewer audio' })
+  expect(element.currentTime).toBe(0)
+  expect(screen.getAllByRole('button')).toHaveLength(1)
+  expect(result).toHaveBeenCalledOnce()
+})
+
+it('keeps a deliberate pause when an earlier play promise finishes later', async () => {
+  let finish!: () => void
+  vi.mocked(HTMLMediaElement.prototype.play).mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve }))
+  mount([mock()], { automatic: true })
+  await waitFor(() => expect(HTMLMediaElement.prototype.play).toHaveBeenCalledOnce())
+  fireEvent.play(screen.getByLabelText('Saved interviewer speech'))
+  await userEvent.click(screen.getByRole('button', { name: 'Pause interviewer audio' }))
+  await act(async () => finish())
+  expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: 'Pause interviewer audio' })).not.toBeInTheDocument()
 })

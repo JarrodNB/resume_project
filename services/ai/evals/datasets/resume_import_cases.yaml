@@ -70,6 +70,32 @@ cases:
         - company: Acme
           title: Engineer
           highlights: [Built maps.]
+  - name: structural_sections_with_page_link
+    inputs: |
+      EXPERIENCE
+      Acme | Engineer
+      • Built tools.
+
+      EDUCATION
+      Example University
+
+      SKILLS
+      Python
+
+      PROJECTS
+      Atlas
+      Unknown portfolio heading
+      [PDF hyperlink url="https://example.test/atlas"]
+    expected_output:
+      experiences:
+        - company: Acme
+          title: Engineer
+          highlights: [Built tools.]
+      educations: [{institution: Example University}]
+      skills: [{name: Python}]
+      projects: [{name: Atlas, url: "https://example.test/atlas"}]
+
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

@@ -144,4 +144,4 @@ skip it. Export indexes are not required.
 - `Dockerfile.dev` — local dev image (virtualenv at `/opt/venv`)
 - `.env.example` — secrets template
 
-- `resume_import/` — isolated masked-document import: neutral global source references, one complete screened extraction, exact bullet/placement reconstruction; retained parser remains the active route until rollout.
+- `resume_import/` — isolated masked-document import: neutral global source references, conservative whole-section chunks, bounded parallel screening/extraction, shared limits, exact bullet/placement reconstruction; retained parser remains the active route until rollout.

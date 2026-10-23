@@ -275,7 +275,7 @@ def test_synthetic_evaluation_dataset_and_expected_labels():
     from evals.run_resume_import_evals import load_resume_import_dataset
 
     dataset = load_resume_import_dataset()
-    assert len(dataset.cases) == 3
+    assert len(dataset.cases) == 4
     for case in dataset.cases:
         context = SimpleNamespace(expected_output=case.expected_output, output=case.expected_output)
         assert set(UnassignedPlacement().evaluate(context).values()) == {1.0}
@@ -454,3 +454,392 @@ def test_output_token_cap_preserves_concrete_failed_usage(monkeypatch, offline_m
     with collect_task_usage() as usage, pytest.raises(UsageLimitExceeded):
         run_import()
     assert sum(entry.output_tokens for entry in usage.entries) == 20
+
+
+def test_structural_sections_extract_concurrently_with_global_ids(offline_model_resolution):
+    import asyncio
+    import re
+
+    from resume_import import import_resume_text
+
+    active = 0
+    peak = 0
+    inputs = []
+
+    async def answer(messages, info):
+        nonlocal active, peak
+        prompt = messages[-1].parts[-1].content
+        inputs.append(prompt)
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.02)
+        active -= 1
+        ids = re.findall(r"\[(S\d+)\]", prompt)
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {"type": "skill", "source_id": ids[-1], "fields": {"name": ids[-1]}}
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = import_resume_text(
+        "Experience\nAcme | Engineer\n• Built tools\n\nEducation\nExample University\n\nSkills\nPython\n\nProjects\nAtlas",
+        "openai:gpt-5-mini",
+        "low",
+        5,
+        "openai:gpt-5-nano",
+    )
+    assert 1 < peak <= 3
+    assert len(inputs) <= 6
+    names = [item.name for item in result.parsed_resume.skills]
+    assert len(names) == len(set(names))
+    assert names == sorted(names, key=lambda value: int(value[1:]))
+
+
+MULTI_SECTION = "\nExperience\nAcme\nEngineer, 2020 - 2022\nSenior Engineer, 2022 - Present\n• Shared platform\n  with careful tests.\n\nEducation\nExample University\n\nSkills\nPython\n\nProjects\nAtlas\nUnknown heading\n[Link: Portfolio] https://example.test"
+
+
+def test_chunks_cover_source_once_and_screen_exact_complete_inputs(
+    monkeypatch, offline_model_resolution
+):
+    import re
+
+    from pydantic_ai.usage import RunUsage
+
+    from agents.user_text_screen_agent import UserTextScreenRun
+    from resume_import import import_resume_text
+    from schemas.user_text_screen import UserTextScreen
+
+    screened = []
+    prompts = []
+
+    async def screen(text, *args):
+        screened.append(text)
+        return UserTextScreenRun(
+            UserTextScreen(prompt_injection=False, harmful_request=False),
+            "jev-1.13.0",
+            {"prompt_injection": 1.0, "harmful_request": 1.0},
+            RunUsage(),
+        )
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+        prompts.append(prompt)
+        refs = [{"source_id": "S5", "reason": "ambiguous_role"}] if "[S5]" in prompt else []
+        records = (
+            [
+                {
+                    "type": "experience",
+                    "source_id": source_id,
+                    "fields": {"company": "Acme", "title": title},
+                }
+                for source_id, title in [("S3", "Engineer"), ("S4", "Senior Engineer")]
+            ]
+            if refs
+            else []
+        )
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name, {"records": records, "unassigned_highlights": refs}
+                )
+            ]
+        )
+
+    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", screen)
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+    assert "\n".join(screened) == MULTI_SECTION
+    assert len(screened) == len(prompts) == 2
+    for raw, prompt in zip(screened, prompts):
+        assert (
+            re.sub(r"\[S\d+\] ", "", prompt.removeprefix("<resume>\n").removesuffix("\n</resume>"))
+            == raw
+        )
+    assert (
+        result.parsed_resume.unassigned_highlights[0].text == "Shared platform\nwith careful tests."
+    )
+    assert result.parsed_resume.unassigned_highlights[0].source_id == "S5"
+    assert [item.title for item in result.parsed_resume.experiences] == [
+        "Engineer",
+        "Senior Engineer",
+    ]
+    assert all(
+        item.company == "Acme" and not item.highlights for item in result.parsed_resume.experiences
+    )
+
+
+def test_chunk_cannot_claim_sibling_source_even_when_globally_valid(offline_model_resolution):
+    import pytest
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    from resume_import import import_resume_text
+
+    async def answer(messages, info):
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {"unassigned_highlights": [{"source_id": "S5", "reason": "ambiguous_role"}]},
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(UnexpectedModelBehavior):
+        import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+
+
+def test_parallel_required_failure_cancels_and_awaits_siblings(offline_model_resolution):
+    import asyncio
+
+    import pytest
+
+    from resume_import import import_resume_text
+
+    started = asyncio.Event()
+    cancelled = []
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+        if "Shared platform" in prompt:
+            await started.wait()
+            raise RuntimeError("required chunk failed")
+        started.set()
+        try:
+            await asyncio.sleep(10)
+        finally:
+            cancelled.append(True)
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(RuntimeError, match="required chunk failed"):
+        import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+    assert cancelled == [True]
+
+
+def test_shared_request_cap_reserves_before_concurrent_requests(
+    monkeypatch, offline_model_resolution
+):
+    import asyncio
+
+    import pytest
+    from pydantic_ai.exceptions import UsageLimitExceeded
+    from pydantic_ai.usage import UsageLimits
+
+    from resume_import import import_resume_text
+
+    calls = []
+
+    async def answer(messages, info):
+        calls.append(True)
+        await asyncio.sleep(0.02)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {})])
+
+    monkeypatch.setattr(
+        "resume_import.agent_usage_limits", lambda settings: UsageLimits(request_limit=1)
+    )
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(UsageLimitExceeded):
+        import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+    assert len(calls) == 1
+
+
+def test_shared_token_cap_includes_all_completed_chunks(monkeypatch, offline_model_resolution):
+    import pytest
+    from pydantic_ai.exceptions import UsageLimitExceeded
+    from pydantic_ai.usage import RequestUsage, UsageLimits
+
+    from resume_import import import_resume_text
+
+    async def answer(messages, info):
+        return ModelResponse(
+            parts=[ToolCallPart(info.output_tools[0].name, {})], usage=RequestUsage(output_tokens=6)
+        )
+
+    monkeypatch.setattr(
+        "resume_import.agent_usage_limits", lambda settings: UsageLimits(output_tokens_limit=10)
+    )
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(UsageLimitExceeded):
+        import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+
+
+def test_uncertain_layout_stays_one_chunk(offline_model_resolution):
+    from resume_import import import_resume_text
+
+    calls = []
+
+    async def answer(messages, info):
+        calls.append(messages[-1].parts[-1].content)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {})])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    import_resume_text(
+        "Acme\nEngineer\n\n• Built systems\nUnknown heading\n• Python",
+        "openai:gpt-5-mini",
+        "low",
+        5,
+        "openai:gpt-5-nano",
+    )
+    assert len(calls) == 1
+
+
+def test_cross_chunk_singletons_fail_instead_of_overwriting(offline_model_resolution):
+    import re
+
+    import pytest
+
+    from resume_import import import_resume_text
+
+    async def answer(messages, info):
+        source_id = re.search(r"\[(S\d+)\]", messages[-1].parts[-1].content)[1]
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "summary",
+                                "source_id": source_id,
+                                "fields": {"text": "Conflicting summary"},
+                            }
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    with pytest.raises(ValueError, match="only one contact and one summary"):
+        import_resume_text(MULTI_SECTION, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+
+
+def test_pdf_and_docx_real_extraction_reach_chunked_import(offline_model_resolution):
+    import re
+    from io import BytesIO
+
+    from docx import Document
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    from documents.extract_document_text import (
+        DOCX_CONTENT_TYPE,
+        PDF_CONTENT_TYPE,
+        extract_document_text,
+    )
+    from resume_import import import_resume_text
+
+    lines = [
+        "Experience",
+        "Acme | Engineer",
+        "- Built tools",
+        "Education",
+        "Example University",
+        "Skills",
+        "Python",
+        "Projects",
+        "Atlas",
+    ]
+    doc = Document()
+    for line in lines:
+        doc.add_paragraph(line)
+    doc_buffer = BytesIO()
+    doc.save(doc_buffer)
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=600, height=800)
+    font = DictionaryObject(
+        {
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        }
+    )
+    page[NameObject("/Resources")] = DictionaryObject(
+        {NameObject("/Font"): DictionaryObject({NameObject("/F1"): writer._add_object(font)})}
+    )
+    stream = DecodedStreamObject()
+    commands = (
+        "BT /F1 12 Tf 40 750 Td " + " ".join(f"({line}) Tj 0 -20 Td" for line in lines) + " ET"
+    )
+    stream.set_data(commands.encode())
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    writer.add_annotation(0, Link(rect=(40, 550, 200, 570), url="https://example.test/portfolio"))
+    pdf_buffer = BytesIO()
+    writer.write(pdf_buffer)
+
+    prompts = []
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+        prompts.append(prompt)
+        refs = []
+        for source_id, line in re.findall(r"\[(S\d+)\] ([^\n]+)", prompt):
+            if "Built tools" in line:
+                refs.append({"source_id": source_id, "reason": "missing_role"})
+        return ModelResponse(
+            parts=[ToolCallPart(info.output_tools[0].name, {"unassigned_highlights": refs})]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    for data, content_type in [
+        (doc_buffer.getvalue(), DOCX_CONTENT_TYPE),
+        (pdf_buffer.getvalue(), PDF_CONTENT_TYPE),
+    ]:
+        text = extract_document_text(data, content_type)
+        result = import_resume_text(text, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-nano")
+        assert result.parsed_resume.unassigned_highlights[0].text == "Built tools"
+    assert any("https://example.test/portfolio" in prompt for prompt in prompts)
+
+
+def test_three_pipelines_share_one_deadline_including_screening(
+    monkeypatch, offline_model_resolution
+):
+    import asyncio
+
+    import pytest
+    from pydantic_ai.usage import RunUsage
+
+    from agents.user_text_screen_agent import UserTextScreenRun
+    from resume_import import import_resume_text
+    from schemas.user_text_screen import UserTextScreen
+
+    active = 0
+    peak = 0
+    closed = []
+
+    async def screen(text, *args):
+        await asyncio.sleep(0.02)
+        return UserTextScreenRun(
+            UserTextScreen(prompt_injection=False, harmful_request=False),
+            "jev-1.13.0",
+            {"prompt_injection": 1.0, "harmful_request": 1.0},
+            RunUsage(),
+        )
+
+    async def answer(messages, info):
+        nonlocal active, peak
+        active += 1
+        peak = max(active, peak)
+        try:
+            await asyncio.sleep(10)
+        finally:
+            active -= 1
+            closed.append(True)
+
+    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", screen)
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    text = MULTI_SECTION + "\nCertifications\nCertified\nLanguages\nEnglish"
+    with pytest.raises(TimeoutError):
+        import_resume_text(text, "openai:gpt-5-mini", "low", 0.25, "openai:gpt-5-nano")
+    assert peak == 3
+    assert active == 0
+    assert closed == [True] * 3

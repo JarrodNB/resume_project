@@ -83,6 +83,16 @@ class ResumeSource:
                 context.append(line.strip())
         self.annotated_text = "\n".join(annotated)
 
+        self._configure_output()
+
+    def subset(self, owned: set[str]) -> "ResumeSource":
+        """Use the original registry for one chunk without reassigning source IDs."""
+        subset = object.__new__(ResumeSource)
+        subset.passages = {key: passage for key, passage in self.passages.items() if key in owned}
+        subset._configure_output()
+        return subset
+
+    def _configure_output(self):
         def validate_references(output):
             self.validate(output)
             return output

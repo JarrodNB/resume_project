@@ -249,3 +249,52 @@ cases:
       - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
+
+  - name: grouped_roles_keep_shared_evidence
+    inputs:
+      section_type: experience
+      context:
+        job:
+          id: grouped-job
+          title: Backend Engineer
+          company: Northwind
+          requirements: [Python APIs]
+        career_library:
+          experiences:
+            - id: grouped-employment
+              company: Ledgerly
+              roles:
+                - id: senior-role
+                  title: Senior Engineer
+                  start_date: 2025-01-01
+                - id: earlier-role
+                  title: Engineer
+                  start_date: 2020-01-01
+                  end_date: 2024-12-01
+              highlights:
+                - id: shared-achievement
+                  content: Built Python APIs for card payouts
+                - id: scoped-achievement
+                  experience_role_id: senior-role
+                  content: Led Python API migrations
+            - id: separate-employment
+              company: Ledgerly
+              roles:
+                - id: separate-role
+                  title: Support Engineer
+                  start_date: 2018-01-01
+                  end_date: 2019-12-01
+              highlights:
+                - id: separate-achievement
+                  content: Resolved customer support requests
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: Built Python APIs for card payouts.
+      source_labels: [H1]
+      job_terms: [Python]
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+      - ExperienceGrouping

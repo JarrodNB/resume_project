@@ -39,12 +39,20 @@ def find_section_problems(
     prefix = ENTRY_PREFIX[section_type]
     if not draft.entries:
         problems.append("Include at least one entry, or set nothing_fits to true.")
+    labels = [entry.label for entry in draft.entries]
+    if len(set(labels)) != len(labels):
+        problems.append("Select each library entry only once.")
     for entry in draft.entries:
         if not entry.label.startswith(prefix) or entry.label not in sources.records:
             problems.append(f"Unknown {section_type} label: {entry.label}.")
             continue
         haystack = sources.text_for([entry.label])
         for prose in entry.prose:
+            if section_type == "experience":
+                owner = sources.records[entry.label].experience_id
+                if any(source.experience_id is not None and source.experience_id != owner
+                       for label in prose.source_labels if (source := sources.records.get(label))):
+                    problems.append("Do not cite evidence from another experience under this entry.")
             problems += _claim_problems(prose, sources, extra_haystack=haystack)
     return problems
 

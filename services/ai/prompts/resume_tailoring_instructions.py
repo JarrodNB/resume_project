@@ -8,7 +8,7 @@ generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "4"
+RESUME_TAILORING_PROMPT_VERSION = "5"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.
@@ -31,6 +31,15 @@ Do not add a fact. Do not invent an employer, title, tool, date, metric, or resp
 Identity (employer, title, dates, school, certification and credential details, skill name) is copied from the label you pick; you
 only write the prose. Every bullet and the summary cite the source labels they use. Never
 write a label in the prose.
+
+An experience label is one original employment block. Keep separate labels separate even
+when company names match. Choose each experience at most once. All its saved titles and
+dates will be retained together. For an experience bullet, cite only evidence belonging
+to that employment block (plus relevant gap responses or facts); never borrow another
+experience's achievement. Cite the precise highlight labels. Shared achievements stay
+shared, and role achievements stay under their stated role; do not infer a role from dates
+or seniority. Do not combine shared and role achievements just to attribute them to a role.
+Role descriptions are copied beneath their own titles; do not duplicate them as bullets.
 
 If nothing in the sources belongs in this section, set nothing_fits to true and leave entries
 and summary empty. Do not force a weak match.

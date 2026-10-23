@@ -9,7 +9,8 @@ import type { Dispatch, SetStateAction } from 'react'
 import { CertificationFields } from '@/features/resume-import/review/CertificationFields'
 import { ContactFields } from '@/features/resume-import/review/ContactFields'
 import { EducationFields } from '@/features/resume-import/review/EducationFields'
-import { ExperienceFields } from '@/features/resume-import/review/ExperienceFields'
+import { TailoredExperienceFields } from './TailoredExperienceFields'
+import type { TailoredExperience } from './tailoredExperience'
 import { ProjectFields } from '@/features/resume-import/review/ProjectFields'
 import { SkillsField } from '@/features/resume-import/review/SkillsField'
 import { TextField } from '@/features/resume-import/review/TextField'
@@ -95,7 +96,7 @@ function DraggableSection({ draft, onChange }: SectionFieldsProps) {
       {draft.kind === 'experience' ? (
         <div className="grid gap-6">
           {draft.items.map((experience) => (
-            <ExperienceFields
+            <TailoredExperienceFields
               key={experience.key}
               experience={experience}
               onChange={(next) => onChange({ kind: 'experience', items: replace(draft.items, experience.key, next) })}
@@ -125,7 +126,7 @@ function reviewDraftFrom(draft: SectionDraft): ReviewDraft {
 
 /** Copies the dragged list back onto the section draft. */
 function draftFromReview(kind: SectionDraft['kind'], review: ReviewDraft): SectionDraft {
-  if (kind === 'experience') return { kind, items: review.experiences }
+  if (kind === 'experience') return { kind, items: review.experiences as TailoredExperience[] }
   if (kind === 'skills') return { kind, items: review.skills }
   return { kind: 'summary', text: '' }
 }

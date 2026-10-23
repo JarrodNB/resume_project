@@ -18,6 +18,7 @@ from schemas.gap_analysis_context import GapAnalysisContext
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
 from tailoring.check_section_faithfulness import find_section_problems
+from tailoring.materialize_section import materialize_section
 from tailoring.section_catalog import WRITTEN_SECTIONS
 
 
@@ -132,3 +133,40 @@ def _relevance_text(ctx: TailorContext) -> str:
 
 
 TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked)
+
+
+@dataclass
+class ExperienceGrouping(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """Selected grouped employment retains role identity and the scope of cited highlights."""
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        if ctx.inputs.section_type != "experience" or ctx.output.nothing_fits:
+            return 0.0
+        sources = _sources(ctx)
+        if find_section_problems("experience", ctx.output, sources):
+            return 0.0
+        labels = ctx.metadata
+        if labels and labels.entry_label not in {entry.label for entry in ctx.output.entries}:
+            return 0.0
+        content = materialize_section("experience", ctx.output, ctx.inputs.context.career_library, sources)
+        for item in content["items"]:
+            experience = next(row for row in ctx.inputs.context.career_library.experiences
+                              if row.id == item["source_experience_id"])
+            if [role["id"] for role in item["roles"]] != [role.id for role in experience.roles]:
+                return 0.0
+            for role_snapshot, role in zip(item["roles"], experience.roles, strict=True):
+                if (role_snapshot["title"] != role.title
+                        or role_snapshot["start_date"] != (role.start_date.strftime("%Y-%m") if role.start_date else None)
+                        or role_snapshot["end_date"] != (role.end_date.strftime("%Y-%m") if role.end_date else None)):
+                    return 0.0
+            shared_ids = {highlight.id for highlight in experience.highlights if highlight.experience_role_id is None}
+            for role in item["roles"]:
+                allowed = {highlight.id for highlight in experience.highlights
+                           if highlight.experience_role_id == role["id"]}
+                if any(shared_ids.intersection(ids) or not set(ids).issubset(allowed)
+                       for ids in role["highlight_source_ids"]):
+                    return 0.0
+        return 1.0
+
+
+TAILORING_EVALUATORS = (*TAILORING_EVALUATORS, ExperienceGrouping)

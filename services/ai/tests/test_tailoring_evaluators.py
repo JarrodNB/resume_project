@@ -60,3 +60,19 @@ def test_copied_sections_cannot_enter_paid_eval_inputs(section) -> None:
     context = load_tailoring_dataset().cases[0].inputs.context
     with pytest.raises(ValueError, match="generated section"):
         TailorEvalInput(section_type=section, context=context)
+
+
+@pytest.mark.parametrize("entries", [
+    [{"label": "E2", "prose": [{"text": "Built Python APIs", "source_labels": ["H1"]}]}],
+    [{"label": "E1"}, {"label": "E1"}],
+    [{"label": "E2"}],
+])
+def test_grouping_score_rejects_foreign_evidence_duplicate_entries_and_wrong_selection(entries):
+    from pydantic_evals import Dataset
+
+    from schemas.tailored_section import TailoredSectionDraft
+
+    case = next(case for case in load_tailoring_dataset().cases if case.name == "grouped_roles_keep_shared_evidence")
+    output = TailoredSectionDraft.model_validate({"nothing_fits": False, "entries": entries})
+    report = Dataset(name="grouping-regression", cases=[case]).evaluate_sync(lambda _: output, progress=False)
+    assert report.averages().scores["ExperienceGrouping"] == 0.0

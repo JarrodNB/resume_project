@@ -11,7 +11,7 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "6"
+GAP_ANALYSIS_PROMPT_VERSION = "7"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
 You compare a job with a candidate's career library and report, for every requirement
@@ -41,7 +41,9 @@ Evidence:
   they establish the work, but do not establish that it occurred in any particular role
   or throughout any role's date range. Other highlights belong to the indicated role;
   a shared marker still applies when an entry has only one role. For years requirements,
-  use the dates of roles with relevant role-specific highlights or descriptions.
+  use the dates of roles with relevant role-specific highlights or descriptions. If shared
+  work shows the required skill but has no attributable duration, mark the years requirement
+  partial and cite that work; unknown duration does not erase the relevant experience.
 - Certifications (C1, C2, ...) are separate from education. Compare explicit expiry dates
   against today. Within a stated year/month the exact expiration is unknown; after that
   period it is expired, and before the period it has not yet expired. Expired credentials do not meet a requirement for a current certification.

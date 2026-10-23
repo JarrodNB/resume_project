@@ -97,6 +97,8 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 ## Running Things
 
 - Everything runs in Docker. Do not assume Ruby, Node, or Python are installed on the host.
+- Exception: the opt-in `script/native.py` cloud workflow runs natively; see
+  `docs/native-development.md` for prerequisites, commands, and emulator limits.
 - The host is native Ubuntu with bash. The current checkout is at
   `/home/jarrod/Desktop/resume_project`. Use Linux commands and Docker Engine with the
   Docker Compose plugin; run commands from the checkout being changed.

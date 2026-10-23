@@ -856,3 +856,94 @@ def test_three_pipelines_share_one_deadline_including_screening(
     assert peak == 3
     assert active == 0
     assert closed == [True] * 3
+
+
+def test_uppercase_acronym_continuation_stays_in_verbatim_highlight(offline_model_resolution):
+    from resume_import import import_resume_text
+
+    async def answer(messages, info):
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "experience",
+                                "source_id": "S2",
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Engineer",
+                                    "highlight_ids": ["S3"],
+                                },
+                            }
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = import_resume_text(
+        "EXPERIENCE\nAcme | Engineer\n- Built reporting in\nSQL\n\nSKILLS\nPython",
+        "openai:gpt-5-mini",
+        "low",
+        5,
+        "openai:gpt-5-nano",
+    ).parsed_resume
+    assert parsed.experiences[0].highlights == ["Built reporting in\nSQL"]
+
+
+def test_wrapped_acronyms_preserve_following_sections_and_dated_role_boundaries(
+    offline_model_resolution,
+):
+    from resume_import import import_resume_text
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+        assert "[S4] SENIOR ENGINEER" in prompt
+        assert "[S7] SKILLS" in prompt
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "experience",
+                                "source_id": "S2",
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Engineer",
+                                    "highlight_ids": ["S3"],
+                                },
+                            },
+                            {
+                                "type": "experience",
+                                "source_id": "S4",
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Senior Engineer",
+                                    "highlight_ids": ["S6"],
+                                },
+                            },
+                            {"type": "skill", "source_id": "S8", "fields": {"name": "Python"}},
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = import_resume_text(
+        "EXPERIENCE\nAcme | Engineer\n- Built reporting in\nSQL\nSENIOR ENGINEER\n2022 - Present\n- Deployed to\nAWS\nSKILLS\nPython",
+        "openai:gpt-5-mini",
+        "low",
+        5,
+        "openai:gpt-5-nano",
+    ).parsed_resume
+    assert [entry.highlights for entry in parsed.experiences] == [
+        ["Built reporting in\nSQL"],
+        ["Deployed to\nAWS"],
+    ]
+    assert parsed.skills[0].name == "Python"

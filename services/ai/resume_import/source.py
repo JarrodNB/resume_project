@@ -21,7 +21,8 @@ _SECTION = re.compile(
 
 def _boundary(line: str, following: str) -> bool:
     text = line.strip()
-    if _SECTION.fullmatch(text) or (text.isupper() and len(text) <= 80):
+    # Capitalization alone is not structural evidence: SQL and AWS often wrap.
+    if _SECTION.fullmatch(text):
         return True
     if len(text) > 140 or text.endswith((".", "!", "?")):
         return False

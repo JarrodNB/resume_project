@@ -11,8 +11,9 @@ from documents.experience_source import ExperienceSource
 
 
 @pytest.mark.parametrize("company", ["Harbor Tools", "«pii:test:PERSON:1»"])
-def test_one_company_heading_cannot_be_split_into_separate_entries(company):
-    source = ExperienceSource(f"EXPERIENCE\n{company}\nLead Engineer\n2022 – Present\n• Led releases.\nEngineer\n2019 – 2022\n• Built APIs.")
+@pytest.mark.parametrize("location", ["", " | Remote"])
+def test_one_company_heading_cannot_be_split_into_separate_entries(company, location):
+    source = ExperienceSource(f"EXPERIENCE\n{company}{location}\nLead Engineer\n2022 – Present\n• Led releases.\nEngineer\n2019 – 2022\n• Built APIs.")
     with pytest.raises(ValidationError, match="single company heading"):
         source.output_type.model_validate({"experiences": [
             {"company": company, "roles": [{"title": "Lead Engineer", "highlight_ids": ["B1"]}]},
@@ -30,13 +31,15 @@ def test_repeated_title_company_headers_cannot_be_collapsed_into_one_entry():
 
 
 @pytest.mark.parametrize("selection", ["missing", "role"])
-def test_explicit_shared_list_must_be_selected_once_in_shared_scope(selection):
-    source = ExperienceSource("EXPERIENCE\nHarbor Tools\nLead Engineer\n2022 – Present\nEngineer\n2019 – 2022\nShared accomplishments across both roles\n• Built a common SDK.\nPROJECTS\n• Built a personal site.")
+@pytest.mark.parametrize("company", ["Harbor Tools", "«pii:test:PERSON:1»"])
+@pytest.mark.parametrize("location", ["", " | Remote"])
+def test_explicit_shared_list_must_be_selected_once_in_shared_scope(selection, company, location):
+    source = ExperienceSource(f"EXPERIENCE\n{company}{location}\nLead Engineer\n2022 – Present\nEngineer\n2019 – 2022\nShared accomplishments across both roles\n• Built a common SDK.\nPROJECTS\n• Built a personal site.")
     roles = [{"title": "Lead Engineer"}, {"title": "Engineer"}]
     if selection == "role":
         roles[1]["highlight_ids"] = ["B1"]
     with pytest.raises(ValidationError, match="explicitly shared source bullets"):
-        source.output_type.model_validate({"experiences": [{"company": "Harbor Tools", "roles": roles}]})
+        source.output_type.model_validate({"experiences": [{"company": company, "roles": roles}]})
 
 
 @pytest.mark.parametrize("grouped", [True, False])

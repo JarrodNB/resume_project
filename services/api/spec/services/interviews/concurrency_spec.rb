@@ -49,6 +49,32 @@ RSpec.describe "Basic Interview concurrency" do
       question_id: @question.id, recording_id: @recording_id, expected_revision: 0, submission_key: key)
   end
 
+  it "serializes competing skip keys without consuming another question" do
+    results = race do |index|
+      Interviews::SkipQuestionService.call(interview: @user.interview_sessions.find(@interview.id),
+        question_id: @question.id, expected_revision: 0, submission_key: "skip-race-#{index}")
+    end
+    expect(results.count(&:success?)).to eq(1)
+    expect(@interview.reload.revision).to eq(1)
+    expect(@interview.messages.where(kind: "closing").count).to eq(1)
+    expect(@question.reload.accepted_answer_count).to eq(0)
+  end
+
+  it "serializes answer submission against skipping the same cycle" do
+    @recording_id = ready_interview_recording(@interview).id
+    results = race do |index|
+      if index.zero?
+        submit("skip-submission-race")
+      else
+        Interviews::SkipQuestionService.call(interview: @user.interview_sessions.find(@interview.id),
+          question_id: @question.id, expected_revision: 0, submission_key: "skip-submission-race")
+      end
+    end
+    expect(results.count(&:success?)).to eq(1)
+    expect(@interview.reload.completed?).to eq(results.last.success?)
+    expect(@interview.operations.turn.count).to eq(results.first.success? ? 1 : 0)
+  end
+
   it "serializes abandonment against turn acceptance on independent connections" do
     @recording_id = ready_interview_recording(@interview).id
     turn = submit("abandon-race").value

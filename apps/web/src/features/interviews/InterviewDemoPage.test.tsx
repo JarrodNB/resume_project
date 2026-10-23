@@ -10,7 +10,7 @@ import { renderPage } from '@/test/renderPage'
 import { InterviewDemoPage } from './InterviewDemoPage'
 import { REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
-  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn() },
+  state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
   start: vi.fn(),
 }))
@@ -966,4 +966,16 @@ it.each(['browser', 'streaming'])('keeps live %s corrections while new dictated 
   await waitFor(() => expect(router.state.location.pathname).toBe('/interviews'))
   expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeVisible()
   expect(screen.queryByText(/Audio is queued for deletion/)).not.toBeInTheDocument()
+})
+
+it('offers skipping but keeps the draft and recording when the server rejects it', async () => {
+  state.skipQuestion.mockResolvedValue(false)
+  recorder.recording = new Blob(['recording'], { type: 'audio/webm' })
+  renderDemo()
+  await userEvent.type(screen.getByRole('textbox', { name: 'Your answer' }), 'Keep my draft')
+  await userEvent.click(screen.getByRole('button', { name: 'Skip question' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Skip and discard' }))
+  expect(state.skipQuestion).toHaveBeenCalledOnce()
+  expect(screen.getByRole('textbox', { name: 'Your answer', hidden: true })).toHaveValue('Keep my draft')
+  expect(recorder.reset).not.toHaveBeenCalled()
 })

@@ -6,5 +6,10 @@ module Types
     field :question_type, String, null: false
     field :position, Integer, null: false
     field :accepted_answer_count, Integer, null: false
+    field :skipped, Boolean, null: false
+
+    def skipped
+      object.skipped_at.present?
+    end
   end
 end

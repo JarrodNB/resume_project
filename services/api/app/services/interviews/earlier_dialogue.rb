@@ -11,6 +11,9 @@ module Interviews
         messages = interview.messages.where(question: question, kind: %w[opening answer follow_up]).order(:position)
           .map { |message| { kind: message.kind, content: MessageText.spoken_content(message) } }
         next unless messages.any? { |message| message[:kind] == "answer" }
+        # A skipped follow-up has no answer. Keep it in saved history, but the AI
+        # context contract accepts only complete opening/answer question groups.
+        messages.pop if question.skipped_at && messages.last[:kind] == "follow_up"
 
         size = messages.sum { |message| message[:content].length }
         if size <= remaining

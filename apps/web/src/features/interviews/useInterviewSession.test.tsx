@@ -6,11 +6,11 @@ import { GraphQLError } from 'graphql'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useInterviewSession, useStartInterview } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
 const snapshot = {
   setup: { __typename: 'InterviewSetup' as const, questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
-  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0 }],
+  questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }],
   messages: [], operations: [],
 }
 const pending = { questionId: 'question', recordingId: 'recording', expectedRevision: 0, submissionKey: 'stable-key' }
@@ -274,4 +274,48 @@ it('uploads recorded review once and retries its exact capture after a lost rece
   expect(result.current.interview?.revision).toBe(0)
   expect(result.current.interview?.operations).toEqual([])
   expect(loadPendingSubmission('owner', 'session')).toBeNull()
+})
+
+it('retries a lost skip response with the same question revision and identity', async () => {
+  const key = '11111111-1111-4111-8111-111111111111'
+  vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
+  const request = { query: SKIP_QUESTION, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, submissionKey: key } } }
+  const completed = { ...snapshot, status: 'completed', revision: 1, questions: [{...snapshot.questions[0], skipped: true}] }
+  const { result } = mount([
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request, error: new Error('Connection lost') },
+    { request, result: { data: { skipInterviewQuestion: { __typename: 'SkipInterviewQuestionPayload', errors: [], interview: completed } } } },
+  ])
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(async () => { expect(await result.current.skipQuestion()).toBe(false) })
+  expect(result.current.interview?.revision).toBe(0)
+  await act(async () => { expect(await result.current.skipQuestion()).toBe(true) })
+  expect(result.current.interview?.status).toBe('completed')
+  expect(result.current.interview?.questions[0].skipped).toBe(true)
+  expect(crypto.randomUUID).toHaveBeenCalledOnce()
+})
+
+it('reconciles the original skip when live progression advances after a lost response', async () => {
+  const key = '11111111-1111-4111-8111-111111111111'
+  vi.spyOn(crypto, 'randomUUID').mockReturnValue(key)
+  const advanced = { ...snapshot, revision: 1, currentQuestionPosition: 1, questions: [
+    {...snapshot.questions[0], skipped: true}, {...snapshot.questions[0], id: 'next', position: 1, skipped: false},
+  ] }
+  const request = { query: SKIP_QUESTION, variables: { input: { interviewId: 'session', questionId: 'question', expectedRevision: 0, submissionKey: key } } }
+  const mocks = [
+    { request: query, result: { data: { interviewSession: snapshot } } },
+    { request: { query: INTERVIEW_UPDATED, variables: { id: 'session' } }, delay: 250, result: { data: { interviewSessionUpdated: advanced } } },
+    { request, error: new Error('Connection lost') },
+    { request, result: { data: { skipInterviewQuestion: { __typename: 'SkipInterviewQuestionPayload', errors: [], interview: advanced } } } },
+  ]
+  const { result } = renderHook(() => useInterviewSession('session', 'owner'), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
+  await waitFor(() => expect(result.current.loading).toBe(false))
+  await act(async () => { expect(await result.current.skipQuestion()).toBe(false) })
+  await waitFor(() => expect(result.current.interview?.revision).toBe(1))
+  expect(result.current.skipPending).toBe(true)
+  await act(async () => { expect(await result.current.answerText('Do not submit while unresolved')).toBe(false) })
+  await act(async () => { expect(await result.current.skipQuestion()).toBe(true) })
+  expect(result.current.skipPending).toBe(false)
+  expect(result.current.interview?.currentQuestionPosition).toBe(1)
+  expect(crypto.randomUUID).toHaveBeenCalledOnce()
 })

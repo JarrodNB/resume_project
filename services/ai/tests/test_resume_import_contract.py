@@ -489,3 +489,116 @@ def test_eval_requires_genuine_contact_beside_person_like_project():
     assert misplaced["candidate_name_match"] == 1
     assert misplaced["contact_link_precision"] == 0.5
     assert misplaced["contact_link_recall"] == 1
+
+
+def test_nonexperience_verbatim_bullet_requires_matching_occurrence_citation(
+    offline_model_resolution,
+):
+    from pydantic_ai.messages import RetryPromptPart
+
+    calls = []
+
+    async def answer(messages, info):
+        calls.append(True)
+        if len(calls) > 1:
+            retry = [
+                part
+                for message in messages
+                for part in message.parts
+                if isinstance(part, RetryPromptPart)
+            ][-1]
+            assert "supporting_ids" in str(retry.content)
+            assert "S3" in str(retry.content)
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "project",
+                                "source_id": "S2",
+                                "supporting_ids": [] if len(calls) == 1 else ["S3"],
+                                "fields": {"name": "Atlas", "description": "• Built maps."},
+                            },
+                            {
+                                "type": "experience",
+                                "source_id": "S5",
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Engineer",
+                                    "highlight_ids": ["S6"],
+                                },
+                            },
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = parse("PROJECTS\nAtlas\n• Built maps.\n\nEXPERIENCE\nAcme | Engineer\n• Built maps.")
+    assert len(calls) == 2
+    assert not parsed.unassigned_highlights
+    assert parsed.experiences[0].highlights == ["Built maps."]
+
+
+def test_empty_docx_bullet_does_not_fail_import_and_continuation_survives(offline_model_resolution):
+    from io import BytesIO
+
+    from docx import Document
+
+    from documents.extract_document_text import extract_document_text
+
+    async def answer(messages, info):
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {})])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    document = Document()
+    document.add_paragraph("Experience")
+    document.add_paragraph("Acme | Engineer")
+    document.add_paragraph("Built APIs", style="List Bullet")
+    document.add_paragraph("", style="List Bullet")
+    stream = BytesIO()
+    document.save(stream)
+    extracted = extract_document_text(
+        stream.getvalue(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert "• " in extracted
+    parsed = parse(extracted)
+    assert [item.text for item in parsed.unassigned_highlights] == ["Built APIs"]
+    continued = parse("Experience\nAcme | Engineer\n• \n  Continued genuine work.")
+    assert [item.text for item in continued.unassigned_highlights] == ["Continued genuine work."]
+
+
+def test_nonbullet_anchor_evidence_does_not_require_unrelated_identical_work_bullet(
+    offline_model_resolution,
+):
+    async def answer(messages, info):
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {"type": "project", "source_id": "S2", "fields": {"name": "Atlas"}},
+                            {
+                                "type": "experience",
+                                "source_id": "S4",
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Engineer",
+                                    "highlight_ids": ["S5"],
+                                },
+                            },
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = parse("PROJECTS\nAtlas\n\nEXPERIENCE\nAcme | Engineer\n• Atlas")
+    assert parsed.projects[0].name == "Atlas"
+    assert parsed.experiences[0].highlights == ["Atlas"]
+    assert not parsed.unassigned_highlights

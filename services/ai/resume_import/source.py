@@ -54,6 +54,40 @@ def _boundary(line: str, following: str, after_following: str = "", previous: st
 
 _BULLET = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+(.*)$")
 
+_EMPTY_LIST_MARKER = re.compile(r"^\s*[•●▪◦‣⁃✓*+\-–—]\s*$")
+
+
+def _text_key(text: str) -> str:
+    """Compare verbatim words while ignoring list display markers and layout whitespace."""
+    lines = []
+    for line in text.splitlines():
+        marker = _BULLET.match(line)
+        lines.append(marker.group(1) if marker else line)
+    return " ".join(" ".join(lines).split())
+
+
+def _field_texts(value) -> set[str]:
+    """Find complete field values and explicitly marked list items, without paraphrase matching."""
+    if isinstance(value, dict):
+        return set().union(*(_field_texts(item) for item in value.values()))
+    if isinstance(value, list):
+        return set().union(*(_field_texts(item) for item in value))
+    if not isinstance(value, str):
+        return set()
+    texts = {_text_key(value)}
+    item = []
+    for line in value.splitlines():
+        marker = _BULLET.match(line)
+        if marker or not line.strip():
+            if item:
+                texts.add(_text_key("\n".join(item)))
+            item = [marker.group(1)] if marker else []
+        elif item:
+            item.append(line)
+    if item:
+        texts.add(_text_key("\n".join(item)))
+    return texts
+
 
 def _allowed_ids(source_ids) -> str:
     """Keep membership retry messages useful without echoing a very long registry."""
@@ -89,14 +123,21 @@ class ResumeSource:
                 continue
             start_line = index
             match = _BULLET.match(line)
+            if match is None and _EMPTY_LIST_MARKER.fullmatch(line):
+                match = _BULLET.match(line + " ")
             source_id = f"S{len(self.passages) + 1}"
             parts = [match.group(1) if match else line.strip()]
+            annotation_start = len(annotated)
             annotated.append(f"[{source_id}] {line}")
             index += 1
             if match:
                 while index < len(lines):
                     following = lines[index]
-                    if not following.strip() or _BULLET.match(following):
+                    if (
+                        not following.strip()
+                        or _BULLET.match(following)
+                        or _EMPTY_LIST_MARKER.fullmatch(following)
+                    ):
                         break
                     # Capitalized words also wrap. Stop only for confident heading/date
                     # evidence rather than treating capitalization as a new entry.
@@ -107,6 +148,13 @@ class ResumeSource:
                     parts.append(following.strip())
                     annotated.append(following)
                     index += 1
+            if match and not any(part.strip() for part in parts):
+                # DOCX can contain an empty List Bullet paragraph. It carries no
+                # source fact, so keep the layout but do not create a placement item.
+                annotated[annotation_start] = line
+                continue
+            if match and not parts[0].strip():
+                parts = parts[1:]
             self.passages[source_id] = Passage(
                 "\n".join(parts), "\n".join(context[-3:]), bool(match), start_line, index
             )
@@ -141,6 +189,10 @@ class ResumeSource:
 
     def validate(self, output: ResumeImportExtraction) -> set[str]:
         """Reject invalid ownership and return all sources represented by the output."""
+        bullet_text_ids = {}
+        for source_id, passage in self.passages.items():
+            if passage.bullet:
+                bullet_text_ids.setdefault(_text_key(passage.text), set()).add(source_id)
         covered = set()
         seen = set()
         singleton = set()
@@ -157,12 +209,33 @@ class ResumeSource:
                 for source_id in record.fields.highlight_ids:
                     self._claim_bullet(source_id, seen)
             else:
-                for source_id in [record.source_id, *record.supporting_ids]:
+                evidence = {record.source_id, *record.supporting_ids}
+                for source_id in evidence:
                     if source_id not in self.passages:
                         raise ValueError(
                             f"Supporting IDs must be bare owned IDs: {_allowed_ids(iter(self.passages))}."
                         )
                     covered.add(source_id)
+                nonbullet_evidence = [
+                    _text_key(self.passages[key].text)
+                    for key in evidence
+                    if not self.passages[key].bullet
+                ]
+                for text in _field_texts(record.fields.model_dump()):
+                    matching_ids = bullet_text_ids.get(text, set())
+                    # An independently cited heading/paragraph can state the same
+                    # words as an unrelated bullet. Do not manufacture its ownership.
+                    stated_outside_bullets = matching_ids and any(
+                        re.search(r"(?<!\w)" + re.escape(text) + r"(?!\w)", passage)
+                        for passage in nonbullet_evidence
+                    )
+                    if matching_ids and not matching_ids & evidence and not stated_outside_bullets:
+                        raise ValueError(
+                            "Non-experience fields reproduce a source bullet: cite its exact "
+                            "occurrence in source_id or supporting_ids. Matching owned bullet IDs: "
+                            f"{_allowed_ids(iter(sorted(matching_ids)))}. Choose the represented "
+                            "occurrence; identical wording does not claim every occurrence."
+                        )
         for reference in output.unassigned_highlights:
             self._claim_bullet(reference.source_id, seen)
         overlap = seen & covered

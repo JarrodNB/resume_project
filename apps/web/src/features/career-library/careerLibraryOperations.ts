@@ -27,9 +27,18 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       startDate
       endDate
       description
+      roles {
+        id
+        title
+        startDate
+        endDate
+        description
+        position
+      }
       highlights {
         id
         content
+        experienceRoleId
         position
       }
     }

@@ -33,7 +33,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   and `merge*(targetId, sourceId)` (experiences, projects, educations;
   both ids are looked up through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
   (`reorderSkills(orderedIds)`) and `mutations/experiences/move_experience_highlight.rb`
-  (`moveExperienceHighlight(highlightId, experienceId, position)`, returning both roles)
+  (`moveExperienceHighlight(highlightId, experienceId, experienceRoleId?, position)`, returning both entries; explicit null role selects shared highlights)
 - `subscriptions/` — `base_subscription.rb`, `ai_task_updated.rb` (`aiTaskUpdated(id)`)
 - `resolvers/` — generated base class (unused so far)
 

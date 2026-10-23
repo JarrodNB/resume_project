@@ -1,9 +1,6 @@
-# Description: Finds the existing career library record that a record duplicates. Text compares
-# case-insensitively with whitespace squished; if both records have a start/issued date, the dates must
-# be equal (so a second stint at the same company stays its own role).
-# Index:
-#   - MATCH_FIELDS: identifying fields per model
-#   - call: returns the first matching candidate, or nil
+# Finds a conservative duplicate among the user's existing library entries. Experience
+# matching compares its complete ordered role/date/scope structure, never company alone.
+# Other entry kinds compare normalized identifying fields and compatible start dates.
 module CareerLibrary
   class FindMatchingLibraryRecordService < ApplicationService
     MATCH_FIELDS = {
@@ -29,6 +26,8 @@ module CareerLibrary
 
     # True when every identifying field matches and the start/issued dates don't conflict.
     def matches?(candidate)
+      return Experiences::EntryStructure.matches?(candidate, @record) if @record.is_a?(Experience)
+
       MATCH_FIELDS.fetch(@record.class).all? { |field| normalize(candidate[field]) == normalize(@record[field]) } &&
         start_dates_compatible?(candidate)
     end

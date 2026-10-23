@@ -26,7 +26,7 @@ GraphQL output/input types, enums, and root operation fields.
 - `education_attributes_input.rb`
 - `education_type.rb`
 - `enum_from_values.rb`
-- `experience_attributes_input.rb`
+- `experience_attributes_input.rb` — entry fields plus nested `experience_role_attributes_input.rb` and typed `experience_highlight_attributes_input.rb`; lists retain stable child IDs.
 - `experience_highlight_type.rb`
 - `experience_type.rb`
 - `experience_role_type.rb` — ordered titles/dates within an experience; highlights expose optional role ownership.

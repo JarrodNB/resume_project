@@ -37,16 +37,17 @@ type Reordering = ReturnType<typeof useLibraryReordering>
 /** Highlight sortable ids for each role, keyed by the role's group id. */
 function highlightGroups(experiences: CareerLibraryQuery['experiences']): Record<string, string[]> {
   return Object.fromEntries(
-    experiences.map((experience) => [
-      sortableGroupId('highlights', experience.id),
-      experience.highlights.map((highlight) => sortableId(HIGHLIGHT_TYPE, highlight.id)),
-    ]),
+    experiences.flatMap((experience) => experience.roles?.length ? [null, ...experience.roles.map((role) => role.id)].map((roleId) => [
+      sortableGroupId('highlights', `${experience.id}/${roleId ?? 'shared'}`),
+      experience.highlights.filter((bullet) => bullet.experienceRoleId === roleId).map((bullet) => sortableId(HIGHLIGHT_TYPE, bullet.id)),
+    ]) : [[sortableGroupId('highlights', experience.id), experience.highlights.map((bullet) => sortableId(HIGHLIGHT_TYPE, bullet.id))]]),
   )
 }
 
 /** Converts a highlight location (group id + index) into a role id + index. */
 function toPlacement(location: ItemLocation) {
-  return { experienceId: idFromSortableId(location.group), index: location.index }
+  const [experienceId, scope] = idFromSortableId(location.group).split('/')
+  return { experienceId, ...(scope ? {experienceRoleId: scope === 'shared' ? null : scope} : {}), index: location.index }
 }
 
 /** Every skill id in display order, with one category's skills reordered after a drop. */
@@ -70,9 +71,10 @@ export function useLibraryDragHandlers(library: CareerLibraryQuery | null | unde
   )
 
   /** Highlights of a role as currently shown (follows an in-progress drag). */
-  function highlightsOf(experienceId: string): Highlight[] {
-    const draggedIds = draggedHighlightGroups?.[sortableGroupId('highlights', experienceId)]
-    if (!draggedIds) return library?.experiences.find((experience) => experience.id === experienceId)?.highlights ?? []
+  function highlightsOf(experienceId: string, roleId?: string | null): Highlight[] {
+    const groupKey = roleId === undefined ? experienceId : `${experienceId}/${roleId ?? "shared"}`
+    const draggedIds = draggedHighlightGroups?.[sortableGroupId('highlights', groupKey)]
+    if (!draggedIds) return (library?.experiences.find((experience) => experience.id === experienceId)?.highlights ?? []).filter((bullet) => roleId === undefined || bullet.experienceRoleId === roleId)
     return draggedIds.map((id) => highlightsById.get(idFromSortableId(id))).filter((highlight) => highlight !== undefined)
   }
 

@@ -24,6 +24,7 @@ function experience(id: string, title: string, startDate: string | null) {
     startDate,
     endDate: null,
     description: null,
+    roles: [{__typename: "ExperienceRole", id: `${id}-role`, title, startDate, endDate: null, description: null, position: 0}],
     highlights: [],
   }
 }
@@ -118,21 +119,20 @@ it('deletes a skill after confirming', async () => {
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
 
-it('adds a role', async () => {
+it('adds an experience', async () => {
   const user = userEvent.setup()
   renderLibrary({
     request: {
       query: CREATE_EXPERIENCE_MUTATION,
       variables: {
-        attributes: { company: 'Acme', title: 'Engineer', location: null, startDate: null, endDate: null, description: null },
-        highlights: [],
+        attributes: { company: 'Acme', location: null, description: null, roles: [{title: 'Engineer', startDate: null, endDate: null, description: null, highlights: []}], sharedHighlights: [] },
       },
     },
     result: { data: { createExperience: { __typename: 'CreateExperiencePayload', errors: [] } } },
   })
 
-  await user.click(await screen.findByRole('button', { name: 'Add role' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Add role' })
+  await user.click(await screen.findByRole('button', { name: 'Add experience' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Add experience' })
   await user.type(within(dialog).getByLabelText('Title'), 'Engineer')
   await user.type(within(dialog).getByLabelText('Company'), 'Acme')
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))

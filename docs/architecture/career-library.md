@@ -60,20 +60,40 @@ tailoring) instead of sending everything.
   or a second resume was imported. Resumes are snapshots by design, so they only exist when
   tailored to a job.
 
-- **Keep the career library deduplicated: merge on import, plus manual merge and delete.**
-  Importing a resume merges an incoming experience, project, or education into an existing
-  entry that matches. Experiences match on company and title, projects on name, and educations
-  on institution and degree. Text compares case-insensitively, and if both entries have start
-  dates they must be equal. Merging only fills fields that are blank on the kept entry and adds
-  highlights it doesn't have; it never overwrites. An experience's blank end date means
-  "current", so it is never filled. Duplicates the import doesn't catch can be merged or
-  deleted from the library page. Matching keys are deliberately narrow: a missed duplicate is
-  one click to fix, but a wrong automatic merge silently loses an entry.
+- **Keep source grouping and match conservatively.** One experience is an employment block
+  with company/location, an optional description, ordered title/date roles, shared highlights,
+  and optional role highlights. Company equality alone never groups entries. Automatic matching
+  compares normalized company, the full ordered role set, compatible start dates, exact end
+  dates, and shared versus role scope. Descriptions may grow without changing identity.
+  Explicit merges retain all distinct roles and their dates; descriptions are combined without
+  overwriting nonblank prose. Bullet deduplication happens only within the same resulting scope.
 
-- **Roles, projects, and education are always listed by date; highlights and skills are
+- **Grouped library writes preserve child IDs.** `ExperienceAttributesInput.roles` supplies the
+  full ordered role set. Existing roles include `id`; new roles omit it. Each role can contain
+  typed `highlights: [{id?, content}]`; entry-level `sharedHighlights` uses the same type.
+  Omitted or null lists keep their bullets. Explicit lists replace membership, retaining supplied IDs;
+  IDs must belong to the edited entry and occur only once. Nesting attaches new bullets to
+  unsaved roles without client-generated database IDs. Omitting a role with bullets fails
+  unless those bullets are explicitly removed or reassigned. `removedHighlightIds` explicitly
+  removes owned bullets alongside a removed role; its IDs must be unique and cannot also
+  appear in a retained list. At least one and at most 20 roles
+  are required; each scope supports up to 40 bullets (840 total across 20 roles plus shared).
+  Parent locks coordinate edits and moves,
+  and deferred bounded role positions permit swaps and compaction in one transaction.
+  Legacy flat title/date and string-bullet writes remain available for unambiguous single-role
+  entries. Flat fields are compatibility projections, not grouped editing inputs.
+
+- **Scoped moves retain evidence identity.** `moveExperienceHighlight` accepts
+  `experienceRoleId`; explicit null selects shared scope. Omission is a legacy single-role
+  adapter. A role must belong to the target experience. Moves within or across entries keep
+  the bullet ID and renumber each affected scope. Changing scope triggers embedding sync even
+  within the same entry. Role titles/descriptions invalidate only their changed screening
+  approvals. Entry date ordering derives from its roles while role order stays user-controlled.
+
+- **Experience entries, projects, and education are always listed by date; highlights and skills are
   arranged by dragging.** The API orders dated entries most recent first (ongoing first, then
   by end date, undated last; `MostRecentFirst` concern), so a later import can't leave a new
-  role at the bottom and there is no manual order to maintain. Highlights can be dragged to a
+  experience at the bottom. Role order inside an entry stays independent of entry recency. Highlights can be dragged to a
   new place or into another role (useful when the parser or an earlier merge put a bullet
   under the wrong job), and skills within their category. In the import review this only
   changes the draft in the browser; on the library page each drop is saved right away with

@@ -11,7 +11,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 ## Contents
 
 - `find_matching_library_record_service.rb` — returns the existing entry a record duplicates.
-  Match keys: experience company + title, project name, education institution + degree (a
+  Match keys: full ordered experience role/date/scope structure plus company, project name, education institution + degree (a
   blank degree only matches a blank degree). Text compares case-insensitively with whitespace
   squished. If both records have a start date and they differ, it's not a match (a second
   stint at the same company stays its own role).
@@ -38,7 +38,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Local Rules
 
-- Merging never overwrites a value the target already has.
+- Merging preserves nonblank values. Experience merges delegate to `Experiences::MergeExperiencesService`: retain distinct roles/scopes and combine differing descriptions; other entry types fill blanks.
 - An experience's blank `end_date` means "current role", so it is never filled from a merge.
 - Add a model's identifying fields to `MATCH_FIELDS` and fillable fields to `FILLABLE_FIELDS`
   together when another entry type becomes mergeable.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -137,12 +137,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.text "screened_fields", default: [], null: false, array: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["experience_id", "position"], name: "index_experience_roles_on_experience_id_and_position", unique: true
     t.index ["experience_id"], name: "index_experience_roles_on_experience_id"
     t.index ["id", "experience_id"], name: "index_experience_roles_on_id_and_experience_id", unique: true
     t.check_constraint "\"position\" >= 0 AND \"position\" < 20", name: "experience_role_position_bounds"
     t.check_constraint "description IS NULL OR length(description) <= 4000", name: "experience_role_description_bounds"
     t.check_constraint "length(TRIM(BOTH FROM title)) > 0 AND length(title::text) <= 200", name: "experience_role_title_bounds"
+    t.unique_constraint ["experience_id", "position"], deferrable: :deferred, name: "experience_roles_position_unique"
   end
 
   create_table "experiences", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -183,7 +183,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -4,6 +4,9 @@
 # (model validations enforce company and title).
 module Types
   class ExperienceAttributesInput < Types::BaseInputObject
+    argument :removed_highlight_ids, [ ID ], required: false
+    argument :roles, [ Types::ExperienceRoleAttributesInput ], required: false
+    argument :shared_highlights, [ Types::ExperienceHighlightAttributesInput ], required: false
     argument :company, String, required: false
     argument :title, String, required: false
     argument :location, String, required: false

@@ -40,7 +40,7 @@ export function ResumePage() {
       </div>
       {error && <ErrorAlert title="Couldn't load this resume" messages={[requestErrorMessage(error, error.message)]} />}
       {!resume && loading && <p className="text-muted-foreground">Loading…</p>}
-      {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} title={resume.title} sections={resume.sections} jobId={resume.job?.id} onDeleted={() => void navigate('/resumes')} />}
+      {resume && <SavedResumeEditor key={resume.id} resumeId={resume.id} title={resume.title} targetPageCount={resume.targetPageCount} sections={resume.sections} jobId={resume.job?.id} onDeleted={() => void navigate('/resumes')} />}
     </div>
   )
 }

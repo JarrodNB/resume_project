@@ -9,6 +9,7 @@ class Resume < ApplicationRecord
            class_name: "ResumeSection", dependent: :destroy, inverse_of: :resume
 
   validates :title, presence: true
+  validates :target_page_count, inclusion: { in: [ 1, 2 ] }
   # Only on create: deleting a job nullifies job_id, and its resumes must stay editable.
   validates :job, presence: true, on: :create
 end

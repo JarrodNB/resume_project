@@ -28,6 +28,7 @@ function resumeQuery(job: Record<string, unknown> | null) {
           __typename: 'Resume',
           id: 'resume-1',
           title: 'Engineer at Acme',
+          targetPageCount: 1,
           job,
           sections: [
             {
@@ -54,6 +55,7 @@ it('opens the resume and links to its job', async () => {
   })
 
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
+  expect(screen.getByText('Target: 1 page')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Back to resumes' })).toHaveAttribute('href', '/resumes')
   expect(screen.getByRole('link', { name: 'Engineer at Acme' })).toHaveAttribute('href', '/jobs/job-1')
   await userEvent.click(screen.getByRole('button', { name: 'Summary' }))

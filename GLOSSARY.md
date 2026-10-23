@@ -5,6 +5,11 @@ Index: language and shared domain terms.
 
 ## Language
 
+**Target page count**:
+The preferred maximum length of a tailored resume: 1 or 2 pages, defaulting to 2.
+It guides AI content selection and stays fixed on the draft and saved resume. Shorter
+content is fine; exceeding the target does not require deleting content or shrinking text.
+
 **Interview Q&A vector**:
 A derived embedding of one saved interview question and its current nonblank user-written answer.
 It excludes feedback and example answers, stays separate from career-library evidence, and is not searched yet.

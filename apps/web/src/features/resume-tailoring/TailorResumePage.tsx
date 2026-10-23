@@ -1,6 +1,7 @@
 /** Follows whole-draft generation for one job, then lets the user review and save it.
  * Later visits edit the saved resume. Live task status arrives over a subscription.
  */
+import { useState } from 'react'
 import { ArrowLeft, LoaderCircle } from 'lucide-react'
 import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -17,7 +18,7 @@ import { useTailorActions } from './useTailorActions'
 export function TailorResumePage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id)
+  const { job, task, loading, error, startErrors, startPending, subscriptionError, begin, retry, refetch } = useResumeTailoring(id)
   const actions = useTailorActions(task?.id ?? '', () => void refetch())
 
   return (
@@ -38,9 +39,10 @@ export function TailorResumePage() {
       {error && <ErrorAlert title="Couldn't load this job" messages={[requestErrorMessage(error, error.message)]} />}
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
       <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
-      {job && !job.resume && startErrors.length > 0 && !task && (
-        <Button type="button" variant="outline" onClick={retry}>Try again</Button>
+      {job && !job.resume && !task && !loading && (
+        <TailorSetup key={id} pending={startPending} onStart={begin} />
       )}
+      {job && !job.resume && task && <p className="text-sm text-muted-foreground">Target: {task.targetPageCount} {task.targetPageCount === 1 ? 'page' : 'pages'}</p>}
       {!job && loading && (
         <Card>
           <CardContent>
@@ -50,13 +52,13 @@ export function TailorResumePage() {
           </CardContent>
         </Card>
       )}
-      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} targetPageCount={job.resume.targetPageCount} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <Card>
           <CardContent className="grid gap-4">
             <ErrorAlert title="The resume couldn't be written" messages={[task.errorMessage ?? 'Something went wrong. Please try again.']} />
-            <Button type="button" variant="outline" className="justify-self-start" onClick={retry}>
-              Try again
+            <Button type="button" variant="outline" className="justify-self-start" disabled={startPending} onClick={retry}>
+              {startPending ? 'Starting…' : 'Try again'}
             </Button>
           </CardContent>
         </Card>
@@ -65,6 +67,28 @@ export function TailorResumePage() {
         <TailorProgress jobId={id} task={task} actions={actions} />
       )}
     </div>
+  )
+}
+
+/** Choose a preferred maximum before any model work is requested. */
+function TailorSetup({ pending, onStart }: { pending: boolean; onStart: (target: 1 | 2) => Promise<void> }) {
+  const [target, setTarget] = useState<1 | 2>(2)
+  return (
+    <form className="grid gap-4" onSubmit={(event) => { event.preventDefault(); void onStart(target) }}>
+      <fieldset disabled={pending} aria-describedby="tailor-length-help" className="grid gap-3">
+        <legend className="mb-2 font-medium">Target length</legend>
+        <div className="flex flex-wrap gap-6">
+          {([1, 2] as const).map((pages) => (
+            <label key={pages} className="flex min-h-11 cursor-pointer items-center gap-2">
+              <input type="radio" name="target-page-count" value={pages} checked={target === pages} onChange={() => setTarget(pages)} className="size-4 accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" />
+              {pages} {pages === 1 ? 'page' : 'pages'}
+            </label>
+          ))}
+        </div>
+        <p id="tailor-length-help" className="text-sm text-muted-foreground">A preferred maximum. The AI will prioritize relevant content; the finished resume may be shorter or longer.</p>
+      </fieldset>
+      <Button type="submit" disabled={pending} className="justify-self-start">{pending ? 'Starting…' : 'Tailor resume'}</Button>
+    </form>
   )
 }
 

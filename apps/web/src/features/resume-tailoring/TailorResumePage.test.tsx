@@ -31,7 +31,7 @@ function jobMock(latestTailoring: Record<string, unknown> | null, resume: Record
           id: 'job-1',
           title: 'Engineer',
           company: 'Acme',
-          resume,
+          resume: resume ? { targetPageCount: 2, ...resume } : null,
           latestTailoring,
         },
       },
@@ -81,10 +81,32 @@ function renderTailor(mocks: Parameters<typeof renderPage>[0]['mocks']) {
   return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks })
 }
 
+it('waits for an explicit start and offers two pages by default', async () => {
+  const user = userEvent.setup()
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED', input: { target_page_count: 1 } }, errors: [] } } }))
+  renderTailor([
+    jobMock(null),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 1 } }, result: start, delay: 200 },
+    subscription({ input: { target_page_count: 1 } }),
+  ])
+
+  expect(await screen.findByRole('radio', { name: '2 pages' })).toBeChecked()
+  expect(start).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('radio', { name: '1 page' }))
+  await user.dblClick(screen.getByRole('button', { name: 'Tailor resume' }))
+  expect(screen.getByRole('button', { name: 'Starting…' })).toBeDisabled()
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledTimes(1)
+  expect(screen.getByText('Target: 1 page')).toBeInTheDocument()
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument()
+})
+
 it('restores whole-draft loading after reloading a queued task', async () => {
-  renderTailor([jobMock(task({})), subscription({})])
+  renderTailor([jobMock(task({ input: { target_page_count: 1 } })), subscription({ input: { target_page_count: 1 } })])
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(screen.getByText('Target: 1 page')).toBeInTheDocument()
+  expect(screen.queryByRole('radio')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Use this and continue' })).not.toBeInTheDocument()
 })
@@ -105,13 +127,13 @@ it('opens the complete editable draft when its subscription finishes', async () 
 it('retries a failed task and follows the new task through completion', async () => {
   const user = userEvent.setup()
   const result = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Retried draft.' } }], warnings: [] }
-  const retriedSubscription = { ...subscription({ id: 'task-2', status: 'COMPLETED', result }), delay: 500 }
+  const retriedSubscription = { ...subscription({ id: 'task-2', status: 'COMPLETED', result, input: { target_page_count: 1 } }), delay: 500 }
   retriedSubscription.request.variables.id = 'task-2'
   renderTailor([
-    jobMock(task({ status: 'FAILED', errorMessage: 'Provider unavailable.' })),
+    jobMock(task({ status: 'FAILED', input: { target_page_count: 1 }, errorMessage: 'Provider unavailable.' })),
     {
-      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } },
-      result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } },
+      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 1 } },
+      result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED', input: { target_page_count: 1 } }, errors: [] } } },
     },
     retriedSubscription,
   ])
@@ -121,6 +143,7 @@ it('retries a failed task and follows the new task through completion', async ()
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Retried draft.')
+  expect(screen.getByText('Target: 1 page')).toBeInTheDocument()
   expect(screen.queryByText('Provider unavailable.')).not.toBeInTheDocument()
 })
 
@@ -129,18 +152,19 @@ it('lets the user retry after starting the draft fails', async () => {
   renderTailor([
     jobMock(null),
     {
-      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } },
+      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } },
       result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } },
     },
     {
-      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } },
-      result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } },
+      request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } },
+      result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED', input: {} }, errors: [] } } },
     },
     subscription({}),
   ])
 
+  await user.click(await screen.findByRole('button', { name: 'Tailor resume' }))
   expect(await screen.findByText('Queue unavailable.')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  await user.click(screen.getByRole('button', { name: 'Tailor resume' }))
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(screen.queryByText('Queue unavailable.')).not.toBeInTheDocument()
 })
@@ -284,19 +308,23 @@ it('shows a live generation failure without exposing partial sections for saving
   expect(screen.queryByRole('textbox', { name: 'Summary' })).not.toBeInTheDocument()
 })
 
-it('starts fresh from accepted history without exposing the old editable draft', async () => {
+it('offers explicit fresh setup after accepted history without exposing the old draft', async () => {
+  const user = userEvent.setup()
   const oldResult = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old accepted draft.' } }] }
-  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED', input: {} }, errors: [] } } }))
   const oldSubscription = subscription({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })
   const oldResultReceived = vi.fn(() => oldSubscription.result)
   const nextSubscription = subscription({ id: 'task-2' })
   nextSubscription.request.variables.id = 'task-2'
   renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })),
-    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start, delay: 200 }, nextSubscription,
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } }, result: start, delay: 200 }, nextSubscription,
     { ...oldSubscription, result: oldResultReceived }])
   await screen.findByRole('heading', { name: 'Write resume' })
   expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('radio', { name: '2 pages' })).toBeChecked()
+  expect(start).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Tailor resume' }))
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(start).toHaveBeenCalledOnce()
   expect(oldResultReceived).not.toHaveBeenCalled()
@@ -305,12 +333,13 @@ it('starts fresh from accepted history without exposing the old editable draft',
 it('allows retry when starting after accepted history fails', async () => {
   const user = userEvent.setup()
   renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
-    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } } },
-    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } } },
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } } },
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED', input: {} }, errors: [] } } } },
     subscription({}),
   ])
+  await user.click(await screen.findByRole('button', { name: 'Tailor resume' }))
   expect(await screen.findByText('Queue unavailable.')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  await user.click(screen.getByRole('button', { name: 'Tailor resume' }))
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
 })
 
@@ -323,7 +352,7 @@ it('deletes an edited resume and returns to the job without another discard warn
       { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Original summary.' } },
     ] }),
       { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },
-      { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start }],
+      { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPageCount: 2 } }, result: start }],
   })
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Unsaved edit.')

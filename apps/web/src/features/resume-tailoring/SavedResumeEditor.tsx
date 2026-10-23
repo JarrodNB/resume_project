@@ -30,7 +30,7 @@ interface SavedResumeSection {
 }
 
 /** Edits one saved resume. Preview shows the current draft at actual size. */
-export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDeleted }: { resumeId: string; title?: string; sections: SavedResumeSection[]; jobId?: string; onDeleted: () => void }) {
+export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, sections, jobId, onDeleted }: { resumeId: string; title?: string; targetPageCount?: number; sections: SavedResumeSection[]; jobId?: string; onDeleted: () => void }) {
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(drafts))
@@ -86,6 +86,7 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
 
   return (
     <div className="grid gap-4">
+      <p className="text-sm text-muted-foreground">Target: {targetPageCount} {targetPageCount === 1 ? 'page' : 'pages'}</p>
       <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
       <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || !!exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
         <Button type="button" variant="destructive" disabled={pending || deletion.pending || !!exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>

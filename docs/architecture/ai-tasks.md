@@ -96,8 +96,11 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
-- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
-  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
+- `tailor_resume`: input `{job_id, target_page_count, contact, gap_analysis, gap_responses}`; the subject is the
+  Job. The user explicitly chooses 1 or 2 pages (default 2) before starting. Opening the
+  page alone does not queue work. The target, contact, and gap fields are immutable request snapshots.
+  Missing legacy targets mean 2. Rails validates the target before enqueueing and Python
+  strictly validates it before generation. The worker reads the owned
   job and career library, prepares shared screened evidence, and returns one complete draft:
   `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
   summary, experience, projects, education, certifications, skills, omitting empty or
@@ -108,6 +111,14 @@ Per task type:
   `saveTailoredResume` creates snapshots once under owner-then-task locks (`accepted_at`).
   Starting tailoring checks saved resumes and resumable tasks under the same owner lock;
   queue publication follows commit. Existing work can be resumed even at usage limits.
+  Competing starts reuse one resumable task and its original target, even when requesting
+  another length. Failure retries retain the failed task's target. Saving takes the target
+  from trusted task input, persists it on the resume with a 1-or-2 database constraint,
+  and exposes it through GraphQL. Existing saved resumes use 2 without content changes.
+  AI content uses a shared whole-resume word allowance for that target, reserving copied
+  content and distributing the remainder across nonempty generated sections and summary.
+  This guides selection and concise writing; it never truncates copied content or guarantees
+  physical pagination.
   Later `updateResume` changes the saved resume only. `deleteResume` removes the owned resume
   and sections, including resumes whose job is gone, while keeping job/library/task history.
   An accepted task stays accepted and cannot be saved again after deletion. A remaining saved

@@ -53,7 +53,7 @@ module ResumeTailoring
       job = @ai_task.subject
       title = job ? "#{job.title} at #{job.company.presence || 'Unknown company'}" : "Tailored resume"
       Resume.transaction do
-        resume = @ai_task.user.resumes.create!(job: job, title: title)
+        resume = @ai_task.user.resumes.create!(job: job, title: title, target_page_count: @ai_task.input.fetch("target_page_count", 2))
         sections.each_with_index do |section, index|
           resume.sections.create!(
             section_type: section["section_type"],

@@ -81,10 +81,12 @@ All business logic, as service objects grouped by domain folder.
   task already in progress; checks saved resumes and resumable work under the enqueue user
   lock before allowance checks. Accepted tasks without a saved resume allow fresh work;
   snapshots contact, a finished comparison when one exists, and gap
-  responses into the task input
+  responses and a validated target page count (1 or 2, default 2) into the task input.
+  Restores the existing target on duplicate starts and keeps it on failure retries
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
-  uses the supplied edited/included sections in order. An explicit empty
+  uses the supplied edited/included sections in order and the trusted task-input target
+  (legacy default 2), never a client section field. An explicit empty
   selection is rejected; omitting the argument uses the original draft. Deleting the job
   keeps the resume
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved

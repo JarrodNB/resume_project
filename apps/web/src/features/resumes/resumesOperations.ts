@@ -35,6 +35,7 @@ export const RESUME_QUERY = graphql(`
     resume(id: $id) {
       id
       title
+      targetPageCount
       job {
         id
         title

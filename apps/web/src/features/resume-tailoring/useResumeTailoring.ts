@@ -1,5 +1,5 @@
 /**
- * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
+ * Description: Loads the tailor page's job, starts a tailor task on explicit request, and
  * follows it live. Accepted tasks are history, not editable drafts. A saved resume
  * prevents generation and old-draft restoration for this visit, including when deletion
  * removes its cached link before the task's accepted timestamp reaches the cache.
@@ -7,7 +7,7 @@
  *   - TailorTaskView: the task fields the page renders
  *   - useResumeTailoring: job, task, start errors, and retry
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
@@ -20,6 +20,7 @@ export interface TailorTaskView {
   result: unknown
   errorMessage: string | null
   acceptedAt: string | null
+  targetPageCount: 1 | 2
 }
 
 /** The job's tailoring task (live when one is running) and its saved resume. */
@@ -29,7 +30,8 @@ export function useResumeTailoring(jobId: string) {
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])
   const [savedResumeJobId, setSavedResumeJobId] = useState<string | null>(null)
-  const started = useRef(false)
+  const starting = useRef(false)
+  const [startPending, setStartPending] = useState(false)
   const job = data?.job ?? null
   // Remember this before a deletion cache update can remove the saved link.
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
@@ -39,10 +41,13 @@ export function useResumeTailoring(jobId: string) {
   const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
-  const begin = useCallback(async () => {
+  const begin = useCallback(async (targetPageCount: 1 | 2) => {
+    if (starting.current || hasSavedResume) return
+    starting.current = true
+    setStartPending(true)
     setStartErrors([])
     try {
-      const { data: startedData } = await startTailoring({ variables: { jobId } })
+      const { data: startedData } = await startTailoring({ variables: { jobId, targetPageCount } })
       const payload = startedData?.startResumeTailoring
       if (payload?.aiTask && payload.errors.length === 0) {
         setStartedTask(taskFrom(payload.aiTask))
@@ -51,25 +56,19 @@ export function useResumeTailoring(jobId: string) {
       setStartErrors(payload?.errors.length ? payload.errors : ["Couldn't start the resume. Please try again."])
     } catch (startError) {
       setStartErrors([requestErrorMessage(startError, "Couldn't reach the server. Check your connection and try again.")])
+    } finally {
+      starting.current = false
+      setStartPending(false)
     }
-  }, [jobId, startTailoring])
-
-  useEffect(() => {
-    // Deleting the saved resume must not turn this visit into a generation request.
-    if (job?.resume) started.current = true
-    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt) || started.current) return
-    started.current = true
-    void begin()
-  }, [loading, job, jobId, begin])
-
-  /** Starts again after a failed task. */
-  function retry() {
-    started.current = true
-    void begin()
-  }
+  }, [jobId, startTailoring, hasSavedResume])
 
   const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
-  return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
+  /** Retry the original fixed target, including legacy two-page tasks. */
+  function retry() {
+    void begin(task?.targetPageCount ?? 2)
+  }
+
+  return { job, task, loading, error, startErrors, startPending, subscriptionError, begin, retry, refetch }
 }
 
 /** Copies the fields the page reads off a query task or a subscription task. */
@@ -79,6 +78,7 @@ function taskFrom(source: {
   result?: unknown
   errorMessage?: string | null
   acceptedAt?: string | null
+  input?: unknown
 } | null): TailorTaskView | null {
   if (!source) return null
   return {
@@ -87,5 +87,6 @@ function taskFrom(source: {
     result: source.result ?? null,
     errorMessage: source.errorMessage ?? null,
     acceptedAt: source.acceptedAt ?? null,
+    targetPageCount: source.input && typeof source.input === 'object' && 'target_page_count' in source.input && source.input.target_page_count === 1 ? 1 : 2,
   }
 }

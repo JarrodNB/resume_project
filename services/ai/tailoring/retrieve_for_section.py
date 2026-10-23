@@ -12,7 +12,7 @@ from uuid import UUID
 
 from database.library_embedding_search import search_career_library
 from database.open_read_only_connection import open_read_only_connection
-from memory.embed_search_query import embed_search_query, stored_embedding_model_name
+from memory.embed_search_query import embed_search_query
 from schemas.gap_analysis_context import JobToAnalyze
 from worker.model_prices import build_model_usage
 from worker.queue_messages import ModelUsage
@@ -63,7 +63,7 @@ def _search_source_keys(user_id, query, vector, settings):
     with open_read_only_connection(settings) as connection:
         matches = search_career_library(
             connection, user_id, vector, query,
-            stored_embedding_model_name(settings.embedding_model), limit=_LIMIT,
+            settings.embedding_model, limit=_LIMIT,
             source_types=_SOURCE_TYPES,
         )
     return {(match.source_type, match.source_id) for match in matches} if matches else None

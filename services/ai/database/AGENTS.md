@@ -17,7 +17,8 @@ this folder only reads what an AI task needs.
 - `library_embedding_search.py` — `search_career_library(connection, user_id, query_embedding,
   query_text, model, limit, *, source_types)`: requires a nonempty set of supported source
   types, filtered in SQL alongside user/model before either ranking. Returns rows ordered by
-  hybrid rank (`LibrarySearchMatch` list). Cosine order uses HNSW iterative scans so the user
+  hybrid rank (`LibrarySearchMatch` list). Accepts configured or stored embedding-model names
+  and owns conversion to Rails' stored model representation. Cosine order uses HNSW iterative scans so the user
   filter doesn't drop a row before BM25 sees it. Registers the pgvector type on the connection.
   Tailoring calls it for summary/experience with an explicit mixed-type selection
 - `profile_contact.py` — `read_profile_contact(connection, user_id)`: `name`, `contact_email`,

@@ -3,6 +3,8 @@ Description: Hybrid search over the user's career library embeddings (written by
 CareerLibrary::SyncLibraryEmbeddingsService). Scoped by the task's user id and by embedding
 model and explicitly selected source types. Cosine order from
 pgvector is fused with BM25 over the same rows (memory/hybrid_rank.py).
+This module translates configured embedding models into Rails' stored names,
+so callers do not need to know the database representation.
 Index:
     - search_career_library: the library entries that best match a query, best first
 """
@@ -53,8 +55,9 @@ def search_career_library(
     *,
     source_types: AbstractSet[str],
 ) -> list[LibrarySearchMatch]:
-    """Returns up to `limit` of the user's library entries embedded with `model` (the name Rails
-    stores, e.g. "text-embedding-3-small"). Order is reciprocal rank fusion of cosine distance
+    """Returns up to `limit` of the user's library entries embedded with `model` (configured
+    or stored name, e.g. "openai:text-embedding-3-small" or "text-embedding-3-small").
+    Order is reciprocal rank fusion of cosine distance
     and BM25 on `query_text`; a higher score is a better match. Source types must be an
     explicit nonempty set of supported library types; invalid scopes raise ValueError."""
     if (
@@ -66,7 +69,7 @@ def search_career_library(
     register_vector(connection)
     params = {
         "user_id": user_id,
-        "model": model,
+        "model": model.split(":", 1)[-1],
         "source_types": sorted(source_types),
         "query": Vector(list(query_embedding)),
     }

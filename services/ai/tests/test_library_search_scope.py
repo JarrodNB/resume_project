@@ -72,6 +72,27 @@ def test_requires_source_types() -> None:
     assert connection.mock_calls == []
 
 
+@pytest.mark.parametrize("model", ["openai:text-embedding-3-small", "text-embedding-3-small"])
+def test_search_owns_stored_model_representation(monkeypatch, model):
+    """Callers pass configured models without knowing Rails' storage representation."""
+    cursor = Mock()
+    cursor.execute.return_value = cursor
+    cursor.fetchall.return_value = []
+    connection = Mock()
+    connection.transaction.return_value = nullcontext()
+    connection.cursor.return_value = nullcontext(cursor)
+    monkeypatch.setattr("database.library_embedding_search.register_vector", lambda _connection: None)
+    user_id = uuid4()
+
+    assert search_career_library(
+        connection, user_id, [0.1], "Ruby", model, source_types={"Skill"}
+    ) == []
+    params = cursor.execute.call_args.args[1]
+    assert params["model"] == "text-embedding-3-small"
+    assert params["user_id"] == user_id
+    assert params["source_types"] == ["Skill"]
+
+
 def test_async_tailoring_retains_user_scope_and_empty_search_fallback(monkeypatch):
     """Awaited query embedding keeps search filters identical to the synchronous path."""
     import asyncio

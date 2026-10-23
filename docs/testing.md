@@ -49,6 +49,20 @@ ignored environment files first; generative evals also need TypeSafe screening c
 Use synthetic or anonymized cases. Pytest tests correctness with fakes; evaluations measure
 model quality. See `services/ai/evals/AGENTS.md` for runners and reporting options.
 
+## Synthetic resume import samples
+
+Build uploadable PDF/DOCX controls and grouped, separate, mixed-scope, and wrapped
+examples from the hand-labelled parsing dataset:
+
+```bash
+docker compose run --rm ai python -m evals.resume_import_fixtures /app/tmp/resume-import-fixtures
+```
+
+The output includes source text and expected YAML beside each file for human import
+review. The wrapped case contains physical page breaks through bullet continuations.
+All employers and accomplishments are synthetic. Offline parser tests use fake source
+selections; the live parsing comparison is needed to measure model grouping quality.
+
 ## Isolated worktrees
 
 Use `run` from the worktree instead of `exec`, which may target a container mounted from a

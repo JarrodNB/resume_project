@@ -9,6 +9,7 @@ import re
 import pytest
 
 from documents.experience_source import ExperienceSource
+from evals.resume_import_fixtures import build_docx, build_pdf
 
 
 def source_highlights(text):
@@ -17,7 +18,7 @@ def source_highlights(text):
     output = source.output_type.model_validate({
         "experiences": [{"company": "Example", "title": "Engineer", "highlight_ids": ids}],
     })
-    return source.reconstruct(output)["experiences"][0]["highlights"]
+    return source.reconstruct(output)["experiences"][0]["roles"][0]["highlights"]
 
 
 def test_stacked_role_header_with_dates_does_not_enter_previous_bullet():
@@ -52,55 +53,6 @@ def test_blank_separators_do_not_hide_real_boundaries():
         "• Built the next service.\n\nEDUCATION\n• Studied computing.\n"
     )
     assert source_highlights(text) == ["Built the first service.", "Built the next service."]
-
-
-def build_pdf(pages):
-    from io import BytesIO
-
-    from pypdf import PdfWriter
-    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
-
-    writer = PdfWriter()
-    font = DictionaryObject({
-        NameObject("/Type"): NameObject("/Font"),
-        NameObject("/Subtype"): NameObject("/Type1"),
-        NameObject("/BaseFont"): NameObject("/Helvetica"),
-        NameObject("/Encoding"): NameObject("/WinAnsiEncoding"),
-    })
-    for lines in pages:
-        page = writer.add_blank_page(width=612, height=792)
-        page[NameObject("/Resources")] = DictionaryObject({
-            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
-        })
-        stream = DecodedStreamObject()
-        encoded = []
-        for line in lines:
-            escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-            encoded.append(b"(" + escaped.encode("cp1252") + b") Tj T*")
-        stream.set_data(b"BT /F1 12 Tf 14 TL 50 700 Td " + b" ".join(encoded) + b" ET")
-        page[NameObject("/Contents")] = writer._add_object(stream)
-    output = BytesIO()
-    writer.write(output)
-    return output.getvalue()
-
-
-def build_docx(pages):
-    from io import BytesIO
-
-    from docx import Document
-
-    document = Document()
-    for index, lines in enumerate(pages):
-        if index:
-            document.add_page_break()
-        for line in lines:
-            if line.startswith("• "):
-                document.add_paragraph(line[2:], style="List Bullet")
-            else:
-                document.add_paragraph(line)
-    output = BytesIO()
-    document.save(output)
-    return output.getvalue()
 
 
 @pytest.mark.parametrize("file_format", ["pdf", "docx"])
@@ -155,7 +107,7 @@ def test_uploaded_files_preserve_stacked_bullets_through_final_parser(
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
-    assert [role.highlights for role in result.parsed_resume.experiences] == [
+    assert [role.roles[0].highlights for role in result.parsed_resume.experiences] == [
         expected[:1], expected[1:],
     ]
 

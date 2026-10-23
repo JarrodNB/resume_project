@@ -51,7 +51,16 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
         expected_resume = ctx.expected_output or ParsedResume()
         expected_roles = _flat_roles(expected_resume)
         ambiguous_names = (ctx.metadata or {}).get("ambiguous_entries", [])
-        actual_roles = _flat_roles(ctx.output)
+        # Labels can explicitly permit an otherwise unlabelled freelance/project block.
+        # Never excuse changed structure or scopes for any employer that is expected.
+        scored_output = ctx.output.model_copy(update={"experiences": [
+            entry for entry in ctx.output.experiences if not (
+                any(loosely_equal(entry.company, name) for name in ambiguous_names)
+                and not any(loosely_equal(entry.company, expected.company)
+                            for expected in expected_resume.experiences)
+            )
+        ]})
+        actual_roles = _flat_roles(scored_output)
         unmatched = list(actual_roles)
         matches = []
         pending = []
@@ -73,11 +82,10 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
             if actual is not None:
                 unmatched.remove(actual)
         found = [(expected, actual) for expected, actual in matches if actual is not None]
-        extra_roles = [role for role in unmatched if not any(
-            loosely_equal(role.company, name) for name in ambiguous_names)]
+        extra_roles = unmatched
         role_bullets = sum(_bullet_matches(expected.highlights, actual.highlights)
                            for expected, actual in found)
-        remaining_entries = list(ctx.output.experiences)
+        remaining_entries = list(scored_output.experiences)
         shared_bullets = 0
         for expected in expected_resume.experiences:
             actual = next((entry for entry in remaining_entries if _group_key(entry) == _group_key(expected)), None)
@@ -86,16 +94,16 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
                 remaining_entries.remove(actual)
         matched_bullets = role_bullets + shared_bullets
         expected_groups = Counter(_group_key(entry) for entry in expected_resume.experiences)
-        actual_groups = Counter(_group_key(entry) for entry in ctx.output.experiences)
+        actual_groups = Counter(_group_key(entry) for entry in scored_output.experiences)
         matched_groups = sum((expected_groups & actual_groups).values())
         return {
             "experience_recall": fraction(len(found), len(expected_roles)),
             "experience_precision": fraction(len(actual_roles) - len(extra_roles), len(actual_roles)),
             "experience_highlight_recall": fraction(matched_bullets, len(_all_highlights(expected_resume))),
-            "experience_highlight_precision": fraction(matched_bullets, len(_all_highlights(ctx.output))),
+            "experience_highlight_precision": fraction(matched_bullets, len(_all_highlights(scored_output))),
             "experience_group_recall": fraction(matched_groups, len(expected_resume.experiences)),
-            "experience_group_precision": fraction(matched_groups, len(ctx.output.experiences)),
-            "experience_exact_structure": float(_structure(expected_resume) == _structure(ctx.output)),
+            "experience_group_precision": fraction(matched_groups, len(scored_output.experiences)),
+            "experience_exact_structure": float(_structure(expected_resume) == _structure(scored_output)),
             "experience_dates": fraction(
                 sum(_same_dates(expected, actual) for expected, actual in found), len(found)
             ),

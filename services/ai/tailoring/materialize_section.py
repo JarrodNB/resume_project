@@ -76,16 +76,32 @@ def _experience_item(label: str, prose: list, library: CareerLibrary, sources: L
     """The role's identity from the library, and the model's bullets."""
     experience = _find(library.experiences, sources, label)
     assert isinstance(experience, LibraryExperience)
+    roles = [{
+        "id": role.id, "title": role.title,
+        "start_date": _month(role.start_date), "end_date": _month(role.end_date),
+        "is_current": role.start_date is not None and role.end_date is None,
+        "description": role.description, "highlights": [], "highlight_source_ids": [],
+    } for role in experience.roles]
+    shared, shared_ids = [], []
+    for item in prose:
+        evidence = [sources.records[label] for label in item.source_labels if label in sources.records]
+        highlights = [source for source in evidence if source.kind == "highlight"]
+        scopes = {source.experience_role_id for source in highlights}
+        scope = next(iter(scopes)) if len(scopes) == 1 else None
+        # The same entry label is identity context; temporary/fact evidence has no role attribution.
+        if any(source.kind not in {"highlight", "experience"} for source in evidence):
+            scope = None
+        owner = next((role for role in roles if scope is not None and role["id"] == scope), None)
+        ids = [source.record_id for source in highlights if source.experience_id == experience.id]
+        (owner["highlights"] if owner else shared).append(item.text)
+        (owner["highlight_source_ids"] if owner else shared_ids).append(ids)
     return {
-        "company": experience.company,
-        "title": experience.title,
-        "location": experience.location,
-        "start_date": _month(experience.start_date),
-        "end_date": _month(experience.end_date),
-        "is_current": experience.end_date is None and experience.start_date is not None,
-        "description": None,
-        "highlights": [item.text for item in prose],
+        "source_experience_id": experience.id,
+        "company": experience.company, "location": experience.location,
+        "roles": roles, "description": experience.description,
+        "highlights": shared, "highlight_source_ids": shared_ids,
     }
+
 
 
 def _project_item(label: str, prose: list, library: CareerLibrary, sources: LabeledSources) -> dict[str, object]:

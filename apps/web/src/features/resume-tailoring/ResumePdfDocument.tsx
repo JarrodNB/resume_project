@@ -66,8 +66,8 @@ function PdfBlock({ block }: { block: ResumePdfBlock }) {
   const [first, ...rest] = block.entries
   return (
     <View>
-      <View wrap={false}>
-        <Text style={styles.sectionTitle}>{block.title}</Text>
+      <View>
+        <Text style={styles.sectionTitle} minPresenceAhead={30}>{block.title}</Text>
         {first ? <PdfEntry entry={first} /> : null}
       </View>
       {rest.map((entry, index) => (
@@ -80,13 +80,14 @@ function PdfBlock({ block }: { block: ResumePdfBlock }) {
 /** One role, project, or school. */
 function PdfEntry({ entry }: { entry: ResumePdfEntry }) {
   return (
-    <View style={styles.entry} wrap={false}>
-      <View style={styles.entryRow}>
+    <View style={styles.entry} wrap={entry.roles ? true : false}>
+      <View style={styles.entryRow} wrap={false} minPresenceAhead={18}>
         <Text style={styles.heading}>{entry.heading}</Text>
         {entry.dates ? <Text style={styles.dates}>{entry.dates}</Text> : null}
       </View>
       {entry.meta ? <Text style={styles.meta}>{entry.meta}</Text> : null}
       {entry.body ? <Text style={styles.body}>{entry.body}</Text> : null}
+      {entry.roles?.map((role, index) => <View key={`${role.heading}-${index}`} style={{ marginLeft: 8 }}><PdfEntry entry={role} /></View>)}
       {entry.bullets.map((bullet, index) => (
         <Text key={index} style={styles.bullet}>{`• ${bullet}`}</Text>
       ))}

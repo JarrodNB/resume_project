@@ -23,7 +23,9 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
   resumes. New drafts are unsaved until persisted; saved editors track the submitted snapshot
   so edits made during a request remain unsaved. Successful deletion sets a ref read by the
   blocker at navigation time; do not rely on a state render before navigating after deletion.
-- `SectionFields.tsx` — resume-import review fields for one section
+- `SectionFields.tsx` — shared review fields for one section
+- `TailoredExperienceFields.tsx` — company, nested title/date fields, shared and scoped bullets
+- `tailoredExperience.ts` — read-time normalization of flat legacy snapshots and grouped snapshot serialization; keeps source IDs without changing historical task JSON
 - `sectionOrder.ts` — section names and display titles
 - `tailorDraft.ts` — section JSON to and from the review-field draft
 - `parseTailorTask.ts` — completed draft sections and warnings

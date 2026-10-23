@@ -5,15 +5,16 @@
  *   - sectionDraftFromContent / contentFromSectionDraft: one section, both ways
  *   - SectionDraft: the editable form of one section
  */
-import type { ParsedCertification, ParsedContactInfo, ParsedEducation, ParsedExperience, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
-import { emptyCertification, emptyEducation, emptyExperience, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
-import { withDraftKey, type DraftCertification, type DraftEducation, type DraftExperience, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
+import type { ParsedCertification, ParsedContactInfo, ParsedEducation, ParsedProject, ParsedSkill } from '@/features/resume-import/parsedResume'
+import { emptyCertification, emptyEducation, emptyProject, parsedLinks } from '@/features/resume-import/parsedResume'
+import { withDraftKey, type DraftCertification, type DraftEducation, type DraftProject, type DraftSkill } from '@/features/resume-import/review/reviewDraft'
+import { tailoredExperienceFrom, tailoredExperienceContent, type TailoredExperience } from './tailoredExperience'
 import type { TailorSectionType } from './sectionOrder'
 
 export type SectionDraft =
   | { kind: 'contact'; contact: ParsedContactInfo }
   | { kind: 'summary'; text: string | null }
-  | { kind: 'experience'; items: DraftExperience[] }
+  | { kind: 'experience'; items: TailoredExperience[] }
   | { kind: 'projects'; items: DraftProject[] }
   | { kind: 'education'; items: DraftEducation[] }
   | { kind: 'certifications'; items: DraftCertification[] }
@@ -24,7 +25,7 @@ export function sectionDraftFromContent(sectionType: TailorSectionType, content:
   const record = isRecord(content) ? content : {}
   if (sectionType === 'contact') return { kind: 'contact', contact: contactFrom(record) }
   if (sectionType === 'summary') return { kind: 'summary', text: typeof record.text === 'string' ? record.text : '' }
-  if (sectionType === 'experience') return { kind: 'experience', items: items(record).map(experienceFrom) }
+  if (sectionType === 'experience') return { kind: 'experience', items: items(record).map(tailoredExperienceFrom) }
   if (sectionType === 'projects') return { kind: 'projects', items: items(record).map(projectFrom) }
   if (sectionType === 'certifications') return { kind: 'certifications', items: items(record).map(certificationFrom) }
   if (sectionType === 'education') return { kind: 'education', items: items(record).map(educationFrom) }
@@ -35,7 +36,7 @@ export function sectionDraftFromContent(sectionType: TailorSectionType, content:
 export function contentFromSectionDraft(draft: SectionDraft): Record<string, unknown> {
   if (draft.kind === 'contact') return { ...draft.contact }
   if (draft.kind === 'summary') return { text: draft.text ?? '' }
-  if (draft.kind === 'experience') return { items: draft.items.map(({ key: _key, highlights, ...item }) => ({ ...item, highlights: highlights.map((highlight) => highlight.text) })) }
+  if (draft.kind === 'experience') return { items: draft.items.map(tailoredExperienceContent) }
   if (draft.kind === 'skills') return { items: draft.items.map(({ key: _key, ...item }) => item) }
   return { items: draft.items.map(({ key: _key, ...item }) => item) }
 }
@@ -59,13 +60,6 @@ function contactFrom(content: Record<string, unknown>): ParsedContactInfo {
     location: stringOrNull(content.location),
     links: parsedLinks(content.links),
   }
-}
-
-/** One experience, with a key on the role and each highlight. */
-function experienceFrom(value: unknown): DraftExperience {
-  const experience = { ...emptyExperience(), ...(isRecord(value) ? (value as Partial<ParsedExperience>) : {}) }
-  const highlights = Array.isArray(experience.highlights) ? experience.highlights.filter((text): text is string => typeof text === 'string') : []
-  return withDraftKey({ ...experience, highlights: highlights.map((text) => withDraftKey({ text })) })
 }
 
 /** One project with a key. */

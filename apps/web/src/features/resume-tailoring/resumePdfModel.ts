@@ -17,6 +17,7 @@ export interface ResumePdfEntry {
   dates: string
   body: string
   bullets: string[]
+  roles?: ResumePdfEntry[]
 }
 
 export interface ResumePdfBlock {
@@ -84,6 +85,14 @@ function entryFrom(sectionType: TailorSectionType, value: unknown): ResumePdfEnt
 
 /** A role: title and company, dates, and bullets. */
 function experienceEntry(item: Record<string, unknown>): ResumePdfEntry | null {
+  if (Array.isArray(item.roles) && item.roles.length > 0) {
+    const roles = item.roles.flatMap((value) => {
+      if (!isRecord(value)) return []
+      const role = experienceEntry({ ...value, company: '', location: null })
+      return role ? [role] : []
+    })
+    return { heading: text(item.company) || 'Experience', meta: text(item.location), dates: '', body: text(item.description), bullets: stringList(item.highlights), roles }
+  }
   const title = text(item.title)
   const company = text(item.company)
   const location = text(item.location)

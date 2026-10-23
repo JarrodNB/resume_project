@@ -24,10 +24,10 @@ class SourceProvenance:
     def select(self, collection: str, record_type: str, record: LibraryRecord, *names: str) -> dict:
         """Capture saved identity/checks and return the values the formatter will use."""
         values = {name: getattr(record, name) for name in names}
-        snapshot = record.model_copy(update={"highlights": []}) if collection == "experiences" else record.model_copy()
-        owner = self.library.experiences[0] if collection == "highlights" else self.library
+        snapshot = record.model_copy(update={"highlights": [], "roles": []}) if collection == "experiences" else record.model_copy()
+        owner = self.library.experiences[0] if collection in {"highlights", "roles"} else self.library
         getattr(owner, collection).append(snapshot)
-        self.used_fields[record_type] = set(values)
+        self.used_fields.setdefault(record_type, set()).update(values)
         return values
 
 
@@ -41,6 +41,8 @@ class SourceRecord:
     record_id: str | None = None
     source_type: str | None = None
     provenance: SourceProvenance | None = field(default=None, repr=False, compare=False)
+    experience_id: str | None = None
+    experience_role_id: str | None = None
 
 
 @dataclass
@@ -116,27 +118,50 @@ def _add_library(
         )
         if experience_kept:
             provenance = SourceProvenance()
-            values = provenance.select("experiences", "experience", experience, "title", "company", "description")
-            role = f"{values['title']} at {values['company']}"
-            text = role if not values["description"] else f"{role}: {values['description']}"
+            text = _experience_text(provenance, experience, include_description=True)
             sources.records[f"E{number}"] = SourceRecord(
-                f"E{number}", "experience", text, experience.id, "Experience", provenance
+                f"E{number}", "experience", text, experience.id, "Experience", provenance,
+                experience_id=experience.id,
             )
         for highlight_number_value, highlight in highlight_labels:
             if experience_kept or _keep(retrieved, "ExperienceHighlight", highlight.id, native):
                 provenance = SourceProvenance()
-                values = provenance.select("experiences", "experience", experience, "title", "company")
-                role = f"{values['title']} at {values['company']}"
+                role = _experience_text(provenance, experience, include_description=bool(experience.description or any(role.description for role in experience.roles)),
+                                        role_id=None)
                 values = provenance.select("highlights", "experience_highlight", highlight, "content")
+                scoped_role = next((role for role in experience.roles if role.id == highlight.experience_role_id), None)
+                scope = "Shared achievement" if scoped_role is None else f"Role achievement: {scoped_role.title}"
                 sources.records[f"H{highlight_number_value}"] = SourceRecord(
-                    f"H{highlight_number_value}",
-                    "highlight",
-                    f"{role}: {values['content']}",
-                    highlight.id,
-                    "ExperienceHighlight",
-                    provenance,
+                    f"H{highlight_number_value}", "highlight", f"{role}: {values['content']}"
+                    if experience._legacy_role else f"{role} ({scope}): {values['content']}",
+                    highlight.id, "ExperienceHighlight", provenance,
+                    experience_id=experience.id, experience_role_id=highlight.experience_role_id,
                 )
     _add_simple(sources, library, retrieved, native)
+
+
+def _experience_text(provenance, experience, *, include_description, role_id=None):
+    """Render the exact saved identities selected for screening, without projecting a title."""
+    if experience._legacy_role:
+        names = ("title", "company", "description") if include_description else ("title", "company")
+        values = provenance.select("experiences", "experience", experience, *names)
+        text = f"{values['title']} at {values['company']}"
+    else:
+        names = ("company", "description") if include_description else ("company",)
+        values = provenance.select("experiences", "experience", experience, *names)
+        text = values["company"]
+        for role in experience.roles:
+            if role_id is not None and role.id != role_id:
+                continue
+            role_names = ("title", "start_date", "end_date", "description") if include_description else ("title", "start_date", "end_date")
+            fields = provenance.select("roles", "experience_role", role, *role_names)
+            dates = f"{role.start_date or ''} – {role.end_date or 'Present' if role.start_date else role.end_date or ''}"
+            text += f"; {fields['title']} [{dates}]"
+            if fields.get("description"):
+                text += f": {fields['description']}"
+    if values.get("description"):
+        text += f": {values['description']}"
+    return text
 
 
 def _add_simple(
@@ -213,8 +238,9 @@ def _flatten(content: object) -> str:
         if isinstance(value, str):
             parts.append(value)
         elif isinstance(value, dict):
-            for item in value.values():
-                walk(item)
+            for key, item in value.items():
+                if key not in {"id", "source_experience_id", "highlight_source_ids"}:
+                    walk(item)
         elif isinstance(value, list):
             for item in value:
                 walk(item)

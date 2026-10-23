@@ -77,4 +77,34 @@ RSpec.describe "Complete draft editing and saving" do
     expect(excluded.reload.name).to eq("Other credential")
     expect(queue).not_to have_received(:send_message)
   end
+  it "saves and edits grouped role snapshots without rewriting historical flat task JSON" do
+    original = { "section_type" => "experience", "content" => { "items" => [
+      { "company" => "Example", "title" => "Engineer", "highlights" => [ "Built tools" ] }
+    ] } }
+    ai_task.update!(result: { "sections" => [ original ] })
+    grouped = { "section_type" => "experience", "content" => { "items" => [
+      { "company" => "Example", "source_experience_id" => "employment", "highlights" => [ "Built tools" ],
+        "highlight_source_ids" => [ [ "shared" ] ], "roles" => [
+          { "id" => "senior", "title" => "Senior Engineer", "start_date" => "2025-01",
+            "highlights" => [ "Led migrations" ], "highlight_source_ids" => [ [ "scoped" ] ] },
+          { "id" => "earlier", "title" => "Engineer", "start_date" => "2020-01", "end_date" => "2024-12", "highlights" => [] }
+        ] },
+      { "company" => "Example", "roles" => [ { "title" => "Support Engineer", "highlights" => [] } ], "highlights" => [] }
+    ] } }
+
+    saved = ResumeTailoring::SaveTailoredResumeService.call(ai_task: ai_task, sections: [ grouped ])
+    expect(saved).to be_success
+    section = saved.value.sections.sole
+    expect(section.content).to eq(grouped["content"])
+    edited = section.content.deep_dup
+    edited["items"][0]["roles"][0]["title"] = "Staff Engineer"
+    updated = ResumeTailoring::UpdateResumeSectionsService.call(resume: saved.value,
+      sections: [ { "id" => section.id, "content" => edited } ])
+
+    expect(updated).to be_success
+    expect(section.reload.content).to eq(edited)
+    expect(ai_task.reload.result).to eq("sections" => [ original ])
+    expect(queue).not_to have_received(:send_message)
+  end
+
 end

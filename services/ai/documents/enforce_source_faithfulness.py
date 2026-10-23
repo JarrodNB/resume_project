@@ -1,23 +1,29 @@
-"""
-Description: Enforces "extract, never rewrite" on a ParsedResume by checking it against the
-resume's own text. Highlights and skills not found in the text are removed; experience, project,
-education, and certification names not found are kept. Every finding is added to parsing_warnings.
-Index:
-    - enforce_source_faithfulness: returns a copy of the parse with unverifiable content handled
+"""Check extracted resume values against the uploaded source text.
+
+Remove unsupported highlights and skills, and warn about unmatched names.
+Normalize the source once per check without retaining resume text afterward.
 """
 
-from documents.text_matching import appears_in
+from collections.abc import Callable
+
+from documents.text_matching import normalize_text
 from schemas.parsed_resume import ParsedExperience, ParsedResume, ParsedSkill
 
 
 def enforce_source_faithfulness(parsed_resume: ParsedResume, source_text: str) -> ParsedResume:
     """Returns a copy of parsed_resume where nothing unverifiable passes without a warning."""
+    normalized_source = normalize_text(source_text)
+
+    def appears_in_source(value: str | None) -> bool:
+        normalized_value = normalize_text(value)
+        return bool(normalized_value) and normalized_value in normalized_source
+
     warnings: list[str] = []
     experiences = [
-        _check_experience(role, source_text, warnings) for role in parsed_resume.experiences
+        _check_experience(role, appears_in_source, warnings) for role in parsed_resume.experiences
     ]
-    skills = _check_skills(parsed_resume.skills, source_text, warnings)
-    _warn_unmatched_names(parsed_resume, source_text, warnings)
+    skills = _check_skills(parsed_resume.skills, appears_in_source, warnings)
+    _warn_unmatched_names(parsed_resume, appears_in_source, warnings)
     if not warnings:
         return parsed_resume
     return parsed_resume.model_copy(
@@ -30,12 +36,12 @@ def enforce_source_faithfulness(parsed_resume: ParsedResume, source_text: str) -
 
 
 def _check_experience(
-    role: ParsedExperience, source_text: str, warnings: list[str]
+    role: ParsedExperience, appears_in_source: Callable[[str | None], bool], warnings: list[str]
 ) -> ParsedExperience:
     """Removes highlights that aren't in the source text, warning about each one."""
     kept_highlights = []
     for highlight in role.highlights:
-        if appears_in(highlight, source_text):
+        if appears_in_source(highlight):
             kept_highlights.append(highlight)
         else:
             warnings.append(
@@ -48,12 +54,12 @@ def _check_experience(
 
 
 def _check_skills(
-    skills: list[ParsedSkill], source_text: str, warnings: list[str]
+    skills: list[ParsedSkill], appears_in_source: Callable[[str | None], bool], warnings: list[str]
 ) -> list[ParsedSkill]:
     """Removes skills that aren't in the source text, warning about each one."""
     kept_skills = []
     for skill in skills:
-        if appears_in(skill.name, source_text):
+        if appears_in_source(skill.name):
             kept_skills.append(skill)
         else:
             warnings.append(f'Removed a skill that doesn\'t appear in the resume: "{skill.name}"')
@@ -61,7 +67,7 @@ def _check_skills(
 
 
 def _warn_unmatched_names(
-    parsed_resume: ParsedResume, source_text: str, warnings: list[str]
+    parsed_resume: ParsedResume, appears_in_source: Callable[[str | None], bool], warnings: list[str]
 ) -> None:
     """Warns (without removing anything) about entry names that aren't in the source text."""
     labelled_names = (
@@ -72,7 +78,7 @@ def _warn_unmatched_names(
         + [("certification name", item.name) for item in parsed_resume.certifications]
     )
     for label, name in labelled_names:
-        if not appears_in(name, source_text):
+        if not appears_in_source(name):
             warnings.append(
                 f'Check this {label}; it doesn\'t appear word for word in the resume: "{name}"'
             )

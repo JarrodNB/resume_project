@@ -19,18 +19,20 @@ function Choices({ title, name, options, value, change }: { title: string; name:
   </div></fieldset>
 }
 
-export function InterviewSetup({ notice }: { notice: ReactNode }) {
+export function InterviewSetup({ notice, initialSetup }: { notice: ReactNode; initialSetup?: unknown }) {
   const { start, loading, error } = useStartInterview()
   const { user } = useAuth()
   const microphone = useInterviewMicSettings(user?.id ?? '')
   const navigate = useNavigate()
   const submitting = useRef(false)
   const [pending, setPending] = useState(false)
-  const [questionCount, setQuestionCount] = useState(8)
-  const [questionFormat, setQuestionFormat] = useState('mixed')
-  const [difficulty, setDifficulty] = useState('realistic')
-  const [interviewer, setInterviewer] = useState('daniel')
-  const [focusAreas, setFocusAreas] = useState<string[]>([])
+  const saved = initialSetup && typeof initialSetup === 'object' ? initialSetup as Record<string, unknown> : {}
+  const choice = (value: unknown, options: { value: string }[], fallback: string) => options.some((option) => option.value === value) ? value as string : fallback
+  const [questionCount, setQuestionCount] = useState(Number(choice(String(saved.questionCount), lengthOptions, '8')))
+  const [questionFormat, setQuestionFormat] = useState(choice(saved.questionFormat, typeOptions, 'mixed'))
+  const [difficulty, setDifficulty] = useState(choice(saved.difficulty, difficultyOptions, 'realistic'))
+  const [interviewer, setInterviewer] = useState(choice(saved.interviewer, interviewerOptions, 'daniel'))
+  const [focusAreas, setFocusAreas] = useState<string[]>(Array.isArray(saved.focusAreas) ? [...new Set(saved.focusAreas.filter((value): value is string => typeof value === 'string' && Object.hasOwn(focusOptions, value)))] : [])
   const busy = loading || pending
   async function prepare() {
     if (submitting.current) return

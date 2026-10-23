@@ -50,7 +50,7 @@ export function InterviewPage() {
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     {!interviewsEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
-      <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
+      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
   </div>
 }
@@ -319,7 +319,7 @@ function OwnedInterview({ id }: { id: string }) {
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
       {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
       {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
-      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : recordedReview || reviewedRecording === recorder.recording ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}

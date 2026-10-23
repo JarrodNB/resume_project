@@ -66,11 +66,10 @@ def handle_interview_questions_task(
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.
-    content = library.model_dump(mode="json", exclude_none=True,
-                                 exclude={"facts": {"__all__": {"requirement"}}})
+    content = _interview_library_content(library)
     usable = bool(library.summary and library.summary.strip()) or any(
         value.strip() for rows, fields in (
-            (library.experiences, ("title", "company", "description")),
+            (library.experiences, ("company", "description")),
             (library.projects, ("name", "description")),
             (library.educations, ("institution", "degree", "field_of_study")),
             (library.certifications, ("name",)), (library.skills, ("name",)),
@@ -78,6 +77,10 @@ def handle_interview_questions_task(
         ) for row in rows for field in fields
         if isinstance(value := getattr(row, field), str)
     )
+    usable = usable or any(
+        (role.title and role.title.strip()) or (role.description and role.description.strip())
+        for entry in library.experiences for role in entry.roles
+    ) or any(bullet.content.strip() for entry in library.experiences for bullet in entry.highlights)
     if not usable:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
@@ -120,8 +123,7 @@ def handle_interview_questions_task(
 def _question_prompt_text(values, fields, count, set_type):
     """Render only checked library and excluded-question values with trusted scope."""
     library = rebuild_library(values[:len(fields)], fields)
-    content = library.model_dump(mode="json", exclude_none=True,
-        exclude={"facts": {"__all__": {"requirement"}}})
+    content = _interview_library_content(library)
     text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
     excluded = values[len(fields):]
     if excluded:
@@ -134,7 +136,15 @@ def _library_evidence_text(value: object) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, dict):
-        return "\n".join(_library_evidence_text(item) for key, item in value.items() if key != "id")
+        return "\n".join(_library_evidence_text(item) for key, item in value.items() if key not in {"id", "experience_role_id"})
     if isinstance(value, list):
         return "\n".join(_library_evidence_text(item) for item in value)
     return ""
+
+
+def _interview_library_content(library):
+    """Expose canonical role metadata once, preserving entry and bullet order and ownership."""
+    return library.model_dump(mode="json", exclude_none=True, exclude={
+        "facts": {"__all__": {"requirement"}},
+        "experiences": {"__all__": {"title", "start_date", "end_date"}},
+    })

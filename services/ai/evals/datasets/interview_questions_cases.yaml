@@ -83,3 +83,30 @@ cases:
         - "How would you use a dictionary to count words?"
         - "Why does changing a mutable default argument affect later calls?"
         - "What limitations does the global interpreter lock impose on CPU-bound threads?"
+  - name: technical-grouped-roles-shared-work
+    inputs:
+      set_type: technical
+      career_library:
+        experiences:
+          - id: grouped
+            company: Example Co
+            roles:
+              - id: recent
+                title: AI Engineer
+                start_date: 2025-01-01
+                end_date: 2026-09-01
+              - id: earlier
+                title: Software Developer
+                start_date: 2019-01-01
+                end_date: 2024-12-01
+            highlights:
+              - id: shared
+                content: Built Python APIs
+              - id: scoped
+                content: Tuned PostgreSQL queries
+                experience_role_id: earlier
+          - id: separate
+            company: Example Co
+            title: Consultant
+            start_date: 2018-01-01
+            end_date: 2018-12-01

@@ -110,9 +110,12 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  fifteen question cases and seventeen feedback cases for general/technical/knowledge full sets and replacements,
+  sixteen question cases and eighteen feedback cases for general/technical/knowledge full sets and replacements,
   software and nonsoftware practical work, sparse education, complete/incomplete stories, no matching example,
   uncertain/negative outcomes, introductions, and legacy goals/development questions.
+  Grouped employment cases retain both roles and shared/scoped bullet ownership without
+  assigning shared work to a role or date range. Interview inputs accept canonical career-library
+  JSON alongside legacy synthetic prose.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.
   The knowledge accuracy judge checks corrections; scope-aware example grounding permits subject facts while forbidding invented experience.

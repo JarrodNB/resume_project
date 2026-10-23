@@ -43,3 +43,10 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 Credential dates retain `year`, `month`, or `day` precision. Exact expiration within a partial expiry period is unknown; after the period it is
 definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
+
+## Grouped employment evidence
+
+Experience labels identify source entries, including separate entries at one employer.
+Each grouped entry exposes every role and date range. Highlight labels retain global source
+order. Shared highlights do not establish a specific role or work duration; scoped highlights
+include only their owning role's title and dates in the returned evidence context.

@@ -344,6 +344,50 @@ cases:
         - requirement: AWS Solutions Architect certification
           verdict: met
           key_evidence_ids: [cert-1]
+  - name: grouped_roles_shared_work_has_no_duration
+    inputs:
+      job:
+        id: job-grouped
+        title: Backend Engineer
+        requirements:
+          - Python development experience
+          - 5 years of professional Python development
+          - PostgreSQL development experience
+      career_library:
+        experiences:
+          - id: exp-grouped
+            company: Example Co
+            roles:
+              - id: recent
+                title: AI Engineer
+                start_date: 2025-01-01
+                end_date: 2026-09-01
+              - id: earlier
+                title: Software Developer
+                start_date: 2019-01-01
+                end_date: 2024-12-01
+            highlights:
+              - id: shared-python
+                content: Built Python APIs
+              - id: scoped-postgres
+                content: Tuned PostgreSQL queries
+                experience_role_id: earlier
+          - id: exp-separate
+            company: Example Co
+            title: Consultant
+            start_date: 2018-01-01
+            end_date: 2018-12-01
+    metadata:
+      assessments:
+        - requirement: Python development experience
+          verdict: met
+          key_evidence_ids: [shared-python]
+        - requirement: 5 years of professional Python development
+          verdict: partial
+          key_evidence_ids: [shared-python]
+        - requirement: PostgreSQL development experience
+          verdict: met
+          key_evidence_ids: [scoped-postgres]
 evaluators:
   - Coverage
   - EvidenceValidity

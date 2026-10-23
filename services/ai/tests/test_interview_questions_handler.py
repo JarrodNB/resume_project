@@ -267,3 +267,51 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     if replacement:
         assert _task(True).input["question_text"] in screened
     assert library.facts[0].requirement == requirement
+
+
+def test_grouped_library_reaches_questions_without_flat_role_attribution(task_dependencies, monkeypatch):
+    """Question generation receives both roles and each bullet's original ownership."""
+    from schemas.gap_analysis_context import LibraryExperience
+
+    library = CareerLibrary(experiences=[LibraryExperience.model_validate({
+        "id": "experience", "company": "Example Co", "roles": [
+            {"id": "new", "title": "AI Engineer", "start_date": "2025-01-01"},
+            {"id": "old", "title": "Developer", "end_date": "2024-12-01"},
+        ], "highlights": [{"id": "shared", "content": "Python"},
+                          {"id": "scoped", "content": "SQL", "experience_role_id": "old"}],
+    })])
+    deps = replace(task_dependencies, read_career_library=lambda user_id: library)
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect(prompt, **kwargs):
+        content = json.loads(prompt.text.split("Library JSON data:\n")[1])
+        entry = content["experiences"][0]
+        assert "title" not in entry
+        assert "start_date" not in entry and "end_date" not in entry
+        assert [role["title"] for role in entry["roles"]] == ["AI Engineer", "Developer"]
+        assert [bullet["id"] for bullet in entry["highlights"]] == ["shared", "scoped"]
+        assert "experience_role_id" not in entry["highlights"][0]
+        assert entry["highlights"][1]["experience_role_id"] == "old"
+        assert "AI Engineer" in prompt.library_text
+        assert "experience_role_id" not in prompt.library_text
+        assert "old" not in prompt.library_text
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
+        assert handle_ai_task(_task(), deps).status == "completed"
+
+
+@pytest.mark.parametrize("details", [
+    {"roles": [{"id": "role", "title": "Python"}]},
+    {"roles": [{"id": "role", "title": "", "description": "Python"}]},
+    {"highlights": [{"id": "bullet", "content": "Python"}]},
+])
+def test_career_content_in_roles_or_bullets_is_usable(task_dependencies, details):
+    """Optional blank company fields do not hide otherwise usable career evidence."""
+    from schemas.gap_analysis_context import LibraryExperience
+
+    library = CareerLibrary(experiences=[LibraryExperience(id="entry", company="", **details)])
+    deps = replace(task_dependencies, read_career_library=lambda user_id: library)
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
+        assert handle_ai_task(_task(), deps).status == "completed"

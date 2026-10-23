@@ -264,3 +264,35 @@ def test_feedback_agent_masks_contact_and_restores_evidence(dependencies, monkey
     assert all("Jane Doe" not in text for text in seen)
     assert any("«name»" in text for text in seen)
     assert result.result["interview_feedback"]["evidence_quotes"] == ["I am Jane Doe."]
+
+
+def test_grouped_library_feedback_preserves_roles_and_shared_scope(dependencies, monkeypatch):
+    """Feedback sees original role ownership while IDs cannot serve as evidence quotes."""
+    import json
+
+    from schemas.gap_analysis_context import LibraryExperience
+    from worker import interview_feedback_handler
+
+    library = CareerLibrary(experiences=[LibraryExperience.model_validate({
+        "id": "experience", "company": "Example Co", "roles": [
+            {"id": "new", "title": "AI Engineer", "start_date": "2025-01-01"},
+            {"id": "old", "title": "Developer", "end_date": "2024-12-01"},
+        ], "highlights": [{"id": "shared", "content": "Built Python APIs"},
+                          {"id": "scoped", "content": "Tuned SQL", "experience_role_id": "old"}],
+    })])
+    deps = replace(dependencies, read_career_library=lambda user_id: library)
+    generate = interview_feedback_handler.generate_interview_feedback
+
+    def inspect(context, **kwargs):
+        entries = json.loads(context.text)["career_library"]["experiences"]
+        assert len(entries) == 1
+        assert "title" not in entries[0]
+        assert [role["title"] for role in entries[0]["roles"]] == ["AI Engineer", "Developer"]
+        assert "experience_role_id" not in entries[0]["highlights"][0]
+        assert entries[0]["highlights"][1]["experience_role_id"] == "old"
+        assert "old" not in context.source_text
+        return generate(context, **kwargs)
+
+    monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect)
+    with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+        assert handle_ai_task(task(), deps).status == "completed"

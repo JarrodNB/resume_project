@@ -1,10 +1,10 @@
+"""Read uploaded resume bytes from the configured S3 bucket.
+
+Rails supplies Active Storage blob keys. Each response stream closes after
+reading, including failed reads, so retries do not retain failed connections.
 """
-Description: Read-only access to uploaded files in S3 (S3Mock locally). Rails uploads them
-through Active Storage; the object key is the Active Storage blob key.
-Index:
-    - S3FileStorage: downloads objects from the uploads bucket
-    - S3FileStorage.download_file: returns an object's bytes
-"""
+
+from contextlib import closing
 
 import boto3
 from botocore.config import Config
@@ -28,4 +28,5 @@ class S3FileStorage:
     def download_file(self, key: str) -> bytes:
         """Returns the bytes of the object stored under `key`."""
         response = self._s3.get_object(Bucket=self._bucket, Key=key)
-        return response["Body"].read()
+        with closing(response["Body"]) as body:
+            return body.read()

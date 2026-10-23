@@ -1,4 +1,4 @@
-/** Own the demo's GraphQL state and explicit writes. Reconnect snapshots restore durable work.
+/** Own the interview session's GraphQL state and explicit writes. Reconnect snapshots restore durable work.
  * Rejected submissions release their identity and keep the recording. Ambiguous submissions keep
  * their exact input; a fresh owned read always precedes a manual resend.
  */

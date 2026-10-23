@@ -17,7 +17,7 @@ import { useAuth } from '@/features/auth/useAuth'
 import { InterviewClarification } from './InterviewClarification'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
-import { interviewDemoEnabled } from './interviewDemoEnabled'
+import { interviewsEnabled } from './interviewsEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
@@ -41,13 +41,13 @@ const TRANSCRIPTION_HELP = {
   recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
 }
 
-export function InterviewDemoPage() {
+export function InterviewPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { state: navigationState } = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
-    {!interviewDemoEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
+    {!interviewsEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
       <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}

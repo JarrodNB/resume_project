@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
-import { InterviewDemoPage } from './InterviewDemoPage'
+import { InterviewPage } from './InterviewPage'
 
 const stopTrack = vi.fn()
 const { session } = vi.hoisted(() => ({ session: {
@@ -48,7 +48,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 it('keeps the real microphone running while typing and continues filling new words', async () => {
-  renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewDemoPage /> })
+  renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewPage /> })
   fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
   await screen.findByRole('button', { name: 'Stop recording' })
   act(() => Recognition.latest.words('I built a tool'))

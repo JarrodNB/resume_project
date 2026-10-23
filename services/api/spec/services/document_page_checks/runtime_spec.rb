@@ -64,6 +64,22 @@ RSpec.describe DocumentPageChecks::LibreOfficeCounter do
     end
   end
 
+  it "rejects dynamic Word fields and relationship traversal outside the package" do
+    Dir.mktmpdir do |dir|
+      path = File.join(dir, "resume.docx")
+      [ '<w:p><w:r><w:instrText>INCLUDE</w:instrText></w:r><w:r><w:instrText>TEXT /etc/passwd</w:instrText></w:r></w:p>',
+        '<w:fldSimple w:instr="INCLUDEPICTURE file:///etc/passwd"/>' ].each do |body|
+        package(path, body: body)
+        expect(DocumentPageChecks::DocxPackageValidator.call(path: path)).not_to be_success
+      end
+      [ "../../../../etc/passwd", "/etc/passwd", "%2e%2e/%2e%2e/etc/passwd" ].each do |target|
+        relationship = "<Relationships><Relationship Type=\"image\" Target=\"#{target}\"/></Relationships>"
+        package(path, body: "", extra: { "word/_rels/document.xml.rels" => relationship })
+        expect(DocumentPageChecks::DocxPackageValidator.call(path: path)).not_to be_success
+      end
+    end
+  end
+
   it "prevents internet sockets in the actual child sandbox" do
     script = "import socket; socket.socket(socket.AF_INET, socket.SOCK_STREAM)"
     _out, _error, status = Open3.capture3("/usr/local/bin/docx-network-sandbox", "python3", "-c", script)

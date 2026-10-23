@@ -13,7 +13,7 @@ import asyncio
 from typing import NamedTuple
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.settings import ModelSettings, ThinkingEffort
+from pydantic_ai.settings import ModelSettings, ThinkingLevel
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
@@ -62,7 +62,7 @@ class GapAnalysisRun(NamedTuple):
 def analyze_gaps(
     prompt: GapAnalysisPrompt,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> GapAnalysisRun:
@@ -75,7 +75,7 @@ def analyze_gaps(
 async def _run_with_deadline(
     prompt: GapAnalysisPrompt,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> GapAnalysisRun:

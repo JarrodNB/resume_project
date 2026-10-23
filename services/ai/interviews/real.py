@@ -1,7 +1,8 @@
 """Run real interviews with approved frozen context and newest-message screening.
 
 Rails supplies accepted public dialogue and persists field approvals. The runtime uses
-fixed accounted providers, preserving Rails ownership of acceptance and progression.
+fixed accounted providers with configurable Luna reasoning, preserving Rails ownership
+of acceptance and progression.
 """
 
 import asyncio
@@ -29,6 +30,7 @@ from interviews.conversation import (
 from interviews.executor import MAX_TRANSCRIPT_CHARACTERS, InterviewExecutor, ScreeningRejected
 from interviews.history import serialize_history
 from interviews.media import download_audio
+from interviews.settings import InterviewThinkingSettings
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
@@ -48,6 +50,7 @@ class RealInterviewExecutor(InterviewExecutor):
     def __init__(self, client, *, audio, models, **kwargs):
         super().__init__(client, **kwargs)
         self.audio, self.models = audio, models
+        self.thinking = InterviewThinkingSettings()
 
     @contextmanager
     def _trace(self, claim):
@@ -116,14 +119,14 @@ class RealInterviewExecutor(InterviewExecutor):
     def _interviewer(self, claim, guard, *, system_prompt=""):
         return make_interviewer(guard, system_prompt=system_prompt), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
-            "model_settings": {"thinking": "low", "max_tokens": 1024},
+            "model_settings": {"thinking": self.thinking.interview_dialogue_thinking, "max_tokens": 1024},
         }
 
     def _preparer(self, claim, guard, *, system_prompt=""):
         return make_preparer(guard, system_prompt=system_prompt, question_count=claim.payload.setup.question_count,
             question_format=claim.payload.setup.question_format), {
             "model": self.models.accounted(self.client, claim, "interviewer", "gpt-6-luna"),
-            "model_settings": {"thinking": "low", "max_tokens": 4096},
+            "model_settings": {"thinking": self.thinking.interview_preparation_thinking, "max_tokens": 4096},
         }
 
 

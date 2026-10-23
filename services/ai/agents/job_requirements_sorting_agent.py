@@ -11,7 +11,7 @@ Index:
 import asyncio
 
 from pydantic_ai import Agent
-from pydantic_ai.settings import ModelSettings, ThinkingEffort
+from pydantic_ai.settings import ModelSettings, ThinkingLevel
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
@@ -47,7 +47,7 @@ def format_numbered_bullets(bullets: list[str]) -> str:
 def sort_job_requirement_bullets(
     bullets: list[str],
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> BulletSortingRun:
@@ -62,7 +62,7 @@ def sort_job_requirement_bullets(
 async def _run_with_deadline(
     bullets: list[str],
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> BulletSortingRun:

@@ -49,10 +49,16 @@ requests get a JSON 429 with `Retry-After`.
 ## Decisions
 
 - **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring,
-  interview questions, and interview feedback) default to `gpt-6-luna` with low reasoning
-  effort and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
+  interview questions, and interview feedback) default to `gpt-6-luna` with reasoning
+  disabled and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
   A failed output check retries the same model. JEV stays the pinned primary safety model;
-  its separate Nano classifier handles attempted screening failures.
+  its separate Nano classifier handles attempted screening failures. Spoken interview
+  preparation and dialogue default to disabled Luna reasoning. Set
+  `INTERVIEW_PREPARATION_THINKING` and `INTERVIEW_DIALOGUE_THINKING` independently
+  to `false`, `true`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
+  Root Compose reads these from the root `.env` or shell; the retained QA launcher
+  reads them from its configured AI environment file. Recreate the interview runtime
+  after changing them; these settings do not affect queued agents.
   Luna was selected for its lower cost and latency in the October 2026 synthetic evaluations.
   Quality varies between runs, and interview quality scores were lower than GPT-5 mini's;
   this is a cost and latency preference rather than a claim of better quality on every task.

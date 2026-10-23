@@ -29,6 +29,7 @@ GraphQL output/input types, enums, and root operation fields.
 - `experience_attributes_input.rb`
 - `experience_highlight_type.rb`
 - `experience_type.rb`
+- `experience_role_type.rb` — ordered titles/dates within an experience; highlights expose optional role ownership.
 - `interview_question_set_type.rb`
 - `interview_question_set_type_enum.rb` — validated general/technical/knowledge scopes from the model constant.
 - `interview_question_type.rb`

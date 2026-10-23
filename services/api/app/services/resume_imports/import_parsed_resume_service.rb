@@ -130,6 +130,7 @@ module ResumeImports
       Array(item["highlights"]).each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end
+      Experiences::SingleRoleCompatibility.prepare!(experience)
     end
 
     # Fills a Project from a parsed project.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -122,7 +122,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_020000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
+    t.uuid "experience_role_id"
     t.index ["experience_id"], name: "index_experience_highlights_on_experience_id"
+    t.index ["experience_role_id"], name: "index_experience_highlights_on_experience_role_id"
+  end
+
+  create_table "experience_roles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "experience_id", null: false
+    t.string "title", null: false
+    t.date "start_date"
+    t.date "end_date"
+    t.text "description"
+    t.integer "position", default: 0, null: false
+    t.text "screened_fields", default: [], null: false, array: true
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["experience_id", "position"], name: "index_experience_roles_on_experience_id_and_position", unique: true
+    t.index ["experience_id"], name: "index_experience_roles_on_experience_id"
+    t.index ["id", "experience_id"], name: "index_experience_roles_on_id_and_experience_id", unique: true
+    t.check_constraint "\"position\" >= 0 AND \"position\" < 20", name: "experience_role_position_bounds"
+    t.check_constraint "description IS NULL OR length(description) <= 4000", name: "experience_role_description_bounds"
+    t.check_constraint "length(TRIM(BOTH FROM title)) > 0 AND length(title::text) <= 200", name: "experience_role_title_bounds"
   end
 
   create_table "experiences", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -363,7 +383,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_020000) do
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "certifications", "users"
   add_foreign_key "educations", "users"
+  add_foreign_key "experience_highlights", "experience_roles", column: ["experience_role_id", "experience_id"], primary_key: ["id", "experience_id"], deferrable: :deferred
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
+  add_foreign_key "experience_roles", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"

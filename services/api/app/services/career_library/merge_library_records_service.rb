@@ -29,9 +29,11 @@ module CareerLibrary
       return failure([ error ]) if error
 
       ActiveRecord::Base.transaction do
+        Experiences::SingleRoleCompatibility.prepare!(@target, edited_fields: []) if @target.is_a?(Experience)
         fill_blank_fields
         add_new_highlights if @target.is_a?(Experience)
         RecordScreeningService.discard_changed_fields(record: @target)
+        Experiences::SingleRoleCompatibility.prepare!(@target, edited_fields: @target.changed_attribute_names_to_save) if @target.is_a?(Experience)
         @target.save!
         @source.destroy! if @source.persisted?
         SyncLibraryEmbeddingsJob.perform_later(@target.user_id)
@@ -49,6 +51,8 @@ module CareerLibrary
         "Only entries of the same kind can be merged"
       elsif @target.user_id != @source.user_id
         "Only your own entries can be merged"
+      elsif @target.is_a?(Experience) && (@target.roles.size > 1 || @source.roles.size > 1)
+        Experiences::SingleRoleCompatibility::GROUPED_ERROR
       elsif @source.persisted? && @source.id == @target.id
         "An entry can't be merged into itself"
       end

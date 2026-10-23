@@ -613,6 +613,7 @@ type Experience {
   id: ID!
   location: String
   position: Int!
+  roles: [ExperienceRole!]!
   startDate: ISO8601Date
   title: String!
 }
@@ -629,8 +630,22 @@ input ExperienceAttributesInput {
 
 type ExperienceHighlight {
   content: String!
+
+  """
+  Null when shared across the experience.
+  """
+  experienceRoleId: ID
   id: ID!
   position: Int!
+}
+
+type ExperienceRole {
+  description: String
+  endDate: ISO8601Date
+  id: ID!
+  position: Int!
+  startDate: ISO8601Date
+  title: String!
 }
 
 """

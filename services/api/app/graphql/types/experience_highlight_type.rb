@@ -4,6 +4,7 @@
 module Types
   class ExperienceHighlightType < Types::BaseObject
     field :id, ID, null: false
+    field :experience_role_id, ID, description: "Null when shared across the experience."
     field :content, String, null: false
     field :position, Integer, null: false
   end

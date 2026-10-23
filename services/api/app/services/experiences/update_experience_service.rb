@@ -12,10 +12,13 @@ module Experiences
 
     # Updates the experience and, if given, replaces its highlights.
     def call
+      return failure([ SingleRoleCompatibility::GROUPED_ERROR ]) if @experience.roles.size > 1
+
       ActiveRecord::Base.transaction do
         @experience.assign_attributes(@attributes)
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         replace_highlights if @highlights
+        SingleRoleCompatibility.prepare!(@experience, edited_fields: @attributes.keys)
         raise ActiveRecord::Rollback unless @experience.save
       end
       return failure(@experience.errors) if @experience.errors.any?

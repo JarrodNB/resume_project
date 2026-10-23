@@ -19,7 +19,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `jwt_denylist.rb` — legacy token records retained for migration safety; browser
   authentication no longer accepts JWTs.
 - Career library (source of truth for the user's facts):
-  - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
+  - `experience.rb` + `experience_role.rb` (ordered titles/dates) + `experience_highlight.rb` (stable entry-owned bullets; nullable same-entry role ownership)
   - `project.rb`, `education.rb`, `skill.rb`
   - `library_fact.rb` — a requirement plus the user's answer, added from a gap response; embedded
     like the other entries. Deleting it unlinks job answers (`dependent: :nullify`) and keeps them

@@ -26,6 +26,8 @@ RSpec.describe AiReaderAccess do
   it "reads the job and career library tables" do
     job = create(:job)
     create(:experience_highlight)
+    role = create(:experience).roles.create!(title: "Engineer", position: 0)
+    expect(select_as_ai_reader("SELECT id FROM experience_roles")).to eq([ { "id" => role.id } ])
 
     expect(select_as_ai_reader("SELECT id FROM jobs")).to eq([ { "id" => job.id } ])
     expect(select_as_ai_reader("SELECT content FROM experience_highlights").size).to eq(1)

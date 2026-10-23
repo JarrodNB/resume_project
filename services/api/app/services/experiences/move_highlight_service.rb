@@ -45,6 +45,8 @@ module Experiences
         "Position can't be negative"
       elsif @highlight.experience.user_id != @experience.user_id
         "Only your own entries can be changed"
+      elsif @experience.roles.size > 1 || @highlight.experience.roles.size > 1
+        SingleRoleCompatibility::GROUPED_ERROR
       elsif moving_onto_a_full_role?
         "You can save up to #{TextLimits::MAX_HIGHLIGHTS_PER_ROLE} bullets on a role"
       end
@@ -71,7 +73,9 @@ module Experiences
     # Assigns each highlight to the experience with its index as position.
     def renumber(experience, highlights)
       highlights.each_with_index do |highlight, position|
-        highlight.update_columns(experience_id: experience.id, position: position, updated_at: Time.current)
+        attributes = { experience_id: experience.id, position: position, updated_at: Time.current }
+        attributes[:experience_role_id] = experience.roles.first&.id if highlight.experience_id != experience.id
+        highlight.update_columns(attributes)
       end
     end
   end

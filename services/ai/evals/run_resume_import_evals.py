@@ -10,7 +10,7 @@ from pydantic_evals import Dataset
 
 from evals.report_capture import override_settings
 from evals.report_markdown import report_errors
-from evals.resume_import_evaluators import UnassignedPlacement
+from evals.resume_import_evaluators import ContactAttribution, UnassignedPlacement
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import evaluate_dataset
 from prompts.resume_import_instructions import RESUME_IMPORT_PROMPT_VERSION
@@ -27,7 +27,11 @@ def load_resume_import_dataset() -> Dataset[str, ParsedResume, dict]:
     """Load only synthetic source documents and evaluation-only expected results."""
     return Dataset[str, ParsedResume, dict].from_file(
         DATASET_PATH,
-        custom_evaluator_types=(*RESUME_PARSING_EVALUATORS, UnassignedPlacement),
+        custom_evaluator_types=(
+            *RESUME_PARSING_EVALUATORS,
+            UnassignedPlacement,
+            ContactAttribution,
+        ),
     )
 
 

@@ -381,3 +381,111 @@ def test_large_source_still_rejects_unknown_ids_with_bounded_retry_guidance(
     assert "allowed IDs: S1, S2" in retries[0]
     assert "see remaining labels in this chunk" in retries[0]
     assert len(retries[0]) < 1500
+
+
+def test_bullet_cannot_be_pending_or_assigned_and_nonexperience_evidence(offline_model_resolution):
+    import pytest
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    for disposition in ("pending", "assigned"):
+
+        async def answer(messages, info, disposition=disposition):
+            payload = {
+                "records": [
+                    {
+                        "type": "project",
+                        "source_id": "S2",
+                        "supporting_ids": ["S3"],
+                        "fields": {"name": "Atlas", "description": "Built maps."},
+                    }
+                ]
+            }
+            if disposition == "pending":
+                payload["unassigned_highlights"] = [{"source_id": "S3", "reason": "ambiguous_role"}]
+            else:
+                payload["records"].append(
+                    {
+                        "type": "experience",
+                        "source_id": "S2",
+                        "fields": {
+                            "company": "Acme",
+                            "title": "Engineer",
+                            "highlight_ids": ["S3"],
+                        },
+                    }
+                )
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, payload)])
+
+        offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+        with pytest.raises(UnexpectedModelBehavior):
+            parse("PROJECTS\nAtlas\n• Built maps.")
+
+
+def test_eval_scores_unexpected_contact_name_and_project_link():
+    from types import SimpleNamespace
+
+    from evals.run_resume_import_evals import load_resume_import_dataset
+    from schemas.parsed_resume import ParsedResume
+
+    expected = ParsedResume(projects=[{"name": "Atlas", "url": "https://example.test/atlas"}])
+    actual = expected.model_copy(
+        update={
+            "contact": ParsedResume.model_validate(
+                {
+                    "contact": {
+                        "full_name": "Atlas",
+                        "links": [{"label": "Atlas", "url": "https://example.test/atlas"}],
+                    }
+                }
+            ).contact
+        }
+    )
+    ctx = SimpleNamespace(
+        inputs="PROJECTS\nAtlas\nhttps://example.test/atlas",
+        expected_output=expected,
+        output=actual,
+        metadata={},
+    )
+    scores = {
+        key: value
+        for evaluator in load_resume_import_dataset().evaluators
+        for key, value in evaluator.evaluate(ctx).items()
+    }
+    assert scores.get("candidate_name_match") == 0
+    assert scores.get("contact_link_precision") == 0
+
+
+def test_eval_requires_genuine_contact_beside_person_like_project():
+    from types import SimpleNamespace
+
+    from evals.resume_import_evaluators import ContactAttribution
+    from evals.run_resume_import_evals import load_resume_import_dataset
+    from schemas.parsed_resume import ParsedContactInfo, ParsedLink
+
+    case = next(
+        case
+        for case in load_resume_import_dataset().cases
+        if case.name == "explicit_contact_and_person_like_project_name"
+    )
+    ctx = SimpleNamespace(expected_output=case.expected_output, output=case.expected_output)
+    assert set(ContactAttribution().evaluate(ctx).values()) == {1.0}
+    ctx.output = case.expected_output.model_copy(update={"contact": ParsedContactInfo()})
+    missing = ContactAttribution().evaluate(ctx)
+    assert missing["candidate_name_match"] == 0
+    assert missing["contact_link_recall"] == 0
+    ctx.output = case.expected_output.model_copy(
+        update={
+            "contact": case.expected_output.contact.model_copy(
+                update={
+                    "links": [
+                        *case.expected_output.contact.links,
+                        ParsedLink(label="Atlas", url="https://example.test/atlas"),
+                    ]
+                },
+            )
+        }
+    )
+    misplaced = ContactAttribution().evaluate(ctx)
+    assert misplaced["candidate_name_match"] == 1
+    assert misplaced["contact_link_precision"] == 0.5
+    assert misplaced["contact_link_recall"] == 1

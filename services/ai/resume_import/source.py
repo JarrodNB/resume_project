@@ -2,6 +2,8 @@
 
 Every visible passage receives a global ID, including projects and skills. Bullet
 continuations keep their original wording; only list markers and layout indent are removed.
+Bullets have one disposition: role highlight, user placement, or non-experience evidence;
+uncited bullets stay available for user placement instead of disappearing.
 """
 
 import re
@@ -163,6 +165,12 @@ class ResumeSource:
                     covered.add(source_id)
         for reference in output.unassigned_highlights:
             self._claim_bullet(reference.source_id, seen)
+        overlap = seen & covered
+        if overlap:
+            raise ValueError(
+                f"Bullet IDs {_allowed_ids(iter(sorted(overlap)))} have conflicting dispositions: "
+                "choose experience highlight, unassigned, or non-experience evidence, never both."
+            )
         return seen | covered
 
     def _claim_bullet(self, source_id, seen):

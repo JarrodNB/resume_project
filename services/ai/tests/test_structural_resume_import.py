@@ -276,7 +276,7 @@ def test_synthetic_evaluation_dataset_and_expected_labels():
     from evals.run_resume_import_evals import load_resume_import_dataset
 
     dataset = load_resume_import_dataset()
-    assert len(dataset.cases) == 4
+    assert len(dataset.cases) == 5
     for case in dataset.cases:
         context = SimpleNamespace(expected_output=case.expected_output, output=case.expected_output)
         assert set(UnassignedPlacement().evaluate(context).values()) == {1.0}

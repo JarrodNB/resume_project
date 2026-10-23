@@ -95,9 +95,30 @@ cases:
       skills: [{name: Python}]
       projects: [{name: Atlas, url: "https://example.test/atlas"}]
 
+  - name: explicit_contact_and_person_like_project_name
+    inputs: |
+      CONTACT
+      Jane Doe
+      candidate@example.test
+      Portfolio: https://example.test/candidate-portfolio
+
+      PROJECTS
+      Atlas
+      [PDF hyperlink url="https://example.test/atlas"]
+      • Built shared maps.
+    expected_output:
+      contact:
+        full_name: Jane Doe
+        email: candidate@example.test
+        links: [{label: Portfolio, url: "https://example.test/candidate-portfolio"}]
+      projects:
+        - name: Atlas
+          url: "https://example.test/atlas"
+          description: Built shared maps.
 
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch
   - SectionRecall
   - UnassignedPlacement
+  - ContactAttribution

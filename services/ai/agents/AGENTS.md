@@ -86,3 +86,5 @@ instructions from `prompts/`.
   spoken path intentionally keeps gpt-6-luna without generative model substitution;
   the shared Jev → Nano safety fallback remains. Offline eval fixture checks are in
   `evals/run_spoken_interviewer_evals.py`; paid quality checks are deferred.
+
+- `resume_import_agent.py` — isolated mixed typed records from a screened labeled resume; called by `resume_import.import_resume_text`, with source-reference validation and full-document atomic assembly.

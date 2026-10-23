@@ -149,3 +149,5 @@ score attached, so runs can be compared across prompt and model changes.
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+
+- `run_resume_import_evals.py` / `datasets/resume_import_cases.yaml` — isolated importer quality on synthetic mixed records, wrapped bullets, ambiguous ownership and non-experience bullet sections. Uses shared parsing evaluators plus `UnassignedPlacement`; run explicitly with `docker compose run --rm ai python -m evals.run_resume_import_evals`.

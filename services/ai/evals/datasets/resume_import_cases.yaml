@@ -1,0 +1,77 @@
+# Synthetic isolated-import quality cases. Evaluation labels never enter the prompt.
+cases:
+  - name: mixed_models_and_wrapped_bullet
+    inputs: |
+      EXPERIENCE
+      Acme | Engineer
+      2020 - 2022
+      • Built Python tools
+        with careful tests.
+
+      PROJECTS
+      Weather Map
+      • Displayed daily forecasts.
+
+      SKILLS
+      Python
+    expected_output:
+      experiences:
+        - company: Acme
+          title: Engineer
+          start_date: '2020'
+          end_date: '2022'
+          highlights: ["Built Python tools\nwith careful tests."]
+      projects:
+        - name: Weather Map
+          description: Displayed daily forecasts.
+      skills: [{name: Python}]
+  - name: shared_bullet_requires_placement
+    inputs: |
+      EXPERIENCE
+      Acme
+      Engineer, 2020 - 2022
+      Senior Engineer, 2022 - Present
+      • Built a shared platform.
+    expected_output:
+      experiences:
+        - company: Acme
+          title: Engineer
+          start_date: '2020'
+          end_date: '2022'
+        - company: Acme
+          title: Senior Engineer
+          start_date: '2022'
+          is_current: true
+      unassigned_highlights:
+        - source_id: S5
+          text: Built a shared platform.
+          source_context: "Acme\nEngineer, 2020 - 2022\nSenior Engineer, 2022 - Present"
+          reason: ambiguous_role
+  - name: non_experience_bullets_and_repeated_occurrences
+    inputs: |
+      SUMMARY
+      • Curious software engineer.
+
+      SKILLS
+      • Python
+
+      PROJECTS
+      Open Atlas
+      • Built maps.
+
+      EXPERIENCE
+      Acme | Engineer
+      • Built maps.
+    expected_output:
+      summary: Curious software engineer.
+      skills: [{name: Python}]
+      projects: [{name: Open Atlas, description: Built maps.}]
+      experiences:
+        - company: Acme
+          title: Engineer
+          highlights: [Built maps.]
+evaluators:
+  - SourceFaithfulness
+  - ExperienceMatch
+  - SectionRecall
+  - UnassignedPlacement

@@ -39,7 +39,6 @@ class Recorder {
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
-  vi.stubEnv('VITE_INTERVIEW_DEMO_ENABLED', 'true')
   vi.stubGlobal('MediaRecorder', Recorder)
   vi.stubGlobal('SpeechRecognition', Recognition)
   vi.stubGlobal('navigator', { ...navigator, mediaDevices: { getUserMedia: vi.fn().mockResolvedValue({ getTracks: () => [{ stop: stopTrack, addEventListener: vi.fn() }] }) } })

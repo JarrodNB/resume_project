@@ -143,7 +143,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     real = result.dig("data", "startInterviewDemo", "interview")
     expect(real["executionMode"]).to eq("real")
     allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(false)
-    expect(execute_graphql(query, user: user).dig("data", "startInterviewDemo", "errors")).to include("Real interview unavailable. Enable the dedicated real runtime and admission in development.")
+    expect(execute_graphql(query, user: user).dig("data", "startInterviewDemo", "errors")).to include("Interview service is unavailable. Check the interview runtime and admission settings.")
     expect(execute_graphql("query { interviewSession(id: \"#{real['id']}\") { executionMode } }", user: user).dig("data", "interviewSession", "executionMode")).to eq("real")
     expect(Types::InterviewSessionType.fields.keys).not_to include("executionConfig")
   end
@@ -168,7 +168,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     query = "mutation { startInterviewDemo(input: {}) { errors } }"
     expect(execute_graphql(query, user: nil).dig("errors", 0, "message")).to eq("Authentication required")
     allow(Interviews::DemoAccess).to receive(:enabled?).and_return(false)
-    expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interview demo unavailable")
+    expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
   end
 
   it "keeps all recording, retry, submission, and playback actions owner-scoped" do
@@ -184,7 +184,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
       query = "mutation { #{name}(input: {interviewId: \"#{session.id}\", #{arguments}}) { errors } }"
       expect(execute_graphql(query, user: outsider).dig("errors", 0, "message")).to eq("Record not found")
       allow(Interviews::DemoAccess).to receive(:enabled?).and_return(false)
-      expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interview demo unavailable")
+      expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
       allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
     end
   end
@@ -221,19 +221,9 @@ RSpec.describe "Spoken interview demo GraphQL" do
     end
   end
 
-  it "requires explicit enablement and development environment" do
+  it "allows interview access without the retired demo flag" do
     allow(Interviews::DemoAccess).to receive(:enabled?).and_call_original
-    old = ENV["INTERVIEW_DEMO_ENABLED"]
-    begin
-      ENV["INTERVIEW_DEMO_ENABLED"] = "true"
-      expect(Interviews::DemoAccess.enabled?).to be(false)
-      allow(Rails.env).to receive(:development?).and_return(true)
-      expect(Interviews::DemoAccess.enabled?).to be(true)
-      ENV.delete("INTERVIEW_DEMO_ENABLED")
-      expect(Interviews::DemoAccess.enabled?).to be(false)
-    ensure
-      ENV["INTERVIEW_DEMO_ENABLED"] = old
-    end
+    expect(Interviews::DemoAccess.enabled?).to be(true)
   end
 end
 

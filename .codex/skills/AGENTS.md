@@ -18,6 +18,7 @@ Reusable, repository-scoped workflows for Codex.
   `observability-loop/`, `dependency-loop/`, `boundary-loop/`, and `architecture-loop/`.
   Architecture iterations require a user decision on the proposed design before implementation.
 - `orchestrator/` — Local Kanban delivery, approvals, delegation, and handoff.
+- `pr-review-environment/` — Isolated local PR stacks with copies of the main development database and existing accounts.
 - `research/` — Upstream Matt Pocock skill for research using primary sources.
 - `review-correctness/` — Blind correctness, security, and reliability review.
 - `review-design/` — Blind architecture, maintainability, and test-quality review.

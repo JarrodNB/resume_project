@@ -59,7 +59,11 @@ Per task type:
   description, and highlights), and `shared_highlights`. Separate source blocks stay
   separate even when the company repeats. Shared lists never imply a particular role.
   The source module validates selected passage IDs globally once, then reconstructs exact
-  bullet text; those IDs never enter the public result. Older flat task results normalize
+  bullet text; those IDs never enter the public result. Literal company and dated role
+  headers also reject contradictory block splits/merges through normal model retries.
+  Explicit shared lists must be complete in their positively bound employment block;
+  uncertain layouts and non-employment lists do not acquire guessed ownership.
+  Older flat task results normalize
   to one role at read/import seams without rewriting stored task JSON. Import matching
   consumes only pre-existing employment candidates, at most once each per import.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`

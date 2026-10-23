@@ -16,6 +16,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".native"
@@ -35,7 +36,7 @@ def run(args, cwd=ROOT, env=None, **kwargs):
 
 def environment():
     env = os.environ.copy()
-    env["PATH"] = f"{STATE}/ruby/bin:/usr/lib/postgresql/17/bin:" + env["PATH"]
+    env["PATH"] = f"{STATE}/ruby/bin:/usr/lib/postgresql/17/bin:" + env.get("PATH", os.defpath)
     env["BUNDLE_PATH"] = str(STATE / "bundle")
     env["UV_PROJECT_ENVIRONMENT"] = str(ROOT / "services/ai/.venv")
     env["UV_PYTHON"] = "3.13"
@@ -71,6 +72,9 @@ def config():
 
 def app_env(service):
     env = environment()
+    # Never let inherited Rails URLs redirect native db:prepare to another database.
+    for key in ("DATABASE_URL", "PRIMARY_DATABASE_URL", "CABLE_DATABASE_URL"):
+        env.pop(key, None)
     cfg = config()
     web_origin = env.get("NATIVE_WEB_ORIGIN", "http://localhost:5173")
     env.update({
@@ -82,9 +86,14 @@ def app_env(service):
         "PGPORT": PORT, "DB_PORT": PORT, "DB_NAME": "api_development",
         "DB_USERNAME": "postgres", "DB_PASSWORD": cfg["database_password"],
         "PGPASSWORD": cfg["database_password"], "RAILS_ENV": "development",
+        "DATABASE_URL": f"postgresql://postgres:{cfg['database_password']}@127.0.0.1:{PORT}/api_development",
+        "CABLE_DATABASE_URL": f"postgresql://postgres:{cfg['database_password']}@127.0.0.1:{PORT}/api_development_cable",
         "WORKER_ENVIRONMENT": "local", "LOGFIRE_ENVIRONMENT": "native-development",
         "CORS_ORIGINS": web_origin, "WEB_APP_URL": web_origin,
         "VITE_API_URL": env.get("NATIVE_API_ORIGIN", "http://localhost:3000"),
+        "RAILS_DEVELOPMENT_HOSTS": urlsplit(env.get(
+            "NATIVE_API_ORIGIN", "http://localhost:3000")).hostname or "localhost",
+        "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS": urlsplit(web_origin).hostname or "localhost",
         "INTERVIEW_SERVICE_SECRET": cfg["interview_secret"],
         "INTERVIEW_RAILS_ORIGIN": "http://127.0.0.1:3000",
         "INTERVIEW_REAL_RUNTIME_ENABLED": "true",
@@ -120,7 +129,7 @@ def install():
         target = ROOT / f"services/{service}/.env"
         if not target.exists():
             with os.fdopen(os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
-                stream.write(target.with_suffix(".env.example").read_text())
+                stream.write(target.with_name(".env.example").read_text())
     if not (STATE / "ruby/bin/ruby").exists():
         builder = STATE / "ruby-build"
         if not builder.exists():
@@ -137,7 +146,8 @@ def install():
     run(["uv", "sync", "--frozen"], cwd=ROOT / "services/ai", env=env)
     run(["uv", "run", "--no-sync", "python", "-c",
          "import spacy; spacy.load('en_core_web_sm')"], cwd=ROOT / "services/ai", env=env)
-    run(["uv", "venv", "--python", "3.13", STATE / "emulators"], env=env)
+    if not (STATE / "emulators/bin/python").exists():
+        run(["uv", "venv", "--python", "3.13", STATE / "emulators"], env=env)
     run(["uv", "pip", "install", "--python", STATE / "emulators/bin/python",
          "moto[server]==5.1.14"], env=env)
     for app in ("web", "landing"):
@@ -167,7 +177,7 @@ def spawn(name, args, cwd, env):
         proc = subprocess.Popen(list(map(str, args)), cwd=cwd, env=env,
                                 stdout=log, stderr=log, stdin=subprocess.DEVNULL,
                                 start_new_session=True)
-    pidfile.write_text(str(proc.pid))
+    pidfile.write_text(json.dumps({"pid": proc.pid, "started": process_start(proc.pid)}))
     print(f"Started {name}; log: {logs / (name + '.log')}", flush=True)
     return proc
 
@@ -256,10 +266,23 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
         raise
 
 
+def process_start(pid):
+    """Linux start ticks identify a process even if the OS later reuses its PID."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+    except FileNotFoundError:
+        return None
+
+
 def stop():
     # Only stop process groups started by this checkout. Never use pkill by name.
     for path in STATE.glob("*.pid"):
-        pid = int(path.read_text())
+        record = json.loads(path.read_text())
+        pid = record["pid"]
+        if process_start(pid) != record["started"]:
+            print(f"Removing stale {path.name}; process identity changed.")
+            path.unlink()
+            continue
         try:
             # Linux start_new_session makes the child its own process-group leader.
             cmdline = Path(f"/proc/{pid}/cwd")
@@ -323,6 +346,6 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (RuntimeError, OSError, subprocess.CalledProcessError) as error:
+    except (RuntimeError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Native setup failed: {error}", file=sys.stderr)
         sys.exit(1)

@@ -39,6 +39,7 @@ RSpec.describe "Experience roles" do
     expect do
       ActiveRecord::Base.transaction(requires_new: true) do
         experience.roles.create!(title: "Duplicate", position: 0)
+          ActiveRecord::Base.connection.execute("SET CONSTRAINTS experience_roles_position_unique IMMEDIATE")
       end
     end.to raise_error(ActiveRecord::RecordNotUnique)
     role = experience.roles.build(title: "Too many", position: TextLimits::MAX_ROLES_PER_EXPERIENCE)

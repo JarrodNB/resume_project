@@ -27,7 +27,8 @@ their category.
 - `EntryFormDialog.tsx` — shared dialog shell; `LibraryField.tsx` — labelled input
 - `libraryFormValues.ts` — `blankToNull` and `highlightsToSave` (an unchanged bullet list is
   omitted so highlight ids stay put)
-- `HighlightEditor.tsx` — add, edit, remove, and reorder a role's bullets inside the form
+- `HighlightEditor.tsx` — legacy string-list editor used by other forms
+- `ScopedHighlightEditor.tsx` — stable typed bullets with explicit shared/role scope moves
 - `SortableHighlightList.tsx` — a role's draggable highlights (drop area works when empty)
 - `SkillList.tsx` — skill chips grouped by category, draggable within a category, with edit
   and delete
@@ -63,8 +64,9 @@ their category.
 - `reorderSkills` needs every skill id, so skill drops send the whole skill list in display
   order (categories as `groupSkillsByCategory` shows them).
 - Don't sort roles, projects, or education on the client; the API's order is the display order.
-- Edit forms send every field, so a cleared optional field is stored as null. An experience
-  update omits `highlights` when the bullets are unchanged.
+- Edit forms send every field, so a cleared optional field is stored as null. Experience forms use nested roles and typed bullets with stable IDs; shared highlights
+  stay entry-owned. Missing nested lists preserve existing bullets; supplied lists replace
+  membership. A role with bullets must be emptied or explicitly reassigned before removal.
 - Section ids are `library.profile`, `library.experience`, `library.projects`, `library.education`,
   `library.skills`, and `library.facts`. A collapsed section's entries are not in the page, so
   they are not drag targets.

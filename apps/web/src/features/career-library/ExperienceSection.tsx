@@ -14,29 +14,29 @@ import { LibrarySection } from './LibrarySection'
 import { SortableHighlightList } from './SortableHighlightList'
 
 type Experience = CareerLibraryQuery['experiences'][number]
-type Highlight = { id: string; content: string }
+type Highlight = Experience["highlights"][number]
 
 interface ExperienceSectionProps {
   experiences: Experience[]
-  highlightsOf: (experienceId: string) => Highlight[]
+  highlightsOf: (experienceId: string, roleId?: string | null) => Highlight[]
 }
 
 /** Lists roles and opens the form to add one or edit one. */
 export function ExperienceSection({ experiences, highlightsOf }: ExperienceSectionProps) {
   const [editing, setEditing] = useState<Experience | 'new' | null>(null)
   const candidates = experiences.map((experience) => ({ id: experience.id, label: experienceLabel(experience) }))
-  const experience = editing && editing !== 'new' ? { ...editing, highlights: highlightsForForm(highlightsOf(editing.id)) } : null
+  const experience = editing && editing !== 'new' ? editing : null
 
   return (
     <>
-      <LibrarySection sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}>
+      <LibrarySection sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No experiences yet." addLabel="Add experience" onAdd={() => setEditing('new')}>
         {experiences.map((entry, index) => (
           <LibraryEntry
             key={entry.id}
             tone="experience"
-            heading={entry.title}
-            subheading={[entry.company, entry.location].filter(Boolean).join(' · ')}
-            dates={formatDateRange(entry.startDate, entry.endDate, { openEndedMeansPresent: true })}
+            heading={entry.roles?.length > 1 ? entry.company : entry.title}
+            subheading={[...(entry.roles?.length > 1 ? [] : [entry.company]), entry.location].filter(Boolean).join(' · ')}
+            dates={entry.roles?.length > 1 ? undefined : formatDateRange(entry.startDate, entry.endDate, { openEndedMeansPresent: true })}
             description={entry.description}
             actions={
               <LibraryEntryActions
@@ -48,16 +48,21 @@ export function ExperienceSection({ experiences, highlightsOf }: ExperienceSecti
               />
             }
           >
-            <SortableHighlightList experienceId={entry.id} highlights={highlightsOf(entry.id)} />
+            {entry.roles?.length ? <div className="grid gap-5">
+              {entry.roles.map((role) => <section key={role.id} aria-label={role.title} className="min-w-0">
+                {entry.roles.length > 1 && <><h4 className="text-sm font-medium">{role.title}</h4><p className="text-xs text-muted-foreground">{formatDateRange(role.startDate, role.endDate, {openEndedMeansPresent: true})}</p></>}
+                {role.description && <p className="whitespace-pre-wrap text-sm">{role.description}</p>}
+                <SortableHighlightList experienceId={`${entry.id}/${role.id}`} highlights={highlightsOf(entry.id, role.id)} />
+              </section>)}
+              {(entry.roles.length > 1 || entry.highlights.some((bullet) => !bullet.experienceRoleId)) && <section aria-label="Shared highlights">
+                <h4 className="text-sm font-medium">Shared highlights</h4>
+                <SortableHighlightList experienceId={`${entry.id}/shared`} highlights={highlightsOf(entry.id, null)} />
+              </section>}
+            </div> : <SortableHighlightList experienceId={entry.id} highlights={highlightsOf(entry.id)} />}
           </LibraryEntry>
         ))}
       </LibrarySection>
       <ExperienceFormDialog open={editing !== null} experience={experience} onOpenChange={(open) => !open && setEditing(null)} />
     </>
   )
-}
-
-/** Adds the position the form's experience type requires. The form only reads the text. */
-function highlightsForForm(highlights: Highlight[]) {
-  return highlights.map((highlight, position) => ({ id: highlight.id, content: highlight.content, position }))
 }

@@ -18,13 +18,14 @@ export const REORDER_SKILLS_MUTATION = graphql(`
 `)
 
 export const MOVE_EXPERIENCE_HIGHLIGHT_MUTATION = graphql(`
-  mutation MoveExperienceHighlight($highlightId: ID!, $experienceId: ID!, $position: Int!) {
-    moveExperienceHighlight(input: { highlightId: $highlightId, experienceId: $experienceId, position: $position }) {
+  mutation MoveExperienceHighlight($highlightId: ID!, $experienceId: ID!, $position: Int!, $experienceRoleId: ID) {
+    moveExperienceHighlight(input: { highlightId: $highlightId, experienceId: $experienceId, position: $position, experienceRoleId: $experienceRoleId }) {
       experience {
         id
         highlights {
           id
           content
+          experienceRoleId
           position
         }
       }
@@ -33,6 +34,7 @@ export const MOVE_EXPERIENCE_HIGHLIGHT_MUTATION = graphql(`
         highlights {
           id
           content
+          experienceRoleId
           position
         }
       }

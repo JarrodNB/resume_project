@@ -97,3 +97,31 @@ RSpec.describe "Experience mutations" do
     expect(experience.fetch("roles").map { |role| role["title"] }).to eq([ "Canonical", "Earlier role" ])
   end
 end
+
+RSpec.describe "Grouped experience mutations" do
+  let(:user) { create(:user) }
+
+  it "creates nested roles and reads scope through GraphQL, then rejects foreign child IDs" do
+    result = execute_graphql(<<~GQL, user: user)
+      mutation {
+        createExperience(input: {attributes: {company: "Example", roles: [
+          {title: "Lead", highlights: [{content: "Role bullet"}]}, {title: "Engineer"}
+        ], sharedHighlights: [{content: "Shared"}]}}) {
+          experience {id roles {id title} highlights {id content experienceRoleId}} errors
+        }
+      }
+    GQL
+    expect(result["errors"]).to be_nil
+    payload = result.dig("data", "createExperience")
+    expect(payload["errors"]).to eq([])
+    entry = payload.fetch("experience")
+    expect(entry["roles"].map { |role| role["title"] }).to eq([ "Lead", "Engineer" ])
+    expect(entry["highlights"].find { |bullet| bullet["content"] == "Role bullet" }["experienceRoleId"]).to eq(entry["roles"].first["id"])
+    foreign = Experiences::CreateExperienceService.call(user: create(:user), attributes: { company: "Private", title: "Secret" }).value
+    result = execute_graphql(<<~GQL, user: user)
+      mutation { updateExperience(input: {id: "#{entry['id']}", attributes: {roles: [{id: "#{foreign.roles.first.id}", title: "Changed"}]}}) {errors} }
+    GQL
+    expect(result.dig("data", "updateExperience", "errors")).to include("Role IDs must be unique and belong to this experience")
+    expect(foreign.reload.roles.first.title).to eq("Secret")
+  end
+end

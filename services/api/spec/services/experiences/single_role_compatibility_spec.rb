@@ -51,7 +51,7 @@ RSpec.describe "Single role compatibility" do
     expect(experience.highlights.pluck(:content)).to eq([ "Original" ])
   end
 
-  it "keeps grouped entries safe from legacy writes and merges" do
+  it "keeps grouped entries safe from legacy writes while allowing explicit merges" do
     experience = create_experience
     experience.roles.create!(title: "Developer", position: 1)
     source = create(:experience, user: experience.user)
@@ -59,8 +59,8 @@ RSpec.describe "Single role compatibility" do
       attributes: { title: "Changed" }, highlights: [ "New" ])
     merge = CareerLibrary::MergeLibraryRecordsService.call(target: experience, source: source)
     expect(update).not_to be_success
-    expect(merge).not_to be_success
-    expect(experience.reload.roles.pluck(:title)).to eq([ "Engineer", "Developer" ])
+    expect(merge).to be_success
+    expect(experience.reload.roles.pluck(:title)).to eq([ "Engineer", "Developer", source.title ])
     expect(experience.highlights.pluck(:content)).to eq([ "Original" ])
   end
 
@@ -70,6 +70,6 @@ RSpec.describe "Single role compatibility" do
     source = create(:experience, user: experience.user, start_date: Date.new(2018, 1, 1))
     result = CareerLibrary::MergeLibraryRecordsService.call(target: experience, source: source)
     expect(result).to be_success
-    expect(experience.reload.roles.first.start_date).to eq(Date.new(2018, 1, 1))
+    expect(experience.reload.roles.find_by!(title: source.title).start_date).to eq(Date.new(2018, 1, 1))
   end
 end

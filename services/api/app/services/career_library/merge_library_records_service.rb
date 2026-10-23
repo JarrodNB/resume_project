@@ -1,16 +1,11 @@
-# Description: Merges one career library record into another of the same model and user. Fields
-# blank on the target are filled from the source (existing values are never overwritten); an
-# experience also gains the source's highlights it doesn't already have. A saved source is then
-# deleted. Used by the import (unsaved source) and by the merge mutations (saved source). The
-# user's library embeddings are re-synced after the merge commits.
-# Index:
-#   - FILLABLE_FIELDS: fields copied when blank on the target, per model
-#   - call: merges in one transaction; returns the target, or errors
+# Combines owned duplicate library entries in one transaction. Experiences delegate to
+# their role-aware merger; other entry types fill blank fields without overwriting prose.
+# A successful merge removes a saved source and queues embedding synchronization.
 module CareerLibrary
   class MergeLibraryRecordsService < ApplicationService
     # An experience's blank end_date means "current role", so it is never filled from another record.
     FILLABLE_FIELDS = {
-      Experience => %w[location description start_date],
+      Experience => %w[location description],
       Project => %w[role url description start_date end_date],
       Education => %w[field_of_study description start_date end_date],
       Certification => %w[issuer issued_date expiry_date credential_id credential_url description]
@@ -28,12 +23,11 @@ module CareerLibrary
       error = mismatch_error
       return failure([ error ]) if error
 
+      return Experiences::MergeExperiencesService.call(target: @target, source: @source) if @target.is_a?(Experience)
+
       ActiveRecord::Base.transaction do
-        Experiences::SingleRoleCompatibility.prepare!(@target, edited_fields: []) if @target.is_a?(Experience)
         fill_blank_fields
-        add_new_highlights if @target.is_a?(Experience)
         RecordScreeningService.discard_changed_fields(record: @target)
-        Experiences::SingleRoleCompatibility.prepare!(@target, edited_fields: @target.changed_attribute_names_to_save) if @target.is_a?(Experience)
         @target.save!
         @source.destroy! if @source.persisted?
         SyncLibraryEmbeddingsJob.perform_later(@target.user_id)
@@ -51,8 +45,6 @@ module CareerLibrary
         "Only entries of the same kind can be merged"
       elsif @target.user_id != @source.user_id
         "Only your own entries can be merged"
-      elsif @target.is_a?(Experience) && (@target.roles.size > 1 || @source.roles.size > 1)
-        Experiences::SingleRoleCompatibility::GROUPED_ERROR
       elsif @source.persisted? && @source.id == @target.id
         "An entry can't be merged into itself"
       end
@@ -68,23 +60,6 @@ module CareerLibrary
           @target["#{field}_precision"] = @source["#{field}_precision"]
         end
       end
-    end
-
-    # Appends the source's highlights whose text the target doesn't have yet.
-    def add_new_highlights
-      known = @target.highlights.map { |highlight| normalize(highlight.content) }.to_set
-      next_position = (@target.highlights.map(&:position).max || -1) + 1
-      @source.highlights.each do |highlight|
-        next unless known.add?(normalize(highlight.content))
-
-        @target.highlights.build(content: highlight.content, position: next_position)
-        next_position += 1
-      end
-    end
-
-    # Lowercases and squishes text for comparison.
-    def normalize(text)
-      text.to_s.squish.downcase
     end
   end
 end

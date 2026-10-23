@@ -624,6 +624,9 @@ input ExperienceAttributesInput {
   endDate: ISO8601Date
   location: String
   position: Int
+  removedHighlightIds: [ID!]
+  roles: [ExperienceRoleAttributesInput!]
+  sharedHighlights: [ExperienceHighlightAttributesInput!]
   startDate: ISO8601Date
   title: String
 }
@@ -639,11 +642,25 @@ type ExperienceHighlight {
   position: Int!
 }
 
+input ExperienceHighlightAttributesInput {
+  content: String!
+  id: ID
+}
+
 type ExperienceRole {
   description: String
   endDate: ISO8601Date
   id: ID!
   position: Int!
+  startDate: ISO8601Date
+  title: String!
+}
+
+input ExperienceRoleAttributesInput {
+  description: String
+  endDate: ISO8601Date
+  highlights: [ExperienceHighlightAttributesInput!]
+  id: ID
   startDate: ISO8601Date
   title: String!
 }
@@ -1057,6 +1074,7 @@ input MoveExperienceHighlightInput {
   The role the highlight ends up in.
   """
   experienceId: ID!
+  experienceRoleId: ID
   highlightId: ID!
 
   """

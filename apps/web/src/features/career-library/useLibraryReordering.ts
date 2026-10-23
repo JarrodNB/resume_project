@@ -10,12 +10,12 @@ import { useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { moveBetweenGroups } from '@/components/dnd/moveItems'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { MOVE_EXPERIENCE_HIGHLIGHT_MUTATION, REORDER_SKILLS_MUTATION } from './careerLibraryReorderMutations'
 
 export interface HighlightPlacement {
   experienceId: string
+  experienceRoleId?: string | null
   index: number
 }
 
@@ -31,12 +31,19 @@ function inOrder<Entry extends { id: string }>(entries: Entry[], orderedIds: str
 
 /** Returns the roles with one highlight moved from `from` to `to`. */
 function withHighlightMoved(experiences: CareerLibraryQuery['experiences'], from: HighlightPlacement, to: HighlightPlacement) {
-  const byExperience: Record<string, Highlight[]> = Object.fromEntries(experiences.map((experience) => [experience.id, experience.highlights]))
-  const moved = moveBetweenGroups(byExperience, {
-    from: { group: from.experienceId, index: from.index },
-    to: { group: to.experienceId, index: to.index },
+  const source = experiences.find((entry) => entry.id === from.experienceId)
+  const inScope = (bullet: Highlight, placement: HighlightPlacement) => placement.experienceRoleId === undefined || bullet.experienceRoleId === placement.experienceRoleId
+  const bullet = source?.highlights.filter((item) => inScope(item, from))[from.index]
+  if (!bullet) return experiences
+  return experiences.map((entry) => {
+    let highlights = entry.highlights.filter((item) => item.id !== bullet.id)
+    if (entry.id === to.experienceId) {
+      const scoped = highlights.filter((item) => inScope(item, to))
+      scoped.splice(to.index, 0, {...bullet, experienceRoleId: to.experienceRoleId === undefined ? bullet.experienceRoleId : to.experienceRoleId})
+      highlights = [...highlights.filter((item) => !inScope(item, to)), ...scoped.map((item, position) => ({...item, position}))]
+    }
+    return {...entry, highlights}
   })
-  return experiences.map((experience) => ({ ...experience, highlights: moved[experience.id] }))
 }
 
 /** Reorders skills and moves highlights, updating the cache before the server answers. */
@@ -78,7 +85,7 @@ export function useLibraryReordering() {
     return save(async () => {
       const { data } = await client.mutate({
         mutation: MOVE_EXPERIENCE_HIGHLIGHT_MUTATION,
-        variables: { highlightId, experienceId: to.experienceId, position: to.index },
+        variables: { highlightId, experienceId: to.experienceId, position: to.index, ...(to.experienceRoleId === undefined ? {} : {experienceRoleId: to.experienceRoleId}) },
       })
       return data?.moveExperienceHighlight?.errors ?? [GENERIC_FAILURE]
     })

@@ -42,3 +42,12 @@ it('returns downloadable PDF bytes even when pagination callbacks are unavailabl
   expect(blob.type).toBe('application/pdf')
   expect(blob.size).toBe(3)
 })
+
+it('hands the checked Word Blob to the browser without rendering replacement bytes', async () => {
+  const checked = new Blob(['the exact checked export'])
+  const create = vi.fn(() => 'blob:checked')
+  vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() }))
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  await downloadResumeDocx({ name: '', contactLine: '', links: [], blocks: [] }, 'Saved title', checked)
+  expect(create).toHaveBeenCalledWith(checked)
+})

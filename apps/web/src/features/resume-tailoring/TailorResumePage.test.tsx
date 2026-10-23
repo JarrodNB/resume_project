@@ -3,6 +3,7 @@
  * and preserves editing, exclusion, saving, and saved-resume editing.
  * The PDF preview is mocked.
  */
+import { START_DOCX_CHECK } from './docxCheckOperations'
 import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -14,6 +15,8 @@ import { TailorResumePage } from './TailorResumePage'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
+
+vi.mock('./resumeDocxDocument', () => ({ generateResumeDocx: vi.fn(async () => new Blob(['docx'])) }))
 
 vi.mock('./ResumePdfPreview', () => ({
   ResumePdfPreview: () => <iframe title="Resume preview" />,
@@ -78,7 +81,7 @@ function subscription(fields: Record<string, unknown>) {
 }
 
 function renderTailor(mocks: Parameters<typeof renderPage>[0]['mocks']) {
-  return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks })
+  return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks: [...(mocks ?? []), { request: { query: START_DOCX_CHECK, variables: () => true }, error: new Error('Pagination unavailable'), maxUsageCount: Infinity }] })
 }
 
 it('waits for an explicit start and offers two pages by default', async () => {
@@ -247,7 +250,7 @@ it('edits a resume that was already saved and shows the preview', async () => {
   await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
   await user.click(screen.getByRole('button', { name: 'Download DOCX' }))
-  expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
+  await waitFor(() => expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme', expect.any(Blob)))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   const summary = screen.getByRole('textbox', { name: 'Summary' })
   expect(summary).toHaveValue('Backend engineer.')

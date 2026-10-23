@@ -1,5 +1,5 @@
 /** Build saved resume downloads and hand their files to the browser.
- * The caller supplies a saved snapshot. No document is uploaded or persisted.
+ * The caller supplies a saved snapshot. DOCX checking is handled separately; download handoff stays local.
  */
 import { pdf } from '@react-pdf/renderer'
 import { ResumePdfDocument } from './ResumePdfDocument'
@@ -34,9 +34,9 @@ export async function downloadResumePdf(model: ResumePdfModel, title: string): P
 }
 
 /** Load the Word renderer only when the user requests an editable file. */
-export async function downloadResumeDocx(model: ResumePdfModel, title: string): Promise<void> {
-  const { generateResumeDocx } = await import('./resumeDocxDocument')
-  handOffDownload(await generateResumeDocx(model), title, 'docx')
+export async function downloadResumeDocx(model: ResumePdfModel, title: string, checkedBlob?: Blob): Promise<void> {
+  const blob = checkedBlob ?? await (await import('./resumeDocxDocument')).generateResumeDocx(model)
+  handOffDownload(blob, title, 'docx')
 }
 
 /** Release the temporary browser URL after the browser has begun reading it. */

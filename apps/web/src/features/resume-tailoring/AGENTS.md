@@ -19,7 +19,11 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
 - `resumeDownload.tsx` — render PDF and lazily load DOCX generation, sanitize saved-title
-  filenames, and release browser object URLs after download handoff. `ResumePdfDocument.test.tsx`
+  filenames, and release browser object URLs after download handoff. DOCX downloads accept the
+  exact retained Blob from `useResumeDocxCheck.ts`; the hook uploads those bytes and polls
+  the authenticated short-lived pagination check only after preview/download actions.
+  `ResumeDocxStatus.tsx` labels LibreOffice counts separately and keeps downloads available
+  during checks, overflow, and failures. Edits discard counts and stop old polling. `ResumePdfDocument.test.tsx`
   parses real PDF output with a test-only reader; editor/page tests control the download boundary.
 - `resumeDocxDocument.ts` — native Word paragraphs, headings, bullets and contact hyperlinks,
   sharing `resumePdfModel.ts` content/order with PDF. Word pagination can differ.
@@ -66,3 +70,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   disables preview and save; sections retain their original draft order.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential
   ID/URL, and description.
+
+- DOCX pagination checks are short-lived non-AI jobs and use bounded result polling, unlike
+  AI generation subscriptions. Counts are snapshot-bound; preview changes invalidate without
+  starting another check until the user requests preview, download, or retry. Word may
+  paginate differently from LibreOffice.

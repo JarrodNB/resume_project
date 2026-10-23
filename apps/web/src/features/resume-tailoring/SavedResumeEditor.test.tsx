@@ -6,11 +6,14 @@ import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
 import { describe, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
+import { START_DOCX_CHECK } from './docxCheckOperations'
 import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
 import { SavedResumeEditor } from './SavedResumeEditor'
 import { UPDATE_RESUME_MUTATION } from './tailorOperations'
 
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
+
+vi.mock('./resumeDocxDocument', () => ({ generateResumeDocx: vi.fn(async () => new Blob(['docx'])) }))
 
 vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: () => null }))
 
@@ -28,7 +31,7 @@ function updateMock(text: string, errors: string[] = [], delay = 10) {
 }
 
 function renderEditor(mocks: ReturnType<typeof updateMock>[] = []) {
-  return renderPage({ path: '/', url: '/', mocks,
+  return renderPage({ path: '/', url: '/', mocks: [...mocks, { request: { query: START_DOCX_CHECK, variables: () => true }, error: new Error('Pagination unavailable'), maxUsageCount: Infinity }],
     element: <><SavedResumeEditor resumeId="resume-1" sections={sections} onDeleted={vi.fn()} /><Link to="/jobs">Jobs</Link></>,
     extraRoutes: [{ path: '/jobs', element: <p>Job list</p> }],
   })
@@ -122,7 +125,7 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     await user.click(screen.getByRole('button', { name: 'Save resume' }))
     await waitFor(() => expect(button).toBeEnabled())
     await user.click(button)
-    expect(download).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Edited summary.' })] }), '')
+    await waitFor(() => expect(download).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Edited summary.' })] }), '', ...(format === 'DOCX' ? [expect.any(Blob)] : [])))
   })
 
 
@@ -136,7 +139,7 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     expect(preparing).toBeDisabled()
     expect(screen.getByRole('button', { name: format === 'PDF' ? 'Download DOCX' : 'Download PDF' })).toBeDisabled()
     await user.click(preparing)
-    expect(download).toHaveBeenCalledOnce()
+    await waitFor(() => expect(download).toHaveBeenCalledOnce())
     const captured = vi.mocked(download).mock.calls[0][0]
     await user.click(screen.getByRole('button', { name: 'Summary' }))
     await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Later edit.')

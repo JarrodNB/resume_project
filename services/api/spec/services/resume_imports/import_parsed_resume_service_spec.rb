@@ -109,4 +109,13 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
 
     expect(result.errors).to eq([ "Only completed resume parsing tasks can be imported" ])
   end
+  it "rejects unresolved bullets before profile, library, or acceptance writes" do
+    parsed_resume["unassigned_highlights"] = [ { "source_id" => "b7", "text" => "Shared work", "source_context" => "Acme roles" } ]
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+    expect(result).not_to be_success
+    expect(user.experiences).to be_empty
+    expect(user.reload.name).to be_nil
+    expect(ai_task.reload.accepted_at).to be_nil
+  end
+
 end

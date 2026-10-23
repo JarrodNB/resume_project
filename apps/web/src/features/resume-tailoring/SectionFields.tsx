@@ -120,6 +120,7 @@ function reviewDraftFrom(draft: SectionDraft): ReviewDraft {
     certifications: [],
     skills: draft.kind === 'skills' ? draft.items : [],
     parsing_warnings: [],
+    unassigned_highlights: [],
   }
 }
 

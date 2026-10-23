@@ -17,6 +17,7 @@ it('fills in missing fields with empty defaults', () => {
   expect(parsed).toEqual({
     contact: { full_name: null, email: null, phone: null, location: null, links: [] },
     summary: null,
+    unassigned_highlights: [],
     experiences: [{ ...emptyExperience(), company: 'Acme', title: 'Engineer' }],
     projects: [],
     educations: [],
@@ -33,4 +34,10 @@ it('reads certifications separately from education and preserves credential deta
   } })
   expect(parsed?.educations[0]?.institution).toBe('University')
   expect(parsed?.certifications[0]).toEqual({ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: '2024', expiry_date: null, credential_id: 'ABC', credential_url: 'https://example.com/ABC', description: null })
+})
+
+it('retains source context for unresolved bullets and defaults older results', () => {
+  const unresolved = [{ source_id: 'b7', text: 'Shared work', source_context: 'Acme roles' }]
+  expect(parsedResumeFromTaskResult({ parsed_resume: { unassigned_highlights: unresolved } })?.unassigned_highlights).toEqual(unresolved)
+  expect(parsedResumeFromTaskResult({ parsed_resume: {} })?.unassigned_highlights).toEqual([])
 })

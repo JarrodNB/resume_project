@@ -63,7 +63,15 @@ export interface ParsedSkill {
   category: string | null
 }
 
+export interface ParsedUnassignedHighlight {
+  source_id: string
+  text: string
+  source_context: string
+  reason?: 'ambiguous_role' | 'missing_role'
+}
+
 export interface ParsedResume {
+  unassigned_highlights: ParsedUnassignedHighlight[]
   contact: ParsedContactInfo
   summary: string | null
   experiences: ParsedExperience[]
@@ -81,6 +89,7 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   return {
     contact: { full_name: null, email: null, phone: null, location: null, ...parsed.contact, links: parsedLinks((parsed.contact as { links?: unknown } | undefined)?.links) },
     summary: parsed.summary ?? null,
+    unassigned_highlights: parsed.unassigned_highlights ?? [],
     experiences: (parsed.experiences ?? []).map((experience) => ({ ...emptyExperience(), ...experience })),
     projects: (parsed.projects ?? []).map((project) => ({ ...emptyProject(), ...project })),
     educations: (parsed.educations ?? []).map((education) => ({ ...emptyEducation(), ...education })),

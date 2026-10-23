@@ -31,3 +31,11 @@ it('groups highlight ids by role', () => {
     experience.highlights.map((highlight) => `highlight:${highlight.key}`),
   )
 })
+
+
+it('preserves unresolved source references and wording through draft conversion', () => {
+  const parsed = { ...buildParsedResume(), unassigned_highlights: [{ source_id: 'b7', text: 'Exact source bullet', source_context: 'Two roles' }] }
+  const draft = toReviewDraft(parsed)
+  draft.experiences.reverse()
+  expect(toParsedResume(draft).unassigned_highlights).toEqual(parsed.unassigned_highlights)
+})

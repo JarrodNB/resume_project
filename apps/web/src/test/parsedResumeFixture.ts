@@ -10,6 +10,7 @@ export function buildParsedResume(): ParsedResume {
   return {
     contact: { full_name: 'Ada Example', email: 'ada@example.com', phone: null, location: 'Perth', links: [] },
     summary: 'Backend engineer.',
+    unassigned_highlights: [],
     experiences: [
       {
         company: 'Acme',

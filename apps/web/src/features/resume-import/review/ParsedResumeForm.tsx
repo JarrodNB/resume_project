@@ -1,7 +1,8 @@
 /**
  * Description: Editable review of a parsed resume. The user fixes anything the parser got wrong,
  * reorders skills and highlights or moves highlights between roles by dragging, then imports the
- * edited version into their career library.
+ * edited version into their career library. Unassigned bullets must be placed or explicitly
+ * discarded before submission; discard decisions remain reversible until saving.
  * Index:
  *   - ParsedResumeForm: form holding the review draft; calls `onImport` with the edits
  */
@@ -21,6 +22,7 @@ import { ProjectFields } from './ProjectFields'
 import { ReviewSection } from './ReviewSection'
 import { toParsedResume, toReviewDraft, withDraftKey, type ReviewDraft } from './reviewDraft'
 import { SkillsField } from './SkillsField'
+import { UnassignedHighlights } from './UnassignedHighlights'
 import { TextField } from './TextField'
 import { useReviewDragHandlers } from './useReviewDragHandlers'
 
@@ -34,6 +36,8 @@ interface ParsedResumeFormProps {
 /** Renders every section of the parse as editable fields, with the parser's warnings on top. */
 export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: ParsedResumeFormProps) {
   const [draft, setDraft] = useState(() => toReviewDraft(parsedResume))
+  const [discarded, setDiscarded] = useState<string[]>([])
+  const pending = (draft.unassigned_highlights ?? []).filter((item) => !discarded.includes(item.source_id))
   const dragHandlers = useReviewDragHandlers(draft, setDraft)
   const experiencesWithoutDetails = draft.experiences.filter(
     (experience) => !experience.description?.trim() && !experience.highlights.some((highlight) => highlight.text.trim()),
@@ -49,13 +53,28 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    onImport(toParsedResume(draft))
+    if (pending.length || importing) return
+    onImport(toParsedResume({ ...draft, unassigned_highlights: [] }))
   }
 
   return (
     <DragDropProvider {...dragHandlers}>
       <form className="grid gap-6" onSubmit={handleSubmit}>
         <ParsingWarnings warnings={warnings} />
+        <UnassignedHighlights
+          highlights={draft.unassigned_highlights}
+          experiences={draft.experiences}
+          discarded={discarded}
+          onDiscard={(id) => setDiscarded((current) => [...current, id])}
+          onUndo={(id) => setDiscarded((current) => current.filter((value) => value !== id))}
+          onAssign={(item, destination) => setDraft((current) => ({
+            ...current,
+            experiences: current.experiences.map((experience) => experience.key === destination
+              ? { ...experience, highlights: [...experience.highlights, withDraftKey({ text: item.text })] }
+              : experience),
+            unassigned_highlights: current.unassigned_highlights.filter((highlight) => highlight.source_id !== item.source_id),
+          }))}
+        />
         <ReviewSection tone="contact" title="Contact">
           <ContactFields contact={draft.contact} onChange={(contact) => set('contact', contact)} />
         </ReviewSection>
@@ -123,7 +142,7 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
           <ErrorAlert messages={errors} title="Import failed" />
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">Importing adds these to your career library.</p>
-            <Button type="submit" size="lg" disabled={importing}>
+            <Button type="submit" size="lg" disabled={importing || pending.length > 0}>
               {importing ? 'Importing…' : 'Save to career library'}
             </Button>
           </div>

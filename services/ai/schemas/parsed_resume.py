@@ -1,4 +1,5 @@
 """
+Preserves ambiguous source bullets for human placement before library import.
 Description: Structured output of the resume parsing agent. Mirrors the Rails career library
 (experiences + highlights, projects, educations, certifications, skills) plus contact info and summary.
 Index:
@@ -11,6 +12,8 @@ Index:
     - ParsedSkill: one skill, with the resume's own grouping if any
     - ParsedResume: the full parse result (the agent's output_type)
 """
+
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -105,9 +108,19 @@ class ParsedSkill(BaseModel):
     )
 
 
+class ParsedUnassignedHighlight(BaseModel):
+    """A verbatim source bullet whose owning role needs the user's decision."""
+
+    source_id: str = Field(min_length=1, description="Request-local source bullet ID.")
+    text: str = Field(min_length=1, description="Original bullet copied word for word.")
+    source_context: str = Field(description="Nearby source heading copied verbatim, not an inferred owner.")
+    reason: Literal["ambiguous_role", "missing_role"] = "ambiguous_role"
+
+
 class ParsedResume(BaseModel):
     """Everything extracted from one resume. Nothing here may be invented."""
 
+    unassigned_highlights: list[ParsedUnassignedHighlight] = Field(default_factory=list)
     contact: ParsedContactInfo = Field(default_factory=ParsedContactInfo)
     summary: str | None = None
     experiences: list[ParsedExperience] = Field(default_factory=list)

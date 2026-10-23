@@ -1,6 +1,7 @@
 # Description: Checks that client-supplied ParsedResume JSON has the structure the import walks
 # (objects, lists of objects, lists of strings), so a wrong shape becomes an error message
-# instead of a crash. Field values are left to model validations.
+# instead of a crash. Unresolved bullets block import before any library writes.
+# Other field values are left to model validations.
 # Index:
 #   - call: returns the parsed resume with string keys, or errors describing each wrong shape
 module ResumeImports
@@ -30,6 +31,18 @@ module ResumeImports
       errors << "summary must be a string" unless optional?(parsed_resume["summary"], String)
       LIST_KEYS.each do |key|
         errors << "#{key} must be a list of objects" unless list_of?(parsed_resume[key], Hash)
+      end
+      if parsed_resume.key?("unassigned_highlights")
+        unresolved = parsed_resume["unassigned_highlights"]
+        valid = unresolved.is_a?(Array) && unresolved.all? do |item|
+          item.is_a?(Hash) && %w[source_id text source_context].all? { |key| item[key].is_a?(String) } &&
+            (!item.key?("reason") || %w[ambiguous_role missing_role].include?(item["reason"]))
+        end
+        if !valid
+          errors << "unassigned_highlights must be a list of objects with source_id, text, and source_context strings"
+        elsif unresolved.any?
+          errors << "Assign or discard every unassigned highlight before importing"
+        end
       end
       errors.concat(item_errors(parsed_resume)) if errors.empty?
       errors

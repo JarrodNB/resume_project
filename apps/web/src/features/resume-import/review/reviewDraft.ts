@@ -44,6 +44,7 @@ export function withDraftKey<Value extends object>(value: Value): Value & Keyed 
 export function toReviewDraft(parsedResume: ParsedResume): ReviewDraft {
   return {
     ...parsedResume,
+    unassigned_highlights: (parsedResume.unassigned_highlights ?? []).map((item) => ({ ...item })),
     experiences: parsedResume.experiences.map((experience) =>
       withDraftKey({ ...experience, highlights: experience.highlights.map((text) => withDraftKey({ text })) }),
     ),

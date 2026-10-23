@@ -38,4 +38,14 @@ RSpec.describe ResumeImports::ValidateParsedResumeShapeService do
       "experience highlights must be a list of strings", "skill names must be strings"
     ])
   end
+  it "rejects unresolved source bullets and malformed lists" do
+    pending = { "source_id" => "b7", "text" => "Shared work", "source_context" => "Acme" }
+    expect(described_class.call(parsed_resume: { "unassigned_highlights" => [ pending ] }).errors)
+      .to include("Assign or discard every unassigned highlight before importing")
+    [ nil, "bad", [ "bad" ], [ { "text" => 9 } ] ].each do |value|
+      expect(described_class.call(parsed_resume: { "unassigned_highlights" => value })).not_to be_success
+    end
+    expect(described_class.call(parsed_resume: { "unassigned_highlights" => [] })).to be_success
+  end
+
 end

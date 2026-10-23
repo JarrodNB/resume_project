@@ -15,6 +15,7 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 - `review/` — the editable form: `ParsedResumeForm.tsx` (one `DragDropProvider` around the
   form) plus one fields component per section (tone-colored `ReviewSection` cards), and generic
   `TextField`, `StringListField` (links), `EditableList` (entry blocks), `DateRangeFields`
+  - `UnassignedHighlights.tsx` — source bullets awaiting placement; assign by stable role key or discard/undo before save
   - `HighlightsField.tsx` — a role's highlights; drag to reorder or into another role
   - `SkillsField.tsx` — draggable skill chips
   - `reviewDraft.ts` — the form's working copy: every entry, highlight, and skill gets a stable
@@ -40,3 +41,5 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 - LinkListField edits each contact link's visible label and destination URL separately.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
 - `review/CertificationFields.tsx` edits parsed certifications; absent certifications default to an empty list for older task results.
+
+- Parsed resumes may include `unassigned_highlights` with `source_id`, verbatim `text`, `source_context`, and optional bounded `reason` (`ambiguous_role` or `missing_role`). Older results default empty. Pending bullets block UI submission and Rails import; discard decisions stay local to review.

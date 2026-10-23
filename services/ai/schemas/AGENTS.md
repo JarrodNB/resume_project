@@ -7,7 +7,7 @@ the `result` sent to Rails, so changes must be mirrored there.
 
 ## Contents
 
-- `parsed_resume.py` — `ParsedResume` and its parts (including `ParsedCertification`); mirrors the Rails career library and is
+- `parsed_resume.py` — `ParsedResume` and its parts (including `ParsedCertification` and `ParsedUnassignedHighlight`); mirrors the Rails career library and is
   imported by `ResumeImports::ImportParsedResumeService`
 - `parsed_job_posting.py` — `ParsedJobPosting`, the parse agent's output (title, company, requirements, responsibilities, nice-to-haves; not sent to Rails)
 - `scraped_job_posting.py` — `ScrapedJobPosting`, the `scrape_job` and `parse_job_posting` result

@@ -63,3 +63,38 @@ it('adds a certification to import without moving education records', async () =
     certifications: [{ name: 'Cloud Architect', issuer: 'Cloud Co', issued_date: null, expiry_date: null, credential_id: 'ABC', credential_url: null, description: null }],
   }))
 })
+
+it('requires assignment or explicit discard and supports undo', async () => {
+  const user = userEvent.setup()
+  const onImport = vi.fn()
+  const parsed = { ...buildParsedResume(), unassigned_highlights: [{ source_id: 'bullet-7', text: 'Shared achievement', source_context: 'Acme roles' }] }
+  const { container } = render(<ParsedResumeForm parsedResume={parsed} onImport={onImport} importing={false} errors={[]} />)
+  const save = screen.getByRole('button', { name: 'Save to career library' })
+  expect(save).toBeDisabled()
+  container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  expect(onImport).not.toHaveBeenCalled()
+  expect(screen.getByText('Acme roles')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Discard bullet 1' }))
+  expect(save).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Undo discard bullet 1' }))
+  expect(save).toBeDisabled()
+  await user.selectOptions(screen.getByLabelText('Destination for bullet 1'), screen.getByRole('option', { name: /Engineer at Acme/ }))
+  await user.click(screen.getByRole('button', { name: 'Assign bullet 1' }))
+  await user.click(save)
+  expect(onImport.mock.calls[0][0].unassigned_highlights).toEqual([])
+  expect(onImport.mock.calls[0][0].experiences[0].highlights).toContain('Shared achievement')
+})
+
+it('assigns a source bullet to an experience added during review', async () => {
+  const user = userEvent.setup()
+  const onImport = vi.fn()
+  const parsed = { ...buildParsedResume(), unassigned_highlights: [{ source_id: 'b8', text: 'Built a prototype', source_context: 'Independent work' }] }
+  render(<ParsedResumeForm parsedResume={parsed} onImport={onImport} importing={false} errors={[]} />)
+  await user.click(screen.getByRole('button', { name: 'Add experience' }))
+  await user.type(screen.getAllByLabelText(/^Company/)[1], 'New Co')
+  await user.type(screen.getAllByLabelText(/^Title/)[1], 'Builder')
+  await user.selectOptions(screen.getByLabelText('Destination for bullet 1'), screen.getByRole('option', { name: /Builder at New Co/ }))
+  await user.click(screen.getByRole('button', { name: 'Assign bullet 1' }))
+  await user.click(screen.getByRole('button', { name: 'Save to career library' }))
+  expect(onImport.mock.calls[0][0].experiences[1]).toMatchObject({ title: 'Builder', company: 'New Co', highlights: ['Built a prototype'] })
+})

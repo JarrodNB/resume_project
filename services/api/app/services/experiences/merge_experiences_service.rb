@@ -8,7 +8,8 @@ module Experiences
     end
 
     def call
-      ActiveRecord::Base.transaction do
+      # Roll back our writes before returning failure, even inside an owner lock transaction.
+      ActiveRecord::Base.transaction(requires_new: true) do
         [ @target, @source ].select(&:persisted?).sort_by(&:id).each(&:lock!)
         [ @target, @source ].sort_by { |entry| entry.id.to_s }.each { |entry| LockChildrenService.call(experience: entry) }
         @source.roles.each { |role| role.id ||= SecureRandom.uuid }

@@ -56,4 +56,22 @@ RSpec.describe CareerLibrary::MergeLibraryRecordsService do
     expect(described_class.call(target: target, source: create(:education, user: user)).errors)
       .to eq([ "Only entries of the same kind can be merged" ])
   end
+  it "rolls back moved bullets and source deletion when a merged role exceeds its limit" do
+    target = Experiences::CreateExperienceService.call(user: user, attributes: {
+      company: "Example", roles: [ { title: "Engineer", highlights: Array.new(40) { |i| { content: "Target achievement #{i}" } } } ]
+    }).value
+    source = Experiences::CreateExperienceService.call(user: user, attributes: {
+      company: "Example", roles: [ { title: "Engineer", highlights: [ { content: "Source achievement" } ] } ]
+    }).value
+    target_ids = target.highlights.ids
+    source_id = source.highlights.first.id
+
+    expect { @merge_result = described_class.call(target: target, source: source) }
+      .not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+
+    expect(@merge_result).not_to be_success
+    expect(Experience.exists?(source.id)).to be(true)
+    expect(target.reload.highlights.ids).to match_array(target_ids)
+    expect(source.reload.highlights.ids).to eq([ source_id ])
+  end
 end

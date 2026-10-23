@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
+import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
@@ -163,9 +164,11 @@ function OwnedInterview({ id }: { id: string }) {
     {recordingWarning}
     <div className="grid gap-3">
       <p role={state.loadError ? 'alert' : 'status'}>{state.loadError ? 'Could not load this interview. It may be unavailable, expired, or outside your account.' : 'Loading saved interview…'}</p>
+      {state.loadError && <Link className="text-sm underline underline-offset-4" to="/interviews">Back to interviews</Link>}
       {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
     </div>
   </>
+  if (interview.status === 'completed') return <>{recordingWarning}<CompletedInterviewReview interview={interview} /></>
   if (interview.executionMode !== 'real') return <div className="grid gap-3">
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Start a new interview</Link>

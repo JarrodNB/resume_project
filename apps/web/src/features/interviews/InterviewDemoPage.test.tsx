@@ -189,10 +189,12 @@ describe('InterviewDemoPage', () => {
       ...snapshot.messages, { ...snapshot.messages[0], id: 'closing', kind: 'closing', content: 'Thank you. This interview is complete.' },
     ] }
     renderDemo()
-    const current = within(screen.getByRole('region', { name: 'Current interview turn' }))
-    expect(current.getByText('Thank you. This interview is complete.')).toBeVisible()
-    expect(current.queryByText('Describe a project.')).not.toBeInTheDocument()
-    expect(current.queryByRole('heading', { name: 'Follow-up' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
+    expect(screen.getByText('Thank you. This interview is complete.')).toBeVisible()
+    expect(screen.queryByRole('region', { name: 'Current interview turn' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to interviews' })).toHaveAttribute('href', '/interviews')
+    expect(screen.queryByRole('button', { name: 'Interview settings' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
   it('shows the saved acknowledgement separately and speaks the whole accepted interviewer turn', async () => {
@@ -978,4 +980,71 @@ it('offers skipping but keeps the draft and recording when the server rejects it
   expect(state.skipQuestion).toHaveBeenCalledOnce()
   expect(screen.getByRole('textbox', { name: 'Your answer', hidden: true })).toHaveValue('Keep my draft')
   expect(recorder.reset).not.toHaveBeenCalled()
+})
+
+it('groups retained completed dialogue by core question and remembers expanded review sections', async () => {
+  state.interview = { ...snapshot, status: 'completed', preparedRole: { title: 'Scheduling engineer', responsibilities: ['Maintain bookings'], requirements: ['Testing'] }, questions: [
+    { ...snapshot.questions[0], position: 0, skipped: true, acceptedAnswerCount: 2 }, { ...snapshot.questions[0], id: 'second', position: 1, content: 'Describe teamwork.', skipped: false },
+  ], messages: [...snapshot.messages,
+    { id: 'answer1', questionId: 'question', kind: 'answer', position: 2, content: 'I built a scheduler.' },
+    { id: 'followup', questionId: 'question', kind: 'follow_up', position: 3, content: 'How did you test it?' },
+    { id: 'answer2', questionId: 'question', kind: 'answer', position: 4, content: 'I wrote integration tests.' },
+  ] }
+  const view = renderDemo()
+  expect(screen.getByText(/2 core questions/)).toBeVisible()
+  expect(screen.queryByText('I built a scheduler.')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Fictional role' }))
+  expect(screen.getByRole('heading', { name: 'Scheduling engineer' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Core question 1 · Remaining follow-up skipped' }))
+  expect(screen.getByText('Remaining follow-up skipped. Your earlier answers are saved below.')).toBeVisible()
+  const group = screen.getByText('I built a scheduler.').closest('ol')!
+  expect(within(group).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+    'Your answerI built a scheduler.', 'Follow-upHow did you test it?', 'Your answerI wrote integration tests.',
+  ])
+  await userEvent.click(screen.getByRole('button', { name: 'Core question 2' }))
+  expect(screen.getByText('No saved answer for this question.')).toBeVisible()
+  view.unmount()
+  renderDemo()
+  expect(screen.getByText('I wrote integration tests.')).toBeVisible()
+  expect(screen.queryByRole('button', { name: /^(Record|Submit|Abandon|Clarify|Skip|Play speech)/i })).not.toBeInTheDocument()
+  expect(recorder.start).not.toHaveBeenCalled()
+})
+
+it('switches directly from the live room to review and lets the candidate return to interviews', async () => {
+  const { router } = renderDemo()
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeVisible()
+  state.interview = { ...snapshot, status: 'completed', revision: 1 }
+  act(() => recorder.refresh())
+  expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('link', { name: 'Back to interviews' }))
+  expect(router.state.location.pathname).toBe('/interviews')
+  expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeVisible()
+})
+
+it('allows read-only review of a legacy completed session without role or audio', async () => {
+  state.interview = { ...snapshot, executionMode: 'scripted', status: 'completed', operations: [] }
+  renderDemo()
+  expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Fictional role' }))
+  expect(screen.getByText('Role details were not saved for this interview.')).toBeVisible()
+  expect(screen.queryByText(/scripted session is retired/)).not.toBeInTheDocument()
+})
+
+it('keeps a return path when saved text has expired and loading fails', async () => {
+  state.interview = null
+  state.loadError = new Error('expired')
+  renderDemo()
+  expect(screen.getByRole('alert')).toHaveTextContent('expired')
+  expect(screen.getByRole('link', { name: 'Back to interviews' })).toHaveAttribute('href', '/interviews')
+  expect(screen.getByRole('button', { name: 'Check saved status' })).toBeEnabled()
+})
+
+it('distinguishes an unanswered skipped core question and unavailable retained text', async () => {
+  state.interview = { ...snapshot, status: 'completed', questions: [{ ...snapshot.questions[0], position: 0, content: '', skipped: true }], messages: [] }
+  renderDemo()
+  expect(screen.getByText('Question text is unavailable.')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: 'Core question 1 · Skipped' }))
+  expect(screen.getByText('Skipped — no answer was submitted.')).toBeVisible()
+  expect(screen.getByText('No saved answer for this question.')).toBeVisible()
 })

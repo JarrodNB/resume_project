@@ -39,6 +39,21 @@ kills the complete process group. Temporary files disappear after each attempt.
 ## Recovery and retention
 
 Private bytes are deleted promptly after conversion or a failed upload/enqueue.
+Each upload reserves a 30-second deadline before releasing its database lock. A writer
+refuses to start a PUT after that deadline and the remaining reservation time bounds
+the PUT with a timeout; scheduling delays never grant it a fresh lease. Storage I/O
+runs outside row locks. Successful PUT completion clears the upload lease before
+acceptance or rejection is recorded, so normal deletion can finish immediately.
+
+An interrupted or failed PUT can still commit remotely after a DELETE has returned.
+Its key therefore remains a durable tombstone for five minutes beyond the upload
+deadline, including after account deletion. Cleanup repeats DELETE during that interval
+and only forgets the key after a successful DELETE once the interval ends. A pending
+key blocks retries; later attempts receive distinct keys. This bound assumes storage
+finishes or abandons an interrupted PUT within that five-minute grace (the S3 client
+has a three-second connection timeout, five-second read timeout and no retries).
+The Ruby timeout also prevents a paused, expired reservation from starting a new PUT
+when execution resumes. A process crash leaves the same durable lease for the sweeper.
 A failed deletion retains its database key for retry. Account/resume deletion nulls
 the association rather than deleting the cleanup obligation. The cleanup service
 rotates attempts across batches of 100 so a storage outage cannot starve later keys.

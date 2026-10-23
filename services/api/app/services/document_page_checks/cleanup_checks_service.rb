@@ -14,7 +14,8 @@ module DocumentPageChecks
         check.with_lock do
           if check.user_id.nil? || check.expires_at <= Time.current ||
             (check.running? && check.lease_expires_at.to_i <= Time.current.to_i) ||
-            (check.queued? && check.updated_at < 10.minutes.ago)
+            (check.queued? && (check.updated_at < 10.minutes.ago ||
+              (check.upload_expires_at && check.upload_expires_at <= Time.current)))
             check.update!(status: "failed", error_code: "expired", lease_expires_at: nil)
           end
         end

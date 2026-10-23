@@ -149,4 +149,113 @@ RSpec.describe "DOCX check lifecycle" do
     2.times { DocumentPageChecks::CleanupChecksService.call(storage: storage) }
     expect(attempted.uniq.length).to eq(101)
   end
+  it "reaps a late upload after account deletion runs cleanup during the write" do
+    objects = {}
+    allow(storage).to receive(:delete) { |key| objects.delete(key) }
+    allow(storage).to receive(:write) do |key:, bytes:|
+      user.destroy!
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      objects[key] = bytes
+    end
+    result = DocumentPageChecks::StartCheckService.call(user: user, file: file, content_digest: digest, storage: storage)
+    expect(result).not_to be_success
+    DocumentPageChecks::CleanupChecksService.call(storage: storage)
+    expect(objects).to be_empty
+  end
+
+  it "retains a late-upload cleanup obligation when the writer's final deletion fails" do
+    objects = {}
+    writes_finished = false
+    allow(storage).to receive(:delete) do |key|
+      raise IOError if writes_finished
+      objects.delete(key)
+    end
+    allow(storage).to receive(:write) do |key:, bytes:|
+      user.destroy!
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      objects[key] = bytes
+      writes_finished = true
+    end
+    result = DocumentPageChecks::StartCheckService.call(user: user, file: file, content_digest: digest, storage: storage)
+    expect(result).not_to be_success
+    check = ResumeDocxPageCheck.sole
+    expect(objects.keys).to eq([ check.storage_key ])
+    allow(storage).to receive(:delete) { |key| objects.delete(key) }
+    DocumentPageChecks::CleanupChecksService.call(storage: storage)
+    expect(objects).to be_empty
+    expect(ResumeDocxPageCheck.exists?(check.id)).to be(false)
+  end
+
+  it "retains interrupted-upload tombstones through the delayed-write interval" do
+    check = user.resume_docx_page_checks.create!(content_digest: digest, storage_key: "interrupted-upload",
+      expires_at: 1.hour.from_now, upload_expires_at: 30.seconds.from_now)
+    user.destroy!
+    DocumentPageChecks::CleanupChecksService.call(storage: storage)
+    expect(check.reload.storage_key).to eq("interrupted-upload")
+    travel 31.seconds do
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      expect(check.reload).to have_attributes(status: "failed", storage_key: "interrupted-upload")
+    end
+    travel 6.minutes do
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      expect(ResumeDocxPageCheck.exists?(check.id)).to be(false)
+    end
+  end
+
+  it "expires stale pending uploads without requiring account deletion" do
+    check = user.resume_docx_page_checks.create!(content_digest: digest, storage_key: "aborted-upload",
+      expires_at: 1.hour.from_now, upload_expires_at: 1.second.ago)
+    DocumentPageChecks::CleanupChecksService.call(storage: storage)
+    expect(check.reload).to have_attributes(status: "failed", storage_key: "aborted-upload")
+    travel 6.minutes do
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      expect(check.reload.storage_key).to be_nil
+    end
+  end
+
+  it "does not start a PUT after its upload reservation expires" do
+    allow(user).to receive(:with_lock).and_wrap_original do |original, &block|
+      original.call(&block)
+      travel_to 31.seconds.from_now
+    end
+    expect(storage).not_to receive(:write)
+    result = DocumentPageChecks::StartCheckService.call(user: user, file: file, content_digest: digest, storage: storage)
+    expect(result).not_to be_success
+    expect(user.resume_docx_page_checks.sole.storage_key).to be_present
+  ensure
+    travel_back
+  end
+
+  it "deletes the captured upload even if its metadata is unexpectedly absent" do
+    check = start_check
+    key = check.storage_key
+    check.destroy!
+    expect(DocumentPageChecks::PurgeUploadService.call(check: check, storage: storage, key: key)).to be_success
+    expect(storage).to have_received(:delete).with(key)
+  end
+
+  it "bounds a hung writer and prevents retry from replacing its pending cleanup key" do
+    stub_const("DocumentPageChecks::StartCheckService::UPLOAD_TIMEOUT", 0.02.seconds)
+    allow(storage).to receive(:write) { sleep 1 }
+    result = DocumentPageChecks::StartCheckService.call(user: user, file: file, content_digest: digest, storage: storage)
+    expect(result).not_to be_success
+    check = user.resume_docx_page_checks.sole
+    key = check.storage_key
+    expect(check).to have_attributes(status: "failed", upload_ready: false)
+    expect(key).to be_present
+    result = DocumentPageChecks::StartCheckService.call(user: user, file: StringIO.new(bytes),
+      content_digest: digest, storage: storage, retry_failed: true)
+    expect(result).not_to be_success
+    expect(check.reload.storage_key).to eq(key)
+    travel 6.minutes do
+      DocumentPageChecks::CleanupChecksService.call(storage: storage)
+      expect(check.reload.storage_key).to be_nil
+      allow(storage).to receive(:write).and_return(true)
+      retried = start_check(retry_failed: true)
+      expect(retried.storage_key).not_to eq(key)
+      expect(retried).to have_attributes(status: "queued", upload_ready: true)
+      DocumentPageChecks::PurgeUploadService.call(check: check, key: key, storage: storage)
+      expect(retried.reload.storage_key).to be_present
+    end
+  end
 end

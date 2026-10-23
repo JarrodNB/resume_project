@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -528,12 +528,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_100000) do
     t.datetime "expires_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "upload_expires_at"
     t.index ["expires_at"], name: "index_resume_docx_page_checks_on_expires_at"
     t.index ["resume_id"], name: "index_resume_docx_page_checks_on_resume_id"
     t.index ["user_id", "content_digest"], name: "index_resume_docx_page_checks_on_user_id_and_content_digest", unique: true
     t.index ["user_id"], name: "index_resume_docx_page_checks_on_user_id"
     t.check_constraint "page_count IS NULL OR page_count > 0", name: "docx_positive_pages"
-    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "docx_check_status"
+    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying::text, 'running'::character varying::text, 'completed'::character varying::text, 'failed'::character varying::text])", name: "docx_check_status"
   end
 
   create_table "resume_sections", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

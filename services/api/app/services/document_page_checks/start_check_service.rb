@@ -2,9 +2,12 @@
 # Upload and queue failures keep a durable private-object cleanup obligation.
 require "digest"
 require "tempfile"
+require "timeout"
 module DocumentPageChecks
   class StartCheckService < ApplicationService
     MAX_BYTES = 5.megabytes
+    UPLOAD_TIMEOUT = 30.seconds
+    DELAYED_WRITE_GRACE = 5.minutes
     def initialize(user:, file:, content_digest:, resume: nil, retry_failed: false, storage: PrivateStorage.new)
       @user, @file, @digest, @resume, @retry_failed, @storage = user, file, content_digest, resume, retry_failed, storage
     end
@@ -33,27 +36,45 @@ module DocumentPageChecks
         check ||= @user.resume_docx_page_checks.build(content_digest: @digest)
         check.retry_count += 1 if check.persisted?
         check.assign_attributes(resume: @resume, status: "queued", expires_at: 23.hours.from_now,
-          upload_ready: false, attempt_token: nil, lease_expires_at: nil, page_count: nil, error_code: nil)
+          upload_ready: false, upload_expires_at: UPLOAD_TIMEOUT.from_now, attempt_token: nil, lease_expires_at: nil, page_count: nil, error_code: nil)
         check.storage_key = "private/document-page-checks/#{check.id ||= SecureRandom.uuid}/#{SecureRandom.uuid}.docx"
         check.save!
         needs_upload = true
       end
       if needs_upload
         upload_key = check.storage_key
-        @storage.write(key: upload_key, bytes: bytes)
+        # The reservation deadline includes scheduling delay before the PUT. Never grant a
+        # fresh timeout to an old reservation after its tombstone could have expired.
+        remaining = check.upload_expires_at - Time.current
+        raise IOError, "Upload reservation expired" unless remaining.positive?
+        Timeout.timeout(remaining) do
+          raise IOError, "Upload reservation expired" unless check.upload_expires_at > Time.current
+          @storage.write(key: upload_key, bytes: bytes)
+        end
+        upload_accepted = false
         check.with_lock do
-          if check.queued? && check.user_id == @user.id && check.expires_at > Time.current
-            check.update!(upload_ready: true)
-          else
-            raise IOError, "Check expired during upload"
+          if check.storage_key == upload_key
+            check.update!(upload_expires_at: nil)
+            if check.queued? && check.user_id == @user.id && check.expires_at > Time.current
+              check.update!(upload_ready: true)
+              upload_accepted = true
+            end
           end
         end
+        raise IOError, "Check expired during upload" unless upload_accepted
         CountPagesJob.perform_later(check.id)
       end
       success(check)
     rescue StandardError
-      if check&.persisted?
-        check.with_lock { check.update!(status: "failed", error_code: "unavailable") if check.queued? }
+      begin
+        if check&.persisted?
+          check.with_lock do
+            check.update!(status: "failed", error_code: "unavailable") if check.queued? && check.storage_key == upload_key
+          end
+        end
+      rescue ActiveRecord::RecordNotFound
+        # The captured key still needs deletion even if metadata was removed.
+      ensure
         PurgeUploadService.call(check: check, storage: @storage, key: upload_key) if upload_key
       end
       failure("DOCX page checking is unavailable; you can still download")

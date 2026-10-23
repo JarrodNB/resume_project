@@ -1,0 +1,110 @@
+# Real browser QA on the original paid database. Combine with the demo base and paid
+# overlay, always using project cg-interview-12-paid so its ledger is never renewed.
+services:
+  api:
+    ports:
+      - "127.0.0.2:13006:3000"
+    environment:
+      CORS_ORIGINS: http://127.0.0.2:15176
+      WEB_APP_URL: http://127.0.0.2:15176
+      INTERVIEW_BROWSER_STORAGE_ORIGIN: http://127.0.0.2:19096
+      SQS_ENDPOINT_URL: http://sqs:9324
+      # Local interview testing records usage without spend or unknown-cost stop gates.
+      # Rails ignores this opt-in outside development; resource limits remain active.
+      # Multi-turn history is screened again; leave room for the interviewer after
+      # those calls. The Rails hard ceiling remains twenty calls per execution.
+      INTERVIEW_PROVIDER_ATTEMPT_LIMIT: "20"
+  sqs:
+    image: softwaremill/elasticmq-native
+    volumes:
+      - ../infra/elasticmq/elasticmq.conf:/opt/elasticmq.conf:ro
+  api-results-worker:
+    image: cg-interview-qa-api
+    command: bundle exec shoryuken -R -C config/shoryuken.yml
+    restart: unless-stopped
+    environment:
+      RAILS_ENV: development
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: interview-local-only
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_EC2_METADATA_DISABLED: "true"
+      SQS_ENDPOINT_URL: http://sqs:9324
+      S3_ENDPOINT_URL: http://s3:9090
+      S3_UPLOADS_BUCKET: careergrind-uploads
+      BOOTSNAP_CACHE_DIR: /bootsnap
+      OPENAI_API_KEY: ""
+    volumes:
+      - ../services/api:/rails
+      - interview_bootsnap:/bootsnap
+    depends_on:
+      api:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+  ai:
+    image: cg-interview-qa-interview-runtime
+    command: python -m worker.main
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    env_file:
+      - ${INTERVIEW_VERIFICATION_AI_ENV:?Set the absolute original ignored AI env path}
+    environment:
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_EC2_METADATA_DISABLED: "true"
+      SQS_ENDPOINT_URL: http://sqs:9324
+      S3_ENDPOINT_URL: http://s3:9090
+      S3_UPLOADS_BUCKET: careergrind-uploads
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
+      WORKER_ENVIRONMENT: local
+      CONVERSATION_LOGGING_ENABLED: "false"
+      LOGFIRE_ENVIRONMENT: development
+      # Queued clarification uses the same Rails claim authority as the live runtime.
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
+    volumes:
+      - ../services/ai:/app
+    depends_on:
+      api:
+        condition: service_healthy
+      sqs:
+        condition: service_started
+  s3:
+    ports:
+      - "127.0.0.2:19096:9090"
+  web:
+    image: cg-interview-qa-web
+    ports:
+      - "127.0.0.2:15176:5173"
+    volumes:
+      - ../services/api/schema.graphql:/services/api/schema.graphql:ro
+  storage-setup:
+    image: cg-interview-qa-api
+  interview-runtime:
+    # Ordinary recovery supports explicit speech retries. Every paid request still
+    # needs Rails admission, bounded attempts, and the retained cumulative allowance.
+    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000 --ws-max-size 32768 --ws-max-queue 8
+    # Replace probe environment overrides, leaving credentials to env_file.
+    # A null token would still mask the env_file value, so omit it entirely.
+    environment: !override
+      INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
+      INTERVIEW_PROVIDER_MODE: fake
+      INTERVIEW_REAL_RUNTIME_ENABLED: "true"
+      INTERVIEW_PAID_VERIFICATION: "true"
+      INTERVIEW_ENVIRONMENT: development
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
+      INTERVIEW_STORAGE_ORIGINS: http://s3:9090
+      INTERVIEW_BROWSER_ORIGINS: http://127.0.0.2:15176
+      INTERVIEW_FAKE_SCENARIO: normal
+      OTEL_SDK_DISABLED: "false"
+      LOGFIRE_ENVIRONMENT: development
+      CONVERSATION_LOGGING_ENABLED: "false"

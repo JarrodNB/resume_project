@@ -48,7 +48,14 @@ module AiTasks
 
     # Interview writes share the owner lock with enqueue/save/delete; acquire it before the task.
     def with_result_lock(ai_task, &block)
-      if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+      if ai_task.interview_clarification?
+        ai_task.user.with_lock do
+          interview = ai_task.user.interview_sessions.find_by(id: ai_task.subject_id)
+          interview&.lock!
+          interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
+          ai_task.with_lock(&block)
+        end
+      elsif ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
         ai_task.with_lock(&block)
@@ -73,6 +80,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.interview_clarification?
+        result = Interviews::ApplyClarificationService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         service = ai_task.review_interview_answer? ? InterviewPrep::ApplyFeedbackService : InterviewPrep::ApplyQuestionsService
         result = service.call(ai_task: ai_task, result: @message["result"])

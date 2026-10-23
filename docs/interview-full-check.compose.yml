@@ -1,0 +1,27 @@
+# Offline engineering only: real execution interfaces, synthetic SDK HTTP responses.
+# No env files, real credentials, host ports, or paid verification ledger.
+services:
+  api:
+    image: cg-interview-qa-api
+    environment:
+      INTERVIEW_REAL_ADMISSION_ENABLED: "true"
+      INTERVIEW_SYNTHETIC_PROVIDER_CHECK: "true"
+      INTERVIEW_REAL_RUNTIME_ORIGIN: http://interview-runtime:8000
+  interview-runtime:
+    image: cg-interview-qa-interview-runtime
+    command: python -m scripts.interview_mock_runtime
+    environment:
+      INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
+      INTERVIEW_REAL_RUNTIME_ENABLED: "true"
+      INTERVIEW_ENVIRONMENT: development
+      OPENAI_API_KEY: synthetic-offline
+      TYPESAFE_API_KEY: synthetic-offline
+      LOGFIRE_TOKEN: ""
+      LOGFIRE_SEND_TO_LOGFIRE: "false"
+      OTEL_SDK_DISABLED: "true"
+  storage-setup:
+    image: cg-interview-qa-api
+
+networks:
+  default:
+    internal: true

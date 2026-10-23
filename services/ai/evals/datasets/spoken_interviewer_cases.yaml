@@ -1,0 +1,35 @@
+# Synthetic examples; these are offline label checks, not evidence of model quality.
+- name: appointment-follow-up
+  question: Tell me about a process you improved.
+  answer: I cut appointment waiting time by fifteen minutes using a shared calendar.
+  history: []
+  expected:
+    decision: continue
+    acknowledgement: null
+    reply: How did you measure the shorter waiting time?
+  relevant_terms: [measure, waiting]
+  acknowledgement_terms: []
+- name: continuity
+  question: Tell me about helping a team.
+  answer: We measured it for four weeks and cancellations fell by twenty percent.
+  history:
+    - candidate: I introduced a shared scheduling calendar.
+    - interviewer: How did you measure the improvement?
+  expected:
+    decision: continue
+    acknowledgement: null
+    reply: What did you change after reviewing those results?
+  relevant_terms: [results]
+  acknowledgement_terms: []
+- name: enough-detail
+  question: Tell me about a difficult customer problem.
+  answer: I listened to the complaint, fixed the booking, and confirmed the customer was satisfied.
+  history:
+    - interviewer: What was the outcome?
+    - candidate: The customer returned and thanked our team.
+  expected:
+    decision: advance
+    acknowledgement: null
+    reply: null
+  relevant_terms: []
+  acknowledgement_terms: []

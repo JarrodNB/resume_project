@@ -9,6 +9,7 @@ when changing a contract or feature:
 | [Authentication](architecture/authentication.md) | Browser sessions, CSRF, login/logout, live connection security |
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |
+| [Interview sessions](architecture/interview-sessions.md) | Spoken demo records, atomic acceptance, HTTP boundary and recovery ownership |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |
@@ -17,8 +18,11 @@ Decision rationale lives beside the behavior it explains in these guides.
 
 ## Core rules
 
-- Rails owns domain writes. AI workers read through the restricted `ai_reader` role and return results over SQS.
-- Long-running AI work goes through queues. Task and result handlers must tolerate duplicate delivery.
+- Rails owns domain writes. AI workers read through the restricted `ai_reader` role and return results over SQS
+  (Basic Interview uses the scoped Rails acceptance interface described below).
+- Long-running AI work goes through queues. Basic Interview is a scoped exception: a separate
+  AI-service runtime claims durable Rails operations over internal HTTP; browser requests
+  do not wait for execution. Both transports must tolerate repeated work and results.
 - LLM calls run in the AI service and are traced in Logfire. Rails background jobs embed career-library entries and saved interview Q&A as an explicit exception; see [embedding ownership](architecture/career-library.md#decisions).
 - Secrets come from per-service environment variables.
 

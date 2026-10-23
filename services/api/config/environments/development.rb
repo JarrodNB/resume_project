@@ -1,8 +1,11 @@
+# Configures local Rails behavior, including the Compose-only interview service hostname.
 # Description: Development settings. Uploads go to S3Mock through the `amazon` storage service,
 # so the AI worker can read them from S3 the same way it does in production.
 require "active_support/core_ext/integer/time"
 
 Rails.application.configure do
+  # Permit the explicit Compose service hostname without disabling host validation.
+  config.hosts << "api"
   # Settings specified here will take precedence over those in config/application.rb.
 
   # Make code changes take effect immediately without server restart.

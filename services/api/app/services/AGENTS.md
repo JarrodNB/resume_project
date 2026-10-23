@@ -90,7 +90,8 @@ All business logic, as service objects grouped by domain folder.
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
   resume (`updateResume`); type, title, and order stay put
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
-  flight (defaults in `config/initializers/ai_usage_limits.rb`, per-user override columns)
+  flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
+  per-user override columns apply only to general AI)
 - `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time
 - `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
@@ -121,3 +122,20 @@ All business logic, as service objects grouped by domain folder.
 - Interview question result application uses `interview_prep/apply_questions_service.rb` under owner-then-task locks in `ApplyAiResultService`. Five-slot generation is atomic; replacements check task identity/revisions and current-set distinctness, then clear only that slot’s answer and feedback. Failed/obsolete results preserve content and retain usage once.
 
 - Interview feedback application uses `interview_prep/apply_feedback_service.rb` under the same owner/task lock order; feedback stores reviewed revisions and never changes the answer.
+
+- `interviews/` — spoken interview lifecycle, private media reservations/sealing,
+  library-informed preparation and atomic ready-state role/question acceptance,
+  exact-value frozen library screening reuse and fenced `screen_library` approval callbacks,
+  claim-bound speech and bounded cleanup. Lock owner, interview, ordered questions,
+  then operation/task/media; perform object/provider I/O outside locks and recheck
+  authority before committing. Submission requires owned ready unexpired audio for
+  the current question. Keep deletion tombstones for delayed-write reaping and preserve
+  billing records when scrubbing expired dialogue. See `docs/architecture/interview-sessions.md`.
+  Public GraphQL demo endpoints require explicit `INTERVIEW_DEMO_ENABLED=true` and Rails
+  development mode, owner scoping, and unexpired sessions; snapshots exclude execution secrets.
+  Prepared sessions persist one preparation-task hourly admission before acknowledgment;
+  `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
+  root link. Interview monthly spend and in-flight checks include every spoken stage,
+  independently of general AI limits and the general public usage summary.
+  `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
+  spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.

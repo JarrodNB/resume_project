@@ -55,6 +55,7 @@ RSpec.describe AiReaderAccess do
   it "can't read AI tasks, the JWT denylist, or job-only gap responses" do
     create(:job_gap_response)
 
+    expect { select_as_ai_reader("SELECT id FROM interview_clarifications") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)

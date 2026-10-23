@@ -1,0 +1,24 @@
+/* Keep saved interview questions compact, with a readable transcript when opened.
+ * Speaker labels sit beside answers on wide screens and stack on small screens.
+ */
+.interview-review .review-toggle {
+  min-height: 44px;
+}
+
+.interview-review .review-panel {
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 700px) {
+  .interview-review .review-message {
+    grid-template-columns: 100px minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: baseline;
+  }
+}
+
+@media (max-width: 599px) {
+  .interview-review .review-panel {
+    padding-left: 8px;
+  }
+}

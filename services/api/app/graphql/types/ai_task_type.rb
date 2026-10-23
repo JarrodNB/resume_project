@@ -21,6 +21,20 @@ module Types
     field :job, Types::JobType,
           description: "The job a completed scrape_job or parse_job_posting task saved, or the job an analyze_gaps task compares."
 
+    def result
+      object.result unless unavailable_clarification?
+    end
+
+    def input
+      unavailable_clarification? ? {} : object.input
+    end
+
+    def unavailable_clarification?
+      return false unless object.interview_clarification?
+      clarification = object.user.interview_sessions.find_by(id: object.subject_id)&.clarifications&.find_by(ai_task_id: object.id)
+      !clarification || !::Interviews::ClarificationPrompt.current?(clarification.interview_session, clarification.message)
+    end
+
     # Returns the task's subject when it is a Job (subjects always belong to the task's user).
     def job
       object.subject if object.subject_type == "Job"

@@ -1,3 +1,4 @@
+# Reloads under the row lock so concurrent screening approvals cannot outlive an edit.
 # Description: Updates a career library education entry and queues an embedding sync.
 # Index:
 #   - call: applies the attributes; returns the education, or validation errors
@@ -10,9 +11,12 @@ module Educations
 
     # Applies the attributes.
     def call
-      @education.assign_attributes(@attributes)
-      CareerLibrary::RecordScreeningService.discard_changed_fields(record: @education)
-      return failure(@education.errors) unless @education.save
+      saved = @education.with_lock do
+        @education.assign_attributes(@attributes)
+        CareerLibrary::RecordScreeningService.discard_changed_fields(record: @education)
+        @education.save
+      end
+      return failure(@education.errors) unless saved
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@education.user_id)
       success(@education)

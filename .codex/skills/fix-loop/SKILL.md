@@ -9,6 +9,8 @@ Deliver up to the user-specified number of independent fixes. Each completed ite
 
 ## Establish the run
 
+Follow the [shared supporting-skill and Ponytail guidance](../super-loop/references/iteration-protocol.md#supporting-skills-and-ponytail) for implementation and review repairs. Use TDD for testable repairs and Impeccable when the fix affects frontend interactions or visible states.
+
 - Require a positive integer iteration count. If missing or ambiguous, ask for it before starting; never choose an unlimited loop. Honor any user-supplied search area, exclusions, repository, or base branch.
 - Read applicable repository instructions and verification guidance. Inspect Git status, remotes, existing worktrees, and available PR tooling. Preserve existing edits and branches.
 - Use the repository's remote default branch as the base unless the user specifies another. Resolve and fetch that branch; if the destination repository or base is ambiguous, resolve it before publishing.
@@ -46,6 +48,8 @@ Check the remote for an existing PR with this head/base before creating one, esp
 Spawn a new reviewer for this PR with no inherited conversation (`fork_turns: "none"`). Do not reuse the implementer or a reviewer from a previous iteration. Give it only repository access, applicable repository instructions, the fixed base/head commit IDs, and this review assignment. Do not provide the run ledger, problem-selection notes, implementation rationale, PR description/discussion, commit messages, or earlier review findings. If a fresh context cannot be created, stop and report that the required review is blocked.
 
 Ask the reviewer to inspect the full diff and surrounding callers for correctness, security, reliability, maintainability, and meaningful regression coverage. It may read established technical documentation and run relevant checks in an isolated worktree, but must not edit the implementation. Require findings grounded in concrete execution paths or maintenance risks, with severity, file/line evidence, and suggested repair direction. Require the reviewed base/head IDs, actual checks and limitations, and an explicit statement when no actionable findings remain. The reviewer returns its report to the coding agent; it does not post external comments.
+
+For every review pass, supply [review-correctness](../review-correctness/SKILL.md) and, for code or test changes, [review-design](../review-design/SKILL.md). One fresh reviewer may apply both unless the user requires separate reviewers. Explicitly pass only the Review section of [Ponytail guidance](../orchestrator/references/ponytail.md), using an absolute path or section text. Preserve review scope and reporting requirements. Do not send the Implementation section or research assessment to blind reviewers.
 
 Assess each finding against code evidence. Fix supported in-scope issues, rerun affected checks, commit, and push without force. Record evidence for dismissed findings. After any code or test changes, obtain another blank subagent review of the full original-base-to-new-head diff, without passing earlier findings or implementation context. Continue until the final PR head has no unresolved actionable findings. If review or repair cannot converge, retain the PR and worktree, record the unresolved findings, and stop the run rather than counting the iteration as complete.
 

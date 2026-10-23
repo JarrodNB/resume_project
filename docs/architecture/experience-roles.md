@@ -31,3 +31,17 @@ The migration downgrade is allowed only while each entry still has one role matc
 flat fields and no role description or shared bullets would be lost. Otherwise it raises
 with reconciliation guidance. Export/reconcile new grouped data before rolling back;
 downgrading must never silently drop role information.
+
+The AI reader keeps one ordered highlight list per experience, carrying nullable
+`experience_role_id` on each bullet, and reads ordered child roles within the same
+user-scoped snapshot. Nested title/description checks report `experience_role` with
+the role ID; Rails accepts only the owner's allowlisted fields. Single-role legacy
+edits invalidate the changed canonical role fields. Temporary flat Python fixtures
+normalize to an identity-free role and keep checks on the legacy experience, so a
+synthetic role never receives a durable approval.
+
+Embeddings retain the existing Experience and ExperienceHighlight source IDs.
+The experience text includes each role's title, stated dates, and description.
+Shared bullets carry company context only; scoped bullets carry exactly their role's
+context. Editing a role changes its entry/scoped-bullet digests without changing a
+shared bullet's digest or assigning that achievement to a particular title.

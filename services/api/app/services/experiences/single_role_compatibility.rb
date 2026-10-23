@@ -21,6 +21,7 @@ module Experiences
         role[field] = experience[field] if role.new_record? || edited_fields.map(&:to_s).include?(field)
         experience[field] = role[field]
       end
+      CareerLibrary::RecordScreeningService.discard_changed_fields(record: role)
       experience.highlights.each do |highlight|
         highlight.experience_role = role if highlight.new_record?
       end

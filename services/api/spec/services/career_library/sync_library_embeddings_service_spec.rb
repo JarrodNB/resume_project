@@ -114,4 +114,22 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
     expect(sync.value).to eq(embedded: 0, deleted: 1)
   end
 
+  it "resyncs changed role context while preserving shared bullet digests and source ids" do
+    experience = create(:experience, user: user, company: "Acme")
+    role = experience.roles.create!(title: "Developer", position: 0)
+    shared = experience.highlights.create!(content: "Shared work", position: 0)
+    scoped = experience.highlights.create!(content: "Role work", position: 1, experience_role: role)
+    sync
+    rows = user.library_embeddings.index_by(&:source_id)
+    original_ids = rows.transform_values(&:id)
+    shared_digest = rows.fetch(shared.id).content_digest
+    role.update!(title: "Lead")
+    expect(sync.value).to eq(embedded: 2, deleted: 0)
+    changed = user.library_embeddings.reload.index_by(&:source_id)
+    expect(changed.transform_values(&:id)).to eq(original_ids)
+    expect(changed.fetch(shared.id).content_digest).to eq(shared_digest)
+    expect(changed.fetch(scoped.id).content).to eq("Lead at Acme: Role work")
+    expect(sync.value).to eq(embedded: 0, deleted: 0)
+  end
+
 end

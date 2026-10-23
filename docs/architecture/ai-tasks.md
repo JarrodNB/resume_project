@@ -40,6 +40,8 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   report. Usage-only messages never change task status. A missing final report remains unknown.
   Final completed/failed results may include `library_screening` entries shaped as
   `{record_type, record_id, fields}` for newly successful career-library field checks.
+  Nested roles use `record_type: "experience_role"` with their own IDs and allowlisted
+  `title`/`description` fields.
   Rails merges allowlisted field names into the owning records, including when generation
   failed. Duplicate reports are harmless; unknown kinds/fields and other owners are ignored.
   Usage-only retry reports do not carry saved field checks.

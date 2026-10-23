@@ -52,16 +52,19 @@ def _unchecked_fields(library, include_fact_requirements, used_fields):
     pending = []
     reports = []
 
-    def collect(record_type, record_id, values, checked):
+    def collect(record_type, record_id, values, checked, selected_fields=None):
         checked = set(checked)
         if (session := current_session()) is not None:
             for report in session.library_screening:
                 if report.record_type == record_type and report.record_id == record_id:
                     checked.update(report.fields)
+        selected = selected_fields if selected_fields is not None else (
+            used_fields.get(record_type, set()) if used_fields is not None else None
+        )
         unchecked = {key: value for key, value in values.items()
                      if isinstance(value, str) and value.strip() and key not in checked
                      and not key.endswith("_precision")
-                     and (used_fields is None or key in used_fields.get(record_type, set()))}
+                     and (selected is None or key in selected)}
         if unchecked:
             pending.append(unchecked)
             if record_id:
@@ -71,10 +74,20 @@ def _unchecked_fields(library, include_fact_requirements, used_fields):
     collect("user", library.summary_record_id, {"summary": library.summary}, library.screened_fields)
     for name, record_type in _RECORD_TYPES.items():
         for record in getattr(library, name):
-            values = record.model_dump(exclude={"id", "highlights"})
+            values = record.model_dump(exclude={"id", "highlights", "roles"})
             if name == "facts" and not include_fact_requirements:
                 values.pop("requirement", None)
+            canonical_roles = name == "experiences" and not record._legacy_role
+            if canonical_roles:
+                values.pop("title", None)
             collect(record_type, record.id, values, record.screened_fields)
+            for role in getattr(record, "roles", []) if canonical_roles else []:
+                selected = None if used_fields is None else set(used_fields.get("experience_role", set()))
+                # Older single-role builders still render the projected experience.title.
+                if selected is not None and len(record.roles) == 1 and "title" in used_fields.get("experience", set()):
+                    selected.add("title")
+                collect("experience_role", role.id, role.model_dump(exclude={"id"}),
+                        role.screened_fields, selected)
             for highlight in getattr(record, "highlights", []):
                 collect("experience_highlight", highlight.id, {"content": highlight.content},
                         highlight.screened_fields)

@@ -26,6 +26,7 @@ from schemas.gap_analysis_context import (
     LibraryCertification,
     LibraryEducation,
     LibraryExperience,
+    LibraryExperienceRole,
     LibraryFact,
     LibraryHighlight,
     LibraryProject,
@@ -50,8 +51,16 @@ EXPERIENCES_QUERY = f"""
     SELECT id::text, company, title, location, start_date, end_date, description, screened_fields
     FROM experiences WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
 """
+ROLES_QUERY = """
+    SELECT roles.id::text, roles.experience_id::text, roles.title, roles.start_date,
+           roles.end_date, roles.description, roles.screened_fields
+    FROM experience_roles AS roles
+    JOIN experiences ON experiences.id = roles.experience_id
+    WHERE experiences.user_id = %(user_id)s
+    ORDER BY roles.position, roles.id
+"""
 HIGHLIGHTS_QUERY = """
-    SELECT highlights.id::text, highlights.experience_id::text, highlights.content, highlights.screened_fields
+    SELECT highlights.id::text, highlights.experience_id::text, highlights.experience_role_id::text, highlights.content, highlights.screened_fields
     FROM experience_highlights AS highlights
     JOIN experiences ON experiences.id = highlights.experience_id
     WHERE experiences.user_id = %(user_id)s
@@ -99,16 +108,22 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
     """Reads library rows within the caller's snapshot transaction."""
     summary_row = cursor.execute(SUMMARY_QUERY, params).fetchone()
     experience_rows = cursor.execute(EXPERIENCES_QUERY, params).fetchall()
+    role_rows = cursor.execute(ROLES_QUERY, params).fetchall()
     highlight_rows = cursor.execute(HIGHLIGHTS_QUERY, params).fetchall()
     project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
     education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
     certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
     skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
     fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
+    roles_by_experience: dict[str, list[LibraryExperienceRole]] = {}
+    for row in role_rows:
+        roles_by_experience.setdefault(row["experience_id"], []).append(LibraryExperienceRole(**row))
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(
-            LibraryHighlight(id=row["id"], content=row["content"], screened_fields=row.get("screened_fields", []))
+            LibraryHighlight(id=row["id"], content=row["content"],
+                             experience_role_id=row.get("experience_role_id"),
+                             screened_fields=row.get("screened_fields", []))
         )
 
     library = CareerLibrary(
@@ -116,7 +131,7 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
         summary_record_id=summary_row.get("id") if summary_row else None,
         screened_fields=summary_row.get("screened_fields", []) if summary_row else [],
         experiences=[
-            LibraryExperience(**row, highlights=highlights_by_experience.get(row["id"], []))
+            LibraryExperience(**row, roles=roles_by_experience.get(row["id"], []), highlights=highlights_by_experience.get(row["id"], []))
             for row in experience_rows
         ],
         projects=[LibraryProject(**row) for row in project_rows],

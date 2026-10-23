@@ -5,6 +5,7 @@ module CareerLibrary
     FIELDS = {
       "User" => %w[summary],
       "Experience" => %w[company title location description],
+      "ExperienceRole" => %w[title description],
       "ExperienceHighlight" => %w[content],
       "Project" => %w[name role description],
       "Education" => %w[institution degree field_of_study description],
@@ -51,6 +52,7 @@ module CareerLibrary
 
     def owned_records(model_name)
       return User.where(id: @user.id) if model_name == "User"
+      return ExperienceRole.joins(:experience).where(experiences: { user_id: @user.id }) if model_name == "ExperienceRole"
       return ExperienceHighlight.joins(:experience).where(experiences: { user_id: @user.id }) if model_name == "ExperienceHighlight"
 
       @user.public_send(model_name.underscore.pluralize)

@@ -54,4 +54,18 @@ RSpec.describe CareerLibrary::BuildEmbeddingTextsService do
     expect(described_class.call(user: user).value)
       .to eq([ { source_type: "Skill", source_id: skill.id, content: "Languages: Ruby" } ])
   end
+  it "keeps shared bullets at company scope and exact role bullets at their title and dates" do
+    experience = create(:experience, user: user, company: "Acme", title: "Lead", description: "Company work")
+    junior = experience.roles.create!(title: "Developer", start_date: "2019-01-01", end_date: "2024-12-01", position: 1)
+    lead = experience.roles.create!(title: "Lead", start_date: "2025-01-01", description: "Managed team", position: 0)
+    shared = experience.highlights.create!(content: "Shared achievement", position: 0)
+    scoped = experience.highlights.create!(content: "Early achievement", experience_role: junior, position: 1)
+    entries = described_class.call(user: user).value.index_by { |entry| entry[:source_id] }
+    expect(entries.keys).to contain_exactly(experience.id, shared.id, scoped.id)
+    expect(entries[shared.id][:content]).to eq("Acme: Shared achievement")
+    expect(entries[scoped.id][:content]).to eq("Developer at Acme (2019-01-01 – 2024-12-01): Early achievement")
+    expect(entries[experience.id][:content]).to include("Lead", "Developer", "2025-01-01", "Managed team", "Company work")
+    expect(entries[experience.id][:content].index("Lead")).to be < entries[experience.id][:content].index("Developer")
+  end
+
 end

@@ -1,6 +1,6 @@
 # Description: Builds the text embedded for each of a user's career library entries. Each text
-# carries enough context to stand on its own in a similarity search: a highlight names its role
-# ("Senior Engineer at Acme: Cut deploy time 40%"), a skill its category ("Languages: Ruby").
+# carries enough context to stand on its own in a similarity search. Shared bullets name only
+# their company; scoped bullets name their role. Skills include their category ("Languages: Ruby").
 # Index:
 #   - call: returns [{ source_type:, source_id:, content: }] for every experience, highlight,
 #     project, education, certification, skill, and library fact of the user. Job-only gap responses are not
@@ -14,7 +14,7 @@ module CareerLibrary
     # Lists one embedding text per library entry. Queries the database directly (not the user's
     # possibly loaded associations), so a sync always sees the latest library.
     def call
-      experiences = Experience.where(user_id: @user.id).includes(:highlights)
+      experiences = Experience.where(user_id: @user.id).includes(:roles, :highlights)
       entries = experiences.flat_map { |experience| experience_entries(experience) }
       entries += Project.where(user_id: @user.id).map { |project| entry(project, project_text(project)) }
       entries += Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) }
@@ -26,12 +26,32 @@ module CareerLibrary
 
     private
 
-    # The experience itself plus one entry per highlight, each prefixed with the role.
+    # Keep stable Experience/ExperienceHighlight IDs while preserving bullet ownership.
     def experience_entries(experience)
-      role = "#{experience.title} at #{experience.company}"
-      heading = [ role, parenthesized(experience.location) ].compact.join(" ")
-      [ entry(experience, with_details(heading, experience.description)) ] +
-        experience.highlights.map { |highlight| entry(highlight, "#{role}: #{highlight.content}") }
+      roles = experience.roles.to_a
+      # Old unconverted records retain their compatibility text until migration cleanup.
+      if roles.empty?
+        legacy_role = "#{experience.title} at #{experience.company}"
+        heading = [ legacy_role, parenthesized(experience.location) ].compact.join(" ")
+        return [ entry(experience, with_details(heading, experience.description)) ] +
+          experience.highlights.map { |highlight| entry(highlight, "#{legacy_role}: #{highlight.content}") }
+      end
+
+      heading = [ experience.company, parenthesized(experience.location) ].compact.join(" ")
+      role_texts = roles.map { |role| with_details(role_context(role, experience.company), role.description) }
+      text = [ with_details(heading, experience.description), *role_texts ].join("; ")
+      roles_by_id = roles.index_by(&:id)
+      [ entry(experience, text) ] + experience.highlights.map do |highlight|
+        role = roles_by_id[highlight.experience_role_id]
+        context = role ? role_context(role, experience.company) : experience.company
+        entry(highlight, "#{context}: #{highlight.content}")
+      end
+    end
+
+    # Dates belong only to the named role; a missing end date stays unstated.
+    def role_context(role, company)
+      dates = [ role.start_date&.iso8601, role.end_date&.iso8601 ].compact.join(" – ")
+      [ "#{role.title} at #{company}", parenthesized(dates) ].compact.join(" ")
     end
 
     # "Project: Name (role): description".

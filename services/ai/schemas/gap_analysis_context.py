@@ -13,7 +13,7 @@ Index:
 
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr, model_validator
 
 from schemas.certification_dates import DatePrecision
 
@@ -25,23 +25,55 @@ class LibraryRecord(BaseModel):
 
 
 class LibraryHighlight(LibraryRecord):
-    """One bullet point under a role."""
+    """One stable experience bullet, shared or scoped to one role."""
 
     id: str
     content: str
+    experience_role_id: str | None = None
+
+
+class LibraryExperienceRole(LibraryRecord):
+    """A saved title, dates, and description; only screening metadata is excluded."""
+
+    id: str | None = None
+    title: str
+    start_date: date | None = None
+    end_date: date | None = None
+    description: str | None = None
 
 
 class LibraryExperience(LibraryRecord):
-    """A role the user has held."""
+    """One source employment block with roles and a stable ordered bullet list."""
+
+    _legacy_role: bool = PrivateAttr(default=False)
 
     id: str
     company: str
-    title: str
+    title: str = ""
+    roles: list[LibraryExperienceRole] = Field(default_factory=list)
     location: str | None = None
     start_date: date | None = None
     end_date: date | None = None
     description: str | None = None
     highlights: list[LibraryHighlight] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def normalize_legacy_role(self):
+        """Keep old fixtures usable until callers consume canonical roles directly."""
+        self._legacy_role = len(self.roles) == 1 and self.roles[0].id is None
+        if not self.roles and self.title:
+            self._legacy_role = True
+            self.roles = [LibraryExperienceRole(
+                title=self.title, start_date=self.start_date, end_date=self.end_date,
+                screened_fields=[field for field in self.screened_fields if field == "title"],
+            )]
+        if not self._legacy_role and len(self.roles) == 1:
+            role = self.roles[0]
+            self.title, self.start_date, self.end_date = role.title, role.start_date, role.end_date
+        elif len(self.roles) > 1:
+            # A grouped entry has no single title/date attribution to project.
+            self.title, self.start_date, self.end_date = "", None, None
+        return self
 
 
 class LibraryProject(LibraryRecord):

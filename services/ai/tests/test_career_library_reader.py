@@ -209,3 +209,25 @@ def test_job_independent_library_is_user_scoped(admin_connection: psycopg.Connec
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert [skill.name for skill in read_career_library(admin_connection, owner_id).skills] == ["Python"]
     assert read_career_library(admin_connection, other_user_id).is_empty()
+
+
+def test_reads_ordered_scoped_roles_and_preserves_shared_bullet_ids(admin_connection):
+    from database.career_library_reader import read_career_library
+    owner, other = _insert_user(admin_connection), _insert_user(admin_connection)
+    entry = _insert(admin_connection, "experiences", user_id=owner, company="Acme", title="Lead")
+    foreign = _insert(admin_connection, "experiences", user_id=other, company="Private", title="Secret")
+    junior = _insert(admin_connection, "experience_roles", experience_id=entry, title="Junior", position=1)
+    lead = _insert(admin_connection, "experience_roles", experience_id=entry, title="Lead", position=0,
+                   screened_fields=["title"])
+    _insert(admin_connection, "experience_roles", experience_id=foreign, title="Secret", position=0)
+    shared = _insert(admin_connection, "experience_highlights", experience_id=entry, content="Shared", position=0)
+    scoped = _insert(admin_connection, "experience_highlights", experience_id=entry, experience_role_id=junior,
+                     content="Role only", position=1)
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    library = read_career_library(admin_connection, owner)
+    assert len(library.experiences) == 1
+    experience = library.experiences[0]
+    assert [r.id for r in experience.roles] == [str(lead), str(junior)]
+    assert experience.roles[0].screened_fields == ["title"]
+    assert [(h.id, h.experience_role_id) for h in experience.highlights] == [
+        (str(shared), None), (str(scoped), str(junior))]

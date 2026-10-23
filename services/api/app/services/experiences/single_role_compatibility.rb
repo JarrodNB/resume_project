@@ -14,7 +14,7 @@ module Experiences
 
       experience.id ||= SecureRandom.uuid
       role = experience.roles.to_a.first || experience.roles.build(position: 0)
-      role.assign_attributes(attributes.stringify_keys.slice(*ROLE_FIELDS))
+      role.assign_attributes(attributes.stringify_keys.slice(*ROLE_FIELDS, "description"))
       CareerLibrary::RecordScreeningService.discard_changed_fields(record: role)
       experience.highlights.each do |highlight|
         highlight.experience_role = role if highlight.new_record?

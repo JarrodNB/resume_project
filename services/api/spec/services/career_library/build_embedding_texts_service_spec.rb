@@ -19,7 +19,7 @@ RSpec.describe CareerLibrary::BuildEmbeddingTextsService do
 
     expect(texts).to eq(
       "Experience" => "Acme (Remote): Payments team; Senior Engineer at Acme (2022-01-01)",
-      "ExperienceHighlight" => "Acme: Cut deploy time 40%",
+      "ExperienceHighlight" => "Senior Engineer at Acme (2022-01-01): Cut deploy time 40%",
       "Project" => "Project: Throughline (Creator): Job search assistant",
       "Education" => "B.S. in Computer Science, State University",
       "Skill" => "Languages: Ruby"

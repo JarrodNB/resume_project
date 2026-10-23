@@ -28,7 +28,7 @@ class Experience < ApplicationRecord
     define_method(field) { roles.size == 1 ? roles.first.public_send(field) : nil }
   end
 
-  library_size_limit :experiences, TextLimits::MAX_EXPERIENCES, "You can save up to #{TextLimits::MAX_EXPERIENCES} roles"
+  library_size_limit :experiences, TextLimits::MAX_EXPERIENCES, "You can save up to #{TextLimits::MAX_EXPERIENCES} experience entries"
 
   validates :company, presence: true
   validates :company, :location, length: { maximum: TextLimits::SHORT }

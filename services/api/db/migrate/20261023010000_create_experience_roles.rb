@@ -21,9 +21,12 @@ class CreateExperienceRoles < ActiveRecord::Migration[8.1]
     add_foreign_key :experience_highlights, :experience_roles,
                     column: [ :experience_role_id, :experience_id ], primary_key: [ :id, :experience_id ], deferrable: :deferred
     execute <<~SQL
-      INSERT INTO experience_roles (experience_id, title, start_date, end_date, position, created_at, updated_at)
-      SELECT id, title, start_date, end_date, 0, created_at, updated_at FROM experiences
+      INSERT INTO experience_roles (experience_id, title, start_date, end_date, description, position, created_at, updated_at)
+      SELECT id, title, start_date, end_date, description, 0, created_at, updated_at FROM experiences
     SQL
+    # Flat descriptions introduced the old role, so they belong to the backfilled
+    # role alone. Moving the exact text avoids duplicating or inventing shared scope.
+    execute "UPDATE experiences SET description = NULL"
     execute <<~SQL
       UPDATE experience_highlights AS highlights
       SET experience_role_id = roles.id
@@ -40,7 +43,7 @@ class CreateExperienceRoles < ActiveRecord::Migration[8.1]
         LEFT JOIN experience_roles AS roles ON roles.experience_id = entries.id
         GROUP BY entries.id
         HAVING count(roles.id) <> 1
-          OR bool_or(roles.description IS NOT NULL)
+          OR bool_or(roles.description IS NOT NULL AND entries.description IS NOT NULL)
           OR bool_or(roles.title IS DISTINCT FROM entries.title
                      OR roles.start_date IS DISTINCT FROM entries.start_date
                      OR roles.end_date IS DISTINCT FROM entries.end_date)
@@ -52,6 +55,11 @@ class CreateExperienceRoles < ActiveRecord::Migration[8.1]
       raise ActiveRecord::IrreversibleMigration, "Roles no longer fit the single-role format; export and reconcile grouped data before rollback"
     end
 
+    execute <<~SQL
+      UPDATE experiences AS entries
+      SET description = COALESCE(entries.description, roles.description)
+      FROM experience_roles AS roles WHERE roles.experience_id = entries.id
+    SQL
     remove_foreign_key :experience_highlights, column: [ :experience_role_id, :experience_id ]
     remove_reference :experience_highlights, :experience_role
     drop_table :experience_roles

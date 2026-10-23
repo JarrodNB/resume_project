@@ -15,7 +15,7 @@ module Experiences
         return WriteGroupedExperienceService.call(experience: @user.experiences.new, attributes: @attributes)
       end
 
-      experience = @user.experiences.new(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym)))
+      experience = @user.experiences.new(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym), :description))
       @highlights.each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end

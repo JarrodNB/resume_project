@@ -30,7 +30,7 @@ it('moves an existing bullet to shared without changing its ID or role IDs', asy
   save.mockClear()
   const user = userEvent.setup()
   render(<ExperienceFormDialog open onOpenChange={() => {}} experience={{
-    id: 'entry', company: 'Example', title: 'Lead', location: null, startDate: null, endDate: null, description: null,
+    id: 'entry', company: 'Example', location: null, description: null,
     roles: [{id: 'lead', title: 'Lead', startDate: null, endDate: null, description: null, position: 0},
       {id: 'engineer', title: 'Engineer', startDate: null, endDate: null, description: null, position: 1}],
     highlights: [{id: 'bullet', content: 'Saved evidence', experienceRoleId: 'lead', position: 0}],
@@ -52,7 +52,7 @@ it('explicitly removes a bullet when removing its role before saving', async () 
   save.mockClear()
   const user = userEvent.setup()
   render(<ExperienceFormDialog open onOpenChange={() => {}} experience={{
-    id: 'entry', company: 'Example', title: 'Lead', location: null, startDate: null, endDate: null, description: null,
+    id: 'entry', company: 'Example', location: null, description: null,
     roles: [{id: 'lead', title: 'Lead', startDate: null, endDate: null, description: null, position: 0},
       {id: 'engineer', title: 'Engineer', startDate: null, endDate: null, description: null, position: 1}],
     highlights: [{id: 'bullet', content: 'Remove evidence', experienceRoleId: 'lead', position: 0}],

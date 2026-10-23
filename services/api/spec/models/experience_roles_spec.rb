@@ -35,6 +35,7 @@ RSpec.describe "Experience roles" do
   end
 
   it "enforces bounded positions and uniqueness even without model validation" do
+    experience # Persist outside the savepoint that intentionally rolls back.
     expect do
       ActiveRecord::Base.transaction(requires_new: true) do
         experience.roles.create!(title: "Duplicate", position: 0)
@@ -80,4 +81,14 @@ RSpec.describe "Experience roles" do
     expect(bullet.reload.experience_role_id).to eq(role.id)
     expect(ExperienceRole.exists?(role.id)).to be(true)
   end
+  it "destroys a newly added scoped bullet even after validating an empty parent collection" do
+    entry = create(:experience)
+    expect(entry.highlights).to be_empty
+    bullet = ExperienceHighlight.create!(experience: entry, experience_role: entry.roles.first, content: "Added later")
+    result = Records::DestroyRecordService.call(record: entry)
+    expect(result).to be_success
+    expect(ExperienceHighlight.exists?(bullet.id)).to be(false)
+    expect(ExperienceRole.where(experience_id: entry.id)).to be_empty
+  end
+
 end

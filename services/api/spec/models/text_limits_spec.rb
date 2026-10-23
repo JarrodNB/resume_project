@@ -32,7 +32,7 @@ RSpec.describe TextLimits do
     extra = build(:experience, user: user, company: "Extra", title: "Role")
 
     expect(extra.save).to be(false)
-    expect(extra.errors.full_messages).to include("You can save up to #{TextLimits::MAX_EXPERIENCES} roles")
+    expect(extra.errors.full_messages).to include("You can save up to #{TextLimits::MAX_EXPERIENCES} experience entries")
   end
 
   it "rejects a requirement that is too long" do

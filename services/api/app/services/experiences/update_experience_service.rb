@@ -23,7 +23,7 @@ module Experiences
           return failure([ SingleRoleCompatibility::GROUPED_ERROR ])
         end
         LockChildrenService.call(experience: @experience)
-        @experience.assign_attributes(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym)))
+        @experience.assign_attributes(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym), :description))
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         replace_highlights if @highlights
         SingleRoleCompatibility.prepare!(@experience, attributes: @attributes)

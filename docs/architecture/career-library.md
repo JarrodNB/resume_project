@@ -86,10 +86,12 @@ tailoring) instead of sending everything.
   removes owned bullets alongside a removed role; its IDs must be unique and cannot also
   appear in a retained list. At least one and at most 20 roles
   are required; each scope supports up to 40 bullets (840 total across 20 roles plus shared).
-  Parent locks coordinate edits and moves,
+  Parent locks and deterministic child row locks coordinate edits and moves,
   and deferred bounded role positions permit swaps and compaction in one transaction.
   Legacy flat title/date and string-bullet writes remain available for unambiguous single-role
-  entries. Flat fields are compatibility projections, not grouped editing inputs.
+  entries. Flat fields are read-only single-role compatibility projections; grouped values
+  return null. Current database columns are ignored. See [deployment and rollback](experience-roles.md#deployment-and-rollback)
+  for the required old-writer barrier, preserved payload adapters and embedding rebuild.
 
 - **Scoped moves retain evidence identity.** `moveExperienceHighlight` accepts
   `experienceRoleId`; explicit null selects shared scope. Omission is a legacy single-role

@@ -20,4 +20,24 @@ RSpec.describe "Canonical experience contract" do
     expect(entry).not_to be_valid
     expect(entry.errors[:roles]).to include("must contain at least one title")
   end
+  it "keeps a legacy single-role description scoped after adding a second role" do
+    entry = Experiences::CreateExperienceService.call(user: create(:user), attributes: {
+      company: "Example", title: "Engineer", description: "Introduced the engineering role"
+    }).value
+    role = entry.roles.first
+    expect(entry.description).to be_nil
+    expect(role.description).to eq("Introduced the engineering role")
+    result = Experiences::UpdateExperienceService.call(experience: entry, attributes: {
+      roles: [ { id: role.id, title: role.title }, { title: "Lead" } ]
+    })
+    expect(result).to be_success
+    expect(entry.reload.description).to be_nil
+    expect(entry.roles.map { |item| [ item.title, item.description ] }).to eq([
+      [ "Engineer", "Introduced the engineering role" ], [ "Lead", nil ]
+    ])
+    text = CareerLibrary::BuildEmbeddingTextsService.call(user: entry.user).value.find { |item| item[:source_id] == entry.id }[:content]
+    expect(text).to include("Engineer at Example: Introduced the engineering role")
+    expect(text.scan("Introduced the engineering role").size).to eq(1)
+  end
+
 end

@@ -99,6 +99,12 @@ def test_reads_the_job_and_library_in_rails_order(
         screened_fields=["title"],
         start_date="2020-01-01",
     )
+    # Retained old columns may disagree after contract retirement. They must never
+    # determine role facts or entry recency in a live database snapshot.
+    admin_connection.execute(
+        "UPDATE experiences SET title = 'Retired projection', start_date = '2099-01-01', end_date = '2100-01-01' WHERE id = %s",
+        [old_role],
+    )
     _insert(
         admin_connection,
         "experience_highlights",

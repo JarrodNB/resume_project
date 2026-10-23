@@ -23,7 +23,7 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
     expect(result.value).to eq(embedded: 2, deleted: 0)
     row = user.library_embeddings.find_by!(source_type: "ExperienceHighlight", source_id: highlight.id)
-    expect(row.content).to eq("Acme: Built the API")
+    expect(row.content).to eq("Engineer at Acme (2022-01-01): Built the API")
     expect(row.model).to eq(CareerLibraryEmbeddings::MODEL)
     expect(row.embedding.to_a).to eq(FakeEmbeddingClient.vector_for(row.content))
   end
@@ -49,7 +49,7 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
     experience = create(:experience, user: user)
     create(:experience_highlight, experience: experience)
     sync
-    experience.destroy!
+    expect(Records::DestroyRecordService.call(record: experience)).to be_success
 
     expect(sync.value).to eq(embedded: 0, deleted: 2)
     expect(user.library_embeddings).to be_empty
@@ -79,8 +79,8 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
     user.update!(name: "Ada Lovelace", contact_email: "ada@example.com", phone: "555-0100")
     experience = create(:experience, user: user, title: "Engineer", company: "Acme")
     highlight = create(:experience_highlight, experience: experience, content: "Ada Lovelace shipped it. ada@example.com 555-0100")
-    original = "Acme: Ada Lovelace shipped it. ada@example.com 555-0100"
-    masked = "Acme: «name» shipped it. «email» «phone»"
+    original = "Engineer at Acme (2022-01-01): Ada Lovelace shipped it. ada@example.com 555-0100"
+    masked = "Engineer at Acme (2022-01-01): «name» shipped it. «email» «phone»"
 
     sync
 

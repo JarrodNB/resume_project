@@ -4,7 +4,8 @@ Description: Structured output of the resume parsing agent. Mirrors the Rails ca
 Index:
     - ParsedLink: one contact link's visible label and destination URL
     - ParsedContactInfo: name, email, phone, location, links
-    - ParsedExperience: one role with word-for-word highlights
+    - ParsedRole: one stated role and its exact source highlights
+    - ParsedExperience: one source employment block with ordered roles and shared highlights
     - ParsedProject: one project
     - ParsedEducation: one school or program
     - ParsedCertification: one certification and its stated credential details
@@ -149,7 +150,9 @@ class ExperienceRoleExtraction(BaseModel):
     start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     is_current: bool = False
-    description: str | None = None
+    description: str | None = Field(
+        default=None, description="Copy non-bullet introductory text immediately under this role header, even if bullets follow. Null only when absent."
+    )
     highlight_ids: list[str] = Field(default_factory=list, max_length=40)
 
 

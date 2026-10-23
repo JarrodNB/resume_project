@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "14"
+RESUME_PARSING_PROMPT_VERSION = "15"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -79,9 +79,17 @@ def format_resume_group_instruction(group: str) -> str:
         instruction += (
             "Each experiences item is one employment block as presented in the source. "
             "Keep separately presented blocks separate even when the company repeats; never "
-            "group solely by company name. A single employer heading followed by multiple "
+            "group solely by company name. Specifically, repeated title-company headers "
+            "(each naming the employer again) start separate entries, even when successive "
+            "promotions have identical company text and no blank line separates them. "
+            "For example, 'Senior Engineer — Company / dates / bullets' followed by "
+            "'Engineer — Company / dates / bullets' means TWO entries. "
+            "A single employer heading followed by multiple "
             "role headings is one block with ordered roles. Preserve company, location, and "
             "entry-level description, and every role title/date/current flag/description. "
+            "Non-bullet prose immediately below a role's title/date is that role's "
+            "description: copy it exactly, even when the role also has bullets. Never "
+            "omit an introduction merely because its bullets cover similar work. "
             "Use roles[].highlight_ids only for bullets explicitly associated with that role. "
             "Use shared_highlight_ids for a list presented across roles or whose role ownership "
             "is unclear; never guess ownership or duplicate shared bullets across roles. "
@@ -96,5 +104,12 @@ def format_resume_group_instruction(group: str) -> str:
             "invent an employer or role title for it. "
             "Include every source bullet that belongs to each role. For each role, return only "
             "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
+        )
+    elif group == "ProjectsSkillsExtraction":
+        instruction += (
+            "Project headings such as SELECTED BUILDS introduce named project entries. "
+            "Keep each standalone project name with its following description. Never "
+            "replace a stated name with words from its description or a generic label. "
+            "Privacy tokens in project-name positions are names and must be copied exactly."
         )
     return instruction

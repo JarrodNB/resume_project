@@ -49,4 +49,17 @@ describe('grouped tailored experience', () => {
     expect(items[0].highlight_source_ids).toEqual([['h1']])
     expect(items[0].roles[0].highlights).toEqual(['Led migrations'])
   })
+  it('gives role-scoped bullets drag controls and preserves evidence when editing', () => {
+    let draft = sectionDraftFromContent('experience', { items: [grouped] })
+    const { rerender } = render(<SectionFields draft={draft} onChange={change} />)
+    function change(next: typeof draft) { draft = next; rerender(<SectionFields draft={draft} onChange={change} />) }
+    const role = within(screen.getByRole('group', { name: 'Role 1' }))
+    expect(role.getByRole('button', { name: 'Drag highlight 1' })).toBeEnabled()
+    fireEvent.change(role.getByLabelText('Role highlights 1'), { target: { value: 'Led reliable migrations' } })
+    const items = contentFromSectionDraft(draft).items as typeof grouped[]
+    expect(items[0].roles[0].highlights).toEqual(['Led reliable migrations'])
+    expect(items[0].roles[0].highlight_source_ids).toEqual([['h2']])
+    expect(items[0].highlights).toEqual(['Built tools'])
+  })
+
 })

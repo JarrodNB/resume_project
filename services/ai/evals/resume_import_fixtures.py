@@ -6,6 +6,7 @@ blank separators become actual page breaks; labels remain evaluation-only data.
 """
 
 from pathlib import Path
+from textwrap import wrap
 
 import yaml
 
@@ -30,10 +31,10 @@ def build_pdf(pages):
         })
         stream = DecodedStreamObject()
         encoded = []
-        for line in lines:
+        for line in (part for line in lines for part in (wrap(line, width=96, break_long_words=False, break_on_hyphens=False) or [line])):
             escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
             encoded.append(b"(" + escaped.encode("cp1252") + b") Tj T*")
-        stream.set_data(b"BT /F1 12 Tf 14 TL 50 700 Td " + b" ".join(encoded) + b" ET")
+        stream.set_data(b"BT /F1 10 Tf 14 TL 40 740 Td " + b" ".join(encoded) + b" ET")
         page[NameObject("/Contents")] = writer._add_object(stream)
     output = BytesIO()
     writer.write(output)

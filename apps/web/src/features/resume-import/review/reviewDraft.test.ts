@@ -10,7 +10,7 @@ import { highlightGroups } from './useReviewDragHandlers'
 it('keys every entry, highlight, and skill uniquely', () => {
   const draft = toReviewDraft(buildParsedResume())
   const keys = [
-    ...draft.experiences.flatMap((experience) => [experience.key, ...experience.highlights.map((highlight) => highlight.key)]),
+    ...draft.experiences.flatMap((experience) => [experience.key, ...experience.shared_highlights.map((highlight) => highlight.key), ...experience.roles.flatMap((role) => [role.key, ...role.highlights.map((highlight) => highlight.key)])]),
     ...draft.projects.map((project) => project.key),
     ...draft.educations.map((education) => education.key),
     ...draft.skills.map((skill) => skill.key),
@@ -27,7 +27,8 @@ it('converts back to the original parsed resume', () => {
 it('groups highlight ids by role', () => {
   const draft = toReviewDraft(buildParsedResume())
   const [experience] = draft.experiences
-  expect(highlightGroups(draft.experiences)[`highlights-of:${experience.key}`]).toEqual(
-    experience.highlights.map((highlight) => `highlight:${highlight.key}`),
+  const [role] = experience.roles
+  expect(highlightGroups(draft.experiences)[`highlights-of:${role.key}`]).toEqual(
+    role.highlights.map((highlight) => `highlight:${highlight.key}`),
   )
 })

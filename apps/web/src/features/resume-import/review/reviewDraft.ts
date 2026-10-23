@@ -8,7 +8,7 @@
  *   - toReviewDraft: ParsedResume -> ReviewDraft
  *   - toParsedResume: ReviewDraft -> ParsedResume (keys removed)
  */
-import type { ParsedCertification, ParsedEducation, ParsedExperience, ParsedProject, ParsedResume, ParsedSkill } from '../parsedResume'
+import type { ParsedCertification, ParsedEducation, ParsedExperience, ParsedExperienceRole, ParsedProject, ParsedResume, ParsedSkill } from '../parsedResume'
 
 interface Keyed {
   key: string
@@ -18,8 +18,13 @@ export interface DraftHighlight extends Keyed {
   text: string
 }
 
-export interface DraftExperience extends Omit<ParsedExperience, 'highlights'>, Keyed {
+export interface DraftExperienceRole extends Omit<ParsedExperienceRole, 'highlights'>, Keyed {
   highlights: DraftHighlight[]
+}
+
+export interface DraftExperience extends Omit<ParsedExperience, 'roles' | 'shared_highlights'>, Keyed {
+  roles: DraftExperienceRole[]
+  shared_highlights: DraftHighlight[]
 }
 
 export type DraftProject = ParsedProject & Keyed
@@ -45,7 +50,7 @@ export function toReviewDraft(parsedResume: ParsedResume): ReviewDraft {
   return {
     ...parsedResume,
     experiences: parsedResume.experiences.map((experience) =>
-      withDraftKey({ ...experience, highlights: experience.highlights.map((text) => withDraftKey({ text })) }),
+      withDraftKey({ ...experience, roles: experience.roles.map((role) => withDraftKey({ ...role, highlights: role.highlights.map((text) => withDraftKey({ text })) })), shared_highlights: experience.shared_highlights.map((text) => withDraftKey({ text })) }),
     ),
     projects: parsedResume.projects.map(withDraftKey),
     educations: parsedResume.educations.map(withDraftKey),
@@ -65,7 +70,8 @@ export function toParsedResume(draft: ReviewDraft): ParsedResume {
     ...draft,
     experiences: draft.experiences.map((experience) => ({
       ...withoutKey(experience),
-      highlights: experience.highlights.map((highlight) => highlight.text),
+      roles: experience.roles.map((role) => ({ ...withoutKey(role), highlights: role.highlights.map((highlight) => highlight.text) })),
+      shared_highlights: experience.shared_highlights.map((highlight) => highlight.text),
     })),
     projects: draft.projects.map(withoutKey),
     educations: draft.educations.map(withoutKey),

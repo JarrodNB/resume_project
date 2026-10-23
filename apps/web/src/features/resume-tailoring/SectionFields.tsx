@@ -87,7 +87,7 @@ function DraggableSection({ draft, onChange }: SectionFieldsProps) {
   const reviewDraft = reviewDraftFrom(draft)
   const setReviewDraft: Dispatch<SetStateAction<ReviewDraft>> = (next) => {
     const resolved = typeof next === 'function' ? next(reviewDraft) : next
-    onChange(draftFromReview(draft.kind, resolved))
+    onChange(draftFromReview(draft, resolved))
   }
   const dragHandlers = useReviewDragHandlers(reviewDraft, setReviewDraft)
 
@@ -115,7 +115,7 @@ function reviewDraftFrom(draft: SectionDraft): ReviewDraft {
   return {
     contact: { full_name: null, email: null, phone: null, location: null, links: [] },
     summary: null,
-    experiences: draft.kind === 'experience' ? draft.items : [],
+    experiences: draft.kind === 'experience' ? draft.items.map((item) => ({ ...item, shared_highlights: item.highlights })) : [],
     projects: [],
     educations: [],
     certifications: [],
@@ -125,9 +125,9 @@ function reviewDraftFrom(draft: SectionDraft): ReviewDraft {
 }
 
 /** Copies the dragged list back onto the section draft. */
-function draftFromReview(kind: SectionDraft['kind'], review: ReviewDraft): SectionDraft {
-  if (kind === 'experience') return { kind, items: review.experiences as TailoredExperience[] }
-  if (kind === 'skills') return { kind, items: review.skills }
+function draftFromReview(draft: SectionDraft, review: ReviewDraft): SectionDraft {
+  if (draft.kind === 'experience') return { kind: draft.kind, items: review.experiences.map(({ shared_highlights, ...entry }) => ({ ...entry, highlights: shared_highlights }) as TailoredExperience) }
+  if (draft.kind === 'skills') return { kind: draft.kind, items: review.skills }
   return { kind: 'summary', text: '' }
 }
 

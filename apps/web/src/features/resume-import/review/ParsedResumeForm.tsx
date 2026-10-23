@@ -36,7 +36,7 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
   const [draft, setDraft] = useState(() => toReviewDraft(parsedResume))
   const dragHandlers = useReviewDragHandlers(draft, setDraft)
   const experiencesWithoutDetails = draft.experiences.filter(
-    (experience) => !experience.description?.trim() && !experience.highlights.some((highlight) => highlight.text.trim()),
+    (experience) => !experience.description?.trim() && !experience.shared_highlights.some((highlight) => highlight.text.trim()) && !experience.roles.some((role) => role.description?.trim() || role.highlights.some((highlight) => highlight.text.trim())),
   ).length
   const warnings = experiencesWithoutDetails
     ? [
@@ -65,15 +65,15 @@ export function ParsedResumeForm({ parsedResume, onImport, importing, errors }: 
         <ReviewSection
           tone="experience"
           title="Experience"
-          description="Highlights are copied word for word from your resume. Drag a highlight to reorder it or move it into another role."
+          description="Highlights are copied word for word from your resume. Drag a highlight to reorder it or move it into another role or a shared company list."
         >
           <EditableList
             items={draft.experiences}
             onChange={(experiences) => set('experiences', experiences)}
-            createItem={() => withDraftKey({ ...emptyExperience(), highlights: [] })}
+            createItem={() => toReviewDraft({ ...parsedResume, experiences: [emptyExperience()] }).experiences[0]}
             itemName="experience"
             tone="experience"
-            describeItem={(experience) => [experience.title, experience.company].filter(Boolean).join(' at ')}
+            describeItem={(experience) => experience.company}
             renderItem={(experience, onChange) => <ExperienceFields experience={experience} onChange={onChange} />}
           />
         </ReviewSection>

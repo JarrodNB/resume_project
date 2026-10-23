@@ -55,7 +55,9 @@ Build uploadable PDF/DOCX controls and grouped, separate, mixed-scope, and wrapp
 examples from the hand-labelled parsing dataset:
 
 ```bash
-docker compose run --rm ai python -m evals.resume_import_fixtures /app/tmp/resume-import-fixtures
+mkdir -p /tmp/resume-import-fixtures
+docker compose run --rm -v /tmp/resume-import-fixtures:/fixtures ai \
+  python -m evals.resume_import_fixtures /fixtures
 ```
 
 The output includes source text and expected YAML beside each file for human import

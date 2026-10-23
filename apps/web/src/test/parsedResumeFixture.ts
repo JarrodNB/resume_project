@@ -13,13 +13,13 @@ export function buildParsedResume(): ParsedResume {
     experiences: [
       {
         company: 'Acme',
-        title: 'Engineer',
-        location: null,
+        roles: [{ title: 'Engineer',
         start_date: '2021-03',
         end_date: null,
         is_current: true,
         description: null,
-        highlights: ['Built the billing service', 'Cut deploy time in half'],
+        highlights: ['Built the billing service', 'Cut deploy time in half'], }],
+        location: null, description: null, shared_highlights: [],
       },
     ],
     projects: [],

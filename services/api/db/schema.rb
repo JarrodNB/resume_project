@@ -512,6 +512,30 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_100000) do
     t.index ["user_id"], name: "index_projects_on_user_id"
   end
 
+  create_table "resume_docx_page_checks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id"
+    t.uuid "resume_id"
+    t.string "content_digest", null: false
+    t.string "status", default: "queued", null: false
+    t.string "storage_key"
+    t.boolean "upload_ready", default: false, null: false
+    t.uuid "attempt_token"
+    t.datetime "lease_expires_at"
+    t.integer "page_count"
+    t.integer "retry_count", default: 0, null: false
+    t.string "error_code"
+    t.datetime "last_cleanup_at"
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_resume_docx_page_checks_on_expires_at"
+    t.index ["resume_id"], name: "index_resume_docx_page_checks_on_resume_id"
+    t.index ["user_id", "content_digest"], name: "index_resume_docx_page_checks_on_user_id_and_content_digest", unique: true
+    t.index ["user_id"], name: "index_resume_docx_page_checks_on_user_id"
+    t.check_constraint "page_count IS NULL OR page_count > 0", name: "docx_positive_pages"
+    t.check_constraint "status::text = ANY (ARRAY['queued'::character varying, 'running'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "docx_check_status"
+  end
+
   create_table "resume_sections", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "resume_id", null: false
     t.string "section_type", null: false
@@ -628,6 +652,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_100000) do
   add_foreign_key "library_embeddings", "users", on_delete: :cascade
   add_foreign_key "library_facts", "users"
   add_foreign_key "projects", "users"
+  add_foreign_key "resume_docx_page_checks", "resumes", on_delete: :nullify
+  add_foreign_key "resume_docx_page_checks", "users", on_delete: :nullify
   add_foreign_key "resume_sections", "resumes", on_delete: :cascade
   add_foreign_key "resumes", "jobs", on_delete: :nullify
   add_foreign_key "resumes", "users"

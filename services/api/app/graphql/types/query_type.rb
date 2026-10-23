@@ -69,6 +69,12 @@ module Types
       argument :id, ID, required: true
     end
 
+    field :resume_docx_page_check, Types::ResumeDocxPageCheckType, null: false do
+      argument :id, ID, required: true
+    end
+
+    def resume_docx_page_check(id:) = current_user.resume_docx_page_checks.where("expires_at > ?", Time.current).find(id)
+
     field :ai_task, Types::AiTaskType, null: false do
       argument :id, ID, required: true
     end

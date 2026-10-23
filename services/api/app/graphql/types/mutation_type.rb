@@ -87,6 +87,7 @@ module Types
 
     field :analyze_job_gaps, mutation: Mutations::GapAnalysis::AnalyzeJobGaps
 
+    field :start_resume_docx_page_check, mutation: Mutations::ResumeTailoring::StartResumeDocxPageCheck
     field :start_resume_tailoring, mutation: Mutations::ResumeTailoring::StartResumeTailoring
     field :save_tailored_resume, mutation: Mutations::ResumeTailoring::SaveTailoredResume
     field :update_resume, mutation: Mutations::ResumeTailoring::UpdateResume

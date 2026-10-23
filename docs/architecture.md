@@ -12,6 +12,7 @@ when changing a contract or feature:
 | [Interview sessions](architecture/interview-sessions.md) | Spoken demo records, atomic acceptance, HTTP boundary and recovery ownership |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
+| [Resume exports](architecture/resume-exports.md) | Private DOCX pagination, LibreOffice runtime, lifecycle and cleanup |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |
 
 Decision rationale lives beside the behavior it explains in these guides.

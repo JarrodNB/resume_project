@@ -38,4 +38,34 @@ RSpec.describe ResumeImports::ValidateParsedResumeShapeService do
       "experience highlights must be a list of strings", "skill names must be strings"
     ])
   end
+  it "rejects malformed grouped roles and ambiguous flat fields" do
+    invalid = [
+      { "roles" => nil }, { "roles" => [] }, { "roles" => "Engineer" }, { "roles" => [ "Engineer" ] },
+      { "roles" => [ { "title" => "Engineer", "highlights" => [ 12 ] } ] },
+      { "roles" => [ { "title" => "Engineer", "is_current" => "false" } ] },
+      { "roles" => [ { "title" => "Engineer" } ], "shared_highlights" => "Built systems" },
+      { "roles" => [ { "title" => "Engineer" } ], "highlights" => [ "Ambiguous" ] },
+      { "roles" => [ { "title" => "Engineer" } ], "title" => "Legacy" }
+    ]
+    invalid.each do |entry|
+      result = described_class.call(parsed_resume: { "experiences" => [ entry ] })
+      expect(result).not_to be_success, entry.inspect
+    end
+  end
+
+  it "bounds each role and shared list while allowing the full 840-bullet entry" do
+    role = { "title" => "Engineer", "highlights" => Array.new(40, "Built systems") }
+    entry = { "roles" => Array.new(20) { role.deep_dup }, "shared_highlights" => Array.new(40, "Shared outcome") }
+    expect(described_class.call(parsed_resume: { "experiences" => [ entry ] })).to be_success
+
+    oversized = [
+      entry.merge("roles" => Array.new(21) { role.deep_dup }),
+      entry.merge("shared_highlights" => Array.new(41, "Shared outcome")),
+      entry.merge("roles" => [ role.merge("highlights" => Array.new(41, "Built systems")) ]),
+      { "title" => "Legacy", "highlights" => Array.new(41, "Built systems") }
+    ]
+    oversized.each do |item|
+      expect(described_class.call(parsed_resume: { "experiences" => [ item ] })).not_to be_success
+    end
+  end
 end

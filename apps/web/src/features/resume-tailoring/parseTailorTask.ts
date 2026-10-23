@@ -19,6 +19,11 @@ export function warningsFromResult(result: unknown): string[] {
   return isRecord(result) ? stringList(result.warnings) : []
 }
 
+/** Only a new-format task can provide an editable resume. */
+export function markdownFromResult(result: unknown): string {
+  return isRecord(result) && typeof result.markdown === 'string' ? result.markdown : ''
+}
+
 /** One section object, or null when its type is unknown. */
 function parseSection(value: unknown): TailorSection | null {
   if (!isRecord(value)) return null

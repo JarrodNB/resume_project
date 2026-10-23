@@ -12,13 +12,8 @@ export const TAILOR_JOB_QUERY = graphql(`
       resume {
         id
         title
-        sections {
-          id
-          sectionType
-          title
-          position
-          content
-        }
+        markdown
+        targetPages
       }
       latestTailoring {
         id
@@ -44,8 +39,8 @@ export const START_RESUME_TAILORING_MUTATION = graphql(`
 `)
 
 export const SAVE_TAILORED_RESUME_MUTATION = graphql(`
-  mutation SaveTailoredResume($aiTaskId: ID!, $sections: JSON) {
-    saveTailoredResume(input: { aiTaskId: $aiTaskId, sections: $sections }) {
+  mutation SaveTailoredResume($aiTaskId: ID!, $markdown: String) {
+    saveTailoredResume(input: { aiTaskId: $aiTaskId, markdown: $markdown }) {
       resume {
         id
         title
@@ -56,18 +51,13 @@ export const SAVE_TAILORED_RESUME_MUTATION = graphql(`
 `)
 
 export const UPDATE_RESUME_MUTATION = graphql(`
-  mutation UpdateResume($id: ID!, $sections: JSON!) {
-    updateResume(input: { id: $id, sections: $sections }) {
+  mutation UpdateResume($id: ID!, $markdown: String!) {
+    updateResume(input: { id: $id, markdown: $markdown }) {
       resume {
         id
         title
-        sections {
-          id
-          sectionType
-          title
-          position
-          content
-        }
+        markdown
+        targetPages
       }
       errors
     }

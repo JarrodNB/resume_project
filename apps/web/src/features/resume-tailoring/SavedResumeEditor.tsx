@@ -1,71 +1,34 @@
-/** Edit saved resume sections and preview their current content before saving.
- * Drafts live above collapsible cards so closing a section keeps unsaved edits.
- * Deletion requires confirmation; the route chooses where to return afterward.
- * PDF and DOCX downloads use a saved snapshot; unsaved edits stay preview-only.
- * Save status tracks the submitted snapshot, so edits made during a save stay unsaved.
- */
-import { useMemo, useRef, useState } from 'react'
+/** Edit one saved Markdown resume. Preview follows edits; exports use the last saved text. */
+import { useRef, useState } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
-import { downloadResumeDocx, downloadResumePdf } from './resumeDownload'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DeleteResumeDialog } from '@/features/resumes/DeleteResumeDialog'
 import { useDeleteResume } from '@/features/resumes/useDeleteResume'
-import { SectionCard } from '@/components/SectionCard'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { downloadResumeDocx, downloadResumePdf } from './resumeDownload'
 import { ResumeEditorActions } from './ResumeEditorActions'
-import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
-import { SectionFields } from './SectionFields'
 import { ResumePdfPreview } from './ResumePdfPreview'
-import { buildResumePdfModel } from './resumePdfModel'
-import { asSectionType, SECTION_TITLES } from './sectionOrder'
-import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } from './tailorDraft'
+import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { useUpdateResume } from './useUpdateResume'
 
-interface SavedResumeSection {
-  id: string
-  sectionType: string
-  title: string
-  position: number
-  content: unknown
-}
-
-/** Edits one saved resume. Preview shows the current draft at actual size. */
-export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDeleted }: { resumeId: string; title?: string; sections: SavedResumeSection[]; jobId?: string; onDeleted: () => void }) {
-  const editable = useMemo(() => editableSections(sections), [sections])
-  const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(drafts))
-  const [savedModel, setSavedModel] = useState(() => buildResumePdfModel(editable))
-  const deleted = useRef(false)
-  const exporting = useRef(false)
+/** Keeps the submitted snapshot so edits during a save still count as unsaved. */
+export function SavedResumeEditor({ resumeId, title, markdown, jobId, onDeleted }: { resumeId: string; title: string; markdown: string; jobId?: string; onDeleted: () => void }) {
+  const [draft, setDraft] = useState(markdown)
+  const [saved, setSaved] = useState(markdown)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [exportPending, setExportPending] = useState<'PDF' | 'DOCX' | null>(null)
   const [exportError, setExportError] = useState<string[]>([])
-  const snapshot = JSON.stringify(drafts)
-  const dirty = snapshot !== savedSnapshot
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const { saveSections, errors, pending } = useUpdateResume(resumeId)
-  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleted = useRef(false)
+  const exporting = useRef(false)
+  const { saveMarkdown, errors, pending } = useUpdateResume(resumeId)
   const deletion = useDeleteResume(resumeId, jobId)
-
-  async function confirmDelete() {
-    if (await deletion.deleteResume()) {
-      deleted.current = true
-      onDeleted()
-    }
-  }
-  const model = buildResumePdfModel(
-    editable.map((section, index) => ({
-      sectionType: section.sectionType,
-      title: section.title,
-      content: contentFromSectionDraft(drafts[index] ?? sectionDraftFromContent(section.sectionType, section.content)),
-    })),
-  )
+  const dirty = draft !== saved
 
   async function save() {
-    if (pending) return
-    if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))) {
-      setSavedSnapshot(snapshot)
-      setSavedModel(model)
-    }
+    if (!draft.trim() || pending) return
+    const submitted = draft
+    if (await saveMarkdown(submitted)) setSaved(submitted)
   }
 
   async function download(format: 'PDF' | 'DOCX') {
@@ -73,9 +36,8 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
     exporting.current = true
     setExportPending(format)
     setExportError([])
-    // Later edits build a different model and cannot change this saved snapshot.
     try {
-      await (format === 'PDF' ? downloadResumePdf : downloadResumeDocx)(savedModel, title)
+      await (format === 'PDF' ? downloadResumePdf : downloadResumeDocx)(saved, title)
     } catch {
       setExportError([`Could not download the ${format}. Please try again.`])
     } finally {
@@ -84,48 +46,26 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
     }
   }
 
-  return (
-    <div className="grid gap-4">
-      <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
-      <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || !!exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
-        <Button type="button" variant="destructive" disabled={pending || deletion.pending || !!exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
-        {(['PDF', 'DOCX'] as const).map((format) => (
-          <Button key={format} type="button" variant="outline" disabled={dirty || pending || deletion.pending || !!exportPending} onClick={() => void download(format)}>
-            {exportPending === format ? `Preparing ${format}…` : `Download ${format}`}
-          </Button>
-        ))}
-      </ResumeEditorActions>
-      {dirty && <p className="text-sm text-muted-foreground">Save your changes to download</p>}
-      <ErrorAlert messages={exportError} title="Couldn't download this resume" />
-      <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
-      {editable.map((section, index) => (
-        <SectionCard key={section.id} tone={section.sectionType} title={section.title} sectionId={`saved-resume.${resumeId}.${section.id}`}>
-          <SectionFields
-            draft={drafts[index]}
-            onChange={(next) => setDrafts(drafts.map((draft, position) => (position === index ? next : draft)))}
-          />
-        </SectionCard>
-      ))}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
-          <DialogHeader className="w-full pr-8">
-            <DialogTitle>Preview</DialogTitle>
-            <DialogDescription>Preview includes unsaved edits. Save your changes before downloading.</DialogDescription>
-          </DialogHeader>
-          {previewOpen && <ResumePdfPreview model={model} />}
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
+  async function confirmDelete() {
+    if (await deletion.deleteResume()) { deleted.current = true; onDeleted() }
+  }
 
-/** Saved sections the review fields know how to edit, in stored order. */
-function editableSections(sections: SavedResumeSection[]) {
-  return [...sections]
-    .sort((left, right) => left.position - right.position)
-    .flatMap((section) => {
-      const sectionType = asSectionType(section.sectionType.toLowerCase())
-      if (!sectionType) return []
-      return [{ id: section.id, sectionType, title: section.title || SECTION_TITLES[sectionType], content: section.content }]
-    })
+  return <div className="grid gap-4">
+    <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
+    <ResumeEditorActions pending={pending} dirty={dirty} disabled={!draft.trim() || deletion.pending || !!exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
+      <Button type="button" variant="destructive" disabled={pending || deletion.pending || !!exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
+      {(['PDF', 'DOCX'] as const).map((format) => <Button key={format} type="button" variant="outline" disabled={dirty || pending || deletion.pending || !!exportPending} onClick={() => void download(format)}>{exportPending === format ? `Preparing ${format}…` : `Download ${format}`}</Button>)}
+    </ResumeEditorActions>
+    {dirty && <p className="text-sm text-muted-foreground">Save your changes to download</p>}
+    <ErrorAlert messages={exportError} title="Couldn't download this resume" />
+    <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
+    <label className="font-medium" htmlFor={`resume-markdown-${resumeId}`}>Resume Markdown</label>
+    <textarea id={`resume-markdown-${resumeId}`} aria-label="Resume Markdown" className="min-h-96 w-full rounded-md border bg-background p-4 font-mono text-sm" value={draft} maxLength={40000} onChange={(event) => setDraft(event.target.value)} />
+    <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+      <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
+        <DialogHeader><DialogTitle>Preview</DialogTitle><DialogDescription>Preview includes unsaved edits. Save your changes before downloading.</DialogDescription></DialogHeader>
+        {previewOpen && <ResumePdfPreview model={draft} />}
+      </DialogContent>
+    </Dialog>
+  </div>
 }

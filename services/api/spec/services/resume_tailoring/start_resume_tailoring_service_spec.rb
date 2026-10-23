@@ -38,12 +38,24 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   end
 
   it "returns the completed unsaved draft instead of starting another" do
-    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed")
+    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", result: { "markdown" => "# Ada", "target_pages" => 1 })
 
     result = described_class.call(user: user, job: job)
 
     expect(result.value).to eq(existing)
     expect(queue).not_to have_received(:send_message)
+  end
+
+  it "starts fresh when the last completed task has legacy sections" do
+    legacy = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", result: { "sections" => [] })
+
+    result = described_class.call(user: user, job: job)
+
+    expect(result).to be_success
+    expect(result.value.id).not_to eq(legacy.id)
+    expect(result.value).to be_queued
+    expect(legacy.reload).not_to be_accepted
+    expect(queue).to have_received(:send_message).once
   end
 
   it "returns an in-flight queued draft after reloading the page" do

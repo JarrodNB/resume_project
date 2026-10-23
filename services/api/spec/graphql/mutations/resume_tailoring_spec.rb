@@ -66,60 +66,52 @@ RSpec.describe "Resume tailoring mutations" do
     expect(Resume.count).to eq(0)
   end
 
-  it "saveTailoredResume rejects excluding every section instead of saving the original draft" do
+  it "saveTailoredResume rejects an obsolete section result" do
     task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
                   result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Original" } } ] })
     query = <<~GQL
-      mutation($id: ID!, $sections: JSON!) {
-        saveTailoredResume(input: { aiTaskId: $id, sections: $sections }) { resume { id } errors }
+      mutation($id: ID!, $markdown: String!) {
+        saveTailoredResume(input: { aiTaskId: $id, markdown: $markdown }) { resume { id } errors }
       }
     GQL
 
-    result = execute_graphql(query, user: user, variables: { id: task.id, sections: [] })
+    result = execute_graphql(query, user: user, variables: { id: task.id, markdown: "# New" })
 
     expect(result.dig("data", "saveTailoredResume", "errors")).to eq([ ResumeTailoring::SaveTailoredResumeService::NOT_READY_MESSAGE ])
     expect(Resume.count).to eq(0)
     expect(task.reload).not_to be_accepted
   end
 
-  it "updateResume replaces section content" do
+  it "updateResume replaces Markdown" do
     resume = create(:resume, user: user, job: job)
-    section = create(:resume_section, resume: resume, content: { "text" => "Old." })
     query = <<~GQL
-      mutation($id: ID!, $sections: JSON!) {
-        updateResume(input: { id: $id, sections: $sections }) {
-          resume { sections { id content } }
+      mutation($id: ID!, $markdown: String!) {
+        updateResume(input: { id: $id, markdown: $markdown }) {
+          resume { markdown targetPages }
           errors
         }
       }
     GQL
 
-    result = execute_graphql(query, user: user, variables: {
-      id: resume.id,
-      sections: [ { "id" => section.id, "content" => { "text" => "Backend engineer." } } ]
-    })
+    result = execute_graphql(query, user: user, variables: { id: resume.id, markdown: "# Backend engineer" })
 
     payload = result.dig("data", "updateResume")
     expect(payload["errors"]).to eq([])
-    expect(payload.dig("resume", "sections", 0, "content")).to eq("text" => "Backend engineer.")
+    expect(payload["resume"]).to eq("markdown" => "# Backend engineer", "targetPages" => 1)
   end
 
   it "updateResume can't edit another user's resume" do
     resume = create(:resume)
-    section = create(:resume_section, resume: resume, content: { "text" => "Theirs." })
     query = <<~GQL
-      mutation($id: ID!, $sections: JSON!) {
-        updateResume(input: { id: $id, sections: $sections }) { resume { id } errors }
+      mutation($id: ID!, $markdown: String!) {
+        updateResume(input: { id: $id, markdown: $markdown }) { resume { id } errors }
       }
     GQL
 
-    result = execute_graphql(query, user: user, variables: {
-      id: resume.id,
-      sections: [ { "id" => section.id, "content" => { "text" => "Mine." } } ]
-    })
+    result = execute_graphql(query, user: user, variables: { id: resume.id, markdown: "# Mine" })
 
     expect(result["errors"].first["message"]).to eq("Record not found")
-    expect(section.reload.content).to eq("text" => "Theirs.")
+    expect(resume.reload.markdown).to eq("# Ada\n\nBackend engineer.")
   end
 
   it "latestTailoring returns the job's tailor task" do

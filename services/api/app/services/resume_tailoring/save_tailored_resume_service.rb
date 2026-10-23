@@ -1,4 +1,4 @@
-# Saves a completed draft and its sections once. Acceptance stays recorded after deletion.
+# Saves a completed Markdown draft once. Acceptance stays recorded after deletion.
 # The owner lock serializes saves with new tailoring starts; the task lock keeps acceptance
 # atomic. Deleting the job later keeps these saved snapshots.
 module ResumeTailoring
@@ -6,9 +6,9 @@ module ResumeTailoring
     NOT_READY_MESSAGE = "Finish the resume before saving it.".freeze
     ALREADY_SAVED_MESSAGE = "This resume has already been saved.".freeze
 
-    def initialize(ai_task:, sections: nil)
+    def initialize(ai_task:, markdown: nil)
       @ai_task = ai_task
-      @sections = sections
+      @markdown = markdown
     end
 
     # Saves once. A second call returns an error without creating another resume.
@@ -21,10 +21,11 @@ module ResumeTailoring
         @ai_task.with_lock do
           return failure([ ALREADY_SAVED_MESSAGE ]) if @ai_task.accepted? || @ai_task.user.resumes.exists?(job_id: @ai_task.subject_id)
 
-          sections = normalized_sections
-          return failure([ NOT_READY_MESSAGE ]) if sections.empty?
+          result = @ai_task.result
+          return failure([ NOT_READY_MESSAGE ]) unless result.is_a?(Hash) && result["markdown"].is_a?(String)
+          return failure([ NOT_READY_MESSAGE ]) unless [1, 2].include?(result["target_pages"])
 
-          resume = create_resume(sections)
+          resume = create_resume(@markdown.nil? ? result["markdown"] : @markdown, result["target_pages"])
           @ai_task.update!(accepted_at: Time.current)
           success(resume)
         end
@@ -35,35 +36,11 @@ module ResumeTailoring
 
     private
 
-    # The client's final edits when it sent them, otherwise the draft on the task.
-    def normalized_sections
-      raw = @sections.nil? ? @ai_task.result&.dig("sections") : @sections
-      return [] unless raw.is_a?(Array)
-
-      raw.select { |section| section.is_a?(Hash) && saveable?(section) }
-    end
-
-    # True when the section type is one the resume model stores.
-    def saveable?(section)
-      ResumeSection::SECTION_TYPES.include?(section["section_type"]) && section["content"].is_a?(Hash)
-    end
-
-    # One resume and its sections, in the order given.
-    def create_resume(sections)
+    # One document, with the user's edits and the requested page target.
+    def create_resume(markdown, target_pages)
       job = @ai_task.subject
       title = job ? "#{job.title} at #{job.company.presence || 'Unknown company'}" : "Tailored resume"
-      Resume.transaction do
-        resume = @ai_task.user.resumes.create!(job: job, title: title)
-        sections.each_with_index do |section, index|
-          resume.sections.create!(
-            section_type: section["section_type"],
-            title: section["title"].presence || section["section_type"].to_s.titleize,
-            position: index,
-            content: section["content"]
-          )
-        end
-        resume
-      end
+      @ai_task.user.resumes.create!(job: job, title: title, markdown: markdown, target_pages: target_pages)
     end
   end
 end

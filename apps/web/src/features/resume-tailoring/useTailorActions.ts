@@ -4,17 +4,17 @@ import { useMutation } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { SAVE_TAILORED_RESUME_MUTATION } from './tailorOperations'
 
-/** Persists the selected edited sections without changing the career library. */
+/** Persists the edited Markdown without changing the career library. */
 export function useTailorActions(aiTaskId: string, onSaved: () => void) {
   const [save] = useMutation(SAVE_TAILORED_RESUME_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
   const [pending, setPending] = useState(false)
 
-  async function saveResume(sections: { section_type: string; title: string; content: unknown }[]) {
+  async function saveResume(markdown: string) {
     setErrors([])
     setPending(true)
     try {
-      const { data } = await save({ variables: { aiTaskId, sections } })
+      const { data } = await save({ variables: { aiTaskId, markdown } })
       const payload = data?.saveTailoredResume
       if (payload?.resume && payload.errors.length === 0) {
         onSaved()

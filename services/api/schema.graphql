@@ -2009,28 +2009,10 @@ type Resume {
   The job this resume is tailored to (null if the job was deleted).
   """
   job: Job
-  sections: [ResumeSection!]!
+  markdown: String!
+  targetPages: Int!
   title: String!
   updatedAt: ISO8601DateTime!
-}
-
-type ResumeSection {
-  content: JSON!
-  id: ID!
-  position: Int!
-  sectionType: ResumeSectionTypeEnum!
-  title: String!
-}
-
-enum ResumeSectionTypeEnum {
-  CERTIFICATIONS
-  CONTACT
-  CUSTOM
-  EDUCATION
-  EXPERIENCE
-  PROJECTS
-  SKILLS
-  SUMMARY
 }
 
 """
@@ -2132,7 +2114,7 @@ input SaveTailoredResumeInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
-  sections: JSON
+  markdown: String
 }
 
 """
@@ -2567,11 +2549,7 @@ input UpdateResumeInput {
   """
   clientMutationId: String
   id: ID!
-
-  """
-  Sections to update, as a list of { id, content }.
-  """
-  sections: JSON!
+  markdown: String!
 }
 
 """

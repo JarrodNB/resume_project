@@ -40,13 +40,8 @@ export const RESUME_QUERY = graphql(`
         title
         company
       }
-      sections {
-        id
-        sectionType
-        title
-        position
-        content
-      }
+      markdown
+      targetPages
     }
   }
 `)

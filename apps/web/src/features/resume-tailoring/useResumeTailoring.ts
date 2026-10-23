@@ -35,7 +35,7 @@ export function useResumeTailoring(jobId: string) {
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
   const existing = job?.latestTailoring ?? null
   const hasSavedResume = Boolean(job?.resume) || savedResumeJobId === jobId
-  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && !hasSavedResume)
+  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && (existing.status !== 'COMPLETED' || isMarkdownResult(existing.result)) && !hasSavedResume)
   const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
@@ -57,7 +57,7 @@ export function useResumeTailoring(jobId: string) {
   useEffect(() => {
     // Deleting the saved resume must not turn this visit into a generation request.
     if (job?.resume) started.current = true
-    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt) || started.current) return
+    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt && (job.latestTailoring.status !== 'COMPLETED' || isMarkdownResult(job.latestTailoring.result))) || started.current) return
     started.current = true
     void begin()
   }, [loading, job, jobId, begin])
@@ -68,8 +68,12 @@ export function useResumeTailoring(jobId: string) {
     void begin()
   }
 
-  const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
+  const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(followExisting ? existing : null)
   return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
+}
+
+function isMarkdownResult(result: unknown): boolean {
+  return typeof result === 'object' && result !== null && 'markdown' in result && typeof result.markdown === 'string'
 }
 
 /** Copies the fields the page reads off a query task or a subscription task. */

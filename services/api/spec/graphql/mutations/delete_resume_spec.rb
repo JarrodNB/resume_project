@@ -11,8 +11,7 @@ RSpec.describe "Delete resume" do
     GQL
   end
 
-  it "deletes the owned resume and its sections while keeping source data and task history" do
-    section = create(:resume_section, resume: resume)
+  it "deletes the owned Markdown resume while keeping source data and task history" do
     fact = create(:library_fact, user: user)
     task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", accepted_at: Time.current)
     accepted_at = task.accepted_at
@@ -21,7 +20,6 @@ RSpec.describe "Delete resume" do
 
     expect(result.dig("data", "deleteResume")).to eq("resume" => { "id" => resume.id }, "errors" => [])
     expect(Resume.exists?(resume.id)).to be(false)
-    expect(ResumeSection.exists?(section.id)).to be(false)
     expect(job.reload).to be_persisted
     expect(fact.reload).to be_persisted
     expect(task.reload.accepted_at).to eq(accepted_at)

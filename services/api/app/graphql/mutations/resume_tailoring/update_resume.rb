@@ -1,20 +1,19 @@
 # frozen_string_literal: true
 
-# Description: Updates the section content of one of the signed-in user's saved resumes.
+# Updates the Markdown of one of the signed-in user's saved resumes.
 module Mutations
   module ResumeTailoring
     class UpdateResume < Mutations::BaseMutation
       argument :id, ID, required: true
-      argument :sections, GraphQL::Types::JSON, required: true,
-               description: "Sections to update, as a list of { id, content }."
+      argument :markdown, String, required: true
 
       field :resume, Types::ResumeType
 
-      # Calls ResumeTailoring::UpdateResumeSectionsService.
-      def resolve(id:, sections:)
+      # Calls the resume update service after finding the owned record.
+      def resolve(id:, markdown:)
         resume = current_user.resumes.find(id)
         payload_from(
-          ::ResumeTailoring::UpdateResumeSectionsService.call(resume: resume, sections: sections),
+          ::ResumeTailoring::UpdateResumeService.call(resume: resume, markdown: markdown),
           :resume
         )
       end

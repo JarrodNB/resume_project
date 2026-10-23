@@ -3,6 +3,8 @@ FactoryBot.define do
   factory :resume do
     user
     title { "Tailored resume" }
+    markdown { "# Ada\n\nBackend engineer." }
+    target_pages { 1 }
     job { association :job, user: user }
   end
 end

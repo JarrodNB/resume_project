@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { FinalResumeEditor } from './FinalResumeEditor'
-import { finishedSectionsFromResult, warningsFromResult } from './parseTailorTask'
+import { markdownFromResult, warningsFromResult } from './parseTailorTask'
 import { SavedResumeEditor } from './SavedResumeEditor'
 import { useResumeTailoring } from './useResumeTailoring'
 import { useTailorActions } from './useTailorActions'
@@ -50,7 +50,7 @@ export function TailorResumePage() {
           </CardContent>
         </Card>
       )}
-      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} markdown={job.resume.markdown} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <Card>
           <CardContent className="grid gap-4">
@@ -62,7 +62,7 @@ export function TailorResumePage() {
         </Card>
       )}
       {job && !job.resume && task && task.status !== 'FAILED' && task.acceptedAt === null && (
-        <TailorProgress jobId={id} task={task} actions={actions} />
+        <TailorProgress task={task} actions={actions} />
       )}
     </div>
   )
@@ -70,11 +70,9 @@ export function TailorResumePage() {
 
 /** A whole-draft loading message or the completed editor. */
 function TailorProgress({
-  jobId,
   task,
   actions,
 }: {
-  jobId: string
   task: NonNullable<ReturnType<typeof useResumeTailoring>['task']>
   actions: ReturnType<typeof useTailorActions>
 }) {
@@ -82,8 +80,7 @@ function TailorProgress({
     return (
       <FinalResumeEditor
         key={task.id}
-        jobId={jobId}
-        sections={finishedSectionsFromResult(task.result)}
+        markdown={markdownFromResult(task.result)}
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}
         errors={actions.errors}

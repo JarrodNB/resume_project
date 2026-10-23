@@ -34,7 +34,7 @@ module ResumeTailoring
     def resumable?(task)
       return false unless task
       return false if task.accepted?
-      return true if task.completed? && !task.accepted?
+      return task.result.is_a?(Hash) && task.result["markdown"].is_a?(String) && [1, 2].include?(task.result["target_pages"]) if task.completed?
 
       task.queued? && task.created_at >= AiUsage::CheckAiTaskAllowanceService::IN_FLIGHT_WINDOW.ago
     end

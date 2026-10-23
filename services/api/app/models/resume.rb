@@ -1,14 +1,13 @@
-# Description: A resume tailored to a job, built from the career library and the user's profile.
-# It keeps working (with no job) if its job is deleted.
-# Index:
-#   - sections: ordered sections with JSON content snapshots
+# A user-edited Markdown resume tailored to a job. Its job may later be deleted.
 class Resume < ApplicationRecord
+  MAX_MARKDOWN_LENGTH = 40_000
+
   belongs_to :user
   belongs_to :job, optional: true
-  has_many :sections, -> { order(:position) },
-           class_name: "ResumeSection", dependent: :destroy, inverse_of: :resume
 
   validates :title, presence: true
+  validates :markdown, presence: true, length: { maximum: MAX_MARKDOWN_LENGTH }
+  validates :target_pages, inclusion: { in: [1, 2] }
   # Only on create: deleting a job nullifies job_id, and its resumes must stay editable.
   validates :job, presence: true, on: :create
 end

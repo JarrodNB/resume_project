@@ -86,17 +86,24 @@ def _is_role_date_header(line: str) -> bool:
         return False
     prefix = text[: match.start()].rstrip(" ,|–—-")
     parts = _ROLE_HEADER_SEPARATOR.split(prefix)
-    return len(parts) > 1 and all(_looks_like_title_case_label(part) for part in parts)
+    return bool(prefix) and all(_looks_like_title_case_label(part) for part in parts)
 
 
-def _is_resume_boundary(line: str, next_line: str, after_next_line: str = "") -> bool:
+def _is_resume_boundary(
+    line: str, next_line: str, after_next_line: str = "", *, separated_after_sentence: bool = False,
+) -> bool:
     """Recognize section headings and role/date headers between source bullets."""
     text = line.strip()
     if not text:
         return True
-    letters = [char for char in text if char.isalpha()]
-    if _section_kind(text) or (
-        len(text) <= 60 and len(letters) >= 3 and all(char.isupper() for char in letters)
+    if _section_kind(text):
+        return True
+    # A standalone label after a completed paragraph can start a new role/section.
+    # Within unfinished prose the same capitalization may simply be "AWS SQS".
+    if (
+        separated_after_sentence and len(text) <= 60
+        and _looks_like_title_case_label(text)
+        and not text.endswith((".", "!", "?"))
     ):
         return True
     if _DATE_LINE.fullmatch(text):
@@ -122,7 +129,11 @@ def _is_resume_boundary(line: str, next_line: str, after_next_line: str = "") ->
 
 
 def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]]:
-    """Split visible bullets, retaining wrapped continuation lines verbatim."""
+    """Keep visible bullet text across wraps and empty extraction/page separators.
+
+    Empty lines carry no ownership information. Use the next nonempty lines to
+    identify real headers; capitalization alone can also be an acronym continuation.
+    """
     bullets: dict[str, str] = {}
     bullet_lines: dict[int, str] = {}
     current_id = None
@@ -137,7 +148,8 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
         if current_id is not None:
             bullets[current_id] = "\n".join(current_lines)
 
-    for index, line in enumerate(lines):
+    nonempty_lines = [(index, line) for index, line in enumerate(lines) if line.strip()]
+    for position, (index, line) in enumerate(nonempty_lines):
         section = _section_kind(line)
         if section:
             save()
@@ -164,13 +176,12 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
                 current_id, current_lines = None, []
         elif current_id is not None and line.strip() and not _is_resume_boundary(
             line,
-            lines[index + 1] if index + 1 < len(lines) else "",
-            lines[index + 2] if index + 2 < len(lines) else "",
-        ) and (
-            line[: len(line) - len(line.lstrip())]
-            or line.lstrip()[:1].islower()
-            or len(current_lines[-1]) >= 30
-            or not current_lines[-1].rstrip().endswith((".", "!", "?"))
+            nonempty_lines[position + 1][1] if position + 1 < len(nonempty_lines) else "",
+            nonempty_lines[position + 2][1] if position + 2 < len(nonempty_lines) else "",
+            separated_after_sentence=(
+                index > nonempty_lines[position - 1][0] + 1
+                and current_lines[-1].rstrip().endswith((".", "!", "?"))
+            ),
         ):
             current_lines.append(line.strip())
         elif current_id is not None:

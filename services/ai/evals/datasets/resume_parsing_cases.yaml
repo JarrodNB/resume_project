@@ -570,6 +570,44 @@ cases:
               is_current: true
               highlights: [Built reliable payment services.]
 
+  - name: professional_development_after_unpunctuated_bullet
+    inputs: |
+      EXPERIENCE
+      Harbor Tools
+      Engineer | 2020 – Present
+      • Built reliable payment services
+
+      PROFESSIONAL DEVELOPMENT
+      • Completed distributed systems training
+      Systems Course | 2023 – 2024
+      • Studied message delivery
+    expected_output:
+      experiences:
+        - company: Harbor Tools
+          roles:
+            - title: Engineer
+              start_date: "2020"
+              is_current: true
+              highlights: [Built reliable payment services]
+
+  - name: multisentence_bullet_acronym_continuation
+    inputs: |
+      EXPERIENCE
+      Harbor Tools
+      Engineer | 2020 – Present
+      • Built reliable services.
+
+      AWS SQS
+      handled our notification queue.
+    expected_output:
+      experiences:
+        - company: Harbor Tools
+          roles:
+            - title: Engineer
+              start_date: "2020"
+              is_current: true
+              highlights: [Built reliable services. AWS SQS handled our notification queue.]
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

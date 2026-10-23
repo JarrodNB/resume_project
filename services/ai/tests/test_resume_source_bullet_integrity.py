@@ -122,10 +122,35 @@ def test_short_complete_sentence_keeps_its_following_paragraph():
 
 
 @pytest.mark.parametrize("separator", ["", "\n"])
-def test_separate_uppercase_section_after_completed_bullet_stays_outside_highlight(separator):
+@pytest.mark.parametrize("punctuation", ["", "."])
+@pytest.mark.parametrize("heading", ["PROFESSIONAL DEVELOPMENT", "Professional Development"])
+def test_professional_development_stays_outside_highlights(separator, punctuation, heading):
     text = (
         "WORK EXPERIENCE\nEngineer | 2020 – Present\n"
-        f"• Built a reliable payment service.\n{separator}"
-        "PROFESSIONAL DEVELOPMENT\nCompleted training in distributed systems.\n"
+        f"• Built a reliable payment service{punctuation}\n{separator}"
+        f"{heading}\nCompleted training in distributed systems.\n"
     )
-    assert source_highlights(text) == ["Built a reliable payment service."]
+    assert source_highlights(text) == [f"Built a reliable payment service{punctuation}"]
+
+
+@pytest.mark.parametrize("experience_heading", ["WORK EXPERIENCE\n", ""])
+def test_professional_development_bullets_and_dated_courses_are_not_employment(experience_heading):
+    text = (
+        f"{experience_heading}Engineer | 2020 – Present\n"
+        "• Built payment services\n\nPROFESSIONAL DEVELOPMENT\n"
+        "• Completed distributed systems training\n"
+        "Systems Course | 2023 – 2024\n• Studied message delivery\n"
+    )
+    assert source_highlights(text) == ["Built payment services"]
+
+
+@pytest.mark.parametrize("separator", ["", "\n"])
+def test_acronym_continuation_after_a_complete_sentence_stays_in_its_bullet(separator):
+    text = (
+        "WORK EXPERIENCE\nEngineer | 2020 – Present\n"
+        f"• Built reliable services.\n{separator}AWS SQS\n"
+        "handled our notification queue.\n"
+    )
+    assert source_highlights(text) == [
+        "Built reliable services.\nAWS SQS\nhandled our notification queue.",
+    ]

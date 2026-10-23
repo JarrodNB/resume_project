@@ -104,10 +104,10 @@ def test_labels_library_facts() -> None:
 
 def test_format_date_range() -> None:
     """Ongoing, finished, undated, and end-only ranges."""
-    assert format_date_range(date(2020, 3, 1), None) == "Mar 2020 – present"
-    assert format_date_range(date(2015, 1, 1), date(2018, 6, 1)) == "Jan 2015 – Jun 2018"
-    assert format_date_range(None, None) is None
-    assert format_date_range(None, date(2018, 6, 1)) == "? – Jun 2018"
+    assert format_date_range(date(2020, 3, 1), None, TODAY) == "Mar 2020 – present (as of 2026-10-04)"
+    assert format_date_range(date(2015, 1, 1), date(2018, 6, 1), TODAY) == "Jan 2015 – Jun 2018"
+    assert format_date_range(None, None, TODAY) is None
+    assert format_date_range(None, date(2018, 6, 1), TODAY) == "? – Jun 2018"
 
 
 def test_grouped_roles_preserve_shared_and_scoped_evidence_without_merging_entries():
@@ -156,5 +156,16 @@ def test_single_canonical_role_keeps_shared_evidence_unattributed():
     shared_context = "Shared across roles at Example Co (role and dates unspecified)"
     assert prompt.evidence["H1"].context == shared_context
     assert f"[H1] Built Python APIs ({shared_context})" in prompt.text
-    assert prompt.evidence["H2"].context == "Lead at Example Co | Jan 2025 – present"
+    assert prompt.evidence["H2"].context == "Lead at Example Co | Jan 2025 – present (as of 2026-10-04)"
     assert prompt.text.count("[H1]") == 1
+
+
+def test_ongoing_role_ranges_use_the_supplied_analysis_date():
+    """Present is anchored to this analysis, rather than the model's implicit clock."""
+    context = build_gap_analysis_context()
+    first = build_gap_analysis_prompt(context, date(2026, 10, 4))
+    later = build_gap_analysis_prompt(context, date(2030, 2, 1))
+
+    assert "Jan 2018 – present (as of 2026-10-04)" in first.text
+    assert "Jan 2018 – present (as of 2030-02-01)" in later.text
+    assert "as of 2030-02-01" not in first.text

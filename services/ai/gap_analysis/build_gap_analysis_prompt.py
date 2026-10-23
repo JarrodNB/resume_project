@@ -8,7 +8,7 @@ Index:
     - LabeledRequirement: one requirement with its kind and text
     - GapAnalysisPrompt: prompt text plus the requirement and evidence label maps
     - build_gap_analysis_prompt: builds the prompt for one context
-    - format_date_range: "Jan 2020 – present" style ranges
+    - format_date_range: month ranges with ongoing periods anchored to the analysis date
 """
 
 from dataclasses import dataclass, field
@@ -37,12 +37,12 @@ class GapAnalysisPrompt:
     warnings: list[str] = field(default_factory=list)
 
 
-def format_date_range(start_date: date | None, end_date: date | None) -> str | None:
-    """Formats a date range as months, "present" for an ongoing entry; None if undated."""
+def format_date_range(start_date: date | None, end_date: date | None, today: date) -> str | None:
+    """Format stated dates; anchor present to the supplied analysis date, never the clock."""
     if start_date is None and end_date is None:
         return None
     start = start_date.strftime("%b %Y") if start_date else "?"
-    end = end_date.strftime("%b %Y") if end_date else "present"
+    end = end_date.strftime("%b %Y") if end_date else f"present (as of {today.isoformat()})"
     return f"{start} – {end}"
 
 
@@ -59,7 +59,7 @@ def build_gap_analysis_prompt(context: GapAnalysisContext, today: date) -> GapAn
         prompt, "nice_to_have", "N", "Nice to have", context.job.nice_to_haves
     )
     lines += ["", "# Career library"]
-    lines += _library_lines(prompt, context)
+    lines += _library_lines(prompt, context, today)
     prompt.text = "\n".join(lines)
     return prompt
 
@@ -89,7 +89,7 @@ def _join(*parts: str | None, separator: str = ", ") -> str:
     return separator.join(part for part in parts if part)
 
 
-def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> list[str]:
+def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext, today: date) -> list[str]:
     """Labels every library entry and returns the career library part of the prompt."""
     library = context.career_library
     lines: list[str] = []
@@ -110,7 +110,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
                 f"{experience.roles[0].title} at {experience.company}" if experience.roles else
                 experience.company)
         role_details = [
-            _join(item.title, format_date_range(item.start_date, item.end_date),
+            _join(item.title, format_date_range(item.start_date, item.end_date, today),
                   item.description, separator=" | ")
             for item in experience.roles
         ]
@@ -120,7 +120,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         ref = _add_evidence(
             prompt, f"E{number}", EvidenceItem(kind="experience", id=experience.id, text=text)
         )
-        dates = (format_date_range(experience.roles[0].start_date, experience.roles[0].end_date)
+        dates = (format_date_range(experience.roles[0].start_date, experience.roles[0].end_date, today)
                  if len(experience.roles) == 1 else None)
         lines.append(f"[{ref}] {_join(role, dates, experience.location, separator=' | ')}")
         if experience.description:
@@ -137,7 +137,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
             if owner:
                 highlight_context = _join(
                     f"{owner.title} at {experience.company}",
-                    format_date_range(owner.start_date, owner.end_date), separator=" | ")
+                    format_date_range(owner.start_date, owner.end_date, today), separator=" | ")
             elif not experience._legacy_role:
                 highlight_context = f"Shared across roles at {experience.company} (role and dates unspecified)"
             else:
@@ -158,7 +158,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         ref = _add_evidence(
             prompt, f"P{number}", EvidenceItem(kind="project", id=project.id, text=text)
         )
-        dates = format_date_range(project.start_date, project.end_date)
+        dates = format_date_range(project.start_date, project.end_date, today)
         lines.append(f"[{ref}] {_join(name, dates, separator=' | ')}")
         if project.description:
             lines.append(f"  {project.description}")
@@ -170,7 +170,7 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         ref = _add_evidence(
             prompt, f"ED{number}", EvidenceItem(kind="education", id=education.id, text=text)
         )
-        dates = format_date_range(education.start_date, education.end_date)
+        dates = format_date_range(education.start_date, education.end_date, today)
         lines.append(f"[{ref}] {_join(text, dates, separator=' | ')}")
         if education.description:
             lines.append(f"  {education.description}")

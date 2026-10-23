@@ -11,7 +11,7 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "9"
+GAP_ANALYSIS_PROMPT_VERSION = "10"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
 You compare a job with a candidate's career library and report, for every requirement

@@ -167,28 +167,29 @@ def test_empty_docx_raises() -> None:
         extract_document_text(build_docx_bytes([]), DOCX_CONTENT_TYPE)
 
 
-def test_docx_over_the_text_cap_is_too_long(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Extracted text over the import cap is a length error, not an unreadable file."""
-    monkeypatch.setattr(
-        "documents.extract_document_text._extract_docx_text",
-        lambda _file_bytes: "a" * (MAX_RESUME_TEXT + 1),
-    )
-
+def test_docx_over_the_text_cap_is_too_long() -> None:
+    """A real upload over the import cap is a length error."""
     with pytest.raises(DocumentTooLongError):
-        extract_document_text(b"unused", DOCX_CONTENT_TYPE)
+        extract_document_text(build_docx_bytes(["a" * (MAX_RESUME_TEXT + 1)]), DOCX_CONTENT_TYPE)
 
 
-def test_pdf_over_the_page_cap_is_too_long(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A PDF with more pages than the cap is rejected before its text is joined."""
+def test_docx_at_the_text_cap_is_accepted() -> None:
+    """The maximum allowed text length remains importable."""
+    text = "a" * MAX_RESUME_TEXT
+    assert extract_document_text(build_docx_bytes([text]), DOCX_CONTENT_TYPE) == text
 
-    class _Reader:
-        def __init__(self, _buffer: object) -> None:
-            self.pages = [object()] * (MAX_PDF_PAGES + 1)
 
-    monkeypatch.setattr("documents.extract_document_text.PdfReader", _Reader)
+def test_pdf_over_the_page_cap_is_too_long() -> None:
+    """Real PDF pages over the cap are rejected before empty-text validation."""
+    from pypdf import PdfWriter
 
+    writer = PdfWriter()
+    for _ in range(MAX_PDF_PAGES + 1):
+        writer.add_blank_page(width=300, height=300)
+    buffer = BytesIO()
+    writer.write(buffer)
     with pytest.raises(DocumentTooLongError):
-        extract_document_text(b"unused", "application/pdf")
+        extract_document_text(buffer.getvalue(), "application/pdf")
 
 
 def test_unsupported_content_type_raises() -> None:

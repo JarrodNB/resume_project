@@ -105,7 +105,10 @@ def app_env(service):
         "INTERVIEW_TRANSCRIPTION_TARGET": "http://127.0.0.1:8000",
     })
     if service == "ai":
-        env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"])
+        env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
+                   PGPASSWORD=cfg["reader_password"],
+                   DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
+        env.pop("CABLE_DATABASE_URL", None)
     return env
 
 
@@ -245,7 +248,7 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
             "api": (["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"], "services/api", env),
             "results": (["bundle", "exec", "shoryuken", "-R", "-C", "config/shoryuken.yml"], "services/api", env),
             "ai": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai")),
-            "interview": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "interviews.real_app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", env),
+            "interview": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "interviews.real_app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", app_env("ai")),
             "web": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/web", env),
             "landing": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/landing", env),
         }

@@ -5,6 +5,7 @@
 Generate a complete resume draft for one job, then review, edit, exclude sections, preview,
 and save it once. A finished gap analysis is included when one exists; generation does not
 wait for it. Later visits edit the saved resume. Preview opens the current draft as a large PDF.
+Saved resumes download locally as PDF and editable DOCX after all edits save successfully.
 
 ## Contents
 
@@ -14,8 +15,15 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor; preview and save use the same included content in draft order
 - `SavedResumeEditor.tsx` — saved sections use tone-colored cards and remembered collapse IDs
-  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels. Confirmed
+  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
+  Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
+- `resumeDownload.tsx` — render PDF and lazily load DOCX generation, sanitize saved-title
+  filenames, and release browser object URLs after download handoff. `ResumePdfDocument.test.tsx`
+  parses real PDF output with a test-only reader; editor/page tests control the download boundary.
+- `resumeDocxDocument.ts` — native Word paragraphs, headings, bullets and contact hyperlinks,
+  sharing `resumePdfModel.ts` content/order with PDF. Word pagination can differ.
+  `resumeDocxDocument.test.ts` inspects actual ZIP/XML output.
 - `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback.
   New drafts lead with Review full resume, opening the existing PDF preview; save stays
   available without a review confirmation. Saved resumes keep their existing action hierarchy.
@@ -31,7 +39,7 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
 - `useResumeTailoring.ts` — load, start when needed, follow `aiTaskUpdated`, and retry failures
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
-- `resumePdfModel.ts` — sections to the plain structure the PDF draws (`ResumePdfDocument.tsx`);
+- `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
   `ResumePdfPreview.tsx` shows that document in a dialog
 - `TailorResumePage.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
   editing. `FinalResumeEditor.test.tsx` covers edit/exclude/restore and preview/save parity.

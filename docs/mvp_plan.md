@@ -27,7 +27,9 @@ over feature breadth or market positioning.
    analysis, and the user's gap responses; the user edits and approves it.
 6. **Memory** — gap responses and facts are saved and reused in future tailoring.
 7. **Job board** — saved jobs with stages: unapplied, applied, interviewing, rejected, offer.
-8. **Export** — PDF export of a tailored resume.
+8. **Export** — Browser-local PDF and editable DOCX downloads of a saved tailored resume.
+   Changes must save successfully before downloading. Existing single-column styling is
+   retained; Word pagination may differ.
 9. **Observability** — every LLM call traced in Logfire.
 10. **Evaluations** — a test set and scoring for each agent, so prompt and model changes are
     measured instead of guessed:
@@ -44,7 +46,7 @@ over feature breadth or market positioning.
 
 ## Out of Scope (Later)
 
-DOCX export, job search sources, goals and reminder emails (Lambda), interview question
+Job search sources, goals and reminder emails (Lambda), interview question
 sets, contacts and follow-ups, profile and career pages, feed, company-side features,
 employed-mode work journal.
 
@@ -60,7 +62,7 @@ employed-mode work journal.
 4. **AI features** — resume parsing, then job scraping, gap analysis
    (done), gap responses (done), tailoring, then memory. Each agent ships with its eval dataset; write the first few
    eval cases before tuning the prompt.
-5. **Web app** — resume editor, job board, gap analysis chat, tailored resume view, PDF export.
+5. **Web app** — resume editor, job board, gap analysis chat, tailored resume view, PDF and editable DOCX export.
 6. **Landing page.**
 7. **Deploy** — Terraform for AWS, k8s manifests, GitHub Actions CI/CD (including an eval
    run on changes to `services/ai`).

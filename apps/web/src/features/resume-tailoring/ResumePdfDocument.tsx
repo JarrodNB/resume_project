@@ -1,7 +1,6 @@
 /**
- * Description: The resume PDF. A later download uses this same document.
- * Index:
- *   - ResumePdfDocument: one letter-size page
+ * The resume PDF shared by live preview and saved downloads. Long sections and
+ * entries flow across Letter pages while headings stay with following text.
  */
 import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ResumePdfBlock, ResumePdfEntry, ResumePdfModel } from './resumePdfModel'
@@ -30,7 +29,7 @@ const styles = StyleSheet.create({
   bullet: { marginLeft: 8, marginTop: 1 },
 })
 
-/** One letter page: name and contact, then each section that has text. */
+/** Letter pages: name and contact, then each section that has text. */
 export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
   return (
     <Document title={model.name || 'Resume'}>
@@ -56,21 +55,17 @@ export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
 function PdfBlock({ block }: { block: ResumePdfBlock }) {
   if (block.entries.length === 0) {
     return (
-      <View wrap={false}>
-        <Text style={styles.sectionTitle}>{block.title}</Text>
+      <View>
+        <Text style={styles.sectionTitle} minPresenceAhead={24}>{block.title}</Text>
         {block.text ? <Text>{block.text}</Text> : null}
       </View>
     )
   }
 
-  const [first, ...rest] = block.entries
   return (
     <View>
-      <View wrap={false}>
-        <Text style={styles.sectionTitle}>{block.title}</Text>
-        {first ? <PdfEntry entry={first} /> : null}
-      </View>
-      {rest.map((entry, index) => (
+      <Text style={styles.sectionTitle} minPresenceAhead={24}>{block.title}</Text>
+      {block.entries.map((entry, index) => (
         <PdfEntry key={`${entry.heading}-${index}`} entry={entry} />
       ))}
     </View>
@@ -80,8 +75,8 @@ function PdfBlock({ block }: { block: ResumePdfBlock }) {
 /** One role, project, or school. */
 function PdfEntry({ entry }: { entry: ResumePdfEntry }) {
   return (
-    <View style={styles.entry} wrap={false}>
-      <View style={styles.entryRow}>
+    <View style={styles.entry}>
+      <View style={styles.entryRow} wrap={false} minPresenceAhead={20}>
         <Text style={styles.heading}>{entry.heading}</Text>
         {entry.dates ? <Text style={styles.dates}>{entry.dates}</Text> : null}
       </View>

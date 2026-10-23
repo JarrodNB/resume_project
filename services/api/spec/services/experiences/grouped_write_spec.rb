@@ -131,7 +131,7 @@ RSpec.describe "Grouped import merge boundary" do
     target = Experiences::CreateExperienceService.call(user: user, attributes: {
       company: "Example", description: "Existing entry", roles: [ { title: "Lead", description: "Existing role" }, { title: "Engineer" } ]
     }).value
-    source = user.experiences.new(company: "Example", title: "Lead", description: "Incoming entry")
+    source = user.experiences.new(company: "Example", description: "Incoming entry")
     lead = source.roles.build(title: "Lead", description: "Incoming role", position: 0)
     engineer = source.roles.build(title: "Engineer", position: 1)
     source.highlights.build(content: "Shared", position: 0)

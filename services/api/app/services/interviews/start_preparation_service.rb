@@ -3,7 +3,7 @@
 module Interviews
   class StartPreparationService < ApplicationService
     SOURCE_FIELDS = {
-      experiences: %w[title company description], projects: %w[name role description],
+      experiences: %w[company location description], projects: %w[name role description],
       educations: %w[institution degree field_of_study description], certifications: %w[name issuer description],
       skills: %w[name], library_facts: %w[response]
     }.freeze
@@ -19,17 +19,34 @@ module Interviews
       return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
       @user.with_lock do
+        # Writers lock entry rows before changing their children. Hold the same rows
+        # in ID order so the separate source queries see one coherent committed entry.
+        experience_ids = @user.experiences.reorder(:id).lock.map(&:id)
         sources = []
         sources << { type: "profile", id: @user.id, field: "summary", text: @user.summary, screened: @user.screened_fields.include?("summary") } if @user.summary.present?
         SOURCE_FIELDS.each do |association, fields|
-          @user.public_send(association).each do |record|
+          records = @user.public_send(association)
+          records = records.where(id: experience_ids) if association == :experiences
+          records.each do |record|
             fields.each do |field|
               value = record[field] if record.has_attribute?(field)
               sources << { type: association.to_s, id: record.id, field: field, text: value, screened: record.screened_fields.include?(field) } if value.is_a?(String) && value.present?
             end
             if association == :experiences
+              record.roles.order(:position, :id).each do |role|
+                %w[title description].each do |field|
+                  next if role[field].blank?
+
+                  source = { type: "experience_roles", id: role.id, experience_id: record.id,
+                    field: field, text: role[field], screened: role.screened_fields.include?(field) }
+                  source.merge!(start_date: role.start_date&.iso8601, end_date: role.end_date&.iso8601) if field == "title"
+                  sources << source
+                end
+              end
               record.highlights.each do |highlight|
-                sources << { type: "highlights", id: highlight.id, field: "content", text: highlight.content, screened: highlight.screened_fields.include?("content") } if highlight.content.present?
+                sources << { type: "highlights", id: highlight.id, experience_id: record.id,
+                  experience_role_id: highlight.experience_role_id, field: "content", text: highlight.content,
+                  screened: highlight.screened_fields.include?("content") } if highlight.content.present?
               end
             end
           end

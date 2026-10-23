@@ -52,14 +52,42 @@ def format_library(context: dict) -> str:
     for index, source in enumerate(context.get('sources', []), 1):
         if not isinstance(source, dict) or not isinstance(source.get('text'), str):
             raise ValueError('Invalid frozen career source')  # noqa: TRY004 - malformed claims fail as domain input
-        key = (source.get('type'), source.get('id', index))
+        key = ('experiences', source['experience_id']) if source.get('experience_id') else (
+            source.get('type'), source.get('id', index))
         groups.setdefault(key, []).append((index, source))
     for number, ((kind, _), sources) in enumerate(groups.items(), 1):
         lines.append(f'## {sections.get(kind, "Career entry")} {number}')
-        for index, source in sources:
-            field = escape(str(source.get('field', 'evidence')).replace('_', ' ').title())
-            lines.append(f'### {field} [S{index}]\n{data_block("evidence", source["text"])}')
+        if kind == 'experiences':
+            entry = [(index, source) for index, source in sources if source.get('type') == 'experiences']
+            lines.extend(_source_lines(entry))
+            shared = [(index, source) for index, source in sources
+                      if source.get('type') == 'highlights' and not source.get('experience_role_id')]
+            if shared:
+                lines.append('### Shared highlights (role ownership unspecified)')
+                lines.extend(_source_lines(shared))
+            roles = {}
+            for index, source in sources:
+                role_id = source.get('id') if source.get('type') == 'experience_roles' else source.get('experience_role_id')
+                if role_id:
+                    roles.setdefault(role_id, []).append((index, source))
+            for role_number, role_sources in enumerate(roles.values(), 1):
+                lines.append(f'### Role {role_number}')
+                lines.extend(_source_lines(role_sources))
+        else:
+            lines.extend(_source_lines(sources))
     return mask_outbound('\n\n'.join(lines))
+
+
+def _source_lines(sources: list) -> list[str]:
+    lines = []
+    for index, source in sources:
+        field = escape(str(source.get('field', 'evidence')).replace('_', ' ').title())
+        lines.append(f'#### {field} [S{index}]\n{data_block("evidence", source["text"])}')
+        if source.get('type') == 'experience_roles' and source.get('field') == 'title':
+            dates = '\n'.join(f'{label}: {source.get(key) or "unknown"}'
+                              for key, label in [('start_date', 'Start date'), ('end_date', 'End date')])
+            lines.append(data_block('role_dates', dates))
+    return lines
 
 
 def format_role(role: dict) -> str:

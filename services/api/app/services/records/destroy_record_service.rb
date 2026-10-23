@@ -11,9 +11,11 @@ module Records
       @record = record
     end
 
-    # Destroys the record.
+    # Reloads under its row lock so cached children cannot hide recently added bullets.
     def call
-      return failure(@record.errors) unless @record.destroy
+      @record.with_lock do
+        return failure(@record.errors) unless @record.destroy
+      end
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@record.user_id) if LIBRARY_MODELS.include?(@record.class)
       success(@record)

@@ -22,10 +22,11 @@ module Experiences
         if !@highlights.nil? && @experience.roles.exists? && @experience.highlights.where(experience_role_id: nil).exists?
           return failure([ SingleRoleCompatibility::GROUPED_ERROR ])
         end
-        @experience.assign_attributes(@attributes)
+        LockChildrenService.call(experience: @experience)
+        @experience.assign_attributes(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym), :description))
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         replace_highlights if @highlights
-        SingleRoleCompatibility.prepare!(@experience, edited_fields: @attributes.keys)
+        SingleRoleCompatibility.prepare!(@experience, attributes: @attributes)
         raise ActiveRecord::Rollback unless @experience.save
       end
       return failure(@experience.errors) if @experience.errors.any?

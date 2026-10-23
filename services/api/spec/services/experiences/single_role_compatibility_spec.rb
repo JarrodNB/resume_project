@@ -57,10 +57,11 @@ RSpec.describe "Single role compatibility" do
     source = create(:experience, user: experience.user)
     update = Experiences::UpdateExperienceService.call(experience: experience,
       attributes: { title: "Changed" }, highlights: [ "New" ])
+    source_title = source.title
     merge = CareerLibrary::MergeLibraryRecordsService.call(target: experience, source: source)
     expect(update).not_to be_success
     expect(merge).to be_success
-    expect(experience.reload.roles.pluck(:title)).to eq([ "Engineer", "Developer", source.title ])
+    expect(experience.reload.roles.pluck(:title)).to eq([ "Engineer", "Developer", source_title ])
     expect(experience.highlights.pluck(:content)).to eq([ "Original" ])
   end
 
@@ -68,8 +69,9 @@ RSpec.describe "Single role compatibility" do
     experience = create_experience
     Experiences::UpdateExperienceService.call(experience: experience, attributes: { start_date: nil })
     source = create(:experience, user: experience.user, start_date: Date.new(2018, 1, 1))
+    source_title = source.title
     result = CareerLibrary::MergeLibraryRecordsService.call(target: experience, source: source)
     expect(result).to be_success
-    expect(experience.reload.roles.find_by!(title: source.title).start_date).to eq(Date.new(2018, 1, 1))
+    expect(experience.reload.roles.find_by!(title: source_title).start_date).to eq(Date.new(2018, 1, 1))
   end
 end

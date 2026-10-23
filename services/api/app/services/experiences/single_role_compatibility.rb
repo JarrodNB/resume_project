@@ -1,5 +1,5 @@
-# Keeps the old title/date write contract usable while roles become canonical. Call prepare!
-# inside the caller's save transaction. Grouped edits must use the later grouped editor.
+# Adapts old single-role requests into canonical roles before saving. Persisted entries
+# must already have roles; this is an input adapter, never a second source of truth.
 module Experiences
   module SingleRoleCompatibility
     ROLE_FIELDS = %w[title start_date end_date].freeze
@@ -7,20 +7,14 @@ module Experiences
 
     module_function
 
-    # Builds the canonical role for legacy records, applies explicitly edited flat fields,
-    # then projects canonical values back onto the compatibility columns. Existing shared
-    # highlights remain shared; newly built legacy bullets belong to the single role.
-    def prepare!(experience, edited_fields: ROLE_FIELDS)
+    # Apply only explicitly supplied fields. New string bullets belong to the sole role;
+    # existing shared bullets retain their scope. Caller owns the transaction and locks.
+    def prepare!(experience, attributes:)
       raise ArgumentError, GROUPED_ERROR if experience.roles.size > 1
 
-      # Highlights autosave before the roles collection. Allocate the parent UUID now
-      # so a new bullet can save its new role with the correct parent reference.
       experience.id ||= SecureRandom.uuid
       role = experience.roles.to_a.first || experience.roles.build(position: 0)
-      ROLE_FIELDS.each do |field|
-        role[field] = experience[field] if role.new_record? || edited_fields.map(&:to_s).include?(field)
-        experience[field] = role[field]
-      end
+      role.assign_attributes(attributes.stringify_keys.slice(*ROLE_FIELDS, "description"))
       CareerLibrary::RecordScreeningService.discard_changed_fields(record: role)
       experience.highlights.each do |highlight|
         highlight.experience_role = role if highlight.new_record?

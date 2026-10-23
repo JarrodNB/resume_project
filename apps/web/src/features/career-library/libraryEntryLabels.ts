@@ -19,9 +19,11 @@ function withDates(label: string, dates: string) {
 
 /** "Engineer at Acme (Mar 2021 – Present)". */
 export function experienceLabel(experience: Experience) {
-  if (experience.roles?.length > 1) return `${experience.roles.map((role) => withDates(role.title, formatDateRange(role.startDate, role.endDate, {openEndedMeansPresent: true}))).join('; ')} at ${experience.company}`
-  const dates = formatDateRange(experience.startDate, experience.endDate, { openEndedMeansPresent: true })
-  return withDates(`${experience.title} at ${experience.company}`, dates)
+  if (experience.roles.length === 1) {
+    const role = experience.roles[0]
+    return withDates(`${role.title} at ${experience.company}`, formatDateRange(role.startDate, role.endDate, { openEndedMeansPresent: true }))
+  }
+  return `${experience.roles.map((role) => withDates(role.title, formatDateRange(role.startDate, role.endDate, { openEndedMeansPresent: true }))).join('; ')} at ${experience.company}`
 }
 
 /** "Side project (Jan 2023)". */

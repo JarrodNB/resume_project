@@ -757,16 +757,16 @@ type Experience {
   description: String
 
   """
-  Null for a current role.
+  Null for a current or unstated end date, or a grouped entry.
   """
-  endDate: ISO8601Date
+  endDate: ISO8601Date @deprecated(reason: "Read roles for each title’s dates.")
   highlights: [ExperienceHighlight!]!
   id: ID!
   location: String
   position: Int!
   roles: [ExperienceRole!]!
-  startDate: ISO8601Date
-  title: String!
+  startDate: ISO8601Date @deprecated(reason: "Read roles for each title’s dates.")
+  title: String @deprecated(reason: "Read roles; grouped entries have no single title.")
 }
 
 input ExperienceAttributesInput {

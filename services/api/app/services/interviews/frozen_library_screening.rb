@@ -3,7 +3,7 @@
 module Interviews
   module FrozenLibraryScreening
     SOURCE_TYPES = {
-      "profile" => "User", "experiences" => "Experience", "highlights" => "ExperienceHighlight",
+      "profile" => "User", "experiences" => "Experience", "experience_roles" => "ExperienceRole", "highlights" => "ExperienceHighlight",
       "projects" => "Project", "educations" => "Education", "certifications" => "Certification",
       "skills" => "Skill", "library_facts" => "LibraryFact"
     }.freeze
@@ -11,14 +11,19 @@ module Interviews
     def self.valid_source?(source)
       model = source.is_a?(Hash) && SOURCE_TYPES[source["type"]]
       model && source["text"].is_a?(String) && source["id"].is_a?(String) &&
-        CareerLibrary::RecordScreeningService::FIELDS.fetch(model).include?(source["field"])
+        (CareerLibrary::RecordScreeningService::FIELDS.fetch(model).include?(source["field"]) ||
+          (model == "Experience" && source["field"] == "title"))
     end
 
     def self.owned_record(user, source)
       return unless valid_source?(source)
+      # Old snapshots still screen their original flat title, but that retired field
+      # cannot grant a new live approval for the canonical role title.
+      return if source["type"] == "experiences" && source["field"] == "title"
 
       scope = case source["type"]
       when "profile" then User.where(id: user.id)
+      when "experience_roles" then ExperienceRole.joins(:experience).where(experiences: { user_id: user.id })
       when "highlights" then ExperienceHighlight.joins(:experience).where(experiences: { user_id: user.id })
       else user.public_send(source["type"])
       end

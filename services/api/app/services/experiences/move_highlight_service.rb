@@ -21,7 +21,8 @@ module Experiences
       ActiveRecord::Base.transaction do
         [ source_experience, @experience ].uniq(&:id).sort_by(&:id).each(&:lock!)
         @experience.reload if source_experience.id == @experience.id && !source_experience.equal?(@experience)
-        @highlight.reload
+        [ source_experience, @experience ].uniq(&:id).sort_by(&:id).each { |entry| LockChildrenService.call(experience: entry) }
+        @highlight.lock!
         return failure([ "This bullet moved. Reload the library and try again." ]) if @highlight.experience_id != source_experience.id
         source_role_id = @highlight.experience_role_id
         @role_id = @experience.roles.first&.id if @legacy_scope && @experience.roles.size <= 1

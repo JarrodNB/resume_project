@@ -15,11 +15,11 @@ module Experiences
         return WriteGroupedExperienceService.call(experience: @user.experiences.new, attributes: @attributes)
       end
 
-      experience = @user.experiences.new(@attributes)
+      experience = @user.experiences.new(@attributes.except(*SingleRoleCompatibility::ROLE_FIELDS.map(&:to_sym), :description))
       @highlights.each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end
-      SingleRoleCompatibility.prepare!(experience)
+      SingleRoleCompatibility.prepare!(experience, attributes: @attributes)
       return failure(experience.errors) unless experience.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)

@@ -11,7 +11,7 @@ RSpec.describe MostRecentFirst do
     create(:experience, user: user, title: "Current", start_date: Date.new(2025, 1, 1), end_date: nil, position: 3)
     create(:experience, user: user, title: "Tutor", start_date: Date.new(2018, 8, 1), end_date: Date.new(2018, 12, 1), position: 4)
 
-    expect(user.experiences.pluck(:title)).to eq(%w[Current Developer Tutor Army Undated])
+    expect(user.experiences.map(&:title)).to eq(%w[Current Developer Tutor Army Undated])
   end
 
   it "orders projects and educations the same way" do

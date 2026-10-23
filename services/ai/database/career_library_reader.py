@@ -48,8 +48,17 @@ JOB_QUERY = """
 """
 SUMMARY_QUERY = "SELECT id::text, summary, screened_fields FROM users WHERE id = %(user_id)s"
 EXPERIENCES_QUERY = f"""
-    SELECT id::text, company, title, location, start_date, end_date, description, screened_fields
-    FROM experiences WHERE user_id = %(user_id)s ORDER BY {MOST_RECENT_FIRST}
+    SELECT entries.id::text, entries.company, entries.location, entries.description,
+           entries.screened_fields
+    FROM experiences AS entries
+    LEFT JOIN LATERAL (
+        SELECT start_date, end_date FROM experience_roles
+        WHERE experience_id = entries.id ORDER BY {MOST_RECENT_FIRST} LIMIT 1
+    ) AS recent_role ON TRUE
+    WHERE entries.user_id = %(user_id)s
+    ORDER BY (recent_role.end_date IS NULL AND recent_role.start_date IS NOT NULL) DESC,
+             recent_role.end_date DESC NULLS LAST, recent_role.start_date DESC NULLS LAST,
+             entries.position
 """
 ROLES_QUERY = """
     SELECT roles.id::text, roles.experience_id::text, roles.title, roles.start_date,

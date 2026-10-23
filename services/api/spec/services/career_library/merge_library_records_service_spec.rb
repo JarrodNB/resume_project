@@ -4,7 +4,7 @@ require "rails_helper"
 RSpec.describe CareerLibrary::MergeLibraryRecordsService do
   let(:user) { create(:user) }
 
-  it "fills only blank fields, adds new highlights, and deletes the source" do
+  it "fills blank entry fields and retains distinct dated role scopes when deleting the source" do
     target = create(:experience, user: user, location: "Perth", description: nil, end_date: nil)
     create(:experience_highlight, experience: target, content: "Built the API", position: 0)
     source = create(:experience, user: user, location: "Sydney", description: "Backend work", end_date: Date.new(2024, 1, 1))
@@ -16,7 +16,9 @@ RSpec.describe CareerLibrary::MergeLibraryRecordsService do
     expect(result).to be_success
     target.reload
     expect(target).to have_attributes(location: "Perth", description: "Backend work", end_date: nil)
-    expect(target.highlights.map(&:content)).to eq([ "Built the API", "Led the team" ])
+    expect(target.highlights.map(&:content)).to eq([ "Built the API", "built  the api", "Led the team" ])
+    expect(target.roles.pluck(:end_date)).to eq([ nil, Date.new(2024, 1, 1) ])
+    expect(target.highlights.pluck(:experience_role_id).uniq.size).to eq(2)
     expect(Experience.exists?(source.id)).to be(false)
   end
 

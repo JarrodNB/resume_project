@@ -83,16 +83,16 @@ RSpec.describe "Experience mutations" do
     expect(entry.highlights.pluck(:content)).to eq([ "Private" ])
   end
 
-  it "reads flat fields as a canonical projection while grouped entries are test-built" do
+  it "does not flatten grouped roles into a single compatibility title or date" do
     entry = create(:experience, user: user, title: "Old projection", start_date: Date.new(2000, 1, 1))
-    entry.roles.create!(title: "Canonical", position: 0)
+    entry.roles.first.update!(title: "Canonical")
     entry.roles.create!(title: "Earlier role", position: 1, start_date: Date.new(2020, 1, 1))
     result = execute_graphql(<<~GQL, user: user)
       query { experiences { id title startDate roles { title position } } }
     GQL
     expect(result["errors"]).to be_nil
     experience = result.fetch("data").fetch("experiences").find { |item| item["id"] == entry.id }
-    expect(experience.fetch("title")).to eq("Canonical")
+    expect(experience.fetch("title")).to be_nil
     expect(experience.fetch("startDate")).to be_nil
     expect(experience.fetch("roles").map { |role| role["title"] }).to eq([ "Canonical", "Earlier role" ])
   end

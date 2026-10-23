@@ -139,8 +139,6 @@ module ResumeImports
       Array(item["shared_highlights"]).each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end
-      first = experience.roles.first
-      experience.assign_attributes(title: first.title, start_date: first.start_date, end_date: first.end_date)
     end
 
     # Fills a Project from a parsed project.

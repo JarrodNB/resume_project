@@ -4,7 +4,7 @@ module CareerLibrary
   class RecordScreeningService < ApplicationService
     FIELDS = {
       "User" => %w[summary],
-      "Experience" => %w[company title location description],
+      "Experience" => %w[company location description],
       "ExperienceRole" => %w[title description],
       "ExperienceHighlight" => %w[content],
       "Project" => %w[name role description],

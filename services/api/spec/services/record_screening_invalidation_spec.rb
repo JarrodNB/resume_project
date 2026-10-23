@@ -6,7 +6,7 @@ RSpec.describe "Career library screening state" do
 
   it "forgets only changed fields through each text update service" do
     [
-      [ :experience, Experiences::UpdateExperienceService, :experience, :title, :company ],
+      [ :experience, Experiences::UpdateExperienceService, :experience, :company, :location ],
       [ :project, Projects::UpdateProjectService, :project, :name, :description ],
       [ :education, Educations::UpdateEducationService, :education, :institution, :degree ],
       [ :certification, Certifications::UpdateCertificationService, :certification, :name, :issuer ],
@@ -46,7 +46,7 @@ RSpec.describe "Career library screening state" do
 
   it "makes replacement highlights unchecked" do
     experience = create(:experience, user: user)
-    experience.highlights.create!(content: "Old", position: 0, screened_fields: [ "content" ])
+    experience.highlights.create!(content: "Old", position: 0, experience_role: experience.roles.first, screened_fields: [ "content" ])
     Experiences::UpdateExperienceService.call(experience: experience, attributes: {}, highlights: [ "New" ])
     expect(experience.reload.highlights.first.screened_fields).to eq([])
   end

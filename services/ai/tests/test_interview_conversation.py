@@ -5,6 +5,37 @@ from tests.test_interview_executor import Client, claim
 from tests.test_real_interview_executor import Models, run
 
 
+def test_grouped_experience_scope_and_dates_reach_model_once(monkeypatch):
+    monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
+    request = prepared_claim()
+    request.payload.interview_context.personal_evidence['sources'] = [
+        {'type': 'experiences', 'id': 'entry-a', 'field': 'company', 'text': 'Harbor Tools', 'screened': True},
+        {'type': 'experience_roles', 'id': 'role-a', 'experience_id': 'entry-a',
+         'field': 'title', 'text': 'Lead Engineer', 'start_date': '2023-01-01', 'end_date': None, 'screened': True},
+        {'type': 'experience_roles', 'id': 'role-b', 'experience_id': 'entry-a',
+         'field': 'title', 'text': 'Engineer', 'start_date': '2020-01-01', 'end_date': '2022-12-31', 'screened': True},
+        {'type': 'highlights', 'id': 'shared', 'experience_id': 'entry-a', 'experience_role_id': None,
+         'field': 'content', 'text': 'Shared platform achievement', 'screened': True},
+        {'type': 'highlights', 'id': 'specific', 'experience_id': 'entry-a', 'experience_role_id': 'role-b',
+         'field': 'content', 'text': 'Earlier role achievement', 'screened': True},
+        {'type': 'experiences', 'id': 'entry-b', 'field': 'company', 'text': 'Harbor Tools', 'screened': True},
+        {'type': 'experience_roles', 'id': 'role-c', 'experience_id': 'entry-b',
+         'field': 'title', 'text': 'Contract Engineer', 'start_date': None, 'end_date': None, 'screened': True},
+    ]
+    client, models = Client(), Models()
+    run(client, models, request)
+    assert not client.failed and client.accepted
+    prompt = models.prompts[-1][1]
+    assert 'Experience 1' in prompt and 'Experience 2' in prompt
+    assert 'Shared highlights (role ownership unspecified)' in prompt
+    assert prompt.index('Role 2') < prompt.index('Earlier role achievement') < prompt.index('Experience 2')
+    assert prompt.count('Shared platform achievement') == 1
+    assert prompt.count('Earlier role achievement') == 1
+    assert '2023-01-01' in prompt and '2022-12-31' in prompt
+    assert 'End date: unknown' in prompt
+    assert all(prompt.count(f'[S{index}]') == 1 for index in range(1, 8))
+
+
 def prepared_claim(*, approved=True, dialogue=None, history=None):
     data = claim(history=history).model_dump()
     del data['payload']['fixture_context']

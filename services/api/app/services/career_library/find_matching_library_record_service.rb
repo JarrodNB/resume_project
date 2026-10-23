@@ -4,7 +4,6 @@
 module CareerLibrary
   class FindMatchingLibraryRecordService < ApplicationService
     MATCH_FIELDS = {
-      Experience => %w[company title],
       Project => %w[name],
       Education => %w[institution degree],
       Certification => %w[name issuer]

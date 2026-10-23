@@ -10,8 +10,7 @@ module Experiences
     def call
       ActiveRecord::Base.transaction do
         [ @target, @source ].select(&:persisted?).sort_by(&:id).each(&:lock!)
-        SingleRoleCompatibility.prepare!(@target, edited_fields: []) if @target.roles.empty?
-        SingleRoleCompatibility.prepare!(@source, edited_fields: []) if @source.roles.empty?
+        [ @target, @source ].sort_by { |entry| entry.id.to_s }.each { |entry| LockChildrenService.call(experience: entry) }
         @source.roles.each { |role| role.id ||= SecureRandom.uuid }
         target_roles = @target.roles.to_a
         mapped = {}
@@ -34,7 +33,6 @@ module Experiences
         @target.location = @source.location if @target.location.blank?
         @target.description = combined_text(@target.description, @source.description)
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @target)
-        @target.assign_attributes(title: target_roles.first.title, start_date: target_roles.first.start_date, end_date: target_roles.first.end_date)
         @target.save!
         target_roles.each(&:save!)
         known = @target.highlights.map { |bullet| [ bullet.experience_role_id, EntryStructure.normalize(bullet.content) ] }.to_set

@@ -40,7 +40,7 @@ module Interviews
           @interview.status = "completed"
           @interview.completed_at = Time.current
         end
-        @interview.operations.create!(kind: "speech", question: message.question, message: message) if SpeechPlayback.provider?(@interview)
+        @interview.operations.create!(kind: "speech", question: message.question, message: message) if @interview.active? && SpeechPlayback.provider?(@interview)
         @interview.update!(revision: @interview.revision + 1)
         success(@interview)
       end

@@ -11,6 +11,7 @@ import { ErrorLink } from '@apollo/client/link/error'
 import { createConsumer } from '@rails/actioncable'
 import UploadHttpLink from 'apollo-upload-client/UploadHttpLink.mjs'
 import ActionCableLink from 'graphql-ruby-client/subscriptions/ActionCableLink'
+import { orderedInterviewSnapshots } from '@/features/interviews/orderedInterviewSnapshots'
 import { OperationTypeNode } from 'graphql'
 import { CABLE_URL, GRAPHQL_URL } from '@/lib/apiConfig'
 
@@ -53,9 +54,10 @@ export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: Crea
       )
     : httpLink
 
+  const cache = new InMemoryCache()
   const client = new ApolloClient({
-    link: ApolloLink.from([unauthorizedLink, transportLink]),
-    cache: new InMemoryCache(),
+    link: ApolloLink.from([unauthorizedLink, orderedInterviewSnapshots(cache), transportLink]),
+    cache,
   })
 
   // Disposal permanently stops this session's reconnect monitor. The provider

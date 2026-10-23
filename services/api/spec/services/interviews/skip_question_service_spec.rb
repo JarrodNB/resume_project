@@ -6,6 +6,13 @@ RSpec.describe Interviews::SkipQuestionService do
   let(:question) { interview.questions.first }
   let(:input) { { interview: interview, question_id: question.id, expected_revision: 0, submission_key: "skip-1" } }
 
+  it "does not generate closing speech after the final skip" do
+    interview.questions.where.not(id: question.id).destroy_all
+    expect(described_class.call(**input)).to be_success
+    closing = interview.messages.closing.last!
+    expect(interview.operations.speech.where(message: closing)).to be_empty
+  end
+
   it "advances once, persists a skipped remainder and accepts an exact retry" do
     expect(described_class.call(**input)).to be_success
     expect(interview.reload.current_question_position).to eq(1)

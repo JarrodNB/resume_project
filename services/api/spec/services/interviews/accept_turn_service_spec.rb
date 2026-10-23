@@ -43,6 +43,7 @@ RSpec.describe "Basic Interview acceptance" do
         content: has_next ? next_question.content : Interviews::AcceptTurnService::CLOSING,
         acknowledgement: payload[:acknowledgement])
       expect(interview.reload.current_question_position).to eq(has_next ? 1 : 0)
+      expect(interview.operations.speech.where(message: response).exists?).to eq(has_next)
       count = interview.messages.count
       expect(Interviews::AcceptTurnService.call(**payload).value).to eq(first.value)
       expect(interview.messages.count).to eq(count)
@@ -200,6 +201,7 @@ RSpec.describe "Basic Interview acceptance" do
   end
 
   it "rolls back dialogue, history, counts, and advancement if speech creation fails" do
+    interview.questions.create!(position: 1, content: "What did you learn?", question_type: "behavioral")
     acceptance = input
     allow_any_instance_of(InterviewSessionOperation).to receive(:save!).and_wrap_original do |save, *args|
       record = save.receiver

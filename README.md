@@ -94,6 +94,10 @@ AI workflows use Pydantic AI, with tracing through Logfire.
 
 ## Getting started
 
+For a Docker-free cloud development option, see
+[native development setup](docs/native-development.md). It avoids Docker VFS
+storage overhead and uses a local, in-memory AWS emulator.
+
 Local development uses native Ubuntu with bash. Install Docker Engine and the Docker
 Compose plugin, and make sure your user can run `docker` commands. Application runtimes
 and dependencies run inside containers.

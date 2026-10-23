@@ -22,3 +22,21 @@ it('renders grouped roles and a long shared list across pages', async () => {
   const pages = buffer.toString('latin1').match(/\/Type \/Page\b/g)
   expect(pages?.length).toBeGreaterThan(1)
 })
+
+it('paginates a supported long role-scoped list without overflowing a page', async () => {
+  const warnings = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  try {
+    const model = buildResumePdfModel([{ sectionType: 'experience', title: 'Experience', content: { items: [{
+      company: 'Synthetic Company', roles: [{
+        title: 'Engineer', start_date: '2020-01', end_date: '2024-12',
+        highlights: Array.from({ length: 40 }, (_, index) =>
+          `Scoped achievement ${index + 1}: ${'Built reliable services for the platform. '.repeat(8)}`),
+      }], highlights: [],
+    }] } }])
+    const buffer = await renderToBuffer(<ResumePdfDocument model={model} />)
+    expect(buffer.toString('latin1').match(/\/Type \/Page\b/g)?.length).toBeGreaterThan(1)
+    expect(warnings.mock.calls.flat().join(' ')).not.toContain('bigger than available page height')
+  } finally {
+    warnings.mockRestore()
+  }
+})

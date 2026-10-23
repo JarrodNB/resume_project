@@ -1,7 +1,7 @@
 /**
  * Description: The resume PDF. A later download uses this same document.
  * Index:
- *   - ResumePdfDocument: one letter-size page
+ *   - ResumePdfDocument: letter-size pages that flow with the saved content
  */
 import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ResumePdfBlock, ResumePdfEntry, ResumePdfModel } from './resumePdfModel'
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
   bullet: { marginLeft: 8, marginTop: 1 },
 })
 
-/** One letter page: name and contact, then each section that has text. */
+/** Name and contact followed by the saved sections, flowing onto letter-size pages. */
 export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
   return (
     <Document title={model.name || 'Resume'}>
@@ -77,17 +77,17 @@ function PdfBlock({ block }: { block: ResumePdfBlock }) {
   )
 }
 
-/** One role, project, or school. */
-function PdfEntry({ entry }: { entry: ResumePdfEntry }) {
+/** Draw an entry; grouped role contents can flow while headings stay attached. */
+function PdfEntry({ entry, allowPageBreaks = Boolean(entry.roles) }: { entry: ResumePdfEntry; allowPageBreaks?: boolean }) {
   return (
-    <View style={styles.entry} wrap={entry.roles ? true : false}>
+    <View style={styles.entry} wrap={allowPageBreaks}>
       <View style={styles.entryRow} wrap={false} minPresenceAhead={18}>
         <Text style={styles.heading}>{entry.heading}</Text>
         {entry.dates ? <Text style={styles.dates}>{entry.dates}</Text> : null}
       </View>
       {entry.meta ? <Text style={styles.meta}>{entry.meta}</Text> : null}
       {entry.body ? <Text style={styles.body}>{entry.body}</Text> : null}
-      {entry.roles?.map((role, index) => <View key={`${role.heading}-${index}`} style={{ marginLeft: 8 }}><PdfEntry entry={role} /></View>)}
+      {entry.roles?.map((role, index) => <View key={`${role.heading}-${index}`} style={{ marginLeft: 8 }}><PdfEntry entry={role} allowPageBreaks /></View>)}
       {entry.bullets.map((bullet, index) => (
         <Text key={index} style={styles.bullet}>{`• ${bullet}`}</Text>
       ))}

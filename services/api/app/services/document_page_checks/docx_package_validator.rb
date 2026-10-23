@@ -6,7 +6,7 @@ module DocumentPageChecks
   class DocxPackageValidator < ApplicationService
     MAX_BYTES = 5 * 1024 * 1024
     SCANNER = <<~'PYTHON'
-      import sys, zipfile, xml.etree.ElementTree as ET, re
+      import sys, zipfile, xml.etree.ElementTree as ET, re, posixpath, urllib.parse
       try:
         with zipfile.ZipFile(sys.argv[1]) as archive:
           entries = archive.infolist()
@@ -28,11 +28,15 @@ module DocumentPageChecks
               root = ET.fromstring(data)
               for node in root.iter():
                 tag = node.tag.rsplit('}', 1)[-1].lower()
-                assert tag not in ['altchunk', 'oleobject', 'object']
+                assert tag not in ['altchunk', 'oleobject', 'object', 'instrtext', 'fldsimple']
                 for value in node.attrib.values():
                   assert not any(x in value.lower() for x in ['macroenabled', 'vbaproject', 'oleobject', '/afchunk'])
                 if tag == 'relationship' and node.get('TargetMode', '').lower() != 'external':
-                  target = node.get('Target', '')
+                  target = urllib.parse.unquote(node.get('Target', ''))
+                  assert not target.startswith('/') and chr(92) not in target
+                  base = e.filename.split('/_rels/', 1)[0] if '/_rels/' in e.filename else ''
+                  resolved = posixpath.normpath(posixpath.join(base, target))
+                  assert resolved != '..' and not resolved.startswith('../')
                   assert not re.match(r'^[a-z][a-z0-9+.-]*:', target, re.I) and not target.startswith(('//', '\\'))
                 if tag == 'relationship' and node.get('TargetMode', '').lower() == 'external':
                   assert node.get('Type', '').endswith('/hyperlink')

@@ -184,13 +184,13 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled()
   })
 
-  it('shows the saved closing without labelling it a follow-up after completion', () => {
+  it('hides the saved closing after completion', () => {
     state.interview = { ...snapshot, status: 'completed', messages: [
       ...snapshot.messages, { ...snapshot.messages[0], id: 'closing', kind: 'closing', content: 'Thank you. This interview is complete.' },
     ] }
     renderInterview()
     expect(screen.getByRole('heading', { name: 'Interview complete' })).toBeVisible()
-    expect(screen.getByText('Thank you. This interview is complete.')).toBeVisible()
+    expect(screen.queryByText('Thank you. This interview is complete.')).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Current interview turn' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to interviews' })).toHaveAttribute('href', '/interviews')
     expect(screen.queryByRole('button', { name: 'Interview settings' })).not.toBeInTheDocument()
@@ -659,11 +659,11 @@ describe('prepared interview begin', () => {
     expect(recorder.start).not.toHaveBeenCalled()
   })
 
-  it('shows history without interview progress or response counts', async () => {
+  it('shows saved interview progress beside history without response counts', async () => {
     state.interview = { ...snapshot, answerCap: 3, currentQuestionPosition: 4,
       questions: Array.from({ length: 9 }, (_, position) => ({ id: `q${position}`, position, content: 'Question', questionType: 'technical', acceptedAnswerCount: position === 4 ? 2 : 0 })) }
     renderInterview()
-    expect(screen.queryByText(/Question 5 of 9/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Question 5 of 9/)).toBeVisible()
     expect(screen.queryByText(/responses saved/)).not.toBeInTheDocument()
     expect(screen.queryByText('Accepted answers appear here after processing.')).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Open written interview practice' })).not.toBeInTheDocument()
@@ -1066,4 +1066,61 @@ it('distinguishes an unanswered skipped core question and unavailable retained t
   await userEvent.click(screen.getByRole('button', { name: 'Core question 1 · Skipped' }))
   expect(screen.getByText('Skipped — no answer was submitted.')).toBeVisible()
   expect(screen.getByText('No saved answer for this question.')).toBeVisible()
+})
+
+it('guides live transcription recovery through stopping before transcription', () => {
+  recorder.status = 'recording'; recorder.fallbackReason = 'Recognition failed; recording retained.'
+  renderInterview()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My edited answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording to transcribe' }))
+  expect(recorder.stop).toHaveBeenCalledOnce()
+  expect(state.transcribeRecording).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('My edited answer')
+})
+
+it('shows saved core progress and only the actual follow-up number', () => {
+  state.interview = { ...snapshot, questions: [{ ...snapshot.questions[0], id: 'previous', position: 0, skipped: true }, snapshot.questions[0]], messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'follow', kind: 'follow_up', content: 'What changed?', position: 2 }] }
+  renderInterview()
+  expect(screen.getByText('Question 2 of 2 · Follow-up 1')).toBeVisible()
+  expect(screen.queryByText(/Follow-up 1 of/)).not.toBeInTheDocument()
+})
+
+it('summarizes disjoint review outcomes and repeats through editable setup without provider work', async () => {
+  state.interview = { ...snapshot, status: 'completed', setup: { ...snapshot.setup, questionCount: 5, difficulty: 'stretch', focusAreas: ['leadership'] }, questions: [
+    { ...snapshot.questions[0], acceptedAnswerCount: 1, skipped: true },
+    { ...snapshot.questions[0], id: 'skipped', position: 2, skipped: true },
+  ] }
+  renderInterview()
+  expect(screen.getByText('1 answered · 1 skipped without an answer · Remaining follow-ups skipped on 1 question')).toBeVisible()
+  fireEvent.click(screen.getByRole('link', { name: 'Practice again' }))
+  expect(await screen.findByRole('radio', { name: /Stretch/ })).toBeChecked()
+  expect(screen.getByRole('radio', { name: /Short/ })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Leadership' })).toBeChecked()
+  expect(start).not.toHaveBeenCalled()
+  expect(state.beginInterview).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch', interviewer: 'daniel', focusAreas: ['leadership'] })
+})
+
+it('restores core progress without inventing follow-ups after early advancement', () => {
+  state.interview = { ...snapshot, questions: [{ ...snapshot.questions[0], id: 'previous', position: 0, acceptedAnswerCount: 1 }, snapshot.questions[0]], operations: [{ ...snapshot.operations[0], kind: 'turn', status: 'running' }] }
+  const view = renderInterview()
+  expect(screen.getByText('Question 2 of 2')).toBeVisible()
+  expect(screen.queryByText(/· Follow-up/)).not.toBeInTheDocument()
+  view.unmount()
+  renderInterview()
+  expect(screen.getByText('Question 2 of 2')).toBeVisible()
+})
+
+it('uses supported defaults when repeating a legacy setup', async () => {
+  state.interview = { ...snapshot, status: 'completed', setup: { questionCount: 99, questionFormat: 'old', difficulty: 'old', interviewer: 'old', focusAreas: ['leadership', 'unknown', 'leadership'] }, questions: [{ ...snapshot.questions[0], skipped: true }], messages: [{ ...snapshot.messages[0], kind: 'answer' }] }
+  renderInterview()
+  expect(screen.getByText('1 answered · 0 skipped without an answer · Remaining follow-ups skipped on 1 question')).toBeVisible()
+  fireEvent.click(screen.getByRole('link', { name: 'Practice again' }))
+  expect(await screen.findByRole('radio', { name: /Standard/ })).toBeChecked()
+  expect(screen.getByRole('radio', { name: /Mixed Interview/ })).toBeChecked()
+  expect(screen.getByRole('radio', { name: /Realistic/ })).toBeChecked()
+  expect(screen.getByRole('radio', { name: /Daniel/ })).toBeChecked()
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: ['leadership'] })
 })

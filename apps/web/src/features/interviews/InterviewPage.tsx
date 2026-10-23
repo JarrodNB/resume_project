@@ -50,7 +50,7 @@ export function InterviewPage() {
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
     {!interviewsEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
-      <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
+      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
   </div>
 }
@@ -265,6 +265,7 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="interview-room">
     <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
+      {question && <p className="text-sm text-muted-foreground">Question {interview.questions.toSorted((a, b) => a.position - b.position).findIndex((item) => item.id === question.id) + 1} of {interview.questions.length}{reply?.kind === 'follow_up' && ` · Follow-up ${interview.messages.filter((message) => message.questionId === question.id && message.kind === 'follow_up' && message.position <= reply.position).length}`}</p>}
       <p className="interview-identity">{interviewerOptions.find((option) => option.value === interview.setup?.interviewer)?.label ?? 'Your interviewer'}</p>
       <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
         <h2 className="interview-status">{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>
@@ -289,7 +290,7 @@ function OwnedInterview({ id }: { id: string }) {
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
       {state.skipPending && !state.busy && <p role="status" className="text-sm text-muted-foreground">The skip response was not confirmed. Retry skip to check the same question safely before answering.</p>}
       <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={() => { cancelReview(); draft.setText(""); recorder.reset() }} />
-      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={recorder.stop}><Square size={20} fill="currentColor" />Stop recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => {
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={recorder.stop}><Square size={20} fill="currentColor" />{recorder.fallbackReason ? 'Stop recording to transcribe' : 'Stop recording'}</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => {
         if (recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing') draft.editCapture(text)
         else { cancelReview(); draft.setText(text) }
       }}
@@ -318,7 +319,7 @@ function OwnedInterview({ id }: { id: string }) {
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
       {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
       {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
-      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>You can review the recording’s transcript before submitting, or type your answer. To choose a live mode for your next recording, open Interview settings.</p></div>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : recordedReview || reviewedRecording === recorder.recording ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}

@@ -2,6 +2,10 @@
 # The generated `Dockerfile` next to this one is the production image.
 FROM ruby:3.4.11
 
+RUN apt-get update -qq && apt-get install --no-install-recommends -y libreoffice-writer fonts-liberation fonts-crosextra-carlito poppler-utils python3 libseccomp-dev gcc && rm -rf /var/lib/apt/lists/*
+COPY lib/docx_network_sandbox.c /tmp/docx_network_sandbox.c
+RUN gcc -O2 -Wall -Werror /tmp/docx_network_sandbox.c -lseccomp -o /usr/local/bin/docx-network-sandbox && rm /tmp/docx_network_sandbox.c
+
 WORKDIR /rails
 
 COPY Gemfile Gemfile.lock ./

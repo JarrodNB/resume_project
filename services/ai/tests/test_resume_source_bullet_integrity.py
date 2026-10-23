@@ -154,3 +154,60 @@ def test_acronym_continuation_after_a_complete_sentence_stays_in_its_bullet(sepa
     assert source_highlights(text) == [
         "Built reliable services.\nAWS SQS\nhandled our notification queue.",
     ]
+
+
+def test_unlabelled_list_after_stacked_dated_titles_cannot_belong_to_one_role():
+    source = ExperienceSource(
+        'EXPERIENCE\nExample | Remote\n'
+        'Senior Engineer | 2025 – 2026\nEngineer | 2019 – 2024\n'
+        'Built products across both positions.\n• Shipped the platform.\n'
+    )
+    with pytest.raises(ValueError, match='shared_highlight_ids'):
+        source.output_type.model_validate({'experiences': [{
+            'company': 'Example', 'roles': [
+                {'title': 'Senior Engineer', 'highlight_ids': ['B1']},
+                {'title': 'Engineer', 'highlight_ids': []},
+            ],
+        }]})
+
+
+def test_docx_topic_headings_do_not_become_highlight_continuations():
+    from io import BytesIO
+
+    from docx import Document
+
+    from documents.extract_document_text import DOCX_CONTENT_TYPE, extract_document_text
+    document = Document()
+    document.add_heading('EXPERIENCE', 1)
+    document.add_paragraph('Example | Remote')
+    document.add_paragraph('Engineer | 2020 – Present')
+    document.add_paragraph('Shipped the platform.', style='List Bullet')
+    document.add_heading('Evaluation & Guardrails', 4)
+    document.add_paragraph('Reduced errors.', style='List Bullet')
+    buffer = BytesIO()
+    document.save(buffer)
+    assert source_highlights(extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)) == [
+        'Shipped the platform.', 'Reduced errors.',
+    ]
+
+
+def test_stacked_titles_keep_valid_shared_bullets():
+    source = ExperienceSource('EXPERIENCE\nExample | Remote\nSenior Engineer | 2025 – 2026\nEngineer | 2019 – 2024\n• Shipped the platform.\n')
+    output = source.output_type.model_validate({'experiences': [{'company': 'Example', 'roles': [
+        {'title': 'Senior Engineer'}, {'title': 'Engineer'},
+    ], 'shared_highlight_ids': ['B1']}]})
+    assert source.reconstruct(output)['experiences'][0]['shared_highlights'] == ['Shipped the platform.']
+
+
+def test_bullets_between_dated_roles_remain_scoped():
+    source = ExperienceSource(
+        'EXPERIENCE\nExample | Remote\nSenior Engineer | 2025 – 2026\n'
+        '• Shipped the platform.\nEngineer | 2019 – 2024\n• Built the service.\n'
+    )
+    output = source.output_type.model_validate({'experiences': [{'company': 'Example', 'roles': [
+        {'title': 'Senior Engineer', 'highlight_ids': ['B1']},
+        {'title': 'Engineer', 'highlight_ids': ['B2']},
+    ]}]})
+    assert [role['highlights'] for role in source.reconstruct(output)['experiences'][0]['roles']] == [
+        ['Shipped the platform.'], ['Built the service.'],
+    ]

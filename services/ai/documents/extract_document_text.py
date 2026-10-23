@@ -1,7 +1,7 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
-Keep DOCX paragraphs and tables in document order, retaining list markers and
-hyperlink labels and targets so the resume parser can use their context.
+Keep DOCX paragraphs and tables in document order, retaining heading and list
+markers plus hyperlink labels and targets so the parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
 """
 
@@ -171,6 +171,9 @@ def _docx_paragraph_text(paragraph: Any) -> str:
         text = f"1. {paragraph.text}"
     elif _docx_paragraph_is_numbered(paragraph):
         text = f"• {paragraph.text}"
+    elif style_name.startswith("heading "):
+        # Keep semantic DOCX headings visible to the source passage selector.
+        text = f"# {paragraph.text}"
     else:
         text = paragraph.text
     markers = [

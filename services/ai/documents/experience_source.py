@@ -63,7 +63,7 @@ _DATE_EXCLUDED_SECTION_HEADINGS = {
 
 def _section_kind(line: str) -> str | None:
     """Tell work history headings from sections whose bullets are not job highlights."""
-    heading = line.strip().rstrip(": ").casefold()
+    heading = re.sub(r"^#{1,6}\s+", "", line.strip()).rstrip(": ").casefold()
     if heading in _EXPERIENCE_HEADINGS:
         return "experience"
     if heading in _SECTION_HEADINGS:
@@ -101,7 +101,7 @@ def _is_resume_boundary(
     text = line.strip()
     if not text:
         return True
-    if _section_kind(text):
+    if _section_kind(text) or re.match(r"^#{1,6}\s+", text):
         return True
     if _SHARED_LIST_HEADER.fullmatch(text):
         return True
@@ -162,7 +162,7 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
             save()
             current_id, current_lines = None, []
             in_experience_section = section == "experience"
-            heading = line.strip().rstrip(": ").casefold()
+            heading = re.sub(r"^#{1,6}\s+", "", line.strip()).rstrip(": ").casefold()
             in_date_excluded_section = heading in _DATE_EXCLUDED_SECTION_HEADINGS
             continue
         if not has_experience_heading and not in_date_excluded_section and (
@@ -206,7 +206,7 @@ class ExperienceSource:
         self._bullets, bullet_lines = _source_bullet_map(resume_text)
         self._bullet_order = {bullet_id: index for index, bullet_id in enumerate(self._bullets)}
         lines = resume_text.splitlines()
-        self._nonempty = [(index, line) for index, line in enumerate(lines) if line.strip()]
+        self._nonempty = [(index, re.sub(r"^#{1,6}\s+", "", line)) for index, line in enumerate(lines) if line.strip()]
         self._bullet_positions = {bullet_id: index for index, bullet_id in bullet_lines.items()}
         self._explicit_shared_ids = set()
         in_shared_list = False
@@ -304,6 +304,31 @@ class ExperienceSource:
                 if previous != entry_index:
                     raise ValueError("Keep roles beneath a single company heading in one experience.")
             bindings.append((entry, anchors))
+        for entry, anchors in bindings:
+            if len(entry.roles) < 2 or len(anchors) != 1:
+                continue
+            employer = next(iter(anchors))
+            next_employer = min(
+                (anchor for _, entry_anchors in bindings for anchor in entry_anchors if anchor > employer),
+                default=len(self.annotated_text.splitlines()),
+            )
+            titles = {normalize_text(role.title) for role in entry.roles}
+            headers = []
+            for index, line in self._nonempty:
+                suffix = _DATE_RANGE_SUFFIX.search(line.strip())
+                if not employer < index < next_employer or not suffix:
+                    continue
+                header = line.strip()[:suffix.start()].rstrip(" ,|–—-(")
+                if normalize_text(header) in titles:
+                    headers.append(index)
+            if len(headers) != len(entry.roles):
+                continue
+            # Bullets between titles positively identify separate role lists.
+            if any(min(headers) < position < max(headers) for position in self._bullet_positions.values()):
+                continue
+            selected = [bullet for role in entry.roles for bullet in role.highlight_ids]
+            if any(self._bullet_positions[bullet] > max(headers) for bullet in selected):
+                raise ValueError("Keep the list after stacked role headings in shared_highlight_ids.")
         for bullet_id in self._explicit_shared_ids:
             source_position = self._bullet_positions[bullet_id]
             for entry, anchors in bindings:

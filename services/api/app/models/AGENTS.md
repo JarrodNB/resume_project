@@ -9,13 +9,15 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
 
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
-  finalized reports are immutable and independent of task outcome.
+  finalized reports are immutable and independent of task outcome. Spoken interview
+  unknown reports may reconcile once to known through `Interviews::RecordUsageService`;
+  known reports remain immutable.
 
 - `user.rb` — account (Devise + Rails sessions); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume
   where blank and copied into tailored resumes. Nullable
   `monthly_ai_budget_microdollars`, `ai_tasks_per_hour_limit`, `max_in_flight_ai_tasks` override
-  the global AI usage limits
+  the general AI usage limits; spoken interviews have separate environment-backed limits
 - `jwt_denylist.rb` — legacy token records retained for migration safety; browser
   authentication no longer accepts JWTs.
 - Career library (source of truth for the user's facts):
@@ -60,3 +62,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - Practice set scopes are immutable `general`, `technical`, or `knowledge`; legacy data defaults to general.
 
 - Interview task types: `generate_interview_questions`, `regenerate_interview_question`, and `review_interview_answer`; Python handlers return structured results, and `InterviewPrep` services apply them through `AiTasks::ApplyAiResultService`.
+
+- `interview_session*` — separate spoken demo sessions, prepared questions, accepted
+  dialogue and durable turn/speech work. Composite foreign keys keep linked records in
+  one interview. Lifecycle policy stays in `Interviews` services. `InterviewExecutionAttempt`
+  and `InterviewProviderAttempt` bind durable execution/provider identities to shared
+  AiUsageAttempt ledger entries; missing reports remain incomplete.

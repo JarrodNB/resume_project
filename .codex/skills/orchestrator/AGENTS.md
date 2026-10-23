@@ -8,6 +8,7 @@ Coordinate Kanban delivery through approved plans, implementation, reviews, and 
 
 - `SKILL.md` — Skill instructions.
 - `agents/` — Codex display metadata.
+- `references/ponytail.md` — Shared, hook-free implementation and review guidance for orchestrator and workflow subagents.
 
 ## Local Rules
 

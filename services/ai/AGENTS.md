@@ -7,22 +7,38 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 
 ## Stack
 
-Python SQS workers (no web framework; ElasticMQ locally), boto3, Pydantic, Pydantic AI
+Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
-retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
+retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
+separate development-only FastAPI runtimes for fake and explicitly enabled real providers. Its lifespan supervises durable
+Rails claims and cleanup; private audio helpers validate sealed capabilities and decode
+audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
 
 ## Local Rules
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
+  Basic Interview is the scoped exception: a separate FastAPI process claims durable
+  operations and returns results through authenticated internal Rails HTTP. Rails still
+  owns every domain write; existing queued features keep their transport and behavior.
+  See docs/architecture/interview-sessions.md for the boundary and staged implementation.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
   analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
   the embeddings; the worker only embeds search queries. Every query is scoped by the task
   message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
-  (`lib/ai_reader_access.rb`); a new table needs a grant there. Uploaded files are read (never written) from the S3 uploads bucket by
+  (`lib/ai_reader_access.rb`); a new table needs a grant there. Queued-task uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.
+- Interview audio uses Rails-issued capabilities through a separate client with no application
+  credentials. Validate exact storage origins, checksum/size and fully decoded duration before
+  provider calls; never rewrite signed URLs or use bucket credentials for interview audio.
 - Receive one message at a time, and delete it only after its result is published. Task
   handlers must be safe to run twice, because SQS can redeliver.
-- **All LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
+- The separate fake interview runtime intentionally disables real provider requests and
+  remote telemetry, even if unrelated provider credentials exist in its environment. Its
+  injected fake classifiers still exercise shared screening and guardrails.
+- **All dialogue/reasoning LLM work uses Pydantic AI agents.** Never call the OpenAI SDK directly.
+  The approved spoken-interview audio exception uses bounded HTTP adapters only for
+  transcription and exact saved-text speech, behind Rails-owned per-dispatch accounting.
+  It does not perform dialogue reasoning. See docs/architecture/interview-provider-accounting.md.
   - One agent per file (`agents/gap_analysis_agent.py`), with a Pydantic model as its `output_type`.
   - Keep related tools together in their domain and register them on the agents that need them.
   - Workers inject per-task context (user ID, retrieved memories) through the agent's `deps`.
@@ -56,10 +72,19 @@ retrieval. Kubernetes health checks use exec probes instead of HTTP endpoints.
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
-  Only career-library field approvals persist across tasks, through final queue results.
+  The spoken-interview runtime is a scoped conversational exception: it reconstructs prior
+  dialogue from authenticated Rails-owned public utterances and screens only the newest
+  candidate message with `screening/conversation.py`. Frozen library field approvals are
+  carried in the private claim and newly checked fields are persisted through its fenced
+  Rails callback before generation. Existing queued features retain their current guard.
+  Only career-library field approvals persist across ordinary tasks, through final queue results.
   Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:
+  - Basic Interview preparation and spoken dialogue are an explicitly scoped first-iteration
+    exception: automated quality datasets, evaluators and LLM judges remain deferred.
+    Verify contracts offline and use bounded representative provider smoke checks; do not
+    report deterministic tests as evidence of interview quality.
   - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
   - Use deterministic evaluators where possible; use LLM-as-judge only for subjective

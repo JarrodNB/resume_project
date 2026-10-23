@@ -89,26 +89,41 @@ async def screen_user_text_async(
     text: str, model: str, timeout_seconds: float, *, check_phrases: bool = False,
     max_characters: int = MAX_SCREENED_TEXT,
     classify: Callable[[str, str, float], Awaitable[Any]],
+    credentials_available: bool | None = None,
+    classify_fallback: Callable[[str, str, float], Awaitable[Any]] | None = None,
 ) -> ScreenOutcome:
     """Apply the same policy without blocking an agent's running event loop.
 
     The classifier is a provider seam, not an approval: every returned decision still
     goes through confidence, fail-closed, cap, cache, and usage processing below.
+    Offline adapters can supply credential availability and a local fallback; defaults
+    preserve the production credential check and remote fallback. These seams never
+    create an allowed decision themselves.
     """
     session = current_session()
     if session is None:
-        return await _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify)
+        return await _drive_async(
+            text, model, timeout_seconds, check_phrases, max_characters, classify,
+            credentials_available, classify_fallback,
+        )
     # The same execution can be used by successive asyncio.run calls. Locks belong to
     # their event loop; completed decisions remain shared across those loops.
     key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases, max_characters))
     lock = session.async_locks.setdefault(key, asyncio.Lock())
     async with lock:
-        return await _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify)
+        return await _drive_async(
+            text, model, timeout_seconds, check_phrases, max_characters, classify,
+            credentials_available, classify_fallback,
+        )
 
 
-async def _drive_async(text, model, timeout_seconds, check_phrases, max_characters, classify):
+async def _drive_async(
+    text, model, timeout_seconds, check_phrases, max_characters, classify,
+    credentials_available, classify_fallback,
+):
     """Drive the common policy after acquiring execution-local source ownership."""
-    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
+                             credentials_available=credentials_available)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
@@ -116,7 +131,9 @@ async def _drive_async(text, model, timeout_seconds, check_phrases, max_characte
                 if fallback:
                     selected = load_settings().user_text_screen_fallback_model
                     with fallback_execution(model, selected, kind="screening"):
-                        run = await screen_fallback_message_async(chunk, selected, timeout)
+                        run = await (classify_fallback or screen_fallback_message_async)(
+                            chunk, selected, timeout,
+                        )
                 else:
                     run = await classify(chunk, model, timeout)
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
@@ -135,6 +152,7 @@ def _screen_key(text, model, check_phrases, max_characters):
 
 def _screen_pass(
     text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
+    *, credentials_available: bool | None = None,
 ) -> Generator[tuple[str, float, bool], Any, ScreenOutcome]:
     """Own one shared policy; sync and async drivers only execute yielded provider work."""
     text = mask_outbound(text)
@@ -145,7 +163,7 @@ def _screen_pass(
         # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
     outcome = yield from _screen_chunks(
-        text, model, timeout_seconds, check_phrases, size, max_characters,
+        text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available,
     )
     if session is not None:
         session.decisions[key] = outcome
@@ -154,7 +172,9 @@ def _screen_pass(
     return outcome
 
 
-def _screen_chunks(text, model, timeout_seconds, check_phrases, size, max_characters):
+def _screen_chunks(
+    text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available=None,
+):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
     if not text.strip():
         return ScreenOutcome(allowed=True)
@@ -162,7 +182,9 @@ def _screen_chunks(text, model, timeout_seconds, check_phrases, size, max_charac
         return ScreenOutcome(allowed=False, too_long=True)
     if check_phrases and has_obvious_instruction_override(text):
         return ScreenOutcome(allowed=False)
-    if not os.environ.get("TYPESAFE_API_KEY", "").strip():
+    available = (os.environ.get("TYPESAFE_API_KEY", "").strip()
+                 if credentials_available is None else credentials_available)
+    if not available:
         logger.warning("TYPESAFE_API_KEY is unset; leaving user text out of the prompt")
         return ScreenOutcome(allowed=False, unchecked=True)
     deadline = monotonic() + timeout_seconds

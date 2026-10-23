@@ -103,6 +103,8 @@ Keep implementation tickets off the overall Kanban board. After breakdown approv
 
 ## Implement with subagents
 
+Explicitly pass the Implementation section of [Ponytail guidance](../orchestrator/references/ponytail.md) to every implementation worker alongside the TDD instructions below, including delegated review fixes. Resolve the reference from this skill's directory and pass an absolute path or the section text; fresh agents do not inherit activation. This shared local adaptation requires no other skill, plugin installation, hooks, or session mode changes.
+
 Implement one ticket at a time, including independent tickets. Do not start or delegate the next ticket until the human explicitly approves the current ticket's reviewed revision. Give the worker a separate worktree and branch based on the current integration head.
 
 Give workers relevant plan/ticket context, repository instructions, acceptance criteria, branch/base/worktree details, and the TDD instructions below. Workers stay within approved scope and their worktree. Require changed files/commits, acceptance outcomes, actual red/green and broader check results, and concerns. Workers must not mutate the integration branch, combined tickets file, board, or PR.
@@ -145,6 +147,8 @@ The coordinator runs each command with the target worktree as the command's work
 After integration and relevant checks, commit the candidate and fix base/head commit IDs. Verify the full diff contains only intended work. Spawn two fresh reviewers concurrently with no inherited conversation (`fork_turns: none` when supported), one for correctness and one for design.
 
 Give each only repository instructions, code access, the same base/head snapshot, useful non-browser check commands, and its review instructions below. Give the design reviewer the deep-module definition above. Do not send the entire workflow skill or delivery context. Explicitly prohibit reading the Kanban item, plan, tickets, acceptance checklist, implementation reports/rationale, PR discussion, commit messages, or the other review. Replace reviewers who already know that context.
+
+Explicitly supply only the Review section of [Ponytail guidance](../orchestrator/references/ponytail.md) to both reviewers as supplementary instructions, including replacement reviewers and later rounds. Preserve the existing two-reviewer structure and review output below. Do not send the implementation section or research doc to blind reviewers.
 
 Reviewers may inspect code, tests, schemas, and established technical documentation. They must not modify source, tests, tickets, or workflow state. Run useful Docker checks without browser automation, using isolated worktrees for test-generated artifacts.
 

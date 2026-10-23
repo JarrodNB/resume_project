@@ -1,0 +1,15 @@
+- name: behavioral
+  question: Tell me about a time you helped a team solve a difficult problem.
+  expected:
+    explanation: Describe a real situation where you worked with others to solve a problem.
+  terms: [situation, others, problem]
+- name: follow-up
+  question: What trade-off did you make?
+  expected:
+    explanation: Explain which competing priorities you balanced and what you chose.
+  terms: [priorities, chose]
+- name: technical-term
+  question: How did you check idempotency?
+  expected:
+    explanation: Explain how you checked that repeating the same operation had the same effect as doing it once.
+  terms: [repeating, once]

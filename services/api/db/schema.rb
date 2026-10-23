@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_23_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -64,10 +64,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
     t.bigint "cost_microdollars", default: 0, null: false
     t.integer "generation", default: 0, null: false
     t.integer "usage_generation", default: -1, null: false
+    t.uuid "hourly_admission_task_id"
+    t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
     t.index ["subject_type", "subject_id"], name: "index_ai_tasks_on_subject"
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -160,6 +163,45 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
     t.index ["user_id"], name: "index_experiences_on_user_id"
   end
 
+  create_table "interview_clarifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "message_id", null: false
+    t.uuid "ai_task_id"
+    t.integer "attempt_count", default: 0, null: false
+    t.datetime "claimed_at"
+    t.datetime "deadline"
+    t.text "explanation"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_interview_clarifications_on_ai_task_id"
+    t.index ["interview_session_id"], name: "index_interview_clarifications_on_interview_session_id"
+    t.index ["message_id"], name: "index_interview_clarifications_on_message_id", unique: true
+    t.check_constraint "attempt_count >= 0 AND attempt_count <= 2 AND (explanation IS NULL OR char_length(explanation) >= 1 AND char_length(explanation) <= 1000)", name: "interview_clarification_bounds"
+  end
+
+  create_table "interview_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "operation_id", null: false
+    t.uuid "attempt_id", null: false
+    t.integer "claim_generation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["attempt_id"], name: "index_interview_execution_attempts_on_attempt_id", unique: true
+    t.index ["operation_id", "claim_generation"], name: "idx_on_operation_id_claim_generation_54803b5c75", unique: true
+    t.index ["operation_id"], name: "index_interview_execution_attempts_on_operation_id"
+  end
+
+  create_table "interview_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "execution_attempt_id", null: false
+    t.uuid "observation_id", null: false
+    t.string "stage", null: false
+    t.string "provider", null: false
+    t.string "model", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["execution_attempt_id"], name: "index_interview_provider_attempts_on_execution_attempt_id"
+    t.index ["observation_id"], name: "index_interview_provider_attempts_on_observation_id", unique: true
+  end
+
   create_table "interview_question_embeddings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "interview_question_id", null: false
     t.text "content", null: false
@@ -183,7 +225,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
     t.index ["user_id", "number"], name: "index_interview_question_sets_on_user_id_and_number", unique: true
     t.index ["user_id"], name: "index_interview_question_sets_on_user_id"
     t.check_constraint "number > 0", name: "interview_set_positive_number"
-    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying, 'technical'::character varying, 'knowledge'::character varying]::text[])", name: "interview_question_sets_valid_set_type"
+    t.check_constraint "set_type::text = ANY (ARRAY['general'::character varying::text, 'technical'::character varying::text, 'knowledge'::character varying::text])", name: "interview_question_sets_valid_set_type"
   end
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -202,6 +244,188 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
+  end
+
+  create_table "interview_session_media", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id"
+    t.uuid "question_id"
+    t.uuid "operation_id"
+    t.uuid "message_id"
+    t.string "kind", null: false
+    t.string "status", default: "reserved", null: false
+    t.string "staging_key"
+    t.string "sealed_key"
+    t.string "content_type", null: false
+    t.bigint "byte_size"
+    t.string "checksum"
+    t.uuid "attempt_id"
+    t.integer "claim_generation"
+    t.datetime "expires_at", null: false
+    t.datetime "deleted_at"
+    t.integer "deletion_attempts", default: 0, null: false
+    t.datetime "next_delete_at"
+    t.string "last_delete_error"
+    t.jsonb "metadata", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_interview_session_media_on_expires_at"
+    t.index ["interview_session_id"], name: "index_interview_session_media_on_interview_session_id"
+    t.index ["message_id"], name: "index_interview_session_media_on_message_id"
+    t.index ["operation_id", "attempt_id"], name: "index_interview_session_media_on_operation_id_and_attempt_id", unique: true, where: "((kind)::text = 'speech'::text)"
+    t.index ["operation_id"], name: "index_interview_session_media_on_operation_id"
+    t.index ["question_id"], name: "index_interview_session_media_on_question_id"
+    t.index ["sealed_key"], name: "index_interview_session_media_on_sealed_key", unique: true
+    t.index ["staging_key"], name: "index_interview_session_media_on_staging_key", unique: true
+    t.check_constraint "byte_size IS NULL OR byte_size > 0", name: "interview_media_bytes"
+    t.check_constraint "deletion_attempts >= 0", name: "interview_media_deletions"
+    t.check_constraint "interview_session_id IS NOT NULL AND question_id IS NOT NULL AND (kind::text = 'recording'::text OR kind::text = 'speech'::text AND operation_id IS NOT NULL AND message_id IS NOT NULL AND attempt_id IS NOT NULL AND claim_generation IS NOT NULL) OR interview_session_id IS NULL AND question_id IS NULL AND operation_id IS NULL AND message_id IS NULL AND attempt_id IS NULL AND claim_generation IS NULL AND (status::text = ANY (ARRAY['delete_pending'::character varying, 'deleted'::character varying]::text[])) AND metadata = '{}'::jsonb AND checksum IS NULL AND byte_size IS NULL AND (staging_key IS NOT NULL OR sealed_key IS NOT NULL)", name: "interview_media_identity"
+    t.check_constraint "kind::text = ANY (ARRAY['recording'::character varying, 'speech'::character varying]::text[])", name: "interview_media_kind"
+    t.check_constraint "status::text = ANY (ARRAY['reserved'::character varying, 'ready'::character varying, 'delete_pending'::character varying, 'deleted'::character varying]::text[])", name: "interview_media_status"
+  end
+
+  create_table "interview_session_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "question_id", null: false
+    t.integer "position", null: false
+    t.string "kind", null: false
+    t.string "semantic_key", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "acknowledgement"
+    t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_fb18f0ea41", unique: true
+    t.index ["interview_session_id", "question_id", "id"], name: "interview_session_message_owner_identity", unique: true
+    t.index ["interview_session_id", "semantic_key"], name: "idx_on_interview_session_id_semantic_key_fd3956ac09", unique: true
+    t.index ["interview_session_id"], name: "index_interview_session_messages_on_interview_session_id"
+    t.index ["question_id"], name: "index_interview_session_messages_on_question_id"
+    t.index ["question_id"], name: "interview_session_one_opening_per_question", unique: true, where: "((kind)::text = 'opening'::text)"
+    t.check_constraint "\"position\" >= 0 AND (kind::text = ANY (ARRAY['opening'::character varying, 'answer'::character varying, 'follow_up'::character varying, 'closing'::character varying]::text[]))", name: "interview_session_message_kind"
+    t.check_constraint "acknowledgement IS NULL OR kind::text <> 'answer'::text AND char_length(acknowledgement) >= 1 AND char_length(acknowledgement) <= 280 AND btrim(acknowledgement) <> ''::text", name: "interview_message_acknowledgement"
+  end
+
+  create_table "interview_session_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "question_id"
+    t.uuid "message_id"
+    t.string "kind", null: false
+    t.string "status", default: "pending", null: false
+    t.string "submission_key"
+    t.string "request_fingerprint"
+    t.uuid "recording_id"
+    t.integer "expected_revision"
+    t.integer "claim_generation", default: 0, null: false
+    t.uuid "attempt_id"
+    t.datetime "lease_expires_at"
+    t.datetime "execution_deadline"
+    t.string "result_fingerprint"
+    t.jsonb "accepted_result", default: {}, null: false
+    t.datetime "accepted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.uuid "ai_task_id"
+    t.integer "execution_count", default: 0, null: false
+    t.integer "cycle_execution_count", default: 0, null: false
+    t.datetime "retry_at"
+    t.datetime "retry_expires_at"
+    t.string "failure_code"
+    t.string "checkpoint"
+    t.text "candidate_transcript"
+    t.string "transcription_mode", default: "recorded", null: false
+    t.index ["ai_task_id"], name: "interview_operation_unique_task", unique: true
+    t.index ["interview_session_id", "question_id", "id"], name: "interview_operation_media_identity", unique: true
+    t.index ["interview_session_id", "submission_key"], name: "interview_session_submission_identity", unique: true, where: "((kind)::text = 'turn'::text)"
+    t.index ["interview_session_id"], name: "index_interview_session_operations_on_interview_session_id"
+    t.index ["interview_session_id"], name: "interview_one_preparation", unique: true, where: "((kind)::text = 'preparation'::text)"
+    t.index ["interview_session_id"], name: "interview_session_one_active_turn", unique: true, where: "(((kind)::text = 'turn'::text) AND ((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[])))"
+    t.index ["message_id"], name: "index_interview_session_operations_on_message_id"
+    t.index ["message_id"], name: "interview_session_one_speech_per_message", unique: true, where: "((kind)::text = 'speech'::text)"
+    t.index ["question_id"], name: "index_interview_session_operations_on_question_id"
+    t.index ["recording_id"], name: "interview_one_recorded_transcription", unique: true, where: "((kind)::text = 'transcription'::text)"
+    t.check_constraint "(kind::text = ANY (ARRAY['preparation'::character varying, 'turn'::character varying, 'speech'::character varying, 'transcription'::character varying]::text[])) AND (status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying, 'expired'::character varying]::text[])) AND claim_generation >= 0", name: "interview_session_operation_states"
+    t.check_constraint "candidate_transcript IS NULL OR char_length(candidate_transcript) >= 1 AND char_length(candidate_transcript) <= 4000 AND transcription_mode::text <> 'recorded'::text", name: "interview_operation_candidate_transcript"
+    t.check_constraint "execution_count >= 0 AND execution_count <= 6 AND cycle_execution_count >= 0 AND cycle_execution_count <= 3", name: "interview_operation_execution_caps"
+    t.check_constraint "kind::text = 'preparation'::text AND question_id IS NULL AND message_id IS NULL AND recording_id IS NULL AND submission_key IS NULL OR kind::text = 'turn'::text AND question_id IS NOT NULL AND submission_key IS NOT NULL AND request_fingerprint IS NOT NULL AND (recording_id IS NOT NULL OR transcription_mode::text = 'typed'::text) AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL OR kind::text = 'speech'::text AND question_id IS NOT NULL AND message_id IS NOT NULL AND submission_key IS NULL OR kind::text = 'transcription'::text AND question_id IS NOT NULL AND recording_id IS NOT NULL AND expected_revision IS NOT NULL AND expected_revision >= 0 AND message_id IS NULL AND submission_key IS NULL", name: "interview_session_operation_inputs"
+    t.check_constraint "status::text <> 'accepted'::text OR accepted_at IS NOT NULL AND result_fingerprint IS NOT NULL", name: "interview_session_operation_accepted_result"
+    t.check_constraint "status::text <> 'running'::text OR claim_generation > 0 AND attempt_id IS NOT NULL AND lease_expires_at IS NOT NULL AND execution_deadline IS NOT NULL", name: "interview_session_operation_claim"
+    t.check_constraint "transcription_mode::text = ANY (ARRAY['recorded'::character varying, 'browser'::character varying, 'streaming'::character varying, 'typed'::character varying]::text[])", name: "interview_operation_transcription_mode"
+  end
+
+  create_table "interview_session_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.integer "position", null: false
+    t.text "content", null: false
+    t.integer "accepted_answer_count", default: 0, null: false
+    t.integer "history_version", default: 1, null: false
+    t.jsonb "model_history", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "question_type", default: "behavioral", null: false
+    t.datetime "skipped_at"
+    t.string "skip_submission_key"
+    t.integer "skip_expected_revision"
+    t.index ["interview_session_id", "id"], name: "interview_session_question_owner_identity", unique: true
+    t.index ["interview_session_id", "position"], name: "idx_on_interview_session_id_position_ef5940a581", unique: true
+    t.index ["interview_session_id", "skip_submission_key"], name: "interview_question_skip_identity", unique: true
+    t.index ["interview_session_id"], name: "index_interview_session_questions_on_interview_session_id"
+    t.check_constraint "\"position\" >= 0 AND accepted_answer_count >= 0 AND accepted_answer_count <= 3 AND history_version > 0", name: "interview_session_question_counters"
+    t.check_constraint "jsonb_typeof(model_history) = 'array'::text", name: "interview_session_question_history_array"
+    t.check_constraint "question_type::text = ANY (ARRAY['behavioral'::character varying, 'technical'::character varying, 'knowledge'::character varying, 'screening'::character varying]::text[])", name: "interview_question_type"
+  end
+
+  create_table "interview_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "status", default: "active", null: false
+    t.string "interview_type", default: "basic", null: false
+    t.integer "revision", default: 0, null: false
+    t.integer "current_question_position", default: 0, null: false
+    t.integer "answer_cap", default: 2, null: false
+    t.jsonb "fixture_context", default: {}, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.datetime "content_purged_at"
+    t.string "execution_mode", default: "fake", null: false
+    t.jsonb "execution_config", default: {"voice" => "espeak", "speech_model" => "fake-speech-v1", "interviewer_model" => "fake-interviewer-v1", "transcription_model" => "fake-transcription-v1"}, null: false
+    t.jsonb "frozen_context", default: {}, null: false
+    t.jsonb "prepared_role", default: {}, null: false
+    t.jsonb "setup_config", default: {}, null: false
+    t.index ["user_id"], name: "index_interview_sessions_on_user_id"
+    t.check_constraint "execution_mode::text = 'fake'::text AND execution_config = '{\"voice\": \"espeak\", \"speech_model\": \"fake-speech-v1\", \"interviewer_model\": \"fake-interviewer-v1\", \"transcription_model\": \"fake-transcription-v1\"}'::jsonb OR execution_mode::text = 'real'::text AND execution_config = '{\"voice\": \"marin\", \"speech_model\": \"gpt-4o-mini-tts\", \"interviewer_model\": \"gpt-6-luna\", \"transcription_model\": \"gpt-transcribe\"}'::jsonb", name: "interview_execution_configuration"
+    t.check_constraint "interview_type::text = 'basic'::text", name: "interview_session_type"
+    t.check_constraint "revision >= 0 AND current_question_position >= 0 AND answer_cap >= 1 AND answer_cap <= 3", name: "interview_session_counters"
+    t.check_constraint "status::text = ANY (ARRAY['preparing'::character varying, 'ready'::character varying, 'active'::character varying, 'completed'::character varying, 'expired'::character varying, 'abandoned'::character varying]::text[])", name: "interview_session_status"
+  end
+
+  create_table "interview_transcription_captures", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "question_id", null: false
+    t.uuid "ai_task_id"
+    t.integer "expected_revision", null: false
+    t.string "status", default: "authorized", null: false
+    t.string "token_digest", null: false
+    t.uuid "observation_id", null: false
+    t.datetime "expires_at", null: false
+    t.text "transcript"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_interview_transcription_captures_on_ai_task_id"
+    t.index ["interview_session_id"], name: "index_interview_transcription_captures_on_interview_session_id"
+    t.index ["observation_id"], name: "index_interview_transcription_captures_on_observation_id", unique: true
+    t.index ["question_id"], name: "index_interview_transcription_captures_on_question_id"
+    t.index ["token_digest"], name: "index_interview_transcription_captures_on_token_digest", unique: true
+    t.check_constraint "expected_revision >= 0 AND (transcript IS NULL OR char_length(transcript) <= 4000)", name: "interview_capture_limits"
+    t.check_constraint "status::text = ANY (ARRAY['authorized'::character varying, 'streaming'::character varying, 'completed'::character varying, 'failed'::character varying]::text[])", name: "interview_capture_status"
+  end
+
+  create_table "interview_verification_reservations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "observation_id", null: false
+    t.bigint "reserved_microdollars", null: false
+    t.bigint "actual_microdollars"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["observation_id"], name: "index_interview_verification_reservations_on_observation_id", unique: true
+    t.check_constraint "reserved_microdollars > 0 AND (actual_microdollars IS NULL OR actual_microdollars >= 0)", name: "interview_verification_nonnegative_costs"
   end
 
   create_table "job_board_listings", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -379,6 +603,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "certifications", "users"
@@ -387,9 +612,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_23_020000) do
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experience_roles", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
+  add_foreign_key "interview_clarifications", "ai_tasks", on_delete: :nullify
+  add_foreign_key "interview_clarifications", "interview_session_messages", column: "message_id"
+  add_foreign_key "interview_clarifications", "interview_sessions"
+  add_foreign_key "interview_execution_attempts", "interview_session_operations", column: "operation_id", on_delete: :cascade
+  add_foreign_key "interview_provider_attempts", "interview_execution_attempts", column: "execution_attempt_id", on_delete: :cascade
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"
   add_foreign_key "interview_questions", "interview_question_sets"
+  add_foreign_key "interview_session_media", "interview_session_messages", column: "message_id"
+  add_foreign_key "interview_session_media", "interview_session_messages", column: ["interview_session_id", "question_id", "message_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_media_owned_message"
+  add_foreign_key "interview_session_media", "interview_session_operations", column: "operation_id"
+  add_foreign_key "interview_session_media", "interview_session_operations", column: ["interview_session_id", "question_id", "operation_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_media_owned_operation"
+  add_foreign_key "interview_session_media", "interview_session_questions", column: "question_id"
+  add_foreign_key "interview_session_media", "interview_session_questions", column: ["interview_session_id", "question_id"], primary_key: ["interview_session_id", "id"], name: "interview_media_owned_question"
+  add_foreign_key "interview_session_media", "interview_sessions"
+  add_foreign_key "interview_session_messages", "interview_session_questions", column: "question_id", on_delete: :cascade
+  add_foreign_key "interview_session_messages", "interview_session_questions", column: ["interview_session_id", "question_id"], primary_key: ["interview_session_id", "id"], name: "interview_session_message_owned_question", on_delete: :cascade
+  add_foreign_key "interview_session_messages", "interview_sessions", on_delete: :cascade
+  add_foreign_key "interview_session_operations", "ai_tasks", on_delete: :nullify
+  add_foreign_key "interview_session_operations", "interview_session_messages", column: "message_id", on_delete: :cascade
+  add_foreign_key "interview_session_operations", "interview_session_messages", column: ["interview_session_id", "question_id", "message_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_session_operation_owned_message", on_delete: :cascade
+  add_foreign_key "interview_session_operations", "interview_session_questions", column: "question_id", on_delete: :cascade
+  add_foreign_key "interview_session_operations", "interview_session_questions", column: ["interview_session_id", "question_id"], primary_key: ["interview_session_id", "id"], name: "interview_session_operation_owned_question", on_delete: :cascade
+  add_foreign_key "interview_session_operations", "interview_sessions", on_delete: :cascade
+  add_foreign_key "interview_session_questions", "interview_sessions", on_delete: :cascade
+  add_foreign_key "interview_sessions", "users"
+  add_foreign_key "interview_transcription_captures", "ai_tasks"
+  add_foreign_key "interview_transcription_captures", "interview_session_questions", column: "question_id"
+  add_foreign_key "interview_transcription_captures", "interview_sessions"
   add_foreign_key "job_gap_responses", "jobs"
   add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
   add_foreign_key "jobs", "job_board_listings", on_delete: :nullify

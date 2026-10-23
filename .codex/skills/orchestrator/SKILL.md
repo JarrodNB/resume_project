@@ -48,6 +48,7 @@ For a research-only item, read and use `research`. Give its background agent the
 
 ## Implement with subagents
 
+- Explicitly pass the Implementation section of [Ponytail guidance](references/ponytail.md) to every implementation worker alongside `tdd`, including delegated review fixes. Resolve the reference from this skill's directory and pass an absolute path or the section text; do not assume parent activation reaches a fresh agent. Use this local adaptation without installing the plugin or enabling hooks.
 - Delegate approved tickets to implementation subagents with relevant plan/ticket context, repository instructions, acceptance criteria, branch/base context, and the local `tdd` skill. Give artifact paths as read-only context and require changed files/commits, red/green evidence, actual check results, and concerns; the orchestrator alone records progress in the primary checkout.
 - Run tickets concurrently only when blockers are integrated and verified. Independent dependencies do not guarantee conflict-free writes: use separate worktrees for concurrent writers, or serialize if isolation is unavailable. Assign each worker its own worktree/branch. Workers must not mutate the shared integration branch, board, or PR.
 - Integrate completed ticket commits sequentially. Inspect changes and check acceptance criteria on the integration branch before marking implemented and releasing dependents. Resolve conflicts without discarding unrelated work.
@@ -64,7 +65,7 @@ For a research-only item, read and use `research`. Give its background agent the
 ## Two blind reviews
 
 1. After integration and relevant checks, fix the candidate base/head commits and verify the diff contains only intended work. Both reviewers assess this same snapshot.
-2. Spawn two fresh reviewers concurrently with no inherited conversation (`fork_turns: none` when supported). Give one `review-correctness`, the other `review-design`, plus repository instructions, code access, base/head refs, and useful non-browser check commands.
+2. Spawn two fresh reviewers concurrently with no inherited conversation (`fork_turns: none` when supported). Give one `review-correctness`, the other `review-design`, plus repository instructions, code access, base/head refs, and useful non-browser check commands. Explicitly supply only the Review section of [Ponytail guidance](references/ponytail.md) as supplementary instructions to both, including replacement reviewers and later rounds. Keep the existing two-reviewer structure and each review skill's output format.
 3. Do not provide the Kanban item, plan, tickets, acceptance checklist, implementation rationale, agent reports, or the other review. Instruct reviewers not to read these artifacts, PR discussion, or commit messages. Code, tests, schemas, and established technical documentation are available. Use read-only source access or isolated worktrees for test-generated files.
 4. Separately check every acceptance criterion; blind review does not establish requirements completion.
 5. Validate findings. Implement supported in-scope fixes as the orchestrator, using TDD for behavior changes. Document dismissals with evidence and rerun affected checks.

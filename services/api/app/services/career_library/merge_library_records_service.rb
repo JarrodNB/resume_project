@@ -23,9 +23,10 @@ module CareerLibrary
       error = mismatch_error
       return failure([ error ]) if error
 
-      return Experiences::MergeExperiencesService.call(target: @target, source: @source) if @target.is_a?(Experience)
+      @target.user.with_lock do
+        return Experiences::MergeExperiencesService.call(target: @target, source: @source) if @target.is_a?(Experience)
 
-      ActiveRecord::Base.transaction do
+        [ @target, @source ].select(&:persisted?).sort_by(&:id).each(&:lock!)
         fill_blank_fields
         RecordScreeningService.discard_changed_fields(record: @target)
         @target.save!

@@ -7,20 +7,40 @@ Shared controls for provider calls, user text, telemetry, and spending. Attempt-
 ## Usage Limits
 
 LLM calls cost money, so each user has limits, checked by `AiUsage::CheckAiTaskAllowanceService`
-before a task is queued (under a lock on the user row, so concurrent requests can't both pass):
+before a task is queued (under a lock on the user row, so concurrent requests can't both pass).
+General AI limits exclude spoken interview preparation, turns and speech:
 
-- **Monthly budget** (default $2.00, `AI_MONTHLY_BUDGET_USD`): the sum of `ai_tasks.cost_microdollars`
-  for tasks created this calendar month (UTC). The worker estimates each request's cost from its
+- **Monthly budget** (fallback $3.00, `AI_MONTHLY_BUDGET_USD`): the sum of `ai_tasks.cost_microdollars`
+  for general AI tasks created this calendar month (UTC). The worker estimates each request's cost from its
   token usage and a per-model price table (`services/ai/worker/model_prices.py`) and reports it
   with attempt reports, including unsuccessful attempts. Missing provider usage or prices
   makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
-- **Tasks per hour** (default 10, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
-- **Tasks in flight** (default 2, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
+- **Tasks per hour** (fallback 30, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.
+- **Tasks in flight** (fallback 3, `AI_MAX_IN_FLIGHT_TASKS`): `queued` tasks from the last 15
   minutes (older ones are treated as stuck). Tasks waiting on the user's answer don't count.
 
-Nullable columns on `users` override each default. The existing `me { aiUsage }` query exposes
-known monthly spend. The backend monthly summary also retains the incomplete-attempt count;
+Nullable columns on `users` override each general AI default. The existing API `.env.example`
+explicitly configures $2/month, 10 tasks/hour and two in-flight tasks; those example values
+are overrides of the fallback defaults above, and are unchanged. The existing `me { aiUsage }` query exposes
+known general AI monthly spend. Spoken interview bills and incomplete markers are excluded
+from that summary. The backend monthly summary also retains the incomplete-attempt count;
 no new user-facing spend display or usage subscription is added.
+
+Spoken interviews have an independent per-user allowance: $3/month
+(`INTERVIEW_MONTHLY_BUDGET_USD`), 30 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
+three concurrent operations (`INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`). General tasks and general
+per-user overrides do not consume or change those allowances. Written interview question
+practice remains general AI. Every spoken stage still has its own durable cost and unknown
+usage records; only its session's hourly admission is shared. Legacy fixture operations also
+use the interview bucket, retaining their existing individual hourly admissions. See
+[spoken session accounting](interview-sessions.md#http-execution-accounting). The retained
+paid verification database has an additional global allowance/unknown-receipt stop independent
+of both per-user buckets; separating allowances does not clear that stop.
+
+The real browser-QA overlay opts into `INTERVIEW_LOCAL_TESTING_UNMETERED=true`. Only
+development honors this mode: spoken-interview monthly/hourly and verification spend/unknown
+gates are skipped, while cost records, concurrency, execution limits and all general AI
+admission stay intact. It does not forgive, erase or assign zero to unknown costs.
 
 Separately, Rack::Attack throttles requests (`config/initializers/rack_attack.rb`): sign-in by
 IP and by email, sign-up and session bootstrap by IP, and `/graphql` by persisted-session user and by IP. Throttled

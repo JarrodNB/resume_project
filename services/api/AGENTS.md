@@ -56,8 +56,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   (also used for WebSocket origins in `config/application.rb`)
 - `config/initializers/shoryuken.rb` — SQS client (ElasticMQ locally), queue name constants
 - `config/shoryuken.yml` — Shoryuken process config (queues it consumes, concurrency)
-- `config/initializers/ai_usage_limits.rb` — default per-user AI limits (monthly budget, tasks
-  per hour, tasks in flight) from ENV
+- `config/initializers/ai_usage_limits.rb` — independent general AI and spoken-interview
+  limits (monthly budget, hourly starts, in-flight work) from ENV
 - `config/initializers/text_limits.rb` — character and count caps for user-written text
   (`TextLimits`) and `MaxRequestBody` (JSON 413 over 8 MB, including a body with no
   Content-Length). The AI worker repeats the caps it
@@ -92,6 +92,11 @@ calls, run `docker compose restart api-results-worker`.
 Uploads use Active Storage on the `amazon` service (`config/storage.yml`): S3Mock in
 development (`S3_ENDPOINT_URL`, `S3_UPLOADS_BUCKET` from docker compose), local disk in tests.
 Production still points at `:local` and must switch to `:amazon` at deploy time.
+
+Spoken interview media uses `Interviews::MediaStorage` directly in a private S3 namespace,
+outside Active Storage signed routes. Rails seals staged bytes and grants brief object-only
+URLs. Browser URLs use `INTERVIEW_BROWSER_STORAGE_ORIGIN`; executor URLs use
+`S3_ENDPOINT_URL`. Local S3Mock storage is persistent; Rails cleanup owns retention.
 
 Every service that changes career library text must enqueue
 `CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(user_id)` (it runs after commit, and an

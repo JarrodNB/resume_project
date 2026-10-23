@@ -1,3 +1,4 @@
+# Locks the owner before the import task so blank-profile checks see current values and approvals.
 # Description: Imports a parsed resume (as reviewed and edited by the user) into the career
 # library and fills blank profile fields (contact, summary). Experiences, projects, and
 # educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
@@ -30,14 +31,16 @@ module ResumeImports
       return shape unless shape.success?
 
       @parsed_resume = shape.value
-      @ai_task.with_lock do
-        if @ai_task.accepted?
-          failure([ "This resume has already been imported" ])
-        else
-          import_everything
-          @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
-          CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
-          success(@ai_task)
+      @user.with_lock do
+        @ai_task.with_lock do
+          if @ai_task.accepted?
+            failure([ "This resume has already been imported" ])
+          else
+            import_everything
+            @ai_task.update!(accepted_at: Time.current, result: (@ai_task.result || {}).merge("import_summary" => @summary))
+            CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)
+            success(@ai_task)
+          end
         end
       end
     rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotSaved => error

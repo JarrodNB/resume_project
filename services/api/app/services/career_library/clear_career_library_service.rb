@@ -1,3 +1,4 @@
+# Reloads the owner before clearing so concurrent summary approvals are invalidated atomically.
 # Description: Empties one user's career library so a later resume import starts fresh.
 # Removes roles (and their bullets), projects, education, certifications, skills, and facts, and clears the
 # profile fields an import fills (name, contact, links, summary). The sign-in email, saved
@@ -17,7 +18,7 @@ module CareerLibrary
     # Deletes every library entry and clears the import-filled profile fields.
     def call
       removed_entries = false
-      ActiveRecord::Base.transaction do
+      @user.with_lock do
         removed_entries = delete_entries
         clear_profile
       end

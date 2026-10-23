@@ -14,7 +14,8 @@ module CareerLibrary
       "LibraryFact" => %w[requirement response]
     }.freeze
 
-    # Call after assigning edits and before saving; unchanged fields keep their checks.
+    # Call under the record row lock after assigning edits and before saving.
+    # Reload before assignment so concurrent approvals of old text are invalidated.
     def self.discard_changed_fields(record:)
       changed = record.changed & FIELDS.fetch(record.class.name)
       record.screened_fields -= changed

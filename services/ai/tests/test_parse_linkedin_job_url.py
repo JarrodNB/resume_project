@@ -42,6 +42,9 @@ def test_parses_supported_url_forms(url: str, job_id: str) -> None:
         "ftp://www.linkedin.com/jobs/view/1",
         "www.linkedin.com/jobs/view/1",
         "https://linkedin.com.evil.com/jobs/view/1",
+        "https://www.linkedin.com/jobs/view/１２３",
+        "https://www.linkedin.com/jobs/search/?currentJobId=²",
+        "https://www.linkedin.com/jobs/search/?currentJobId=١٢٣",
     ],
 )
 def test_rejects_urls_that_are_not_one_job(url: str) -> None:

@@ -1,14 +1,15 @@
 """Read a job ID from a copied LinkedIn link and build its canonical URL.
 
 Malformed URLs are rejected just like unsupported links, so pasted input does
-not interrupt scraper selection or job ID parsing.
+not interrupt scraper selection or job ID parsing. Job IDs use ASCII digits,
+matching the Rails URL boundary and the guest posting endpoint.
 """
 
 import re
 from urllib.parse import parse_qs, urlparse
 
 LINKEDIN_HOST = "linkedin.com"
-JOB_VIEW_PATH = re.compile(r"^/(?:comm/)?jobs/view/(?:[^/]*-)?(?P<job_id>\d+)/?$")
+JOB_VIEW_PATH = re.compile(r"^/(?:comm/)?jobs/view/(?:[^/]*-)?(?P<job_id>[0-9]+)/?$")
 JOBS_PATH_PREFIX = "/jobs/"
 SELECTED_JOB_PARAM = "currentJobId"
 
@@ -34,7 +35,7 @@ def parse_linkedin_job_id(url: str) -> str | None:
 
     if parsed_url.path.startswith(JOBS_PATH_PREFIX):
         selected_job_id = parse_qs(parsed_url.query).get(SELECTED_JOB_PARAM, [""])[0]
-        if selected_job_id.isdigit():
+        if selected_job_id.isascii() and selected_job_id.isdigit():
             return selected_job_id
     return None
 

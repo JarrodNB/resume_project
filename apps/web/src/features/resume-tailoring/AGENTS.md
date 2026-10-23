@@ -36,7 +36,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `tailorDraft.ts` — section JSON to and from the review-field draft
 - `parseTailorTask.ts` — completed draft sections and warnings
 - `tailorOperations.ts` — job query and start / save / update mutations
-- `useResumeTailoring.ts` — load, start when needed, follow `aiTaskUpdated`, and retry failures
+- `useResumeTailoring.ts` — load, explicitly start with a target, follow `aiTaskUpdated`, and retry failures
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
 - `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
@@ -47,11 +47,15 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 
 ## Local Rules
 
+- Fresh tailoring shows a native 1-page/2-page choice (default 2) and explicit Tailor resume action.
+  Starting is guarded while pending; generated drafts and saved editors display their fixed target.
 - Reload reads `Job.latestTailoring`; live status and completed results come from
   `aiTaskUpdated`. There is no token streaming or per-section approval flow.
 - An accepted task without a saved resume is history. A new tailor-page visit starts a
-  fresh task; removing a saved resume during the current visit never starts one or restores
+  setup form; only clicking Tailor resume starts fresh work. Removing a saved resume during the current visit never starts one or restores
   the old draft, even when the cached task still lacks its accepted timestamp.
+- Restored drafts use their task-input target, with legacy tasks treated as 2 pages.
+  Failure retries keep that target; the server resolves duplicate starts to the original draft.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current included draft, including unsaved edits.
 - Excluded sections keep their edits and can be restored before saving. Empty selection

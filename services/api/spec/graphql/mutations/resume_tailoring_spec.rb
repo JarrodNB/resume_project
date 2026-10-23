@@ -27,6 +27,31 @@ RSpec.describe "Resume tailoring mutations" do
     )
   end
 
+  it "exposes the chosen target in task input and the saved resume" do
+    query = <<~GQL
+      mutation($jobId: ID!) {
+        startResumeTailoring(input: { jobId: $jobId, targetPageCount: 1 }) { aiTask { id input } errors }
+      }
+    GQL
+    result = execute_graphql(query, user: user, variables: { jobId: job.id })
+    expect(result["errors"]).to be_nil
+    payload = result.dig("data", "startResumeTailoring")
+    expect(payload["errors"]).to eq([])
+    expect(payload.dig("aiTask", "input", "target_page_count")).to eq(1)
+    task = user.ai_tasks.find(payload.dig("aiTask", "id"))
+    task.update!(status: "completed", result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Draft" } } ] })
+    saved = execute_graphql('mutation($id: ID!) { saveTailoredResume(input: { aiTaskId: $id }) { resume { targetPageCount } errors } }', user: user, variables: { id: task.id })
+    expect(saved.dig("data", "saveTailoredResume")).to eq("resume" => { "targetPageCount" => 1 }, "errors" => [])
+  end
+
+  it "rejects an invalid page target without enqueueing" do
+    query = 'mutation($jobId: ID!) { startResumeTailoring(input: { jobId: $jobId, targetPageCount: 3 }) { aiTask { id } errors } }'
+    result = execute_graphql(query, user: user, variables: { jobId: job.id })
+
+    expect(result.dig("data", "startResumeTailoring")).to eq("aiTask" => nil, "errors" => [ "Choose 1 or 2 pages." ])
+    expect(queue).not_to have_received(:send_message)
+  end
+
   it "startResumeTailoring can't start another user's job" do
     query = <<~GQL
       mutation($jobId: ID!) { startResumeTailoring(input: { jobId: $jobId }) { aiTask { id } errors } }

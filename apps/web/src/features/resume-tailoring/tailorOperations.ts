@@ -12,6 +12,7 @@ export const TAILOR_JOB_QUERY = graphql(`
       resume {
         id
         title
+        targetPageCount
         sections {
           id
           sectionType
@@ -24,6 +25,7 @@ export const TAILOR_JOB_QUERY = graphql(`
         id
         status
         acceptedAt
+        input
         result
         errorMessage
       }
@@ -32,11 +34,12 @@ export const TAILOR_JOB_QUERY = graphql(`
 `)
 
 export const START_RESUME_TAILORING_MUTATION = graphql(`
-  mutation StartResumeTailoring($jobId: ID!) {
-    startResumeTailoring(input: { jobId: $jobId }) {
+  mutation StartResumeTailoring($jobId: ID!, $targetPageCount: Int!) {
+    startResumeTailoring(input: { jobId: $jobId, targetPageCount: $targetPageCount }) {
       aiTask {
         id
         status
+        input
       }
       errors
     }

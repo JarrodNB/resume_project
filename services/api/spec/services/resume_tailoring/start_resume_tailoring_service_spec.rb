@@ -20,11 +20,28 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     task = result.value
     expect(task).to be_tailor_resume.and be_queued
     expect(task.subject).to eq(job)
-    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
+    expect(task.input["target_page_count"]).to eq(2)
+    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses", "target_page_count")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
     expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
     expect(queue).to have_received(:send_message)
+  end
+
+  it "snapshots a one-page target" do
+    result = described_class.call(user: user, job: job, target_page_count: 1)
+
+    expect(result).to be_success
+    expect(result.value.input["target_page_count"]).to eq(1)
+  end
+
+  it "rejects invalid targets before creating or publishing work" do
+    [ 0, 3, nil, true, "1", 1.5 ].each do |target|
+      result = described_class.call(user: user, job: job, target_page_count: target)
+      expect(result.errors).to eq([ "Choose 1 or 2 pages." ])
+    end
+    expect(job.ai_tasks.tailor_resume).to be_empty
+    expect(queue).not_to have_received(:send_message)
   end
 
   it "queues a tailor task when no comparison has finished" do
@@ -44,6 +61,27 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
 
     expect(result.value).to eq(existing)
     expect(queue).not_to have_received(:send_message)
+  end
+
+  it "restores the original target when another target is requested" do
+    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", input: { "target_page_count" => 1 })
+
+    result = described_class.call(user: user, job: job, target_page_count: 2)
+
+    expect(result.value).to eq(existing)
+    expect(result.value.input["target_page_count"]).to eq(1)
+    expect(queue).not_to have_received(:send_message)
+  end
+
+  it "retains the failed draft's target on retry even if another was supplied" do
+    failed = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "failed", input: { "target_page_count" => 1 })
+
+    result = described_class.call(user: user, job: job, target_page_count: 2)
+
+    expect(result).to be_success
+    expect(result.value.id).not_to eq(failed.id)
+    expect(result.value.input["target_page_count"]).to eq(1)
+    expect(queue).to have_received(:send_message).once
   end
 
   it "returns an in-flight queued draft after reloading the page" do

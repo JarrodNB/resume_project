@@ -25,6 +25,20 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     expect(ai_task.reload).to be_accepted
   end
 
+  it "saves the trusted task target rather than a client section field" do
+    ai_task.update!(input: { "target_page_count" => 1 })
+    sections[0]["target_page_count"] = 2
+
+    result = described_class.call(ai_task: ai_task, sections: sections)
+
+    expect(result).to be_success
+    expect(result.value.target_page_count).to eq(1)
+  end
+
+  it "defaults legacy tasks to two pages" do
+    expect(described_class.call(ai_task: ai_task).value.target_page_count).to eq(2)
+  end
+
   it "rejects an explicit empty selection without saving the original draft" do
     ai_task
 

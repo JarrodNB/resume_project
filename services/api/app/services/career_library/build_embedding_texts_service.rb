@@ -29,13 +29,6 @@ module CareerLibrary
     # Keep stable Experience/ExperienceHighlight IDs while preserving bullet ownership.
     def experience_entries(experience)
       roles = experience.roles.to_a
-      # Old unconverted records retain their compatibility text until migration cleanup.
-      if roles.empty?
-        legacy_role = "#{experience.title} at #{experience.company}"
-        heading = [ legacy_role, parenthesized(experience.location) ].compact.join(" ")
-        return [ entry(experience, with_details(heading, experience.description)) ] +
-          experience.highlights.map { |highlight| entry(highlight, "#{legacy_role}: #{highlight.content}") }
-      end
 
       heading = [ experience.company, parenthesized(experience.location) ].compact.join(" ")
       role_texts = roles.map { |role| with_details(role_context(role, experience.company), role.description) }

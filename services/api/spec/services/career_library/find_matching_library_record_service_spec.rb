@@ -12,7 +12,7 @@ RSpec.describe CareerLibrary::FindMatchingLibraryRecordService do
     existing = create(:experience, user: user, company: "Acme Corp", title: "Software Engineer")
     other = create(:experience, user: user, company: "Acme Corp", title: "Manager")
 
-    record = Experience.new(user: user, company: "  acme   corp ", title: "SOFTWARE engineer")
+    record = build(:experience, user: user, company: "  acme   corp ", title: "SOFTWARE engineer")
 
     expect(find_match(record, [ other, existing ])).to eq(existing)
   end
@@ -20,8 +20,8 @@ RSpec.describe CareerLibrary::FindMatchingLibraryRecordService do
   it "doesn't match when both start dates are set and differ" do
     existing = create(:experience, user: user, start_date: Date.new(2018, 1, 1))
 
-    second_stint = Experience.new(user: user, company: existing.company, title: existing.title, start_date: Date.new(2022, 1, 1))
-    undated = Experience.new(user: user, company: existing.company, title: existing.title, start_date: nil)
+    second_stint = build(:experience, user: user, company: existing.company, title: existing.title, start_date: Date.new(2022, 1, 1))
+    undated = build(:experience, user: user, company: existing.company, title: existing.title, start_date: nil)
 
     expect(find_match(second_stint, [ existing ])).to be_nil
     expect(find_match(undated, [ existing ])).to eq(existing)

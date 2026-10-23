@@ -37,10 +37,10 @@ type Reordering = ReturnType<typeof useLibraryReordering>
 /** Highlight sortable ids for each role, keyed by the role's group id. */
 function highlightGroups(experiences: CareerLibraryQuery['experiences']): Record<string, string[]> {
   return Object.fromEntries(
-    experiences.flatMap((experience) => experience.roles?.length ? [null, ...experience.roles.map((role) => role.id)].map((roleId) => [
+    experiences.flatMap((experience) => [null, ...experience.roles.map((role) => role.id)].map((roleId) => [
       sortableGroupId('highlights', `${experience.id}/${roleId ?? 'shared'}`),
       experience.highlights.filter((bullet) => bullet.experienceRoleId === roleId).map((bullet) => sortableId(HIGHLIGHT_TYPE, bullet.id)),
-    ]) : [[sortableGroupId('highlights', experience.id), experience.highlights.map((bullet) => sortableId(HIGHLIGHT_TYPE, bullet.id))]]),
+    ])),
   )
 }
 

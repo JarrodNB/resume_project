@@ -45,6 +45,10 @@ def admin_connection() -> Iterator[psycopg.Connection[DictRow]]:
 
 def _insert(connection: psycopg.Connection[DictRow], table: str, **values: object) -> UUID:
     """Inserts one row with timestamps and returns its new id."""
+    # Legacy fixture convenience writes canonical rows; runtime readers never use flat columns.
+    role_values = None
+    if table == "experiences" and "title" in values:
+        role_values = {key: values.pop(key) for key in ("title", "start_date", "end_date") if key in values}
     row_id = uuid4()
     columns = ["id", "created_at", "updated_at", *values]
     placeholders = ["%s", "now()", "now()", *["%s"] * len(values)]
@@ -52,6 +56,8 @@ def _insert(connection: psycopg.Connection[DictRow], table: str, **values: objec
         f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})",
         [row_id, *values.values()],
     )
+    if role_values is not None:
+        _insert(connection, "experience_roles", experience_id=row_id, position=0, **role_values)
     return row_id
 
 
@@ -214,8 +220,8 @@ def test_job_independent_library_is_user_scoped(admin_connection: psycopg.Connec
 def test_reads_ordered_scoped_roles_and_preserves_shared_bullet_ids(admin_connection):
     from database.career_library_reader import read_career_library
     owner, other = _insert_user(admin_connection), _insert_user(admin_connection)
-    entry = _insert(admin_connection, "experiences", user_id=owner, company="Acme", title="Lead")
-    foreign = _insert(admin_connection, "experiences", user_id=other, company="Private", title="Secret")
+    entry = _insert(admin_connection, "experiences", user_id=owner, company="Acme")
+    foreign = _insert(admin_connection, "experiences", user_id=other, company="Private")
     junior = _insert(admin_connection, "experience_roles", experience_id=entry, title="Junior", position=1)
     lead = _insert(admin_connection, "experience_roles", experience_id=entry, title="Lead", position=0,
                    screened_fields=["title"])

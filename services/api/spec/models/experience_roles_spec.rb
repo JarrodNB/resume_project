@@ -10,7 +10,7 @@ RSpec.describe "Experience roles" do
 
   it "keeps source order and permits shared and role-specific highlights" do
     second = experience.roles.create!(title: "Developer", position: 1)
-    first = experience.roles.create!(title: "Lead", position: 0)
+    first = experience.roles.first.tap { |role| role.update!(title: "Lead") }
     shared = experience.highlights.create!(content: "Across both titles")
     owned = experience.highlights.create!(content: "Role detail", experience_role: second, position: 1)
     expect(experience.reload.roles.pluck(:id)).to eq([ first.id, second.id ])
@@ -21,7 +21,7 @@ RSpec.describe "Experience roles" do
 
   it "rejects cross-entry ownership at both validation and database seams" do
     other = create(:experience)
-    role = other.roles.create!(title: "Other", position: 0)
+    role = other.roles.first
     highlight = experience.highlights.create!(content: "Original")
     highlight.experience_role = role
     expect(highlight).not_to be_valid
@@ -35,7 +35,6 @@ RSpec.describe "Experience roles" do
   end
 
   it "enforces bounded positions and uniqueness even without model validation" do
-    experience.roles.create!(title: "First", position: 0)
     expect do
       ActiveRecord::Base.transaction(requires_new: true) do
         experience.roles.create!(title: "Duplicate", position: 0)
@@ -74,7 +73,7 @@ RSpec.describe "Experience roles" do
   end
 
   it "refuses direct role deletion while bullets still belong to it" do
-    role = experience.roles.create!(title: "Engineer", position: 0)
+    role = experience.roles.first
     bullet = experience.highlights.create!(content: "Owned achievement", experience_role: role)
     expect(role.destroy).to be(false)
     expect(role.errors[:base]).to be_present

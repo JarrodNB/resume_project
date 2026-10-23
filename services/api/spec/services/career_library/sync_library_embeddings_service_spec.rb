@@ -23,7 +23,7 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
     expect(result.value).to eq(embedded: 2, deleted: 0)
     row = user.library_embeddings.find_by!(source_type: "ExperienceHighlight", source_id: highlight.id)
-    expect(row.content).to eq("Engineer at Acme: Built the API")
+    expect(row.content).to eq("Acme: Built the API")
     expect(row.model).to eq(CareerLibraryEmbeddings::MODEL)
     expect(row.embedding.to_a).to eq(FakeEmbeddingClient.vector_for(row.content))
   end
@@ -79,8 +79,8 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
     user.update!(name: "Ada Lovelace", contact_email: "ada@example.com", phone: "555-0100")
     experience = create(:experience, user: user, title: "Engineer", company: "Acme")
     highlight = create(:experience_highlight, experience: experience, content: "Ada Lovelace shipped it. ada@example.com 555-0100")
-    original = "Engineer at Acme: Ada Lovelace shipped it. ada@example.com 555-0100"
-    masked = "Engineer at Acme: «name» shipped it. «email» «phone»"
+    original = "Acme: Ada Lovelace shipped it. ada@example.com 555-0100"
+    masked = "Acme: «name» shipped it. «email» «phone»"
 
     sync
 
@@ -116,7 +116,7 @@ RSpec.describe CareerLibrary::SyncLibraryEmbeddingsService do
 
   it "resyncs changed role context while preserving shared bullet digests and source ids" do
     experience = create(:experience, user: user, company: "Acme")
-    role = experience.roles.create!(title: "Developer", position: 0)
+    role = experience.roles.first.tap { |item| item.update!(title: "Developer", start_date: nil) }
     shared = experience.highlights.create!(content: "Shared work", position: 0)
     scoped = experience.highlights.create!(content: "Role work", position: 1, experience_role: role)
     sync

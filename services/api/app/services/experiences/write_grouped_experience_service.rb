@@ -11,6 +11,7 @@ module Experiences
     def call
       ActiveRecord::Base.transaction do
         @experience.lock! if @experience.persisted?
+        LockChildrenService.call(experience: @experience)
         @experience.id ||= SecureRandom.uuid
         old_roles = @experience.roles.to_a
         @bullets = @experience.highlights.to_a.index_by(&:id)
@@ -35,8 +36,6 @@ module Experiences
           invalid!("Reassign or remove this role's bullets before removing the role") if @bullets.values.any? { |bullet| !bullet.destroyed? && bullet.experience_role_id == role.id }
         end
         @experience.roles.target.replace(roles)
-        first = roles.first
-        @experience.assign_attributes(title: first.title, start_date: first.start_date, end_date: first.end_date)
         CareerLibrary::RecordScreeningService.discard_changed_fields(record: @experience)
         @experience.save!
         roles.each(&:save!)

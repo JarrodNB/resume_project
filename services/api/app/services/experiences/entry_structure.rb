@@ -1,11 +1,11 @@
 # Compares entire employment blocks conservatively, keeping role order and bullet scope.
-# Legacy flat objects are read as one role at this boundary.
+# Matching reads canonical roles, including unsaved children built by the import adapter.
 module Experiences
   module EntryStructure
     module_function
 
     def roles(entry)
-      entry.roles.to_a.presence || [ entry ]
+      entry.roles.to_a
     end
 
     def normalize(value)
@@ -30,7 +30,7 @@ module Experiences
       # distinguishes shared evidence from a role-owned list.
       entry.highlights.map do |bullet|
         role = bullet.experience_role
-        role ? roles.index { |candidate| candidate.equal?(role) || (role.id && candidate.id == role.id) } : (entry.roles.empty? ? 0 : :shared)
+        role ? roles.index { |candidate| candidate.equal?(role) || (role.id && candidate.id == role.id) } : :shared
       end.uniq.sort_by(&:to_s)
     end
   end

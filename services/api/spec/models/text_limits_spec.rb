@@ -29,7 +29,7 @@ RSpec.describe TextLimits do
   it "rejects a 51st role" do
     user = create(:user)
     create_list(:experience, TextLimits::MAX_EXPERIENCES, user: user)
-    extra = user.experiences.new(company: "Extra", title: "Role")
+    extra = build(:experience, user: user, company: "Extra", title: "Role")
 
     expect(extra.save).to be(false)
     expect(extra.errors.full_messages).to include("You can save up to #{TextLimits::MAX_EXPERIENCES} roles")

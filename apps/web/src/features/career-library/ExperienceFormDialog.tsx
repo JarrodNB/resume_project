@@ -30,12 +30,11 @@ function ExperienceForm({experience, onClose}: {experience: Experience | null; o
   const [company, setCompany] = useState(experience?.company ?? '')
   const [location, setLocation] = useState(experience?.location ?? '')
   const [description, setDescription] = useState(experience?.description ?? '')
-  const [roles, setRoles] = useState<DraftRole[]>(() => experience?.roles?.length ? experience.roles.map((role) => ({
+  const [roles, setRoles] = useState<DraftRole[]>(() => experience ? experience.roles.map((role) => ({
     id: role.id, key: role.id, title: role.title, startDate: role.startDate ?? '', endDate: role.endDate ?? '', current: role.endDate == null,
     description: role.description ?? '', highlights: experience.highlights.filter((bullet) => bullet.experienceRoleId === role.id).map((bullet) => ({...bullet, key: bullet.id})),
-  })) : [{...blankRole(), title: experience?.title ?? '', startDate: experience?.startDate ?? '', endDate: experience?.endDate ?? '',
-    highlights: experience?.highlights.map((bullet) => ({...bullet, key: bullet.id})) ?? []}])
-  const [shared, setShared] = useState<DraftBullet[]>(() => experience?.roles?.length ? experience.highlights.filter((bullet) => !bullet.experienceRoleId).map((bullet) => ({...bullet, key: bullet.id})) : [])
+  })) : [blankRole()])
+  const [shared, setShared] = useState<DraftBullet[]>(() => experience ? experience.highlights.filter((bullet) => !bullet.experienceRoleId).map((bullet) => ({...bullet, key: bullet.id})) : [])
   const scopes = [{key: 'shared', label: 'Shared highlights'}, ...roles.map((role, index) => ({key: role.key, label: role.title || `Role ${index + 1}`}))]
   function editRole(key: string, edits: Partial<DraftRole>) { setRoles((previous) => previous.map((role) => role.key === key ? {...role, ...edits} : role)) }
   function moveBullet(bullet: DraftBullet, target: string) {

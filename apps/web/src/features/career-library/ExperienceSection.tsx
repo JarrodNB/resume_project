@@ -34,9 +34,9 @@ export function ExperienceSection({ experiences, highlightsOf }: ExperienceSecti
           <LibraryEntry
             key={entry.id}
             tone="experience"
-            heading={entry.roles?.length > 1 ? entry.company : entry.title}
-            subheading={[...(entry.roles?.length > 1 ? [] : [entry.company]), entry.location].filter(Boolean).join(' · ')}
-            dates={entry.roles?.length > 1 ? undefined : formatDateRange(entry.startDate, entry.endDate, { openEndedMeansPresent: true })}
+            heading={entry.roles.length > 1 ? entry.company : entry.roles[0].title}
+            subheading={[...(entry.roles.length > 1 ? [] : [entry.company]), entry.location].filter(Boolean).join(' · ')}
+            dates={entry.roles.length > 1 ? undefined : formatDateRange(entry.roles[0].startDate, entry.roles[0].endDate, { openEndedMeansPresent: true })}
             description={entry.description}
             actions={
               <LibraryEntryActions
@@ -48,7 +48,7 @@ export function ExperienceSection({ experiences, highlightsOf }: ExperienceSecti
               />
             }
           >
-            {entry.roles?.length ? <div className="grid gap-5">
+            {<div className="grid gap-5">
               {entry.roles.map((role) => <section key={role.id} aria-label={role.title} className="min-w-0">
                 {entry.roles.length > 1 && <><h4 className="text-sm font-medium">{role.title}</h4><p className="text-xs text-muted-foreground">{formatDateRange(role.startDate, role.endDate, {openEndedMeansPresent: true})}</p></>}
                 {role.description && <p className="whitespace-pre-wrap text-sm">{role.description}</p>}
@@ -58,7 +58,7 @@ export function ExperienceSection({ experiences, highlightsOf }: ExperienceSecti
                 <h4 className="text-sm font-medium">Shared highlights</h4>
                 <SortableHighlightList experienceId={`${entry.id}/shared`} highlights={highlightsOf(entry.id, null)} />
               </section>}
-            </div> : <SortableHighlightList experienceId={entry.id} highlights={highlightsOf(entry.id)} />}
+            </div>}
           </LibraryEntry>
         ))}
       </LibrarySection>

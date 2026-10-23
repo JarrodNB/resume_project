@@ -22,10 +22,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
     experiences {
       id
       company
-      title
       location
-      startDate
-      endDate
       description
       roles {
         id

@@ -6,8 +6,8 @@ RSpec.describe CareerLibrary::RecordScreeningService do
 
   it "applies only allowed role fields owned by the task user, idempotently" do
     experience = create(:experience, user: user)
-    role = experience.roles.create!(title: "Engineer", position: 0)
-    foreign = create(:experience).roles.create!(title: "Private", position: 0)
+    role = experience.roles.first
+    foreign = create(:experience).roles.first
     reports = [role, foreign].map do |record|
       { "record_type" => "experience_role", "record_id" => record.id,
         "fields" => %w[title description start_date company] }
@@ -19,8 +19,7 @@ RSpec.describe CareerLibrary::RecordScreeningService do
 
   it "invalidates changed canonical role text through the legacy single-role editor" do
     experience = create(:experience, user: user)
-    role = experience.roles.create!(title: experience.title, position: 0, description: "Checked",
-                                     screened_fields: %w[title description])
+    role = experience.roles.first.tap { |item| item.update!(description: "Checked", screened_fields: %w[title description]) }
     result = Experiences::UpdateExperienceService.call(experience: experience, attributes: {title: "New title"})
     expect(result).to be_success
     expect(role.reload.title).to eq("New title")

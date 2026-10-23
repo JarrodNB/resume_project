@@ -1,7 +1,5 @@
-/**
- * Description: Drag-and-drop (or click to browse) area for choosing a resume file.
- * Index:
- *   - ResumeDropzone: validates the chosen file and passes it to `onFileSelected`
+/** Choose a resume by dropping a file or opening the file picker.
+ * Invalid files are announced and associated with the picker for recovery.
  */
 import { useId, useState, type ChangeEvent, type DragEvent } from 'react'
 import { FileUp, LoaderCircle } from 'lucide-react'
@@ -16,6 +14,8 @@ interface ResumeDropzoneProps {
 /** Accepts one PDF/DOCX by drop or file picker; shows validation errors inline. */
 export function ResumeDropzone({ onFileSelected, busy = false }: ResumeDropzoneProps) {
   const inputId = useId()
+  const helpId = `${inputId}-help`
+  const errorId = `${inputId}-error`
   const [dragging, setDragging] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -59,18 +59,20 @@ export function ResumeDropzone({ onFileSelected, busy = false }: ResumeDropzoneP
           <FileUp className="size-8 text-muted-foreground" />
         )}
         <span className="font-medium">{busy ? 'Uploading…' : 'Drop your resume here, or click to browse'}</span>
-        <span className="text-sm text-muted-foreground">PDF or Word (.docx), up to 5 MB</span>
+        <span id={helpId} className="text-sm text-muted-foreground">PDF or Word (.docx), up to 5 MB</span>
       </label>
       <input
         id={inputId}
         type="file"
         aria-label="Resume file"
+        aria-describedby={validationError ? `${helpId} ${errorId}` : helpId}
+        aria-invalid={validationError ? true : undefined}
         accept={ACCEPTED_RESUME_FILE_TYPES}
         className="sr-only"
         disabled={busy}
         onChange={handleChange}
       />
-      {validationError && <p className="text-sm text-destructive">{validationError}</p>}
+      {validationError && <p id={errorId} role="alert" className="text-sm text-destructive">{validationError}</p>}
     </div>
   )
 }

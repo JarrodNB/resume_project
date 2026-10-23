@@ -265,6 +265,7 @@ function OwnedInterview({ id }: { id: string }) {
     <div className="interview-room">
     <section aria-label="Current interview turn" className="interview-stage" data-recording={recorder.status === 'recording'} data-speaking={speechPlaying}>
       <div className="interview-presence" aria-hidden="true"><AudioLines size={32} strokeWidth={1.5} /></div>
+      {question && <p className="text-sm text-muted-foreground">Question {interview.questions.toSorted((a, b) => a.position - b.position).findIndex((item) => item.id === question.id) + 1} of {interview.questions.length}{reply?.kind === 'follow_up' && ` · Follow-up ${interview.messages.filter((message) => message.questionId === question.id && message.kind === 'follow_up' && message.position <= reply.position).length}`}</p>}
       <p className="interview-identity">{interviewerOptions.find((option) => option.value === interview.setup?.interviewer)?.label ?? 'Your interviewer'}</p>
       <div role="status" aria-live="polite" aria-busy={savingRecording || reviewPending || state.busy || turnActive} className="grid gap-2">
         <h2 className="interview-status">{thinkingTime !== null ? `Thinking time — mic opens in ${thinkingTime}s` : roomTitle}</h2>

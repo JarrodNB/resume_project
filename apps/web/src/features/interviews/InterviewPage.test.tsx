@@ -1077,3 +1077,10 @@ it('guides live transcription recovery through stopping before transcription', (
   expect(state.transcribeRecording).not.toHaveBeenCalled()
   expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('My edited answer')
 })
+
+it('shows saved core progress and only the actual follow-up number', () => {
+  state.interview = { ...snapshot, questions: [{ ...snapshot.questions[0], id: 'previous', position: 0, skipped: true }, snapshot.questions[0]], messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'follow', kind: 'follow_up', content: 'What changed?', position: 2 }] }
+  renderInterview()
+  expect(screen.getByText('Question 2 of 2 · Follow-up 1')).toBeVisible()
+  expect(screen.queryByText(/Follow-up 1 of/)).not.toBeInTheDocument()
+})

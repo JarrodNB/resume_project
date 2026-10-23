@@ -80,7 +80,7 @@ def test_bullets_under_the_wrong_role_do_not_count_as_recalled():
                               highlights=["Built billing."]),
              ParsedExperience(company="Acme", title="Lead", start_date="2022",
                               highlights=["Led migration."])]
-    swapped = [role.model_copy(update={"highlights": roles[1-index].highlights})
+    swapped = [role.model_copy(update={"roles": [role.roles[0].model_copy(update={"highlights": roles[1-index].roles[0].highlights})]})
                for index, role in enumerate(roles)]
     context = SimpleNamespace(expected_output=ParsedResume(experiences=roles), metadata={},
                               output=ParsedResume(experiences=swapped))
@@ -95,8 +95,8 @@ def test_exact_period_is_reserved_before_matching_a_wrong_period():
 
     old = ParsedExperience(company="Acme", title="Engineer", start_date="2010",
                            end_date="2012", highlights=["Built old system."])
-    recent = old.model_copy(update={"start_date": "2020", "end_date": "2022",
-                                   "highlights": ["Built new system."]})
+    recent = old.model_copy(update={"roles": [old.roles[0].model_copy(update={"start_date": "2020", "end_date": "2022",
+                                   "highlights": ["Built new system."]})]})
     context = SimpleNamespace(expected_output=ParsedResume(experiences=[old, recent]), metadata={},
                               output=ParsedResume(experiences=[recent]))
     scores = ExperienceMatch().evaluate(context)

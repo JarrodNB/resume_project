@@ -1,12 +1,7 @@
-/**
- * Description: TypeScript mirror of the AI service's ParsedResume (services/ai/schemas/parsed_resume.py),
- * the JSON a parse_resume task returns in `result.parsed_resume`. Dates are partial: "YYYY-MM" or "YYYY".
- * Index:
- *   - ParsedLink, ParsedContactInfo, ParsedExperience, ParsedProject, ParsedEducation, ParsedCertification, ParsedSkill, ParsedResume
- *   - parsedResumeFromTaskResult: reads a task result into a ParsedResume with defaults filled in
- *   - emptyExperience, emptyProject, emptyEducation, emptyCertification: blank entries for "Add" buttons
+/** Read parser task JSON for resume review, with snake_case fields matching the AI schema.
+ * Employer blocks keep ordered roles and separate shared highlights. Legacy flat blocks
+ * normalize only in memory; parser source identifiers never enter the editable experience.
  */
-
 export interface ParsedLink {
   label: string
   url: string
@@ -19,15 +14,21 @@ export interface ParsedContactInfo {
   links: ParsedLink[]
 }
 
-export interface ParsedExperience {
-  company: string
+export interface ParsedExperienceRole {
   title: string
-  location: string | null
   start_date: string | null
   end_date: string | null
   is_current: boolean
   description: string | null
   highlights: string[]
+}
+
+export interface ParsedExperience {
+  company: string
+  location: string | null
+  description: string | null
+  roles: ParsedExperienceRole[]
+  shared_highlights: string[]
 }
 
 export interface ParsedProject {
@@ -81,7 +82,7 @@ export function parsedResumeFromTaskResult(result: unknown): ParsedResume | null
   return {
     contact: { full_name: null, email: null, phone: null, location: null, ...parsed.contact, links: parsedLinks((parsed.contact as { links?: unknown } | undefined)?.links) },
     summary: parsed.summary ?? null,
-    experiences: (parsed.experiences ?? []).map((experience) => ({ ...emptyExperience(), ...experience })),
+    experiences: (parsed.experiences ?? []).map((experience) => normalizeParsedExperience(experience)),
     projects: (parsed.projects ?? []).map((project) => ({ ...emptyProject(), ...project })),
     educations: (parsed.educations ?? []).map((education) => ({ ...emptyEducation(), ...education })),
     certifications: (parsed.certifications ?? []).map((certification) => ({ ...emptyCertification(), ...certification })),
@@ -111,17 +112,27 @@ function normalizeBareWebUrl(value: string): string {
     ? `https://${trimmed}`
     : trimmed
 }
-/** A blank experience. */
+/** A blank role within an employer block. */
+export function emptyExperienceRole(): ParsedExperienceRole {
+  return { title: '', start_date: null, end_date: null, is_current: false, description: null, highlights: [] }
+}
+
+/** A blank employer block with one role. */
 export function emptyExperience(): ParsedExperience {
+  return { company: '', location: null, description: null, roles: [emptyExperienceRole()], shared_highlights: [] }
+}
+
+/** Normalize old task JSON only on read; never coalesce separate employer blocks. */
+export function normalizeParsedExperience(value: unknown): ParsedExperience {
+  const item = value as Partial<ParsedExperience & ParsedExperienceRole>
+  const roles = Array.isArray(item.roles) ? item.roles : [item]
   return {
-    company: '',
-    title: '',
-    location: null,
-    start_date: null,
-    end_date: null,
-    is_current: false,
-    description: null,
-    highlights: [],
+    company: item.company ?? '', location: item.location ?? null, description: Array.isArray(item.roles) ? item.description ?? null : null,
+    roles: roles.map((role) => ({
+      title: role.title ?? '', start_date: role.start_date ?? null, end_date: role.end_date ?? null,
+      is_current: role.is_current ?? false, description: role.description ?? null, highlights: role.highlights ?? [],
+    })),
+    shared_highlights: item.shared_highlights ?? [],
   }
 }
 

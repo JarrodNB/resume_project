@@ -42,6 +42,34 @@ RSpec.describe "Resume import mutations" do
     expect(user.resumes).to be_empty
   end
 
+  it "imports grouped and separate same-company source blocks with owned bullet scopes" do
+    ai_task = create(:ai_task, :completed_resume_parse, user: user)
+    other_user = create(:user)
+    other_entry = create(:experience, user: other_user, company: "Acme", title: "Consultant")
+    payload = { "experiences" => [
+      { "company" => "Acme", "roles" => [
+        { "title" => "Lead", "highlights" => [ "Led delivery" ] },
+        { "title" => "Engineer", "highlights" => [ "Built API" ] }
+      ], "shared_highlights" => [ "Team award" ] },
+      { "company" => "Acme", "roles" => [ { "title" => "Consultant", "highlights" => [ "Advised team" ] } ] }
+    ] }
+
+    result = execute_graphql(<<~GQL, user: user, variables: { id: ai_task.id, parsedResume: payload })
+      mutation($id: ID!, $parsedResume: JSON!) {
+        importParsedResume(input: { aiTaskId: $id, parsedResume: $parsedResume }) { aiTask { id } errors }
+      }
+    GQL
+
+    expect(result.dig("data", "importParsedResume", "errors")).to eq([])
+    expect(user.experiences.count).to eq(2)
+    grouped = user.experiences.find { |entry| entry.roles.size == 2 }
+    expect(grouped.roles.map(&:title)).to eq([ "Lead", "Engineer" ])
+    expect(grouped.roles.map { |role| role.highlights.map(&:content) }).to eq([ [ "Led delivery" ], [ "Built API" ] ])
+    expect(grouped.highlights.where(experience_role_id: nil).pluck(:content)).to eq([ "Team award" ])
+    expect(other_entry.reload.highlights).to be_empty
+    expect(other_user.experiences.count).to eq(1)
+  end
+
   it "importParsedResume returns errors for a malformed parsed resume" do
     ai_task = create(:ai_task, :completed_resume_parse, user: user)
 

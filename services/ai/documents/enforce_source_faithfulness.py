@@ -32,19 +32,21 @@ def enforce_source_faithfulness(parsed_resume: ParsedResume, source_text: str) -
 def _check_experience(
     role: ParsedExperience, source_text: str, warnings: list[str]
 ) -> ParsedExperience:
-    """Removes highlights that aren't in the source text, warning about each one."""
-    kept_highlights = []
-    for highlight in role.highlights:
-        if appears_in(highlight, source_text):
-            kept_highlights.append(highlight)
-        else:
-            warnings.append(
-                f"Removed a highlight under {role.company} that doesn't appear word for word "
-                f'in the resume: "{highlight}"'
-            )
-    if len(kept_highlights) == len(role.highlights):
-        return role
-    return role.model_copy(update={"highlights": kept_highlights})
+    """Check each scope without moving text between an entry and its roles."""
+    def keep(highlights):
+        kept = []
+        for highlight in highlights:
+            if appears_in(highlight, source_text):
+                kept.append(highlight)
+            else:
+                warnings.append(
+                    f"Removed a highlight under {role.company} that doesn't appear word for word "
+                    f'in the resume: "{highlight}"'
+                )
+        return kept
+
+    roles = [item.model_copy(update={"highlights": keep(item.highlights)}) for item in role.roles]
+    return role.model_copy(update={"roles": roles, "shared_highlights": keep(role.shared_highlights)})
 
 
 def _check_skills(
@@ -66,7 +68,7 @@ def _warn_unmatched_names(
     """Warns (without removing anything) about entry names that aren't in the source text."""
     labelled_names = (
         [("company", role.company) for role in parsed_resume.experiences]
-        + [("job title", role.title) for role in parsed_resume.experiences]
+        + [("job title", role.title) for entry in parsed_resume.experiences for role in entry.roles]
         + [("project name", project.name) for project in parsed_resume.projects]
         + [("institution", education.institution) for education in parsed_resume.educations]
         + [("certification name", item.name) for item in parsed_resume.certifications]

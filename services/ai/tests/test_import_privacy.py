@@ -78,7 +78,7 @@ def test_import_masks_both_providers_and_restores_before_source_checks(
     parsed = result.result["parsed_resume"]
     assert parsed["contact"] == {"full_name": "Jane Doe", "email": "jane@example.test",
         "phone": "+1 415-555-2671", "location": None, "links": []}
-    assert parsed["experiences"][0]["highlights"] == ["Helped Jane Doe ship Python services."]
+    assert parsed["experiences"][0]["roles"][0]["highlights"] == ["Helped Jane Doe ship Python services."]
     assert "«pii:" not in json.dumps(result.result)
 
 

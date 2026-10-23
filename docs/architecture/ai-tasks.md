@@ -54,7 +54,14 @@ Per task type:
   edits it, then the `importParsedResume` mutation writes it to the career library and
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
-  `AiTask#accepted_at`.
+  `AiTask#accepted_at`. Parsed experiences are source employment blocks with company,
+  location, optional entry description, ordered `roles` (title, partial dates, current flag,
+  description, and highlights), and `shared_highlights`. Separate source blocks stay
+  separate even when the company repeats. Shared lists never imply a particular role.
+  The source module validates selected passage IDs globally once, then reconstructs exact
+  bullet text; those IDs never enter the public result. Older flat task results normalize
+  to one role at read/import seams without rewriting stored task JSON. Import matching
+  consumes only pre-existing employment candidates, at most once each per import.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
   Parsing screens the complete masked source once (using chunks when necessary), then

@@ -2,7 +2,6 @@
  * Shared bullets stay on the entry; nested roles carry only explicitly scoped bullets.
  */
 import { withDraftKey, type DraftExperience, type DraftHighlight } from '@/features/resume-import/review/reviewDraft'
-import { emptyExperience } from '@/features/resume-import/parsedResume'
 
 export interface TailoredHighlight extends DraftHighlight { sourceIds: string[] }
 export interface TailoredRole {
@@ -15,7 +14,7 @@ export interface TailoredRole {
   description: string | null
   highlights: TailoredHighlight[]
 }
-export interface TailoredExperience extends DraftExperience {
+export interface TailoredExperience extends Omit<DraftExperience, 'roles' | 'shared_highlights'> {
   source_experience_id?: string
   roles: TailoredRole[]
   highlights: TailoredHighlight[]
@@ -34,7 +33,7 @@ function bullets(value: Record<string, unknown>): TailoredHighlight[] {
 export function tailoredExperienceFrom(value: unknown): TailoredExperience {
   const item = record(value)
   const roles = Array.isArray(item.roles) && item.roles.length > 0 ? item.roles : [{ ...item, description: null, highlights: [], highlight_source_ids: [] }]
-  return withDraftKey({ ...emptyExperience(), ...item, roles: roles.map((value) => {
+  return withDraftKey({ company: '', location: null, description: null, ...item, roles: roles.map((value) => {
     const role = record(value)
     return withDraftKey({ id: text(role.id), title: text(role.title) ?? '', start_date: text(role.start_date), end_date: text(role.end_date), is_current: role.is_current === true, description: text(role.description), highlights: bullets(role) })
   }), highlights: bullets(item) }) as TailoredExperience

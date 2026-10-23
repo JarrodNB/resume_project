@@ -1,12 +1,7 @@
-# Locks the owner before the import task so blank-profile checks see current values and approvals.
-# Description: Imports a parsed resume (as reviewed and edited by the user) into the career
-# library and fills blank profile fields (contact, summary). Experiences, projects, and
-# educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
-# are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
-# task can be imported once. The library's embeddings are re-synced after the import commits.
-# Index:
-#   - call: checks the JSON shape, then imports library records and fills the profile in one
-#     transaction; returns the accepted AiTask
+# Imports a reviewed resume into the owner's career library and fills blank profile fields.
+# Owner and task locks make acceptance atomic and single-use. Employment source blocks
+# retain ordered roles and bullet ownership, matching preexisting entries at most once.
+# Other library imports keep their established merging behavior. Embeddings sync after commit.
 module ResumeImports
   class ImportParsedResumeService < ApplicationService
     PARTIAL_DATE = /\A(?<year>\d{4})(?:-(?<month>\d{2}))?\z/
@@ -82,9 +77,8 @@ module ResumeImports
       Array(@parsed_resume[key])
     end
 
-    # Builds one record per item (the block fills it in). A record matching an existing entry,
-    # including one saved earlier in this import, is merged into it; otherwise it is saved after
-    # the user's existing entries.
+    # Employment matches consume only candidates present before this import. Other kinds
+    # keep their established merging behavior, including entries added in this import.
     def add_or_merge_records(association, list)
       existing = association.scope.to_a
       next_position = (existing.map(&:position).max || -1) + 1
@@ -94,10 +88,11 @@ module ResumeImports
         match = CareerLibrary::FindMatchingLibraryRecordService.call(record: record, candidates: existing).value
         if match
           merge_into!(match, record)
+          existing.delete(match) if record.is_a?(Experience)
         else
           record.update!(position: next_position)
           next_position += 1
-          existing << record
+          existing << record unless record.is_a?(Experience)
           @summary["added"] += 1
         end
       end
@@ -122,18 +117,30 @@ module ResumeImports
       end
     end
 
-    # Fills an Experience and its ordered highlights from a parsed experience.
+    # Builds the complete entry before matching so role order and bullet ownership are
+    # compared together. Legacy task payloads become a single role only at this seam.
     def assign_experience(experience, item)
-      experience.assign_attributes(
-        item.slice("company", "title", "location", "description").merge(
-          start_date: to_date(item["start_date"]),
-          end_date: item["is_current"] ? nil : to_date(item["end_date"])
+      experience.id = SecureRandom.uuid
+      grouped = item.key?("roles")
+      experience.assign_attributes(item.slice("company", "location"))
+      experience.description = item["description"] if grouped
+      role_items = grouped ? item["roles"] : [ item ]
+      role_items.each_with_index do |role_item, position|
+        role = experience.roles.build(
+          id: SecureRandom.uuid, position: position,
+          title: role_item["title"], description: role_item["description"],
+          start_date: to_date(role_item["start_date"]),
+          end_date: role_item["is_current"] ? nil : to_date(role_item["end_date"])
         )
-      )
-      Array(item["highlights"]).each_with_index do |content, position|
+        Array(role_item["highlights"]).each_with_index do |content, index|
+          experience.highlights.build(content: content, position: index, experience_role: role)
+        end
+      end
+      Array(item["shared_highlights"]).each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end
-      Experiences::SingleRoleCompatibility.prepare!(experience)
+      first = experience.roles.first
+      experience.assign_attributes(title: first.title, start_date: first.start_date, end_date: first.end_date)
     end
 
     # Fills a Project from a parsed project.

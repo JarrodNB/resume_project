@@ -4,7 +4,8 @@ Description: Structured output of the resume parsing agent. Mirrors the Rails ca
 Index:
     - ParsedLink: one contact link's visible label and destination URL
     - ParsedContactInfo: name, email, phone, location, links
-    - ParsedExperience: one role with word-for-word highlights
+    - ParsedRole: one stated role and its exact source highlights
+    - ParsedExperience: one source employment block with ordered roles and shared highlights
     - ParsedProject: one project
     - ParsedEducation: one school or program
     - ParsedCertification: one certification and its stated credential details
@@ -12,7 +13,7 @@ Index:
     - ParsedResume: the full parse result (the agent's output_type)
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 CERTIFICATION_DATE_DESCRIPTION = (
     "YYYY-MM-DD, YYYY-MM, or YYYY: preserve exactly the precision stated. Null if not stated."
@@ -43,23 +44,44 @@ class ParsedContactInfo(BaseModel):
     )
 
 
+class ParsedRole(BaseModel):
+    """One stated role within an employment entry, in source order."""
+
+    title: str
+    start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
+    end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
+    is_current: bool = False
+    description: str | None = None
+    highlights: list[str] = Field(default_factory=list, max_length=40)
+
+
+def _normalize_legacy_entry(value, *, ids=False):
+    """Adapt older flat results at the read boundary without changing stored JSON."""
+    if isinstance(value, BaseModel):
+        value = value.model_dump()
+    if isinstance(value, dict) and "roles" not in value:
+        value = dict(value)
+        bullet_key = "highlight_ids" if ids else "highlights"
+        role = {key: value.pop(key) for key in
+                ("title", "start_date", "end_date", "is_current", "description", bullet_key)
+                if key in value}
+        value["roles"] = [role]
+    return value
+
+
 class ParsedExperience(BaseModel):
-    """One role at one company."""
+    """One source employment block; repeated company blocks remain separate entries."""
 
     company: str
-    title: str
     location: str | None = None
-    start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
-    end_date: str | None = Field(
-        default=None, description=f"{PARTIAL_DATE_DESCRIPTION} Null when is_current is true."
-    )
-    is_current: bool = False
-    description: str | None = Field(
-        default=None, description="Intro text for the role that is not a bullet point."
-    )
-    highlights: list[str] = Field(
-        default_factory=list, description="Bullet points, copied word for word."
-    )
+    description: str | None = None
+    roles: list[ParsedRole] = Field(min_length=1, max_length=20)
+    shared_highlights: list[str] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy(cls, value):
+        return _normalize_legacy_entry(value)
 
 
 class ParsedProject(BaseModel):
@@ -121,24 +143,39 @@ class ParsedResume(BaseModel):
     )
 
 
-class ExperienceExtraction(BaseModel):
-    """Internal output: roles cite request-local source bullet IDs, never rewrite them."""
-
-    experiences: list["ExperienceRoleExtraction"] = Field(default_factory=list)
-    parsing_warnings: list[str] = Field(default_factory=list)
-
-
 class ExperienceRoleExtraction(BaseModel):
-    """A role matched to source bullets; the parser restores public highlight text."""
+    """One role citing exact source passages; no source text is generated."""
 
-    company: str
     title: str
-    location: str | None = None
     start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     is_current: bool = False
+    description: str | None = Field(
+        default=None, description="Copy non-bullet introductory text immediately under this role header, even if bullets follow. Null only when absent."
+    )
+    highlight_ids: list[str] = Field(default_factory=list, max_length=40)
+
+
+class EmploymentExtraction(BaseModel):
+    """One employer block, with ordered roles and explicitly shared source passages."""
+
+    company: str
+    location: str | None = None
     description: str | None = None
-    highlight_ids: list[str] = Field(default_factory=list)
+    roles: list[ExperienceRoleExtraction] = Field(min_length=1, max_length=20)
+    shared_highlight_ids: list[str] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_legacy(cls, value):
+        return _normalize_legacy_entry(value, ids=True)
+
+
+class ExperienceExtraction(BaseModel):
+    """Internal employer blocks cite request-local IDs, globally at most once."""
+
+    experiences: list[EmploymentExtraction] = Field(default_factory=list)
+    parsing_warnings: list[str] = Field(default_factory=list)
 
 
 class ProjectsSkillsExtraction(BaseModel):

@@ -431,6 +431,127 @@ cases:
           issued_date: "2023"
           expiry_date: "2027"
 
+  - name: grouped_shared_stack
+    inputs: |
+      EXPERIENCE
+      Meadow Systems | Remote
+      Internal platform engineering across two successive roles.
+      Roles
+      Lead Engineer
+      2022 – Present
+      Engineer
+      2019 – 2022
+      Shared accomplishments across both roles
+      • Built a deployment system using Python, SQL, and AWS SQS.
+      • Reduced deployment failures by 25% through automated checks.
+    expected_output:
+      experiences:
+        - company: Meadow Systems
+          location: Remote
+          description: Internal platform engineering across two successive roles.
+          roles:
+            - title: Lead Engineer
+              start_date: "2022"
+              is_current: true
+            - title: Engineer
+              start_date: "2019"
+              end_date: "2022"
+          shared_highlights:
+            - Built a deployment system using Python, SQL, and AWS SQS.
+            - Reduced deployment failures by 25% through automated checks.
+
+  - name: grouped_mixed_role_and_shared_lists
+    inputs: |
+      EXPERIENCE
+      Meadow Systems | Remote
+      Platform services for internal customers.
+      Lead Engineer
+      2022 – Present
+      Led the platform team.
+      • Coordinated the release calendar across six teams.
+      Engineer
+      2019 – 2022
+      Built the original platform.
+      • Shipped a Python API for inventory tracking.
+      Shared accomplishments across both roles
+      • Maintained operational runbooks and incident exercises.
+    expected_output:
+      experiences:
+        - company: Meadow Systems
+          location: Remote
+          description: Platform services for internal customers.
+          roles:
+            - title: Lead Engineer
+              start_date: "2022"
+              is_current: true
+              description: Led the platform team.
+              highlights: [Coordinated the release calendar across six teams.]
+            - title: Engineer
+              start_date: "2019"
+              end_date: "2022"
+              description: Built the original platform.
+              highlights: [Shipped a Python API for inventory tracking.]
+          shared_highlights: [Maintained operational runbooks and incident exercises.]
+
+  - name: separate_same_company_blocks
+    inputs: |
+      EXPERIENCE
+      Lead Engineer — Meadow Systems | Remote
+      2022 – Present
+      • Coordinated the release calendar across six teams.
+
+      Engineer — Meadow Systems | Remote
+      2019 – 2022
+      • Shipped a Python API for inventory tracking.
+    expected_output:
+      experiences:
+        - company: Meadow Systems
+          location: Remote
+          roles:
+            - title: Lead Engineer
+              start_date: "2022"
+              is_current: true
+              highlights: [Coordinated the release calendar across six teams.]
+        - company: Meadow Systems
+          location: Remote
+          roles:
+            - title: Engineer
+              start_date: "2019"
+              end_date: "2022"
+              highlights: [Shipped a Python API for inventory tracking.]
+
+  - name: grouped_wrapped_acronyms_and_blank_pages
+    inputs: |
+      EXPERIENCE
+      Harbor Tools
+      Lead Engineer
+      2022 – Present
+      • Rebuilt the event pipeline using
+
+      AWS SQS and SQL to reduce retries by 30%.
+      Engineer
+      2019 – 2022
+      • Added request tracing and
+
+      SLO dashboards for five services.
+      Shared accomplishments across both roles
+      • Maintained a shared Python
+
+      SDK for internal platform users.
+    expected_output:
+      experiences:
+        - company: Harbor Tools
+          roles:
+            - title: Lead Engineer
+              start_date: "2022"
+              is_current: true
+              highlights: [Rebuilt the event pipeline using AWS SQS and SQL to reduce retries by 30%.]
+            - title: Engineer
+              start_date: "2019"
+              end_date: "2022"
+              highlights: [Added request tracing and SLO dashboards for five services.]
+          shared_highlights: [Maintained a shared Python SDK for internal platform users.]
+
 
 evaluators:
   - SourceFaithfulness

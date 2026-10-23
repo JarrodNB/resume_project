@@ -61,7 +61,7 @@ def test_verbatim_highlight_is_kept_despite_case_bullets_and_line_breaks() -> No
 
     result = enforce_source_faithfulness(build_parsed_resume(highlights=[highlight]), SOURCE_TEXT)
 
-    assert result.experiences[0].highlights == [highlight]
+    assert result.experiences[0].roles[0].highlights == [highlight]
     assert result.parsing_warnings == []
 
 
@@ -74,7 +74,7 @@ def test_rephrased_highlight_is_removed_with_a_warning() -> None:
         build_parsed_resume(highlights=[kept, rephrased]), SOURCE_TEXT
     )
 
-    assert result.experiences[0].highlights == [kept]
+    assert result.experiences[0].roles[0].highlights == [kept]
     [warning] = result.parsing_warnings
     assert "Acme Corp" in warning
     assert rephrased in warning
@@ -96,7 +96,7 @@ def test_unmatched_company_is_kept_with_a_warning() -> None:
     result = enforce_source_faithfulness(build_parsed_resume(company="Acme Inc."), SOURCE_TEXT)
 
     assert result.experiences[0].company == "Acme Inc."
-    assert result.experiences[0].highlights
+    assert result.experiences[0].roles[0].highlights
     [warning] = result.parsing_warnings
     assert "company" in warning
     assert "Acme Inc." in warning

@@ -64,7 +64,7 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
     with collect_task_usage():
         result = parse()
     assert peak == 3
-    assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
+    assert result.parsed_resume.experiences[0].roles[0].highlights == ["Built a thing"]
     assert result.parsed_resume.skills[0].name == "Python"
     assert result.parsed_resume.summary == "Summary"
     assert result.parsed_resume.parsing_warnings == [
@@ -233,7 +233,7 @@ def test_pdf_extracted_bullets_are_restored_from_source_ids(offline_model_resolu
         source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
     )
 
-    assert result.parsed_resume.experiences[0].highlights == ["Built a reliable API."]
+    assert result.parsed_resume.experiences[0].roles[0].highlights == ["Built a reliable API."]
 
 
 def test_source_bullets_keep_unindented_wraps_and_stop_before_role_and_section_headers():
@@ -333,7 +333,7 @@ def test_parser_ignores_unheaded_preamble_bullets_before_dated_work_history(
         source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini"
     )
 
-    assert result.parsed_resume.experiences[0].highlights == ["Built a reliable API."]
+    assert result.parsed_resume.experiences[0].roles[0].highlights == ["Built a reliable API."]
 
 
 def test_nonexperience_group_instructions_only_name_owned_fields():
@@ -417,11 +417,11 @@ def test_experience_output_empty_highlights_and_multiple_roles_can_be_rebuilt(of
         "Acme\nEngineer\n• Built the first thing.\n• Built the second thing.\n\nLead",
         "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
     )
-    assert [r.highlights for r in result.parsed_resume.experiences] == [
+    assert [r.roles[0].highlights for r in result.parsed_resume.experiences] == [
         ["Built the first thing.", "Built the second thing."],
         [],
     ]
-    assert result.parsed_resume.model_dump()["experiences"][0]["highlights"] == [
+    assert result.parsed_resume.model_dump()["experiences"][0]["roles"][0]["highlights"] == [
         "Built the first thing.",
         "Built the second thing.",
     ]
@@ -465,7 +465,7 @@ def test_invalid_source_id_is_retried_before_rebuilding_highlights(offline_model
         "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini",
     )
     assert experience_calls == 2
-    assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
+    assert result.parsed_resume.experiences[0].roles[0].highlights == ["Built a thing"]
 
 
 def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_model_resolution):
@@ -574,12 +574,12 @@ def test_split_roles_restore_wrapped_duplicate_passages_in_source_order(offline_
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
     roles = result.parsed_resume.experiences
-    assert [(role.company, role.title, role.start_date, role.end_date) for role in roles] == [
+    assert [(role.company, role.roles[0].title, role.roles[0].start_date, role.roles[0].end_date) for role in roles] == [
         ("Acme", "Senior Engineer", "2022", None),
         ("Contoso", "Software Engineer", "2019", "2022"),
     ]
-    assert roles[0].is_current
-    assert [role.highlights for role in roles] == [
+    assert roles[0].roles[0].is_current
+    assert [role.roles[0].highlights for role in roles] == [
         ["Built a PERSON_TOKEN platform\nacross two regions.", "Reduced support requests by 30%."],
         ["Built a PERSON_TOKEN platform\nacross two regions.", "Improved deployment reliability."],
     ]
@@ -609,7 +609,7 @@ def test_source_id_reused_across_roles_retries_or_fails(recover, offline_model_r
     if recover:
         result = parse_resume_text(source, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
         assert calls == 2
-        assert [role.highlights for role in result.parsed_resume.experiences] == [
+        assert [role.roles[0].highlights for role in result.parsed_resume.experiences] == [
             ["Built one thing."], ["Built another thing."],
         ]
     else:
@@ -629,7 +629,7 @@ def _reconstructed_source_bullets(source):
     output = experience_source.output_type.model_validate({
         "experiences": [{"company": "Example", "title": "Engineer", "highlight_ids": ids}],
     })
-    highlights = experience_source.reconstruct(output)["experiences"][0]["highlights"]
+    highlights = experience_source.reconstruct(output)["experiences"][0]["roles"][0]["highlights"]
     return dict(zip(ids, highlights, strict=True))
 
 

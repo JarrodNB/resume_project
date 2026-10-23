@@ -179,7 +179,10 @@ tailoring) instead of sending everything.
 
 - **Resume parsing extracts, never rewrites.** Bullets are copied word for word and anything
   not stated stays null, so evals can check faithfulness deterministically (every extracted
-  highlight, skill, and company must appear in the source text). Ambiguities go into
+  highlight, skill, and company must appear in the source text). Shared and role-specific
+  lists are checked independently, and every nested title is checked for unmatched-name
+  warnings. Privacy restoration walks entry and role descriptions and every bullet list.
+  Ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
   planned for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.

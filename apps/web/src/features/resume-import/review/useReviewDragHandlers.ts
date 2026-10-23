@@ -1,11 +1,6 @@
-/**
- * Description: Drag-and-drop handlers for the review form. Roles, projects, and education aren't
- * dragged (the library lists them by date). Skills are reordered when dropped; highlights follow
- * the pointer between roles while dragging and are put back if the drag is canceled.
- * Index:
- *   - HIGHLIGHT_TYPE, SKILL_TYPE: drag types used by the form's sortables
- *   - highlightGroups: highlight sortable ids grouped by role
- *   - useReviewDragHandlers: onDragStart / onDragOver / onDragEnd for the DragDropProvider
+/** Keep review highlights in their role or shared company lists while dragging.
+ * List membership changes only in the draft, full targets refuse extra bullets, and
+ * cancel restores the original scopes. Skills reorder when dropped.
  */
 import { useRef, type Dispatch, type SetStateAction } from 'react'
 import type { DragDropEventHandlers } from '@dnd-kit/react'
@@ -15,23 +10,33 @@ import type { DraftExperience, ReviewDraft } from './reviewDraft'
 export const HIGHLIGHT_TYPE = 'highlight'
 export const SKILL_TYPE = 'skill'
 
-/** Highlight sortable ids for each role, keyed by the role's group id. */
-export function highlightGroups(experiences: DraftExperience[]): Record<string, string[]> {
-  return Object.fromEntries(
-    experiences.map((experience) => [
-      sortableGroupId('highlights', experience.key),
-      experience.highlights.map((highlight) => sortableId(HIGHLIGHT_TYPE, highlight.key)),
-    ]),
-  )
+/** Shared and role lists have independent stable drag groups, including empty lists. */
+function highlightLists(experiences: DraftExperience[]) {
+  return experiences.flatMap((experience) => [
+    { key: experience.key, highlights: experience.shared_highlights },
+    ...experience.roles.map((role) => ({ key: role.key, highlights: role.highlights })),
+  ])
 }
 
-/** Applies a highlight move (group ids are role group ids) to the roles. */
-function moveHighlight(experiences: DraftExperience[], highlightMove: ItemMove): DraftExperience[] {
-  const byGroup = Object.fromEntries(
-    experiences.map((experience) => [sortableGroupId('highlights', experience.key), experience.highlights]),
-  )
+/** Highlight sortable ids keyed by the actual list that owns each bullet. */
+export function highlightGroups(experiences: DraftExperience[]): Record<string, string[]> {
+  return Object.fromEntries(highlightLists(experiences).map((list) => [
+    sortableGroupId('highlights', list.key),
+    list.highlights.map((highlight) => sortableId(HIGHLIGHT_TYPE, highlight.key)),
+  ]))
+}
+
+/** Moves a bullet to its selected scope, respecting each list's forty-bullet bound. */
+export function moveHighlight(experiences: DraftExperience[], highlightMove: ItemMove): DraftExperience[] {
+  const byGroup = Object.fromEntries(highlightLists(experiences).map((list) => [sortableGroupId('highlights', list.key), list.highlights]))
+  const { from, to } = highlightMove
+  if (!byGroup[from.group]?.[from.index] || !byGroup[to.group] || (from.group !== to.group && byGroup[to.group].length >= 40)) return experiences
   const moved = moveBetweenGroups(byGroup, highlightMove)
-  return experiences.map((experience) => ({ ...experience, highlights: moved[sortableGroupId('highlights', experience.key)] }))
+  return experiences.map((experience) => ({
+    ...experience,
+    shared_highlights: moved[sortableGroupId('highlights', experience.key)],
+    roles: experience.roles.map((role) => ({ ...role, highlights: moved[sortableGroupId('highlights', role.key)] })),
+  }))
 }
 
 /** Returns the DragDropProvider handlers that keep `draft` in step with what the user drags. */

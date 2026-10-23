@@ -9,20 +9,24 @@ Index:
     - test_k_60_prefers_agreement_over_a_single_first_place
 """
 
-from memory.hybrid_rank import RRF_K, hybrid_order, keyword_rank, reciprocal_rank_scores
+from memory.hybrid_rank import (
+    RRF_K,
+    RankedDocument,
+    hybrid_order,
+    keyword_rank,
+    reciprocal_rank_scores,
+)
 
 
 def test_exact_term_outranks_a_nearer_row() -> None:
     """The row that contains the query word ranks first even when cosine prefers another."""
     documents = [
-        ("semantic", "Built compliance reviews for customer contracts"),
-        ("exact", "Completed the Terraform rollout for staging"),
+        RankedDocument("semantic", "Built compliance reviews for customer contracts", 0.1),
+        RankedDocument("exact", "Completed the Terraform rollout for staging", 0.4),
     ]
     ordered = hybrid_order(
-        ["semantic", "exact"],
         documents,
         "Terraform",
-        {"semantic": 0.1, "exact": 0.4},
     )
 
     assert ordered[0][0] == "exact"
@@ -32,10 +36,9 @@ def test_exact_term_outranks_a_nearer_row() -> None:
 def test_no_shared_term_keeps_cosine_order() -> None:
     """A query that matches no row leaves the cosine order in place."""
     ordered = hybrid_order(
-        ["semantic", "exact"],
-        [("semantic", "Built compliance reviews"), ("exact", "Terraform rollout")],
+        [RankedDocument("semantic", "Built compliance reviews", 0.1),
+         RankedDocument("exact", "Terraform rollout", 0.4)],
         "zzzzqqq",
-        {"semantic": 0.1, "exact": 0.4},
     )
 
     assert [item for item, _score in ordered] == ["semantic", "exact"]
@@ -44,6 +47,17 @@ def test_no_shared_term_keeps_cosine_order() -> None:
 def test_stopwords_do_not_match() -> None:
     """Words such as "at" are not a keyword hit."""
     assert keyword_rank("at the", [("role", "Engineer at Acme")]) == []
+
+
+def test_empty_candidates_have_no_matches() -> None:
+    assert hybrid_order([], "Terraform") == []
+
+
+def test_equal_fusion_scores_break_ties_by_distance_then_id() -> None:
+    candidates = [RankedDocument("b", "Terraform", 0.1), RankedDocument("a", "Terraform", 0.4)]
+    assert [item for item, _score in hybrid_order(candidates, "Terraform")] == ["b", "a"]
+    candidates = [RankedDocument("b", "Terraform", 0.1), RankedDocument("a", "Terraform", 0.1)]
+    assert [item for item, _score in hybrid_order(candidates, "Terraform")] == ["a", "b"]
 
 
 def test_k_60_prefers_agreement_over_a_single_first_place() -> None:

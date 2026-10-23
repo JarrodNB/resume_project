@@ -16,7 +16,7 @@ from pgvector import Vector
 from pgvector.psycopg import register_vector
 from psycopg.rows import DictRow
 
-from memory.hybrid_rank import hybrid_order
+from memory.hybrid_rank import RankedDocument, hybrid_order
 from schemas.library_search_match import LibrarySearchMatch
 
 _SOURCE_TYPES = frozenset(
@@ -75,17 +75,18 @@ def search_career_library(
         rows = cursor.execute(SEARCH_QUERY, params).fetchall()
     if not rows:
         return []
-    vector_ids = [_row_id(row["source_type"], row["source_id"]) for row in rows]
-    documents = [(vector_ids[index], row["content"]) for index, row in enumerate(rows)]
-    distances = {vector_ids[index]: float(row["distance"]) for index, row in enumerate(rows)}
-    ordered = hybrid_order(vector_ids, documents, query_text, distances)[:limit]
-    by_id = {vector_ids[index]: row for index, row in enumerate(rows)}
+    documents = [
+        RankedDocument(_row_id(row["source_type"], row["source_id"]), row["content"], float(row["distance"]))
+        for row in rows
+    ]
+    ordered = hybrid_order(documents, query_text)[:limit]
+    by_id = {document.id: row for document, row in zip(documents, rows, strict=True)}
     return [
         LibrarySearchMatch(
             source_type=by_id[item]["source_type"],
             source_id=by_id[item]["source_id"],
             content=by_id[item]["content"],
-            distance=distances[item],
+            distance=float(by_id[item]["distance"]),
             score=score,
         )
         for item, score in ordered

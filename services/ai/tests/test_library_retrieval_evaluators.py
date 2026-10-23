@@ -27,6 +27,17 @@ def test_hand_labels_get_perfect_scores() -> None:
     assert scores and all(value == 1.0 for value in scores.values()), scores
 
 
+def test_eval_ranker_keeps_every_document_with_offline_embeddings() -> None:
+    """The evaluation adapter calls the production interface without dropping candidates."""
+    from pydantic_ai.embeddings import TestEmbeddingModel
+
+    from evals.run_library_retrieval_evals import rank_library
+
+    for case in load_library_retrieval_dataset().cases:
+        result = rank_library(case.inputs, TestEmbeddingModel(dimensions=16), 16)
+        assert sorted(result.ids) == sorted(document.id for document in case.inputs.documents)
+
+
 def test_retrieval_scores_count_hits_inside_k() -> None:
     """A relevant id in second place is full recall, half precision, and MRR 1/2."""
     scores = retrieval_scores(["other", "hit"], ["hit"], k=8)

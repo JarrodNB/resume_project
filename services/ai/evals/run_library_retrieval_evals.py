@@ -26,7 +26,7 @@ from evals.library_retrieval_evaluators import (
 from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
 from memory.embed_search_query import embed_search_query
-from memory.hybrid_rank import hybrid_order
+from memory.hybrid_rank import RankedDocument, hybrid_order
 from tailoring.retrieve_for_section import section_query
 from worker.settings import load_settings
 
@@ -53,10 +53,12 @@ def rank_library(case: RetrievalEvalInput, model: str, dimensions: int) -> Ranke
         document.id: _cosine_similarity(query.vector, list(vector))
         for document, vector in zip(case.documents, embedded.embeddings, strict=True)
     }
-    vector_ids = sorted(similarities, key=lambda doc_id: similarities[doc_id], reverse=True)
-    documents = [(document.id, document.content) for document in case.documents]
-    distances = {doc_id: 1 - similarity for doc_id, similarity in similarities.items()}
-    ordered = hybrid_order(vector_ids, documents, query_text, distances)
+    documents = [
+        RankedDocument(document.id, document.content, 1 - similarities[document.id])
+        for document in case.documents
+    ]
+    documents.sort(key=lambda document: similarities[document.id], reverse=True)
+    ordered = hybrid_order(documents, query_text)
     return RankedLibrary(ids=[doc_id for doc_id, _score in ordered])
 
 

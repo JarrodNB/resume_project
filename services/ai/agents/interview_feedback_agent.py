@@ -11,7 +11,7 @@ import re
 from typing import NamedTuple
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.settings import ModelSettings, ThinkingEffort
+from pydantic_ai.settings import ModelSettings, ThinkingLevel
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
@@ -101,7 +101,7 @@ class InterviewFeedbackRun(NamedTuple):
 def generate_interview_feedback(
     prompt: InterviewFeedbackContext,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> InterviewFeedbackRun:
@@ -114,7 +114,7 @@ def generate_interview_feedback(
 async def _run_with_deadline(
     prompt: InterviewFeedbackContext,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> InterviewFeedbackRun:

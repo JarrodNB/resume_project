@@ -8,7 +8,7 @@ import asyncio
 from typing import NamedTuple
 
 from pydantic_ai import Agent, ModelRetry, RunContext
-from pydantic_ai.settings import ModelSettings, ThinkingEffort
+from pydantic_ai.settings import ModelSettings, ThinkingLevel
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
@@ -62,7 +62,7 @@ class TailoringRun(NamedTuple):
 def write_resume_section(
     prompt: SectionPrompt,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> TailoringRun:
@@ -75,7 +75,7 @@ def write_resume_section(
 async def write_resume_section_async(
     prompt: SectionPrompt,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> TailoringRun:

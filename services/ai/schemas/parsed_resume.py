@@ -146,7 +146,7 @@ class ParsedResume(BaseModel):
 class ExperienceRoleExtraction(BaseModel):
     """One role citing exact source passages; no source text is generated."""
 
-    title: str
+    title: str = Field(description="The position or job title, never the employer. In Role, Employer — dates, use Role.")
     start_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     end_date: str | None = Field(default=None, description=PARTIAL_DATE_DESCRIPTION)
     is_current: bool = False
@@ -159,7 +159,7 @@ class ExperienceRoleExtraction(BaseModel):
 class EmploymentExtraction(BaseModel):
     """One employer block, with ordered roles and explicitly shared source passages."""
 
-    company: str
+    company: str = Field(description="The employer organization, never the job title. In Role, Employer — dates, use Employer, preserving any privacy token.")
     location: str | None = None
     description: str | None = None
     roles: list[ExperienceRoleExtraction] = Field(min_length=1, max_length=20)

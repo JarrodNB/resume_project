@@ -9,8 +9,13 @@ import re
 
 from pydantic import create_model, model_validator
 
+from documents.text_matching import normalize_text
 from schemas.parsed_resume import ExperienceExtraction, ExperienceRoleExtraction
 
+_SHARED_LIST_HEADER = re.compile(
+    r"shared (?:accomplishments|achievements|highlights|responsibilities)(?: across (?:both|all) roles)?[: ]*",
+    re.IGNORECASE,
+)
 _BULLET_LINE = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+(.*)$")
 _DATE_LINE = re.compile(
     r"^(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
@@ -98,7 +103,7 @@ def _is_resume_boundary(
         return True
     if _section_kind(text):
         return True
-    if re.fullmatch(r"shared (?:accomplishments|achievements|highlights|responsibilities)(?: across (?:both|all) roles)?[: ]*", text, re.IGNORECASE):
+    if _SHARED_LIST_HEADER.fullmatch(text):
         return True
     # A standalone label after a completed paragraph can start a new role/section.
     # Within unfinished prose the same capitalization may simply be "AWS SQS".
@@ -201,6 +206,20 @@ class ExperienceSource:
         self._bullets, bullet_lines = _source_bullet_map(resume_text)
         self._bullet_order = {bullet_id: index for index, bullet_id in enumerate(self._bullets)}
         lines = resume_text.splitlines()
+        self._nonempty = [(index, line) for index, line in enumerate(lines) if line.strip()]
+        self._bullet_positions = {bullet_id: index for index, bullet_id in bullet_lines.items()}
+        self._explicit_shared_ids = set()
+        in_shared_list = False
+        for position, (index, line) in enumerate(self._nonempty):
+            following = [value for _, value in self._nonempty[position + 1:position + 3]]
+            if _SHARED_LIST_HEADER.fullmatch(line.strip()):
+                in_shared_list = True
+            elif not _BULLET_LINE.match(line) and _is_resume_boundary(
+                line, following[0] if following else "", following[1] if len(following) > 1 else "",
+            ):
+                in_shared_list = False
+            if in_shared_list and index in bullet_lines:
+                self._explicit_shared_ids.add(bullet_lines[index])
         for line_index, bullet_id in bullet_lines.items():
             line = lines[line_index]
             match = _BULLET_LINE.match(line)
@@ -230,6 +249,67 @@ class ExperienceSource:
                     if bullet_id not in self._bullets or bullet_id in seen:
                         raise ValueError("Use only known source bullet IDs, once per resume.")
                     seen.add(bullet_id)
+        self._validate_layout(output)
+
+    def _company_heading_before(self, company: str, before: int) -> int | None:
+        """Use only a literal employer heading, never a company mention inside prose."""
+        for index, line in reversed(self._nonempty):
+            if index >= before:
+                continue
+            if _section_kind(line) == "other":
+                return None
+            if _BULLET_LINE.match(line):
+                continue
+            parts = [normalize_text(part) for part in _ROLE_HEADER_SEPARATOR.split(line.strip())]
+            if normalize_text(line) == company or (parts[0] == company and len(parts) > 1
+                                                   and all(_looks_like_title_case_label(part) for part in parts[1:])):
+                return index
+        return None
+
+    def _role_anchor(self, entry, role):
+        """Recognize dated literal role headers; uncertain or repeated matches stay unbound."""
+        title, company = normalize_text(role.title), normalize_text(entry.company)
+        candidates = []
+        for position, (index, line) in enumerate(self._nonempty):
+            if _BULLET_LINE.match(line):
+                continue
+            date_suffix = _DATE_RANGE_SUFFIX.search(line.strip())
+            following = self._nonempty[position + 1][1] if position + 1 < len(self._nonempty) else ""
+            if not date_suffix and not _DATE_LINE.fullmatch(following.strip()):
+                continue
+            header = line.strip()[:date_suffix.start()].rstrip(" ,|–—-(") if date_suffix else line.strip()
+            parts = [normalize_text(part) for part in _ROLE_HEADER_SEPARATOR.split(header)]
+            if title in parts and company in parts and title != company:
+                candidates.append((index, index))
+            elif normalize_text(header) == title:
+                employer = self._company_heading_before(company, index)
+                if employer is not None:
+                    candidates.append((index, employer))
+        if role.highlight_ids:
+            first_bullet = min(self._bullet_positions[bullet_id] for bullet_id in role.highlight_ids)
+            preceding = [candidate for candidate in candidates if candidate[0] < first_bullet]
+            return preceding[-1][1] if preceding else None
+        return candidates[0][1] if len(candidates) == 1 else None
+
+    def _validate_layout(self, output):
+        """Retry contradictions of positive header evidence without guessing new layouts."""
+        block_owners = {}
+        bindings = []
+        for entry_index, entry in enumerate(output.experiences):
+            anchors = {anchor for role in entry.roles if (anchor := self._role_anchor(entry, role)) is not None}
+            if len(anchors) > 1:
+                raise ValueError("Keep separate source employment blocks as separate experiences.")
+            for position in anchors:
+                previous = block_owners.setdefault(position, entry_index)
+                if previous != entry_index:
+                    raise ValueError("Keep roles beneath a single company heading in one experience.")
+            bindings.append((entry, anchors))
+        for bullet_id in self._explicit_shared_ids:
+            source_position = self._bullet_positions[bullet_id]
+            for entry, anchors in bindings:
+                employer = self._company_heading_before(normalize_text(entry.company), source_position)
+                if employer in anchors and bullet_id not in entry.shared_highlight_ids:
+                    raise ValueError("Include all explicitly shared source bullets once in their employment block's shared_highlight_ids.")
 
     def reconstruct(self, output: ExperienceExtraction) -> dict:
         """Return parsed fields with each role's exact highlights in source order.

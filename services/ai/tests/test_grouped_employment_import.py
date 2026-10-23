@@ -140,8 +140,8 @@ def test_synthetic_uploads_retain_grouping_and_complete_scoped_bullets(
     source = ExperienceSource(source_text)
     ids = re.findall(r"\[(B\d+)\]", source.annotated_text)
     all_bullets = source.reconstruct(source.output_type.model_validate({
-        "experiences": [{"company": "Example", "title": "Engineer", "highlight_ids": ids}],
-    }))["experiences"][0]["roles"][0]["highlights"]
+        "experiences": [{"company": "Example", "title": "Engineer", "shared_highlight_ids": ids}],
+    }))["experiences"][0]["shared_highlights"]
     available = {normalize_text(text): bullet_id for text, bullet_id in zip(all_bullets, ids, strict=True)}
     expected = ParsedResume.model_validate(case["expected_output"])
     selection = expected.model_dump()

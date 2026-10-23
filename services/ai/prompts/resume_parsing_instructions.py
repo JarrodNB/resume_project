@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "15"
+RESUME_PARSING_PROMPT_VERSION = "16"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -99,6 +99,10 @@ def format_resume_group_instruction(group: str) -> str:
             "Each source ID may occur at most once across all entries and scopes. "
             "Copy each stated company, title, and date from that role's own header. Do not leave "
             "stated role fields blank or move a privacy token between fields. "
+            "In a comma header 'Role, Employer — dates', the position is before the comma "
+            "and the organization is after it. Never swap company and title, including "
+            "when the organization is a privacy token. A pipe header may use employer "
+            "first; follow the document's header layout and the fields' meaning. "
             "A lone description of one deliverable for an unnamed client, with no stated job "
             "title or ongoing work relationship, is a project rather than an experience; do not "
             "invent an employer or role title for it. "

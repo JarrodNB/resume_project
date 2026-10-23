@@ -15,7 +15,7 @@ _BULLET_LINE = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+
 _DATE_LINE = re.compile(
     r"^(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
     r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
-    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?\s*[-–—]\s*"
+    r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?\s*(?:[-–—]|to)\s*"
     r"(?:(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|"
     r"jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+)?"
     r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?|present|current)\.?$",
@@ -27,7 +27,7 @@ _DATE_PART = (
     r"(?:\d{1,2}/)?(?:19|20)\d{2}(?:[-/]\d{1,2})?"
 )
 _DATE_RANGE_SUFFIX = re.compile(
-    rf"{_DATE_PART}\s*[-–—]\s*(?:{_DATE_PART}|present|current)\.?$",
+    rf"{_DATE_PART}\s*(?:[-–—]|to)\s*(?:{_DATE_PART}|present|current)\)?\.?$",
     re.IGNORECASE,
 )
 _ROLE_HEADER_SEPARATOR = re.compile(r",\s+|\s+[|–—-]\s+|\s+at\s+", re.IGNORECASE)
@@ -68,7 +68,7 @@ def _section_kind(line: str) -> str | None:
 
 def _looks_like_title_case_label(text: str, *, minimum_words: int = 1) -> bool:
     """Recognize compact title/company lines without treating sentence fragments as headers."""
-    words = re.findall(r"[A-Za-z][A-Za-z&.'’/-]*", text)
+    words = re.findall(r"[A-Za-z][A-Za-z&.'’/-]*", re.sub(r"«pii:[^»]+»", "Private", text))
     connector_words = {"and", "at", "for", "of", "the", "to"}
     return (
         minimum_words <= len(words) <= 8
@@ -84,7 +84,7 @@ def _is_role_date_header(line: str) -> bool:
     match = _DATE_RANGE_SUFFIX.search(text)
     if not match or _BULLET_LINE.match(text):
         return False
-    prefix = text[: match.start()].rstrip(" ,|–—-")
+    prefix = text[: match.start()].rstrip(" ,|–—-(")
     parts = _ROLE_HEADER_SEPARATOR.split(prefix)
     return bool(prefix) and all(_looks_like_title_case_label(part) for part in parts)
 

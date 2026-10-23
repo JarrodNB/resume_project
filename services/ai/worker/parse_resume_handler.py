@@ -1,7 +1,8 @@
 """
 Description: Imports a resume without sending detected contact to screening or parsing.
 Downloads and extracts locally, validates original limits, prepares opaque PII replacements,
-then restores structured output before source checks. Static spans time local stages without
+then selects the isolated structural importer or explicit legacy rollback. Both routes restore
+structured output before source checks. Static spans time local stages without
 recording document attributes or exceptions. Safe to run twice (it only reads).
 Index:
     - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
@@ -11,6 +12,7 @@ Index:
 
 from opentelemetry import trace
 from pydantic import BaseModel
+from pydantic_ai_harness import InputBlocked
 
 from agents.resume_parsing_agent import parse_resume_text
 from documents.enforce_source_faithfulness import enforce_source_faithfulness
@@ -20,6 +22,8 @@ from documents.extract_document_text import (
     extract_document_text,
 )
 from pii import PiiDetectionError, PiiRestorationError
+from resume_import import import_resume_text
+from screening.prompt_guardrail import UNCHECKED_MESSAGE
 from screening.screen_user_text import ScreenOutcome, screen_user_text
 from screening.session import within_screening_session
 from text_limits import MAX_RESUME_TEXT, RESUME_TOO_LONG_MESSAGE
@@ -27,6 +31,7 @@ from worker.contact_mask import import_privacy_scope
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
 from worker.task_dependencies import TaskDependencies
+from worker.task_usage import current_task_usage
 
 _stage_tracer = trace.get_tracer(__name__)
 
@@ -101,28 +106,48 @@ def _parse_resume(task, dependencies, privacy):
         "resume_import.prepare_pii", record_exception=False, set_status_on_exception=False
     ):
         masked_text = privacy.prepare(resume_text)
-    screen = _screen_resume_text(
-        masked_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
-    )
-    screen_usage = _screen_usage(screen)
-    if not screen.allowed:
-        return AiResultMessage(
-            ai_task_id=task.ai_task_id,
-            status="failed",
-            error_message=_screen_failure_message(screen),
-            usage=screen_usage,
-        )
-
     model = settings.resume_parsing_model
-    parsing_run = parse_resume_text(
-        masked_text,
-        model=model,
-        thinking=settings.resume_parsing_thinking,
-        timeout_seconds=settings.llm_run_timeout_seconds,
-        fallback_model=settings.generative_fallback_model,
-    )
-    usage = [*(getattr(parsing_run, "model_usages", None) or
-               [build_model_usage(parsing_run.model or model, parsing_run.usage)]), *screen_usage]
+    if settings.resume_import_strategy == "structural":
+        try:
+            parsing_run = import_resume_text(
+                masked_text,
+                model=model,
+                thinking=settings.resume_parsing_thinking,
+                timeout_seconds=settings.llm_run_timeout_seconds,
+                fallback_model=settings.generative_fallback_model,
+            )
+        except InputBlocked as error:
+            # Screen failures remain actionable and never trigger a second importer.
+            observed = current_task_usage()
+            return AiResultMessage(
+                ai_task_id=task.ai_task_id, status="failed",
+                error_message=(RESUME_UNCHECKED_MESSAGE if str(error) == UNCHECKED_MESSAGE
+                               else BLOCKED_RESUME_MESSAGE),
+                usage=list(observed.entries) if observed else [],
+            )
+        usage = parsing_run.model_usages
+    else:
+        screen = _screen_resume_text(
+            masked_text, settings.user_text_screen_model, settings.llm_run_timeout_seconds
+        )
+        screen_usage = _screen_usage(screen)
+        if not screen.allowed:
+            return AiResultMessage(
+                ai_task_id=task.ai_task_id,
+                status="failed",
+                error_message=_screen_failure_message(screen),
+                usage=screen_usage,
+            )
+
+        parsing_run = parse_resume_text(
+            masked_text,
+            model=model,
+            thinking=settings.resume_parsing_thinking,
+            timeout_seconds=settings.llm_run_timeout_seconds,
+            fallback_model=settings.generative_fallback_model,
+        )
+        usage = [*(getattr(parsing_run, "model_usages", None) or
+                   [build_model_usage(parsing_run.model or model, parsing_run.usage)]), *screen_usage]
     with _stage_tracer.start_as_current_span(
         "resume_import.restore_and_check_source",
         record_exception=False,

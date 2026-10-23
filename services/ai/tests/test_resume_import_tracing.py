@@ -30,6 +30,12 @@ GROUP_SPANS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def legacy_import_route(task_dependencies):
+    """Keep historical parser coverage on the explicitly selected rollback route."""
+    task_dependencies.settings.resume_import_strategy = "legacy"
+
+
 @pytest.fixture
 def exporters():
     yield from test_tracing.exporters.__wrapped__()

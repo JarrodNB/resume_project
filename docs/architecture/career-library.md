@@ -167,7 +167,9 @@ tailoring) instead of sending everything.
 
 - **Resume parsing extracts, never rewrites.** Bullets are copied word for word and anything
   not stated stays null, so evals can check faithfulness deterministically (every extracted
-  highlight, skill, and company must appear in the source text). Ambiguities go into
+  highlight, skill, and company must appear in the source text). Bullets with uncertain
+  role ownership go into `unassigned_highlights` for explicit assignment or discard in
+  import review; Rails refuses unresolved bullets. Other ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
   planned for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.

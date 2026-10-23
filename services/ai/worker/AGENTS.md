@@ -23,6 +23,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `parse_resume_handler.py` — downloads the upload, extracts text, validates original limits,
   prepares local `pii/` masking before screening and parsing, restores structured output
   before source checks, and fails closed when privacy preparation/restoration fails;
+  selects `resume_import/` by default (`RESUME_IMPORT_STRATEGY=legacy` explicitly selects
+  the retained parser; invalid values prevent startup, and failures never switch routes).
+  Structural import owns chunk screening and extraction together; the legacy route
   screens it (a block fails
   the import; an extract over the text or page cap fails as too long, not unsafe; a screen
   that does not run fails as unchecked, not unsafe; the phrase list is not applied to the

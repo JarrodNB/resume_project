@@ -44,13 +44,15 @@ def providers(monkeypatch, offline_model_resolution, task_dependencies):
     return seen
 
 
-def test_valid_import_expansion_reaches_all_parser_groups(task_dependencies, fake_file_storage, providers):
+@pytest.mark.parametrize("route,expected_calls", [("structural", 1), ("legacy", 3)])
+def test_valid_import_expansion_reaches_selected_parser(route, expected_calls, task_dependencies, fake_file_storage, providers):
+    task_dependencies.settings.resume_import_strategy = route
     source = "jane@example.test\n" * 3500
     assert len(source) < MAX_RESUME_TEXT
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(source.splitlines())
     result = handle_parse_resume_task(build_parse_resume_task(), task_dependencies)
     assert result.status == "completed"
-    assert len(providers["parse"]) == 3
+    assert len(providers["parse"]) == expected_calls
     assert all(len(prompt) > MAX_PROMPT_TEXT for prompt in providers["parse"])
     assert providers["screen"]
     assert "jane@example.test" not in repr(providers)

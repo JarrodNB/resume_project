@@ -1,5 +1,6 @@
 """
 Description: Worker configuration loaded from environment variables.
+Resume import defaults to the isolated structural module with explicit legacy rollback.
 Generative tasks default to GPT-6 Luna with reasoning disabled; environment variables
 can override each task's model.
 Index:
@@ -9,6 +10,8 @@ Index:
     - load_settings: builds WorkerSettings from the environment
     - worker_environment / conversation_logging_enabled: explicit local transcript gate
 """
+
+from typing import Literal
 
 from pydantic import field_validator
 from pydantic_ai.settings import ThinkingLevel
@@ -33,6 +36,8 @@ class WorkerSettings(BaseSettings):
     retry_delay_seconds: int = 30
     s3_endpoint_url: str | None = None
     s3_uploads_bucket: str = "careergrind-uploads"
+    # Explicit rollback only: a failed structural import never retries the legacy parser.
+    resume_import_strategy: Literal["structural", "legacy"] = "structural"
     resume_parsing_model: str = "openai:gpt-6-luna"
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.

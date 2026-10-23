@@ -36,6 +36,12 @@ FILE_KEY = "uploads/resume-key"
 
 
 @pytest.fixture(autouse=True)
+def legacy_import_route(task_dependencies):
+    """Keep historical parser coverage on the explicitly selected rollback route."""
+    task_dependencies.settings.resume_import_strategy = "legacy"
+
+
+@pytest.fixture(autouse=True)
 def allow_resume_screen(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lets parse tests reach the parser. The real screen fails closed without an API key."""
 

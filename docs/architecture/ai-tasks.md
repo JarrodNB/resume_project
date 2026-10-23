@@ -55,12 +55,19 @@ Per task type:
   `AiTask#accepted_at`.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
-  Parsing screens the complete masked source once (using chunks when necessary), then
-  concurrently extracts experience; projects and skills; and profile, education and
-  certifications. Each group receives the full source. One deadline and combined
-  request/token budgets apply; failure cancels and awaits siblings, returning no partial
-  parse. Warnings combine in group order with exact duplicates removed. Concrete provider
-  requests, including fallback attempts, retain attempt-level usage accounting.
+  The default isolated `resume_import/` module conservatively chunks masked source into
+  complete sections, retaining uncertain boundaries together. Up to three chunk pipelines
+  screen their exact source once and extract typed records concurrently using the available
+  model catalog. Global source IDs reconstruct verbatim bullets; ambiguous ownership returns
+  `unassigned_highlights` with source context for user placement or explicit discard before
+  saving. Rails rejects unresolved placement data. One deadline and combined extraction
+  request/token budgets apply; any failure cancels and awaits siblings without a partial result.
+  `RESUME_IMPORT_STRATEGY=legacy` selects the retained three-group full-source parser for
+  explicit rollback after restarting workers. Only `structural` (default) and `legacy` are
+  accepted; failed imports never silently switch implementations. The legacy route screens
+  the complete masked source before its three extraction groups. Both routes retain concrete
+  provider-request accounting, including failed runs and fallback attempts. Structural run
+  usage already includes screening; the handler must not add a second screen charge.
   Both Jev screening and parsing receive reversible typed placeholders, even when
   profile contact is empty or different. Structured output is restored before source
   checks and publication. Detector failures stop before either provider; unresolved

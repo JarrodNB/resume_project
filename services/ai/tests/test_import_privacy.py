@@ -26,6 +26,12 @@ from worker.parse_resume_handler import RESUME_PRIVACY_MESSAGE, handle_parse_res
 SOURCE = "Jane Doe\njane@example.test\n+1 415-555-2671\nEngineer at Acme\nHelped Jane Doe ship Python services."
 
 
+@pytest.fixture(autouse=True)
+def legacy_import_route(task_dependencies):
+    """Keep historical parser coverage on the explicitly selected rollback route."""
+    task_dependencies.settings.resume_import_strategy = "legacy"
+
+
 @pytest.fixture
 def exporters():
     yield from test_tracing.exporters.__wrapped__()

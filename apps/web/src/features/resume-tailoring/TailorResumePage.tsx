@@ -70,7 +70,7 @@ export function TailorResumePage() {
   )
 }
 
-/** Choose a preferred maximum before any model work is requested. */
+/** Choose the intended resume length before any model work is requested. */
 function TailorSetup({ pending, onStart }: { pending: boolean; onStart: (target: 1 | 2) => Promise<void> }) {
   const [target, setTarget] = useState<1 | 2>(2)
   return (
@@ -85,7 +85,7 @@ function TailorSetup({ pending, onStart }: { pending: boolean; onStart: (target:
             </label>
           ))}
         </div>
-        <p id="tailor-length-help" className="text-sm text-muted-foreground">A preferred maximum. The AI will prioritize relevant content; the finished resume may be shorter or longer.</p>
+        <p id="tailor-length-help" className="text-sm text-muted-foreground">One page keeps the strongest content concise. Two pages aims for fuller coverage of relevant experience. Actual length depends on your evidence and layout.</p>
       </fieldset>
       <Button type="submit" disabled={pending} className="justify-self-start">{pending ? 'Starting…' : 'Tailor resume'}</Button>
     </form>

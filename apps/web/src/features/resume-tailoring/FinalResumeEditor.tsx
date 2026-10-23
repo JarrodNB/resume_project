@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ResumeEditorActions } from './ResumeEditorActions'
 import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
+import { ResumeDocxStatus } from './ResumeDocxStatus'
+import { useResumeDocxCheck } from './useResumeDocxCheck'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
 import { SECTION_TITLES } from './sectionOrder'
@@ -51,6 +53,13 @@ export function FinalResumeEditor({ jobId, targetPageCount = 2, sections, warnin
     content: contentFromSectionDraft(section.draft),
   }))
 
+  const model = buildResumePdfModel(selected)
+  const docxCheck = useResumeDocxCheck(JSON.stringify(model))
+  function preview() {
+    setPreviewOpen(true)
+    void docxCheck.prepare().catch(() => {})
+  }
+
   async function save() {
     if (selected.length === 0 || pending) return
     if (await onSave(selected.map(({ sectionType, ...section }) => ({ ...section, section_type: sectionType })))) setSavedSnapshot(snapshot)
@@ -59,7 +68,7 @@ export function FinalResumeEditor({ jobId, targetPageCount = 2, sections, warnin
   return (
     <div className="grid gap-4">
       <ResumeUnsavedChanges dirty={dirty} />
-      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()} />
+      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={preview} onSave={() => void save()} />
       {warnings.length > 0 && (
         <Alert>
           <CircleAlert aria-hidden />
@@ -87,7 +96,8 @@ export function FinalResumeEditor({ jobId, targetPageCount = 2, sections, warnin
             <DialogTitle>Preview</DialogTitle>
             <DialogDescription>Preview includes unsaved edits. Save your resume before downloading.</DialogDescription>
           </DialogHeader>
-          {previewOpen && <ResumePdfPreview model={buildResumePdfModel(selected)} targetPageCount={targetPageCount} />}
+          {previewOpen && <ResumeDocxStatus check={docxCheck} targetPageCount={targetPageCount} />}
+          {previewOpen && <ResumePdfPreview model={model} targetPageCount={targetPageCount} />}
         </DialogContent>
       </Dialog>
     </div>

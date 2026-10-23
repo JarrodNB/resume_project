@@ -15,6 +15,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ResumeEditorActions } from './ResumeEditorActions'
 import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
+import { ResumeDocxStatus } from './ResumeDocxStatus'
+import { useResumeDocxCheck } from './useResumeDocxCheck'
 import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
 import { asSectionType, SECTION_TITLES } from './sectionOrder'
@@ -60,6 +62,13 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
     })),
   )
 
+  const docxCheck = useResumeDocxCheck(JSON.stringify(model), resumeId)
+
+  function preview() {
+    setPreviewOpen(true)
+    void docxCheck.prepare().catch(() => {})
+  }
+
   async function save() {
     if (pending) return
     if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))) {
@@ -75,7 +84,11 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
     setExportError([])
     // Later edits build a different model and cannot change this saved snapshot.
     try {
-      await (format === 'PDF' ? downloadResumePdf : downloadResumeDocx)(savedModel, title)
+      if (format === 'PDF') await downloadResumePdf(savedModel, title)
+      else {
+        const blob = await docxCheck.prepare()
+        await downloadResumeDocx(savedModel, title, blob)
+      }
     } catch {
       setExportError([`Could not download the ${format}. Please try again.`])
     } finally {
@@ -88,7 +101,7 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
     <div className="grid gap-4">
       <p className="text-sm text-muted-foreground">Target: {targetPageCount} {targetPageCount === 1 ? 'page' : 'pages'}</p>
       <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
-      <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || !!exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
+      <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || !!exportPending} errors={errors} onPreview={preview} onSave={() => void save()}>
         <Button type="button" variant="destructive" disabled={pending || deletion.pending || !!exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
         {(['PDF', 'DOCX'] as const).map((format) => (
           <Button key={format} type="button" variant="outline" disabled={dirty || pending || deletion.pending || !!exportPending} onClick={() => void download(format)}>
@@ -96,6 +109,7 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
           </Button>
         ))}
       </ResumeEditorActions>
+      {!previewOpen && docxCheck.state.status !== 'idle' && <ResumeDocxStatus check={docxCheck} targetPageCount={targetPageCount} onDownload={() => void download('DOCX')} downloadDisabled={dirty || pending || deletion.pending || !!exportPending} />}
       {dirty && <p className="text-sm text-muted-foreground">Save your changes to download</p>}
       <ErrorAlert messages={exportError} title="Couldn't download this resume" />
       <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
@@ -113,6 +127,7 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
             <DialogTitle>Preview</DialogTitle>
             <DialogDescription>Preview includes unsaved edits. Save your changes before downloading.</DialogDescription>
           </DialogHeader>
+          {previewOpen && <ResumeDocxStatus check={docxCheck} targetPageCount={targetPageCount} onDownload={() => void download('DOCX')} downloadDisabled={dirty || pending || deletion.pending || !!exportPending} />}
           {previewOpen && <ResumePdfPreview model={model} targetPageCount={targetPageCount} />}
         </DialogContent>
       </Dialog>

@@ -7,13 +7,14 @@ Index:
     - flush_tracing: waits at most five seconds for one shared background flush
 """
 
+import atexit
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
 import logfire
 from opentelemetry import trace
-from pydantic_ai import Agent, Embedder, InstrumentationSettings
+from pydantic_ai import Agent, Embedder, InstrumentationSettings, prices
 
 from worker.contact_mask import install_contact_hooks, using_known_contact
 from worker.queue_messages import AiTaskMessage
@@ -21,15 +22,21 @@ from worker.telemetry_flush import BoundedTelemetryFlush
 from worker.telemetry_privacy import ContactLogProcessor, ContactSpanProcessor, telemetry_scope
 
 _flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
+_price_updater = None
 
 
 def configure_tracing(additional_span_processors=()) -> None:
     """Configures env-based export and optional caller-owned synchronous span collectors."""
+    global _price_updater
+    export_enabled = bool(os.getenv("LOGFIRE_TOKEN", "").strip())
+    if export_enabled and _price_updater is None:
+        _price_updater = prices.update_in_background()
+        atexit.register(_price_updater.stop)
     logfire.configure(
-        send_to_logfire=bool(os.getenv("LOGFIRE_TOKEN", "").strip()),
+        send_to_logfire=export_enabled,
         service_name="careergrind-ai",
         console=False,
-        metrics=False,
+        metrics=logfire.MetricsOptions(),
         inspect_arguments=False,
         additional_span_processors=[ContactSpanProcessor(), *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),

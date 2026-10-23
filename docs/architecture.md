@@ -83,7 +83,11 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
 - **Pydantic AI for all agent work.** It provides typed structured outputs, tools, and
   dependency injection, and switching LLM providers is a config change. Its deferred
   tools match our SQS pause/resume flow, and its OpenTelemetry instrumentation sends
-  traces to Logfire without a custom wrapper.
+  traces and token/cost metrics to Logfire without a custom wrapper. The AI startup
+  uses Pydantic AI's native background price updater when remote tracing is enabled
+  so newly released models can receive current upstream prices without blocking startup.
+  Costs appear on new model spans and aggregate onto parent spans. This does not
+  backfill historical traces or replace the separate Rails budget accounting.
 
 - **Page sections are collapsible and start collapsed.** Long pages are a stack of titled
   sections (the career library, a job, a tailored resume). Each starts collapsed and stays that

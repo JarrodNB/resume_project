@@ -260,8 +260,8 @@ class ExperienceSource:
                 return None
             if _BULLET_LINE.match(line):
                 continue
-            parts = [normalize_text(part) for part in _ROLE_HEADER_SEPARATOR.split(line.strip())]
-            if normalize_text(line) == company or (parts[0] == company and len(parts) > 1
+            parts = _ROLE_HEADER_SEPARATOR.split(line.strip())
+            if normalize_text(line) == company or (normalize_text(parts[0]) == company and len(parts) > 1
                                                    and all(_looks_like_title_case_label(part) for part in parts[1:])):
                 return index
         return None

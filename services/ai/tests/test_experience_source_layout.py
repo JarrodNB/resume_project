@@ -116,3 +116,47 @@ def test_parser_retries_contradicted_layout_and_returns_the_complete_group(offli
     assert [role.title for role in entry.roles] == ["Lead Engineer", "Engineer"]
     assert [role.highlights for role in entry.roles] == [["Led releases."], ["Built APIs."]]
     assert entry.shared_highlights == ["Maintained a shared SDK."]
+
+
+def test_false_positive_person_token_in_title_round_trips_through_public_parser(offline_model_resolution):
+    import re
+
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from agents.resume_parsing_agent import parse_resume_text
+    from documents.enforce_source_faithfulness import enforce_source_faithfulness
+    from evals.run_resume_parsing_evals import load_resume_parsing_dataset
+    from worker.contact_mask import import_privacy_scope
+
+    case = next(case for case in load_resume_parsing_dataset().cases
+                if case.name == "career_changer_with_ambiguous_freelance_work")
+    with import_privacy_scope() as privacy:
+        masked = privacy.prepare(case.inputs)
+        header = next(line for line in masked.splitlines() if "Sep 2023 to Present" in line)
+        title_token = header.split(",", 1)[0]
+        assert re.fullmatch(r"«pii:[^»]+»", title_token)
+        assert "Volunteer Web Developer" not in masked
+        requests = []
+
+        async def answer(messages, info):
+            requests.append(str(messages))
+            fields = info.output_tools[0].parameters_json_schema["properties"]
+            args = {"experiences": [{"company": "Chicago Food Share", "roles": [{
+                "title": title_token, "start_date": "2023-09", "is_current": True,
+                "highlight_ids": ["B3"],
+            }]}]} if "experiences" in fields else {}
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, args)])
+
+        offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+        run = parse_resume_text(masked, "openai:gpt-5-mini", "low", 5, "openai:gpt-5-mini")
+        restored = privacy.restore(run.parsed_resume)
+    checked = enforce_source_faithfulness(restored, case.inputs)
+    entry = checked.experiences[0]
+    assert entry.company == "Chicago Food Share"
+    assert entry.roles[0].title == "Volunteer Web Developer"
+    assert entry.roles[0].is_current
+    assert entry.roles[0].highlights == ["Rebuilt the volunteer sign-up site in React, replacing a paper process."]
+    assert checked.parsing_warnings == []
+    assert "«pii:" not in checked.model_dump_json()
+    assert requests and all("Volunteer Web Developer" not in request for request in requests)

@@ -51,6 +51,9 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(api["__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"], "web.example")
         self.assertEqual(api["PGPORT"], "55432")
         self.assertEqual(ai["DB_USERNAME"], "ai_reader")
+        self.assertTrue(ai["DATABASE_URL"].startswith("postgresql://ai_reader:"))
+        self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
+        self.assertNotIn("CABLE_DATABASE_URL", ai)
         self.assertEqual(api["INTERVIEW_SERVICE_SECRET"], ai["INTERVIEW_SERVICE_SECRET"])
         self.assertNotEqual(api["DB_PASSWORD"], ai["DB_PASSWORD"])
 

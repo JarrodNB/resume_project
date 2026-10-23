@@ -48,7 +48,9 @@ def _boundary(line: str, following: str, after_following: str = "", previous: st
     ):
         return True
     return bool(
-        _DATE.search(text) or _DATE.search(following.strip()) or re.search(r"\s[|–—]\s", text)
+        _DATE.search(text)
+        or (_DATE.search(following.strip()) and not _CONTINUATION_END.search(previous))
+        or re.search(r"\s[|–—]\s", text)
     )
 
 

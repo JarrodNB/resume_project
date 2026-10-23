@@ -602,3 +602,87 @@ def test_nonbullet_anchor_evidence_does_not_require_unrelated_identical_work_bul
     assert parsed.projects[0].name == "Atlas"
     assert parsed.experiences[0].highlights == ["Atlas"]
     assert not parsed.unassigned_highlights
+
+
+def test_prompt_explicit_contact_example_requires_preserving_masked_candidate_name(
+    offline_model_resolution,
+):
+    async def answer(messages, info):
+        assert '{"full_name":"[PERSON_TOKEN]","email":"[EMAIL_TOKEN]"}' in info.instructions
+        assert "does not establish candidate identity" not in info.instructions
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "contact",
+                                "source_id": "S2",
+                                "fields": {
+                                    "full_name": "[PERSON_TOKEN]",
+                                    "email": "[EMAIL_TOKEN]",
+                                },
+                            },
+                            {"type": "project", "source_id": "S5", "fields": {"name": "Atlas"}},
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = parse("CONTACT\n[PERSON_TOKEN]\n[EMAIL_TOKEN]\n\nPROJECTS\nAtlas")
+    assert parsed.contact.full_name == "[PERSON_TOKEN]"
+    assert parsed.projects[0].name == "Atlas"
+
+
+def test_continuation_before_combined_dated_role_header_stays_with_previous_bullet(
+    offline_model_resolution,
+):
+    import re
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+
+        def source_id(text):
+            return re.search(r"\[(S\d+)\] " + re.escape(text), prompt).group(1)
+
+        return ModelResponse(
+            parts=[
+                ToolCallPart(
+                    info.output_tools[0].name,
+                    {
+                        "records": [
+                            {
+                                "type": "experience",
+                                "source_id": source_id("Engineer | Acme"),
+                                "fields": {
+                                    "company": "Acme",
+                                    "title": "Engineer",
+                                    "highlight_ids": [source_id("- Deployed services to")],
+                                },
+                            },
+                            {
+                                "type": "experience",
+                                "source_id": source_id("Senior Engineer | Beta"),
+                                "fields": {
+                                    "company": "Beta",
+                                    "title": "Senior Engineer",
+                                    "highlight_ids": [source_id("- Led delivery")],
+                                },
+                            },
+                        ]
+                    },
+                )
+            ]
+        )
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = parse(
+        "Experience\nEngineer | Acme\n- Deployed services to\nproduction\nSenior Engineer | Beta | 2022 - Present\n- Led delivery"
+    )
+    assert [role.highlights for role in parsed.experiences] == [
+        ["Deployed services to\nproduction"],
+        ["Led delivery"],
+    ]

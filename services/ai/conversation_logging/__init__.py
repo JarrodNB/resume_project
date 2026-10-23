@@ -214,20 +214,6 @@ async def observe_request(model, messages, model_settings, parameters):
     return response
 
 
-def publish_result(queue, result):
-    """Publishes unchanged queue data and records only observable delivery outcomes."""
-    try:
-        queue.send_message(result.model_dump_json())
-    except BaseException as error:
-        record_outcome(f"{result.status} result publication failed ({type(error).__name__}); task will redeliver",
-                       event="PUBLICATION FAILURE")
-        raise
-    if result.status != "usage":
-        record_outcome(f"{result.status} result published")
-    elif result.attempt_finished:
-        record_outcome("retry pending; usage published", event="RETRY PENDING")
-
-
 def record_outcome(outcome, *, event="Outcome"):
     """Records lifecycle outcomes without changing queue or accounting behavior."""
     try:

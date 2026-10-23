@@ -31,6 +31,14 @@ tailoring) instead of sending everything.
 
 ## Decisions
 
+- **Ranking receives complete candidate records.** Database search and the retrieval
+  evaluation pass immutable `RankedDocument` values (ID, content, cosine distance)
+  in nearest-first order to `hybrid_order(documents, query_text)`. The ranking module
+  owns the projections required by BM25, reciprocal rank fusion, and tie-breaking.
+  This replaces separate ID lists, text pairs, and distance maps that callers had
+  to keep aligned. SQL still owns user, model, and source-type filtering; ranking
+  scores and ordering rules are unchanged.
+
 - **pgvector over a separate vector DB.** One database to run; enough for this scale.
 
 - **Library search is hybrid.** Cosine order from pgvector is fused with BM25 over the same

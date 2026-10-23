@@ -94,3 +94,25 @@ def test_async_tailoring_retains_user_scope_and_empty_search_fallback(monkeypatc
     assert search.call_args.kwargs["source_types"] == {
         "Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "LibraryFact"}
     assert embed.await_count == 1
+
+
+def test_search_preserves_row_metadata_after_hybrid_ranking(monkeypatch):
+    """Same IDs in different source types remain distinct through the ranking adapter."""
+    cursor = Mock()
+    cursor.execute.return_value = cursor
+    cursor.fetchall.return_value = [
+        {"source_type": "Skill", "source_id": "shared", "content": "Compliance", "distance": 0.1},
+        {"source_type": "Project", "source_id": "shared", "content": "Terraform", "distance": 0.4},
+    ]
+    connection = Mock()
+    connection.transaction.return_value = nullcontext()
+    connection.cursor.return_value = nullcontext(cursor)
+    monkeypatch.setattr("database.library_embedding_search.register_vector", lambda _connection: None)
+
+    results = search_career_library(
+        connection, uuid4(), [0.1], "Terraform", "model", source_types={"Skill", "Project"}
+    )
+    assert [(match.source_type, match.source_id, match.content, match.distance) for match in results] == [
+        ("Project", "shared", "Terraform", 0.4), ("Skill", "shared", "Compliance", 0.1),
+    ]
+    assert results[0].score > results[1].score

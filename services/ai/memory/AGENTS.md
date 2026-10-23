@@ -13,7 +13,9 @@ compared with the career library embeddings Rails stores in `library_embeddings`
   vector and its token usage. `stored_embedding_model_name(model)`: the worker's
   `openai:`-prefixed model name as Rails stores it (`text-embedding-3-small`)
 - `hybrid_rank.py` — `keyword_rank` (BM25), `reciprocal_rank_scores` (k=60), and `hybrid_order`.
-  Library search and the library-retrieval eval both call `hybrid_order`
+  Library search and the library-retrieval eval both call `hybrid_order(documents, query_text)`
+  with immutable `RankedDocument` records (ID, content, distance) in cosine order.
+  The ranker owns projections for keyword ranking and tie-breaking; callers do not align separate maps.
 
 ## Local Rules
 

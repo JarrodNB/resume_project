@@ -19,13 +19,24 @@ _SECTION = re.compile(
 )
 
 
-def _boundary(line: str, following: str) -> bool:
+def _boundary(line: str, following: str, after_following: str = "") -> bool:
     text = line.strip()
     # Capitalization alone is not structural evidence: SQL and AWS often wrap.
     if _SECTION.fullmatch(text):
         return True
     if len(text) > 140 or text.endswith((".", "!", "?")):
         return False
+    # A multiword company label and title can precede a separate date range.
+    # Keep both labels out of the preceding bullet without treating capitalization
+    # alone as evidence: acronyms such as SQL can still be wrapped continuations.
+    title = following.strip()
+    if (
+        len(text.split()) >= 2
+        and _DATE.search(after_following.strip())
+        and 0 < len(title) <= 140
+        and not title.endswith((".", "!", "?"))
+    ):
+        return True
     return bool(
         _DATE.search(text) or _DATE.search(following.strip()) or re.search(r"\s[|–—]\s", text)
     )
@@ -72,7 +83,8 @@ class ResumeSource:
                     # Capitalized words also wrap. Stop only for confident heading/date
                     # evidence rather than treating capitalization as a new entry.
                     after = lines[index + 1] if index + 1 < len(lines) else ""
-                    if _boundary(following, after):
+                    after_next = lines[index + 2] if index + 2 < len(lines) else ""
+                    if _boundary(following, after, after_next):
                         break
                     parts.append(following.strip())
                     annotated.append(following)

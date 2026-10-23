@@ -947,3 +947,54 @@ def test_wrapped_acronyms_preserve_following_sections_and_dated_role_boundaries(
         ["Deployed to\nAWS"],
     ]
     assert parsed.skills[0].name == "Python"
+
+
+def test_three_line_company_role_date_header_does_not_contaminate_previous_bullet(
+    offline_model_resolution,
+):
+    import re
+
+    from resume_import import import_resume_text
+
+    prompts = []
+
+    async def answer(messages, info):
+        prompt = messages[-1].parts[-1].content
+        prompts.append(prompt)
+
+        def source_id(text):
+            return re.search(r"\[(S\d+)\] " + re.escape(text), prompt).group(1)
+
+        records = [
+            {
+                "type": "experience",
+                "source_id": source_id("Alpha Corp"),
+                "fields": {
+                    "company": "Alpha Corp",
+                    "title": "Engineer",
+                    "highlight_ids": [source_id("• Built APIs")],
+                },
+            },
+            {
+                "type": "experience",
+                "source_id": source_id("Senior Engineer"),
+                "fields": {
+                    "company": "Beta Corp",
+                    "title": "Senior Engineer",
+                    "highlight_ids": [source_id("• Led delivery")],
+                },
+            },
+        ]
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"records": records})])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    parsed = import_resume_text(
+        "Experience\nAlpha Corp\nEngineer\n2018 - 2020\n• Built APIs\n"
+        "Beta Corp\nSenior Engineer\n2021 - Present\n• Led delivery",
+        "openai:gpt-5-mini",
+        "low",
+        30,
+        "openai:gpt-5-nano",
+    ).parsed_resume
+    assert [entry.highlights for entry in parsed.experiences] == [["Built APIs"], ["Led delivery"]]
+    assert re.search(r"\[S\d+\] Beta Corp", prompts[0])

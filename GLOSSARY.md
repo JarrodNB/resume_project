@@ -77,3 +77,6 @@ and do not increase the chosen number of core questions.
 A core question whose remaining prompts the user chose to skip. Previous accepted answers
 stay saved; the skip itself is not an answer and does not use the answer allowance or count
 in answer-quality scoring. Skipping a follow-up moves directly to the next core question.
+
+**Unassigned highlight**:
+A resume bullet whose owning experience is unclear. During import review, the user chooses an experience for it or explicitly discards it before saving.

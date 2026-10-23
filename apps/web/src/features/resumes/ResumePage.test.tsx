@@ -1,7 +1,8 @@
 /**
  * Description: One saved resume opens for editing and links back to its job.
- * The PDF preview is mocked.
+ * Preview and rendering are mocked; downloads must receive the exact retained Word Blob.
  */
+import { START_DOCX_CHECK } from '@/features/resume-tailoring/docxCheckOperations'
 import { downloadResumePdf, downloadResumeDocx } from '@/features/resume-tailoring/resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -14,6 +15,9 @@ import { DELETE_RESUME_MUTATION, RESUME_QUERY, RESUMES_QUERY } from './resumesOp
 import { TAILOR_JOB_QUERY } from '@/features/resume-tailoring/tailorOperations'
 
 vi.mock('@/features/resume-tailoring/resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
+
+const docxBlob = new Blob(['editable resume'])
+vi.mock('@/features/resume-tailoring/resumeDocxDocument', () => ({ generateResumeDocx: vi.fn(async () => docxBlob) }))
 
 vi.mock('@/features/resume-tailoring/ResumePdfPreview', () => ({
   ResumePdfPreview: () => <iframe title="Resume preview" />,
@@ -81,14 +85,14 @@ it('still opens a resume whose job was removed', async () => {
     path: '/resumes/:id',
     url: '/resumes/resume-1',
     element: <ResumePage />,
-    mocks: [resumeQuery(null)],
+    mocks: [resumeQuery(null), { request: { query: START_DOCX_CHECK, variables: () => true }, error: new Error('Pagination unavailable') }],
   })
 
   expect(await screen.findByText('The job for this resume was removed.')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
   await userEvent.click(screen.getByRole('button', { name: 'Download DOCX' }))
-  expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
+  await waitFor(() => expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme', docxBlob))
   await userEvent.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
 })

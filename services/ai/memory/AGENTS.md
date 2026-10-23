@@ -10,10 +10,12 @@ compared with the career library embeddings Rails stores in `library_embeddings`
 - `embed_search_query.py` — `embed_search_query(text, model, dimensions)`: embeds one query
   through Pydantic AI's `Embedder` (traced in Logfire via `Embedder.instrument_all()`). Known
   contact is replaced with the same placeholders Rails uses for library rows. Returns the
-  vector and its token usage. `stored_embedding_model_name(model)`: the worker's
-  `openai:`-prefixed model name as Rails stores it (`text-embedding-3-small`)
+  vector and its token usage. Stored model-name conversion belongs to the database search
+  interface; callers pass the configured model unchanged.
 - `hybrid_rank.py` — `keyword_rank` (BM25), `reciprocal_rank_scores` (k=60), and `hybrid_order`.
-  Library search and the library-retrieval eval both call `hybrid_order`
+  Library search and the library-retrieval eval both call `hybrid_order(documents, query_text)`
+  with immutable `RankedDocument` records (ID, content, distance) in cosine order.
+  The ranker owns projections for keyword ranking and tie-breaking; callers do not align separate maps.
 
 ## Local Rules
 

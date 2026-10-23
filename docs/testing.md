@@ -83,6 +83,20 @@ docker run --rm --network none -v "$PWD/services/ai:/app" -w /app \
 
 Rebuild the image if its dependencies differ from the checkout's lockfile.
 
+Some tests override model execution but still construct an OpenAI provider client.
+Those tests need a nonempty API key during initialization even though they make no
+provider requests. For example, the scraped-job sorting test needs this setup.
+Use a dummy value with networking disabled rather than supplying a real credential:
+
+```bash
+docker run --rm --network none -e OPENAI_API_KEY=offline-test-placeholder \
+  -v "$PWD/services/ai:/app" -w /app resume_project-ai:latest \
+  pytest -m "not db" tests/test_scrape_job_handler.py
+```
+
+The placeholder only satisfies client initialization. Keep model overrides and
+offline test fakes in place; it cannot authenticate a real provider request.
+
 ## Offline spoken interview recovery
 
 See [the isolated recovery guide](interview-demo.md) for deterministic process recovery

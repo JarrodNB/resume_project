@@ -3,6 +3,8 @@ Description: Hybrid search over the user's career library embeddings (written by
 CareerLibrary::SyncLibraryEmbeddingsService). Scoped by the task's user id and by embedding
 model and explicitly selected source types. Cosine order from
 pgvector is fused with BM25 over the same rows (memory/hybrid_rank.py).
+This module translates configured embedding models into Rails' stored names,
+so callers do not need to know the database representation.
 Index:
     - search_career_library: the library entries that best match a query, best first
 """
@@ -16,7 +18,7 @@ from pgvector import Vector
 from pgvector.psycopg import register_vector
 from psycopg.rows import DictRow
 
-from memory.hybrid_rank import hybrid_order
+from memory.hybrid_rank import RankedDocument, hybrid_order
 from schemas.library_search_match import LibrarySearchMatch
 
 _SOURCE_TYPES = frozenset(
@@ -53,8 +55,9 @@ def search_career_library(
     *,
     source_types: AbstractSet[str],
 ) -> list[LibrarySearchMatch]:
-    """Returns up to `limit` of the user's library entries embedded with `model` (the name Rails
-    stores, e.g. "text-embedding-3-small"). Order is reciprocal rank fusion of cosine distance
+    """Returns up to `limit` of the user's library entries embedded with `model` (configured
+    or stored name, e.g. "openai:text-embedding-3-small" or "text-embedding-3-small").
+    Order is reciprocal rank fusion of cosine distance
     and BM25 on `query_text`; a higher score is a better match. Source types must be an
     explicit nonempty set of supported library types; invalid scopes raise ValueError."""
     if (
@@ -66,7 +69,7 @@ def search_career_library(
     register_vector(connection)
     params = {
         "user_id": user_id,
-        "model": model,
+        "model": model.split(":", 1)[-1],
         "source_types": sorted(source_types),
         "query": Vector(list(query_embedding)),
     }
@@ -75,17 +78,18 @@ def search_career_library(
         rows = cursor.execute(SEARCH_QUERY, params).fetchall()
     if not rows:
         return []
-    vector_ids = [_row_id(row["source_type"], row["source_id"]) for row in rows]
-    documents = [(vector_ids[index], row["content"]) for index, row in enumerate(rows)]
-    distances = {vector_ids[index]: float(row["distance"]) for index, row in enumerate(rows)}
-    ordered = hybrid_order(vector_ids, documents, query_text, distances)[:limit]
-    by_id = {vector_ids[index]: row for index, row in enumerate(rows)}
+    documents = [
+        RankedDocument(_row_id(row["source_type"], row["source_id"]), row["content"], float(row["distance"]))
+        for row in rows
+    ]
+    ordered = hybrid_order(documents, query_text)[:limit]
+    by_id = {document.id: row for document, row in zip(documents, rows, strict=True)}
     return [
         LibrarySearchMatch(
             source_type=by_id[item]["source_type"],
             source_id=by_id[item]["source_id"],
             content=by_id[item]["content"],
-            distance=distances[item],
+            distance=float(by_id[item]["distance"]),
             score=score,
         )
         for item, score in ordered

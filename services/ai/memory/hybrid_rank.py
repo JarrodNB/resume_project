@@ -1,18 +1,14 @@
-"""
-Description: Hybrid rank for career-library search. Cosine order (from pgvector) and a BM25
-keyword order are fused with reciprocal rank fusion. The same function orders the
-library-retrieval eval, so the golden set measures production ranking.
-Index:
-    - RRF_K: fusion constant (60). A row that ranks well on both lists beats one that is
-      first on only one
-    - keyword_rank: BM25 order of document ids that share a query term
-    - reciprocal_rank_scores: 1/(k + rank) summed across ranked lists
-    - hybrid_order: fused ids and scores, best first
+"""Rank career evidence by combining cosine order and keyword matches.
+
+Search and evaluation pass the same document records in nearest-first order.
+This module owns the ID, text and distance projections needed for BM25 and
+reciprocal rank fusion, so callers cannot misalign separate collections.
 """
 
 import math
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
 RRF_K = 60
 _K1 = 1.5
@@ -37,6 +33,15 @@ _STOPWORDS = frozenset(
         "with",
     }
 )
+
+
+@dataclass(frozen=True)
+class RankedDocument:
+    """One candidate's stable ID, embedded text, and cosine distance."""
+
+    id: str
+    content: str
+    distance: float
 
 
 def keyword_rank(query: str, documents: Sequence[tuple[str, str]]) -> list[str]:
@@ -74,14 +79,15 @@ def reciprocal_rank_scores(rankings: Sequence[Sequence[str]], k: int = RRF_K) ->
 
 
 def hybrid_order(
-    vector_ids: Sequence[str],
-    documents: Sequence[tuple[str, str]],
+    documents: Sequence[RankedDocument],
     query_text: str,
-    distance_by_id: Mapping[str, float],
 ) -> list[tuple[str, float]]:
-    """Ids and fusion scores, best first. `vector_ids` is nearest-first cosine order.
+    """Ids and fusion scores, best first. Input documents are in nearest-first cosine order.
     Equal scores keep the smaller cosine distance, then the id."""
-    scores = reciprocal_rank_scores([list(vector_ids), keyword_rank(query_text, documents)])
+    vector_ids = [document.id for document in documents]
+    keyword_documents = [(document.id, document.content) for document in documents]
+    distance_by_id = {document.id: document.distance for document in documents}
+    scores = reciprocal_rank_scores([vector_ids, keyword_rank(query_text, keyword_documents)])
     ordered = sorted(
         vector_ids,
         key=lambda item: (-scores.get(item, 0.0), distance_by_id[item], item),

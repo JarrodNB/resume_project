@@ -58,9 +58,14 @@ Per task type:
   The default isolated `resume_import/` module conservatively chunks masked source into
   complete sections, retaining uncertain boundaries together. Up to three chunk pipelines
   screen their exact source once and extract typed records concurrently using the available
-  model catalog. Global source IDs reconstruct verbatim bullets; ambiguous ownership returns
-  `unassigned_highlights` with source context for user placement or explicit discard before
-  saving. Rails rejects unresolved placement data. One deadline and combined extraction
+  model catalog. Ordinary chunks enumerate allowed bare source IDs (such as `S6`, without
+  display brackets) in shared schema definitions. Larger registries use a compact ID pattern
+  with exact membership still checked locally, keeping schemas bounded without rejecting long
+  supported resumes. Non-experience records cite `supporting_ids` for additional
+  passages represented in their fields; a bullet anchor also counts as evidence. Global
+  source IDs reconstruct verbatim bullets. Every bullet left uncited is conservatively
+  retained in `unassigned_highlights`, as is explicitly ambiguous ownership, with source
+  context for user placement or explicit discard before saving. Rails rejects unresolved placement data. One deadline and combined extraction
   request/token budgets apply; any failure cancels and awaits siblings without a partial result.
   `RESUME_IMPORT_STRATEGY=legacy` selects the retained three-group full-source parser for
   explicit rollback after restarting workers. Only `structural` (default) and `legacy` are

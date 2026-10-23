@@ -6,11 +6,16 @@ continuations keep their original wording; only list markers and layout indent a
 
 import re
 from dataclasses import dataclass
+from itertools import islice
 
 from pydantic import create_model, model_validator
 
 from schemas.parsed_resume import ParsedResume
-from schemas.resume_import import ResumeImportExtraction
+from schemas.resume_import import (
+    ResumeImportExtraction,
+    UnassignedReference,
+    source_bound_extraction,
+)
 
 _CONTINUATION_END = re.compile(
     r"(?:\b(?:in|on|with|using|via|and|or|to|for|including)|[:,/&+])\s*$", re.IGNORECASE
@@ -46,6 +51,14 @@ def _boundary(line: str, following: str, after_following: str = "", previous: st
 
 
 _BULLET = re.compile(r"^\s*(?:[•●▪◦‣⁃✓*+\-–—]|\d+[.)])\s+(.*)$")
+
+
+def _allowed_ids(source_ids) -> str:
+    """Keep membership retry messages useful without echoing a very long registry."""
+    sample = list(islice(source_ids, 17))
+    return ", ".join(sample[:16]) + (
+        "; see remaining labels in this chunk" if len(sample) > 16 else ""
+    )
 
 
 @dataclass(frozen=True)
@@ -115,19 +128,25 @@ class ResumeSource:
 
         self.output_type = create_model(
             "ValidatedResumeImportExtraction",
-            __base__=ResumeImportExtraction,
+            __base__=source_bound_extraction(
+                tuple(self.passages),
+                tuple(key for key, passage in self.passages.items() if passage.bullet),
+            ),
             __validators__={
                 "validate_references": model_validator(mode="after")(validate_references)
             },
         )
 
-    def validate(self, output: ResumeImportExtraction) -> None:
-        """Reject foreign IDs, repeated ownership, and conflicting singleton records."""
+    def validate(self, output: ResumeImportExtraction) -> set[str]:
+        """Reject invalid ownership and return all sources represented by the output."""
+        covered = set()
         seen = set()
         singleton = set()
         for record in output.records:
             if record.source_id not in self.passages:
-                raise ValueError("Record source_id must reference a known source passage.")
+                raise ValueError(
+                    f"Use a bare source ID without brackets or source text; allowed IDs: {_allowed_ids(iter(self.passages))}."
+                )
             if record.type in ("contact", "summary"):
                 if record.type in singleton:
                     raise ValueError("Return only one contact and one summary record.")
@@ -135,19 +154,37 @@ class ResumeSource:
             if record.type == "experience":
                 for source_id in record.fields.highlight_ids:
                     self._claim_bullet(source_id, seen)
+            else:
+                for source_id in [record.source_id, *record.supporting_ids]:
+                    if source_id not in self.passages:
+                        raise ValueError(
+                            f"Supporting IDs must be bare owned IDs: {_allowed_ids(iter(self.passages))}."
+                        )
+                    covered.add(source_id)
         for reference in output.unassigned_highlights:
             self._claim_bullet(reference.source_id, seen)
+        return seen | covered
 
     def _claim_bullet(self, source_id, seen):
         if source_id not in self.passages or not self.passages[source_id].bullet:
-            raise ValueError("Highlights must reference known source bullet IDs.")
+            raise ValueError(
+                f"Use a bare owned bullet ID, without brackets; allowed bullet IDs: {_allowed_ids(key for key, passage in self.passages.items() if passage.bullet)}."
+            )
         if source_id in seen:
-            raise ValueError("Each source bullet may be assigned or unassigned only once.")
+            raise ValueError(
+                f"Source bullet {source_id} may appear in highlight_ids or unassigned_highlights only once."
+            )
         seen.add(source_id)
 
     def reconstruct(self, output: ResumeImportExtraction) -> ParsedResume:
         """Return the public schema in source order, copying bullet text and context locally."""
-        self.validate(output)
+        covered = self.validate(output)
+        pending = list(output.unassigned_highlights)
+        pending.extend(
+            UnassignedReference(source_id=key, reason="ambiguous_role")
+            for key, passage in self.passages.items()
+            if passage.bullet and key not in covered
+        )
         order = {source_id: index for index, source_id in enumerate(self.passages)}
         fields = {"parsing_warnings": list(dict.fromkeys(output.parsing_warnings))}
         plural = {
@@ -177,8 +214,6 @@ class ResumeSource:
                 "source_context": self.passages[reference.source_id].context,
                 "reason": reference.reason,
             }
-            for reference in sorted(
-                output.unassigned_highlights, key=lambda item: order[item.source_id]
-            )
+            for reference in sorted(pending, key=lambda item: order[item.source_id])
         ]
         return ParsedResume(**fields)

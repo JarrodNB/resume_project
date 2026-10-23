@@ -9,6 +9,7 @@ from pathlib import Path
 from pydantic_evals import Dataset
 
 from evals.report_capture import override_settings
+from evals.report_markdown import report_errors
 from evals.resume_import_evaluators import UnassignedPlacement
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import evaluate_dataset
@@ -61,5 +62,10 @@ def run_resume_import_evals(model_override: str | None = None, *, max_concurrenc
     )
 
 
+def main() -> int:
+    """Signal execution/evaluator errors to CLI callers without grading quality scores."""
+    return int(bool(report_errors(run_resume_import_evals())))
+
+
 if __name__ == "__main__":
-    run_resume_import_evals()
+    raise SystemExit(main())

@@ -52,4 +52,48 @@ RSpec.describe "Experience mutations" do
 
     expect(Experience.exists?(experience.id)).to be(false)
   end
+
+  it "exposes canonical roles and stable bullet ownership through the legacy create mutation" do
+    result = execute_graphql(<<~GQL, user: user)
+      mutation {
+        createExperience(input: { attributes: { company: "Acme", title: "Engineer" }, highlights: ["Built"] }) {
+          experience { roles { id title position } highlights { id content experienceRoleId } }
+          errors
+        }
+      }
+    GQL
+    entry = result.dig("data", "createExperience", "experience")
+    role = entry.fetch("roles").first
+    expect(role.slice("title", "position")).to eq("title" => "Engineer", "position" => 0)
+    expect(entry.fetch("highlights").first.fetch("experienceRoleId")).to eq(role.fetch("id"))
+  end
+
+  it "rejects another user's legacy update before canonical or bullet writes" do
+    entry = Experiences::CreateExperienceService.call(user: create(:user),
+      attributes: { company: "Other", title: "Engineer" }, highlights: [ "Private" ]).value
+    result = execute_graphql(<<~GQL, user: user)
+      mutation {
+        updateExperience(input: { id: "#{entry.id}", attributes: { title: "Changed" }, highlights: ["New"] }) {
+          experience { id } errors
+        }
+      }
+    GQL
+    expect(result.to_s).to include("Record not found")
+    expect(entry.reload.roles.first.title).to eq("Engineer")
+    expect(entry.highlights.pluck(:content)).to eq([ "Private" ])
+  end
+
+  it "reads flat fields as a canonical projection while grouped entries are test-built" do
+    entry = create(:experience, user: user, title: "Old projection", start_date: Date.new(2000, 1, 1))
+    entry.roles.create!(title: "Canonical", position: 0)
+    entry.roles.create!(title: "Earlier role", position: 1, start_date: Date.new(2020, 1, 1))
+    result = execute_graphql(<<~GQL, user: user)
+      query { experiences { id title startDate roles { title position } } }
+    GQL
+    expect(result["errors"]).to be_nil
+    experience = result.fetch("data").fetch("experiences").find { |item| item["id"] == entry.id }
+    expect(experience.fetch("title")).to eq("Canonical")
+    expect(experience.fetch("startDate")).to be_nil
+    expect(experience.fetch("roles").map { |role| role["title"] }).to eq([ "Canonical", "Earlier role" ])
+  end
 end

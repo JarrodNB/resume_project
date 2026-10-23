@@ -16,6 +16,7 @@ module Experiences
       @highlights.each_with_index do |content, position|
         experience.highlights.build(content: content, position: position)
       end
+      SingleRoleCompatibility.prepare!(experience)
       return failure(experience.errors) unless experience.save
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@user.id)

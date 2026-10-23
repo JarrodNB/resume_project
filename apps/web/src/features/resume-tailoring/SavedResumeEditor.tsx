@@ -1,12 +1,12 @@
 /** Edit saved resume sections and preview their current content before saving.
  * Drafts live above collapsible cards so closing a section keeps unsaved edits.
  * Deletion requires confirmation; the route chooses where to return afterward.
- * PDF downloads use a saved snapshot; unsaved edits stay preview-only.
+ * PDF and DOCX downloads use a saved snapshot; unsaved edits stay preview-only.
  * Save status tracks the submitted snapshot, so edits made during a save stay unsaved.
  */
 import { useMemo, useRef, useState } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
-import { downloadResumePdf } from './resumePdfDownload'
+import { downloadResumeDocx, downloadResumePdf } from './resumeDownload'
 import { Button } from '@/components/ui/button'
 import { DeleteResumeDialog } from '@/features/resumes/DeleteResumeDialog'
 import { useDeleteResume } from '@/features/resumes/useDeleteResume'
@@ -37,7 +37,7 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
   const [savedModel, setSavedModel] = useState(() => buildResumePdfModel(editable))
   const deleted = useRef(false)
   const exporting = useRef(false)
-  const [exportPending, setExportPending] = useState(false)
+  const [exportPending, setExportPending] = useState<'PDF' | 'DOCX' | null>(null)
   const [exportError, setExportError] = useState<string[]>([])
   const snapshot = JSON.stringify(drafts)
   const dirty = snapshot !== savedSnapshot
@@ -68,30 +68,32 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
     }
   }
 
-  async function downloadPdf() {
+  async function download(format: 'PDF' | 'DOCX') {
     if (dirty || pending || deletion.pending || exporting.current) return
     exporting.current = true
-    setExportPending(true)
+    setExportPending(format)
     setExportError([])
     // Later edits build a different model and cannot change this saved snapshot.
     try {
-      await downloadResumePdf(savedModel, title)
+      await (format === 'PDF' ? downloadResumePdf : downloadResumeDocx)(savedModel, title)
     } catch {
-      setExportError(['Could not download the PDF. Please try again.'])
+      setExportError([`Could not download the ${format}. Please try again.`])
     } finally {
       exporting.current = false
-      setExportPending(false)
+      setExportPending(null)
     }
   }
 
   return (
     <div className="grid gap-4">
       <ResumeUnsavedChanges dirty={dirty} discarded={deleted} />
-      <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
-        <Button type="button" variant="destructive" disabled={pending || deletion.pending || exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
-        <Button type="button" variant="outline" disabled={dirty || pending || deletion.pending || exportPending} onClick={() => void downloadPdf()}>
-          {exportPending ? 'Preparing PDF…' : 'Download PDF'}
-        </Button>
+      <ResumeEditorActions pending={pending} dirty={dirty} disabled={deletion.pending || !!exportPending} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()}>
+        <Button type="button" variant="destructive" disabled={pending || deletion.pending || !!exportPending} onClick={() => setDeleteOpen(true)}>Delete resume</Button>
+        {(['PDF', 'DOCX'] as const).map((format) => (
+          <Button key={format} type="button" variant="outline" disabled={dirty || pending || deletion.pending || !!exportPending} onClick={() => void download(format)}>
+            {exportPending === format ? `Preparing ${format}…` : `Download ${format}`}
+          </Button>
+        ))}
       </ResumeEditorActions>
       {dirty && <p className="text-sm text-muted-foreground">Save your changes to download</p>}
       <ErrorAlert messages={exportError} title="Couldn't download this resume" />

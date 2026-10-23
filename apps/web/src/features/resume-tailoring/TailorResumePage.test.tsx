@@ -3,7 +3,7 @@
  * and preserves editing, exclusion, saving, and saved-resume editing.
  * The PDF preview is mocked.
  */
-import { downloadResumePdf } from './resumePdfDownload'
+import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
@@ -13,7 +13,7 @@ import { DELETE_RESUME_MUTATION } from '@/features/resumes/resumesOperations'
 import { TailorResumePage } from './TailorResumePage'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
-vi.mock('./resumePdfDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('./ResumePdfPreview', () => ({
   ResumePdfPreview: () => <iframe title="Resume preview" />,
@@ -222,6 +222,8 @@ it('edits a resume that was already saved and shows the preview', async () => {
 
   await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
+  await user.click(screen.getByRole('button', { name: 'Download DOCX' }))
+  expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   const summary = screen.getByRole('textbox', { name: 'Summary' })
   expect(summary).toHaveValue('Backend engineer.')

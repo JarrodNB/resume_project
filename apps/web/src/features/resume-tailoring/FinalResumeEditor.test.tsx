@@ -21,6 +21,7 @@ it('warns before discarding a new draft and keeps it when navigation is canceled
   const user = userEvent.setup()
   const { router } = render(<FinalResumeEditor jobId="job-1" sections={sections} warnings={[]} pending={false} errors={[]} onSave={vi.fn()} />)
   expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Download DOCX' })).not.toBeInTheDocument()
   expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
   const unload = new Event('beforeunload', { cancelable: true })
   fireEvent(window, unload)

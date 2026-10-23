@@ -2,7 +2,7 @@
  * Description: One saved resume opens for editing and links back to its job.
  * The PDF preview is mocked.
  */
-import { downloadResumePdf } from '@/features/resume-tailoring/resumePdfDownload'
+import { downloadResumePdf, downloadResumeDocx } from '@/features/resume-tailoring/resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { InMemoryCache } from '@apollo/client'
@@ -13,7 +13,7 @@ import { ResumePage } from './ResumePage'
 import { DELETE_RESUME_MUTATION, RESUME_QUERY, RESUMES_QUERY } from './resumesOperations'
 import { TAILOR_JOB_QUERY } from '@/features/resume-tailoring/tailorOperations'
 
-vi.mock('@/features/resume-tailoring/resumePdfDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@/features/resume-tailoring/resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
 vi.mock('@/features/resume-tailoring/ResumePdfPreview', () => ({
   ResumePdfPreview: () => <iframe title="Resume preview" />,
@@ -85,6 +85,8 @@ it('still opens a resume whose job was removed', async () => {
   expect(await screen.findByText('The job for this resume was removed.')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Download PDF' }))
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
+  await userEvent.click(screen.getByRole('button', { name: 'Download DOCX' }))
+  expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
   await userEvent.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
 })
@@ -191,9 +193,11 @@ it('blocks PDF downloading while a saved resume deletion is pending', async () =
       result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } }],
   })
   const download = await screen.findByRole('button', { name: 'Download PDF' })
+  const docxDownload = screen.getByRole('button', { name: 'Download DOCX' })
   expect(download).toBeEnabled()
   await user.click(screen.getByRole('button', { name: 'Delete resume' }))
   await user.click(screen.getByRole('button', { name: 'Delete' }))
   expect(download).toBeDisabled()
+  expect(docxDownload).toBeDisabled()
   expect(await screen.findByText('Resume list')).toBeInTheDocument()
 })

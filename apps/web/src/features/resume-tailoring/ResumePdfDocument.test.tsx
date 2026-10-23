@@ -2,7 +2,7 @@
 /** Read real generated PDFs to check text, links, ordering, and content spanning pages. */
 import { expect, it, vi } from 'vitest'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { generateResumePdf } from './resumePdfDownload'
+import { generateResumePdf } from './resumeDownload'
 import { buildResumePdfModel } from './resumePdfModel'
 
 vi.stubGlobal('localStorage', { clear() {} })

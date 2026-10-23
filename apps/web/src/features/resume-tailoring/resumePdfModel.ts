@@ -1,5 +1,5 @@
 /**
- * Description: Turns saved resume sections into the plain structure the PDF document draws.
+ * Description: Maps saved resume sections into content shared by the PDF preview and both export formats.
  * Contact becomes the header. Empty sections are left out so the page matches an export.
  * Index:
  *   - ResumePdfModel, ResumePdfBlock, ResumePdfEntry: the document's data

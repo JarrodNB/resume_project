@@ -1,4 +1,4 @@
-/** Build the same PDF used by preview and hand it to the browser as a download.
+/** Build saved resume downloads and hand their files to the browser.
  * The caller supplies a saved snapshot. No document is uploaded or persisted.
  */
 import { pdf } from '@react-pdf/renderer'
@@ -21,11 +21,22 @@ export function resumeDownloadFilename(title: string, extension: 'pdf' | 'docx')
 /** Keep the URL alive briefly so the browser can begin reading it after clicking. */
 export async function downloadResumePdf(model: ResumePdfModel, title: string): Promise<void> {
   const blob = await generateResumePdf(model)
+  handOffDownload(blob, title, 'pdf')
+}
+
+/** Load the Word renderer only when the user requests an editable file. */
+export async function downloadResumeDocx(model: ResumePdfModel, title: string): Promise<void> {
+  const { generateResumeDocx } = await import('./resumeDocxDocument')
+  handOffDownload(await generateResumeDocx(model), title, 'docx')
+}
+
+/** Release the temporary browser URL after the browser has begun reading it. */
+function handOffDownload(blob: Blob, title: string, format: 'pdf' | 'docx'): void {
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   try {
     anchor.href = url
-    anchor.download = resumeDownloadFilename(title, 'pdf')
+    anchor.download = resumeDownloadFilename(title, format)
     document.body.append(anchor)
     anchor.click()
   } finally {

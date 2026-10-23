@@ -1,3 +1,27 @@
 {
-  "buildPath": "code"
+  "buildPath": "code",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "helvetica",
+        "createdAt": "2026-10-23T15:46:34.244Z",
+        "reason": "Existing fixed PDF resume template uses a standard PDF font; DESIGN.md governs the web interface"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "helvetica-bold",
+        "createdAt": "2026-10-23T15:46:39.153Z",
+        "reason": "Existing fixed PDF resume template uses a standard PDF font variant; DESIGN.md governs the web interface"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "helvetica-oblique",
+        "createdAt": "2026-10-23T15:46:39.475Z",
+        "reason": "Existing fixed PDF resume template uses a standard PDF font variant; DESIGN.md governs the web interface"
+      }
+    ]
+  }
 }

@@ -66,3 +66,39 @@ it('flows a single long experience across pages without dropping text or drawing
     for (let index = 0; index < bullets.length; index++) expect(text).toContain(`Achievement ${index}:`)
   } finally { await loading.destroy() }
 })
+
+it('renders Markdown with editable structure and safe PDF links across pages', async () => {
+  const markdown = '# Ada Lovelace\n\n## Experience\nBuilt **reliable** and *useful* systems at [Acme](https://acme.example).\n\n' + Array.from({ length: 90 }, (_, index) => `- Delivered outcome ${index}`).join('\n')
+  const blob = await generateResumePdf(markdown)
+  const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
+  const document = await loading.promise
+  try {
+    expect(document.numPages).toBeGreaterThan(1)
+    const text: string[] = []
+    for (let number = 1; number <= document.numPages; number++) {
+      const page = await document.getPage(number)
+      expect(page.view).toEqual([0, 0, 612, 792])
+      text.push((await page.getTextContent()).items.map((item) => 'str' in item ? item.str : '').join(' '))
+    }
+    expect(text.join(' ')).toContain('Delivered outcome 89')
+    const firstPageContent = await (await document.getPage(1)).getTextContent()
+    const fontFor = (part: string) => firstPageContent.items.find((item) => 'str' in item && item.str.includes(part))
+    expect(fontFor('reliable')).toHaveProperty('fontName')
+    expect(fontFor('reliable')).not.toHaveProperty('fontName', (fontFor('Built') as { fontName: string }).fontName)
+    expect(fontFor('useful')).not.toHaveProperty('fontName', (fontFor('Built') as { fontName: string }).fontName)
+    expect((await (await document.getPage(1)).getAnnotations())).toEqual(expect.arrayContaining([expect.objectContaining({ url: 'https://acme.example/' })]))
+  } finally { await loading.destroy() }
+})
+
+it('prints malformed and raw HTML as text without creating an unsafe PDF link', async () => {
+  const blob = await generateResumePdf('# Ada\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert) **unclosed')
+  const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
+  const document = await loading.promise
+  try {
+    const page = await document.getPage(1)
+    const text = (await page.getTextContent()).items.map((item) => 'str' in item ? item.str : '').join(' ')
+    expect(text).toContain('<script>alert(1)</script>')
+    expect(text).toContain('**unclosed')
+    expect(await page.getAnnotations()).toEqual([])
+  } finally { await loading.destroy() }
+})

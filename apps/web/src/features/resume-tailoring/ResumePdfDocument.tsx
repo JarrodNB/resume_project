@@ -4,6 +4,7 @@
  */
 import { Document, Link, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { ResumePdfBlock, ResumePdfEntry, ResumePdfModel } from './resumePdfModel'
+import { parseResumeMarkdown, type ResumeMarkdownBlock } from './resumeMarkdown'
 
 const styles = StyleSheet.create({
   page: { paddingTop: 40, paddingBottom: 40, paddingHorizontal: 48, fontFamily: 'Helvetica', fontSize: 10, lineHeight: 1.35, color: '#1a1a1a' },
@@ -27,10 +28,22 @@ const styles = StyleSheet.create({
   meta: { fontSize: 9, fontFamily: 'Helvetica-Oblique', color: '#333333', marginBottom: 2 },
   body: { marginTop: 2 },
   bullet: { marginLeft: 8, marginTop: 1 },
+  markdownTitle: { fontFamily: 'Helvetica-Bold', fontSize: 18, marginBottom: 5 },
+  markdownSection: { fontFamily: 'Helvetica-Bold', fontSize: 11, marginTop: 13, marginBottom: 5, paddingBottom: 2, borderBottomWidth: 0.6, borderBottomColor: '#1a1a1a' },
+  markdownSubheading: { fontFamily: 'Helvetica-Bold', fontSize: 10, marginTop: 7, marginBottom: 2 },
+  markdownParagraph: { marginBottom: 5 },
 })
 
 /** Letter pages: name and contact, then each section that has text. */
-export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
+export function ResumePdfDocument({ model }: { model: ResumePdfModel | string }) {
+  if (typeof model === 'string') {
+    const blocks = parseResumeMarkdown(model)
+    return <Document title={blocks.find((block) => block.type === 'heading')?.children.map((run) => run.text).join('') || 'Resume'}>
+      <Page size="LETTER" style={styles.page}>
+        {blocks.map((block, index) => <MarkdownPdfBlock key={index} block={block} />)}
+      </Page>
+    </Document>
+  }
   return (
     <Document title={model.name || 'Resume'}>
       <Page size="LETTER" style={styles.page}>
@@ -49,6 +62,18 @@ export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
       </Page>
     </Document>
   )
+}
+
+/** The same fixed Letter page is used by preview, downloads, and the worker. */
+function MarkdownPdfBlock({ block }: { block: ResumeMarkdownBlock }) {
+  const style = block.type === 'bullet' ? styles.bullet : block.type === 'paragraph' ? styles.markdownParagraph : block.level === 1 ? styles.markdownTitle : block.level === 2 ? styles.markdownSection : styles.markdownSubheading
+  return <Text style={style} minPresenceAhead={block.type === 'heading' ? 20 : undefined}>
+    {block.type === 'bullet' ? '• ' : null}
+    {block.children.map((run, index) => {
+      const content = <Text key={index} style={{ fontFamily: run.bold ? 'Helvetica-Bold' : run.italic ? 'Helvetica-Oblique' : 'Helvetica' }}>{run.text}</Text>
+      return run.href ? <Link key={index} src={run.href}>{content}</Link> : content
+    })}
+  </Text>
 }
 
 /** A section heading and either a paragraph or its entries. The heading stays with what follows it. */

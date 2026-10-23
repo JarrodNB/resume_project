@@ -1,5 +1,13 @@
 # Description: Local dev image for the AI worker. Source is bind-mounted by docker compose;
 # the virtualenv lives in /opt/venv so the bind mount doesn't hide it.
+FROM node:22-slim AS resume-renderer
+WORKDIR /render
+COPY apps/web/package.json apps/web/package-lock.json ./
+RUN npm ci
+COPY apps/web/src/features/resume-tailoring/ResumePdfDocument.tsx apps/web/src/features/resume-tailoring/resumeMarkdown.ts apps/web/src/features/resume-tailoring/renderResumePdf.tsx ./src/
+RUN ./node_modules/.bin/rolldown src/renderResumePdf.tsx --platform node --format esm --external @react-pdf/renderer --external react --external react/jsx-runtime --file render.mjs \
+    && npm prune --omit=dev
+
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 
 WORKDIR /app
@@ -11,8 +19,12 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 
-COPY pyproject.toml uv.lock ./
+COPY services/ai/pyproject.toml services/ai/uv.lock ./
 RUN uv sync --frozen
+
+COPY --from=resume-renderer /usr/local/bin/node /usr/local/bin/node
+COPY --from=resume-renderer /render/node_modules /opt/resume-renderer/node_modules
+COPY --from=resume-renderer /render/render.mjs /opt/resume-renderer/render.mjs
 
 # The pinned model is installed by uv, never fetched while processing a resume.
 # Fail the build if the local English NLP assets cannot load on this Python version.

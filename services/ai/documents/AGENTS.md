@@ -17,6 +17,8 @@ against that text. No LLM calls here.
   unmatched company, title, project, institution, and certification names
 - `text_matching.py` — whitespace/case/bullet-insensitive matching helpers, shared with the
   evals
+- `resume_measure.py` — renders constrained Markdown through the shared Node PDF module,
+  then measures actual pages and final-page occupancy with pypdf under worker limits
 
 ## Certification support
 

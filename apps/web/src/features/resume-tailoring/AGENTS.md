@@ -24,6 +24,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `resumeDocxDocument.ts` — native Word paragraphs, headings, bullets and contact hyperlinks,
   sharing `resumePdfModel.ts` content/order with PDF. Word pagination can differ.
   `resumeDocxDocument.test.ts` inspects actual ZIP/XML output.
+- `resumeMarkdown.ts` — inert supported Markdown blocks shared by PDF and DOCX;
+  `renderResumePdf.tsx` is the bounded Node entry bundled into the AI worker image
 - `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback.
   New drafts lead with Review full resume, opening the existing PDF preview; save stays
   available without a review confirmation. Saved resumes keep their existing action hierarchy.

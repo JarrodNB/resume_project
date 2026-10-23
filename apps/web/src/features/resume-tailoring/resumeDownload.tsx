@@ -6,7 +6,7 @@ import { ResumePdfDocument } from './ResumePdfDocument'
 import type { ResumePdfModel } from './resumePdfModel'
 
 /** Render a captured resume using the preview's document and layout. */
-export function generateResumePdf(model: ResumePdfModel): Promise<Blob> {
+export function generateResumePdf(model: ResumePdfModel | string): Promise<Blob> {
   return pdf(<ResumePdfDocument model={model} />).toBlob()
 }
 
@@ -19,13 +19,13 @@ export function resumeDownloadFilename(title: string, extension: 'pdf' | 'docx')
 }
 
 /** Keep the URL alive briefly so the browser can begin reading it after clicking. */
-export async function downloadResumePdf(model: ResumePdfModel, title: string): Promise<void> {
+export async function downloadResumePdf(model: ResumePdfModel | string, title: string): Promise<void> {
   const blob = await generateResumePdf(model)
   handOffDownload(blob, title, 'pdf')
 }
 
 /** Load the Word renderer only when the user requests an editable file. */
-export async function downloadResumeDocx(model: ResumePdfModel, title: string): Promise<void> {
+export async function downloadResumeDocx(model: ResumePdfModel | string, title: string): Promise<void> {
   const { generateResumeDocx } = await import('./resumeDocxDocument')
   handOffDownload(await generateResumeDocx(model), title, 'docx')
 }

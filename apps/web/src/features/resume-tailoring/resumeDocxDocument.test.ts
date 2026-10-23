@@ -40,3 +40,25 @@ it('uses shared section mapping, omits empty sections and preserves long documen
   expect(xml).toContain('w:w="12240" w:h="15840"')
   expect(strFromU8(zip['word/numbering.xml'])).toContain('w:val="bullet"')
 })
+
+it('writes Markdown as native headings, paragraphs, bullets, emphasis and links', async () => {
+  const blob = await generateResumeDocx('# Ada Lovelace\n\n## Experience\nBuilt **reliable** and *useful* tools at [Acme](https://acme.example).\n\n- Shipped software')
+  const zip = unzipSync(new Uint8Array(await blob.arrayBuffer()))
+  const xml = strFromU8(zip['word/document.xml'])
+  expect(xml).toContain('Heading1')
+  expect(xml).toContain('Heading2')
+  expect(xml).toContain('<w:numPr>')
+  expect(xml).toContain('w:b')
+  expect(xml).toContain('w:i')
+  expect(xml).toContain('<w:hyperlink')
+  expect(strFromU8(zip['word/_rels/document.xml.rels'])).toContain('https://acme.example')
+})
+
+it('keeps raw HTML and malformed links as editable text without active relationships', async () => {
+  const blob = await generateResumeDocx('# Ada\n\n<script>alert(1)</script> [unsafe](javascript:alert)')
+  const zip = unzipSync(new Uint8Array(await blob.arrayBuffer()))
+  const xml = strFromU8(zip['word/document.xml'])
+  expect(xml).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+  expect(xml).toContain('[unsafe](javascript:alert)')
+  expect(strFromU8(zip['word/_rels/document.xml.rels'])).not.toContain('javascript:')
+})

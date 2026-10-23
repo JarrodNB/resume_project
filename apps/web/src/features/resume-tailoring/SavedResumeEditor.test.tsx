@@ -138,6 +138,7 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     await user.click(preparing)
     expect(download).toHaveBeenCalledOnce()
     const captured = vi.mocked(download).mock.calls[0][0]
+    if (typeof captured === 'string') throw new Error('Legacy editor passed Markdown')
     await user.click(screen.getByRole('button', { name: 'Summary' }))
     await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Later edit.')
     expect(captured.blocks[0].text).toBe('Original summary.')

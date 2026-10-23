@@ -14,12 +14,12 @@ const PREVIEW_DELAY_MS = 400
 const PREVIEW_SRC_OPTIONS = '#toolbar=0&navpanes=0&zoom=100'
 
 /** Shows the resume PDF. Typing waits briefly so the document is not rebuilt on every key. */
-export function ResumePdfPreview({ model }: { model: ResumePdfModel }) {
+export function ResumePdfPreview({ model }: { model: ResumePdfModel | string }) {
   const debounced = useDebounced(JSON.stringify(model), PREVIEW_DELAY_MS)
   const [instance, update] = usePDF()
 
   useEffect(() => {
-    update(<ResumePdfDocument model={JSON.parse(debounced) as ResumePdfModel} />)
+    update(<ResumePdfDocument model={JSON.parse(debounced) as ResumePdfModel | string} />)
   }, [debounced, update])
 
   return instance.url ? (

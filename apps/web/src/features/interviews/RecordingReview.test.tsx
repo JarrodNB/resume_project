@@ -21,10 +21,17 @@ it('plays the local blob and releases URLs on replacement and unmount', () => {
 it('explains playback failure without removing the recording', () => {
   render(<RecordingReview recording={new Blob(['answer'])} />)
   fireEvent.error(screen.getByLabelText('Your recording preview'))
-  expect(screen.getByRole('alert')).toHaveTextContent('You can still submit it or re-record')
+  expect(screen.getByRole('alert')).toHaveTextContent('You can still submit your reviewed text or re-record')
 })
 it('allows recovery when object URL creation is unsupported', () => {
   vi.mocked(URL.createObjectURL).mockReset().mockImplementation(() => { throw new Error('unsupported') })
   render(<RecordingReview recording={new Blob(['answer'])} />)
-  expect(screen.getByRole('alert')).toHaveTextContent('You can still submit it or re-record')
+  expect(screen.getByRole('alert')).toHaveTextContent('You can still submit your reviewed text or re-record')
+})
+
+it('keeps playback collapsed until explicitly opened', () => {
+  render(<RecordingReview recording={new Blob(['answer'])} />)
+  expect(screen.getByText('Review recording').closest('details')).not.toHaveAttribute('open')
+  fireEvent.click(screen.getByText('Review recording'))
+  expect(screen.getByText('Review recording').closest('details')).toHaveAttribute('open')
 })

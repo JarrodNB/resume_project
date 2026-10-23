@@ -12,7 +12,8 @@ from agents.spoken_interviewer_agent import make_interviewer
 pytestmark = pytest.mark.real_guardrail
 
 
-def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool():
+@pytest.mark.parametrize("acknowledgement", [None, "You repaired the appointment calendar."])
+def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool(acknowledgement):
     observed = []
 
     async def respond(messages, info):
@@ -22,7 +23,7 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool():
             return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {})],
                                  usage=RequestUsage(input_tokens=20, output_tokens=5))
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
-                             {"decision": "advance", "acknowledgement": "You repaired the appointment calendar.", "reply": None})],
+                             {"decision": "advance", "acknowledgement": acknowledgement, "reply": None})],
                              usage=RequestUsage(input_tokens=25, output_tokens=5))
 
     async def guard(ctx, prompt):
@@ -32,7 +33,7 @@ def test_real_interviewer_uses_actual_prompt_and_pairs_advance_tool():
     result = asyncio.run(agent.run("Actual answer: I repaired the appointment calendar",
                                    model=FunctionModel(respond)))
     assert result.output.decision == "advance"
-    assert result.output.acknowledgement == "You repaired the appointment calendar."
+    assert result.output.acknowledgement == acknowledgement
     assert "appointment calendar" in observed[0]
     assert "Rails" in observed[0]
     assert len(observed) == 2
@@ -168,8 +169,8 @@ def test_successful_typesafe_screen_has_one_wire_request_per_observation():
     assert client.calls[-1][2][0]["cost_microdollars"] == 5
 
 
-@pytest.mark.parametrize("acknowledgement", [None, "", " ", "x" * 281])
-def test_acknowledgement_is_required_and_bounded(acknowledgement):
+@pytest.mark.parametrize("acknowledgement", ["", " ", "x" * 281])
+def test_present_acknowledgement_is_nonblank_and_bounded(acknowledgement):
     from pydantic import ValidationError
 
     from schemas.spoken_interview import SpokenInterviewReply
@@ -186,3 +187,13 @@ def test_acknowledgement_and_follow_up_share_the_speech_text_limit():
 
     with pytest.raises(ValidationError):
         SpokenInterviewReply(acknowledgement="You changed the booking process.", decision="continue", reply="x" * 4000)
+
+
+@pytest.mark.parametrize("decision,reply", [("continue", "x" * 4000), ("advance", None)], ids=["follow-up-at-limit", "advance"])
+@pytest.mark.parametrize("optional", [{}, {"acknowledgement": None}])
+def test_reply_can_omit_acknowledgement(decision, reply, optional):
+    from schemas.spoken_interview import SpokenInterviewReply
+
+    result = SpokenInterviewReply.model_validate({"decision": decision, "reply": reply, **optional})
+    assert result.acknowledgement is None
+    assert result.reply == reply

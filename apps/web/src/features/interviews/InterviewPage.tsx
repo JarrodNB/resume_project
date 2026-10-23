@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
+import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
@@ -14,8 +15,9 @@ import { Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } fro
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { InterviewClarification } from './InterviewClarification'
+import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
-import { interviewDemoEnabled } from './interviewDemoEnabled'
+import { interviewsEnabled } from './interviewsEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
@@ -39,13 +41,13 @@ const TRANSCRIPTION_HELP = {
   recorded: 'Recorded audio transcription records first. After you finish, choose Transcribe recording to fill your answer for review.',
 }
 
-export function InterviewDemoPage() {
+export function InterviewPage() {
   const { id } = useParams()
   const { user } = useAuth()
   const { state: navigationState } = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
-    {!interviewDemoEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
+    {!interviewsEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
       <InterviewSetup notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
@@ -121,6 +123,7 @@ function OwnedInterview({ id }: { id: string }) {
   const [muted, setMuted] = useState(false)
   const [abandoned, setAbandoned] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [skipOpen, setSkipOpen] = useState(false)
   const microphone = useInterviewMicSettings(user?.id ?? '')
   const [pageVisible, setPageVisible] = useState(!document.hidden)
   useEffect(() => {
@@ -153,7 +156,7 @@ function OwnedInterview({ id }: { id: string }) {
     promptId: autoPrompt?.id,
     enabled: microphone.automatic,
     seconds: microphone.seconds,
-    paused: terminal || !pageVisible || settingsOpen || interview?.status !== 'active' || speechPlaying || state.loading || Boolean(state.loadError) || state.busy || Boolean(state.unresolved) || Boolean(recorder.error) || reviewPending || savingRecording || Boolean(interview?.operations.some((item) => item.kind === 'turn' && (item.status === 'pending' || item.status === 'running'))),
+    paused: terminal || !pageVisible || settingsOpen || skipOpen || interview?.status !== 'active' || speechPlaying || state.loading || Boolean(state.loadError) || state.busy || Boolean(state.unresolved) || state.skipPending || Boolean(recorder.error) || reviewPending || savingRecording || Boolean(interview?.operations.some((item) => item.kind === 'turn' && (item.status === 'pending' || item.status === 'running'))),
     answered: Boolean(draftText) || recorder.status !== 'idle' || Boolean(recorder.recording),
     start: startCapture,
   })
@@ -161,9 +164,11 @@ function OwnedInterview({ id }: { id: string }) {
     {recordingWarning}
     <div className="grid gap-3">
       <p role={state.loadError ? 'alert' : 'status'}>{state.loadError ? 'Could not load this interview. It may be unavailable, expired, or outside your account.' : 'Loading saved interview…'}</p>
+      {state.loadError && <Link className="text-sm underline underline-offset-4" to="/interviews">Back to interviews</Link>}
       {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
     </div>
   </>
+  if (interview.status === 'completed') return <>{recordingWarning}<CompletedInterviewReview interview={interview} /></>
   if (interview.executionMode !== 'real') return <div className="grid gap-3">
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
     <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Start a new interview</Link>
@@ -181,7 +186,7 @@ function OwnedInterview({ id }: { id: string }) {
   const turnActive = currentTurn?.status === 'pending' || currentTurn?.status === 'running'
   const hasQuestionText = Boolean(question && reply?.content.trim())
   const historyMessages = interview.messages
-  const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !turnActive && !speechPlaying
+  const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !state.skipPending && !turnActive && !speechPlaying
   async function transcribe() {
     if (!recorder.recording || submitting.current || !canRecord) return
     const generation = ++reviewGeneration.current
@@ -212,7 +217,8 @@ function OwnedInterview({ id }: { id: string }) {
     : 'Your turn'
   return <>
     {recordingWarning}
-    <div className="flex justify-end">
+    <div className="flex flex-wrap items-center justify-end gap-3">
+      {interview.status === 'active' && abandonControl}
       {interview.status === 'active' && <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogTrigger asChild><Button variant="ghost" size="icon" className="size-11" aria-label="Interview settings" title="Interview settings"><Settings aria-hidden="true" /></Button></DialogTrigger>
         <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
@@ -258,7 +264,9 @@ function OwnedInterview({ id }: { id: string }) {
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
-      <AnswerEditor text={draftText} onTextChange={(text) => {
+      {state.skipPending && !state.busy && <p role="status" className="text-sm text-muted-foreground">The skip response was not confirmed. Retry skip to check the same question safely before answering.</p>}
+      <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={() => { cancelReview(); draft.setText(""); recorder.reset() }} />
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={recorder.stop}><Square size={20} fill="currentColor" />Stop recording</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => {
         if (recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing') draft.editCapture(text)
         else { cancelReview(); draft.setText(text) }
       }}
@@ -270,6 +278,11 @@ function OwnedInterview({ id }: { id: string }) {
           if (saved) { draft.setText(''); recorder.reset() }
           return saved
         }} />
+      {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">
+          {!recorder.candidateTranscript && !recordedReview && reviewedRecording !== recorder.recording && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => void transcribe()}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
+          <Button variant="outline" disabled={recordingLocked} onClick={discardRecording}>Discard recording</Button>
+          <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
+      </div>}
       {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
       {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={cancelReview}>Cancel transcription</Button></div>}
       {!recordedReview && reviewOperation?.status === 'accepted' && reviewOperation.reviewTranscript && <Button variant="outline" onClick={() => {
@@ -279,14 +292,6 @@ function OwnedInterview({ id }: { id: string }) {
       }}>Review saved transcript</Button>}
       {(reviewOperation?.status === 'failed' || reviewOperation?.status === 'expired') && <div className="grid gap-2"><p role="alert">Transcription unavailable. Your recording and any edited text are retained.</p>{reviewOperation.canRetry && <Button variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(reviewOperation.id)}>Retry transcription</Button>}</div>}
       {recorder.recording && <RecordingReview recording={recorder.recording} />}
-      <div className="interview-record-controls">
-        {recorder.status === 'recording' ? <Button className="interview-mic" onClick={recorder.stop}><Square size={20} fill="currentColor" />Done answering</Button> : <Button className="interview-mic" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>}
-        {recorder.recording && <>
-          {!recorder.candidateTranscript && !recordedReview && reviewedRecording !== recorder.recording && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => void transcribe()}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
-          <Button variant="outline" disabled={recordingLocked} onClick={discardRecording}>Discard recording</Button>
-          <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
-        </>}
-      </div>
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
       {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
       {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
@@ -308,7 +313,6 @@ function OwnedInterview({ id }: { id: string }) {
       {!historyMessages.length && <p className="text-sm text-muted-foreground">Your conversation will appear here as the interview progresses.</p>}
     </aside>
     </div>
-    {interview.status === 'active' && <div className="border-t pt-4">{abandonControl}</div>}
     {interview.status === 'active' && <InterviewPrivacy />}
   </>
 }

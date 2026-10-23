@@ -1,4 +1,4 @@
-/** Own the demo's GraphQL state and explicit writes. Reconnect snapshots restore durable work.
+/** Own the interview session's GraphQL state and explicit writes. Reconnect snapshots restore durable work.
  * Rejected submissions release their identity and keep the recording. Ambiguous submissions keep
  * their exact input; a fresh owned read always precedes a manual resend.
  */
@@ -7,7 +7,7 @@ import { useApolloClient, useMutation, useQuery, useSubscription } from '@apollo
 import SparkMD5 from 'spark-md5'
 import type { InterviewSetupInput, InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION } from './interviewOperations'
+import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, RETRY_OPERATION, START_INTERVIEW, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, CANCEL_RECORDED_TRANSCRIPTION, SKIP_QUESTION } from './interviewOperations'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { clearPendingSubmission, loadPendingSubmission, savePendingSubmission, type PendingSubmission } from './pendingSubmission'
 
@@ -49,6 +49,10 @@ export function useInterviewSession(id: string, ownerId: string) {
   const [retry] = useMutation(RETRY_OPERATION)
   const [begin] = useMutation(BEGIN_INTERVIEW)
   const [abandon] = useMutation(ABANDON_INTERVIEW)
+  const [skip] = useMutation(SKIP_QUESTION)
+  const skipping = useRef(false)
+  const [skipPending, setSkipPending] = useState(false)
+  const skipIdentity = useRef<{ questionId: string; expectedRevision: number; submissionKey: string } | null>(null)
   const beginning = useRef(false)
   const submittingText = useRef(false)
   const retainedText = useRef<{ submissionKey: string; text: string } | null>(null)
@@ -108,7 +112,7 @@ export function useInterviewSession(id: string, ownerId: string) {
   async function transcribeRecording(blob: Blob) {
     let operationId: string | null = null
     await run(async () => {
-      if (!interview || unresolved) throw new Error('Check saved status before transcribing.')
+      if (!interview || unresolved || skipIdentity.current) throw new Error('Check saved status before transcribing.')
       const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
       if (!question) throw new Error('This interview has no active question.')
       if (captureUpload.current?.blob !== blob || captureUpload.current.revision !== interview.revision) {
@@ -130,7 +134,7 @@ export function useInterviewSession(id: string, ownerId: string) {
   async function answer(blob: Blob, candidateTranscript?: string | null, transcriptionMode: TranscriptionMode = 'recorded') {
     let durable = false
     const saved = await run(async () => {
-      if (!interview || unresolved) throw new Error('Check saved status before recording another answer.')
+      if (!interview || unresolved || skipIdentity.current) throw new Error('Check saved status before recording another answer.')
       const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
       if (!question) throw new Error('This interview has no active question.')
       const mediaId = await uploadRecording(blob, interview)
@@ -153,7 +157,7 @@ export function useInterviewSession(id: string, ownerId: string) {
     submittingText.current = true
     try {
       return await run(async () => {
-        if (!interview || unresolved) throw new Error('Check saved status before submitting another answer.')
+        if (!interview || unresolved || skipIdentity.current) throw new Error('Check saved status before submitting another answer.')
         if (!text.trim() || text.length > 4_000) throw new Error('Enter an answer between 1 and 4,000 characters.')
         const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
         if (!question) throw new Error('This interview has no active question.')
@@ -214,5 +218,28 @@ export function useInterviewSession(id: string, ownerId: string) {
       forgetPending()
     })
   }
-  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, answer, answerText, transcribeRecording, cancelTranscription, checkSavedStatus, retryOperation, beginInterview, abandonInterview }
+  /** Retry a lost response with the same identity, never a newly current question. */
+  async function skipQuestion() {
+    if (skipping.current) return false
+    skipping.current = true
+    try {
+      return await run(async () => {
+        if (!interview || unresolved) throw new Error("Check saved status before skipping.")
+        const question = interview.questions.find((item) => item.position === interview.currentQuestionPosition)
+        if (!question) throw new Error("This interview has no active question.")
+        if (!skipIdentity.current) {
+          skipIdentity.current = { questionId: question.id, expectedRevision: interview.revision, submissionKey: crypto.randomUUID() }
+          setSkipPending(true)
+        }
+        const payload = (await skip({ variables: { input: { interviewId: id, ...skipIdentity.current } } })).data?.skipInterviewQuestion
+        if (payload?.errors.length) { skipIdentity.current = null; setSkipPending(false) }
+        const snapshot = requirePayload(payload).interview
+        if (!snapshot) throw new Error("Could not confirm the skip. Check saved status before trying again.")
+        update(snapshot)
+        skipIdentity.current = null
+        setSkipPending(false)
+      })
+    } finally { skipping.current = false }
+  }
+  return { interview, loading: query.loading, loadError: query.error, subscriptionError: subscription.error, busy, error, unresolved, skipPending, answer, answerText, transcribeRecording, cancelTranscription, checkSavedStatus, retryOperation, beginInterview, abandonInterview, skipQuestion }
 }

@@ -68,3 +68,12 @@ interviewer asks a follow-up, moves to the next question, or closes the intervie
 **Question clarification**:
 A short explanation of what the current interviewer prompt is asking. It does not answer
 the question for the candidate or count toward their answer allowance.
+
+**Core question**:
+A prepared question in a spoken interview. Follow-up questions belong to that core question
+and do not increase the chosen number of core questions.
+
+**Skipped question cycle**:
+A core question whose remaining prompts the user chose to skip. Previous accepted answers
+stay saved; the skip itself is not an answer and does not use the answer allowance or count
+in answer-quality scoring. Skipping a follow-up moves directly to the next core question.

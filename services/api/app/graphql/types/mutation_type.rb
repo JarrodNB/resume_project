@@ -30,6 +30,7 @@ module Types
     field :start_recorded_transcription, mutation: Mutations::Interviews::StartRecordedTranscription
     field :cancel_recorded_transcription, mutation: Mutations::Interviews::CancelRecordedTranscription
     field :submit_interview_turn, mutation: Mutations::Interviews::SubmitInterviewTurn
+    field :skip_interview_question, mutation: Mutations::Interviews::SkipInterviewQuestion
     field :retry_interview_operation, mutation: Mutations::Interviews::RetryInterviewOperation
     field :request_interview_clarification, mutation: Mutations::Interviews::RequestInterviewClarification
     field :interview_playback, mutation: Mutations::Interviews::InterviewPlayback

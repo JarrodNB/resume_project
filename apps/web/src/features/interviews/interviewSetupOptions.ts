@@ -16,8 +16,8 @@ export const interviewerOptions = [
   { value: 'priya', label: 'Priya — Tough Interviewer', description: 'Direct, presses for specifics and measurable impact. Probes after you submit your answer.' },
 ]
 export const lengthOptions = [
-  { value: '5', label: 'Short', description: '5 questions · ~10 min' },
-  { value: '8', label: 'Standard', description: '8 questions · ~20 min' },
-  { value: '12', label: 'Full loop', description: '12 questions · ~30 min' },
+  { value: '5', label: 'Short', description: '5 core questions · ~10 min' },
+  { value: '8', label: 'Standard', description: '8 core questions · ~20 min' },
+  { value: '12', label: 'Full loop', description: '12 core questions · ~30 min' },
 ]
 export const focusOptions: Record<string, string> = { communication: 'Communication', problem_solving: 'Problem Solving', leadership: 'Leadership', teamwork: 'Teamwork', conflict: 'Conflict', impact_metrics: 'Impact & Metrics', technical_depth: 'Technical Depth', adaptability: 'Adaptability', ownership: 'Ownership', customer_focus: 'Customer Focus' }

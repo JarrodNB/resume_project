@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-20T03:36:07.613121+00:00",
+  "generatedAt": "2026-10-23T03:26:20.821779+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
     "shadows": [
@@ -792,6 +792,24 @@
           "oklch(from oklch(0.74 0.1 175) 0.84 c h)",
           "oklch(from oklch(0.74 0.1 175) 0.95 c h)"
         ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page headings; steps down to 1.75rem below 900px."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Authentication introductions; steps down to 2.5rem below 1200px and 2rem below 600px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Supporting page copy with a maximum measure of 65ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Navigation group labels and supporting control labels."
       }
     }
   },

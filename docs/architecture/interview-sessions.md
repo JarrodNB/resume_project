@@ -792,3 +792,20 @@ messages, answer attempts, question progression or speech work are created.
 
 The offline clarification eval runner validates synthetic fixtures/evaluator wiring only;
 semantic no-coaching quality remains unmeasured until a separately authorized paid eval.
+
+### Skipping a core-question cycle
+
+`skipInterviewQuestion` authorizes through the owner and changes progression under the
+same owner/session/question locks as turn acceptance. A core prompt or follow-up skip
+ends that core-question cycle immediately; the final skip saves the closing and completes
+the session. The question stores the original submission key and expected revision, so
+an exact retry returns current saved state without skipping a second cycle. Changed-key
+inputs, stale revisions, and pending/running answer or transcription work are rejected.
+A skip creates no accepted answer, consumes no answer allowance and preserves earlier
+answers. Public snapshots expose `questions.skipped`; this means the remainder was skipped,
+even when earlier answers exist. Skips are not answers for answer-quality scoring.
+
+The room confirms loss of unsent text/audio and clears it only after a saved skip response.
+After a lost response it retains the original skip identity and blocks answer submission
+until an explicit retry reconciles that identity. Saved dialogue retains an unanswered
+follow-up; earlier AI context omits that trailing prompt to keep complete accepted groups.

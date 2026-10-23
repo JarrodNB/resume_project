@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
-import { InterviewDemoPage } from './InterviewDemoPage'
+import { InterviewPage } from './InterviewPage'
 
 const stopTrack = vi.fn()
 const { session } = vi.hoisted(() => ({ session: {
@@ -48,9 +48,9 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 it('keeps the real microphone running while typing and continues filling new words', async () => {
-  renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewDemoPage /> })
+  renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewPage /> })
   fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
-  await screen.findByRole('button', { name: 'Done answering' })
+  await screen.findByRole('button', { name: 'Stop recording' })
   act(() => Recognition.latest.words('I built a tool'))
   const editor = screen.getByRole('textbox', { name: 'Your answer' })
   expect(editor).toHaveValue('I built a tool')
@@ -60,8 +60,8 @@ it('keeps the real microphone running while typing and continues filling new wor
   expect(stopTrack).not.toHaveBeenCalled()
   act(() => Recognition.latest.words('I built a tool for the team'))
   expect(editor).toHaveValue('I designed a scheduling tool for the team')
-  expect(screen.getByRole('button', { name: 'Done answering' })).toBeEnabled()
-  fireEvent.click(screen.getByRole('button', { name: 'Done answering' }))
+  expect(screen.getByRole('button', { name: 'Stop recording' })).toBeEnabled()
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Record answer' })).toBeDisabled())
   expect(Recorder.latest.stop).toHaveBeenCalledOnce()
 })

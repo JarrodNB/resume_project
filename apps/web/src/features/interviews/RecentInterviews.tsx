@@ -18,7 +18,7 @@ export function RecentInterviews() {
           <div className="grid gap-1 text-sm">
             <p className="font-medium">{interview.status === 'abandoned' ? 'Ended' : interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</p>
             <time className="text-muted-foreground" dateTime={interview.createdAt}>{date}</time>
-            {interview.questions.length > 0 && interview.status !== 'abandoned' && interview.status !== 'expired' && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} questions completed` : `Question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
+            {interview.questions.length > 0 && interview.status !== 'abandoned' && interview.status !== 'expired' && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} core questions` : `Core question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
           </div>
           {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
         </li>

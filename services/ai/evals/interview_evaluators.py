@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
+from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
@@ -20,24 +21,39 @@ from schemas.interview_questions import (
     InterviewSetType,
     normalize_question,
 )
+from worker.interview_questions_handler import _interview_library_content, _library_evidence_text
 
 
-class QuestionEvalInput(BaseModel):
+class InterviewLibraryInput(BaseModel):
+    """Accept legacy prose cases and canonical grouped employment fixtures."""
+
+    library: str = ""
+    career_library: CareerLibrary | None = None
+
+    @property
+    def library_content(self) -> dict:
+        return (_interview_library_content(self.career_library) if self.career_library
+                else {"summary": self.library})
+
+    @property
+    def library_text(self) -> str:
+        return _library_evidence_text(self.library_content)
+
+
+class QuestionEvalInput(InterviewLibraryInput):
     """Synthetic usable library and replacement exclusions."""
 
-    library: str
     set_type: InterviewSetType = "general"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
 
 
-class FeedbackEvalInput(BaseModel):
+class FeedbackEvalInput(InterviewLibraryInput):
     """Synthetic saved answer with optional career evidence."""
 
     question: str
     set_type: InterviewSetType = "general"
     answer: str
-    library: str = ""
 
 
 class FeedbackEvalLabels(BaseModel):
@@ -48,17 +64,17 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    text = f"Generate {case.count} {case.set_type} questions.\nLibrary JSON data:\n{json.dumps({'summary': case.library})}"
+    text = f"Generate {case.count} {case.set_type} questions.\nLibrary JSON data:\n{json.dumps(case.library_content)}"
     if case.excluded:
         text += "\nExcluded questions JSON data:\n" + json.dumps(case.excluded)
-    return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded), case.set_type)
+    return InterviewQuestionContext(text, case.library_text, case.count, tuple(case.excluded), case.set_type)
 
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
     text = json.dumps({"set_type": case.set_type, "question": case.question, "answer": case.answer,
-                       "career_library": {"summary": case.library}})
-    return InterviewFeedbackContext(text, case.answer + "\n" + case.library, case.set_type)
+                       "career_library": case.library_content})
+    return InterviewFeedbackContext(text, case.answer + "\n" + case.library_text, case.set_type)
 
 
 @dataclass
@@ -78,7 +94,7 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
                      and any(q.category == "introduction" for q in questions)),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
-                quote.strip() and quote in ctx.inputs.library for quote in q.evidence_quotes
+                quote.strip() and quote in ctx.inputs.library_text for quote in q.evidence_quotes
             ) for q in questions),
         }
         return {name: float(passed) for name, passed in checks.items()}
@@ -93,7 +109,7 @@ class FeedbackStructure(Evaluator[FeedbackEvalInput, InterviewFeedback, Feedback
         import re
 
         output = ctx.output
-        source = ctx.inputs.answer + "\n" + ctx.inputs.library
+        source = ctx.inputs.answer + "\n" + ctx.inputs.library_text
         checks = {
             "nonblank_feedback": all(text.strip() for text in [
                 *output.strengths, *output.improvements, output.example_answer]),

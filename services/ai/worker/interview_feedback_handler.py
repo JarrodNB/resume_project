@@ -20,7 +20,7 @@ from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.interview_questions_handler import _library_evidence_text
+from worker.interview_questions_handler import _interview_library_content, _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -71,8 +71,7 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     selected = screen_library_inputs(library, screen, include_fact_requirements=False)
     library = selected.library
     warnings = list(selected.warnings)
-    content = library.model_dump(mode="json", exclude_none=True,
-                               exclude={"facts": {"__all__": {"requirement"}}})
+    content = _interview_library_content(library)
     text = bind_screened_prompt(
         [snapshot.answer_text, snapshot.question_text, *selected.sources],
         lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type),
@@ -103,7 +102,6 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
 def _feedback_prompt_text(values, fields, set_type):
     """Render question, answer and library solely from supplied screened sources."""
     library = rebuild_library(values[2:], fields)
-    content = library.model_dump(mode="json", exclude_none=True,
-        exclude={"facts": {"__all__": {"requirement"}}})
+    content = _interview_library_content(library)
     return json.dumps({"set_type": set_type, "question": values[1], "answer": values[0],
         "career_library": content}, ensure_ascii=False)

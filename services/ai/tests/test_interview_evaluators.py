@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 from evals import interview_eval_reporting, telemetry
-from evals.interview_evaluators import FeedbackStructure, QuestionStructure
+from evals.interview_evaluators import FeedbackEvalInput, FeedbackStructure, QuestionStructure
 from evals.run_interview_feedback_evals import load_interview_feedback_dataset
 from evals.run_interview_questions_evals import load_interview_questions_dataset
 from schemas.interview_feedback import InterviewFeedback
@@ -25,11 +25,11 @@ from schemas.interview_questions import (
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 15
+    assert len(dataset.cases) == 16
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
-            category=category, evidence_quotes=[case.inputs.library],
+            category=category, evidence_quotes=[case.inputs.library_text],
         ) for index, category in enumerate(
             QUESTION_CATEGORIES["general"][1:2] if case.inputs.set_type == "general" and case.inputs.count == 1
             else QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
@@ -58,7 +58,7 @@ def test_question_structure() -> None:
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 17
+    assert len(dataset.cases) == 18
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],
@@ -85,7 +85,7 @@ def test_feedback_focus_limits(field, value, score) -> None:
     output = InterviewFeedback(strengths=["Clear action"], improvements=["Add context"],
                                example_answer="I made a checklist.")
     setattr(output, field, value)
-    context = SimpleNamespace(inputs=SimpleNamespace(answer="I made a checklist.", library=""),
+    context = SimpleNamespace(inputs=FeedbackEvalInput(question="Describe your work", answer="I made a checklist."),
                               output=output, metadata=None)
     assert not FeedbackStructure().evaluate(context)[score]
 

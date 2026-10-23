@@ -105,22 +105,49 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         lines += ["", "## Experience"]
     highlight_number = 0
     for number, experience in enumerate(library.experiences, start=1):
-        role = f"{experience.title} at {experience.company}"
-        text = _join(role, experience.description, separator=": ")
+        grouped = len(experience.roles) > 1
+        role = (experience.company if grouped else
+                f"{experience.roles[0].title} at {experience.company}" if experience.roles else
+                experience.company)
+        role_details = [
+            _join(item.title, format_date_range(item.start_date, item.end_date),
+                  item.description, separator=" | ")
+            for item in experience.roles
+        ]
+        text = _join(role, "; ".join(role_details) if grouped else
+                     experience.roles[0].description if experience.roles else None,
+                     experience.description, separator=": ")
         ref = _add_evidence(
             prompt, f"E{number}", EvidenceItem(kind="experience", id=experience.id, text=text)
         )
-        dates = format_date_range(experience.start_date, experience.end_date)
+        dates = (format_date_range(experience.roles[0].start_date, experience.roles[0].end_date)
+                 if len(experience.roles) == 1 else None)
         lines.append(f"[{ref}] {_join(role, dates, experience.location, separator=' | ')}")
         if experience.description:
             lines.append(f"  {experience.description}")
+        if grouped:
+            for detail in role_details:
+                lines.append(f"  Role: {detail}")
+        elif experience.roles and experience.roles[0].description:
+            lines.append(f"  {experience.roles[0].description}")
         for highlight in experience.highlights:
             highlight_number += 1
+            owner = next((item for item in experience.roles
+                          if item.id and item.id == highlight.experience_role_id), None)
+            if owner:
+                highlight_context = _join(
+                    f"{owner.title} at {experience.company}",
+                    format_date_range(owner.start_date, owner.end_date), separator=" | ")
+            elif grouped:
+                highlight_context = f"Shared across roles at {experience.company} (role and dates unspecified)"
+            else:
+                highlight_context = role
             item = EvidenceItem(
-                kind="highlight", id=highlight.id, text=highlight.content, context=role
+                kind="highlight", id=highlight.id, text=highlight.content, context=highlight_context
             )
+            scope = f" ({highlight_context})" if grouped else ""
             lines.append(
-                f"  [{_add_evidence(prompt, f'H{highlight_number}', item)}] {highlight.content}"
+                f"  [{_add_evidence(prompt, f'H{highlight_number}', item)}] {highlight.content}{scope}"
             )
 
     if library.projects:

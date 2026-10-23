@@ -108,3 +108,30 @@ def test_format_date_range() -> None:
     assert format_date_range(date(2015, 1, 1), date(2018, 6, 1)) == "Jan 2015 – Jun 2018"
     assert format_date_range(None, None) is None
     assert format_date_range(None, date(2018, 6, 1)) == "? – Jun 2018"
+
+
+def test_grouped_roles_preserve_shared_and_scoped_evidence_without_merging_entries():
+    """All roles are visible, but a shared bullet has no invented title or dates."""
+    from schemas.gap_analysis_context import LibraryExperience
+
+    context = build_gap_analysis_context()
+    context.career_library.experiences = [LibraryExperience.model_validate({
+        "id": "group", "company": "Example Co", "roles": [
+            {"id": "new", "title": "AI Engineer", "start_date": "2025-01-01", "end_date": "2026-09-01"},
+            {"id": "old", "title": "Software Developer", "start_date": "2019-01-01", "end_date": "2024-12-01"},
+        ], "highlights": [
+            {"id": "shared", "content": "Built Python APIs"},
+            {"id": "scoped", "content": "Tuned SQL", "experience_role_id": "old"},
+        ],
+    }), LibraryExperience(id="separate", company="Example Co", title="Consultant")]
+    prompt = build_gap_analysis_prompt(context, TODAY)
+
+    assert "AI Engineer | Jan 2025 – Sep 2026" in prompt.text
+    assert "Software Developer | Jan 2019 – Dec 2024" in prompt.text
+    assert prompt.evidence["H1"].context == "Shared across roles at Example Co (role and dates unspecified)"
+    assert prompt.evidence["H2"].context == "Software Developer at Example Co | Jan 2019 – Dec 2024"
+    assert prompt.evidence["E1"].id == "group"
+    assert "AI Engineer" in prompt.evidence["E1"].text
+    assert "Software Developer" in prompt.evidence["E1"].text
+    assert prompt.evidence["E2"].id == "separate"
+    assert prompt.text.index("[H1]") < prompt.text.index("[H2]") < prompt.text.index("[E2]")

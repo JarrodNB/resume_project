@@ -11,7 +11,7 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "4"
+GAP_ANALYSIS_PROMPT_VERSION = "5"
 
 GAP_ANALYSIS_INSTRUCTIONS = """\
 You compare a job with a candidate's career library and report, for every requirement
@@ -35,6 +35,14 @@ Oracle when SQL Server is asked). Check yourself: if your explanation would read
 shows X but not Y" and X is the same kind of thing as Y, the verdict is partial, citing X.
 
 Evidence:
+- Each experience entry preserves one source employment block. It can have several dated
+  roles. Same-company entries remain separate; never merge them or double-count overlapping dates.
+  Highlights explicitly marked "Shared across roles" have no specified role or dates:
+  they establish the work, but do not establish that it occurred in any particular role
+  or throughout any role's date range. Other highlights belong to the indicated role;
+  an ordinary single-role entry's highlights belong to that role. For years requirements,
+  use the dates of roles with relevant role-specific highlights or descriptions, as usual.
+  Do not apply the shared-across-roles restriction to ordinary single-role entries.
 - Certifications (C1, C2, ...) are separate from education. Compare explicit expiry dates
   against today. Within a stated year/month the exact expiration is unknown; after that
   period it is expired, and before the period it has not yet expired. Expired credentials do not meet a requirement for a current certification.

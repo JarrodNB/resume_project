@@ -1,11 +1,8 @@
-"""
-Description: Decides whether a task failure is temporary (worth retrying via SQS redelivery) or
-permanent (report "failed" now). Covers the model provider (through Pydantic AI), AWS, job
-site fetches (httpx), and the database (psycopg).
-Index:
-    - is_retryable_error: True for rate limits, provider/AWS/job site 5xx, timeouts (including an
-      agent run that hit its deadline), network errors, and the database being unreachable.
-      A request, tool-call, or token cap (UsageLimitExceeded) is permanent
+"""Decide whether a failed task should wait for SQS redelivery or fail now.
+
+Model providers and job-site fetches share one HTTP status policy. AWS error
+codes, transport failures, and database outages have their own retry rules.
+Usage limits and other permanent failures are reported without retrying.
 """
 
 import httpx
@@ -26,14 +23,14 @@ RETRYABLE_AWS_ERROR_CODES = {
 
 def is_retryable_error(error: BaseException) -> bool:
     """True when the same task could succeed if tried again later."""
-    if isinstance(error, ModelHTTPError):
-        return error.status_code in RETRYABLE_HTTP_STATUSES or error.status_code >= 500
+    if isinstance(error, (ModelHTTPError, httpx.HTTPStatusError)):
+        status_code = (
+            error.status_code if isinstance(error, ModelHTTPError) else error.response.status_code
+        )
+        return status_code in RETRYABLE_HTTP_STATUSES or status_code >= 500
     if isinstance(error, ModelAPIError):
         # Pydantic AI raises the base class for connection errors and timeouts.
         return True
-    if isinstance(error, httpx.HTTPStatusError):
-        status_code = error.response.status_code
-        return status_code in RETRYABLE_HTTP_STATUSES or status_code >= 500
     if isinstance(
         error,
         (

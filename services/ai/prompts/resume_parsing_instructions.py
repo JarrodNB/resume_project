@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "13"
+RESUME_PARSING_PROMPT_VERSION = "14"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -77,7 +77,18 @@ def format_resume_group_instruction(group: str) -> str:
     )
     if group == "ExperienceExtraction":
         instruction += (
-            "Keep each employer, role, and all its source bullet IDs together in experiences. "
+            "Each experiences item is one employment block as presented in the source. "
+            "Keep separately presented blocks separate even when the company repeats; never "
+            "group solely by company name. A single employer heading followed by multiple "
+            "role headings is one block with ordered roles. Preserve company, location, and "
+            "entry-level description, and every role title/date/current flag/description. "
+            "Use roles[].highlight_ids only for bullets explicitly associated with that role. "
+            "Use shared_highlight_ids for a list presented across roles or whose role ownership "
+            "is unclear; never guess ownership or duplicate shared bullets across roles. "
+            "When ownership is genuinely unclear, keep the list shared and add a warning. "
+            "A shared list after multiple role headings remains shared even when the last "
+            "role is closest. Preserve mixed shared and role-specific lists independently. "
+            "Each source ID may occur at most once across all entries and scopes. "
             "Copy each stated company, title, and date from that role's own header. Do not leave "
             "stated role fields blank or move a privacy token between fields. "
             "A lone description of one deliverable for an unnamed client, with no stated job "

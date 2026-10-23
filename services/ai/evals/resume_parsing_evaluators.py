@@ -10,13 +10,15 @@ Index:
     - RESUME_PARSING_EVALUATORS: all evaluator classes, for Dataset.from_file
 """
 
+from collections import Counter
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Any
 
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from documents.text_matching import appears_in, fraction, loosely_equal, normalize_text
-from schemas.parsed_resume import ParsedExperience, ParsedResume
+from schemas.parsed_resume import ParsedResume, ParsedRole
 
 ResumeContext = EvaluatorContext[str, ParsedResume, dict[str, Any]]
 
@@ -27,11 +29,14 @@ class SourceFaithfulness(Evaluator[str, ParsedResume, dict[str, Any]]):
 
     def evaluate(self, ctx: ResumeContext) -> dict[str, float]:
         """Scores the share of highlights, skills, and companies found in the input."""
-        highlights = [text for role in ctx.output.experiences for text in role.highlights]
+        highlights = _all_highlights(ctx.output)
+        descriptions = [text for entry in ctx.output.experiences
+                        for text in [entry.description, *(role.description for role in entry.roles)] if text]
         skills = [skill.name for skill in ctx.output.skills]
         companies = [role.company for role in ctx.output.experiences]
         return {
             "faithful_highlights": _share_in_source(highlights, ctx.inputs),
+            "faithful_descriptions": _share_in_source(descriptions, ctx.inputs),
             "faithful_skills": _share_in_source(skills, ctx.inputs),
             "faithful_companies": _share_in_source(companies, ctx.inputs),
         }
@@ -43,9 +48,11 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
 
     def evaluate(self, ctx: ResumeContext) -> dict[str, float]:
         """Scores recall, precision, and date accuracy of experiences."""
-        expected_roles = ctx.expected_output.experiences if ctx.expected_output else []
+        expected_resume = ctx.expected_output or ParsedResume()
+        expected_roles = _flat_roles(expected_resume)
         ambiguous_names = (ctx.metadata or {}).get("ambiguous_entries", [])
-        unmatched = list(ctx.output.experiences)
+        actual_roles = _flat_roles(ctx.output)
+        unmatched = list(actual_roles)
         matches = []
         pending = []
         for expected in expected_roles:
@@ -68,20 +75,64 @@ class ExperienceMatch(Evaluator[str, ParsedResume, dict[str, Any]]):
         found = [(expected, actual) for expected, actual in matches if actual is not None]
         extra_roles = [role for role in unmatched if not any(
             loosely_equal(role.company, name) for name in ambiguous_names)]
+        role_bullets = sum(_bullet_matches(expected.highlights, actual.highlights)
+                           for expected, actual in found)
+        remaining_entries = list(ctx.output.experiences)
+        shared_bullets = 0
+        for expected in expected_resume.experiences:
+            actual = next((entry for entry in remaining_entries if _group_key(entry) == _group_key(expected)), None)
+            if actual is not None:
+                shared_bullets += _bullet_matches(expected.shared_highlights, actual.shared_highlights)
+                remaining_entries.remove(actual)
+        matched_bullets = role_bullets + shared_bullets
+        expected_groups = Counter(_group_key(entry) for entry in expected_resume.experiences)
+        actual_groups = Counter(_group_key(entry) for entry in ctx.output.experiences)
+        matched_groups = sum((expected_groups & actual_groups).values())
         return {
             "experience_recall": fraction(len(found), len(expected_roles)),
-            "experience_precision": fraction(
-                len(ctx.output.experiences) - len(extra_roles), len(ctx.output.experiences)
-            ),
-            "experience_highlight_recall": fraction(
-                sum(sum(any(normalize_text(bullet) == normalize_text(value) for value in actual.highlights)
-                        for bullet in expected.highlights) for expected, actual in found),
-                sum(len(role.highlights) for role in expected_roles),
-            ),
+            "experience_precision": fraction(len(actual_roles) - len(extra_roles), len(actual_roles)),
+            "experience_highlight_recall": fraction(matched_bullets, len(_all_highlights(expected_resume))),
+            "experience_highlight_precision": fraction(matched_bullets, len(_all_highlights(ctx.output))),
+            "experience_group_recall": fraction(matched_groups, len(expected_resume.experiences)),
+            "experience_group_precision": fraction(matched_groups, len(ctx.output.experiences)),
+            "experience_exact_structure": float(_structure(expected_resume) == _structure(ctx.output)),
             "experience_dates": fraction(
                 sum(_same_dates(expected, actual) for expected, actual in found), len(found)
             ),
         }
+
+
+def _all_highlights(resume):
+    return [text for entry in resume.experiences
+            for text in [*entry.shared_highlights, *(bullet for role in entry.roles for bullet in role.highlights)]]
+
+
+def _flat_roles(resume):
+    return [SimpleNamespace(company=entry.company, **role.model_dump())
+            for entry in resume.experiences for role in entry.roles]
+
+
+def _bullet_matches(expected, actual):
+    return sum((Counter(map(normalize_text, expected)) & Counter(map(normalize_text, actual))).values())
+
+
+def _group_key(entry):
+    return (normalize_text(entry.company), tuple((normalize_text(role.title), role.start_date,
+                                                role.end_date, role.is_current) for role in entry.roles))
+
+
+def _structure(resume):
+    """Exact ordered grouping, metadata, and complete scoped bullets; whitespace is incidental."""
+    def normalize(value):
+        if isinstance(value, str):
+            return normalize_text(value)
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        if isinstance(value, dict):
+            return {key: normalize(item) for key, item in value.items()}
+        return value
+    return normalize([entry.model_dump() for entry in resume.experiences])
+
 
 
 @dataclass
@@ -161,7 +212,7 @@ def _share_in_source(values: list[str], source_text: str) -> float:
     return fraction(sum(appears_in(value, source_text) for value in values), len(values))
 
 
-def _same_dates(expected: ParsedExperience, actual: ParsedExperience) -> bool:
+def _same_dates(expected: ParsedRole, actual: ParsedRole) -> bool:
     """True when start date, end date, and the current-role flag all match."""
     return (expected.start_date, expected.end_date, expected.is_current) == (
         actual.start_date,

@@ -98,6 +98,8 @@ def _is_resume_boundary(
         return True
     if _section_kind(text):
         return True
+    if re.fullmatch(r"shared (?:accomplishments|achievements|highlights|responsibilities)(?: across (?:both|all) roles)?[: ]*", text, re.IGNORECASE):
+        return True
     # A standalone label after a completed paragraph can start a new role/section.
     # Within unfinished prose the same capitalization may simply be "AWS SQS".
     if (
@@ -221,11 +223,13 @@ class ExperienceSource:
 
     def _validate_ids(self, output: ExperienceExtraction) -> None:
         seen = set()
-        for role in output.experiences:
-            for bullet_id in role.highlight_ids:
-                if bullet_id not in self._bullets or bullet_id in seen:
-                    raise ValueError("Use only known source bullet IDs, once per resume.")
-                seen.add(bullet_id)
+        for entry in output.experiences:
+            scopes = [entry.shared_highlight_ids, *(role.highlight_ids for role in entry.roles)]
+            for scope in scopes:
+                for bullet_id in scope:
+                    if bullet_id not in self._bullets or bullet_id in seen:
+                        raise ValueError("Use only known source bullet IDs, once per resume.")
+                    seen.add(bullet_id)
 
     def reconstruct(self, output: ExperienceExtraction) -> dict:
         """Return parsed fields with each role's exact highlights in source order.
@@ -235,10 +239,13 @@ class ExperienceSource:
         """
         self._validate_ids(output)
         values = output.model_dump()
-        for role in values["experiences"]:
-            bullet_ids = role.pop("highlight_ids")
-            role["highlights"] = [
-                self._bullets[bullet_id]
-                for bullet_id in sorted(bullet_ids, key=self._bullet_order.__getitem__)
-            ]
+        for entry in values["experiences"]:
+            scopes = [(entry, "shared_highlight_ids", "shared_highlights")]
+            scopes.extend((role, "highlight_ids", "highlights") for role in entry["roles"])
+            for scope, ids_key, text_key in scopes:
+                bullet_ids = scope.pop(ids_key)
+                scope[text_key] = [
+                    self._bullets[bullet_id]
+                    for bullet_id in sorted(bullet_ids, key=self._bullet_order.__getitem__)
+                ]
         return values

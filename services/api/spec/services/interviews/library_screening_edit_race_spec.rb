@@ -73,6 +73,27 @@ RSpec.describe "Interview approval and career edit interleaving" do
     end
   end
 
+  it "invalidates a role description approved after a merge reads target children" do
+    target = Experiences::CreateExperienceService.call(user: user, attributes: {
+      company: "Harbor Tools", roles: [ { title: "Engineer", description: "Original introduction" } ]
+    }).value
+    source = Experiences::CreateExperienceService.call(user: user, attributes: {
+      company: "Harbor Tools", roles: [ { title: "Engineer", description: "Additional introduction" } ]
+    }).value
+    role = target.roles.first
+    interview = Interviews::StartPreparationService.call(user: user).value
+    index = interview.frozen_context.fetch("sources").index { |item| item["id"] == role.id && item["field"] == "description" }
+    allow(target).to receive(:lock!).and_wrap_original do |original, *args|
+      original.call(*args)
+      target.roles.load
+      approve_sources(interview, [ index ])
+    end
+    expect(CareerLibrary::MergeLibraryRecordsService.call(target: target, source: source)).to be_success
+    expect(role.reload.description).to eq("Original introduction\n\nAdditional introduction")
+    expect(role.screened_fields).not_to include("description")
+    expect(interview.reload.frozen_context.fetch("sources")[index]["screened"]).to be(true)
+  end
+
   it "invalidates a newly approved summary when an earlier profile editor saves" do
     stale_user = User.find(user.id)
     interview = Interviews::StartPreparationService.call(user: user).value

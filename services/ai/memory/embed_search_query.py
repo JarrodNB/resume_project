@@ -5,7 +5,6 @@ database/library_embedding_search.py.
 Index:
     - QueryEmbedding: the query vector plus the request's token usage (for cost reporting)
     - embed_search_query / embed_search_query_async: embed one query text
-    - stored_embedding_model_name: the model name as Rails stores it in library_embeddings
 """
 
 from typing import NamedTuple
@@ -32,12 +31,6 @@ def embed_search_query(text: str, model: EmbeddingModel | str, dimensions: int) 
     import asyncio
 
     return asyncio.run(embed_search_query_async(text, model, dimensions))
-
-
-def stored_embedding_model_name(model: str) -> str:
-    """Drops the provider prefix ("openai:text-embedding-3-small" -> "text-embedding-3-small"),
-    matching the `model` column Rails writes."""
-    return model.split(":", 1)[-1]
 
 
 async def embed_search_query_async(text: str, model: EmbeddingModel | str, dimensions: int) -> QueryEmbedding:

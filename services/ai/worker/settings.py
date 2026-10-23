@@ -1,6 +1,6 @@
 """
 Description: Worker configuration loaded from environment variables.
-Generative tasks default to GPT-6 Luna with low reasoning effort; environment variables
+Generative tasks default to GPT-6 Luna with reasoning disabled; environment variables
 can override each task's model.
 Index:
     - WorkerSettings: typed settings for SQS, S3, the read-only database, each agent's model
@@ -11,7 +11,7 @@ Index:
 """
 
 from pydantic import field_validator
-from pydantic_ai.settings import ThinkingEffort
+from pydantic_ai.settings import ThinkingLevel
 from pydantic_settings import BaseSettings
 
 
@@ -36,21 +36,22 @@ class WorkerSettings(BaseSettings):
     resume_parsing_model: str = "openai:gpt-6-luna"
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.
-    resume_parsing_thinking: ThinkingEffort = "low"
+    # Pydantic AI maps False to OpenAI reasoning_effort="none".
+    resume_parsing_thinking: ThinkingLevel = False
     # Only runs for postings whose headings don't label the requirements.
     job_requirements_sorting_model: str = "openai:gpt-6-luna"
-    job_requirements_sorting_thinking: ThinkingEffort = "low"
+    job_requirements_sorting_thinking: ThinkingLevel = False
     # Copies title, company, and requirement lines out of a pasted job ad.
     job_posting_parse_model: str = "openai:gpt-6-luna"
-    job_posting_parse_thinking: ThinkingEffort = "low"
+    job_posting_parse_thinking: ThinkingLevel = False
     interview_feedback_model: str = "openai:gpt-6-luna"
-    interview_feedback_thinking: ThinkingEffort = "low"
+    interview_feedback_thinking: ThinkingLevel = False
     interview_questions_model: str = "openai:gpt-6-luna"
-    interview_questions_thinking: ThinkingEffort = "low"
+    interview_questions_thinking: ThinkingLevel = False
     # Interview eval judging stays independent of production and comparison models.
     eval_judge_model: str = "openai:gpt-6.1-sol"
     gap_analysis_model: str = "openai:gpt-6-luna"
-    gap_analysis_thinking: ThinkingEffort = "low"
+    gap_analysis_thinking: ThinkingLevel = False
     # JEV remains primary; its separate safety fallback only runs after an attempted failure.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
     user_text_screen_fallback_model: str = "openai:gpt-5-nano"
@@ -66,7 +67,7 @@ class WorkerSettings(BaseSettings):
             raise ValueError("Screen chunk size must be 2000 or 4000")
         return value
     resume_tailoring_model: str = "openai:gpt-6-luna"
-    resume_tailoring_thinking: ThinkingEffort = "low"
+    resume_tailoring_thinking: ThinkingLevel = False
     # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.
     # Output-validation retries stay on the primary. The same name as the primary skips it.
     generative_fallback_model: str = "openai:gpt-5-nano"

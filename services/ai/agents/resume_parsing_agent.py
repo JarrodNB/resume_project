@@ -12,7 +12,7 @@ from typing import NamedTuple
 from opentelemetry import trace
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import AbstractCapability
-from pydantic_ai.settings import ModelSettings, ThinkingEffort
+from pydantic_ai.settings import ModelSettings, ThinkingLevel
 from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
@@ -100,7 +100,7 @@ class ResumeParsingRun(NamedTuple):
 def parse_resume_text(
     resume_text: str,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> ResumeParsingRun:
@@ -116,7 +116,7 @@ def parse_resume_text(
 async def _run_with_deadline(
     resume_text: str,
     model: str,
-    thinking: ThinkingEffort,
+    thinking: ThinkingLevel,
     timeout_seconds: float,
     fallback_model: str,
 ) -> ResumeParsingRun:

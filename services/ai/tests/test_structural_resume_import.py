@@ -815,6 +815,13 @@ def test_three_pipelines_share_one_deadline_including_screening(
     active = 0
     peak = 0
     closed = []
+    timeout_scopes = []
+    real_timeout = asyncio.timeout
+
+    def capture_timeout(delay):
+        scope = real_timeout(delay)
+        timeout_scopes.append(scope)
+        return scope
 
     async def screen(text, *args):
         await asyncio.sleep(0.02)
@@ -830,16 +837,22 @@ def test_three_pipelines_share_one_deadline_including_screening(
         active += 1
         peak = max(active, peak)
         try:
-            await asyncio.sleep(10)
+            if active == 3:
+                # Expire the actual outer import deadline only after all providers
+                # are running. Schema/provider setup speed is irrelevant here.
+                timeout_scopes[0].reschedule(asyncio.get_running_loop().time())
+            await asyncio.Event().wait()
         finally:
             active -= 1
             closed.append(True)
 
+    monkeypatch.setattr("resume_import.asyncio.timeout", capture_timeout)
     monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", screen)
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     text = MULTI_SECTION + "\nCertifications\nCertified\nLanguages\nEnglish"
     with pytest.raises(TimeoutError):
-        import_resume_text(text, "openai:gpt-5-mini", "low", 0.25, "openai:gpt-5-nano")
+        import_resume_text(text, "openai:gpt-5-mini", "low", 30, "openai:gpt-5-nano")
+    assert timeout_scopes[0].expired()
     assert peak == 3
     assert active == 0
     assert closed == [True] * 3

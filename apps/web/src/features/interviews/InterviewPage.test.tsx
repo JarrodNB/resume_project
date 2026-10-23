@@ -692,7 +692,7 @@ it('defaults to browser recognition, remembers a choice, and locks it while an a
   act(() => recorder.refresh())
   expect(screen.getByRole('combobox', { name: 'Answer transcription' })).toBeDisabled()
 })
-it('allows changing the next recording mode while keeping reviewed audio and text', async () => {
+it('confirms switching modes then discards current audio and answer text', async () => {
   localStorage.setItem('Careergrind:interview-transcription:owner', 'recorded')
   recorder.status = 'ready'; recorder.recording = new Blob(['saved audio']); recorder.effectiveMode = 'recorded'
   renderInterview()
@@ -701,11 +701,15 @@ it('allows changing the next recording mode while keeping reviewed audio and tex
   const select = screen.getByRole('combobox', { name: 'Answer transcription' })
   expect(select).toBeEnabled()
   await userEvent.selectOptions(select, 'streaming')
-  expect(select).toHaveValue('streaming')
+  expect(select).toHaveValue('recorded')
+  await userEvent.click(screen.getByRole('button', { name: 'Keep current mode' }))
   expect(recorder.reset).not.toHaveBeenCalled()
+  await userEvent.selectOptions(select, 'streaming')
+  await userEvent.click(screen.getByRole('button', { name: 'Discard and switch' }))
+  expect(select).toHaveValue('streaming')
+  expect(recorder.reset).toHaveBeenCalledOnce()
   await userEvent.keyboard('{Escape}')
-  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('Keep this draft')
-  expect(screen.getByText('Review recording')).toBeVisible()
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('')
 })
 it('shows a waiting-for-words status while live transcription has not produced text', () => {
   recorder.status = 'recording'

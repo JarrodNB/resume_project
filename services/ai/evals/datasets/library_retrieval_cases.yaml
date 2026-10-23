@@ -88,3 +88,89 @@ cases:
       - RecallAtK
       - PrecisionAtK
       - MeanReciprocalRank
+
+  - name: grouped_entry_shared_achievement_remains_retrievable
+    inputs:
+      section_type: experience
+      job:
+        id: job-event-integrations
+        title: Integrations Engineer
+        company: Northwind
+        requirements:
+          - AWS event-driven integrations and SQS queue reliability
+      documents:
+        - id: shared-event-integrations
+          content: "Cedar Cloud: Built AWS event-driven integrations and improved SQS queue reliability"
+        - id: grouped-entry
+          content: "Cedar Cloud (Remote); Integrations Engineer at Cedar Cloud (2025-01-01 – 2026-09-01); Software Developer at Cedar Cloud (2019-01-01 – 2024-12-01)"
+        - id: scoped-ui
+          content: "Software Developer at Cedar Cloud (2019-01-01 – 2024-12-01): Built accessible account settings forms"
+        - id: other-stint
+          content: "Cedar Cloud; Retail Associate at Cedar Cloud (2015-01-01 – 2017-12-01)"
+        - id: hl-pastry
+          content: "Pastry Chef at Ovenly: Designed a seasonal dessert menu"
+        - id: hl-barista
+          content: "Barista at Northwind Cafe: Pulled espresso and trained new staff"
+        - id: hl-teacher
+          content: "Teacher at Harbor School: Taught third grade reading"
+        - id: hl-retail
+          content: "Retail Associate at Brightmart: Folded clothes and ran the register"
+        - id: ed-music
+          content: "BMus in Music, Harbor College"
+        - id: skill-baking
+          content: "Kitchen: Baking"
+        - id: fact-hotel
+          content: "Fact: Customer service: Greeted guests at a hotel front desk"
+        - id: hl-accountant
+          content: "Accountant at Ledgerly: Reconciled monthly expense reports"
+    metadata:
+      relevant_ids:
+        - shared-event-integrations
+    evaluators:
+      - HitAt1
+      - RecallAtK
+      - PrecisionAtK
+      - MeanReciprocalRank
+
+  - name: grouped_entry_scoped_achievement_keeps_role_context
+    inputs:
+      section_type: experience
+      job:
+        id: job-accessible-ui
+        title: Frontend Developer
+        company: Northwind
+        requirements:
+          - Accessible account settings forms and keyboard navigation
+      documents:
+        - id: scoped-ui
+          content: "Software Developer at Cedar Cloud (2019-01-01 – 2024-12-01): Built accessible account settings forms and keyboard navigation"
+        - id: grouped-entry
+          content: "Cedar Cloud (Remote); Integrations Engineer at Cedar Cloud (2025-01-01 – 2026-09-01); Software Developer at Cedar Cloud (2019-01-01 – 2024-12-01)"
+        - id: shared-event-integrations
+          content: "Cedar Cloud: Built AWS event-driven integrations and improved SQS queue reliability"
+        - id: other-stint
+          content: "Cedar Cloud; Retail Associate at Cedar Cloud (2015-01-01 – 2017-12-01)"
+        - id: hl-pastry
+          content: "Pastry Chef at Ovenly: Designed a seasonal dessert menu"
+        - id: hl-barista
+          content: "Barista at Northwind Cafe: Pulled espresso and trained new staff"
+        - id: hl-teacher
+          content: "Teacher at Harbor School: Taught third grade reading"
+        - id: hl-retail
+          content: "Retail Associate at Brightmart: Folded clothes and ran the register"
+        - id: ed-music
+          content: "BMus in Music, Harbor College"
+        - id: skill-baking
+          content: "Kitchen: Baking"
+        - id: fact-hotel
+          content: "Fact: Customer service: Greeted guests at a hotel front desk"
+        - id: hl-accountant
+          content: "Accountant at Ledgerly: Reconciled monthly expense reports"
+    metadata:
+      relevant_ids:
+        - scoped-ui
+    evaluators:
+      - HitAt1
+      - RecallAtK
+      - PrecisionAtK
+      - MeanReciprocalRank

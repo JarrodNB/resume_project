@@ -31,7 +31,8 @@ def build_pdf(pages):
         })
         stream = DecodedStreamObject()
         encoded = []
-        for line in (part for line in lines for part in (wrap(line, width=96, break_long_words=False, break_on_hyphens=False) or [line])):
+        wrapped_lines = [part for source_line in lines for part in (wrap(source_line, width=96, break_long_words=False, break_on_hyphens=False) or [source_line])]
+        for line in wrapped_lines:
             escaped = line.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
             encoded.append(b"(" + escaped.encode("cp1252") + b") Tj T*")
         stream.set_data(b"BT /F1 10 Tf 14 TL 40 740 Td " + b" ".join(encoded) + b" ET")

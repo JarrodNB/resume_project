@@ -11,6 +11,8 @@ Reusable, repository-scoped workflows for Codex.
 - `grilling/` — Upstream Matt Pocock skill for questioning plans, decisions, and ideas.
 - `fix-loop/` — Bounded autonomous fixes, each in a fresh worktree with its own PR.
 - `super-loop/` — Per-category loop quotas and the shared delivery protocol used by companion loops.
+  The protocol routes supporting skills and reuses orchestrator's Ponytail guidance for
+  implementations and fresh reviews; fix-loop follows the same supporting guidance.
 - Companion delivery loops: `test-quality-loop/`, `simplify-loop/`, `resilience-loop/`,
   `performance-loop/`, `accessibility-loop/`, `ux-friction-loop/`, `docs-drift-loop/`,
   `observability-loop/`, `dependency-loop/`, `boundary-loop/`, and `architecture-loop/`.

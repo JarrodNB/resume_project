@@ -10,6 +10,14 @@ Read applicable repository instructions and verification guidance. Inspect Git s
 
 Keep a resumable ledger outside tracked product files, preferably in a unique directory under the Git common directory. Record run ID, scope, requested/completed counts per category, evidence, candidate status, base/head commits, branches, worktrees, checks, reviews, PR URLs, and next action. Reconcile Git and remote state before retrying mutations. Count each PR once.
 
+## Supporting skills and Ponytail
+
+Apply the Implementation section of the shared [Ponytail guidance](../../orchestrator/references/ponytail.md) to each iteration, including review repairs. Treat the selected iteration's established outcome as the approved scope; the guidance does not approve unresolved designs. Explicitly pass that section to any implementation worker, using an absolute path or section text. Fresh agents do not inherit parent activation. Use the local adaptation without plugin installation, hooks, or session mode changes.
+
+Use [tdd](../../tdd/SKILL.md) for testable defect repairs and failure recovery, and for other approved behavior changes where red–green–refactor applies. For behavior-preserving improvements, establish existing behavior through meaningful tests rather than manufacture a missing requirement. Documentation and mechanical changes use appropriate static checks. Scope TDD assignments to non-browser implementation and tests; the parent loop retains any required browser or manual interaction verification. Do not assign browser QA to a TDD worker.
+
+For frontend changes affecting interactions or visible states, use the available Impeccable skill, including in fix, simplify, performance, and resilience iterations. Keep the category's evidence and scope requirements.
+
 ## One iteration
 
 1. Inspect the selected base and open PRs, including earlier iterations. Select one bounded improvement meeting the category's evidence rules. Record the trigger or friction, supporting evidence, intended outcome, and narrow verification plan. Do not invent requirements or use preferences to fill a quota.
@@ -22,7 +30,9 @@ Keep a resumable ledger outside tracked product files, preferably in a unique di
 
 ## Fresh independent review
 
-Spawn a new reviewer with `fork_turns: "none"` for each review pass. Supply only repository access, applicable instructions, fixed base/head IDs, and a review assignment covering the full diff and surrounding callers for correctness, security, reliability, maintainability, and meaningful verification. Do not supply candidate notes, ledger, implementation rationale, commit messages, PR discussion, or earlier findings. The reviewer may read technical documents and run isolated checks but must not edit implementation or post external comments.
+Spawn a new reviewer with `fork_turns: "none"` for each review pass. Supply repository access, applicable instructions, fixed base/head IDs, and [review-correctness](../../review-correctness/SKILL.md); also supply [review-design](../../review-design/SKILL.md) for code or test changes. One fresh reviewer may apply both checklists unless the user requires separate reviewers. Review the full diff and surrounding callers. Explicitly supply only the Review section of the shared [Ponytail guidance](../../orchestrator/references/ponytail.md), using an absolute path or section text, to every reviewer and replacement. Preserve each review skill's scope, blindness, and reporting requirements; a combined report may share reviewed IDs and checks.
+
+Do not supply the Ponytail Implementation section, research assessment, candidate notes, ledger, implementation rationale, commit messages, PR discussion, or earlier findings. The reviewer may read established technical documents and run isolated checks but must not edit implementation or post external comments.
 
 Require findings with severity, file/line evidence and repair direction; reviewed IDs; actual checks and limits; and an explicit statement when no actionable findings remain. Evaluate findings against code evidence, repair supported in-scope issues, and record reasons for dismissed findings. After any code or test changes, rerun affected checks, commit and push without force, then obtain another blank review of the full original-base-to-current-head diff.
 

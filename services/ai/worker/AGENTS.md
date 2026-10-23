@@ -6,6 +6,9 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 
 ## Contents
 
+- `result_delivery.py` owns queue publication and safe production failure diagnostics.
+  It forwards delivery outcomes to the optional local transcript hook.
+
 - `main.py` owns the narrow conversation lifecycle hook; `task_usage.py` delegates concrete
   request observation to the independent `conversation_logging/` package. Settings gate
   this filesystem logging on `WORKER_ENVIRONMENT=local` and allow an explicit opt-out.

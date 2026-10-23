@@ -16,6 +16,7 @@ python3 script/native.py system-deps
 
 # Run these steps as your normal account.
 python3 script/native.py doctor
+python3 -m unittest discover -s script -p test_native.py -v
 python3 script/native.py install
 python3 script/native.py start
 python3 script/native.py check
@@ -60,7 +61,8 @@ export NATIVE_STORAGE_ORIGIN=https://your-storage-preview.example
 ```
 
 These configure frontend API URLs, Rails CORS/email links, interview origins,
-and browser audio storage URLs. Publish/forward ports 5173, 3000, and 9090 through
+browser audio storage URLs, and Rails/Vite development host allowances.
+Publish/forward ports 5173, 3000, and 9090 through
 your environment's supported mechanism. Microphone access requires HTTPS or
 localhost. Port 5174 serves the optional landing page. Rails, web, landing, and
 the interview server bind to all interfaces; the database and emulator bind to
@@ -104,4 +106,5 @@ For syntax and basic command checks without installing anything:
 python3 -m py_compile script/native.py
 python3 script/native.py --help
 python3 script/native.py doctor
+python3 -m unittest discover -s script -p test_native.py -v
 ```

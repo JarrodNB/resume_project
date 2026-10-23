@@ -9,7 +9,8 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
   education, certifications, skills) and entry label prefixes
-- `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, and gap responses
+- `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, gap responses,
+  and strict 1/2-page target (legacy default 2)
 - `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
   `library_embeddings` with explicitly selected library types; no matches means the whole library
 - `labeled_sources.py` — short labels for retrieved entries, gap responses, and selected draft snapshots.
@@ -26,6 +27,9 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 
 ## Local Rules
 
+- A shared guide of about 450 words/page subtracts actual copied contact and credentials,
+  reserves summary space, and allocates remaining words among usable section writers.
+  This guides selection and prose; it never truncates content or guarantees physical fit.
 - Contact, education, and certifications are copied with no model call. Original credential
   descriptions and date precision remain intact. Copied text still requires screening
   before it is reused in the summary prompt.

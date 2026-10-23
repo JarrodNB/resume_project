@@ -483,3 +483,38 @@ def test_highlights_reuse_partial_saved_parent_checks(preparation):
         assert not any("title" in row and row["title"] == role.title for row in fields)
         assert sum(row.get("company") == role.company for row in fields) == 1
     asyncio.run(run())
+
+
+def test_page_targets_share_allowance_and_subtract_copied_content(preparation):
+    import re
+
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, _, _, user, job = preparation
+
+    async def budgets(pages, contact=None):
+        with screening_session():
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[],
+                target_page_count=pages, contact=contact or {})
+            prompts = {**prepared.prompts, "summary": await prepared.summary_prompt([])}
+            return {section: int(re.search(r"Section allowance: (\d+) words", prompt.text)[1])
+                    for section, prompt in prompts.items()}
+
+    async def run():
+        one = await budgets(1)
+        two = await budgets(2)
+        assert all(0 < one[section] < two[section] for section in one)
+        assert sum(one.values()) < 450
+        assert sum(two.values()) < 900
+        context.career_library.educations[0].description = "copied " * 120
+        copied = await budgets(2, {"full_name": "Candidate", "location": "City " * 20})
+        assert sum(two.values()) - sum(copied.values()) == 141
+        context.career_library.projects = []
+        context.career_library.skills = []
+        sparse = await budgets(2)
+        assert set(sparse) == {"summary", "experience"}
+        assert sparse["experience"] > copied["experience"]
+        context.career_library.educations[0].description = "copied " * 1000
+        exhausted = await budgets(1)
+        assert sum(exhausted.values()) == 0
+    asyncio.run(run())

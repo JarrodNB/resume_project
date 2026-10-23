@@ -446,3 +446,23 @@ def test_rejected_copied_evidence_remains_visible_but_cannot_ground_summary(gene
     assert [section["section_type"] for section in result.result["sections"]] == ["contact", "education"]
     assert seen == []
     assert any("Summary" in warning and "screening" in warning for warning in result.result["warnings"])
+
+
+def test_queued_target_controls_all_writer_allowances_and_keeps_copied_content(generation):
+    import re
+
+    dependencies, _, seen, model = generation
+    outputs = []
+    allowances = []
+    for pages in (1, 2):
+        seen.clear()
+        with resume_tailoring_agent.override(model=model):
+            result = handle_ai_task(task(task_input(target_page_count=pages)), dependencies)
+        assert result.status == "completed"
+        assert all(f"Resume target: {pages} pages" in text for _, text in seen)
+        allowances.append({section: int(re.search(r"Section allowance: (\d+) words", text)[1])
+                           for section, text in seen})
+        outputs.append(result.result["sections"])
+    assert all(allowances[0][section] < allowances[1][section] for section in allowances[0])
+    assert sum(allowances[0].values()) < 450
+    assert outputs[0] == outputs[1]  # A target guides the writer; it never truncates its output.

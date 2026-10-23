@@ -50,6 +50,8 @@ def build_section_prompt(
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
     source_labels: set[str] | None = None,
+    word_allowance: int | None = None,
+    target_page_count: int = 2,
 ) -> SectionPrompt:
     """Builds one prompt; retrieval narrows library evidence but retains supplied snapshots.
     The `selected_sections` argument contains generated/copied draft snapshots. Rejected
@@ -74,6 +76,14 @@ def build_section_prompt(
         "Credential expiry status: " + "; ".join(expiry_statuses) if expiry_statuses else "",
         f"# Write the {SECTION_TITLES[section_type]} section",
         _SECTION_NOTE.get(section_type, ""),
+        (f"Resume target: {target_page_count} pages (about {450 * target_page_count} words total). "
+         f"Section allowance: {word_allowance} words, including selected item names and identity. "
+         "This allowance shares space with copied contact, education, certifications and other sections. "
+         "Select fewer relevant items and write concisely; preserve facts. "
+         "These are preferred maxima, not quotas: shorter is fine; never pad to fill the target. "
+         "The word guide cannot guarantee physical page fit. If space is exhausted, use the shortest "
+         "faithful useful content; never truncate facts or invent content to meet a count.")
+        if word_allowance is not None else "",
         _WRITE_ANYWAY if write_anyway else "",
         "",
     ]

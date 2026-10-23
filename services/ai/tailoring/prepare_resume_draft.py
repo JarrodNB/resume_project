@@ -17,6 +17,7 @@ from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import current_session, remaining_timeout, screening_session
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
 from tailoring.labeled_sources import SourceRecord, label_sources
+from tailoring.materialize_section import copy_library_section
 from tailoring.retrieve_for_section import retrieve_source_keys_async
 from text_limits import MAX_SCREENED_TEXT
 from worker.queue_messages import ModelUsage
@@ -64,6 +65,8 @@ class PreparedResumeDraft:
     _usage: list[ModelUsage] = field(repr=False)
     _warnings: list[str] = field(repr=False)
     _concurrency: int = field(repr=False)
+    _target_page_count: int = 2
+    _word_allowances: dict[str, int] = field(default_factory=dict, repr=False)
     _session: object = field(default_factory=current_session, repr=False)
 
     async def _screen(self, texts: Sequence[str], records: dict[str, SourceRecord] | None = None) -> None:
@@ -107,6 +110,7 @@ class PreparedResumeDraft:
             write_anyway=False, gap_analysis=self._gap_analysis,
             allow_text=lambda text: self._decisions[text], warnings=self._warnings,
             source_labels=selected_labels,
+            word_allowance=self._word_allowances.get(section_type), target_page_count=self._target_page_count,
         )
 
     async def summary_prompt(
@@ -132,6 +136,7 @@ async def prepare_resume_draft(
     usage: list[ModelUsage], warnings: list[str],
     gap_responses: list[dict[str, str]] | None = None,
     gap_analysis: dict[str, object] | None = None, concurrency: int = 3,
+    target_page_count: int = 2, contact: dict[str, object] | None = None,
 ) -> PreparedResumeDraft:
     """Read once and prepare per-section evidence with bounded provider overlap.
 
@@ -179,5 +184,44 @@ async def prepare_resume_draft(
                 texts.extend(record.text for record in sources.records.values())
                 records.update({record.text: record for record in sources.records.values()})
             await prepared._screen(texts, records)
+            # Budget only text actually copied into the draft, not the retrieved evidence.
+            copied = [{key: (contact or {}).get(key) for key in (
+                "full_name", "email", "phone", "location", "links")}]
+            sources = label_sources(context, [], [], None)
+            for section in ("education", "certifications"):
+                copied.append(copy_library_section(section, context.career_library, sources))
+            remaining = max(0, 450 * target_page_count - _word_count(copied))
+            prepared._target_page_count = target_page_count
+            # Reserve summary space before the independent writers start.
+            summary_allowance = min(90, remaining // 10)
+            prepared._word_allowances = {"summary": summary_allowance}
+            native_kinds = {"experience": "experience", "projects": "project", "skills": "skill"}
+            active = []
+            for section in sections:
+                if section == "summary":
+                    continue
+                evidence = label_sources(context, prepared._gap_responses, [], prepared._retrieved[section], section)
+                if any(record.kind == native_kinds[section] and prepared._decisions[record.text].allowed
+                       for record in evidence.records.values()):
+                    active.append(section)
+            weights = {"experience": 6, "projects": 3, "skills": 1}
+            total_weight = sum(weights[section] for section in active)
+            available = remaining - summary_allowance
+            for index, section in enumerate(active):
+                allowance = available if index == len(active) - 1 else (
+                    (remaining - summary_allowance) * weights[section] // total_weight)
+                prepared._word_allowances[section] = allowance
+                available -= allowance
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared
+
+
+def _word_count(value: object) -> int:
+    """Count visible copied values, excluding JSON keys and boolean display flags."""
+    if isinstance(value, str):
+        return len(value.split())
+    if isinstance(value, dict):
+        return sum(_word_count(item) for item in value.values())
+    if isinstance(value, list):
+        return sum(_word_count(item) for item in value)
+    return 0

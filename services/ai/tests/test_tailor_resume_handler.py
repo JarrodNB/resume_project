@@ -156,3 +156,19 @@ def test_certification_copy_preserves_identity_and_precision(precision, expected
     assert certifications["content"]["items"][0]["name"] == "AWS Solutions Architect"
     assert certifications["content"]["items"][0]["issued_date"] == expected
     assert "certifications" not in [section for section, _ in seen]
+
+
+@pytest.mark.parametrize("value", [True, False, 1.0, 2.0, "1", 0, 3, None])
+def test_target_page_count_rejects_invalid_values(value):
+    from pydantic import ValidationError
+
+    from tailoring.tailor_resume_input import TailorResumeInput
+
+    with pytest.raises(ValidationError):
+        TailorResumeInput.model_validate(_base_input(target_page_count=value))
+
+
+def test_legacy_target_page_count_defaults_to_two():
+    from tailoring.tailor_resume_input import TailorResumeInput
+
+    assert TailorResumeInput.model_validate(_base_input()).target_page_count == 2

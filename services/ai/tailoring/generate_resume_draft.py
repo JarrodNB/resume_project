@@ -41,7 +41,8 @@ async def generate_resume_draft(
         async with asyncio.timeout(remaining_timeout(settings.llm_run_timeout_seconds)):
             try:
                 prepared = await prepare_resume_draft(user_id, data.job_id, dependencies,
-                    usage=usage, warnings=warnings, gap_responses=data.gap_responses, gap_analysis=data.gap_analysis)
+                    usage=usage, warnings=warnings, gap_responses=data.gap_responses, gap_analysis=data.gap_analysis,
+                    target_page_count=data.target_page_count, contact=data.contact)
             except ResumePreparationError as error:
                 raise ResumeDraftInputError(str(error)) from error
 

@@ -2,8 +2,6 @@
 
 Record masked model exchanges and delivery outcomes in one file per AI task.
 Logging failures must never change task results or replace provider errors.
-Queue publication failures also emit safe correlation metadata to ordinary logs,
-including when local transcripts are disabled.
 """
 import fcntl
 import logging
@@ -214,24 +212,6 @@ async def observe_request(model, messages, model_settings, parameters):
         except Exception:  # noqa: BLE001 - transcript failures must never affect task execution
             logger.warning("Conversation response could not be rendered")
     return response
-
-
-def publish_result(queue, result):
-    """Publishes unchanged queue data and records only observable delivery outcomes."""
-    try:
-        queue.send_message(result.model_dump_json())
-    except BaseException as error:
-        logger.warning(
-            "Task result publication failed: task_id=%s status=%s attempt_id=%s",
-            result.ai_task_id, result.status, result.attempt_id,
-        )
-        record_outcome(f"{result.status} result publication failed ({type(error).__name__}); task will redeliver",
-                       event="PUBLICATION FAILURE")
-        raise
-    if result.status != "usage":
-        record_outcome(f"{result.status} result published")
-    elif result.attempt_finished:
-        record_outcome("retry pending; usage published", event="RETRY PENDING")
 
 
 def record_outcome(outcome, *, event="Outcome"):

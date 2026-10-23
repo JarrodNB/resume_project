@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import pytest
 
-from conversation_logging import publish_result
 from worker.queue_messages import AiResultMessage
+from worker.result_delivery import publish_result
 
 
 @pytest.mark.parametrize("status", ["usage", "completed", "failed"])
@@ -31,6 +31,7 @@ def test_failed_publication_logs_only_correlating_metadata(caplog, status):
     assert "private resume payload" not in caplog.text
     assert "private transport detail" not in caplog.text
     assert len(caplog.records) == 1
+    assert caplog.records[0].name == "worker.result_delivery"
 
 
 def test_successful_publication_does_not_warn(caplog):

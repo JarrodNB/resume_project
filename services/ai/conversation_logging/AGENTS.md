@@ -1,6 +1,8 @@
 # AGENTS.md — conversation_logging
 
 Local development Markdown transcripts. Keep capture independent of accounting and task behavior.
+Queue delivery and production diagnostics belong to `worker/result_delivery.py`;
+this package only records the outcome events supplied by that worker.
 
 - `__init__.py`: task scope, per-user/task files, visible delivery/outcome headings, nonfatal process-locked appends, concrete request/error capture, and queue publication outcomes. `ConversationLogging` uses supported agent capability hooks to observe new validation feedback and exhaustion with per-run identities; repeated history is not a fresh event.
 - `render.py`: complete message parts and instruction text with readable labels; omit request parameter and schema dumps.

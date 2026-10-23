@@ -18,7 +18,7 @@ from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai_harness import InputBlocked
 
-from conversation_logging import conversation_scope, publish_result
+from conversation_logging import conversation_scope
 from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
@@ -27,6 +27,7 @@ from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
 from worker.contact_mask import using_known_contact
 from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from worker.result_delivery import publish_result
 from worker.retryable_errors import is_retryable_error
 from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.s3_file_storage import S3FileStorage

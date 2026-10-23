@@ -50,7 +50,7 @@ export function TailorResumePage() {
           </CardContent>
         </Card>
       )}
-      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(`/jobs/${id}`)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <Card>
           <CardContent className="grid gap-4">

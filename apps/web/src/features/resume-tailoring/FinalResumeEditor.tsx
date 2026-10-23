@@ -84,7 +84,7 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
         <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
           <DialogHeader className="w-full pr-8">
             <DialogTitle>Preview</DialogTitle>
-            <DialogDescription>The current draft, as it will export.</DialogDescription>
+            <DialogDescription>Preview includes unsaved edits. Save your resume before downloading.</DialogDescription>
           </DialogHeader>
           {previewOpen && <ResumePdfPreview model={buildResumePdfModel(selected)} />}
         </DialogContent>

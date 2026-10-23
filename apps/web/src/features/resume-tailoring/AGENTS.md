@@ -5,6 +5,7 @@
 Generate a complete resume draft for one job, then review, edit, exclude sections, preview,
 and save it once. A finished gap analysis is included when one exists; generation does not
 wait for it. Later visits edit the saved resume. Preview opens the current draft as a large PDF.
+Saved resumes download locally as PDF after all edits save successfully.
 
 ## Contents
 
@@ -14,8 +15,12 @@ wait for it. Later visits edit the saved resume. Preview opens the current draft
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor; preview and save use the same included content in draft order
 - `SavedResumeEditor.tsx` — saved sections use tone-colored cards and remembered collapse IDs
-  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels. Confirmed
+  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
+  PDF download captures saved content and is blocked while dirty, saving, deleting, or exporting. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
+- `resumePdfDownload.tsx` — render the preview document for download, sanitize saved-title
+  filenames, and release browser object URLs after download handoff. `ResumePdfDocument.test.tsx`
+  parses real PDF output with a test-only reader; editor/page tests control the download boundary.
 - `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback.
   New drafts lead with Review full resume, opening the existing PDF preview; save stays
   available without a review confirmation. Saved resumes keep their existing action hierarchy.

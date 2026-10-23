@@ -4,7 +4,8 @@
 
 Active Job background jobs for work that must not block a request (AI tasks go over SQS
 instead; see `app/workers/`). Development uses the in-process async adapter, tests the test
-adapter, and production Solid Queue (it needs a jobs process at deploy time).
+adapter, and production Solid Queue (Puma starts its same-image supervisor by default).
+DOCX recovery runs every minute through production recurring jobs and the development Puma loop.
 
 ## Contents
 

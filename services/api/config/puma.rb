@@ -34,8 +34,26 @@ port ENV.fetch("PORT", 3000)
 # Allow puma to be restarted by `bin/rails restart` command.
 plugin :tmp_restart
 
-# Run the Solid Queue supervisor inside of Puma for single-server deployments.
-plugin :solid_queue if ENV["SOLID_QUEUE_IN_PUMA"]
+# Production runs durable jobs and recurring cleanup in the same Rails image by default.
+# Set false only when an external bin/jobs supervisor is deployed.
+plugin :solid_queue if ENV.fetch("SOLID_QUEUE_IN_PUMA", ENV.fetch("RAILS_ENV", "development") == "production" ? "true" : "false") == "true"
+
+# The development async adapter has no recurring scheduler. Puma owns a small recovery
+# loop so abandoned uploads are still reaped without another container.
+if ENV.fetch("RAILS_ENV", "development") == "development"
+  after_booted do
+    Thread.new do
+      loop do
+        begin
+          Rails.application.executor.wrap { DocumentPageChecks::CleanupChecksService.call }
+        rescue StandardError
+          Rails.logger.warn("Document page check cleanup will retry")
+        end
+        sleep 60
+      end
+    end
+  end
+end
 
 # Specify the PID file. Defaults to tmp/pids/server.pid in development.
 # In other environments, only set the PID file if requested.

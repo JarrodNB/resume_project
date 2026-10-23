@@ -109,3 +109,5 @@ jobs incur provider costs outside queued-task budgets/attempt reports and Logfir
 
 Resume tailoring mutations support start, save, section updates, and owned deletion.
 Deletion removes saved sections while keeping the job, library, and accepted task history.
+
+DOCX pagination uses `DocumentPageChecks` services and a private S3 namespace, not Active Storage public routes. Its durable records retain cleanup keys after account deletion. See `docs/architecture/resume-exports.md` for admission, fencing, runtime and retention contracts.

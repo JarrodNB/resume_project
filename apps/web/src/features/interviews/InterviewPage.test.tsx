@@ -1067,3 +1067,13 @@ it('distinguishes an unanswered skipped core question and unavailable retained t
   expect(screen.getByText('Skipped — no answer was submitted.')).toBeVisible()
   expect(screen.getByText('No saved answer for this question.')).toBeVisible()
 })
+
+it('guides live transcription recovery through stopping before transcription', () => {
+  recorder.status = 'recording'; recorder.fallbackReason = 'Recognition failed; recording retained.'
+  renderInterview()
+  fireEvent.change(screen.getByRole('textbox', { name: 'Your answer' }), { target: { value: 'My edited answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Stop recording to transcribe' }))
+  expect(recorder.stop).toHaveBeenCalledOnce()
+  expect(state.transcribeRecording).not.toHaveBeenCalled()
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue('My edited answer')
+})

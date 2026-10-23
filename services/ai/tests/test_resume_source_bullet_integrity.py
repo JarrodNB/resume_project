@@ -121,10 +121,11 @@ def test_short_complete_sentence_keeps_its_following_paragraph():
     assert source_highlights(text) == ["Built APIs.\nThis reduced outages."]
 
 
-def test_separate_uppercase_section_after_completed_bullet_stays_outside_highlight():
+@pytest.mark.parametrize("separator", ["", "\n"])
+def test_separate_uppercase_section_after_completed_bullet_stays_outside_highlight(separator):
     text = (
         "WORK EXPERIENCE\nEngineer | 2020 – Present\n"
-        "• Built a reliable payment service.\n\n"
+        f"• Built a reliable payment service.\n{separator}"
         "PROFESSIONAL DEVELOPMENT\nCompleted training in distributed systems.\n"
     )
     assert source_highlights(text) == ["Built a reliable payment service."]

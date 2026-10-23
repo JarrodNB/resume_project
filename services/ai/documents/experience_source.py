@@ -95,7 +95,7 @@ def _is_role_date_header(line: str) -> bool:
 
 
 def _is_resume_boundary(
-    line: str, next_line: str, after_next_line: str = "", *, separated_after_sentence: bool = False,
+    line: str, next_line: str, after_next_line: str = "", *, after_completed_prose: bool = False,
 ) -> bool:
     """Recognize section headings and role/date headers between source bullets."""
     text = line.strip()
@@ -105,10 +105,10 @@ def _is_resume_boundary(
         return True
     if _SHARED_LIST_HEADER.fullmatch(text):
         return True
-    # A standalone label after a completed paragraph can start a new role/section.
-    # Within unfinished prose the same capitalization may simply be "AWS SQS".
+    # Compact labels after completed prose can start a role or section. Uppercase
+    # headings need no blank separator; unfinished prose may still wrap at "AWS SQS".
     if (
-        separated_after_sentence and len(text) <= 60
+        after_completed_prose and len(text) <= 60
         and _looks_like_title_case_label(text)
         and not text.endswith((".", "!", "?"))
     ):
@@ -185,9 +185,9 @@ def _source_bullet_map(resume_text: str) -> tuple[dict[str, str], dict[int, str]
             line,
             nonempty_lines[position + 1][1] if position + 1 < len(nonempty_lines) else "",
             nonempty_lines[position + 2][1] if position + 2 < len(nonempty_lines) else "",
-            separated_after_sentence=(
-                index > nonempty_lines[position - 1][0] + 1
-                and current_lines[-1].rstrip().endswith((".", "!", "?"))
+            after_completed_prose=(
+                current_lines[-1].rstrip().endswith((".", "!", "?"))
+                and (index > nonempty_lines[position - 1][0] + 1 or line.strip().isupper())
             ),
         ):
             current_lines.append(line.strip())

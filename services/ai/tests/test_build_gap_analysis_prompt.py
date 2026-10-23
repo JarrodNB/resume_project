@@ -135,3 +135,26 @@ def test_grouped_roles_preserve_shared_and_scoped_evidence_without_merging_entri
     assert "Software Developer" in prompt.evidence["E1"].text
     assert prompt.evidence["E2"].id == "separate"
     assert prompt.text.index("[H1]") < prompt.text.index("[H2]") < prompt.text.index("[E2]")
+
+
+def test_single_canonical_role_keeps_shared_evidence_unattributed():
+    """Removing another role must not give shared work the remaining role's dates."""
+    from schemas.gap_analysis_context import LibraryExperience
+
+    context = build_gap_analysis_context()
+    context.career_library.experiences = [LibraryExperience.model_validate({
+        "id": "entry", "company": "Example Co", "roles": [
+            {"id": "role", "title": "Lead", "start_date": "2025-01-01"},
+        ], "highlights": [
+            {"id": "shared", "content": "Built Python APIs"},
+            {"id": "owned", "content": "Led the rollout", "experience_role_id": "role"},
+        ],
+    })]
+
+    prompt = build_gap_analysis_prompt(context, TODAY)
+
+    shared_context = "Shared across roles at Example Co (role and dates unspecified)"
+    assert prompt.evidence["H1"].context == shared_context
+    assert f"[H1] Built Python APIs ({shared_context})" in prompt.text
+    assert prompt.evidence["H2"].context == "Lead at Example Co | Jan 2025 – present"
+    assert prompt.text.count("[H1]") == 1

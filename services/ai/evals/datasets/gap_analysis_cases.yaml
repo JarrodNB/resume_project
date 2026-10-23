@@ -388,6 +388,63 @@ cases:
         - requirement: PostgreSQL development experience
           verdict: met
           key_evidence_ids: [scoped-postgres]
+  - name: single_role_shared_work_duration
+    inputs:
+      job:
+        id: job-single-shared
+        title: Backend Engineer
+        company: Hiring Co
+        requirements:
+          - Python development experience
+          - 5 years of professional Python development
+      career_library:
+        experiences:
+          - id: entry-single-shared
+            company: Example Co
+            roles:
+              - id: role-python
+                title: Engineer
+                start_date: 2020-01-01
+            highlights:
+              - id: python-work
+                content: Built Python APIs
+    metadata:
+      assessments:
+        - requirement: Python development experience
+          verdict: met
+          key_evidence_ids: [python-work]
+        - requirement: 5 years of professional Python development
+          verdict: partial
+          key_evidence_ids: [python-work]
+  - name: single_role_owned_work_duration
+    inputs:
+      job:
+        id: job-single-owned
+        title: Backend Engineer
+        company: Hiring Co
+        requirements:
+          - Python development experience
+          - 5 years of professional Python development
+      career_library:
+        experiences:
+          - id: entry-single-owned
+            company: Example Co
+            roles:
+              - id: role-python
+                title: Engineer
+                start_date: 2020-01-01
+            highlights:
+              - id: python-work
+                content: Built Python APIs
+                experience_role_id: role-python
+    metadata:
+      assessments:
+        - requirement: Python development experience
+          verdict: met
+          key_evidence_ids: [python-work]
+        - requirement: 5 years of professional Python development
+          verdict: met
+          key_evidence_ids: [python-work]
 evaluators:
   - Coverage
   - EvidenceValidity

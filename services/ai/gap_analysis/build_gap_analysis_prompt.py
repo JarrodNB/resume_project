@@ -138,14 +138,14 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
                 highlight_context = _join(
                     f"{owner.title} at {experience.company}",
                     format_date_range(owner.start_date, owner.end_date), separator=" | ")
-            elif grouped:
+            elif not experience._legacy_role:
                 highlight_context = f"Shared across roles at {experience.company} (role and dates unspecified)"
             else:
                 highlight_context = role
             item = EvidenceItem(
                 kind="highlight", id=highlight.id, text=highlight.content, context=highlight_context
             )
-            scope = f" ({highlight_context})" if grouped else ""
+            scope = f" ({highlight_context})" if grouped or (not owner and not experience._legacy_role) else ""
             lines.append(
                 f"  [{_add_evidence(prompt, f'H{highlight_number}', item)}] {highlight.content}{scope}"
             )

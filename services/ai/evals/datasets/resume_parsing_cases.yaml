@@ -553,6 +553,23 @@ cases:
           shared_highlights: [Maintained a shared Python SDK for internal platform users.]
 
 
+  - name: adjacent_uppercase_nonexperience_section
+    inputs: |
+      EXPERIENCE
+      Harbor Tools
+      Engineer | 2020 – Present
+      • Built reliable payment services.
+      PROFESSIONAL DEVELOPMENT
+      Completed distributed systems training.
+    expected_output:
+      experiences:
+        - company: Harbor Tools
+          roles:
+            - title: Engineer
+              start_date: "2020"
+              is_current: true
+              highlights: [Built reliable payment services.]
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch

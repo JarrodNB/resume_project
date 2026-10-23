@@ -3,7 +3,7 @@
 module Interviews
   class StartPreparationService < ApplicationService
     SOURCE_FIELDS = {
-      experiences: %w[title company description], projects: %w[name role description],
+      experiences: %w[company location description], projects: %w[name role description],
       educations: %w[institution degree field_of_study description], certifications: %w[name issuer description],
       skills: %w[name], library_facts: %w[response]
     }.freeze
@@ -28,8 +28,20 @@ module Interviews
               sources << { type: association.to_s, id: record.id, field: field, text: value, screened: record.screened_fields.include?(field) } if value.is_a?(String) && value.present?
             end
             if association == :experiences
+              record.roles.order(:position, :id).each do |role|
+                %w[title description].each do |field|
+                  next if role[field].blank?
+
+                  source = { type: "experience_roles", id: role.id, experience_id: record.id,
+                    field: field, text: role[field], screened: role.screened_fields.include?(field) }
+                  source.merge!(start_date: role.start_date&.iso8601, end_date: role.end_date&.iso8601) if field == "title"
+                  sources << source
+                end
+              end
               record.highlights.each do |highlight|
-                sources << { type: "highlights", id: highlight.id, field: "content", text: highlight.content, screened: highlight.screened_fields.include?("content") } if highlight.content.present?
+                sources << { type: "highlights", id: highlight.id, experience_id: record.id,
+                  experience_role_id: highlight.experience_role_id, field: "content", text: highlight.content,
+                  screened: highlight.screened_fields.include?("content") } if highlight.content.present?
               end
             end
           end

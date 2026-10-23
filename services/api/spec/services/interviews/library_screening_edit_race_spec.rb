@@ -15,7 +15,7 @@ RSpec.describe "Interview approval and career edit interleaving" do
   end
 
   [
-    [ :experience, Experiences::UpdateExperienceService, :experience, :title, :company ],
+    [ :experience, Experiences::UpdateExperienceService, :experience, :company, :location ],
     [ :project, Projects::UpdateProjectService, :project, :name, :description ],
     [ :education, Educations::UpdateEducationService, :education, :institution, :degree ],
     [ :certification, Certifications::UpdateCertificationService, :certification, :name, :issuer ],
@@ -39,6 +39,37 @@ RSpec.describe "Interview approval and career edit interleaving" do
       expect(record.reload[changed]).to eq("Edited after approval")
       expect(record.screened_fields).to eq([ retained.to_s ])
       expect(interview.reload.frozen_context.fetch("sources")[indices.first]["screened"]).to be(true)
+    end
+  end
+
+  [ :role, :highlight ].each do |kind|
+    it "reloads a #{kind} approval earned after a grouped editor reads its children" do
+      entry = Experiences::CreateExperienceService.call(user: user, attributes: {
+        company: "Harbor Tools", roles: [ { title: "Engineer", description: "Retained introduction",
+          highlights: [ { content: "Original achievement" } ] } ]
+      }).value
+      child = kind == :role ? entry.roles.first : entry.highlights.first
+      field = kind == :role ? "title" : "content"
+      interview = Interviews::StartPreparationService.call(user: user).value
+      index = interview.frozen_context.fetch("sources").index { |source| source["id"] == child.id && source["field"] == field }
+      # The callback represents another execution approving text after a writer read
+      # children, before that writer acquires/reloads their row locks for assignment.
+      allow(entry).to receive(:lock!).and_wrap_original do |original, *args|
+        original.call(*args)
+        entry.roles.load
+        entry.highlights.load
+        approve_sources(interview, [ index ])
+      end
+      role = entry.roles.first
+      changes = if kind == :role
+        { roles: [ { id: role.id, title: "Edited title" } ] }
+      else
+        { roles: [ { id: role.id, title: role.title, highlights: [ { id: child.id, content: "Edited achievement" } ] } ] }
+      end
+      expect(Experiences::UpdateExperienceService.call(experience: entry, attributes: changes)).to be_success
+      expect(child.reload[field]).to eq(kind == :role ? "Edited title" : "Edited achievement")
+      expect(child.screened_fields).not_to include(field)
+      expect(interview.reload.frozen_context.fetch("sources")[index]["screened"]).to be(true)
     end
   end
 

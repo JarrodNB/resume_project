@@ -41,6 +41,19 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     expect(user.reload.name).to eq("Jane Doe")
   end
 
+  it "keeps a legacy flat description on its single role" do
+    payload = { "experiences" => [ {
+      "company" => "Acme", "title" => "Engineer", "description" => "Built internal developer tools",
+      "highlights" => [ "Shipped deployment tooling" ]
+    } ] }
+
+    expect(described_class.call(ai_task: ai_task, parsed_resume: payload)).to be_success
+
+    entry = user.experiences.sole
+    expect(entry.description).to be_nil
+    expect(entry.roles.sole.description).to eq("Built internal developer tools")
+  end
+
   it "preserves grouped roles and mixed bullet scopes without changing task JSON" do
     payload = { "experiences" => [ { "company" => "Acme", "description" => "Company context",
       "roles" => [

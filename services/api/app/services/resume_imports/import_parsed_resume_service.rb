@@ -121,8 +121,10 @@ module ResumeImports
     # compared together. Legacy task payloads become a single role only at this seam.
     def assign_experience(experience, item)
       experience.id = SecureRandom.uuid
-      experience.assign_attributes(item.slice("company", "location", "description"))
-      role_items = item.key?("roles") ? item["roles"] : [ item.except("description") ]
+      grouped = item.key?("roles")
+      experience.assign_attributes(item.slice("company", "location"))
+      experience.description = item["description"] if grouped
+      role_items = grouped ? item["roles"] : [ item ]
       role_items.each_with_index do |role_item, position|
         role = experience.roles.build(
           id: SecureRandom.uuid, position: position,

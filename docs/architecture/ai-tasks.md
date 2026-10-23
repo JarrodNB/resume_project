@@ -117,8 +117,11 @@ Per task type:
   and exposes it through GraphQL. Existing saved resumes use 2 without content changes.
   AI content uses a shared whole-resume word allowance for that target, reserving copied
   content and distributing the remainder across nonempty generated sections and summary.
-  This guides selection and concise writing; it never truncates copied content or guarantees
-  physical pagination.
+  One page prioritizes concise selection. Two pages asks experience/project writers to use
+  most of their allowance for distinct relevant achievements and supported detail, selecting
+  additional useful evidence before lengthening bullets. Summary stays brief and skills stay
+  relevant. Sparse evidence remains shorter; neither target permits filler, repetition, or
+  invented facts. The guide never truncates copied content or guarantees physical pagination.
   Later `updateResume` changes the saved resume only. `deleteResume` removes the owned resume
   and sections, including resumes whose job is gone, while keeping job/library/task history.
   An accepted task stays accepted and cannot be saved again after deletion. A remaining saved

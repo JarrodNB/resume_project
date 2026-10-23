@@ -1,6 +1,7 @@
 """
 Description: Evaluators for one tailored section: the draft cites only real sources, it is
 relevant to the job when it writes something, and it omits a section the labels say to omit.
+Rich page-choice cases also measure distinct expected evidence cited in the prose.
 Index:
     - TailorEvalInput / TailorEvalLabels: one case
     - SectionFaithfulness / SectionRelevance / OmitsWhenAsked: the scores
@@ -9,6 +10,7 @@ Index:
 """
 
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
@@ -26,6 +28,8 @@ class TailorEvalInput(BaseModel):
 
     section_type: str
     context: GapAnalysisContext
+    target_page_count: Literal[1, 2] = 2
+    word_allowance: int | None = Field(default=None, ge=0)
 
     @field_validator("section_type")
     @classmethod
@@ -131,4 +135,22 @@ def _relevance_text(ctx: TailorContext) -> str:
     return _sources(ctx).text_for([entry.label for entry in ctx.output.entries])
 
 
-TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked)
+@dataclass
+class EvidenceCoverage(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
+    """Recall of hand-selected distinct achievements, scored separately from faithfulness.
+
+    This measures cited evidence breadth, not physical pagination or prose quality.
+    """
+
+    def evaluate(self, ctx: TailorContext) -> float:
+        """Repeated citations cannot compensate for omitting another achievement."""
+        assert ctx.metadata is not None
+        expected = set(ctx.metadata.source_labels)
+        cited = {label for entry in ctx.output.entries for prose in entry.prose
+                 for label in prose.source_labels}
+        if ctx.output.summary:
+            cited.update(ctx.output.summary.source_labels)
+        return len(expected & cited) / len(expected) if expected else 1.0
+
+
+TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked, EvidenceCoverage)

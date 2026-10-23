@@ -29,7 +29,10 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 
 - A shared guide of about 450 words/page subtracts actual copied contact and credentials,
   reserves summary space, and allocates remaining words among usable section writers.
-  This guides selection and prose; it never truncates content or guarantees physical fit.
+  One page prioritizes concise selection; two pages aims to use the available space for
+  distinct relevant achievements and supported detail. Summary stays brief and skills stay
+  relevant. Sparse evidence stays shorter without filler. The guide never truncates content
+  or guarantees physical fit.
 - Contact, education, and certifications are copied with no model call. Original credential
   descriptions and date precision remain intact. Copied text still requires screening
   before it is reused in the summary prompt.

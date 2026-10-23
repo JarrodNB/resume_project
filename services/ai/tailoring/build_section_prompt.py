@@ -1,7 +1,8 @@
 """Build a section prompt from the job and labeled career evidence.
 
 The summary can reuse selected generated/copied section snapshots after screening.
-Exact prompt binding shares only current-execution source approvals with the guardrail.
+The page choice guides both evidence coverage and brevity. Exact prompt binding shares
+only current-execution source approvals with the guardrail.
 """
 
 from collections.abc import Callable, Sequence
@@ -71,6 +72,23 @@ def build_section_prompt(
         for number, item in enumerate(context.career_library.certifications, start=1)
         if f"C{number}" in sources.records
     ]
+    if section_type == "summary":
+        selection_goal = "Keep the summary brief; use the space for evidence in experience and projects. "
+    elif section_type == "skills":
+        selection_goal = "Include relevant supported skill names; do not expand skills to fill space. "
+    elif target_page_count == 2:
+        selection_goal = (
+            "Aim for a fuller two-page resume when the sources support it. "
+            "Use most of this section's allowance for distinct relevant achievements and useful detail, "
+            "rather than compressing the strongest experience into a few short bullets. "
+            "Select additional relevant source-backed bullets and roles before lengthening existing bullets. "
+            "Keep concrete scope, actions, tools, and outcomes that the cited sources actually provide. "
+        )
+    else:
+        selection_goal = (
+            "Prioritize the strongest evidence for a concise one-page resume. "
+            "Select fewer relevant items and write concisely; preserve facts. "
+        )
     lines = [
         f"Today's date: {today.isoformat()}",
         "Credential expiry status: " + "; ".join(expiry_statuses) if expiry_statuses else "",
@@ -79,8 +97,8 @@ def build_section_prompt(
         (f"Resume target: {target_page_count} pages (about {450 * target_page_count} words total). "
          f"Section allowance: {word_allowance} words, including selected item names and identity. "
          "This allowance shares space with copied contact, education, certifications and other sections. "
-         "Select fewer relevant items and write concisely; preserve facts. "
-         "These are preferred maxima, not quotas: shorter is fine; never pad to fill the target. "
+         f"{selection_goal}"
+         "If relevant evidence is sparse, write less; never invent facts, repeat points, or add filler. "
          "The word guide cannot guarantee physical page fit. If space is exhausted, use the shortest "
          "faithful useful content; never truncate facts or invent content to meet a count.")
         if word_allowance is not None else "",

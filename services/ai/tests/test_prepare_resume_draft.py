@@ -518,3 +518,32 @@ def test_page_targets_share_allowance_and_subtract_copied_content(preparation):
         exhausted = await budgets(1)
         assert sum(exhausted.values()) == 0
     asyncio.run(run())
+
+
+def test_page_choice_changes_selection_goal_without_padding_sparse_evidence(preparation):
+    """Two pages asks writers to use evidence-backed space; one page prioritizes brevity."""
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, _, _, user, job = preparation
+    # Sparse libraries must receive the same no-padding guard as rich libraries.
+    context.career_library.experiences[0].highlights = context.career_library.experiences[0].highlights[:1]
+
+    async def run():
+        for pages in (1, 2):
+            with screening_session():
+                prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[],
+                    target_page_count=pages)
+                prompt = prepared.prompts["experience"].text
+                assert "If relevant evidence is sparse, write less" in prompt
+                assert "never invent facts, repeat points, or add filler" in prompt
+                assert "preferred maxima" not in prompt
+                if pages == 2:
+                    assert "Aim for a fuller two-page resume" in prompt
+                    assert "Use most of this section's allowance" in prompt
+                    assert "distinct relevant achievements" in prompt
+                else:
+                    assert "Prioritize the strongest evidence for a concise one-page resume" in prompt
+                    assert "Aim for a fuller" not in prompt
+                summary = await prepared.summary_prompt([])
+                assert "Keep the summary brief" in summary.text
+    asyncio.run(run())

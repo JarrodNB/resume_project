@@ -8,7 +8,7 @@ generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "5"
+RESUME_TAILORING_PROMPT_VERSION = "6"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.

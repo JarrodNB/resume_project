@@ -2,7 +2,8 @@
 
 Summary, experience, projects, and skill selection use the real section agent and report
 scores to Logfire. Contact and credential copying have deterministic offline checks;
-this suite does not generate them or measure whole-draft execution latency.
+this suite does not generate them or measure whole-draft execution latency. Paired rich
+experience cases exercise page-choice guidance and distinct supported evidence coverage.
 """
 
 from datetime import date
@@ -48,6 +49,8 @@ def run_tailoring_evals(model_override: str | None = None) -> EvaluationReport:
             write_anyway=False,
             gap_analysis=None,
             today=date(2026, 10, 1),
+            target_page_count=case.target_page_count,
+            word_allowance=case.word_allowance,
         )
         return write_resume_section(
             prompt,

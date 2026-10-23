@@ -72,7 +72,9 @@ score attached, so runs can be compared across prompt and model changes.
   cases include degree-only and credential-only evidence. Copied education/certification
   identity, descriptions, and date precision are checked deterministically by
   `tests/test_certifications.py` and `tests/test_complete_resume_draft.py`, without paid generation.
-  A skill draft has no prose, so relevance uses the chosen skill name
+  A skill draft has no prose, so relevance uses the chosen skill name. Paired rich experience
+  cases pass explicit one-/two-page choices and section allowances, and score distinct
+  expected achievement citations separately from faithfulness; this is not physical-fit QA
 - `tailoring_evaluators.py` — faithfulness and relevance checks for a written section
 - `run_tailoring_evals.py` — runner:
   `docker compose run --rm ai python -m evals.run_tailoring_evals`. This section quality

@@ -249,3 +249,121 @@ cases:
       - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
+
+  - name: rich_experience_1_page_coverage
+    inputs:
+      section_type: experience
+      target_page_count: 1
+      word_allowance: 240
+      context:
+        job:
+          id: rich-python
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python APIs and PostgreSQL
+            - Reliable payment services, testing, observability, and operational ownership
+        career_library:
+          experiences:
+            - id: rich-role
+              company: Ledgerly
+              title: Backend Engineer
+              highlights:
+                - id: rich-hl-1
+                  content: "Built Python APIs for card payouts with request validation and structured error responses used by internal payment clients. Separated malformed requests from downstream payment failures, documented the response schema with worked examples, and reviewed the behavior with support staff so they could reproduce reported issues without inspecting raw database rows"
+                - id: rich-hl-2
+                  content: "Added PostgreSQL indexes to transaction searches and documented the query plans used to verify the changes. Compared queries before and after each index change against a representative staging dataset, checked write overhead during reconciliation imports, and recorded the selected indexes in the engineering runbook for future schema reviews"
+                - id: rich-hl-3
+                  content: "Wrote Python integration tests for payment retries and duplicate webhooks to preserve transaction consistency. Covered out-of-order delivery, repeated event identifiers, partial downstream failures, and recovery after worker restart, using recorded synthetic events to make the scenarios reproducible during local development and continuous integration runs"
+                - id: rich-hl-4
+                  content: "Created deployment checks for database migrations and documented the rollback steps for the on-call team. Paired application deployment steps with schema compatibility checks, rehearsed rollbacks in staging, and added a release checklist covering worker restart order, database health, and payment queue recovery after a failed deployment"
+                - id: rich-hl-5
+                  content: "Implemented audit logging for payment state changes so support staff could investigate customer reports. Captured the previous state, new state, request identifier, and processing timestamp in each audit event, then built documented lookup examples that linked a support ticket to the corresponding payment workflow and worker run"
+                - id: rich-hl-6
+                  content: "Migrated scheduled reconciliation jobs to a Python worker with checkpoint recovery after interrupted runs. Designed checkpoints around completed reconciliation batches, documented safe restart procedures, and tested interrupted processing against duplicate input files so a restarted worker could continue without replaying previously completed batches or losing pending records"
+                - id: rich-hl-7
+                  content: "Built a dashboard for failed payout jobs with queue depth and processing latency for operational reviews. Grouped failures by processing stage and exposed links to request traces, allowing on-call engineers to identify recurring error patterns and compare queue recovery progress during a deployment or payment-provider outage without direct database access"
+                - id: rich-hl-8
+                  content: "Added request tracing across Python services to connect API failures with downstream worker errors. Propagated request identifiers into background jobs, linked worker retries to the originating payment request, and documented example trace queries that helped engineers distinguish application validation errors from provider timeouts during incident investigation"
+                - id: rich-hl-9
+                  content: "Reviewed API changes with product and support teams and documented backwards compatible request contracts. Recorded client compatibility concerns during design reviews, added examples for optional fields and error responses, and coordinated rollout notes with support so internal API consumers could migrate without unexpected changes to existing payment integrations"
+                - id: rich-hl-10
+                  content: "Led incident follow-ups for payment delays and added regression tests for the identified failure paths. Documented the timeline, contributing conditions, and remediation owners for each incident, reviewed proposed fixes with the on-call rotation, and followed up on regression coverage and operational runbook changes before closing the incident actions"
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: "Built Python APIs for card payouts with request validation and structured error responses used by internal payment clients. Separated malformed requests from downstream payment failures, documented the response schema with worked examples, and reviewed the behavior with support staff so they could reproduce reported issues without inspecting raw database rows. Added PostgreSQL indexes to transaction searches and documented the query plans used to verify the changes. Compared queries before and after each index change against a representative staging dataset, checked write overhead during reconciliation imports, and recorded the selected indexes in the engineering runbook for future schema reviews. Wrote Python integration tests for payment retries and duplicate webhooks to preserve transaction consistency. Covered out-of-order delivery, repeated event identifiers, partial downstream failures, and recovery after worker restart, using recorded synthetic events to make the scenarios reproducible during local development and continuous integration runs. Created deployment checks for database migrations and documented the rollback steps for the on-call team. Paired application deployment steps with schema compatibility checks, rehearsed rollbacks in staging, and added a release checklist covering worker restart order, database health, and payment queue recovery after a failed deployment."
+      source_labels:
+        - H1
+        - H2
+        - H3
+        - H4
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+      - EvidenceCoverage
+
+  - name: rich_experience_2_page_coverage
+    inputs:
+      section_type: experience
+      target_page_count: 2
+      word_allowance: 540
+      context:
+        job:
+          id: rich-python
+          title: Backend Engineer
+          company: Northwind
+          requirements:
+            - Python APIs and PostgreSQL
+            - Reliable payment services, testing, observability, and operational ownership
+        career_library:
+          experiences:
+            - id: rich-role
+              company: Ledgerly
+              title: Backend Engineer
+              highlights:
+                - id: rich-hl-1
+                  content: "Built Python APIs for card payouts with request validation and structured error responses used by internal payment clients. Separated malformed requests from downstream payment failures, documented the response schema with worked examples, and reviewed the behavior with support staff so they could reproduce reported issues without inspecting raw database rows"
+                - id: rich-hl-2
+                  content: "Added PostgreSQL indexes to transaction searches and documented the query plans used to verify the changes. Compared queries before and after each index change against a representative staging dataset, checked write overhead during reconciliation imports, and recorded the selected indexes in the engineering runbook for future schema reviews"
+                - id: rich-hl-3
+                  content: "Wrote Python integration tests for payment retries and duplicate webhooks to preserve transaction consistency. Covered out-of-order delivery, repeated event identifiers, partial downstream failures, and recovery after worker restart, using recorded synthetic events to make the scenarios reproducible during local development and continuous integration runs"
+                - id: rich-hl-4
+                  content: "Created deployment checks for database migrations and documented the rollback steps for the on-call team. Paired application deployment steps with schema compatibility checks, rehearsed rollbacks in staging, and added a release checklist covering worker restart order, database health, and payment queue recovery after a failed deployment"
+                - id: rich-hl-5
+                  content: "Implemented audit logging for payment state changes so support staff could investigate customer reports. Captured the previous state, new state, request identifier, and processing timestamp in each audit event, then built documented lookup examples that linked a support ticket to the corresponding payment workflow and worker run"
+                - id: rich-hl-6
+                  content: "Migrated scheduled reconciliation jobs to a Python worker with checkpoint recovery after interrupted runs. Designed checkpoints around completed reconciliation batches, documented safe restart procedures, and tested interrupted processing against duplicate input files so a restarted worker could continue without replaying previously completed batches or losing pending records"
+                - id: rich-hl-7
+                  content: "Built a dashboard for failed payout jobs with queue depth and processing latency for operational reviews. Grouped failures by processing stage and exposed links to request traces, allowing on-call engineers to identify recurring error patterns and compare queue recovery progress during a deployment or payment-provider outage without direct database access"
+                - id: rich-hl-8
+                  content: "Added request tracing across Python services to connect API failures with downstream worker errors. Propagated request identifiers into background jobs, linked worker retries to the originating payment request, and documented example trace queries that helped engineers distinguish application validation errors from provider timeouts during incident investigation"
+                - id: rich-hl-9
+                  content: "Reviewed API changes with product and support teams and documented backwards compatible request contracts. Recorded client compatibility concerns during design reviews, added examples for optional fields and error responses, and coordinated rollout notes with support so internal API consumers could migrate without unexpected changes to existing payment integrations"
+                - id: rich-hl-10
+                  content: "Led incident follow-ups for payment delays and added regression tests for the identified failure paths. Documented the timeline, contributing conditions, and remediation owners for each incident, reviewed proposed fixes with the on-call rotation, and followed up on regression coverage and operational runbook changes before closing the incident actions"
+    metadata:
+      nothing_fits: false
+      entry_label: E1
+      prose: "Built Python APIs for card payouts with request validation and structured error responses used by internal payment clients. Separated malformed requests from downstream payment failures, documented the response schema with worked examples, and reviewed the behavior with support staff so they could reproduce reported issues without inspecting raw database rows. Added PostgreSQL indexes to transaction searches and documented the query plans used to verify the changes. Compared queries before and after each index change against a representative staging dataset, checked write overhead during reconciliation imports, and recorded the selected indexes in the engineering runbook for future schema reviews. Wrote Python integration tests for payment retries and duplicate webhooks to preserve transaction consistency. Covered out-of-order delivery, repeated event identifiers, partial downstream failures, and recovery after worker restart, using recorded synthetic events to make the scenarios reproducible during local development and continuous integration runs. Created deployment checks for database migrations and documented the rollback steps for the on-call team. Paired application deployment steps with schema compatibility checks, rehearsed rollbacks in staging, and added a release checklist covering worker restart order, database health, and payment queue recovery after a failed deployment. Implemented audit logging for payment state changes so support staff could investigate customer reports. Captured the previous state, new state, request identifier, and processing timestamp in each audit event, then built documented lookup examples that linked a support ticket to the corresponding payment workflow and worker run. Migrated scheduled reconciliation jobs to a Python worker with checkpoint recovery after interrupted runs. Designed checkpoints around completed reconciliation batches, documented safe restart procedures, and tested interrupted processing against duplicate input files so a restarted worker could continue without replaying previously completed batches or losing pending records. Built a dashboard for failed payout jobs with queue depth and processing latency for operational reviews. Grouped failures by processing stage and exposed links to request traces, allowing on-call engineers to identify recurring error patterns and compare queue recovery progress during a deployment or payment-provider outage without direct database access. Added request tracing across Python services to connect API failures with downstream worker errors. Propagated request identifiers into background jobs, linked worker retries to the originating payment request, and documented example trace queries that helped engineers distinguish application validation errors from provider timeouts during incident investigation. Reviewed API changes with product and support teams and documented backwards compatible request contracts. Recorded client compatibility concerns during design reviews, added examples for optional fields and error responses, and coordinated rollout notes with support so internal API consumers could migrate without unexpected changes to existing payment integrations. Led incident follow-ups for payment delays and added regression tests for the identified failure paths. Documented the timeline, contributing conditions, and remediation owners for each incident, reviewed proposed fixes with the on-call rotation, and followed up on regression coverage and operational runbook changes before closing the incident actions."
+      source_labels:
+        - H1
+        - H2
+        - H3
+        - H4
+        - H5
+        - H6
+        - H7
+        - H8
+        - H9
+        - H10
+      job_terms:
+        - Python
+    evaluators:
+      - SectionFaithfulness
+      - SectionRelevance
+      - OmitsWhenAsked
+      - EvidenceCoverage

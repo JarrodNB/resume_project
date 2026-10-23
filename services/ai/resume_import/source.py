@@ -12,6 +12,9 @@ from pydantic import create_model, model_validator
 from schemas.parsed_resume import ParsedResume
 from schemas.resume_import import ResumeImportExtraction
 
+_CONTINUATION_END = re.compile(
+    r"(?:\b(?:in|on|with|using|via|and|or|to|for|including)|[:,/&+])\s*$", re.IGNORECASE
+)
 _DATE = re.compile(r"(?:19|20)\d{2}.*(?:[-–—]|present|current)", re.IGNORECASE)
 _SECTION = re.compile(
     r"^(?:summary|profile|experience|work experience|employment|education|skills|technical skills|projects|certifications|credentials|interests|languages)\s*:?$",
@@ -19,20 +22,20 @@ _SECTION = re.compile(
 )
 
 
-def _boundary(line: str, following: str, after_following: str = "") -> bool:
+def _boundary(line: str, following: str, after_following: str = "", previous: str = "") -> bool:
     text = line.strip()
     # Capitalization alone is not structural evidence: SQL and AWS often wrap.
     if _SECTION.fullmatch(text):
         return True
     if len(text) > 140 or text.endswith((".", "!", "?")):
         return False
-    # A multiword company label and title can precede a separate date range.
-    # Keep both labels out of the preceding bullet without treating capitalization
-    # alone as evidence: acronyms such as SQL can still be wrapped continuations.
+    # Company and title labels can precede a separate date range, even for IBM.
+    # A trailing connector ("reporting in" / "deployed to") instead supports a
+    # wrapped continuation such as SQL or AWS before the next role header.
     title = following.strip()
     if (
-        len(text.split()) >= 2
-        and _DATE.search(after_following.strip())
+        _DATE.search(after_following.strip())
+        and not _CONTINUATION_END.search(previous)
         and 0 < len(title) <= 140
         and not title.endswith((".", "!", "?"))
     ):
@@ -84,7 +87,7 @@ class ResumeSource:
                     # evidence rather than treating capitalization as a new entry.
                     after = lines[index + 1] if index + 1 < len(lines) else ""
                     after_next = lines[index + 2] if index + 2 < len(lines) else ""
-                    if _boundary(following, after, after_next):
+                    if _boundary(following, after, after_next, parts[-1]):
                         break
                     parts.append(following.strip())
                     annotated.append(following)

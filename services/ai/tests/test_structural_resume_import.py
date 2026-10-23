@@ -1,5 +1,6 @@
 """Exercise isolated import output and source ownership with offline providers."""
 
+import pytest
 from pydantic_ai.messages import ModelResponse, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
@@ -949,8 +950,10 @@ def test_wrapped_acronyms_preserve_following_sections_and_dated_role_boundaries(
     assert parsed.skills[0].name == "Python"
 
 
+@pytest.mark.parametrize("company", ["Beta Corp", "Acme", "IBM"])
 def test_three_line_company_role_date_header_does_not_contaminate_previous_bullet(
     offline_model_resolution,
+    company,
 ):
     import re
 
@@ -979,7 +982,7 @@ def test_three_line_company_role_date_header_does_not_contaminate_previous_bulle
                 "type": "experience",
                 "source_id": source_id("Senior Engineer"),
                 "fields": {
-                    "company": "Beta Corp",
+                    "company": company,
                     "title": "Senior Engineer",
                     "highlight_ids": [source_id("• Led delivery")],
                 },
@@ -990,11 +993,11 @@ def test_three_line_company_role_date_header_does_not_contaminate_previous_bulle
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     parsed = import_resume_text(
         "Experience\nAlpha Corp\nEngineer\n2018 - 2020\n• Built APIs\n"
-        "Beta Corp\nSenior Engineer\n2021 - Present\n• Led delivery",
+        f"{company}\nSenior Engineer\n2021 - Present\n• Led delivery",
         "openai:gpt-5-mini",
         "low",
         30,
         "openai:gpt-5-nano",
     ).parsed_resume
     assert [entry.highlights for entry in parsed.experiences] == [["Built APIs"], ["Led delivery"]]
-    assert re.search(r"\[S\d+\] Beta Corp", prompts[0])
+    assert re.search(r"\[S\d+\] " + re.escape(company), prompts[0])

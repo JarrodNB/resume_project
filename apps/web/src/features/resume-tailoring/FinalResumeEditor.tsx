@@ -25,6 +25,7 @@ import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } f
 
 interface FinalResumeEditorProps {
   jobId: string
+  targetPageCount?: number
   sections: TailorSection[]
   warnings: string[]
   pending: boolean
@@ -33,7 +34,7 @@ interface FinalResumeEditorProps {
 }
 
 /** Lets the user edit the whole draft, then save it once. */
-export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, onSave }: FinalResumeEditorProps) {
+export function FinalResumeEditor({ jobId, targetPageCount = 2, sections, warnings, pending, errors, onSave }: FinalResumeEditorProps) {
   const [drafts, setDrafts] = useState(() => sections.map((section) => ({
     ...section,
     draft: sectionDraftFromContent(section.sectionType, section.content),
@@ -86,7 +87,7 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
             <DialogTitle>Preview</DialogTitle>
             <DialogDescription>Preview includes unsaved edits. Save your resume before downloading.</DialogDescription>
           </DialogHeader>
-          {previewOpen && <ResumePdfPreview model={buildResumePdfModel(selected)} />}
+          {previewOpen && <ResumePdfPreview model={buildResumePdfModel(selected)} targetPageCount={targetPageCount} />}
         </DialogContent>
       </Dialog>
     </div>

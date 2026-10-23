@@ -107,6 +107,7 @@ function TailorProgress({
       <FinalResumeEditor
         key={task.id}
         jobId={jobId}
+        targetPageCount={task.targetPageCount}
         sections={finishedSectionsFromResult(task.result)}
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}

@@ -30,10 +30,15 @@ const styles = StyleSheet.create({
 })
 
 /** Letter pages: name and contact, then each section that has text. */
-export function ResumePdfDocument({ model }: { model: ResumePdfModel }) {
+export function ResumePdfDocument({ model, onPageCount }: { model: ResumePdfModel; onPageCount?: (count: number) => void }) {
   return (
     <Document title={model.name || 'Resume'}>
       <Page size="LETTER" style={styles.page}>
+        {onPageCount && <Text fixed style={{ position: 'absolute', width: 0, height: 0 }} render={({ totalPages }) => {
+          // The public renderer callback runs again once final pagination is known.
+          if (totalPages) onPageCount(totalPages)
+          return ''
+        }} />}
         {model.name ? <Text style={styles.name}>{model.name}</Text> : null}
         {model.contactLine ? <Text style={styles.contact}>{model.contactLine}</Text> : null}
         {model.links.length > 0 ? (

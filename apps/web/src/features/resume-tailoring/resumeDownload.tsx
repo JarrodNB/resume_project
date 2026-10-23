@@ -7,7 +7,16 @@ import type { ResumePdfModel } from './resumePdfModel'
 
 /** Render a captured resume using the preview's document and layout. */
 export function generateResumePdf(model: ResumePdfModel): Promise<Blob> {
+  // Downloads do not depend on optional pagination measurement succeeding.
   return pdf(<ResumePdfDocument model={model} />).toBlob()
+}
+
+/** Count pagination during this render, so the preview count describes its exact bytes. */
+export async function generateResumePdfArtifact(model: ResumePdfModel): Promise<{ blob: Blob; pageCount: number }> {
+  let pageCount = 0
+  const blob = await pdf(<ResumePdfDocument model={model} onPageCount={(count) => { pageCount = count }} />).toBlob()
+  if (pageCount < 1) throw new Error('PDF page count unavailable')
+  return { blob, pageCount }
 }
 
 /** Safe, bounded basename from the saved title, including a blank-title fallback. */

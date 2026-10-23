@@ -40,7 +40,11 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
 - `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
-  `ResumePdfPreview.tsx` shows that document in a dialog
+  `ResumePdfPreview.tsx` shows that document in a dialog with actual PDF pages and the target.
+  Counts come from the public renderer callback for the displayed blob; changed content resets
+  preview state, ignores late renders, and releases object URLs. Overflow only warns.
+  `ResumePagination.test.tsx` covers editor targets, exclusions, and overflow save/download.
+  `ResumePdfPreview.test.tsx` covers current-snapshot status and asynchronous failures
 - `TailorResumePage.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
   editing. `FinalResumeEditor.test.tsx` covers edit/exclude/restore and preview/save parity.
   The PDF preview is mocked; jsdom cannot draw it

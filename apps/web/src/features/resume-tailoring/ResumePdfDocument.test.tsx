@@ -2,7 +2,7 @@
 /** Read real generated PDFs to check text, links, ordering, and content spanning pages. */
 import { expect, it, vi } from 'vitest'
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs'
-import { generateResumePdf } from './resumeDownload'
+import { generateResumePdf, generateResumePdfArtifact } from './resumeDownload'
 import { buildResumePdfModel } from './resumePdfModel'
 
 vi.stubGlobal('localStorage', { clear() {} })
@@ -41,7 +41,7 @@ it('exports readable ordered content and clickable contact links while omitting 
 it('flows a single long experience across pages without dropping text or drawing outside page margins', async () => {
   const bullets = Array.from({ length: 110 }, (_, index) => `Achievement ${index}: delivered reliable software for customers and teammates.`)
   const model = buildResumePdfModel([{ sectionType: 'experience', title: 'Experience', content: { items: [{ title: 'Engineer', company: 'Acme', highlights: bullets }] } }])
-  const blob = await generateResumePdf(model)
+  const { blob } = await generateResumePdfArtifact(model)
   const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
   const pdf = await loading.promise
   try {
@@ -65,4 +65,18 @@ it('flows a single long experience across pages without dropping text or drawing
     const text = texts.join(' ')
     for (let index = 0; index < bullets.length; index++) expect(text).toContain(`Achievement ${index}:`)
   } finally { await loading.destroy() }
+})
+
+it('reports the page count of the exact rendered PDF for short and overflowing content', async () => {
+  for (const length of [1, 110]) {
+    const model = buildResumePdfModel([{ sectionType: 'experience', title: 'Experience', content: { items: [{ title: 'Engineer', highlights: Array.from({ length }, (_, index) => `Measured achievement ${index}: built useful systems for customers.`) }] } }])
+    const { blob, pageCount } = await generateResumePdfArtifact(model)
+    const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
+    try {
+      const document = await loading.promise
+      expect(pageCount).toBe(document.numPages)
+      if (length === 1) expect(pageCount).toBe(1)
+      else expect(pageCount).toBeGreaterThan(2)
+    } finally { await loading.destroy() }
+  }
 })

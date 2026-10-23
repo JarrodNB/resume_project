@@ -113,7 +113,7 @@ export function SavedResumeEditor({ resumeId, title = '', targetPageCount = 2, s
             <DialogTitle>Preview</DialogTitle>
             <DialogDescription>Preview includes unsaved edits. Save your changes before downloading.</DialogDescription>
           </DialogHeader>
-          {previewOpen && <ResumePdfPreview model={model} />}
+          {previewOpen && <ResumePdfPreview model={model} targetPageCount={targetPageCount} />}
         </DialogContent>
       </Dialog>
     </div>

@@ -1,6 +1,6 @@
 /** Check safe browser filenames and the lifetime of download URLs without browser automation. */
 import { afterEach, expect, it, vi } from 'vitest'
-import { downloadResumePdf, downloadResumeDocx, resumeDownloadFilename } from './resumeDownload'
+import { generateResumePdf, downloadResumePdf, downloadResumeDocx, resumeDownloadFilename } from './resumeDownload'
 
 vi.mock('@react-pdf/renderer', async (original) => ({
   ...await original<typeof import('@react-pdf/renderer')>(),
@@ -35,4 +35,10 @@ it.each([['pdf', downloadResumePdf], ['docx', downloadResumeDocx]] as const)('cl
   expect(revoke).not.toHaveBeenCalled()
   vi.advanceTimersByTime(60_000)
   expect(revoke).toHaveBeenCalledWith('blob:resume')
+})
+
+it('returns downloadable PDF bytes even when pagination callbacks are unavailable', async () => {
+  const blob = await generateResumePdf({ name: '', contactLine: '', links: [], blocks: [] })
+  expect(blob.type).toBe('application/pdf')
+  expect(blob.size).toBe(3)
 })

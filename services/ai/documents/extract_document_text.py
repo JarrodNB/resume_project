@@ -3,6 +3,7 @@
 Keep DOCX paragraphs and distinct table cells in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
+PDF annotation arrays may be indirect references or explicitly absent via null.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container read errors become the caller's unreadable-file error.
 """
@@ -18,6 +19,7 @@ from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
+from pypdf.generic import NullObject
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
 
@@ -89,7 +91,12 @@ def _pdf_hyperlink_markers(
     """Turns external PDF link annotations into label-and-URL markers for the parser."""
     markers: list[str] = []
     seen_urls: set[str] = set()
-    for reference in page.get("/Annots", []):
+    annotations = page.get("/Annots", [])
+    if hasattr(annotations, "get_object"):
+        annotations = annotations.get_object()
+    if isinstance(annotations, NullObject):
+        return markers
+    for reference in annotations:
         annotation = reference.get_object()
         action_reference = annotation.get("/A") or {}
         action = action_reference.get_object() if hasattr(action_reference, "get_object") else action_reference

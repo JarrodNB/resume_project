@@ -1,6 +1,6 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job before retrieval, then the union of selected sources. Saved library
+Screen the job, then the union of section sources. Saved library
 fields reuse their checks; temporary inputs stay within one enclosing execution.
 """
 
@@ -14,11 +14,17 @@ from schemas.gap_analysis_context import GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
-from screening.session import current_session, remaining_timeout, screening_session
+from screening.session import (
+    current_session,
+    remaining_timeout,
+    screening_session,
+    trust_generated_source,
+)
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
+from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import SourceRecord, label_sources
-from tailoring.retrieve_for_section import retrieve_source_keys_async
 from text_limits import MAX_SCREENED_TEXT
+from worker.contact_mask import mask_outbound
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -59,7 +65,6 @@ class PreparedResumeDraft:
     _settings: WorkerSettings = field(repr=False)
     _gap_responses: list[dict[str, str]] = field(repr=False)
     _gap_analysis: dict[str, object] | None = field(repr=False)
-    _retrieved: dict[str, set[tuple[str, str]] | None] = field(repr=False)
     _decisions: dict[str, ScreenOutcome] = field(repr=False)
     _usage: list[ModelUsage] = field(repr=False)
     _warnings: list[str] = field(repr=False)
@@ -93,18 +98,31 @@ class PreparedResumeDraft:
         # chunks before a later block or cancellation. Cached decisions add no charge.
         with collect_guardrail_usage(self._usage):
             unique = list(dict.fromkeys(texts))
+            gap_responses = [text for text in unique if text not in self._decisions
+                             and (records or {}).get(text) and records[text].kind == "gap_response"]
+            if gap_responses:
+                grouped = "\n\n".join(f"Saved gap response {number}:\n{text}"
+                                      for number, text in enumerate(gap_responses, start=1))
+                outcome = (ScreenOutcome(False, too_long=True) if len(grouped) > MAX_SCREENED_TEXT
+                           else await classify(grouped))
+                for text in gap_responses:
+                    self._decisions[text] = outcome
+                    if outcome.allowed and (session := current_session()) is not None:
+                        session.allowed_sources.add(mask_outbound(text))
             # Highlights also contain their role's identity. Finish role checks first
             # so highlights reuse those fields rather than paying to check them twice.
             highlights = [text for text in unique if (records or {}).get(text)
                           and records[text].kind == "highlight"]
-            await _bounded([text for text in unique if text not in highlights], check, self._concurrency)
+            await _bounded([text for text in unique if text not in highlights and text not in gap_responses],
+                           check, self._concurrency)
             await _bounded(highlights, check, self._concurrency)
 
     def _prompt(self, section_type, selected_sections, selected_labels=None):
         return build_section_prompt(
             section_type, self.context, self._gap_responses, selected_sections,
-            None if section_type == "summary" and selected_labels is not None else self._retrieved[section_type],
+            None,
             write_anyway=False, gap_analysis=self._gap_analysis,
+            trusted_gap_analysis=True,
             allow_text=lambda text: self._decisions[text], warnings=self._warnings,
             source_labels=selected_labels,
         )
@@ -120,7 +138,7 @@ class PreparedResumeDraft:
         if current_session() is not self._session:
             raise RuntimeError("Prepare evidence again inside the current screening session")
         sources = label_sources(self.context, self._gap_responses, selected_sections,
-            None if selected_labels is not None else self._retrieved["summary"], "summary")
+            None, "summary")
         records = {record.text: record for label, record in sources.records.items()
                    if selected_labels is None or label in selected_labels or record.kind == "selected_section"}
         await self._screen(list(records), records)
@@ -148,7 +166,10 @@ async def prepare_resume_draft(
             if context is None:
                 raise ResumePreparationError("This job no longer exists.")
             prepared = PreparedResumeDraft(context, {}, settings, gap_responses or [],
-                gap_analysis, {}, {}, usage, warnings, concurrency)
+                gap_analysis, {}, usage, warnings, concurrency)
+            # Rails snapshots this from the latest completed gap-analysis task. That
+            # worker already screened its job and library inputs before writing it.
+            trust_generated_source(format_gap_analysis(gap_analysis))
             job_text = job_context_text(context)
             await prepared._screen([job_text])
             if not prepared._decisions[job_text].allowed:
@@ -159,23 +180,10 @@ async def prepare_resume_draft(
                                   ("skills", context.career_library.skills)):
                 if rows:
                     sections.append(section)
-            # Native projects/skills are all available; only mixed evidence needs retrieval.
-            async def retrieve(section):
-                if section in {"projects", "skills"}:
-                    prepared._retrieved[section] = set()
-                else:
-                    keys, embedding_usage = await retrieve_source_keys_async(user_id, section, context.job, settings)
-                    prepared._retrieved[section] = keys
-                    if embedding_usage is not None:
-                        usage.append(embedding_usage)
-            await _bounded(sections, retrieve, concurrency)
             texts = [job_text]
-            summary = (gap_analysis or {}).get("summary")
-            if isinstance(summary, str) and summary.strip():
-                texts.append(summary.strip())
             records = {}
             for section in sections:
-                sources = label_sources(context, prepared._gap_responses, [], prepared._retrieved[section], section)
+                sources = label_sources(context, prepared._gap_responses, [], None, section)
                 texts.extend(record.text for record in sources.records.values())
                 records.update({record.text: record for record in sources.records.values()})
             await prepared._screen(texts, records)

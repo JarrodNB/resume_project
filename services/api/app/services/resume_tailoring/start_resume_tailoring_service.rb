@@ -30,11 +30,16 @@ module ResumeTailoring
       success(existing) if resumable?(existing)
     end
 
-    # A queued task inside the in-flight window, or a complete draft not yet saved.
+    # A queued task inside the in-flight window, or a current-format draft not yet saved.
     def resumable?(task)
       return false unless task
       return false if task.accepted?
-      return true if task.completed? && !task.accepted?
+      if task.completed?
+        sections = task.result.is_a?(Hash) ? task.result["sections"] : nil
+        return sections.is_a?(Array) && sections.any? { |section|
+          section.is_a?(Hash) && ResumeSection::SECTION_TYPES.include?(section["section_type"]) && section["content"].is_a?(Hash)
+        }
+      end
 
       task.queued? && task.created_at >= AiUsage::CheckAiTaskAllowanceService::IN_FLIGHT_WINDOW.ago
     end

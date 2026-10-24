@@ -62,7 +62,7 @@ export function TailorResumePage() {
         </Card>
       )}
       {job && !job.resume && task && task.status !== 'FAILED' && task.acceptedAt === null && (
-        <TailorProgress jobId={id} task={task} actions={actions} />
+        <TailorProgress jobId={id} task={task} actions={actions} onRetry={retry} />
       )}
     </div>
   )
@@ -73,17 +73,30 @@ function TailorProgress({
   jobId,
   task,
   actions,
+  onRetry,
 }: {
   jobId: string
   task: NonNullable<ReturnType<typeof useResumeTailoring>['task']>
   actions: ReturnType<typeof useTailorActions>
+  onRetry: () => void
 }) {
   if (task.status === 'COMPLETED') {
+    const sections = finishedSectionsFromResult(task.result)
+    if (sections.length === 0) {
+      return (
+        <Card>
+          <CardContent className="grid gap-4">
+            <ErrorAlert title="The draft couldn't be opened" messages={['This result has no editable resume sections. Generate a new draft.']} />
+            <Button type="button" variant="outline" className="justify-self-start" onClick={onRetry}>Generate again</Button>
+          </CardContent>
+        </Card>
+      )
+    }
     return (
       <FinalResumeEditor
         key={task.id}
         jobId={jobId}
-        sections={finishedSectionsFromResult(task.result)}
+        sections={sections}
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}
         errors={actions.errors}

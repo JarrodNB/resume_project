@@ -5,10 +5,16 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   let(:user) { create(:user, name: "Ada Lovelace", contact_email: "ada@example.com") }
   let(:job) { create(:job, user: user) }
   let(:queue) { instance_double(Shoryuken::Queue, send_message: nil) }
+  let(:gap_analysis) do
+    { "summary" => "Close match.", "assessments" => [
+      { "kind" => "required", "requirement" => "Python", "verdict" => "met",
+        "explanation" => "Built Python services.", "evidence" => [] }
+    ] }
+  end
 
   before do
     allow(Shoryuken::Client).to receive(:queues).with(AI_TASKS_QUEUE_NAME).and_return(queue)
-    create(:ai_task, user: user, subject: job, task_type: "analyze_gaps", status: "completed", result: { "gap_analysis" => { "summary" => "Close match." } })
+    create(:ai_task, user: user, subject: job, task_type: "analyze_gaps", status: "completed", result: { "gap_analysis" => gap_analysis })
   end
 
   it "queues a tailor task with the profile, the comparison, and gap responses" do
@@ -22,7 +28,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(task.subject).to eq(job)
     expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
-    expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
+    expect(task.input["gap_analysis"]).to eq(gap_analysis)
     expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
     expect(queue).to have_received(:send_message)
   end
@@ -38,12 +44,25 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   end
 
   it "returns the completed unsaved draft instead of starting another" do
-    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed")
+    existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
+                      result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Engineer." } } ] })
 
     result = described_class.call(user: user, job: job)
 
     expect(result.value).to eq(existing)
     expect(queue).not_to have_received(:send_message)
+  end
+
+  it "starts a new task when the unsaved completed result uses the retired draft format" do
+    old = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
+                 result: { "drafts" => [], "markdown" => "Old draft" })
+
+    result = described_class.call(user: user, job: job)
+
+    expect(result).to be_success
+    expect(result.value).to be_queued
+    expect(result.value.id).not_to eq(old.id)
+    expect(queue).to have_received(:send_message).once
   end
 
   it "returns an in-flight queued draft after reloading the page" do

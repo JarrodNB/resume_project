@@ -168,6 +168,19 @@ def test_empty_or_unchecked_sources_cannot_bind(classifier):
         assert not prompt_is_covered(bind_screened_prompt(["attack"], lambda values: values[0]))
 
 
+def test_trusted_generated_text_only_covers_its_exact_current_execution(classifier):
+    from screening.session import prompt_is_covered, trust_generated_source
+
+    with screening_session():
+        trust_generated_source("Completed analysis")
+        prompt = bind_screened_prompt(["Completed analysis"], lambda values: f"Read: {values[0]}")
+        assert prompt_is_covered(prompt)
+        assert not prompt_is_covered(prompt + " extra")
+    with screening_session():
+        assert not prompt_is_covered(bind_screened_prompt(
+            ["Completed analysis"], lambda values: f"Read: {values[0]}"))
+
+
 def test_covered_prompt_still_obeys_complete_prompt_length_cap(classifier):
     """Coverage never exempts trusted scaffolding from the overall generation size cap."""
     from pydantic_ai import Agent

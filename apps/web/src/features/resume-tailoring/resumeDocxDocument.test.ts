@@ -6,9 +6,10 @@ import { generateResumeDocx } from './resumeDocxDocument'
 vi.stubGlobal('localStorage', { clear() {} })
 
 it('writes Markdown as native headings, paragraphs, bullets, emphasis and links', async () => {
-  const blob = await generateResumeDocx('# Ada Lovelace\n\n## Experience\nBuilt **reliable** and *useful* tools at [Acme](https://acme.example).\n\n- Shipped software')
+  const blob = await generateResumeDocx('# Ada Lovelace\n\nada_data_science@example.com\n\n## Experience\nBuilt **reliable** and *useful* tools at [Acme](https://acme.example).\n\n- Shipped software')
   const zip = unzipSync(new Uint8Array(await blob.arrayBuffer()))
   const xml = strFromU8(zip['word/document.xml'])
+  expect(xml).toContain('ada_data_science@example.com')
   expect(xml).toContain('Heading1')
   expect(xml).toContain('Heading2')
   expect(xml).toContain('<w:numPr>')

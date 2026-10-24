@@ -7,7 +7,7 @@ import { generateResumePdf } from './resumeDownload'
 vi.stubGlobal('localStorage', { clear() {} })
 
 it('renders Markdown with editable structure and safe PDF links across pages', async () => {
-  const markdown = '# Ada Lovelace\n\n## Experience\nBuilt **reliable** and *useful* systems at [Acme](https://acme.example).\n\n' + Array.from({ length: 90 }, (_, index) => `- Delivered outcome ${index}`).join('\n')
+  const markdown = '# Ada Lovelace\n\nada_data_science@example.com\n\n## Experience\nBuilt **reliable** and *useful* systems at [Acme](https://acme.example).\n\n' + Array.from({ length: 90 }, (_, index) => `- Delivered outcome ${index}`).join('\n')
   const blob = await generateResumePdf(markdown)
   const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
   const document = await loading.promise
@@ -27,6 +27,7 @@ it('renders Markdown with editable structure and safe PDF links across pages', a
       }
     }
     for (let index = 0; index < 90; index++) expect(text.join(' ')).toContain(`Delivered outcome ${index}`)
+    expect(text.join(' ')).toContain('ada_data_science@example.com')
     expect(text.join(' ').indexOf('Ada Lovelace')).toBeLessThan(text.join(' ').indexOf('Experience'))
     const firstPageContent = await (await document.getPage(1)).getTextContent()
     const fontFor = (part: string) => firstPageContent.items.find((item) => 'str' in item && item.str.includes(part))

@@ -18,3 +18,9 @@ it('treats HTML, layout syntax, unsafe links, and malformed markup as inert text
   expect(blocks.map((block) => block.children.map((child) => child.text).join('')).join(' ')).toContain('<script>alert(1)</script>')
   expect(blocks.at(-1)?.children).toEqual([{ text: '**unclosed' }])
 })
+
+it('preserves underscores in plain contact addresses and technical identifiers', () => {
+  expect(parseResumeMarkdown('ada_data_science@example.com build_data_pipeline __private__')).toEqual([
+    { type: 'paragraph', children: [{ text: 'ada_data_science@example.com build_data_pipeline __private__' }] },
+  ])
+})

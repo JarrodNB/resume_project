@@ -56,9 +56,9 @@ function parseInline(source: string): ResumeMarkdownRun[] {
       position += link[0].length
       continue
     }
-    const bold = /^(\*\*|__)([^\n]+?)\1/.exec(rest)
+    const bold = /^(\*\*)([^\n]+?)\1/.exec(rest)
     if (bold) { add({ text: bold[2], bold: true }); position += bold[0].length; continue }
-    const italic = /^(\*|_)([^\n]+?)\1/.exec(rest)
+    const italic = /^(\*)([^\n]+?)\1/.exec(rest)
     if (italic) { add({ text: italic[2], italic: true }); position += italic[0].length; continue }
     add({ text: source[position] })
     position++

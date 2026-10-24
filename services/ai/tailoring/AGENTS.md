@@ -3,7 +3,7 @@
 ## Purpose
 
 Code around the resume-tailoring agent: section order, labeled sources, the
-prompt, the faithfulness check, and the resume JSON the model does not get to invent.
+prompt, the output-shape check, and the resume JSON the model does not get to invent.
 
 ## Contents
 
@@ -18,8 +18,8 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
   skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
 - `format_gap_analysis.py` — readable overview and every saved requirement assessment
-- `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
-  replace the rewrite with the original library text
+- `check_section_output.py` — checks usable section shape and known source labels;
+  it does not judge prose claims or replace model wording with library text
 - `materialize_section.py` — copies identity (employer, title, dates, skill name) from the
   library and keeps the model's prose; also copies education and certifications exactly
 - `generate_resume_draft.py` — prepares shared evidence, overlaps at most three independent
@@ -33,7 +33,9 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 - A failed writer or deadline cancels and awaits outstanding requests before returning to
   the worker. No partial draft is published. Empty sections skip generation; nothing-fits
   sections are omitted with an explanation.
-- The checker never substitutes library text for a rejected rewrite.
+- The checker gives one repair chance for unusable structure or unknown labels.
+  It accepts empty citation lists and does not inspect prose claims. The user
+  reviews and edits generated wording before saving.
 - Screen each labeled library source and the job context once per execution. Group
   the user's saved gap responses for one screening decision; omit the whole group if
   blocked. The completed worker-produced gap analysis is validated, included in full,

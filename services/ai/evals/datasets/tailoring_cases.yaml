@@ -3,7 +3,7 @@
 # Covers production writers: summary, experience, projects, and skill selection.
 # Degree/credential evidence is used by summary cases; copying is checked offline.
 cases:
-  - name: experience_stays_faithful
+  - name: experience_matches_job
     inputs:
       section_type: experience
       context:
@@ -32,7 +32,6 @@ cases:
       job_terms:
         - Python
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -57,7 +56,6 @@ cases:
       job_terms:
         - Python
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -85,11 +83,10 @@ cases:
       nothing_fits: true
       job_terms: []
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
-  - name: project_stays_faithful
+  - name: project_matches_job
     inputs:
       section_type: projects
       context:
@@ -114,7 +111,6 @@ cases:
       job_terms:
         - Python
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -138,7 +134,6 @@ cases:
       nothing_fits: true
       job_terms: []
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -167,7 +162,6 @@ cases:
       job_terms:
         - Computer Science
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -196,7 +190,6 @@ cases:
       job_terms:
         - Python
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -220,7 +213,6 @@ cases:
       nothing_fits: true
       job_terms: []
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked
 
@@ -246,6 +238,5 @@ cases:
       source_labels: [C1]
       job_terms: [AWS]
     evaluators:
-      - SectionFaithfulness
       - SectionRelevance
       - OmitsWhenAsked

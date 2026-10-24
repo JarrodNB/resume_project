@@ -1,6 +1,6 @@
 """Label library evidence, gap responses, and selected resume snapshots.
 
-Prompts and claim checks share stable labels even when retrieval narrows the library.
+Prompts and output checks share stable labels even when retrieval narrows the library.
 Selected section records supply generated/copied draft snapshots to later writers.
 Saved evidence keeps its rendered field selection alongside its screening provenance.
 """

@@ -143,8 +143,11 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   analysis is worker-produced output and is validated instead of screened again. Saved
   user-written gap responses receive one grouped screening decision before entering prompts.
   The model selects, orders, and rewrites toward the job without inventing employers,
-  titles, tools, dates, metrics, or responsibilities. Each sentence cites evidence labels;
-  a local checker requests a retry for suspicious claims and keeps valid model wording.
+  titles, tools, dates, metrics, or responsibilities. The model is instructed to cite
+  evidence labels for its wording;
+  the output checker accepts usable section shape and known labels, with at most one
+  repair attempt. It does not judge whether prose claims match the sources. Empty
+  citation lists are accepted. The user reviews and edits the draft before saving.
   Empty sections skip generation. A successful optional writer may omit its section with
   an explanation when nothing fits. A failed writer or the shared task deadline cancels and
   awaits outstanding work; no successful fragments are published as a complete draft.

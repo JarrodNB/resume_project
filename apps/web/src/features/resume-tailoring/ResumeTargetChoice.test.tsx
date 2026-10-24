@@ -47,3 +47,16 @@ it('restores queued work without offering to start a duplicate', async () => {
   expect(screen.queryByRole('button', { name: 'Write my resume' })).not.toBeInTheDocument()
   expect(screen.getByText('Target: two pages')).toBeInTheDocument()
 })
+
+it('retries a restored failed two-page task with its snapshotted target', async () => {
+  const user = userEvent.setup()
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { ...queued.data.startResumeTailoring, aiTask: { ...queued.data.startResumeTailoring.aiTask, input: { target_pages: 2 } } } } }))
+  render([
+    jobMock(true, { __typename: 'AiTask', id: 'failed-task', status: 'FAILED', input: { target_pages: 2 }, result: null, acceptedAt: null, errorMessage: 'Generation timed out.' }),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPages: 2 } }, result: start },
+  ])
+  expect(await screen.findByText('Target: two pages')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+})

@@ -42,10 +42,10 @@ export function useResumeTailoring(jobId: string) {
   const terminal = initialTask?.status === 'COMPLETED' || initialTask?.status === 'FAILED'
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(terminal ? '' : taskId)
 
-  const begin = useCallback(async () => {
+  const begin = useCallback(async (requestedPages: 1 | 2 = targetPages) => {
     setStartErrors([])
     try {
-      const { data: startedData } = await startTailoring({ variables: { jobId, targetPages } })
+      const { data: startedData } = await startTailoring({ variables: { jobId, targetPages: requestedPages } })
       const payload = startedData?.startResumeTailoring
       if (payload?.aiTask && payload.errors.length === 0) {
         setStartedTask(taskFrom(payload.aiTask))
@@ -59,7 +59,7 @@ export function useResumeTailoring(jobId: string) {
 
   /** Starts a new attempt only after an explicit target choice. */
   function retry() {
-    void begin()
+    void begin(targetFrom(task?.input) ?? targetFrom(task?.result) ?? targetPages)
   }
 
   const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(followExisting ? existing : null)

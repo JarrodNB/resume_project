@@ -30,7 +30,9 @@ function MarkdownPdfBlock({ block }: { block: ResumeMarkdownBlock }) {
   return <Text style={style} minPresenceAhead={block.type === 'heading' ? 20 : undefined}>
     {block.type === 'bullet' ? '• ' : null}
     {block.children.map((run, index) => {
-      const content = <Text key={index} style={{ fontFamily: run.bold ? 'Helvetica-Bold' : run.italic ? 'Helvetica-Oblique' : 'Helvetica' }}>{run.text}</Text>
+      const bold = run.bold || block.type === 'heading'
+      const fontFamily = bold ? (run.italic ? 'Helvetica-BoldOblique' : 'Helvetica-Bold') : run.italic ? 'Helvetica-Oblique' : 'Helvetica'
+      const content = <Text key={index} style={{ fontFamily }}>{run.text}</Text>
       return run.href ? <Link key={index} src={run.href}>{content}</Link> : content
     })}
   </Text>

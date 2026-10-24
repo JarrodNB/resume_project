@@ -36,10 +36,12 @@ export function useResumeTailoring(jobId: string) {
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
   const existing = job?.latestTailoring ?? null
   const hasSavedResume = Boolean(job?.resume) || savedResumeJobId === jobId
-  const followExisting = Boolean(existing && existing.acceptedAt === null && (existing.status !== 'COMPLETED' || isMarkdownResult(existing.result)) && !hasSavedResume)
+  const followExisting = Boolean(existing && existing.acceptedAt === null && (existing.status === 'QUEUED' || existing.status === 'FAILED' || (existing.status === 'COMPLETED' && isMarkdownResult(existing.result))) && !hasSavedResume)
   const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const initialTask = startedTask ?? (followExisting ? existing : null)
-  const terminal = initialTask?.status === 'COMPLETED' || initialTask?.status === 'FAILED'
+  // The start mutation can return an existing completed task without its document.
+  // Subscribe for its current snapshot until the completed result is available.
+  const terminal = initialTask?.status === 'FAILED' || (initialTask?.status === 'COMPLETED' && isMarkdownResult(initialTask.result))
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(terminal ? '' : taskId)
 
   const begin = useCallback(async (requestedPages: 1 | 2 = targetPages) => {

@@ -32,6 +32,8 @@ it('renders Markdown with editable structure and safe PDF links across pages', a
     const fontFor = (part: string) => firstPageContent.items.find((item) => 'str' in item && item.str.includes(part))
     expect(fontFor('reliable')).toHaveProperty('fontName')
     expect(fontFor('reliable')).not.toHaveProperty('fontName', (fontFor('Built') as { fontName: string }).fontName)
+    expect(fontFor('Ada Lovelace')).toHaveProperty('fontName', (fontFor('reliable') as { fontName: string }).fontName)
+    expect(fontFor('Experience')).toHaveProperty('fontName', (fontFor('reliable') as { fontName: string }).fontName)
     expect(fontFor('useful')).not.toHaveProperty('fontName', (fontFor('Built') as { fontName: string }).fontName)
     expect((await (await document.getPage(1)).getAnnotations())).toEqual(expect.arrayContaining([expect.objectContaining({ url: 'https://acme.example/' })]))
   } finally { await loading.destroy() }

@@ -78,3 +78,14 @@ it('restores a queued task and displays its live completed Markdown without star
   expect(await screen.findByRole('textbox', { name: 'Resume Markdown' })).toHaveValue(markdown)
   expect(screen.queryByText("Couldn't follow the resume")).not.toBeInTheDocument()
 })
+
+it('loads the draft when start returns a task completed from another tab', async () => {
+  const user = userEvent.setup()
+  render([
+    jobMock(null),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPages: 1 } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'COMPLETED', input: { target_pages: 1 } }, errors: [] } } } },
+    { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, result: { data: { aiTaskUpdated: { ...completedTask, taskType: 'TAILOR_RESUME', pendingQuestions: null, createdAt: '2026-10-24T00:00:00Z', job: { __typename: 'Job', id: 'job-1' } } } } },
+  ])
+  await user.click(await screen.findByRole('button', { name: 'Write my resume' }))
+  await waitFor(() => expect(screen.getByRole('textbox', { name: 'Resume Markdown' })).toHaveValue(markdown))
+})

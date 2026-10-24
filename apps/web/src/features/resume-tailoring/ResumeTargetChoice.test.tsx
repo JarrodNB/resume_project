@@ -60,3 +60,9 @@ it('retries a restored failed two-page task with its snapshotted target', async 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(start).toHaveBeenCalledOnce()
 })
+
+it('offers a fresh target for an incompatible legacy paused section task', async () => {
+  render([jobMock(false, { __typename: 'AiTask', id: 'legacy-task', status: 'NEEDS_USER_INPUT', input: {}, result: { sections: [] }, acceptedAt: null, errorMessage: null })])
+  expect(await screen.findByRole('button', { name: 'Write my resume' })).toBeInTheDocument()
+  expect(screen.queryByText('Writing your complete draft…')).not.toBeInTheDocument()
+})

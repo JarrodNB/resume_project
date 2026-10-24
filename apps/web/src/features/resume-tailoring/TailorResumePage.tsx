@@ -78,7 +78,7 @@ function TailorProgress({
   task: NonNullable<ReturnType<typeof useResumeTailoring>['task']>
   actions: ReturnType<typeof useTailorActions>
 }) {
-  if (task.status === 'COMPLETED') {
+  if (task.status === 'COMPLETED' && markdownFromResult(task.result)) {
     return (
       <FinalResumeEditor
         key={task.id}

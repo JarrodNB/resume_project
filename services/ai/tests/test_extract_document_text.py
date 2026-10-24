@@ -124,6 +124,46 @@ def test_docx_text_detects_numbering_metadata_on_normal_style_paragraph() -> Non
     assert text == "• Built a reliable API"
 
 
+@pytest.mark.parametrize("style", ["Normal", "List Bullet", "List Number"])
+def test_docx_explicitly_cancelled_numbering_has_no_list_marker(style: str) -> None:
+    """OOXML numId zero removes direct or inherited list formatting."""
+    document = Document()
+    paragraph = document.add_paragraph("Software Engineer", style=style)
+    paragraph._p.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = 0
+    buffer = BytesIO()
+    document.save(buffer)
+
+    assert extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE) == "Software Engineer"
+
+
+def test_docx_style_can_cancel_inherited_numbering() -> None:
+    """A derived style can turn off the list formatting of its base style."""
+    from docx.enum.style import WD_STYLE_TYPE
+
+    document = Document()
+    style = document.styles.add_style("Plain role heading", WD_STYLE_TYPE.PARAGRAPH)
+    style.base_style = document.styles["List Bullet"]
+    style._element.get_or_add_pPr().get_or_add_numPr().get_or_add_numId().val = 0
+    document.add_paragraph("Software Engineer", style=style)
+    buffer = BytesIO()
+    document.save(buffer)
+
+    assert extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE) == "Software Engineer"
+
+
+@pytest.mark.parametrize("style", ["List Bullet", "List Number"])
+def test_docx_partial_numbering_properties_still_inherit_list(style: str) -> None:
+    """An indentation-level override alone does not remove a style's list ID."""
+    document = Document()
+    paragraph = document.add_paragraph("Built APIs", style=style)
+    paragraph._p.get_or_add_pPr().get_or_add_numPr().get_or_add_ilvl().val = 0
+    buffer = BytesIO()
+    document.save(buffer)
+
+    marker = "1." if style == "List Number" else "•"
+    assert extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE) == f"{marker} Built APIs"
+
+
 def test_docx_text_includes_hyperlink_label_and_url() -> None:
     """A labelled DOCX hyperlink keeps both the visible text and destination."""
     document = Document()

@@ -327,14 +327,30 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
 
             def fill_window():
                 while len(pending) < MAX_LOCAL_CHUNKS_IN_FLIGHT:
+                    slot_acquired = False
+                    # With a result outstanding, inspect it before waiting for
+                    # capacity. With none outstanding, check for exhaustion before
+                    # waiting for a slot that the input does not need.
+                    if pending:
+                        if not _local_chunk_slots.acquire(blocking=False):
+                            return
+                        slot_acquired = True
                     try:
                         index, (chunk, token_count) = next(chunks)
                     except StopIteration:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
                         return
+                    except Exception:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
+                        raise
                     remaining = deadline - monotonic()
                     if remaining <= 0:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
                         raise TimeoutError("Local screening deadline exceeded")
-                    if not _local_chunk_slots.acquire(timeout=remaining):
+                    if not slot_acquired and not _local_chunk_slots.acquire(timeout=remaining):
                         raise TimeoutError("Local screening capacity unavailable")
                     _record_chunk_attempt()
                     completed = Future()

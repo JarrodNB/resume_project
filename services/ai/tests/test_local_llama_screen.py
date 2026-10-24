@@ -299,6 +299,60 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
         release.set()
 
 
+def test_completed_block_is_read_before_waiting_for_another_chunk_slot(monkeypatch):
+    slot = threading.BoundedSemaphore(1)
+    release_slot = threading.Event()
+
+    class DelayedReleaseSlot:
+        def acquire(self, blocking=True, timeout=None):
+            return slot.acquire(blocking=blocking, timeout=timeout)
+
+        def release(self):
+            release_slot.wait(1)
+            slot.release()
+
+    monkeypatch.setattr(screening_module, "_local_chunk_slots", DelayedReleaseSlot())
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
+        ("attack", 6), ("ordinary", 8),
+    ]))
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=True, tokens=6, duration=0.01,
+    ))
+    try:
+        started = monotonic()
+        result = screen_user_text("synthetic", local_llama.MODEL, 0.2, check_phrases=False)
+        assert not result.allowed and not result.unchecked
+        assert monotonic() - started < 0.15
+    finally:
+        release_slot.set()
+
+
+def test_last_benign_chunk_does_not_wait_for_another_slot(monkeypatch):
+    slot = threading.BoundedSemaphore(1)
+    release_slot = threading.Event()
+
+    class DelayedReleaseSlot:
+        def acquire(self, blocking=True, timeout=None):
+            return slot.acquire(blocking=blocking, timeout=timeout)
+
+        def release(self):
+            release_slot.wait(1)
+            slot.release()
+
+    monkeypatch.setattr(screening_module, "_local_chunk_slots", DelayedReleaseSlot())
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([("ordinary", 8)]))
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=False, tokens=8, duration=0.01,
+    ))
+    try:
+        started = monotonic()
+        result = screen_user_text("synthetic", local_llama.MODEL, 0.2, check_phrases=False)
+        assert result.allowed
+        assert monotonic() - started < 0.15
+    finally:
+        release_slot.set()
+
+
 def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
     release = threading.Event()
     finished = threading.Event()

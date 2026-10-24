@@ -21,16 +21,16 @@ export function TailorResumePage() {
   const actions = useTailorActions(task?.id ?? '', () => void refetch())
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-6">
+    <div className="resume-page mx-auto grid w-full max-w-5xl gap-6">
       <Button asChild variant="ghost" size="sm" className="justify-self-start">
         <Link to={`/jobs/${id}`}>
           <ArrowLeft /> Back to job
         </Link>
       </Button>
-      <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{job?.resume ? job.resume.title : 'Write resume'}</h1>
+      <div className="resume-page-heading">
+        <h1 className="break-words text-3xl font-semibold tracking-tight">{job?.resume ? job.resume.title : 'Write resume'}</h1>
         {job && (
-          <Link to={`/jobs/${job.id}`} className="text-muted-foreground underline-offset-4 hover:underline">
+          <Link to={`/jobs/${job.id}`} className="mt-3 inline-block max-w-full break-words text-sm text-muted-foreground underline-offset-4 hover:text-primary hover:underline">
             {job.title} at {job.company ?? 'Unknown company'}
           </Link>
         )}
@@ -106,7 +106,7 @@ function TailorProgress({
   }
 
   return (
-    <Card className="bg-section-skills">
+    <Card className="border-dashed bg-transparent shadow-none">
       <CardContent className="grid gap-2">
         <p className="flex items-center gap-2 font-medium" role="status">
           <LoaderCircle className="size-4 animate-spin text-section-skills-accent" aria-hidden /> Writing your complete draft…

@@ -56,6 +56,7 @@ it('opens the resume and links to its job', async () => {
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Back to resumes' })).toHaveAttribute('href', '/resumes')
   expect(screen.getByRole('link', { name: 'Engineer at Acme' })).toHaveAttribute('href', '/jobs/job-1')
+  await userEvent.click(screen.getByRole('button', { name: 'Edit sections' }))
   await userEvent.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
 })
@@ -87,6 +88,7 @@ it('still opens a resume whose job was removed', async () => {
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
   await userEvent.click(screen.getByRole('button', { name: 'Download DOCX' }))
   expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.objectContaining({ blocks: [expect.objectContaining({ text: 'Backend engineer.' })] }), 'Engineer at Acme')
+  await userEvent.click(screen.getByRole('button', { name: 'Edit sections' }))
   await userEvent.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
 })
@@ -97,6 +99,7 @@ it('starts saved sections collapsed, retains unsaved edits, and remembers open s
     return renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />, mocks: [resumeQuery(null)] })
   }
   const view = openResume()
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   const toggle = await screen.findByRole('button', { name: 'Summary' })
   expect(toggle).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('textbox', { name: 'Summary' })).not.toBeInTheDocument()
@@ -109,6 +112,7 @@ it('starts saved sections collapsed, retains unsaved edits, and remembers open s
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('My unsaved summary.')
   view.unmount()
   openResume()
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   expect(await screen.findByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
   expect(screen.getByRole('button', { name: 'Summary' })).toHaveAttribute('aria-expanded', 'true')
 })
@@ -141,6 +145,7 @@ it('keeps edits after network and payload failures, prevents duplicate requests,
       { request, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: null, errors: ['Try later.'] } } } },
       { request, result: deleted, delay: 200 }],
   })
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Edited.')
   await user.click(screen.getByRole('button', { name: 'Delete resume' }))

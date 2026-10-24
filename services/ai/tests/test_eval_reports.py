@@ -190,6 +190,24 @@ def test_jev_report_uses_jev_label_with_another_primary(monkeypatch):
     assert run["configuration"]["screening_model"] == "typesafe:jev-1.13.0"
 
 
+def test_prompt_guardrail_report_names_concrete_screening_models(monkeypatch):
+    """A generic LLM choice must not be labeled with the generative fallback."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "llm")
+    monkeypatch.setenv("USER_TEXT_SCREEN_LLM_MODEL", "openai:gpt-6-luna")
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL",
+                       "meta-llama/Llama-Prompt-Guard-2-22M")
+    monkeypatch.setattr(run_report.importlib, "import_module", lambda name: SimpleNamespace(
+        run_prompt_guardrail_evals=lambda: None,
+    ))
+    run = run_report.run_suite("prompt_guardrail")
+    assert run["model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["primary_model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["screening_choice"] == "llm"
+    assert run["configuration"]["screening_model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["fallback_model"] == "meta-llama/Llama-Prompt-Guard-2-22M"
+    assert run["configuration"]["screening_fallback_choice"] == "meta-llama/Llama-Prompt-Guard-2-22M"
+
+
 def test_override_settings():
     """Keeps worker defaults unchanged and removes fallback contamination in comparisons."""
     original = load_settings()

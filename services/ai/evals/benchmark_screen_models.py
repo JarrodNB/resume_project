@@ -10,9 +10,11 @@ from math import ceil
 from pathlib import Path
 from statistics import mean, median
 from time import monotonic
+from unittest.mock import patch
 
 import logfire
 
+import screening.screen_user_text as screening_module
 from screening import local_llama
 from screening.screen_user_text import (
     MAX_LOCAL_CHUNKS_IN_FLIGHT,
@@ -64,6 +66,17 @@ def _percentile(values: list[float], fraction: float) -> float:
     return ordered[max(0, ceil(len(ordered) * fraction) - 1)]
 
 
+def _summarize(runs: list[dict]) -> dict:
+    seconds = [run["seconds"] for run in runs if not run["error"]]
+    return {
+        "samples": runs,
+        "successful_samples": len(seconds),
+        "mean_seconds": mean(seconds) if seconds else None,
+        "p50_seconds": median(seconds) if seconds else None,
+        "p90_seconds": _percentile(seconds, 0.9) if seconds else None,
+    }
+
+
 def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
     """Return cold-load and warm p50/p90 timings by input size and model."""
     if repeats < 2:
@@ -88,14 +101,22 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
     for length, models in samples.items():
         by_size[str(length)] = {}
         for name, runs in models.items():
-            seconds = [run["seconds"] for run in runs if not run["error"]]
-            by_size[str(length)][name] = {
-                "samples": runs,
-                "successful_samples": len(seconds),
-                "mean_seconds": mean(seconds) if seconds else None,
-                "p50_seconds": median(seconds) if seconds else None,
-                "p90_seconds": _percentile(seconds, 0.9) if seconds else None,
-            }
+            by_size[str(length)][name] = _summarize(runs)
+
+    local_control = {}
+    for length in (5000, 12000):
+        text = _text_of_length(length)
+        runs = {"serial": [], "concurrent": []}
+        for repeat in range(repeats):
+            order = ("serial", "concurrent") if repeat % 2 == 0 else ("concurrent", "serial")
+            for mode in order:
+                if mode == "serial":
+                    with patch.object(screening_module, "MAX_LOCAL_CHUNKS_IN_FLIGHT", 1):
+                        sample = _measure(text, MODELS["llama"])
+                else:
+                    sample = _measure(text, MODELS["llama"])
+                runs[mode].append(sample)
+        local_control[str(length)] = {mode: _summarize(measured) for mode, measured in runs.items()}
     report = {
         "cold_llama_load_seconds": load_seconds,
         "warmup": "One untimed input per model after local model load",
@@ -112,6 +133,7 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
             "screen_timeout_seconds": load_settings().llm_run_timeout_seconds,
         },
         "sizes": by_size,
+        "local_concurrency_control": local_control,
         "limitations": [
             "Sequential runs alternate model order; Jev includes network latency.",
             "Benign inputs run through all chunks; blocked inputs stop early and need separate timing.",
@@ -131,8 +153,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     report = run_benchmark(args.repeats, args.output)
-    if any(sample["error"] for size in report["sizes"].values()
-           for model in size.values() for sample in model["samples"]):
+    measured = [*report["sizes"].values(), *report["local_concurrency_control"].values()]
+    if any(sample["error"] for size in measured for model in size.values()
+           for sample in model["samples"]):
         raise SystemExit(1)
 
 

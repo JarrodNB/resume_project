@@ -267,6 +267,46 @@ def test_local_chunk_concurrency_is_bounded(monkeypatch):
     assert 2 <= state["peak"] <= screening_module.MAX_LOCAL_CHUNKS_IN_FLIGHT
 
 
+def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
+    release = threading.Event()
+    first_started = threading.Event()
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
+        ("slow", 4), ("attack", 6),
+    ]))
+
+    def classify(chunk, model, timeout):
+        if chunk == "slow":
+            first_started.set()
+            release.wait(1)
+        return SimpleNamespace(blocked=chunk == "attack", tokens=len(chunk), duration=0.01)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+    try:
+        started = monotonic()
+        result = screen_user_text("synthetic", local_llama.MODEL, 0.2, check_phrases=False)
+        assert first_started.is_set()
+        assert not result.allowed and not result.unchecked
+        assert monotonic() - started < 0.15
+    finally:
+        release.set()
+
+
+def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
+        ("attack", 6), ("ordinary", 8),
+    ]))
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda chunk, *_: SimpleNamespace(
+        blocked=chunk == "attack", tokens=len(chunk), duration=0.01,
+    ))
+    spans = []
+    monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
+        spans.append((name, attrs)) or nullcontext()
+    ))
+    result = screen_user_text("synthetic", local_llama.MODEL, 1, check_phrases=False)
+    assert not result.allowed and not result.unchecked
+    assert {attrs["chunk_index"] for name, attrs in spans if name == "local_prompt_screen"} == {0, 1}
+
+
 def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):
     release = threading.Event()
     entered = threading.Event()

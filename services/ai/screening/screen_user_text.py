@@ -12,9 +12,8 @@ import contextvars
 import logging
 import os
 import threading
-from collections import deque
 from collections.abc import Awaitable, Callable, Generator
-from concurrent.futures import Future
+from concurrent.futures import FIRST_COMPLETED, Future, wait
 from contextlib import contextmanager, nullcontext, suppress
 from contextvars import ContextVar
 from time import monotonic
@@ -245,10 +244,14 @@ def _start_local_screen(text, model, remaining, check_phrases, max_characters):
 
     def run():
         try:
-            completed.set_result(context.run(_local_screen, text, model, remaining,
-                                             check_phrases, max_characters, False))
+            result = context.run(_local_screen, text, model, remaining, check_phrases,
+                                 max_characters, False,
+                                 lambda decision: completed.set_result(decision) if not completed.done() else None)
+            if not completed.done():
+                completed.set_result(result)
         except Exception as error:  # noqa: BLE001 — local failure resolves the caller
-            completed.set_exception(error)
+            if not completed.done():
+                completed.set_exception(error)
         finally:
             _local_inference_lock.release()
 
@@ -294,7 +297,8 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
     return result
 
 
-def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, cache_result=True):
+def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
+                  cache_result=True, report_decision=None):
     """Apply the same fail-closed contract to local inference and cache exact decisions."""
     text = mask_outbound(text)
     session = current_session()
@@ -307,7 +311,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
         try:
             result = ScreenOutcome(True)
             chunks = enumerate(local_llama.iter_chunks(text))
-            pending = deque()
+            pending = {}
             started = []
 
             def fill_window():
@@ -322,31 +326,66 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
                     _record_chunk_attempt()
                     completed = Future()
 
-                    def classify(chunk=chunk, remaining=remaining, completed=completed):
+                    context = contextvars.copy_context()
+
+                    def classify(chunk=chunk, remaining=remaining, completed=completed,
+                                 index=index, token_count=token_count, context=context):
                         try:
-                            completed.set_result(local_llama.classify_chunk(chunk, model, remaining))
+                            run = context.run(local_llama.classify_chunk, chunk, model, remaining)
+                            def trace_success():
+                                with logfire.span("local_prompt_screen", model=model, chunk_index=index,
+                                                  character_count=len(chunk), token_count=token_count,
+                                                  blocked=run.blocked, duration_seconds=run.duration):
+                                    pass
+                            context.run(trace_success)
+                            completed.set_result(run)
                         except Exception as error:  # noqa: BLE001 — worker failure fails closed
+                            error_category = type(error).__name__
+                            def trace_error():
+                                with logfire.span("local_prompt_screen_error", model=model,
+                                                  chunk_index=index, error_category=error_category):
+                                    pass
+                            context.run(trace_error)
                             completed.set_exception(error)
 
                     threading.Thread(target=classify, name="local-prompt-chunk", daemon=True).start()
-                    pending.append((index, chunk, token_count, completed))
+                    pending[completed] = index
                     started.append(completed)
 
             try:
                 fill_window()
                 while pending:
-                    index, chunk, token_count, completed = pending.popleft()
-                    run = completed.result(timeout=max(0, deadline - monotonic()))
+                    done, _ = wait(pending, timeout=max(0, deadline - monotonic()),
+                                   return_when=FIRST_COMPLETED)
+                    if not done:
+                        raise TimeoutError("Local screening deadline exceeded")
+                    errors = []
+                    for completed in done:
+                        pending.pop(completed)
+                        try:
+                            run = completed.result()
+                        except Exception as error:  # noqa: BLE001 — a block still takes precedence
+                            errors.append(error)
+                            continue
+                        if run.blocked:
+                            result = ScreenOutcome(False)
+                    if not result.allowed:
+                        if report_decision:
+                            report_decision(result)
+                        break
+                    if errors:
+                        raise errors[0]
                     if monotonic() >= deadline:
                         raise TimeoutError("Local screening deadline exceeded")
-                    with logfire.span("local_prompt_screen", model=model, chunk_index=index,
-                                      character_count=len(chunk), token_count=token_count,
-                                      blocked=run.blocked, duration_seconds=run.duration):
-                        pass
-                    if run.blocked:
-                        result = ScreenOutcome(False)
-                        break
                     fill_window()
+            except Exception as error:  # noqa: BLE001 — fail closed before cleanup waits
+                result = ScreenOutcome(False, unchecked=True)
+                if report_decision:
+                    report_decision(result)
+                with logfire.span("local_prompt_screen_error", model=model,
+                                  error_category=type(error).__name__):
+                    pass
+                logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
             finally:
                 # The caller can time out independently; keep the global model lock held
                 # until every started chunk finishes, even after an early block.

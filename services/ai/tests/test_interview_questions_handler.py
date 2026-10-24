@@ -433,3 +433,20 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     if replacement:
         assert _task(True).input["question_text"] in screened
     assert library.facts[0].requirement == requirement
+
+
+def test_quote_sources_exclude_hidden_and_formatted_fields() -> None:
+    """Quote validation sees the exact saved fields displayed as evidence, not metadata."""
+    from model_inputs.interview_evidence import interview_career_evidence
+
+    library = CareerLibrary(experiences=[LibraryExperience(
+        id="private-id", title="Engineer", company="Acme", start_date=date(2022, 1, 1),
+        description="Built Python services",
+    )])
+    rendered, quotes = interview_career_evidence(library)
+
+    assert "Jan 2022 – present" in rendered
+    assert "Built Python services" in quotes
+    assert "2022-01-01" not in quotes
+    assert "Jan 2022" not in quotes
+    assert "private-id" not in quotes

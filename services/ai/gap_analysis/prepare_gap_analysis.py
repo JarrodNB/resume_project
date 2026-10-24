@@ -37,12 +37,17 @@ def prepare_gap_analysis(
     context: GapAnalysisContext, *, today: date, screen_model: str, timeout_seconds: float,
 ) -> PreparedGapAnalysis:
     """Validate complete sources, screen job then library, and bind the exact rebuilt prompt."""
+    job_input = gap_job_input(context.job)
+    selected_job = JobToAnalyze(
+        id=context.job.id, title=job_input.title, company=job_input.company,
+        requirements=list(job_input.requirements), nice_to_haves=list(job_input.nice_to_haves),
+    )
     sources = (
-        context.job.model_dump_json(exclude_none=True, exclude={"responsibilities"}),
+        selected_job.model_dump_json(exclude_none=True, exclude={"responsibilities"}),
         context.career_library.model_dump_json(exclude_none=True),
     )
     usage: list[ModelUsage] = []
-    job_screening_text = gap_job_screening_text(gap_job_input(context.job))
+    job_screening_text = gap_job_screening_text(job_input)
 
     def render(values):
         return build_gap_analysis_prompt(GapAnalysisContext(

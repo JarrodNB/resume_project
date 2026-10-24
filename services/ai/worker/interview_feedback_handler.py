@@ -15,12 +15,12 @@ from pydantic_ai.usage import RunUsage
 import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
 from model_inputs.interview import format_feedback_prompt
+from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.interview_questions_handler import _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -71,15 +71,13 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     selected = screen_library_inputs(library, screen, include_fact_requirements=False)
     library = selected.library
     warnings = list(selected.warnings)
-    content = library.model_dump(mode="json", exclude_none=True,
-                               exclude={"facts": {"__all__": {"requirement"}}})
     text = bind_screened_prompt(
         [snapshot.answer_text, snapshot.question_text, *selected.sources],
         lambda values: _feedback_prompt_text(values, selected.fields, snapshot.set_type),
     )
     if text_limits.prompt_is_too_long(text):
         return fail("Your answer is saved. Shorten your career library entries before requesting feedback.")
-    context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + _library_evidence_text(content), snapshot.set_type)
+    context = InterviewFeedbackContext(text, snapshot.answer_text + "\n" + interview_career_evidence(library)[1], snapshot.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_feedback(context, model=settings.interview_feedback_model,

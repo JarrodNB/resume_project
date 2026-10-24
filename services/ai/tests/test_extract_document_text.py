@@ -46,6 +46,28 @@ def test_docx_text_includes_nested_tables_in_cell_order() -> None:
     ]
 
 
+@pytest.mark.parametrize("vertical", [False, True])
+def test_docx_merged_cells_are_read_once(vertical: bool) -> None:
+    """Merged resume headings and descriptions must not become duplicate evidence."""
+    document = Document()
+    table = document.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Experience"
+    table.cell(0, 1).text = "Software Engineer"
+    table.cell(1, 0).text = "Built Python APIs"
+    table.cell(1, 1).text = "Education"
+    table.cell(0, 0).merge(table.cell(1, 0) if vertical else table.cell(0, 1))
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    expected = (
+        ["Experience", "Built Python APIs", "Software Engineer", "Education"]
+        if vertical else ["Experience", "Software Engineer", "Built Python APIs", "Education"]
+    )
+    assert text.splitlines() == expected
+
+
 def test_docx_text_preserves_list_bullet_markers_for_exact_highlight_mapping() -> None:
     document = Document()
     document.add_paragraph("Built a reliable API", style="List Bullet")

@@ -1,6 +1,6 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
-Keep DOCX paragraphs and tables in document order, retaining list markers and
+Keep DOCX paragraphs and distinct table cells in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
 """
@@ -156,8 +156,13 @@ def _docx_block_lines(container: Any) -> list[str]:
         if isinstance(block, Paragraph):
             lines.append(_docx_paragraph_text(block))
         else:
+            seen_cells = set()
             for row in block.rows:
                 for cell in row.cells:
+                    # Merged grid positions can refer to the same underlying cell.
+                    if cell._tc in seen_cells:
+                        continue
+                    seen_cells.add(cell._tc)
                     lines.extend(_docx_block_lines(cell))
     return lines
 

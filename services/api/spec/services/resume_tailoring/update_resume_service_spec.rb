@@ -11,7 +11,7 @@ RSpec.describe ResumeTailoring::UpdateResumeService do
 
   it "rejects blank and oversized documents" do
     original = resume.markdown
-    [" ", "a" * (Resume::MAX_MARKDOWN_LENGTH + 1)].each do |markdown|
+    [ " ", "a" * (Resume::MAX_MARKDOWN_LENGTH + 1) ].each do |markdown|
       expect(described_class.call(resume: resume, markdown: markdown)).not_to be_success
       expect(resume.reload.markdown).to eq(original)
     end

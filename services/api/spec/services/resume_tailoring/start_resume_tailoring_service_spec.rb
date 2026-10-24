@@ -149,10 +149,9 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   end
 
   it "rejects unsupported target pages without publishing" do
-    [0, 3, "2", nil].each do |pages|
+    [ 0, 3, "2", nil ].each do |pages|
       expect(described_class.call(user: user, job: job, target_pages: pages)).not_to be_success
     end
     expect(queue).not_to have_received(:send_message)
   end
-
 end

@@ -14,13 +14,13 @@ RSpec.describe "Markdown resume contract" do
     expect(result).to be_success
     expect(result.value.attributes.slice("markdown", "target_pages")).to eq("markdown" => "# Ada\n\nRevised", "target_pages" => 1)
     expect(task.reload).to be_accepted
-    expect(ResumeTailoring::SaveTailoredResumeService.call(ai_task: task).errors).to eq(["This resume has already been saved."])
+    expect(ResumeTailoring::SaveTailoredResumeService.call(ai_task: task).errors).to eq([ "This resume has already been saved." ])
     expect(ResumeTailoring::UpdateResumeService.call(resume: result.value, markdown: "# New version")).to be_success
     expect(result.value.reload.markdown).to eq("# New version")
   end
 
   it "rejects a legacy section draft and does not accept it" do
-    task.update!(result: { "sections" => [{ "section_type" => "summary", "content" => { "text" => "Old" } }] })
+    task.update!(result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Old" } } ] })
     expect(ResumeTailoring::SaveTailoredResumeService.call(ai_task: task, markdown: "# New")).not_to be_success
     expect(task.reload).not_to be_accepted
     expect(user.resumes.count).to eq(0)

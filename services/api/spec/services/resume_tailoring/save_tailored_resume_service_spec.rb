@@ -15,7 +15,7 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
   end
 
   it "rejects a blank or overlong edit without accepting the task" do
-    [" ", "a" * (Resume::MAX_MARKDOWN_LENGTH + 1)].each do |markdown|
+    [ " ", "a" * (Resume::MAX_MARKDOWN_LENGTH + 1) ].each do |markdown|
       expect(described_class.call(ai_task: task, markdown: markdown)).not_to be_success
       expect(task.reload).not_to be_accepted
       expect(user.resumes.count).to eq(0)
@@ -33,7 +33,7 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
   it "cannot be saved again even if its saved resume was deleted" do
     resume = described_class.call(ai_task: task).value
     Records::DestroyRecordService.call(record: resume)
-    expect(described_class.call(ai_task: task.reload).errors).to eq([described_class::ALREADY_SAVED_MESSAGE])
+    expect(described_class.call(ai_task: task.reload).errors).to eq([ described_class::ALREADY_SAVED_MESSAGE ])
     expect(user.resumes.count).to eq(0)
   end
 

@@ -23,7 +23,7 @@ module ResumeTailoring
 
           result = @ai_task.result
           return failure([ NOT_READY_MESSAGE ]) unless result.is_a?(Hash) && result["markdown"].is_a?(String)
-          return failure([ NOT_READY_MESSAGE ]) unless [1, 2].include?(result["target_pages"])
+          return failure([ NOT_READY_MESSAGE ]) unless [ 1, 2 ].include?(result["target_pages"])
 
           resume = create_resume(@markdown.nil? ? result["markdown"] : @markdown, result["target_pages"])
           @ai_task.update!(accepted_at: Time.current)

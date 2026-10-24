@@ -96,6 +96,16 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
         "cold_llama_load_seconds": load_seconds,
         "warmup": "One untimed input per model after local model load",
         "repeats": repeats,
+        "settings": {
+            "jev_model": MODELS["jev"],
+            "llama_model": MODELS["llama"],
+            "jev_chunk_characters": load_settings().user_text_screen_chunk_size,
+            "jev_overlap_characters": 300,
+            "llama_target_chunk_characters": local_llama.TARGET_CHARACTERS,
+            "llama_overlap_characters": local_llama.OVERLAP,
+            "llama_max_tokens": local_llama.MAX_TOKENS,
+            "screen_timeout_seconds": load_settings().llm_run_timeout_seconds,
+        },
         "sizes": by_size,
         "limitations": [
             "Sequential runs alternate model order; Jev includes network latency.",

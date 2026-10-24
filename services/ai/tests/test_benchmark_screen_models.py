@@ -16,6 +16,8 @@ def test_benchmark_uses_same_text_and_alternates_model_order(monkeypatch):
 
     monkeypatch.setattr(benchmark, "_measure", measure)
     report = benchmark.run_benchmark(repeats=2)
+    assert report["settings"]["jev_chunk_characters"] in (2000, 4000)
+    assert report["settings"]["llama_max_tokens"] == 512
     assert len(seen) == 2 + 2 * len(benchmark.SIZES) * 2
     for size in benchmark.SIZES:
         results = report["sizes"][str(size)]

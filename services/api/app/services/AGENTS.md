@@ -138,3 +138,5 @@ All business logic, as service objects grouped by domain folder.
   independently of general AI limits and the general public usage summary.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
+
+- `resume_tailoring/resume_page_eligibility_service.rb` — owner-scoped quick 700-word narrative gate for offering a two-page target; starting rechecks under the enqueue lock and snapshots `target_pages`.

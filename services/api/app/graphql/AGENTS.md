@@ -17,7 +17,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   `job` field (`types/ai_task_type.rb`) is the saved Job once either completes;
   `mutations/gap_analysis/analyze_job_gaps.rb` (`analyzeJobGaps(jobId)`) queues a gap analysis,
   and `Job.latestGapAnalysis` (`types/job_type.rb`) is the job's newest analyze_gaps task;
-  `mutations/resume_tailoring/` has `startResumeTailoring(jobId)`,
+  `mutations/resume_tailoring/` has `startResumeTailoring(jobId, targetPages)`,
   `saveTailoredResume(aiTaskId, sections)`, `updateResume(id, sections)`, and `deleteResume(id)`;
   deletion uses the owned resume and removes its sections, preserving job/library/task history;
   `Job.latestTailoring`
@@ -63,3 +63,5 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
 All saved Job lookup remains scoped to the current user, including listing/URL matches via
 JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.
+
+`resumeTwoPageEligible` checks only the authenticated owner's substantive career-library narrative. `startResumeTailoring` defaults to one page and rechecks eligibility before creating a new two-page task; restored tasks keep their target snapshot.

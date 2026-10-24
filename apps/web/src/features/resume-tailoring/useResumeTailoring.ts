@@ -1,5 +1,5 @@
 /**
- * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
+ * Description: Loads the tailor page's job, offers an explicit target choice before starting a task, and
  * follows it live. Accepted tasks are history, not editable drafts. A saved resume
  * prevents generation and old-draft restoration for this visit, including when deletion
  * removes its cached link before the task's accepted timestamp reaches the cache.
@@ -7,7 +7,7 @@
  *   - TailorTaskView: the task fields the page renders
  *   - useResumeTailoring: job, task, start errors, and retry
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
@@ -17,6 +17,7 @@ import { START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY } from './tailorOpera
 export interface TailorTaskView {
   id: string
   status: AiTaskStatusEnum
+  input: unknown
   result: unknown
   errorMessage: string | null
   acceptedAt: string | null
@@ -25,11 +26,11 @@ export interface TailorTaskView {
 /** The job's tailoring task (live when one is running) and its saved resume. */
 export function useResumeTailoring(jobId: string) {
   const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, { variables: { id: jobId } })
-  const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
+  const [startTailoring, { loading: starting }] = useMutation(START_RESUME_TAILORING_MUTATION)
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
   const [startErrors, setStartErrors] = useState<string[]>([])
   const [savedResumeJobId, setSavedResumeJobId] = useState<string | null>(null)
-  const started = useRef(false)
+  const [targetPages, setTargetPages] = useState<1 | 2>(1)
   const job = data?.job ?? null
   // Remember this before a deletion cache update can remove the saved link.
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
@@ -44,7 +45,7 @@ export function useResumeTailoring(jobId: string) {
   const begin = useCallback(async () => {
     setStartErrors([])
     try {
-      const { data: startedData } = await startTailoring({ variables: { jobId } })
+      const { data: startedData } = await startTailoring({ variables: { jobId, targetPages } })
       const payload = startedData?.startResumeTailoring
       if (payload?.aiTask && payload.errors.length === 0) {
         setStartedTask(taskFrom(payload.aiTask))
@@ -54,34 +55,32 @@ export function useResumeTailoring(jobId: string) {
     } catch (startError) {
       setStartErrors([requestErrorMessage(startError, "Couldn't reach the server. Check your connection and try again.")])
     }
-  }, [jobId, startTailoring])
+  }, [jobId, targetPages, startTailoring])
 
-  useEffect(() => {
-    // Deleting the saved resume must not turn this visit into a generation request.
-    if (job?.resume) started.current = true
-    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt && (job.latestTailoring.status !== 'COMPLETED' || isMarkdownResult(job.latestTailoring.result))) || started.current) return
-    started.current = true
-    void begin()
-  }, [loading, job, jobId, begin])
-
-  /** Starts again after a failed task. */
+  /** Starts a new attempt only after an explicit target choice. */
   function retry() {
-    started.current = true
     void begin()
   }
 
   const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(followExisting ? existing : null)
-  return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
+  return { job, task, loading, error, startErrors, subscriptionError, retry, refetch,
+    activeTargetPages: targetFrom(task?.result) ?? targetFrom(task?.input) ?? 1,
+    starting, targetPages, setTargetPages, twoPageEligible: data?.resumeTwoPageEligible === true, begin }
+}
+
+function targetFrom(value: unknown): 1 | 2 | null {
+  return typeof value === 'object' && value !== null && 'target_pages' in value && (value.target_pages === 1 || value.target_pages === 2) ? value.target_pages : null
 }
 
 function isMarkdownResult(result: unknown): boolean {
-  return typeof result === 'object' && result !== null && 'markdown' in result && typeof result.markdown === 'string'
+  return typeof result === 'object' && result !== null && 'markdown' in result && typeof result.markdown === 'string' && 'target_pages' in result && (result.target_pages === 1 || result.target_pages === 2)
 }
 
 /** Copies the fields the page reads off a query task or a subscription task. */
 function taskFrom(source: {
   id: string
   status: AiTaskStatusEnum
+  input?: unknown
   result?: unknown
   errorMessage?: string | null
   acceptedAt?: string | null
@@ -90,6 +89,7 @@ function taskFrom(source: {
   return {
     id: source.id,
     status: source.status,
+    input: source.input ?? null,
     result: source.result ?? null,
     errorMessage: source.errorMessage ?? null,
     acceptedAt: source.acceptedAt ?? null,

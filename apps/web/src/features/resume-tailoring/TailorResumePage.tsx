@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { FinalResumeEditor } from './FinalResumeEditor'
 import { markdownFromResult, warningsFromResult } from './parseTailorTask'
+import { ResumeTargetChoice } from './ResumeTargetChoice'
 import { SavedResumeEditor } from './SavedResumeEditor'
 import { useResumeTailoring } from './useResumeTailoring'
 import { useTailorActions } from './useTailorActions'
@@ -17,7 +18,7 @@ import { useTailorActions } from './useTailorActions'
 export function TailorResumePage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
-  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch } = useResumeTailoring(id)
+  const { job, task, loading, error, startErrors, subscriptionError, retry, refetch, targetPages, setTargetPages, twoPageEligible, starting, begin, activeTargetPages } = useResumeTailoring(id)
   const actions = useTailorActions(task?.id ?? '', () => void refetch())
 
   return (
@@ -38,8 +39,8 @@ export function TailorResumePage() {
       {error && <ErrorAlert title="Couldn't load this job" messages={[requestErrorMessage(error, error.message)]} />}
       {subscriptionError && <ErrorAlert title="Couldn't follow the resume" messages={[subscriptionError.message]} />}
       <ErrorAlert messages={startErrors} title="Couldn't start the resume" />
-      {job && !job.resume && startErrors.length > 0 && !task && (
-        <Button type="button" variant="outline" onClick={retry}>Try again</Button>
+      {job && !job.resume && !task && (
+        <ResumeTargetChoice targetPages={targetPages} onChange={setTargetPages} twoPageEligible={twoPageEligible} starting={starting} onStart={() => void begin()} />
       )}
       {!job && loading && (
         <Card>
@@ -61,6 +62,7 @@ export function TailorResumePage() {
           </CardContent>
         </Card>
       )}
+      {task && <p className="text-sm text-muted-foreground">Target: {activeTargetPages === 2 ? 'two pages' : 'one page'}</p>}
       {job && !job.resume && task && task.status !== 'FAILED' && task.acceptedAt === null && (
         <TailorProgress task={task} actions={actions} />
       )}

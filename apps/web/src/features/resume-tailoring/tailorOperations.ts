@@ -5,6 +5,7 @@ import { graphql } from '@/graphql/generated'
 
 export const TAILOR_JOB_QUERY = graphql(`
   query TailorJob($id: ID!) {
+    resumeTwoPageEligible
     job(id: $id) {
       id
       title
@@ -19,6 +20,7 @@ export const TAILOR_JOB_QUERY = graphql(`
         id
         status
         acceptedAt
+        input
         result
         errorMessage
       }
@@ -27,11 +29,12 @@ export const TAILOR_JOB_QUERY = graphql(`
 `)
 
 export const START_RESUME_TAILORING_MUTATION = graphql(`
-  mutation StartResumeTailoring($jobId: ID!) {
-    startResumeTailoring(input: { jobId: $jobId }) {
+  mutation StartResumeTailoring($jobId: ID!, $targetPages: Int!) {
+    startResumeTailoring(input: { jobId: $jobId, targetPages: $targetPages }) {
       aiTask {
         id
         status
+        input
       }
       errors
     }

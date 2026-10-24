@@ -20,7 +20,8 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     task = result.value
     expect(task).to be_tailor_resume.and be_queued
     expect(task.subject).to eq(job)
-    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
+    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses", "target_pages")
+    expect(task.input["target_pages"]).to eq(1)
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq("summary" => "Close match.")
     expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
@@ -125,4 +126,33 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(job.ai_tasks.tailor_resume.count).to eq(1)
     expect(queue).not_to have_received(:send_message)
   end
+  it "rejects two pages when the current library has fewer than 700 narrative words" do
+    result = described_class.call(user: user, job: job, target_pages: 2)
+    expect(result).not_to be_success
+    expect(result.errors.join).to include("700")
+    expect(queue).not_to have_received(:send_message)
+  end
+
+  it "rechecks eligibility after the offer and snapshots the selected target" do
+    user.update!(summary: "Led " * 700)
+    expect(ResumeTailoring::ResumePageEligibilityService.call(user: user).value).to be(true)
+    user.update!(summary: "Led " * 699)
+    expect(described_class.call(user: user, job: job, target_pages: 2)).not_to be_success
+    user.update!(summary: "Led " * 700)
+    result = described_class.call(user: user, job: job, target_pages: 2)
+    expect(result).to be_success
+    expect(result.value.input["target_pages"]).to eq(2)
+    user.update!(summary: nil)
+    expect(described_class.call(user: user, job: job, target_pages: 1).value).to eq(result.value)
+    expect(result.value.reload.input["target_pages"]).to eq(2)
+    expect(queue).to have_received(:send_message).once
+  end
+
+  it "rejects unsupported target pages without publishing" do
+    [0, 3, "2", nil].each do |pages|
+      expect(described_class.call(user: user, job: job, target_pages: pages)).not_to be_success
+    end
+    expect(queue).not_to have_received(:send_message)
+  end
+
 end

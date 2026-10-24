@@ -6,13 +6,14 @@ module Mutations
   module ResumeTailoring
     class StartResumeTailoring < Mutations::BaseMutation
       argument :job_id, ID, required: true
+      argument :target_pages, Integer, required: false, default_value: 1
 
       field :ai_task, Types::AiTaskType
 
       # Calls ResumeTailoring::StartResumeTailoringService.
-      def resolve(job_id:)
+      def resolve(job_id:, target_pages: 1)
         job = current_user.jobs.find(job_id)
-        payload_from(::ResumeTailoring::StartResumeTailoringService.call(user: current_user, job: job), :ai_task)
+        payload_from(::ResumeTailoring::StartResumeTailoringService.call(user: current_user, job: job, target_pages: target_pages), :ai_task)
       end
     end
   end

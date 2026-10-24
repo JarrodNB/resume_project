@@ -1849,6 +1849,11 @@ type Query {
   projects: [Project!]!
   recentInterviewSessions: [InterviewSession!]!
   resume(id: ID!): Resume!
+
+  """
+  Whether the signed-in owner's library has 700 words of substantive narrative.
+  """
+  resumeTwoPageEligible: Boolean!
   resumes: [Resume!]!
   skills: [Skill!]!
 }
@@ -2277,6 +2282,7 @@ input StartResumeTailoringInput {
   """
   clientMutationId: String
   jobId: ID!
+  targetPages: Int = 1
 }
 
 """

@@ -5,9 +5,10 @@ module ResumeTailoring
   class StartResumeTailoringService < ApplicationService
     ALREADY_SAVED_MESSAGE = "This job already has a saved resume.".freeze
 
-    def initialize(user:, job:)
+    def initialize(user:, job:, target_pages: 1)
       @user = user
       @job = job
+      @target_pages = target_pages
     end
 
     # Returns an in-progress or unsaved tailoring task, or queues a new one.
@@ -17,17 +18,29 @@ module ResumeTailoring
         task_type: "tailor_resume",
         input: task_input,
         subject: @job,
-        resolve_existing: method(:resolve_existing)
+        resolve_existing: method(:resolve_existing),
+        prepare_task: method(:prepare_task)
       )
     end
 
     private
 
+    def prepare_task(task)
+      task.input = task_input.merge("target_pages" => @target_pages)
+      success(task)
+    end
+
     def resolve_existing
       return failure([ ALREADY_SAVED_MESSAGE ]) if @user.resumes.exists?(job_id: @job.id)
 
       existing = @job.ai_tasks.tailor_resume.order(created_at: :desc).first
-      success(existing) if resumable?(existing)
+      return success(existing) if resumable?(existing)
+
+      return failure([ "Choose one or two target pages." ]) unless [ 1, 2 ].include?(@target_pages)
+      if @target_pages == 2 && !ResumePageEligibilityService.call(user: @user).value
+        return failure([ "Two pages need at least 700 words of career-library descriptions and accomplishments. Add more detail or choose one page." ])
+      end
+      nil
     end
 
     # A queued task inside the in-flight window, or a complete draft not yet saved.

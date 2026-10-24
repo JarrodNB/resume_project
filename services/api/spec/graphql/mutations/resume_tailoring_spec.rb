@@ -27,6 +27,22 @@ RSpec.describe "Resume tailoring mutations" do
     )
   end
 
+  it "accepts a two-page target only for the signed-in user's eligible library" do
+    query = <<~GQL
+      mutation($jobId: ID!) {
+        startResumeTailoring(input: { jobId: $jobId, targetPages: 2 }) { aiTask { input } errors }
+      }
+    GQL
+    create(:user, summary: "Led " * 700)
+    rejected = execute_graphql(query, user: user, variables: { jobId: job.id })
+    expect(rejected.dig("data", "startResumeTailoring", "errors").join).to include("700")
+    expect(AiTask.tailor_resume).to be_empty
+    user.update!(summary: "Led " * 700)
+    accepted = execute_graphql(query, user: user, variables: { jobId: job.id })
+    expect(accepted.dig("data", "startResumeTailoring", "errors")).to eq([])
+    expect(accepted.dig("data", "startResumeTailoring", "aiTask", "input", "target_pages")).to eq(2)
+  end
+
   it "startResumeTailoring can't start another user's job" do
     query = <<~GQL
       mutation($jobId: ID!) { startResumeTailoring(input: { jobId: $jobId }) { aiTask { id } errors } }

@@ -10,6 +10,9 @@ Saved resumes keep their requested page target and can be edited or downloaded l
 
 - `TailorResumePage.tsx` (`/jobs/:id/tailor`) — generation status, failure/retry, completed
   Markdown editor, or saved editor. Later visits restore compatible unsaved tasks.
+  New drafts start only after an explicit page-target choice; two pages are offered only
+  when the server reports at least 700 substantive narrative words. Restored tasks keep
+  their snapshotted target.
 - `FinalResumeEditor.tsx` — review current Markdown through the PDF preview and save it.
   Draft notes explain generation limits. New drafts remain unsaved until persistence succeeds.
 - `SavedResumeEditor.tsx` — edit saved Markdown, preview current edits, download the last

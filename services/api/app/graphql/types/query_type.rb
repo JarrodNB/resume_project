@@ -48,6 +48,13 @@ module Types
       result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
     end
 
+    field :resume_two_page_eligible, Boolean, null: false,
+          description: "Whether the signed-in owner's library has 700 words of substantive narrative."
+
+    def resume_two_page_eligible
+      ResumeTailoring::ResumePageEligibilityService.call(user: current_user).value
+    end
+
     field :me, Types::UserType, null: false
 
     field :experiences, [ Types::ExperienceType ], null: false

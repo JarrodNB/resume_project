@@ -97,6 +97,7 @@ score attached, so runs can be compared across prompt and model changes.
   shared synthetic screening cases. Uses production boolean policy, never JEV margins.
   Outages are errors and wrong decisions fail the runner. Run
   `docker compose run --rm ai python -m evals.run_user_text_fallback_evals`.
+- `run_screen_model_comparison.py` — separate Jev versus local Llama comparison on shared synthetic short and long cases. Uses production screening with fresh sessions, records allow/block/unavailable, attempted chunks and timing, and keeps raw inputs out of its report and exported evaluation spans. Run `docker compose run --rm --no-deps ai python -m evals.run_screen_model_comparison --output /app/screen-model-comparison.json` when Jev credentials and the gated local model artifact are available. Harmful-only cases are scored against Jev only.
 - `run_screen_chunk_comparison.py` — 14 synthetic ordinary, long, and security-career
   resumes, including attacks at the beginning/middle/end and across both candidate chunk
   grids. Compares the production 2,000/4,000-character screens with 300-character overlap

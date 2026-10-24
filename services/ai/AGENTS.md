@@ -60,9 +60,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   resumes with that history plus `DeferredToolResults`. Not built yet; reserved for
   AI-assisted rewriting of career library entries. Gap analysis doesn't ask questions.
   Tailoring generates one complete draft per queued execution and does not use `ask_user`.
-- **User-written text is screened by Jev before it enters a prompt** (`screening/`), including
-  an uploaded resume before it is parsed. A missing `TYPESAFE_API_KEY` omits the text. An
-  attempted JEV failure uses the separate Nano safety classifier within the remaining deadline
+- **User-written text is screened for prompt injection before it enters a prompt** (`screening/`), including
+  an uploaded resume before it is parsed. Jev, local Llama Prompt Guard, and a configurable LLM are selectable
+  primary and fallback models. A missing `TYPESAFE_API_KEY` prevents a Jev call. An attempted
+  primary failure uses the configured fallback within the screening deadline
   (three seconds maximum for each JEV run). If both fail, omit the text; a blocked resume
   fails the import. Screen each cohesive untrusted input once
   per task execution for job text, answers, and reused questions. Saved career-library fields

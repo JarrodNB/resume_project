@@ -1,4 +1,4 @@
-"""Evaluate the fallback classifier directly on the shared synthetic safety cases.
+"""Evaluate the configured screening LLM's prompt-injection classifier.
 
 Boolean decisions use the production policy. Outages remain case errors, and no JEV
 confidence margins are invented. Run with python -m evals.run_user_text_fallback_evals.
@@ -23,12 +23,13 @@ def load_user_text_fallback_dataset():
 
 
 def run_user_text_fallback_evals():
-    """Report decision and individual-question accuracy and fail visibly on case errors."""
+    """Report decision and injection accuracy and fail visibly on case errors."""
     settings = load_settings()
-    model = settings.user_text_screen_fallback_model
+    model = settings.user_text_screen_llm_model
 
     def classify(case) -> UserTextFallbackScreen:
-        return screen_fallback_message(case.text, model, settings.llm_run_timeout_seconds).screen
+        timeout = min(settings.llm_run_timeout_seconds, settings.user_text_screen_timeout_seconds)
+        return screen_fallback_message(case.text, model, timeout).screen
 
     def score(report):
         total = len(report.cases)
@@ -36,8 +37,6 @@ def run_user_text_fallback_evals():
             "decision_match": sum(case.output.blocked == case.metadata.block for case in report.cases),
             "prompt_injection_match": sum(case.output.prompt_injection == case.metadata.prompt_injection
                                           for case in report.cases),
-            "harmful_request_match": sum(case.output.harmful_request == case.metadata.harmful_request
-                                        for case in report.cases),
         }.items():
             record_score(name=name, value=matches / total if total else 0)
         record_score(name="case_errors", value=len(report.failures))

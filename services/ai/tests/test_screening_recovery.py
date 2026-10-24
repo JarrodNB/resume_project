@@ -134,16 +134,14 @@ def test_timeout_cancels_jev_and_recovers(monkeypatch, offline_model_resolution,
     assert cancelled == [True]
 
 
-@pytest.mark.parametrize("field", ["prompt_injection", "harmful_request"])
-def test_fallback_positive_answer_blocks_without_confidence(offline_model_resolution, field):
+def test_fallback_positive_answer_blocks_without_confidence(offline_model_resolution):
     """Boolean judgments need no invented confidence margins."""
     def unavailable(messages, info):
         raise RuntimeError("JEV unavailable")
 
     def block(messages, info):
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
-            {"prompt_injection": field == "prompt_injection",
-             "harmful_request": field == "harmful_request"})])
+            {"prompt_injection": True})])
 
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(unavailable))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(block))
@@ -202,12 +200,12 @@ def test_required_task_recovers_and_publishes_each_response_once(
     process_task_message(task.model_dump_json(), 1, queue, task_dependencies)
     result = json.loads(queue.sent_bodies[-1])
     assert result["status"] == "completed", result
-    assert counts == {"jev": 2, "nano": 2, "generate": 1}
+    assert counts == {"jev": 2, "nano": 1, "generate": 1}
     assert result["usage_incomplete"]  # JEV's failed request has no returned usage.
     assert [(entry["model"], entry["input_tokens"], entry["cost_microdollars"])
             for entry in result["usage"]] == [
         ("jev-1.13.0", 80, 4), ("openai:gpt-5-nano", 100, 9),
-        ("openai:gpt-5-nano", 100, 9), ("openai:gpt-6-luna", 200, 35),
+        ("openai:gpt-6-luna", 200, 35),
     ]
 
 

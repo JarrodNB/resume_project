@@ -148,7 +148,7 @@ def test_successful_typesafe_screen_has_one_wire_request_per_observation():
     def respond(request):
         payload = json.loads(request.content)
         seen.append(payload)
-        assert len(payload["questions"]) == 2
+        assert len(payload["questions"]) == 1
         assert all(question["type"] == "noul" for question in payload["questions"].values())
         assert [call[0] for call in client.calls] == ["start"]
         return httpx2.Response(200, json={"model": "jev-1.13.0",
@@ -161,7 +161,7 @@ def test_successful_typesafe_screen_has_one_wire_request_per_observation():
             model = providers.accounted(client, claim(), "screening", "jev-1.13.0")
             with models.override_allow_model_requests(True), user_text_screen_agent.override(model=model):
                 result = await screen_user_message_async("I improved a scheduling process.", "typesafe:jev-1.13.0", 3)
-            assert not result.screen.prompt_injection and not result.screen.harmful_request
+            assert not result.screen.prompt_injection
 
     asyncio.run(execute())
     assert len(seen) == 1

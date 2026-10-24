@@ -34,11 +34,12 @@ and falls back to the full library when no matching embeddings exist.
 
 [Input guardrails](services/ai/screening/prompt_guardrail.py) are registered on every
 generative agent through Pydantic AI's `capabilities` parameter, using the official Harness
-`InputGuardrail`. TypeSafe Jev screens the complete assembled prompt—including uploaded,
-scraped, saved, and retrieved content—before the first generative model request. The guard
-runs sequentially; missing credentials, screening errors, or rejected input stop generation.
-Supplied user/tool history is also screened. Earlier field checks support targeted feedback;
-the final guard checks the remaining context. Jev itself is excluded to avoid recursion.
+`InputGuardrail`. User-written sources and unknown user/tool history are screened for prompt
+injection before a generative request. Jev, local Llama Prompt Guard, or a configurable LLM
+can be primary, with a separately selected fallback after an attempted failure. A screening
+error or rejected input stops required generation; optional rejected sources are omitted.
+Earlier field checks support targeted feedback, and exact approved source coverage avoids
+screening unchanged assembled prompts again. Screening agents are excluded from recursion.
 Adversarial eval cases cover embedded instructions and legitimate security-related content.
 
 Pydantic schemas constrain model output. Resume parsing applies

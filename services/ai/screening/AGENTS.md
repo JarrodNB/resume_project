@@ -2,15 +2,20 @@
 
 ## Purpose
 
-Decide whether user-written text may enter a prompt. JEV answers two yes/no questions; code
-applies the confidence threshold. After an attempted JEV failure, a separate Nano classifier
-answers strict booleans. Screening owns recovery and returns a small decision interface.
+Decide whether user-written text may enter a prompt. JEV answers a prompt-injection
+yes/no question; code applies the confidence threshold. Primary and fallback each select
+Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a small decision interface.
 
 ## Contents
 
 - `conversation.py` — interview-only newest-message screening and exact latest-prompt guard.
   Its caller reconstructs history from authenticated Rails accepted public dialogue, never
   caller-controlled private model history. It does not change `screen_prompt` or queued tasks.
+
+- `local_llama.py` — optional local Llama Prompt Guard 2 22M prompt-injection classifier.
+  Exact overlapping substrings are checked against the tokenizer's 512-token limit before
+  inference. Model loading and inference errors remain unavailable checks. It does not
+  classify harmful requests or report provider token charges.
 
 - `prompt_guardrail.py` — async `screen_prompt` policy for official Harness `InputGuardrail`,
   registered through `capabilities` on every generative agent. Enforces exact source coverage
@@ -19,9 +24,9 @@ answers strict booleans. Screening owns recovery and returns a small decision in
 - `guardrail_usage.py` — task-scoped capability usage accounting, including blocked runs.
 - `screen_user_text.py` — text over the cap returns `too_long` without any provider call.
   A short note gets a phrase prefilter; whole resumes skip it. JEV gets at most three
-  seconds and keeps the 0.7 confidence bar. Attempted JEV failures use the configured
-  safety fallback on the same protected chunk within remaining time. Either fallback
-  boolean being true blocks. Missing credentials call neither provider; failed recovery
+  seconds per call and keeps the 0.7 confidence bar. Attempted primary failures use the
+  configured fallback within the remaining screening deadline. Prompt injection blocks.
+  Missing Jev credentials prevent Jev calls; failed recovery
   returns `unchecked`. Limits and cancellation propagate. Blank text is free.
   `model_usages` retains completed calls by model; compatibility totals exist only for
   single-model passes. Cached decisions return no usage. Worker request accounting remains

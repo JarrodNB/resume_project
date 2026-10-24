@@ -68,16 +68,25 @@ def test_comparison_uses_same_text_and_counts_actual_requests(offline_model_reso
 def test_outage_is_never_counted_as_detection(configuration, offline_model_resolution):
     requests = []
     offline_model_resolution(load_settings().user_text_screen_model, fake_jev(requests, error=True))
-    offline_model_resolution(load_settings().user_text_screen_fallback_model, fake_jev([], error=True))
     resume = ResumeCase(name="attack", text="A synthetic embedded attack.", expected_block=True)
     output = evaluate_case(ComparisonInput(resume=resume, configuration=configuration))
     assert output.decision == "error"
-    assert output.request_count == (1 if configuration == "whole" else 2)
+    assert output.request_count == 1
     assert output.error
     summary = summarize_results([output])[configuration]
     assert summary["errors"] == 1
     assert summary["missed_attacks"] == 0
     assert summary["detected_attacks"] == 0
+
+
+def test_chunk_comparison_stays_on_jev_with_llama_selected(monkeypatch, offline_model_resolution):
+    requests = []
+    offline_model_resolution("typesafe:jev-1.13.0", fake_jev(requests))
+    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "meta-llama/Llama-Prompt-Guard-2-22M")
+    resume = ResumeCase(name="benign", text="Built reliable services.", expected_block=False)
+    output = evaluate_case(ComparisonInput(resume=resume, configuration="2000"))
+    assert output.decision == "allowed"
+    assert requests == [resume.text]
 
 
 def test_wrong_decisions_are_reported_separately(offline_model_resolution):

@@ -1,25 +1,32 @@
-"""Decide whether protected input can enter generation, hiding screening recovery.
+"""Decide whether protected input can enter generation with Jev, local Llama, or Nano.
 
-JEV gets at most three seconds per chunk. An attempted failure uses a boolean fallback
+JEV gets at most three seconds per chunk. An attempted failure uses the configured fallback
 within the remaining source/task deadline. Missing credentials and unsuccessful screening
 stay unavailable; limits and external cancellation propagate. Completed model usage is
-kept separately per provider, including chunks before a later block or outage.
+kept separately per provider, including chunks before a later block or outage. Local
+Llama inference detects prompt injection only and has no billed provider usage.
 """
 
 import asyncio
+import contextvars
 import logging
 import os
+import threading
 from collections.abc import Awaitable, Callable, Generator
-from contextlib import nullcontext
+from concurrent.futures import FIRST_COMPLETED, Future, wait
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from time import monotonic
 from typing import Any, NamedTuple
 
+import logfire
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import RunUsage
 
 from agents.user_text_fallback_agent import screen_fallback_message, screen_fallback_message_async
 from agents.user_text_screen_agent import JEV_REQUEST_TIMEOUT_SECONDS, screen_user_message
 from conversation_logging import fallback_execution
+from screening import local_llama
 from screening.guardrail_usage import record_guardrail_usage
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.session import current_session
@@ -28,9 +35,44 @@ from text_limits import MAX_SCREENED_TEXT
 from worker.contact_mask import mask_outbound
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import ModelUsage
-from worker.settings import load_settings
+from worker.settings import DEFAULT_SCREEN_LLM_MODEL, SCREEN_LLM_OPTION, load_settings
 
 logger = logging.getLogger(__name__)
+_local_inference_lock = threading.Lock()
+_local_chunk_slots = threading.BoundedSemaphore(4)
+_chunk_observer: ContextVar[Callable[[], None] | None] = ContextVar("screen_chunk_observer", default=None)
+MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
+
+
+def _is_jev_model(model: str) -> bool:
+    """Recognize the pinned model and its provider-reported name."""
+    return model in ("typesafe:jev-1.13.0", "jev-1.13.0")
+
+
+def _screen_option(model: str) -> str:
+    """Accept the old model-specific value while using a generic LLM selection."""
+    return SCREEN_LLM_OPTION if model == DEFAULT_SCREEN_LLM_MODEL else model
+
+
+def _screen_model_id(option: str) -> str:
+    """Resolve the generic LLM option to its configured provider model."""
+    return (load_settings().user_text_screen_llm_model
+            if option == SCREEN_LLM_OPTION else option)
+
+
+@contextmanager
+def observe_screen_chunks(observer: Callable[[], None]):
+    """Observe attempted chunks in this call context, including local worker threads."""
+    token = _chunk_observer.set(observer)
+    try:
+        yield
+    finally:
+        _chunk_observer.reset(token)
+
+
+def _record_chunk_attempt():
+    if observer := _chunk_observer.get():
+        observer()
 
 
 class ScreenOutcome(NamedTuple):
@@ -60,23 +102,53 @@ class ScreenOutcome(NamedTuple):
 def screen_user_text(
     text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True,
     max_characters: int = MAX_SCREENED_TEXT,
+    _allow_fallback: bool = True,
 ) -> ScreenOutcome:
-    """Return a decision after JEV and, on attempted failure, fallback screening.
+    """Return a decision from the selected classifier, failing closed on outages.
 
     Unavailable screening returns unchecked; request, tool-call, or token caps propagate.
     `check_phrases` is for a short note. A whole resume skips the phrase prefilter.
     Trusted import code may adjust `max_characters` after validating original text:
     privacy placeholders expand the protected text, but every character is still screened.
     """
-    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
+    model = _screen_option(model)
+    timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
+    if model == local_llama.MODEL:
+        session = current_session()
+        key = _screen_key(text, model, check_phrases, max_characters)
+        if session is not None and key in session.decisions:
+            return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
+        started = monotonic()
+        result = _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters)
+        fallback_model = load_settings().user_text_screen_fallback_model
+        if _allow_fallback and result.unchecked and fallback_model != model:
+            remaining = timeout_seconds - (monotonic() - started)
+            if remaining > 0:
+                with fallback_execution(_screen_model_id(model), _screen_model_id(fallback_model),
+                                        kind="screening"):
+                    result = screen_user_text(text, fallback_model, remaining,
+                                              check_phrases=check_phrases,
+                                              max_characters=max_characters, _allow_fallback=False)
+                _remember_decision(session, key, mask_outbound(text), result)
+        return result
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
+                             allow_fallback=_allow_fallback)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
             try:
-                classifier = screen_fallback_message if fallback else screen_user_message
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
-                with fallback_execution(model, selected, kind="screening") if fallback else nullcontext():
-                    run = classifier(chunk, model=selected, timeout_seconds=timeout)
+                classifier = (screen_user_message if _is_jev_model(selected) else
+                              screen_fallback_message)
+                resolved = _screen_model_id(selected)
+                with (fallback_execution(_screen_model_id(model), resolved, kind="screening")
+                      if fallback else nullcontext()):
+                    if selected == local_llama.MODEL:
+                        run = _local_screen_sync(chunk, selected, timeout, False, max_characters)
+                        if run.unchecked:
+                            raise RuntimeError("Local fallback screening unavailable")
+                    else:
+                        run = classifier(chunk, model=resolved, timeout_seconds=timeout)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -91,6 +163,8 @@ async def screen_user_text_async(
     classify: Callable[[str, str, float], Awaitable[Any]],
     credentials_available: bool | None = None,
     classify_fallback: Callable[[str, str, float], Awaitable[Any]] | None = None,
+    _allow_fallback: bool = True,
+    _fallback_model: str | None = None,
 ) -> ScreenOutcome:
     """Apply the same policy without blocking an agent's running event loop.
 
@@ -100,44 +174,116 @@ async def screen_user_text_async(
     preserve the production credential check and remote fallback. These seams never
     create an allowed decision themselves.
     """
+    model = _screen_option(model)
+    timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     session = current_session()
     if session is None:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback,
+            credentials_available, classify_fallback, _allow_fallback, _fallback_model,
         )
     # The same execution can be used by successive asyncio.run calls. Locks belong to
     # their event loop; completed decisions remain shared across those loops.
-    key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases, max_characters))
+    key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases,
+                                                    max_characters, _fallback_model))
     lock = session.async_locks.setdefault(key, asyncio.Lock())
     async with lock:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback,
+            credentials_available, classify_fallback, _allow_fallback, _fallback_model,
         )
 
 
 async def _drive_async(
     text, model, timeout_seconds, check_phrases, max_characters, classify,
-    credentials_available, classify_fallback,
+    credentials_available, classify_fallback, allow_fallback, fallback_model,
 ):
     """Drive the common policy after acquiring execution-local source ownership."""
+    if model == local_llama.MODEL:
+        session = current_session()
+        masked = mask_outbound(text)
+        key = _screen_key(masked, model, check_phrases, max_characters, fallback_model)
+        if session is not None and key in session.decisions:
+            return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
+        if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
+            _remember_decision(session, key, masked, preflight)
+            return preflight
+        deadline = _screen_deadline(timeout_seconds, session)
+        admitted = False
+        while monotonic() < deadline:
+            if _local_inference_lock.acquire(blocking=False):
+                admitted = True
+                break
+            await asyncio.sleep(min(0.01, max(0, deadline - monotonic())))
+        remaining = deadline - monotonic()
+        if not admitted or remaining <= 0:
+            if admitted:
+                _local_inference_lock.release()
+            result = ScreenOutcome(False, unchecked=True)
+        else:
+            try:
+                completed = _start_local_screen(text, model, remaining, check_phrases,
+                                                max_characters)
+                result = await asyncio.wait_for(
+                    asyncio.shield(asyncio.wrap_future(completed)), timeout=remaining,
+                )
+            except Exception:  # noqa: BLE001 — local failure is unavailable
+                result = ScreenOutcome(False, unchecked=True)
+        # A timed-out thread can finish later. Only this event-loop owner may cache
+        # approval, and only after it has completed inside the caller's deadline.
+        if allow_fallback and result.unchecked:
+            fallback_model = (fallback_model if fallback_model is not None else
+                              load_settings().user_text_screen_fallback_model)
+            remaining = deadline - monotonic()
+            if fallback_model != model and remaining > 0:
+                with fallback_execution(_screen_model_id(model), _screen_model_id(fallback_model),
+                                        kind="screening"):
+                    result = await screen_user_text_async(
+                        text, fallback_model, remaining, check_phrases=check_phrases,
+                        max_characters=max_characters, classify=classify,
+                        credentials_available=credentials_available,
+                        classify_fallback=classify_fallback, _allow_fallback=False,
+                        _fallback_model=fallback_model,
+                    )
+        _remember_decision(session, key, masked, result)
+        return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
-                             credentials_available=credentials_available)
+                             credentials_available=credentials_available,
+                             allow_fallback=allow_fallback, fallback_model=fallback_model)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
             try:
                 if fallback:
-                    selected = load_settings().user_text_screen_fallback_model
-                    with fallback_execution(model, selected, kind="screening"):
-                        run = await (classify_fallback or screen_fallback_message_async)(
-                            chunk, selected, timeout,
-                        )
+                    selected = (fallback_model if fallback_model is not None else
+                                load_settings().user_text_screen_fallback_model)
+                    resolved = _screen_model_id(selected)
+                    with fallback_execution(_screen_model_id(model), resolved, kind="screening"):
+                        if selected == local_llama.MODEL:
+                            run = await screen_user_text_async(
+                                chunk, selected, timeout, check_phrases=False,
+                                max_characters=max_characters, classify=classify,
+                                _allow_fallback=False, _fallback_model=fallback_model,
+                            )
+                            if run.unchecked:
+                                raise RuntimeError("Local fallback screening unavailable")
+                        elif _is_jev_model(selected):
+                            run = await classify(chunk, resolved, timeout)
+                        else:
+                            run = await (classify_fallback or screen_fallback_message_async)(
+                                chunk, resolved, timeout,
+                            )
                 else:
-                    run = await classify(chunk, model, timeout)
-                selected = load_settings().user_text_screen_fallback_model if fallback else model
-                record_guardrail_usage(run.model_name, selected, run.usage)
+                    if model == SCREEN_LLM_OPTION:
+                        run = await (classify_fallback or screen_fallback_message_async)(
+                            chunk, _screen_model_id(model), timeout,
+                        )
+                    else:
+                        run = await classify(chunk, model, timeout)
+                selected = ((fallback_model if fallback_model is not None else
+                             load_settings().user_text_screen_fallback_model) if fallback else model)
+                if not isinstance(run, ScreenOutcome):
+                    record_guardrail_usage(run.model_name, _screen_model_id(selected), run.usage)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -146,50 +292,272 @@ async def _drive_async(
         return done.value
 
 
-def _screen_key(text, model, check_phrases, max_characters):
-    return (mask_outbound(text), model, check_phrases, load_settings().user_text_screen_chunk_size, max_characters)
+def _screen_key(text, model, check_phrases, max_characters, fallback_model=None):
+    policy = ((local_llama.TARGET_CHARACTERS, local_llama.OVERLAP, local_llama.MAX_TOKENS)
+              if model == local_llama.MODEL else (load_settings().user_text_screen_chunk_size, 300))
+    fallback_choice = (fallback_model if fallback_model is not None else
+                       load_settings().user_text_screen_fallback_model)
+    return (mask_outbound(text), model, _screen_model_id(model), fallback_choice,
+            _screen_model_id(fallback_choice), check_phrases, policy, max_characters)
+
+
+def _preflight(text, check_phrases, max_characters):
+    """Apply source-independent policy before either classifier receives text."""
+    if not text.strip():
+        return ScreenOutcome(True)
+    if len(text) > max_characters:
+        return ScreenOutcome(False, too_long=True)
+    if check_phrases and has_obvious_instruction_override(text):
+        return ScreenOutcome(False)
+    return None
+
+
+def _screen_deadline(timeout_seconds, session):
+    deadline = monotonic() + timeout_seconds
+    return min(deadline, session.deadline) if session is not None else deadline
+
+
+def _remember_decision(session, key, text, result):
+    if session is not None:
+        session.decisions[key] = result
+        if result.allowed:
+            session.allowed_sources.add(text)
+
+
+def _start_local_screen(text, model, remaining, check_phrases, max_characters):
+    """Start the sole admitted local worker; its completion releases admission."""
+    completed = Future()
+    context = contextvars.copy_context()
+
+    def run():
+        try:
+            result = context.run(_local_screen, text, model, remaining, check_phrases,
+                                 max_characters, False,
+                                 lambda decision: completed.set_result(decision) if not completed.done() else None)
+            if not completed.done():
+                completed.set_result(result)
+        except Exception as error:  # noqa: BLE001 — local failure resolves the caller
+            if not completed.done():
+                completed.set_exception(error)
+        finally:
+            _local_inference_lock.release()
+
+    try:
+        threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
+    except RuntimeError:
+        _local_inference_lock.release()
+        raise
+    return completed
+
+
+def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters):
+    """Abandon stalled local work at the deadline without caching a late approval."""
+    session = current_session()
+    masked = mask_outbound(text)
+    key = _screen_key(masked, model, check_phrases, max_characters)
+    if session is not None and key in session.decisions:
+        return session.decisions[key]
+    if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
+        _remember_decision(session, key, masked, preflight)
+        return preflight
+    deadline = _screen_deadline(timeout_seconds, session)
+    remaining = deadline - monotonic()
+    if remaining <= 0 or not _local_inference_lock.acquire(timeout=remaining):
+        result = ScreenOutcome(False, unchecked=True)
+    else:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            _local_inference_lock.release()
+            result = ScreenOutcome(False, unchecked=True)
+        else:
+            try:
+                completed = _start_local_screen(text, model, remaining, check_phrases,
+                                                max_characters)
+            except RuntimeError:
+                result = ScreenOutcome(False, unchecked=True)
+            else:
+                try:
+                    result = completed.result(timeout=remaining)
+                except Exception:  # noqa: BLE001 — local failure is unavailable
+                    result = ScreenOutcome(False, unchecked=True)
+    _remember_decision(session, key, masked, result)
+    return result
+
+
+def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
+                  cache_result=True, report_decision=None):
+    """Apply the same fail-closed contract to local inference and cache exact decisions."""
+    text = mask_outbound(text)
+    session = current_session()
+    key = _screen_key(text, model, check_phrases, max_characters)
+    if session is not None and key in session.decisions:
+        return session.decisions[key]
+    result = _preflight(text, check_phrases, max_characters)
+    if result is None:
+        deadline = _screen_deadline(timeout_seconds, session)
+        try:
+            result = ScreenOutcome(True)
+            chunks = enumerate(local_llama.iter_chunks(text))
+            pending = {}
+            decision_returned = threading.Event()
+
+            def trace_in_flight():
+                # A known block can return before other prefetched calls finish. Record
+                # their unresolved state before the task trace is flushed.
+                for future, (index, character_count, token_count) in pending.items():
+                    if not future.done():
+                        with logfire.span("local_prompt_screen_in_flight", model=model,
+                                          chunk_index=index, character_count=character_count,
+                                          token_count=token_count):
+                            pass
+
+            def fill_window():
+                while len(pending) < MAX_LOCAL_CHUNKS_IN_FLIGHT:
+                    slot_acquired = False
+                    # With a result outstanding, inspect it before waiting for
+                    # capacity. With none outstanding, check for exhaustion before
+                    # waiting for a slot that the input does not need.
+                    if pending:
+                        if not _local_chunk_slots.acquire(blocking=False):
+                            return
+                        slot_acquired = True
+                    try:
+                        index, (chunk, token_count) = next(chunks)
+                    except StopIteration:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
+                        return
+                    except Exception:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
+                        raise
+                    remaining = deadline - monotonic()
+                    if remaining <= 0:
+                        if slot_acquired:
+                            _local_chunk_slots.release()
+                        raise TimeoutError("Local screening deadline exceeded")
+                    if not slot_acquired and not _local_chunk_slots.acquire(timeout=remaining):
+                        raise TimeoutError("Local screening capacity unavailable")
+                    _record_chunk_attempt()
+                    completed = Future()
+
+                    context = contextvars.copy_context()
+
+                    def classify(chunk=chunk, remaining=remaining, completed=completed,
+                                 index=index, token_count=token_count, context=context):
+                        try:
+                            run = context.run(local_llama.classify_chunk, chunk, model, remaining)
+                            def trace_success():
+                                with logfire.span("local_prompt_screen", model=model, chunk_index=index,
+                                                  character_count=len(chunk), token_count=token_count,
+                                                  blocked=run.blocked, duration_seconds=run.duration):
+                                    pass
+                            context.run(trace_success)
+                            completed.set_result(run)
+                        except Exception as error:  # noqa: BLE001 — worker failure fails closed
+                            error_category = type(error).__name__
+                            def trace_error():
+                                with logfire.span("local_prompt_screen_error", model=model,
+                                                  chunk_index=index, error_category=error_category):
+                                    pass
+                            context.run(trace_error)
+                            completed.set_exception(error)
+                        finally:
+                            _local_chunk_slots.release()
+                            if decision_returned.is_set() and os.getenv("LOGFIRE_TOKEN"):
+                                from worker.tracing import flush_tracing
+                                flush_tracing()
+
+                    try:
+                        threading.Thread(target=classify, name="local-prompt-chunk", daemon=True).start()
+                    except RuntimeError:
+                        _local_chunk_slots.release()
+                        raise
+                    pending[completed] = (index, len(chunk), token_count)
+
+            try:
+                fill_window()
+                while pending:
+                    done, _ = wait(pending, timeout=max(0, deadline - monotonic()),
+                                   return_when=FIRST_COMPLETED)
+                    if not done:
+                        raise TimeoutError("Local screening deadline exceeded")
+                    errors = []
+                    for completed in done:
+                        pending.pop(completed)
+                        try:
+                            run = completed.result()
+                        except Exception as error:  # noqa: BLE001 — a block still takes precedence
+                            errors.append(error)
+                            continue
+                        if run.blocked:
+                            result = ScreenOutcome(False)
+                    if not result.allowed:
+                        if report_decision:
+                            trace_in_flight()
+                            decision_returned.set()
+                            report_decision(result)
+                        break
+                    if errors:
+                        raise errors[0]
+                    if monotonic() >= deadline:
+                        raise TimeoutError("Local screening deadline exceeded")
+                    fill_window()
+            except Exception as error:  # noqa: BLE001 — fail closed before cleanup waits
+                result = ScreenOutcome(False, unchecked=True)
+                if report_decision:
+                    trace_in_flight()
+                    decision_returned.set()
+                    report_decision(result)
+                with logfire.span("local_prompt_screen_error", model=model,
+                                  error_category=type(error).__name__):
+                    pass
+                logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
+        except Exception as error:  # noqa: BLE001 — unavailable local inference fails closed
+            with logfire.span("local_prompt_screen_error", model=model,
+                              error_category=type(error).__name__):
+                pass
+            logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
+            result = ScreenOutcome(False, unchecked=True)
+    if cache_result:
+        _remember_decision(session, key, text, result)
+    return result
 
 
 def _screen_pass(
     text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
-    *, credentials_available: bool | None = None,
+    *, credentials_available: bool | None = None, allow_fallback: bool = True,
+    fallback_model: str | None = None,
 ) -> Generator[tuple[str, float, bool], Any, ScreenOutcome]:
     """Own one shared policy; sync and async drivers only execute yielded provider work."""
     text = mask_outbound(text)
     size = load_settings().user_text_screen_chunk_size
     session = current_session()
-    key = _screen_key(text, model, check_phrases, max_characters)
+    key = _screen_key(text, model, check_phrases, max_characters, fallback_model)
     if session is not None and key in session.decisions:
         # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
     outcome = yield from _screen_chunks(
         text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available,
+        allow_fallback, fallback_model,
     )
-    if session is not None:
-        session.decisions[key] = outcome
-        if outcome.allowed:
-            session.allowed_sources.add(text)
+    _remember_decision(session, key, text, outcome)
     return outcome
 
 
 def _screen_chunks(
     text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available=None,
+    allow_fallback=True, fallback_model=None,
 ):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
-    if not text.strip():
-        return ScreenOutcome(allowed=True)
-    if len(text) > max_characters:
-        return ScreenOutcome(allowed=False, too_long=True)
-    if check_phrases and has_obvious_instruction_override(text):
-        return ScreenOutcome(allowed=False)
+    if result := _preflight(text, check_phrases, max_characters):
+        return result
     available = (os.environ.get("TYPESAFE_API_KEY", "").strip()
                  if credentials_available is None else credentials_available)
-    if not available:
+    if _is_jev_model(model) and not available:
         logger.warning("TYPESAFE_API_KEY is unset; leaving user text out of the prompt")
         return ScreenOutcome(allowed=False, unchecked=True)
-    deadline = monotonic() + timeout_seconds
-    if (session := current_session()) is not None:
-        deadline = min(deadline, session.deadline)
+    deadline = _screen_deadline(timeout_seconds, current_session())
     usage = RunUsage()
     reported_model = None
     completed_usage = []
@@ -205,34 +573,49 @@ def _screen_chunks(
 
     for start in range(0, len(text), size - 300):
         chunk = text[start:start + size]
+        _record_chunk_attempt()
         fallback = False
         try:
             remaining = deadline - monotonic()
             if remaining <= 0:
                 raise TimeoutError("Screening deadline exceeded")
             try:
-                run = yield chunk, min(JEV_REQUEST_TIMEOUT_SECONDS, remaining), False
+                limit = (min(JEV_REQUEST_TIMEOUT_SECONDS, remaining)
+                         if _is_jev_model(model) else remaining)
+                run = yield chunk, limit, False
             except UsageLimitExceeded:
                 raise
-            except Exception:  # noqa: BLE001 — provider failures use the safety fallback
-                # Only an attempted JEV failure triggers recovery. Missing credentials,
-                # exhausted deadlines, external cancellation and limits never get here.
+            except Exception:  # Attempted primary failures use the fallback.
+                fallback_model = (fallback_model if fallback_model is not None else
+                                  load_settings().user_text_screen_fallback_model)
+                if not allow_fallback or fallback_model == model:
+                    raise
+                if _is_jev_model(fallback_model) and not available:
+                    raise
                 fallback = True
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     raise TimeoutError("Screening deadline exceeded") from None
-                run = yield chunk, remaining, True
+                limit = (min(JEV_REQUEST_TIMEOUT_SECONDS, remaining)
+                         if _is_jev_model(fallback_model) else remaining)
+                run = yield chunk, limit, True
         except UsageLimitExceeded:
             raise
         except Exception:
-            logger.exception("Safety screening failed; leaving the text out of the prompt")
+            logger.exception("Prompt screening failed; leaving the text out of the prompt")
             return outcome(False, unchecked=True)
-        usage.incr(run.usage)
-        configured = load_settings().user_text_screen_fallback_model if fallback else model
-        reported_model = reported_model_name(run.model_name, configured)
-        models.add(reported_model)
-        completed_usage.append(build_model_usage(reported_model, run.usage))
-        blocked = run.screen.blocked if fallback else blocks_on_yes_confidence(run.screen, run.confidence)
+        selected = ((fallback_model if fallback_model is not None else
+                     load_settings().user_text_screen_fallback_model) if fallback else model)
+        configured = _screen_model_id(selected)
+        if isinstance(run, ScreenOutcome):
+            blocked = not run.allowed
+        else:
+            usage.incr(run.usage)
+            reported_model = reported_model_name(run.model_name, configured)
+            models.add(reported_model)
+            completed_usage.append(build_model_usage(reported_model, run.usage))
+            blocked = (blocks_on_yes_confidence(run.screen, run.confidence)
+                       if _is_jev_model(configured) else run.screen.blocked)
         if blocked:
             return outcome(False)
         if start + size >= len(text):

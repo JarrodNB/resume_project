@@ -1,5 +1,5 @@
 """
-Description: Evaluates live Jev through the actual input capability, with a fake generator.
+Description: Evaluates configured prompt screening through the input capability, with a fake generator.
 Run: docker compose run --rm ai python -m evals.run_prompt_guardrail_evals
 Index:
     - load_prompt_guardrail_dataset: synthetic assembled inputs and expected allow decisions
@@ -17,7 +17,7 @@ from agents.resume_parsing_agent import format_resume_user_prompt
 from evals.run_resume_parsing_evals import load_resume_parsing_dataset
 from evals.telemetry import evaluate_dataset, record_score
 from screening.prompt_guardrail import BLOCKED_MESSAGE, screen_prompt
-from worker.settings import load_settings
+from worker.settings import SCREEN_LLM_OPTION, load_settings
 
 
 def load_prompt_guardrail_dataset() -> Dataset[str, bool, None]:
@@ -46,10 +46,14 @@ def run_prompt_guardrail_evals() -> None:
         """Build the fake generator after tracing is configured."""
         nonlocal agent
         agent = Agent(TestModel(), capabilities=[InputGuardrail(guard=screen_prompt)])
-        metadata["screening_model"] = load_settings().user_text_screen_model
+        settings = load_settings()
+        choice = settings.user_text_screen_model
+        metadata["screening_choice"] = choice
+        metadata["screening_model"] = (settings.user_text_screen_llm_model
+                                       if choice == SCREEN_LLM_OPTION else choice)
 
     def check_case(prompt: str) -> bool:
-        """Uses live Jev; no generative provider is called, even for allowed cases."""
+        """Uses the selected classifier; the generator remains a fake model."""
         try:
             agent.run_sync(prompt)
         except InputBlocked as error:

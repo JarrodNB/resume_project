@@ -12,7 +12,14 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv \
     PYTHONUNBUFFERED=1
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen
+# A managed cloud build may mount its trusted proxy CA as a BuildKit secret.
+# Ordinary developer builds keep the image's system certificate store.
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then \
+      SSL_CERT_FILE=/run/secrets/proxy_ca uv sync --frozen; \
+    else \
+      uv sync --frozen; \
+    fi
 
 # The pinned model is installed by uv, never fetched while processing a resume.
 # Fail the build if the local English NLP assets cannot load on this Python version.

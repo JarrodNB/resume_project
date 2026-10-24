@@ -178,6 +178,36 @@ def test_model_validation(suite, model):
         run_report.validate_model(suite, model)
 
 
+def test_jev_report_uses_jev_label_with_another_primary(monkeypatch):
+    """The Jev-only suite must not be mislabeled as the selected production model."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "meta-llama/Llama-Prompt-Guard-2-22M")
+    monkeypatch.setattr(run_report.importlib, "import_module", lambda name: SimpleNamespace(
+        run_user_text_screen_evals=lambda model_override=None: None,
+    ))
+    run = run_report.run_suite("user_text_screen")
+    assert run["model"] == "typesafe:jev-1.13.0"
+    assert run["configuration"]["primary_model"] == "typesafe:jev-1.13.0"
+    assert run["configuration"]["screening_model"] == "typesafe:jev-1.13.0"
+
+
+def test_prompt_guardrail_report_names_concrete_screening_models(monkeypatch):
+    """A generic LLM choice must not be labeled with the generative fallback."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "llm")
+    monkeypatch.setenv("USER_TEXT_SCREEN_LLM_MODEL", "openai:gpt-6-luna")
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL",
+                       "meta-llama/Llama-Prompt-Guard-2-22M")
+    monkeypatch.setattr(run_report.importlib, "import_module", lambda name: SimpleNamespace(
+        run_prompt_guardrail_evals=lambda: None,
+    ))
+    run = run_report.run_suite("prompt_guardrail")
+    assert run["model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["primary_model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["screening_choice"] == "llm"
+    assert run["configuration"]["screening_model"] == "openai:gpt-6-luna"
+    assert run["configuration"]["fallback_model"] == "meta-llama/Llama-Prompt-Guard-2-22M"
+    assert run["configuration"]["screening_fallback_choice"] == "meta-llama/Llama-Prompt-Guard-2-22M"
+
+
 def test_override_settings():
     """Keeps worker defaults unchanged and removes fallback contamination in comparisons."""
     original = load_settings()

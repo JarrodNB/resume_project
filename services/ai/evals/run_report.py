@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from evals.report_capture import capture_run
 from evals.report_markdown import render_report, report_errors
-from worker.settings import load_settings
+from worker.settings import SCREEN_LLM_OPTION, load_settings
 
 SUITES = {
     "resume_parsing": "resume_parsing_model",
@@ -29,6 +29,7 @@ SUITES = {
     "user_text_screen": "user_text_screen_model",
     "prompt_guardrail": "user_text_screen_model",
 }
+JEV_SCREEN_MODEL = "typesafe:jev-1.13.0"
 
 
 def validate_model(suite, model):
@@ -36,8 +37,8 @@ def validate_model(suite, model):
     if suite == "prompt_guardrail":
         raise ValueError("prompt_guardrail uses a fixed TestModel and configured Jev; no override")
     if suite == "user_text_screen":
-        valid = model.startswith("typesafe:jev-")
-        expected = "typesafe:jev-* decision model"
+        valid = model == JEV_SCREEN_MODEL
+        expected = f"{JEV_SCREEN_MODEL} decision model"
     elif suite == "library_retrieval":
         valid = model.startswith("openai:text-embedding-")
         expected = "openai:text-embedding-* embedding model"
@@ -51,17 +52,29 @@ def validate_model(suite, model):
 def run_suite(suite, model=None):
     """Runs the unchanged suite pipeline with isolated capture and optional model override."""
     settings = load_settings()
-    configured_model = model or getattr(settings, SUITES[suite])
+    screen_choice = settings.user_text_screen_model
+    screen_model = (settings.user_text_screen_llm_model if screen_choice == SCREEN_LLM_OPTION
+                    else screen_choice)
+    fallback_choice = settings.user_text_screen_fallback_model
+    screen_fallback = (settings.user_text_screen_llm_model
+                       if fallback_choice == SCREEN_LLM_OPTION else fallback_choice)
+    configured_model = model or (JEV_SCREEN_MODEL if suite == "user_text_screen" else
+                                 screen_model if suite == "prompt_guardrail" else
+                                 getattr(settings, SUITES[suite]))
     configuration = {
         "primary_model": configured_model,
         "override": model is not None,
-        "screening_model": settings.user_text_screen_model,
+        "screening_model": (configured_model if suite == "user_text_screen"
+                            else screen_model),
         "thinking": getattr(settings, SUITES[suite].replace("_model", "_thinking"), None),
     }
     if suite == "library_retrieval":
         configuration["embedding_dimensions"] = settings.embedding_dimensions
     elif suite == "prompt_guardrail":
         configuration["generator"] = "TestModel (fixed fake generator)"
+        configuration["screening_choice"] = screen_choice
+        configuration["screening_fallback_choice"] = fallback_choice
+        configuration["fallback_model"] = screen_fallback
     elif suite != "user_text_screen":
         configuration["fallback_model"] = model or settings.generative_fallback_model
     error = None

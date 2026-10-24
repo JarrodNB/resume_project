@@ -23,7 +23,7 @@ score attached, so runs can be compared across prompt and model changes.
   Specialized suites supply setup before the run span, custom score emission inside it,
   and their existing print options. Guardrail emits decision/error scores only.
 
-- `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through
+- `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — configured prompt screening through
   the official InputGuardrail capability, with a fake generative model. Measures allow/block
   decisions on assembled prompts and the parsing dataset's `expects_input_block` cases.
   Outages fail evaluation rather than scoring as successful attack detection.
@@ -87,17 +87,20 @@ score attached, so runs can be compared across prompt and model changes.
   query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
 - `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
-  allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for
-  help breaking into an account; an ordinary resume, a resume with an embedded jailbreak, and
-  a security-engineer resume). `block` is the decision at the 0.7 bar
+  allowed, including metaphors, a talk about prompt injection, and a harmful-only
+  non-injection; jailbreaks; an ordinary resume, a resume with an embedded jailbreak, and
+  a security-engineer resume). `block` is the prompt-injection decision at Jev's 0.7 bar
 - `user_text_screen_evaluators.py` — `DecisionMatch` (the production bar) and `QuestionMatch`
-  (each yes/no bool)
-- `run_user_text_screen_evals.py` — runner (the Jev call itself, not the phrase list):
+  (the prompt-injection yes/no answer)
+- `run_user_text_screen_evals.py` — pinned Jev prompt-injection runner (the Jev call itself, not the phrase list):
   `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
-- `run_user_text_fallback_evals.py` — dedicated Nano boolean classifier quality run on the
+- `run_user_text_fallback_evals.py` — dedicated configured LLM prompt-injection quality run on the
   shared synthetic screening cases. Uses production boolean policy, never JEV margins.
   Outages are errors and wrong decisions fail the runner. Run
   `docker compose run --rm ai python -m evals.run_user_text_fallback_evals`.
+- `check_local_llama_model.py` — gated-artifact smoke check for the local model's label mapping using one benign and one injection input. Run before enabling Llama mode.
+- `benchmark_screen_models.py` — repeated, order-alternating warm latency comparison on identical synthetic benign inputs of 160, 1,600, 5,000, and 12,000 characters, plus paired serial and four-chunk local controls at 5,000 and 12,000. Measures cold local model load separately, uses fresh screening sessions, and prints per-size sample timings, chunk counts, p50, and p90. Run `docker compose run --rm --no-deps ai python -m evals.benchmark_screen_models` with Jev credentials and the gated model cached or accessible. Provider network latency remains part of Jev time.
+- `run_screen_model_comparison.py` — separate Jev versus local Llama comparison on shared synthetic short and long cases. Uses production screening without fallback in fresh sessions, records allow/block/unavailable, attempted chunks (including prefetched local chunks) and timing, and keeps raw inputs out of its report and exported evaluation spans. Run `docker compose run --rm --no-deps ai python -m evals.run_screen_model_comparison --output /app/screen-model-comparison.json` when Jev credentials and the gated local model artifact are available. Harmful-only cases are non-injections for both models.
 - `run_screen_chunk_comparison.py` — 14 synthetic ordinary, long, and security-career
   resumes, including attacks at the beginning/middle/end and across both candidate chunk
   grids. Compares the production 2,000/4,000-character screens with 300-character overlap

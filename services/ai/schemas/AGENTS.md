@@ -20,8 +20,8 @@ the `result` sent to Rails, so changes must be mirrored there.
   LLM output
 - `library_search_match.py` — `LibrarySearchMatch` (source type and id, embedded text, cosine
   distance, fusion score), returned by `database/library_embedding_search.py`; not an LLM output
-- `user_text_screen.py` — `UserTextScreen`: `prompt_injection` and `harmful_request`, each a
-  bool with `BoolCriteria` (one question). Code applies the yes-confidence threshold
+- `user_text_screen.py` — `UserTextScreen`: one `prompt_injection` bool with `BoolCriteria`.
+  Code applies the yes-confidence threshold
 - `tailored_section.py` — `TailoredSectionDraft` (the writer output: `nothing_fits`, chosen
   entries, cited prose). Identity fields are copied by code, not emitted by the model
 - `gap_analysis.py` — `GapAnalysis` (agent output: verdicts citing short labels) and
@@ -29,7 +29,7 @@ the `result` sent to Rails, so changes must be mirrored there.
   copied from the library (kind `fact` is a library fact); mirrored by
   `apps/web/src/features/gap-analysis/parseGapAnalysisResult.ts`
 
-- `user_text_fallback.py` — strict boolean safety answers; `blocked` owns the fallback
+- `user_text_fallback.py` — strict boolean prompt-injection answer; `blocked` owns the fallback
   decision policy without JEV confidence metadata.
 
 ## Local Rules

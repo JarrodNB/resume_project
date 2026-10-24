@@ -1,4 +1,4 @@
-"""Classify input when JEV is unavailable, within the remaining screening deadline.
+"""Classify prompt injection with the configured screening LLM.
 
 This classifier has no input guardrail because it only judges untrusted input. Concrete
 responses are accounted before validation, so retries and failures keep their real costs.

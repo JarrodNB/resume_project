@@ -3,17 +3,20 @@
 Keep DOCX paragraphs and tables in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
+Known PDF and DOCX container read errors become the caller's unreadable-file error.
 """
 
 from io import BytesIO
 from math import ceil
 from typing import Any
 from urllib.parse import urlparse
+from zipfile import BadZipFile
 
 from docx import Document
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
 
@@ -22,7 +25,7 @@ DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessin
 
 
 class UnsupportedDocumentError(Exception):
-    """The file can't be turned into text (wrong type, or a scanned PDF with no text layer)."""
+    """The file has an unsupported type, unreadable container, or no text layer."""
 
 
 class DocumentTooLongError(Exception):
@@ -32,12 +35,15 @@ class DocumentTooLongError(Exception):
 def extract_document_text(file_bytes: bytes, content_type: str) -> str:
     """Returns the file's text. Raises UnsupportedDocumentError if there is none, and
     DocumentTooLongError when the page count or the text is over the import cap."""
-    if content_type == PDF_CONTENT_TYPE:
-        text = _extract_pdf_text(file_bytes)
-    elif content_type == DOCX_CONTENT_TYPE:
-        text = _extract_docx_text(file_bytes)
-    else:
-        raise UnsupportedDocumentError(f"Unsupported file type: {content_type}")
+    try:
+        if content_type == PDF_CONTENT_TYPE:
+            text = _extract_pdf_text(file_bytes)
+        elif content_type == DOCX_CONTENT_TYPE:
+            text = _extract_docx_text(file_bytes)
+        else:
+            raise UnsupportedDocumentError(f"Unsupported file type: {content_type}")
+    except (PdfReadError, BadZipFile):
+        raise UnsupportedDocumentError("The file's document container could not be read") from None
 
     if len(text) > MAX_RESUME_TEXT:
         raise DocumentTooLongError("The file's text is over the import cap")

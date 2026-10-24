@@ -11,12 +11,14 @@ def test_harm_only_is_not_a_llama_failure(monkeypatch):
     calls = {"jev": 0, "llama": 0}
 
     def jev(chunk, model, timeout_seconds):
+        assert screening.screen_user_message is jev
         calls["jev"] += 1
         return SimpleNamespace(screen=SimpleNamespace(prompt_injection=False, harmful_request=True),
                                confidence={"prompt_injection": 1.0, "harmful_request": 1.0},
                                usage=__import__("pydantic_ai.usage", fromlist=["RunUsage"]).RunUsage(), model_name=model)
 
     def llama(chunk, model, timeout):
+        assert local_llama.classify_chunk is llama
         calls["llama"] += 1
         return SimpleNamespace(blocked=False, duration=0.01)
 

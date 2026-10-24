@@ -9,6 +9,7 @@ import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Lock
 from time import monotonic
 
 import logfire
@@ -52,29 +53,19 @@ def evaluate_case(case: ComparisonCase) -> dict:
     settings = load_settings()
     results = {}
     for name, model in (("jev", "typesafe:jev-1.13.0"), ("llama", local_llama.MODEL)):
-        count = 0
-        if name == "jev":
-            original = screening.screen_user_message
+        counter = {"count": 0, "closed": False}
+        count_lock = Lock()
 
-            def observed(chunk, model, timeout_seconds, original=original):
-                nonlocal count
-                count += 1
-                return original(chunk, model, timeout_seconds)
+        def observed(counter=counter, count_lock=count_lock):
+            with count_lock:
+                if not counter["closed"]:
+                    counter["count"] += 1
 
-            screening.screen_user_message = observed
-        else:
-            original = local_llama.classify_chunk
-
-            def observed(chunk, model, timeout_seconds, original=original):
-                nonlocal count
-                count += 1
-                return original(chunk, model, timeout_seconds)
-
-            local_llama.classify_chunk = observed
         started = monotonic()
         error = None
         try:
-            with logfire.suppress_instrumentation(), screening_session(settings.llm_run_timeout_seconds):
+            with (logfire.suppress_instrumentation(), screening_session(settings.llm_run_timeout_seconds),
+                  screening.observe_screen_chunks(observed)):
                 outcome = screening.screen_user_text(case.text, model,
                                                      settings.llm_run_timeout_seconds,
                                                      check_phrases=False)
@@ -88,10 +79,9 @@ def evaluate_case(case: ComparisonCase) -> dict:
             decision = "unavailable"
             error = type(exc).__name__
         finally:
-            if name == "jev":
-                screening.screen_user_message = original
-            else:
-                local_llama.classify_chunk = original
+            with count_lock:
+                counter["closed"] = True
+                count = counter["count"]
         expected_block = case.prompt_injection or (name == "jev" and case.harmful_request)
         results[name] = {
             "decision": decision, "chunk_count": count,

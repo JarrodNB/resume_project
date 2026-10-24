@@ -14,7 +14,8 @@ import os
 import threading
 from collections.abc import Awaitable, Callable, Generator
 from concurrent.futures import Future
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 from time import monotonic
 from typing import Any, NamedTuple
 
@@ -38,6 +39,22 @@ from worker.settings import load_settings
 
 logger = logging.getLogger(__name__)
 _local_inference_lock = threading.Lock()
+_chunk_observer: ContextVar[Callable[[], None] | None] = ContextVar("screen_chunk_observer", default=None)
+
+
+@contextmanager
+def observe_screen_chunks(observer: Callable[[], None]):
+    """Observe attempted chunks in this call context, including local worker threads."""
+    token = _chunk_observer.set(observer)
+    try:
+        yield
+    finally:
+        _chunk_observer.reset(token)
+
+
+def _record_chunk_attempt():
+    if observer := _chunk_observer.get():
+        observer()
 
 
 class ScreenOutcome(NamedTuple):
@@ -280,6 +297,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     raise TimeoutError("Local screening deadline exceeded")
+                _record_chunk_attempt()
                 run = local_llama.classify_chunk(chunk, model, remaining)
                 if monotonic() >= deadline:
                     raise TimeoutError("Local screening deadline exceeded")
@@ -358,6 +376,7 @@ def _screen_chunks(
 
     for start in range(0, len(text), size - 300):
         chunk = text[start:start + size]
+        _record_chunk_attempt()
         fallback = False
         try:
             remaining = deadline - monotonic()

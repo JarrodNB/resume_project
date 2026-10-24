@@ -11,6 +11,7 @@ Index:
       the same caps Rails uses when it saves a scraped job
     - prompt_is_too_long / sorting_input_too_long: the checks
     - RESUME_TOO_LONG_MESSAGE / GAP_PROMPT_TOO_LONG_MESSAGE / TAILOR_PROMPT_TOO_LONG_MESSAGE /
+      TAILOR_LIBRARY_TOO_LONG_MESSAGE /
       SECTION_TOO_LONG_MESSAGE / POSTING_TOO_LONG_TO_SORT_WARNING /
       POSTING_LEFT_OUT_WARNING / NOTE_TOO_LONG_WARNING: what the user is told
 """
@@ -33,6 +34,10 @@ GAP_PROMPT_TOO_LONG_MESSAGE = (
 )
 TAILOR_PROMPT_TOO_LONG_MESSAGE = (
     "Your career library or this job's text is too long to write from. Shorten an entry and try again."
+)
+TAILOR_LIBRARY_TOO_LONG_MESSAGE = (
+    "Your career library is too long to tailor a resume (over 80,000 characters). "
+    "Shorten an entry and try again."
 )
 SECTION_TOO_LONG_MESSAGE = "This section is too long. Shorten it and try again."
 POSTING_TOO_LONG_TO_SORT_WARNING = (

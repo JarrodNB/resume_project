@@ -394,28 +394,23 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
     asyncio.run(run())
 
 
-def test_approved_oversized_and_rejected_library_sources_stay_out(preparation, monkeypatch):
-    from tailoring.prepare_resume_draft import prepare_resume_draft
+def test_approved_oversized_library_still_fails_before_screening(preparation):
+    """A previous field approval never exempts saved text from the aggregate cap."""
+    from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
 
     dependencies, context, _, calls, _, user, job = preparation
     project = context.career_library.projects[0]
     project.name = "x" * 81_000
     project.screened_fields = ["name", "description"]
-    context.career_library.skills[0].name = "attack"
     warnings = []
 
     async def run():
         with screening_session() as session:
-            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
-            assert all("P1" not in prompt.sources.records and "S1" not in prompt.sources.records
-                       for prompt in prepared.prompts.values())
-            assert not any(report.record_type == "project" and report.record_id == project.id
-                           for report in session.library_screening)
-            assert not any(report.record_type == "skill" and report.record_id == context.career_library.skills[0].id
-                           for report in session.library_screening)
-        assert all(project.name not in text for text in calls)
-        assert "One of your notes was left out because it is too long." in warnings
-        assert "One of your notes was left out." in warnings
+            with pytest.raises(ResumePreparationError, match="career library is too long"):
+                await prepare_resume_draft(user, job, dependencies, usage=[], warnings=warnings)
+            assert not session.library_screening
+        assert calls == []
+        assert warnings == []
     asyncio.run(run())
 
 

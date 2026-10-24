@@ -29,7 +29,7 @@ it.each([['pdf', downloadResumePdf], ['docx', downloadResumeDocx]] as const)('cl
     expect(this.href).toBe('blob:resume')
     expect(this.isConnected).toBe(true)
   })
-  await download({ name: '', contactLine: '', links: [], blocks: [] }, 'Saved title')
+  await download('# Ada\n\n## Experience\nBuilt useful software.', 'Saved title')
   expect(filename).toBe(`Saved title.${format}`)
   expect(document.querySelector('a[download]')).toBeNull()
   expect(revoke).not.toHaveBeenCalled()

@@ -1,18 +1,4 @@
-/** Reads completed task sections and omission warnings for the draft editor. */
-import { asSectionType, SECTION_TITLES, type TailorSectionType } from './sectionOrder'
-
-export interface TailorSection {
-  sectionType: TailorSectionType
-  title: string
-  content: unknown
-  omitted: boolean
-}
-
-/** The finished draft's sections (omitted ones are already gone). */
-export function finishedSectionsFromResult(result: unknown): TailorSection[] {
-  const sections = isRecord(result) && Array.isArray(result.sections) ? result.sections : []
-  return sections.map(parseSection).filter((section): section is TailorSection => section !== null && !section.omitted)
-}
+/** Read the completed Markdown document and omission warnings from a tailoring task. */
 
 /** Warnings on a finished draft. */
 export function warningsFromResult(result: unknown): string[] {
@@ -22,19 +8,6 @@ export function warningsFromResult(result: unknown): string[] {
 /** Only a new-format task can provide an editable resume. */
 export function markdownFromResult(result: unknown): string {
   return isRecord(result) && typeof result.markdown === 'string' ? result.markdown : ''
-}
-
-/** One section object, or null when its type is unknown. */
-function parseSection(value: unknown): TailorSection | null {
-  if (!isRecord(value)) return null
-  const sectionType = asSectionType(value.section_type)
-  if (!sectionType) return null
-  return {
-    sectionType,
-    title: typeof value.title === 'string' ? value.title : SECTION_TITLES[sectionType],
-    content: value.content ?? {},
-    omitted: value.omitted === true,
-  }
 }
 
 /** String entries of a list. */

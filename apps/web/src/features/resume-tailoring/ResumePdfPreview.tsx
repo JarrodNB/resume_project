@@ -7,19 +7,18 @@
 import { useEffect, useState } from 'react'
 import { usePDF } from '@react-pdf/renderer'
 import { ResumePdfDocument } from './ResumePdfDocument'
-import type { ResumePdfModel } from './resumePdfModel'
 
 const PREVIEW_DELAY_MS = 400
 // Hide the viewer's page list and toolbar so the page fills the frame.
 const PREVIEW_SRC_OPTIONS = '#toolbar=0&navpanes=0&zoom=100'
 
 /** Shows the resume PDF. Typing waits briefly so the document is not rebuilt on every key. */
-export function ResumePdfPreview({ model }: { model: ResumePdfModel | string }) {
-  const debounced = useDebounced(JSON.stringify(model), PREVIEW_DELAY_MS)
+export function ResumePdfPreview({ model }: { model: string }) {
+  const debounced = useDebounced(model, PREVIEW_DELAY_MS)
   const [instance, update] = usePDF()
 
   useEffect(() => {
-    update(<ResumePdfDocument model={JSON.parse(debounced) as ResumePdfModel | string} />)
+    update(<ResumePdfDocument model={debounced} />)
   }, [debounced, update])
 
   return instance.url ? (

@@ -64,8 +64,9 @@ Per task type:
   supported resumes. Non-experience records cite `supporting_ids` for additional
   passages represented in their fields; a bullet anchor also counts as evidence. Global
   source IDs reconstruct verbatim bullets. Every bullet left uncited is conservatively
-  retained in `unassigned_highlights`, as is explicitly ambiguous ownership, with source
-  context for user placement or explicit discard before saving. Rails rejects unresolved placement data. One deadline and combined extraction
+  retained in `unassigned_highlights`, as is explicitly ambiguous ownership. Source context
+  stays in the result metadata; review shows each bullet with placement/discard controls.
+  Rails rejects unresolved placement data. One deadline and combined extraction
   request/token budgets apply; any failure cancels and awaits siblings without a partial result.
   `RESUME_IMPORT_STRATEGY=legacy` selects the retained three-group full-source parser for
   explicit rollback after restarting workers. Only `structural` (default) and `legacy` are

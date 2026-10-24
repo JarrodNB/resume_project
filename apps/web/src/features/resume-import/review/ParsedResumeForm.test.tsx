@@ -73,7 +73,7 @@ it('requires assignment or explicit discard and supports undo', async () => {
   expect(save).toBeDisabled()
   container.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
   expect(onImport).not.toHaveBeenCalled()
-  expect(screen.getByText('Acme roles')).toBeInTheDocument()
+  expect(screen.queryByText('Acme roles')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Discard bullet 1' }))
   expect(save).toBeEnabled()
   await user.click(screen.getByRole('button', { name: 'Undo discard bullet 1' }))

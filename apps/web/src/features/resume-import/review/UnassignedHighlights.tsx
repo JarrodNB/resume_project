@@ -21,14 +21,12 @@ export function UnassignedHighlights({ highlights, experiences, discarded, onDis
   const [destinations, setDestinations] = useState<Record<string, string>>({})
   if (!highlights.length) return null
   return (
-    <ReviewSection tone="experience" title="Needs placement" description="Assign each bullet to an experience or discard it before saving. You can add an experience below.">
+    <ReviewSection tone="experience" title="Needs placement">
       {highlights.map((item, index) => {
         const destination = destinations[item.source_id] ?? ''
         return (
           <div key={item.source_id} className="grid gap-3 border-b py-4">
-            <p className="text-sm text-muted-foreground">{item.reason === 'missing_role' ? 'No owning role was identified.' : 'The owning role is unclear.'}</p>
             <p className="whitespace-pre-wrap break-words">{item.text}</p>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{item.source_context}</p>
             {discarded.includes(item.source_id) ? (
               <Button type="button" variant="outline" onClick={() => onUndo(item.source_id)}>Undo discard bullet {index + 1}</Button>
             ) : (

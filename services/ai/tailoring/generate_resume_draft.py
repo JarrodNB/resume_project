@@ -97,10 +97,12 @@ async def generate_resume_draft(
                         raise ResumeDraftInputError(
                             "The resume context could not pass the input safety check."
                         )
-            source = bind_screened_prompt(
-                values,
-                lambda texts: "\n\n".join(
-                    [
+
+            def build_prompt(payloads: list[str], instruction: str = "") -> str:
+                """Bind original source approvals plus independently screened generated payloads."""
+
+                def render(texts):
+                    parts = [
                         f"Requested pages: {data.target_pages}",
                         "Complete career library:",
                         texts[0],
@@ -111,11 +113,27 @@ async def generate_resume_draft(
                         "Job comparison and user notes:",
                         texts[3],
                     ]
-                ),
-            )
-            feedback = ""
+                    if len(texts) > 4:
+                        parts.extend([instruction, *texts[4:]])
+                    return "\n\n".join(parts)
+
+                return bind_screened_prompt([*values, *payloads], render)
+
+            async def screen_generated(payload: str) -> None:
+                """Generated text is untrusted when another model consumes it."""
+                with collect_guardrail_usage(usage):
+                    decision = await classify(payload)
+                if not decision.allowed:
+                    raise ResumeDraftInputError(
+                        "The generated resume or editorial feedback could not pass the input safety check. Please try again."
+                    )
+
+            feedback_payloads: list[str] = []
             for attempt in range(1, 4):
-                prompt = source + feedback
+                prompt = build_prompt(
+                    feedback_payloads,
+                    "Revise the entire draft using the previous draft, measured layout and independent editorial review:",
+                )
                 if len(prompt) > MAX_PROMPT_TEXT:
                     raise ResumeDraftInputError(
                         "This resume context is too long. Shorten your career library or job."
@@ -134,18 +152,14 @@ async def generate_resume_draft(
                     "page_count": measured.page_count,
                     "final_page_occupied_share": measured.final_page_occupied_share,
                 }
-                review_prompt = (
-                    source
-                    + "\n\nDraft and measured layout:\n"
-                    + json.dumps(
-                        {
-                            "markdown": draft.markdown,
-                            "measurements": measurements,
-                            "writer_sufficiency": draft.sufficiency_explanation,
-                            "writer_sufficient_for_target": draft.sufficient_for_target,
-                        }
-                    )
+                draft_payload = json.dumps(
+                    {
+                        "previous_draft": draft.model_dump(),
+                        "measurements": measurements,
+                    }
                 )
+                await screen_generated(draft_payload)
+                review_prompt = build_prompt([draft_payload], "Draft and measured layout:")
                 if len(review_prompt) > MAX_PROMPT_TEXT:
                     raise ResumeDraftInputError(
                         "The resume and context are too long for editorial review."
@@ -162,16 +176,10 @@ async def generate_resume_draft(
                 )
                 if within_pages and review.ready and (not shorter or supported_shorter):
                     break
-                feedback = (
-                    "\n\nRevise the entire draft from this previous draft, actual measurement and independent review:\n"
-                    + json.dumps(
-                        {
-                            "previous_draft": draft.model_dump(),
-                            "measurements": measurements,
-                            "editorial_review": review.model_dump(),
-                        }
-                    )
-                )
+                if attempt < 3:
+                    review_payload = json.dumps({"editorial_review": review.model_dump()})
+                    await screen_generated(review_payload)
+                    feedback_payloads = [draft_payload, review_payload]
             if not within_pages:
                 raise ResumeDraftInputError(
                     "The resume could not fit the selected page target after three drafts. Please try again."

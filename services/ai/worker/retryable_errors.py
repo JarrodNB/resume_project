@@ -7,7 +7,7 @@ Usage limits and other permanent failures are reported without retrying.
 
 import httpx
 import psycopg
-from botocore.exceptions import ClientError, HTTPClientError
+from botocore.exceptions import ClientError, HTTPClientError, IncompleteReadError
 from botocore.exceptions import ConnectionError as BotoConnectionError
 from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError
 
@@ -37,6 +37,7 @@ def is_retryable_error(error: BaseException) -> bool:
             TimeoutError,
             BotoConnectionError,
             HTTPClientError,
+            IncompleteReadError,
             httpx.TransportError,
             psycopg.OperationalError,
         ),

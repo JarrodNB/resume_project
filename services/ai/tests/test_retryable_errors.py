@@ -5,9 +5,18 @@ Index:
     - test_*: one behavior per test
 """
 
+from contextlib import closing
+from io import BytesIO
+
 import httpx
 import pytest
-from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError
+from botocore.exceptions import (
+    ClientError,
+    EndpointConnectionError,
+    IncompleteReadError,
+    ReadTimeoutError,
+)
+from botocore.response import StreamingBody
 from pydantic_ai.exceptions import (
     ModelAPIError,
     ModelHTTPError,
@@ -50,6 +59,16 @@ def test_aws_network_errors_are_retryable() -> None:
     """S3/SQS unreachable or timing out can succeed later."""
     assert is_retryable_error(EndpointConnectionError(endpoint_url="http://s3:9090"))
     assert is_retryable_error(ReadTimeoutError(endpoint_url="http://s3:9090"))
+
+
+def test_truncated_s3_download_is_retryable() -> None:
+    """A response ending before Content-Length can succeed on redelivery."""
+    with (
+        closing(StreamingBody(BytesIO(b"partial"), content_length=20)) as body,
+        pytest.raises(IncompleteReadError) as caught,
+    ):
+        body.read()
+    assert is_retryable_error(caught.value)
 
 
 def test_aws_throttling_and_server_errors_are_retryable() -> None:

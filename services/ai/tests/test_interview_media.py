@@ -97,6 +97,40 @@ def test_download_rejects_oversized_body_and_redirect_without_following():
             )
 
 
+def test_download_deadline_interrupts_trickling_body(monkeypatch):
+    """Small chunks must not defer the total deadline until a large buffer fills."""
+    now = 0
+    received = 0
+    closed = False
+
+    class TricklingBody(httpx.SyncByteStream):
+        def __iter__(self):
+            nonlocal now, received
+            for _ in range(100):
+                now += 1
+                received += 1
+                yield b"x"
+
+        def close(self):
+            nonlocal closed
+            closed = True
+
+    monkeypatch.setattr("interviews.media.time.monotonic", lambda: now)
+    with (
+        httpx.Client(transport=httpx.MockTransport(
+            lambda _: httpx.Response(200, stream=TricklingBody())
+        )) as client,
+        pytest.raises(MediaError, match="timed out") as failure,
+    ):
+        download_audio(
+            "https://media.test/audio", client=client, allowed_origins={"https://media.test"}
+        )
+
+    assert received <= 16
+    assert closed
+    assert failure.value.code == "storage_unavailable"
+
+
 @pytest.mark.parametrize(
     "container,codec",
     [("webm", "libopus"), ("ogg", "libopus"), ("mp3", "libmp3lame"), ("mp4", "aac")],

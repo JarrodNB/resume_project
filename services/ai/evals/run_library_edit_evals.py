@@ -27,6 +27,7 @@ from worker.task_dependencies import TaskDependencies
 
 class EditCase(BaseModel):
     library: CareerLibrary
+    section: str = "experience"
     feedback: str
     answer: str | None = None
     expects_question: bool = False
@@ -38,7 +39,7 @@ class EditStructure(Evaluator):
 
     def evaluate(self, ctx):
         output = ctx.output
-        return {"edit_contract": float(bool(output.get("text")) and len(output["text"]) <= 1000 and
+        return {"edit_contract": float(bool(output.get("text")) and len(output["text"]) <= (1000 if ctx.inputs.section == "experience" else 4000) and
             output.get("color") in {"red", "yellow", "green"} and
             bool(output.get("question")) == ctx.inputs.expects_question)}
 
@@ -78,13 +79,22 @@ def run_library_edit_evals(model_override: str | None = None):
     dependencies = TaskDependencies(settings, None, None, lambda *_: None)
 
     def improve(case: EditCase):
-        role = case.library.experiences[0]
-        target = role.highlights[0]
+        if case.section == "summary":
+            kind, field, record_id, text = "user", "summary", "user-1", case.library.summary
+        elif case.section == "projects":
+            record = case.library.projects[0]
+            kind, field, record_id, text = "project", "description", record.id, record.description
+        elif case.section == "facts":
+            record = case.library.facts[0]
+            kind, field, record_id, text = "library_fact", "response", record.id, record.response
+        else:
+            record = case.library.experiences[0].highlights[0]
+            kind, field, record_id, text = "experience_highlight", "content", record.id, record.content
         task_id = uuid4()
-        payload = {"section": "experience", "library": case.library.model_dump(mode="json"),
-            "target": {"kind": "experience_highlight", "record_id": target.id, "field": "content", "label": "T1",
-                       "source_digest": hashlib.sha256(target.content.encode()).hexdigest()},
-            "original_text": target.content, "feedback": case.feedback, "history": [], "turn": 1}
+        payload = {"section": case.section, "library": case.library.model_dump(mode="json"),
+            "target": {"kind": kind, "record_id": record_id, "field": field, "label": "T1",
+                       "source_digest": hashlib.sha256(text.encode()).hexdigest()},
+            "original_text": text, "feedback": case.feedback, "history": [], "turn": 1}
         first = handle_library_edit_task(AiTaskMessage(ai_task_id=task_id, user_id=uuid4(), task_type="improve_library_entry", input=payload), dependencies)
         question = None
         result = first

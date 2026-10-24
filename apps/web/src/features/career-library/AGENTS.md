@@ -78,8 +78,10 @@ their category.
 
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
   live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral stale/unreviewed state.
-- Experience review assesses descriptions and highlights individually. Other sections are not
-  sent as context. Highlight moves refresh assessments after saving, because the optimistic
+- Summary, Experience, Projects, and Facts each have independent explicit review actions.
+  Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact
+  responses; other sections and profile contact fields are not sent as context. Highlight moves
+  refresh assessments after saving, because the optimistic
   library change may be visible before persistence.
 - `LibraryEditControl` opens an inline individual edit; `useLibraryEdit` owns loading, queued
   turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.

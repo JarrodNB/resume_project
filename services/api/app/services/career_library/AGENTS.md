@@ -47,7 +47,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Section review
 
-- `ReviewSnapshot` captures only the requested Experience section and per-role context digests.
+- `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Facts section
+  with per-record context digests. Only narrative fields become targets.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
 - `ApplyReviewService` validates exact target coverage and records screening approvals only
@@ -59,6 +60,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
+  Summary accepts change only `User.summary`; projects change only `description`; facts change
+  only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed
   assessment for the new digest. Exact generated text receives reusable field coverage without
   a classifier call; existing manual editors revoke coverage when user text changes.

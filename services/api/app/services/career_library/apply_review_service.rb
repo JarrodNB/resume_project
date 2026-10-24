@@ -7,14 +7,20 @@ module CareerLibrary
     def self.record_screening(ai_task:, reports:)
       roles = Array(ai_task.input.dig("library", "experiences"))
       sources = roles.map { |role| [ "experience", role ] } + roles.flat_map { |role| Array(role["highlights"]).map { |item| [ "experience_highlight", item ] } }
+      library = ai_task.input.fetch("library", {})
+      sources += Array(library["projects"]).map { |record| [ "project", record ] }
+      sources += Array(library["facts"]).map { |record| [ "library_fact", record ] }
+      if library["summary_record_id"]
+        sources << [ "user", { "id" => library["summary_record_id"], "summary" => library["summary"] } ]
+      end
       Array(reports).each do |report|
         next unless report.is_a?(Hash)
         source = sources.find { |kind, item| kind == report["record_type"] && item["id"] == report["record_id"] }&.last
         next unless source
-        record = if report["record_type"] == "experience"
-          ai_task.user.experiences.find_by(id: source["id"])
-        else
-          ExperienceHighlight.joins(:experience).where(experiences: { user_id: ai_task.user_id }).find_by(id: source["id"])
+        record = begin
+          EditSnapshot.owned_record(user: ai_task.user, kind: report["record_type"], record_id: source["id"])
+        rescue ActiveRecord::RecordNotFound
+          nil
         end
         next unless record
         record.with_lock do

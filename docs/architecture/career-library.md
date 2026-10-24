@@ -228,14 +228,20 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
 
 ## AI section review
 
-Experience has an explicit section review action. It returns individual red/yellow/green
-assessments with short reasons for descriptions and highlights, without changing career facts.
+Summary, Experience, Projects, and Facts each have an explicit section review action.
+They return individual red/yellow/green assessments with short reasons for the summary, role
+descriptions/highlights, project descriptions, or saved fact responses without changing career facts.
+Contact details, credentials, skill names, and fact requirement labels stay outside AI edits.
 Snapshots and results live on the existing `review_library_section` AI task; there is no
 separate assessment table. Only the selected section reaches screening and generation.
 The snapshot includes existing field checks, and unchecked used fields are screened before
 plain labeled text reaches the model. Generated assessments are not screened.
 
-Per-role source/context digests mark old grades as needing review when text changes, highlights
+Per-record source/context digests mark old grades as needing review when text changes, highlights
 move, or entries merge. Deleted targets disappear from current assessments. Result application
 validates exact target coverage, and late screening reports can only approve fields whose saved
 values still match the snapshot under a record lock. Live progress uses existing task subscriptions.
+
+Individual edits use only the selected record context. Accepting a project or fact revision
+queues the existing embedding sync; the profile summary is read live and needs no embedding job.
+Exact accepted generated text reuses field coverage until a manual edit changes that text.

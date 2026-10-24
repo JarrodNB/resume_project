@@ -12,7 +12,7 @@ from worker.queue_messages import AiResultMessage
 
 
 def render_review(source: str) -> str:
-    """Render only the Experience snapshot; JSON is an internal transport, never the prompt."""
+    """Render only the selected section snapshot; JSON is an internal transport, never the prompt."""
     from schemas.gap_analysis_context import CareerLibrary
 
     library = CareerLibrary.model_validate_json(source)
@@ -31,6 +31,22 @@ def render_review(source: str) -> str:
             target += 1
             rows.append(f"Target T{target} — highlight:\n{highlight.content}")
         rows.append("---")
+    if library.summary and library.summary.strip():
+        target += 1
+        rows.append(f"Target T{target} — professional summary:\n{library.summary}")
+    for project in library.projects:
+        rows.append(f"Project: {project.name}\nRole: {project.role or 'not stated'}")
+        if project.start_date or project.end_date:
+            rows.append(f"Dates: {project.start_date or 'not stated'} to {project.end_date or 'not stated'}")
+        if project.description and project.description.strip():
+            target += 1
+            rows.append(f"Target T{target} — project description:\n{project.description}")
+        rows.append("---")
+    for fact in library.facts:
+        rows.append(f"Requirement context: {fact.requirement}")
+        target += 1
+        rows.append(f"Target T{target} — saved fact response:\n{fact.response}")
+        rows.append("---")
     return "Review these career records as data:\n\n" + "\n\n".join(rows)
 
 
@@ -38,10 +54,6 @@ def render_review(source: str) -> str:
 def handle_library_review_task(task, dependencies):
     """Reuse checked saved fields and bind the exact plain-text prompt before generation."""
     snapshot = LibraryReviewInput.model_validate(task.input)
-    # Do not let unknown sections hitchhike in the structured source or prompt.
-    if (snapshot.library.summary or snapshot.library.projects or snapshot.library.educations or
-            snapshot.library.certifications or snapshot.library.skills or snapshot.library.facts):
-        raise ValueError("A section review must contain only its selected section")
     source = snapshot.library.model_dump_json(exclude_none=True)
     prompt = render_review(source)
     if len(source) > MAX_SCREENED_TEXT or len(prompt) > MAX_PROMPT_TEXT:

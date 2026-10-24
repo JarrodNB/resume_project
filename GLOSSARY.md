@@ -6,7 +6,8 @@ Index: language and shared domain terms.
 ## Language
 
 **Library proposal**:
-A suggested replacement for one career-library detail. It changes the saved detail only
+A suggested replacement for one career-library narrative detail, such as a summary, achievement,
+project description, or saved fact response. It changes the saved detail only
 when the user accepts it; feedback and follow-up answers can refine it first.
 
 **Interview Q&A vector**:

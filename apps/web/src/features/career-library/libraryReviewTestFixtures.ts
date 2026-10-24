@@ -6,3 +6,9 @@ export const emptyExperienceReviewMock = {
   result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [] } } },
   maxUsageCount: Number.POSITIVE_INFINITY,
 }
+
+/** Every supported section has independent review state. */
+export const emptyLibraryReviewMocks = ['experience', 'summary', 'projects', 'facts'].map((section) => ({
+  ...emptyExperienceReviewMock,
+  request: { query: LIBRARY_REVIEW_QUERY, variables: { section } },
+}))

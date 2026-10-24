@@ -34,5 +34,30 @@ cases:
       feedback: Ask me one question about my own contribution before rewriting this.
       answer: I created a shared stock count sheet so staff could see which items needed reordering. I do not have measurements or further details; use that to revise now.
       expects_question: true
+  - name: summary-keeps-supported-background
+    inputs:
+      section: summary
+      library:
+        summary: Store assistant who maintains inventory records and helps colleagues use a shared count sheet.
+      feedback: Make the wording clearer while keeping the supplied background. Do not add seniority or metrics; no further facts are available. Propose a revision now.
+  - name: project-preserves-contributor-role
+    inputs:
+      section: projects
+      library:
+        projects:
+          - id: project-1
+            name: Billing migration
+            role: Contributor
+            description: Migrated the billing endpoints and updated integration tests with the platform team.
+      feedback: Keep my role as a contributor, retain the technical detail, and improve the wording. No outcome measurements or further facts are available; propose a revision now.
+  - name: fact-response-stays-on-requirement
+    inputs:
+      section: facts
+      library:
+        facts:
+          - id: fact-1
+            requirement: Inventory management experience
+            response: I maintained the store stock count sheet so colleagues could see which items needed reordering.
+      feedback: Make my answer easier to read without changing the requirement or claiming I led the team. No further facts are available; propose a revision now.
 evaluators:
   - EditStructure

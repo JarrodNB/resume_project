@@ -7,7 +7,7 @@ module CareerLibrary
     end
 
     def call
-      return success({ ai_task: nil, assessments: [] }) unless @section == "experience"
+      return success({ ai_task: nil, assessments: [] }) unless ReviewSnapshot::SECTIONS.include?(@section)
 
       tasks = @user.ai_tasks.review_library_section.where("input ->> 'section' = ?", @section).order(created_at: :desc, id: :desc)
       completed = tasks.completed.first
@@ -18,9 +18,10 @@ module CareerLibrary
 
         item.merge("stale" => item["source_digest"] != target["source_digest"])
       end
-      accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil).order(accepted_at: :asc, id: :asc)
+      accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil)
+        .where("input ->> 'section' = ?", @section).order(accepted_at: :asc, id: :asc)
       accepted = accepted.where("accepted_at > ?", completed.created_at) if completed
-      accepted.each do |task|
+      accepted.select(:result).each do |task|
         item = task.result&.dig("assessment")
         next unless item.is_a?(Hash)
         key = ReviewSnapshot.target_key(item)

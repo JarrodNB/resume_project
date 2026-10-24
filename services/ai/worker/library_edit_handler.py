@@ -57,8 +57,6 @@ def handle_library_edit_task(task, dependencies):
     snapshot = LibraryEditInput.model_validate(task.input)
     if len(json.dumps(task.input, ensure_ascii=False).encode()) > 180_000:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=TOO_LONG_MESSAGE)
-    if snapshot.library.summary or snapshot.library.projects or snapshot.library.educations or snapshot.library.certifications or snapshot.library.skills or snapshot.library.facts or len(snapshot.library.experiences) != 1:
-        raise ValueError("An experience edit must contain only its role context")
     usage = []
 
     def check(text):

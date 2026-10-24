@@ -1,4 +1,4 @@
-"""Run three synthetic section reviews through production screening and grading.
+"""Run bounded synthetic section reviews through production screening and grading.
 
 Colors are compared with hand labels. This small calibration check is not evidence
 of broad career-writing quality. Run with python -m evals.run_library_review_evals.
@@ -53,11 +53,22 @@ def run_library_review_evals(model_override: str | None = None):
                 targets.append({"kind": "experience", "record_id": role.id, "field": "description", "source_digest": digest})
             for item in role.highlights:
                 targets.append({"kind": "experience_highlight", "record_id": item.id, "field": "content", "source_digest": digest})
+        section = "experience"
+        if library.summary:
+            section = "summary"
+            targets.append({"kind": "user", "record_id": library.summary_record_id or "user-1", "field": "summary",
+                            "source_digest": hashlib.sha256(library.summary.encode()).hexdigest()})
+        for name, kind, field in [("projects", "project", "description"), ("facts", "library_fact", "response")]:
+            for record in getattr(library, name):
+                if getattr(record, field):
+                    section = name
+                    targets.append({"kind": kind, "record_id": record.id, "field": field,
+                                    "source_digest": hashlib.sha256(record.model_dump_json().encode()).hexdigest()})
         for index, target in enumerate(targets):
             target["label"] = f"T{index + 1}"
         result = handle_library_review_task(AiTaskMessage(
             ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section",
-            input={"section": "experience", "library": library.model_dump(mode="json"), "targets": targets},
+            input={"section": section, "library": library.model_dump(mode="json"), "targets": targets},
         ), dependencies)
         if result.status != "completed":
             raise RuntimeError(result.error_message or "Section review failed")

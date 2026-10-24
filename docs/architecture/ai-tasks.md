@@ -20,7 +20,7 @@ Task execution and the contracts between Rails and Python workers.
 6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
    message history and newest answer. The worker resumes with `DeferredToolResults`.
 
-Individual library editing uses `improve_library_entry`. Input captures one owned target,
+Individual library editing uses `improve_library_entry`. Input captures one owned summary, role description/highlight, project description, or fact-response target,
 its role context and digest, feedback, root/previous task IDs, turn, and private saved history.
 The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.
 Results are either one pending question plus history, or `{text, color, reason}` plus history.
@@ -230,8 +230,8 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 ### Career library review
 
-`review_library_section` takes `{section, library, targets}`: a Rails-owned Experience-only
-snapshot with saved field-check metadata and short-label target identities/context digests.
+`review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
+section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
 It returns `{assessments: [{kind, record_id, field, source_digest, color, reason}]}`. The model
 emits only target labels, colors, and reasons; code copies the identities from the snapshot.
 `reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`

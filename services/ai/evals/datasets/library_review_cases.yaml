@@ -32,5 +32,27 @@ cases:
               content: Maintained stock records and helped improve ordering.
     metadata:
       - [yellow, red]
+  - name: vague-professional-summary
+    inputs:
+      summary: Hard worker and team player.
+    metadata:
+      - [red, yellow]
+  - name: specific-project-description
+    inputs:
+      projects:
+        - id: project-1
+          name: Stock count sheet
+          role: Store assistant
+          description: Created a shared stock count sheet so staff could identify items needing reordering without reconciling separate paper lists.
+    metadata:
+      - [green]
+  - name: vague-fact-response
+    inputs:
+      facts:
+        - id: fact-1
+          requirement: Inventory management experience
+          response: I did it.
+    metadata:
+      - [red]
 evaluators:
   - ReviewCalibration

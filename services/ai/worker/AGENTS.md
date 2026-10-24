@@ -131,8 +131,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
-- `library_review_handler.py` — screens only unchecked fields of a Rails-owned Experience
-  snapshot, renders plain labeled records, maps assessment labels back to target identities,
+- `library_review_handler.py` — screens only unchecked fields of a Rails-owned selected-section
+  snapshot (Summary, Experience, Projects, or Facts), renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals

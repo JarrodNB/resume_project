@@ -20,14 +20,10 @@ module CareerLibrary
         end
         next failure([ "Wait for a completed proposal before accepting." ]) unless task.completed? && ApplyEditService.valid_proposal?(task.result, target)
 
-        record = if target["kind"] == "experience"
-          @user.experiences.find(target["record_id"])
-        else
-          ExperienceHighlight.joins(:experience).where(experiences: { user_id: @user.id }).find(target["record_id"])
-        end
-        role = target["kind"] == "experience" ? record : record.experience
-        role.lock!
-        record.lock! unless record == role
+        record = EditSnapshot.owned_record(user: @user, kind: target["kind"], record_id: target["record_id"])
+        context_record = target["kind"] == "experience_highlight" ? record.experience : record
+        context_record.lock!
+        record.lock! unless record == context_record
         task.lock!
         next failure([ "This entry changed. Start a new edit from its current text." ]) if EditSnapshot.stale?(user: @user, task: task)
 
@@ -40,7 +36,7 @@ module CareerLibrary
         current = EditSnapshot.capture(user: @user, kind: target["kind"], record_id: target["record_id"])
         assessment = current.fetch("target").except("label").merge(task.result.slice("color", "reason"))
         task.update!(accepted_at: Time.current, result: task.result.merge("assessment" => assessment))
-        SyncLibraryEmbeddingsJob.perform_later(@user.id)
+        SyncLibraryEmbeddingsJob.perform_later(@user.id) unless target["kind"] == "user"
         success(task)
       end
     rescue ActiveRecord::RecordNotFound

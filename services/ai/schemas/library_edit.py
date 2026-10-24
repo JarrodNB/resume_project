@@ -2,16 +2,16 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from schemas.gap_analysis_context import CareerLibrary
-from schemas.library_review import LibraryReviewTarget
+from schemas.library_review import LibraryReviewTarget, validate_section_library
 
 
 class LibraryEditInput(BaseModel):
     """Rails supplies owned snapshots/history; the browser supplies only the newest feedback."""
 
-    section: Literal["experience"]
+    section: Literal["experience", "summary", "projects", "facts"]
     library: CareerLibrary
     target: LibraryReviewTarget
     original_text: str = Field(max_length=4000)
@@ -21,6 +21,16 @@ class LibraryEditInput(BaseModel):
     question_id: str | None = None
     skip: bool = False
     turn: int = Field(ge=1, le=8)
+
+
+    @model_validator(mode="after")
+    def only_selected_record(self):
+        validate_section_library(self.section, self.library)
+        if self.section != "summary":
+            field = {"experience": "experiences", "projects": "projects", "facts": "facts"}[self.section]
+            if len(getattr(self.library, field)) != 1:
+                raise ValueError("An individual edit needs only its selected record context")
+        return self
 
 
 class LibraryEditDraft(BaseModel):

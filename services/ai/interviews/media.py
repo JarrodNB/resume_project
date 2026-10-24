@@ -2,6 +2,7 @@
 
 Storage access is limited to URLs supplied by Rails and exact configured origins.
 No bucket credentials are used. Local decoding has byte, duration, and time bounds.
+Download deadlines are checked on each received chunk without an extra fill buffer.
 """
 
 import base64
@@ -204,7 +205,7 @@ def download_audio(
             if response.headers.get("content-encoding", "identity") != "identity":
                 raise MediaError("Compressed storage responses are unsupported")
             data = bytearray()
-            for chunk in response.iter_bytes(chunk_size=64 * 1024):
+            for chunk in response.iter_bytes():
                 if time.monotonic() > deadline:
                     raise MediaError("Media download timed out", code="storage_unavailable")
                 if len(data) + len(chunk) > limits.max_bytes:

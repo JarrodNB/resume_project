@@ -115,6 +115,40 @@ RSpec.describe "Career library AI editing" do
     expect(role.reload.highlights.first.screened_fields).not_to include("content")
   end
 
+  it "retains generated coverage when the user changes a neighboring bullet" do
+    task = AiTask.find(start_edit.dig("aiTask", "id"))
+    complete_edit(task)
+    accept_edit(task)
+    generated = highlight.reload.content
+
+    result = Experiences::UpdateExperienceService.call(experience: role, attributes: {},
+      highlights: [ generated, "#{generated} Added by the user." ])
+
+    expect(result).to be_success
+    expect(role.reload.highlights.find_by!(content: generated).screened_fields).to include("content")
+    expect(role.highlights.find_by!(content: "#{generated} Added by the user.").screened_fields).not_to include("content")
+  end
+
+  it "retains generated field and highlight coverage when merging into another role" do
+    highlight_task = AiTask.find(start_edit.dig("aiTask", "id"))
+    complete_edit(highlight_task)
+    accept_edit(highlight_task)
+    payload = execute_graphql(<<~GQL, user: user).dig("data", "startLibraryEdit")
+      mutation { startLibraryEdit(input: {kind: "experience", recordId: "#{role.id}"}) { aiTask { id } errors } }
+    GQL
+    description_task = AiTask.find(payload.dig("aiTask", "id"))
+    complete_edit(description_task)
+    accept_edit(description_task)
+    target = create(:experience, user: user, description: nil)
+
+    result = CareerLibrary::MergeLibraryRecordsService.call(target: target, source: role)
+
+    expect(result).to be_success
+    expect(target.reload.description).to eq(description_task.reload.result["text"])
+    expect(target.screened_fields).to include("description")
+    expect(target.highlights.find_by!(content: highlight_task.reload.result["text"]).screened_fields).to include("content")
+  end
+
   it "keeps the accepted assessment when an older section snapshot finishes afterward" do
     snapshot = CareerLibrary::ReviewSnapshot.build(user: user, section: "experience")
     review = create(:ai_task, user: user, task_type: "review_library_section", input: snapshot)

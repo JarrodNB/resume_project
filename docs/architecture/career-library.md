@@ -159,7 +159,9 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   an approval earned after an editor loaded cannot remain attached to edited text.
   Profile imports and clearing lock the owner first; merges then lock persisted rows
   in ID order. The edited text and its field-check invalidation save atomically.
-  New/imported rows start unchecked. Rails applies successful check reports
+  New or changed user text and imported rows start unchecked. Exact saved text retains
+  its existing field coverage when a merge copies it or the highlight editor recreates
+  an unchanged bullet; edited values never inherit that coverage. Rails applies successful check reports
   from completed or failed AI results to owner-scoped records; Python remains read-only.
   Other input and prompt coverage remain execution-local. Checks have no expiry or policy
   version, and results carry no edit revision check.
@@ -245,3 +247,5 @@ values still match the snapshot under a record lock. Live progress uses existing
 Individual edits use only the selected record context. Accepting a project or fact revision
 queues the existing embedding sync; the profile summary is read live and needs no embedding job.
 Exact accepted generated text reuses field coverage until a manual edit changes that text.
+Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
+copies, so those operations do not send generated text back through the classifier.

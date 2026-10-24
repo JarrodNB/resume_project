@@ -2,7 +2,8 @@
 # Description: Merges one career library record into another of the same model and user. Fields
 # blank on the target are filled from the source (existing values are never overwritten); an
 # experience also gains the source's highlights it doesn't already have. A saved source is then
-# deleted. Used by the import (unsaved source) and by the merge mutations (saved source). The
+# deleted. Exact text copied from a saved source keeps its trusted field coverage;
+# imported, unsaved text starts unchecked. Used by imports and merge mutations. The
 # user's library embeddings are re-synced after the merge commits.
 # Index:
 #   - FILLABLE_FIELDS: fields copied when blank on the target, per model
@@ -32,8 +33,10 @@ module CareerLibrary
       @target.user.with_lock do
         [ @target, @source ].select(&:persisted?).sort_by(&:id).each(&:lock!)
         fill_blank_fields
+        copied_coverage = @source.persisted? ? @target.changed & @source.screened_fields : []
         add_new_highlights if @target.is_a?(Experience)
         RecordScreeningService.discard_changed_fields(record: @target)
+        @target.screened_fields |= copied_coverage
         @target.save!
         @source.destroy! if @source.persisted?
         SyncLibraryEmbeddingsJob.perform_later(@target.user_id)
@@ -75,7 +78,8 @@ module CareerLibrary
       @source.highlights.each do |highlight|
         next unless known.add?(normalize(highlight.content))
 
-        @target.highlights.build(content: highlight.content, position: next_position)
+        @target.highlights.build(content: highlight.content, position: next_position,
+          screened_fields: highlight.persisted? ? highlight.screened_fields & [ "content" ] : [])
         next_position += 1
       end
     end

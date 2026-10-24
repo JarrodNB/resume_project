@@ -8,6 +8,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
+from model_inputs.tailoring import format_tailoring_section_input
 from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.session import bind_screened_prompt
@@ -89,15 +90,7 @@ def build_section_prompt(
     has_summary = bool(summary)
 
     def render(approved_values: Sequence[str]) -> str:
-        """Only supplied approved values contribute user-controlled prompt text."""
-        offset = 1
-        result = [*lines, approved_values[0]]
-        if has_summary:
-            result.extend(["", "## How the library matches this job", approved_values[1]])
-            offset += 1
-        result.extend(["", "# Sources"])
-        result.extend(f"[{label}] {value}" for label, value in zip(labels, approved_values[offset:], strict=True))
-        return "\n".join(result)
+        return format_tailoring_section_input(lines, approved_values, labels, has_summary)
 
     return SectionPrompt(
         text=bind_screened_prompt(values, render) if allow_text is not None else render(values),

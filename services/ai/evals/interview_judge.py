@@ -12,9 +12,9 @@ from pydantic_ai.models import Model, infer_model
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
-from pydantic_core import to_jsonable_python
 from pydantic_evals.evaluators import EvaluationReason, Evaluator
 
+from model_inputs.judge import format_judge_input
 from prompts.interview_judge_instructions import INTERVIEW_JUDGE_INSTRUCTIONS
 
 
@@ -59,24 +59,6 @@ def single_attempt_model(model: Model | str) -> Model:
     return resolved
 
 
-def _readable(value, indent=0):
-    """Render the case data as labeled lines while preserving source wording."""
-    value = to_jsonable_python(value)
-    if isinstance(value, dict):
-        return "\n".join(
-            " " * indent + f"{key}:" + (f"\n{_readable(item, indent + 2)}"
-                                     if isinstance(item, (dict, list)) else
-                                     _readable(item, indent + 2) if isinstance(item, str) and "\n" in item
-                                     else f" {_readable(item)}")
-            for key, item in value.items()
-        )
-    if isinstance(value, list):
-        return "\n".join(" " * indent + "- " + (
-            "\n" + _readable(item, indent + 2) if isinstance(item, (dict, list))
-            else _readable(item)) for item in value)
-    if isinstance(value, str) and "\n" in value:
-        return "\n" + "\n".join(" " * indent + "| " + line for line in value.split("\n"))
-    return str(value)
 
 
 @dataclass
@@ -95,9 +77,7 @@ class InterviewJudge(Evaluator):
                       instructions=INTERVIEW_JUDGE_INSTRUCTIONS, retries=0,
                       model_settings={"timeout": self.timeout_seconds},
                       name="interview_judge")
-        prompt = (f"Rubrics:\n{_readable(rubrics, 2)}\n\n"
-                  f"Inputs:\n{_readable(ctx.inputs, 2)}\n\n"
-                  f"Output:\n{_readable(ctx.output, 2)}")
+        prompt = format_judge_input(rubrics, ctx.inputs, ctx.output)
         result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=1))
         scores = result.output.scores
         if len(scores) != len(rubrics) or {score.name for score in scores} != set(rubrics):

@@ -14,12 +14,12 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
+from model_inputs.interview import format_feedback_prompt
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.interview_evidence import format_interview_career_evidence, interview_data_boundary
 from worker.interview_questions_handler import _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -104,11 +104,3 @@ def _feedback_prompt_text(values, fields, set_type):
     """Render question, answer and library solely from supplied screened sources."""
     library = rebuild_library(values[2:], fields)
     return format_feedback_prompt(set_type, values[1], values[0], library)
-
-
-def format_feedback_prompt(set_type, question, answer, library):
-    """Give the model readable screened facts while preserving each source's exact wording."""
-    evidence_text = format_interview_career_evidence(library)
-    boundary = interview_data_boundary(f"{question}\n{answer}\n{evidence_text}")
-    return (f"Set type: {set_type}\n\n{boundary}\nQuestion:\n{question}\n{boundary}"
-            f"\nAnswer:\n{answer}\n{boundary}\nCareer evidence:\n{evidence_text}\n{boundary}")

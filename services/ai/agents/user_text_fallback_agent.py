@@ -12,6 +12,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RunUsage
 
 from conversation_logging import ConversationLogging
+from model_inputs.safety import format_fallback_input
 from prompts.user_text_fallback_instructions import (
     USER_TEXT_FALLBACK_INSTRUCTIONS,
     USER_TEXT_FALLBACK_PROMPT_VERSION,
@@ -46,11 +47,10 @@ async def screen_fallback_message_async(
     text: str, model: str, timeout_seconds: float,
 ) -> UserTextFallbackRun:
     """Classify only; cancellation and usage-limit errors remain visible to the caller."""
-    quoted_text = "\n".join(f"| {line}" for line in text.split("\n"))
     async with asyncio.timeout(timeout_seconds):
         with record_prompt_version(USER_TEXT_FALLBACK_PROMPT_VERSION):
             result = await user_text_fallback_agent.run(
-                f"<user_text>\n{quoted_text}\n</user_text>", model=accounted_model(model),
+                format_fallback_input(text), model=accounted_model(model),
                 model_settings=ModelSettings(thinking="low"),
                 usage_limits=agent_usage_limits(load_settings()),
             )

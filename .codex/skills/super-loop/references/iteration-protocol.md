@@ -1,5 +1,8 @@
 # Shared delivery loop protocol
 
+Follow [execution environment guidance](../../cloud-runtime.md): native in managed cloud, Docker locally.
+
+
 Read the selected skill's candidate and verification rules alongside this protocol.
 
 ## Run setup

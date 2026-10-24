@@ -5,6 +5,11 @@ description: Find and fix one concrete codebase problem per iteration, using a f
 
 # Fix Loop
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Deliver up to the user-specified number of independent fixes. Each completed iteration means one verified fix, reviewed by a fresh subagent, committed and pushed on its own branch, with a pull request targeting the selected base branch.
 
 ## Establish the run

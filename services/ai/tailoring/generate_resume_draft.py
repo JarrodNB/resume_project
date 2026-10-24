@@ -129,10 +129,11 @@ async def generate_resume_draft(
                     )
 
             feedback_payloads: list[str] = []
+            revision_instruction = "Revise the entire draft using the previous draft, measured layout and independent editorial review:"
             for attempt in range(1, 4):
                 prompt = build_prompt(
                     feedback_payloads,
-                    "Revise the entire draft using the previous draft, measured layout and independent editorial review:",
+                    revision_instruction,
                 )
                 if len(prompt) > MAX_PROMPT_TEXT:
                     raise ResumeDraftInputError(
@@ -174,8 +175,20 @@ async def generate_resume_draft(
                     and not review.sufficient_for_target
                     and bool(review.sufficiency_explanation.strip())
                 )
-                if within_pages and review.ready and (not shorter or supported_shorter):
+                supported_length = (
+                    data.target_pages == 1
+                    or supported_shorter
+                    or (measured.page_count == 2 and review.sufficient_for_target)
+                )
+                if within_pages and review.ready and supported_length:
                     break
+                if data.target_pages == 2 and not review.sufficient_for_target:
+                    revision_instruction = (
+                        "The independent review says the job-relevant evidence cannot support two useful pages. "
+                        "Return the strongest shorter single-page resume with a specific insufficiency explanation. "
+                        "Remove unrelated detail and filler; do not invent qualifications. "
+                        "Use the previous draft, measured layout and editorial review below:"
+                    )
                 if attempt < 3:
                     review_payload = json.dumps({"editorial_review": review.model_dump()})
                     await screen_generated(review_payload)
@@ -183,6 +196,14 @@ async def generate_resume_draft(
             if not within_pages:
                 raise ResumeDraftInputError(
                     "The resume could not fit the selected page target after three drafts. Please try again."
+                )
+            if (
+                data.target_pages == 2
+                and measured.page_count == 2
+                and not review.sufficient_for_target
+            ):
+                raise ResumeDraftInputError(
+                    "The relevant evidence could not support two useful pages, and a shorter reviewed draft was not produced after three attempts. Please try again with one page."
                 )
             if shorter and not supported_shorter:
                 raise ResumeDraftInputError(

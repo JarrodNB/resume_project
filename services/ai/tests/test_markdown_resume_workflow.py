@@ -272,3 +272,62 @@ def test_generated_markdown_fits_saved_document_limit():
         ResumeDocumentDraft(
             markdown="x" * 40_001, sufficient_for_target=True, sufficiency_explanation="Enough"
         )
+
+
+def test_two_page_ready_but_insufficient_review_revises_to_supported_shorter(workflow, monkeypatch):
+    deps, calls = workflow
+    measured_pages = iter([2, 1])
+
+    async def measure(*args, **kwargs):
+        return ResumeMeasurement(b"pdf", next(measured_pages), 0.8)
+
+    async def review(prompt, settings):
+        calls.append(("review", prompt))
+        return SimpleNamespace(
+            output=ResumeEditorialReview(
+                ready=True,
+                feedback="Condense irrelevant detail.",
+                sufficient_for_target=False,
+                sufficiency_explanation="No clinical experience or nursing licensure supports two relevant pages.",
+            ),
+            usage=RunUsage(),
+            model=settings.resume_tailoring_model,
+        )
+
+    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume_async", measure)
+    monkeypatch.setattr("tailoring.generate_resume_draft.review_resume_document", review)
+    result = run_workflow(deps, target=2)
+    assert result.drafts == 2
+    assert result.measurements["page_count"] == 1
+    assert result.warnings == [
+        "No clinical experience or nursing licensure supports two relevant pages."
+    ]
+    assert len([c for c in calls if c[0] == "review"]) == 2
+
+
+def test_three_unsupported_two_page_drafts_fail_instead_of_publishing_padding(
+    workflow, monkeypatch
+):
+    deps, calls = workflow
+
+    async def measure(*args, **kwargs):
+        return ResumeMeasurement(b"pdf", 2, 0.8)
+
+    async def review(prompt, settings):
+        calls.append(("review", prompt))
+        return SimpleNamespace(
+            output=ResumeEditorialReview(
+                ready=True,
+                feedback="Irrelevant material must be condensed.",
+                sufficient_for_target=False,
+                sufficiency_explanation="No clinical evidence supports two relevant pages.",
+            ),
+            usage=RunUsage(),
+            model=settings.resume_tailoring_model,
+        )
+
+    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume_async", measure)
+    monkeypatch.setattr("tailoring.generate_resume_draft.review_resume_document", review)
+    with pytest.raises(ResumeDraftInputError, match="two useful pages"):
+        run_workflow(deps, target=2)
+    assert len([c for c in calls if c[0] == "review"]) == 3

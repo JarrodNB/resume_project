@@ -12,7 +12,7 @@ from uuid import UUID
 from agents.resume_document_agent import write_resume_document
 from agents.resume_editorial_agent import review_resume_document
 from agents.user_text_screen_agent import screen_user_message_async
-from documents.resume_measure import ResumeRenderError, render_and_measure_resume
+from documents.resume_measure import ResumeRenderError, render_and_measure_resume_async
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import screen_user_text_async
@@ -124,8 +124,7 @@ async def generate_resume_draft(
                 usage.append(build_model_usage(writing.model, writing.usage))
                 draft = writing.output
                 try:
-                    measured = await asyncio.to_thread(
-                        render_and_measure_resume,
+                    measured = await render_and_measure_resume_async(
                         draft.markdown,
                         timeout_seconds=remaining_timeout(settings.llm_run_timeout_seconds),
                     )
@@ -176,6 +175,10 @@ async def generate_resume_draft(
             if not within_pages:
                 raise ResumeDraftInputError(
                     "The resume could not fit the selected page target after three drafts. Please try again."
+                )
+            if shorter and not supported_shorter:
+                raise ResumeDraftInputError(
+                    "The writer could not produce the requested length or a reviewed insufficiency explanation after three drafts. Please try again."
                 )
             warnings = []
             if shorter:

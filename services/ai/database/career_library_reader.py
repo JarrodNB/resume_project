@@ -42,7 +42,7 @@ MOST_RECENT_FIRST = """
 """
 
 JOB_QUERY = """
-    SELECT id::text, title, company, requirements, responsibilities, nice_to_haves
+    SELECT id::text, title, company, description, requirements, responsibilities, nice_to_haves
     FROM jobs WHERE id = %(job_id)s AND user_id = %(user_id)s
 """
 SUMMARY_QUERY = "SELECT id::text, summary, screened_fields FROM users WHERE id = %(user_id)s"
@@ -108,7 +108,9 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(
-            LibraryHighlight(id=row["id"], content=row["content"], screened_fields=row.get("screened_fields", []))
+            LibraryHighlight(
+                id=row["id"], content=row["content"], screened_fields=row.get("screened_fields", [])
+            )
         )
 
     library = CareerLibrary(
@@ -152,8 +154,10 @@ def read_career_library(connection: psycopg.Connection[DictRow], user_id: UUID) 
 
 def build_database_library_reader(settings: WorkerSettings) -> Callable[[UUID], CareerLibrary]:
     """Builds a job-independent reader opening one read-only connection per task."""
+
     def read_from_database(user_id: UUID) -> CareerLibrary:
         """Reads the current library and closes the connection."""
         with open_read_only_connection(settings) as connection:
             return read_career_library(connection, user_id)
+
     return read_from_database

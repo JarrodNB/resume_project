@@ -114,7 +114,12 @@ class CareerLibrary(BaseModel):
     def is_empty(self) -> bool:
         """True when there are no entries at all (a summary alone doesn't count)."""
         return not (
-            self.experiences or self.projects or self.educations or self.certifications or self.skills or self.facts
+            self.experiences
+            or self.projects
+            or self.educations
+            or self.certifications
+            or self.skills
+            or self.facts
         )
 
 
@@ -124,6 +129,7 @@ class JobToAnalyze(BaseModel):
     id: str
     title: str
     company: str | None = None
+    description: str | None = None
     requirements: list[str] = Field(default_factory=list)
     responsibilities: list[str] = Field(default_factory=list)
     nice_to_haves: list[str] = Field(default_factory=list)

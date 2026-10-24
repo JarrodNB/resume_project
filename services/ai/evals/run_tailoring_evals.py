@@ -1,71 +1,95 @@
-"""Measure the four production resume writers on synthetic section cases.
+"""Evaluate the complete writer/render/editorial-review workflow on synthetic libraries.
 
-Summary, experience, projects, and skill selection use the real section agent and report
-scores to Logfire. Contact and credential copying have deterministic offline checks;
-this suite does not generate them or measure whole-draft execution latency.
+Deterministic measurements check contracts; an independent quality judge assesses
+relevance, grounding and usefulness of both the draft and its separate editorial review.
 """
 
-from datetime import date
+import asyncio
 from pathlib import Path
+from uuid import uuid4
 
 from pydantic_evals import Dataset
-from pydantic_evals.reporting import EvaluationReport
+from pydantic_evals.evaluators import LLMJudge
 
-from agents.resume_tailoring_agent import write_resume_section
 from evals.report_capture import override_settings
-from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, TailorEvalLabels
+from evals.tailoring_evaluators import (
+    MeasuredResumeContract,
+    ResumeDocumentEvalInput,
+    ResumeDocumentEvalOutput,
+)
 from evals.telemetry import evaluate_dataset
-from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
-from schemas.tailored_section import TailoredSectionDraft
-from tailoring.build_section_prompt import build_section_prompt
+from prompts.resume_document_instructions import RESUME_DOCUMENT_PROMPT_VERSION
+from tailoring.generate_resume_draft import generate_resume_draft
+from tailoring.tailor_resume_input import TailorResumeInput
 from worker.settings import load_settings
+from worker.task_dependencies import TaskDependencies
 
-DATASET_PATH = Path(__file__).parent / "datasets" / "tailoring_cases.yaml"
+DATASET_PATH = Path(__file__).parent / "datasets" / "resume_document_cases.yaml"
 TRACE_NAME = "evals.tailoring"
 
 
-def load_tailoring_dataset() -> Dataset[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]:
-    """Loads the labelled tailoring cases."""
-    return Dataset[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels].from_file(
-        DATASET_PATH, custom_evaluator_types=TAILORING_EVALUATORS
+def load_tailoring_dataset():
+    dataset = Dataset[ResumeDocumentEvalInput, ResumeDocumentEvalOutput].from_file(DATASET_PATH)
+    dataset.add_evaluator(MeasuredResumeContract())
+    return dataset
+
+
+def run_tailoring_evals(model_override: str | None = None):
+    settings = override_settings(load_settings(), "resume_tailoring_model", model_override)
+    dataset = load_tailoring_dataset()
+    dataset.add_evaluator(
+        LLMJudge(
+            rubric="Evaluate the complete resume and its independent editorial review against the supplied job and full library. "
+            "The resume should prioritize relevant evidence, remain faithful to available facts, be clear and nonrepetitive, "
+            "and cover relevant job needs without inventing expertise or outcomes. Sparse/unrelated libraries must not be "
+            "inflated into job-specific qualifications. The editorial feedback should detect material omissions, unsupported "
+            "claims, repetition and poor coverage and explain sufficiency honestly. Cite concrete output clauses in your reason.",
+            model=settings.eval_judge_model,
+            include_input=True,
+            model_settings={"timeout": settings.llm_run_timeout_seconds},
+            score={"evaluation_name": "resume_and_editorial_quality", "include_reason": True},
+            assertion=False,
+        )
     )
 
-
-def run_tailoring_evals(model_override: str | None = None) -> EvaluationReport:
-    """Evaluates the agent on every case and records the average scores in Logfire."""
-    settings = override_settings(load_settings(), "resume_tailoring_model", model_override)
-    model = settings.resume_tailoring_model
-    thinking = settings.resume_tailoring_thinking
-
-    def write_case(case: TailorEvalInput) -> TailoredSectionDraft:
-        """The task under evaluation: one section, the whole library as sources."""
-        prompt = build_section_prompt(
-            case.section_type,
-            case.context,
-            [],
-            [],
-            None,
-            write_anyway=False,
-            gap_analysis=None,
-            today=date(2026, 10, 1),
+    def write_case(case):
+        dependencies = TaskDependencies(
+            settings=settings,
+            file_storage=None,
+            http_client=None,
+            read_gap_analysis_context=lambda *_: case.context,
         )
-        return write_resume_section(
-            prompt,
-            model=model,
-            thinking=thinking,
-            timeout_seconds=settings.llm_run_timeout_seconds,
-            fallback_model=settings.generative_fallback_model,
-        ).draft
+        draft = asyncio.run(
+            generate_resume_draft(
+                uuid4(),
+                TailorResumeInput(
+                    job_id=uuid4(), target_pages=case.target_pages, contact=case.contact
+                ),
+                dependencies,
+                usage=[],
+            )
+        )
+        return ResumeDocumentEvalOutput(
+            markdown=draft.markdown,
+            **draft.measurements,
+            editorial_review=draft.editorial_review,
+            warnings=draft.warnings,
+            drafts=draft.drafts,
+        )
 
     return evaluate_dataset(
-        load_tailoring_dataset,
+        lambda: dataset,
         write_case,
         name=TRACE_NAME,
-        metadata={"model": model, "prompt_version": RESUME_TAILORING_PROMPT_VERSION},
-        version=RESUME_TAILORING_PROMPT_VERSION,
-        tags=["eval", "tailor_resume", model],
-        evaluation_name=f"tailoring:{model}",
-        max_concurrency=2,
+        metadata={
+            "model": settings.resume_tailoring_model,
+            "judge_model": settings.eval_judge_model,
+            "prompt_version": RESUME_DOCUMENT_PROMPT_VERSION,
+        },
+        version=RESUME_DOCUMENT_PROMPT_VERSION,
+        tags=["eval", "tailor_resume"],
+        evaluation_name=f"tailoring:{settings.resume_tailoring_model}",
+        max_concurrency=1,
     )
 
 

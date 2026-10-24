@@ -1,0 +1,64 @@
+# Complete-document quality cases. Every name, employer and role is synthetic.
+cases:
+  - name: backend_relevance_and_grounding
+    inputs:
+      target_pages: 1
+      contact: {full_name: Alex Sample, email: sample@example.test}
+      context:
+        job:
+          id: backend
+          title: Backend Engineer
+          company: Example Test Labs
+          requirements: [Python services, relational databases, team collaboration]
+          responsibilities: [Maintain APIs and diagnose production failures]
+        career_library:
+          summary: Software engineer focused on Python services and SQL.
+          experiences:
+            - id: e1
+              company: Example Systems
+              title: Software Engineer
+              description: Built internal Python APIs backed by PostgreSQL and worked with a four-person engineering team. Investigated production failures using logs and added regression tests.
+              highlights:
+                - {id: h1, content: Reduced repeated manual report preparation by building a scheduled Python data pipeline.}
+          projects:
+            - id: p1
+              name: Community directory
+              description: Built a searchable web directory with JavaScript and SQL for a volunteer group.
+          skills:
+            - {id: s1, name: Python}
+            - {id: s2, name: SQL}
+  - name: sparse_transferable_evidence_without_invention
+    inputs:
+      target_pages: 1
+      contact: {full_name: Riley Example}
+      context:
+        job:
+          id: junior
+          title: Junior Developer
+          requirements: [Programming fundamentals, clear communication]
+        career_library:
+          summary: Student seeking a first software role.
+          projects:
+            - id: p2
+              name: Study planner
+              description: Built a command-line Python tool to organize coursework and save tasks in a local SQLite database. Demonstrated the tool to classmates and incorporated feedback about confusing commands.
+          educations:
+            - id: ed1
+              institution: Example College
+              degree: Computer Science
+              description: Coursework in data structures and database fundamentals.
+  - name: unrelated_material_does_not_become_job_expertise
+    inputs:
+      target_pages: 1
+      contact: {full_name: Sam Example}
+      context:
+        job:
+          id: kernel
+          title: Kernel Engineer
+          requirements: [Linux kernel internals, low-level C development]
+        career_library:
+          experiences:
+            - id: e3
+              company: Example Bakery
+              title: Pastry Chef
+              description: Designed seasonal menus and coordinated daily preparation with a three-person bakery team. Trained new staff on food safety and preparation routines.

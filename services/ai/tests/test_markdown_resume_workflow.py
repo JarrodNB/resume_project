@@ -56,6 +56,7 @@ def workflow(monkeypatch, task_dependencies):
         calls.append(("read", user, job))
         context = build_gap_analysis_context(responsibilities=["Maintain the entire system"])
         context.career_library.summary = "substantive narrative " * 350
+        context.job.description = "Full saved job description with additional context."
         return context
 
     deps = replace(task_dependencies, read_gap_analysis_context=reader)
@@ -72,7 +73,7 @@ def workflow(monkeypatch, task_dependencies):
             model=settings.resume_tailoring_model,
         )
 
-    def measure(markdown, **kwargs):
+    async def measure(markdown, **kwargs):
         calls.append(("measure", markdown))
         return ResumeMeasurement(b"fake-pdf", 1, 0.8)
 
@@ -90,7 +91,7 @@ def workflow(monkeypatch, task_dependencies):
         )
 
     monkeypatch.setattr("tailoring.generate_resume_draft.write_resume_document", write)
-    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume", measure)
+    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume_async", measure)
     monkeypatch.setattr("tailoring.generate_resume_draft.review_resume_document", review)
     return deps, calls
 
@@ -109,6 +110,7 @@ def test_whole_library_and_job_are_written_measured_then_independently_reviewed(
     assert [c[0] for c in calls] == ["read", "write", "measure", "review"]
     prompt = calls[1][1]
     assert "Maintain the entire system" in prompt
+    assert "Full saved job description with additional context." in prompt
     assert "Acme" in prompt and "PostgreSQL" in prompt
     assert "experiences" in prompt and "educations" in prompt and "skills" in prompt
     assert result.measurements["page_count"] == 1
@@ -145,10 +147,10 @@ def test_revision_receives_measurement_and_separate_review_and_stops_at_three(
 def test_render_failure_never_publishes_or_reviews(workflow, monkeypatch):
     deps, calls = workflow
 
-    def fail(*args, **kwargs):
+    async def fail(*args, **kwargs):
         raise ResumeRenderError("Cannot render")
 
-    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume", fail)
+    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume_async", fail)
     with pytest.raises(ResumeDraftInputError, match="Cannot render"):
         run_workflow(deps)
     assert not any(c[0] == "review" for c in calls)
@@ -167,10 +169,11 @@ def test_review_failure_never_returns_a_draft(workflow, monkeypatch):
 
 def test_oversized_final_draft_is_not_published(workflow, monkeypatch):
     deps, _ = workflow
-    monkeypatch.setattr(
-        "tailoring.generate_resume_draft.render_and_measure_resume",
-        lambda *a, **kw: ResumeMeasurement(b"pdf", 3, 0.9),
-    )
+
+    async def large(*args, **kwargs):
+        return ResumeMeasurement(b"pdf", 3, 0.9)
+
+    monkeypatch.setattr("tailoring.generate_resume_draft.render_and_measure_resume_async", large)
     with pytest.raises(ResumeDraftInputError, match="could not fit"):
         run_workflow(deps)
 
@@ -253,3 +256,19 @@ def test_writer_cancellation_cannot_publish_or_start_review(workflow, monkeypatc
     asyncio.run(run())
     assert cancelled == [True]
     assert not any(c[0] in {"measure", "review"} for c in calls)
+
+
+def test_shorter_document_cannot_publish_a_contradictory_sufficiency_review(workflow):
+    deps, calls = workflow
+    with pytest.raises(ResumeDraftInputError, match="reviewed insufficiency"):
+        run_workflow(deps, target=2)
+    assert len([c for c in calls if c[0] == "review"]) == 3
+
+
+def test_generated_markdown_fits_saved_document_limit():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ResumeDocumentDraft(
+            markdown="x" * 40_001, sufficient_for_target=True, sufficiency_explanation="Enough"
+        )

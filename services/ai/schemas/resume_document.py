@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class ResumeDocumentDraft(BaseModel):
-    markdown: str = Field(min_length=1, max_length=100_000)
+    markdown: str = Field(min_length=1, max_length=40_000)
     sufficient_for_target: bool
     sufficiency_explanation: str
 

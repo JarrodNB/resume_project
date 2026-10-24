@@ -1,5 +1,6 @@
 # Reads provider HTML as text and copies bullets only under recognizable headings.
 # This mirrors the AI scraper's deterministic extraction without invoking AI.
+# Rendered block breaks keep words separate in both bullets and saved descriptions.
 require "nokogiri"
 
 module JobBoard
@@ -26,8 +27,7 @@ module JobBoard
           elsif REQUIREMENTS.match?(heading) then :requirements
           end
         elsif element.name == "li" && current
-          own_list = element.ancestors.find { |parent| %w[ul ol].include?(parent.name) }
-          text = element.xpath(".//text()").select { |node| node.ancestors.find { |parent| %w[ul ol].include?(parent.name) } == own_list }.map(&:text).join
+          text = list_item_text(element)
           result[current] << clean(text) if clean(text).present?
         end
       end
@@ -40,9 +40,9 @@ module JobBoard
       document.css("ul, ol").each { |node| node.add_previous_sibling("\n"); node.add_next_sibling("\n") }
       document.css("li").each { |node| node.prepend_child(Nokogiri::XML::Text.new("- ", document.document)); node.add_child(Nokogiri::XML::Text.new("\n", document.document)) }
       document.css(BLOCKS.join(",")).each do |node|
-        next if node.ancestors.any? { |parent| parent.name == "li" }
-        node.add_previous_sibling("\n\n")
-        node.add_next_sibling("\n\n")
+        separator = node.ancestors.any? { |parent| parent.name == "li" } ? " " : "\n\n"
+        node.add_previous_sibling(separator)
+        node.add_next_sibling(separator)
       end
       lines = []
       document.text.split("\n").each do |raw|
@@ -58,6 +58,16 @@ module JobBoard
     end
 
     private
+
+    def list_item_text(element)
+      item = element.dup
+      item.css("ul, ol").remove
+      item.css(([ "br" ] + BLOCKS).join(",")).each do |node|
+        node.add_previous_sibling(" ")
+        node.add_next_sibling(" ")
+      end
+      clean(item.text)
+    end
 
     def clean(text)
       text.gsub(/[[:space:]]+/, " ").strip

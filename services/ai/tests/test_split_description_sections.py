@@ -100,6 +100,17 @@ def test_description_text_keeps_paragraphs_and_bullets() -> None:
     assert text == "About\n\nWe build payments.\nRemote friendly.\n\n- Python\n- SQL\n\nApply now."
 
 
+@pytest.mark.parametrize("tag", ["p", "div"])
+def test_description_bullet_blocks_keep_word_boundaries(tag: str) -> None:
+    """Paragraphs in one bullet stay readable without merging adjacent words."""
+    text = html_to_description_text(
+        f"<ul><li><{tag}>Build <b>APIs</b>, daily.</{tag}>"
+        f"<{tag}>Maintain services.</{tag}></li><li>Python</li></ul>"
+    )
+
+    assert text == "- Build APIs, daily. Maintain services.\n- Python"
+
+
 @pytest.mark.parametrize(
     ("bullet_html", "expected"),
     [

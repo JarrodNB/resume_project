@@ -70,6 +70,21 @@ def test_keeps_inline_formatting_text_verbatim() -> None:
     assert sections.requirements == ["Use PyTorch, daily work"]
 
 
+@pytest.mark.parametrize("hidden", [
+    "<!-- internal tracking marker -->",
+    "<script>internalTracking()</script>",
+    "<style>.tracking { color: red; }</style>",
+])
+def test_bullets_exclude_nonrendered_html(hidden: str) -> None:
+    """Hidden HTML is not part of the requirement visible to the user."""
+    sections = split_description_sections(
+        f"<h3>Requirements</h3><ul><li>Use {hidden}<b>Python</b>, daily.</li></ul>"
+    )
+
+    assert sections.requirements == ["Use Python, daily."]
+    assert sections.all_bullets == ["Use Python, daily."]
+
+
 def test_long_bold_paragraph_is_not_a_heading() -> None:
     """Prose that happens to be bold doesn't start a section."""
     long_bold = (

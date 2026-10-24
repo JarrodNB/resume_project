@@ -2,13 +2,14 @@
 
 Keep each bullet's own text and rendered word boundaries. Nested lists become
 separate bullets, while inline formatting keeps its original punctuation.
+Comments and script/style content are not rendered job requirements.
 """
 
 import re
 from dataclasses import dataclass, field
 from typing import Literal
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 HeadingKind = Literal["requirements", "responsibilities", "nice_to_haves", "other"]
 
@@ -102,9 +103,11 @@ def _list_item_text(item: Tag) -> str:
     def collect_text(element: Tag) -> None:
         """Keep inline runs together and add whitespace at rendered block boundaries."""
         for child in element.children:
+            if isinstance(child, Comment):
+                continue
             if isinstance(child, NavigableString):
                 parts.append(str(child))
-            elif isinstance(child, Tag) and child.name not in {"ul", "ol"}:
+            elif isinstance(child, Tag) and child.name not in {"ul", "ol", "script", "style"}:
                 is_break = child.name in {"br", "p", "div", "blockquote", *HEADING_TAGS}
                 if is_break:
                     parts.append(" ")

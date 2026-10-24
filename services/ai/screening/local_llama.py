@@ -51,8 +51,8 @@ def classify_chunk(chunk, model_name, timeout):
 
     if model_name != MODEL:
         raise ValueError("Unknown local screening model")
-    tokenizer, model = _model_pair()
     started = monotonic()
+    tokenizer, model = _model_pair()
     tokens = tokenizer(chunk, return_tensors="pt", truncation=False)
     if len(tokens["input_ids"][0]) > MAX_TOKENS:
         raise ValueError("Chunk exceeds model token limit")

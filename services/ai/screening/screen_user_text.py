@@ -128,9 +128,27 @@ async def _drive_async(
 ):
     """Drive the common policy after acquiring execution-local source ownership."""
     if model == local_llama.MODEL:
-        return await asyncio.to_thread(
-            _local_screen, text, model, timeout_seconds, check_phrases, max_characters,
-        )
+        session = current_session()
+        remaining = min(timeout_seconds, session.deadline - monotonic()) if session else timeout_seconds
+        if remaining <= 0:
+            result = ScreenOutcome(False, unchecked=True)
+        else:
+            try:
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(_local_screen, text, model, remaining, check_phrases,
+                                      max_characters, False),
+                    timeout=remaining,
+                )
+            except TimeoutError:
+                result = ScreenOutcome(False, unchecked=True)
+        # A timed-out thread can finish later. Only this event-loop owner may cache
+        # approval, and only after it has completed inside the caller's deadline.
+        if session is not None:
+            masked = mask_outbound(text)
+            session.decisions[_screen_key(masked, model, check_phrases, max_characters)] = result
+            if result.allowed:
+                session.allowed_sources.add(masked)
+        return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
                              credentials_available=credentials_available)
     try:
@@ -161,7 +179,7 @@ def _screen_key(text, model, check_phrases, max_characters):
     return (mask_outbound(text), model, check_phrases, policy, max_characters)
 
 
-def _local_screen(text, model, timeout_seconds, check_phrases, max_characters):
+def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, cache_result=True):
     """Apply the same fail-closed contract to local inference and cache exact decisions."""
     text = mask_outbound(text)
     session = current_session()
@@ -200,7 +218,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters):
                 pass
             logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
             result = ScreenOutcome(False, unchecked=True)
-    if session is not None:
+    if session is not None and cache_result:
         session.decisions[key] = result
         if result.allowed:
             session.allowed_sources.add(text)

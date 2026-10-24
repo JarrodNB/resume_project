@@ -1,13 +1,15 @@
 """Exercise local prompt injection screening through the public screening interface."""
 
 import asyncio
+import threading
 from contextlib import nullcontext
 from itertools import pairwise
+from time import monotonic
 from types import SimpleNamespace
 
 from screening import local_llama
 from screening.screen_user_text import screen_user_text, screen_user_text_async
-from screening.session import screening_session
+from screening.session import current_session, screening_session
 
 
 def test_local_screen_checks_a_long_tail_without_provider_usage(monkeypatch):
@@ -86,6 +88,36 @@ def test_local_trace_has_chunk_metadata_without_text(monkeypatch):
     assert spans[0][1]["model"] == local_llama.MODEL
     assert spans[0][1]["chunk_count"] == 1
     assert "secret resume sentence" not in str(spans)
+
+
+def test_async_local_load_timeout_cannot_approve_in_background(monkeypatch):
+    finished = threading.Event()
+
+    def slow_chunks(text):
+        threading.Event().wait(0.2)
+        finished.set()
+        return [(text, 3)]
+
+    monkeypatch.setattr(local_llama, "iter_chunks", slow_chunks)
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=False, tokens=3, duration=0.01,
+    ))
+
+    async def remote(*_):
+        raise AssertionError("Remote classifier must not run")
+
+    async def check():
+        with screening_session(1):
+            started = monotonic()
+            outcome = await screen_user_text_async("slow input", local_llama.MODEL, 0.02,
+                                                   classify=remote)
+            elapsed = monotonic() - started
+            assert outcome.unchecked and not outcome.allowed
+            assert elapsed < 0.15
+            assert await asyncio.to_thread(finished.wait, 1)
+            assert "slow input" not in current_session().allowed_sources
+
+    asyncio.run(check())
 
 
 def test_local_chunks_cover_every_character_when_tokens_force_smaller_windows(monkeypatch):

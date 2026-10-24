@@ -18,3 +18,7 @@ tokenizer reduces each chunk further until it fits 512 tokens. Every chunk must 
 before the input can enter a generative prompt. Traces contain the model name, chunk
 position and count, sizes, decision, elapsed time, and error category, but no text or
 token. Local inference does not create billed provider usage.
+
+The async input guardrail returns an unavailable decision when its deadline expires,
+including during model loading. A local inference thread may still finish afterward;
+its result cannot approve a source or replace the unavailable decision in the task cache.

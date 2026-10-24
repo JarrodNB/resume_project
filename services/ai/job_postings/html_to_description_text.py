@@ -1,8 +1,6 @@
-"""
-Description: Turns a job description's HTML into readable plain text for Job.description:
-paragraphs separated by a blank line, list items as "- " lines.
-Index:
-    - html_to_description_text: the plain-text description
+"""Turn job HTML into readable paragraphs and bullet lines for saved descriptions.
+
+Keep spaces between blocks inside a bullet without changing inline punctuation.
 """
 
 import re
@@ -28,10 +26,9 @@ def html_to_description_text(description_html: str) -> str:
         item.insert(0, "- ")
         item.append("\n")
     for block in soup.find_all(BLOCK_TAGS):
-        # Paragraphs inside a list item stay on the item's line.
-        if block.find_parent("li") is None:
-            block.insert_before("\n\n")
-            block.insert_after("\n\n")
+        separator = " " if block.find_parent("li") is not None else "\n\n"
+        block.insert_before(separator)
+        block.insert_after(separator)
     return _tidy_lines(soup.get_text())
 
 

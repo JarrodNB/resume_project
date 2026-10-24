@@ -5,6 +5,11 @@ Index: language and shared domain terms.
 
 ## Language
 
+**Library proposal**:
+A suggested replacement for one career-library narrative detail, such as a summary, achievement,
+project description, or saved fact response. It changes the saved detail only
+when the user accepts it; feedback and follow-up answers can refine it first.
+
 **Interview Q&A vector**:
 A derived embedding of one saved interview question and its current nonblank user-written answer.
 It excludes feedback and example answers, stays separate from career-library evidence, and is not searched yet.
@@ -77,3 +82,7 @@ and do not increase the chosen number of core questions.
 A core question whose remaining prompts the user chose to skip. Previous accepted answers
 stay saved; the skip itself is not an answer and does not use the answer allowance or count
 in answer-quality scoring. Skipping a follow-up moves directly to the next core question.
+
+**Library assessment**:
+A red, yellow, or green indication of how clearly a saved piece captures useful career evidence,
+with a short reason. It evaluates the description, not the person's employability.

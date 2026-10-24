@@ -19,17 +19,21 @@ interface LibrarySectionProps {
   emptyText: string
   addLabel: string
   onAdd: () => void
+  reviewActions?: ReactNode
   children: ReactNode
 }
 
 /** Renders a titled, counted card. Add stays available when the section is empty. */
-export function LibrarySection({ sectionId, tone, title, count, emptyText, addLabel, onAdd, children }: LibrarySectionProps) {
+export function LibrarySection({ sectionId, tone, title, count, emptyText, addLabel, onAdd, reviewActions, children }: LibrarySectionProps) {
   return (
     <SectionCard sectionId={sectionId} tone={tone} title={title} badge={<Badge variant="secondary">{count}</Badge>}>
       <div className="grid gap-3">
-        <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={onAdd}>
-          <Plus /> {addLabel}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={onAdd}>
+            <Plus /> {addLabel}
+          </Button>
+          {reviewActions}
+        </div>
         {count === 0 ? <p className="text-sm text-muted-foreground">{emptyText}</p> : children}
       </div>
     </SectionCard>

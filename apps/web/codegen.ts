@@ -9,7 +9,7 @@ import type { CodegenConfig } from '@graphql-codegen/cli'
 
 const config: CodegenConfig = {
   schema: '../../services/api/schema.graphql',
-  documents: ['src/**/*.{ts,tsx}', '!src/graphql/generated/**'],
+  documents: ['src/**/*.{ts,tsx}', '!src/graphql/generated/**', '!src/**/*.test.{ts,tsx}'],
   ignoreNoDocuments: true,
   generates: {
     './src/graphql/generated/': {

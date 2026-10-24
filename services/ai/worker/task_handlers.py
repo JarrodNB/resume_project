@@ -11,6 +11,8 @@ from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.interview_clarification_handler import handle_interview_clarification_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_questions_handler import handle_interview_questions_task
+from worker.library_edit_handler import handle_library_edit_task
+from worker.library_review_handler import handle_library_review_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
 from worker.parse_resume_handler import handle_parse_resume_task
 from worker.queue_messages import AiResultMessage, AiTaskMessage, TaskType
@@ -21,6 +23,8 @@ from worker.task_dependencies import TaskDependencies
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
+    "improve_library_entry": handle_library_edit_task,
+    "review_library_section": handle_library_review_task,
     "interview_clarification": handle_interview_clarification_task,
     "review_interview_answer": handle_interview_feedback_task,
     "generate_interview_questions": handle_interview_questions_task,

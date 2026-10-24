@@ -1,6 +1,7 @@
 # Reloads under the row lock so field edits and screening invalidation stay atomic.
 # Description: Updates a career library role. When highlights are given, they replace the
-# existing bullet points (in the given order). Queues an embedding sync on success.
+# existing bullet points (in the given order). Exact unchanged text retains its saved
+# screening/generated coverage; user changes start unchecked. Queues an embedding sync.
 # Index:
 #   - call: updates in one transaction; returns the experience, or validation errors
 module Experiences
@@ -29,9 +30,11 @@ module Experiences
 
     # Deletes the current highlights and builds the new list.
     def replace_highlights
+      covered = @experience.highlights.where("screened_fields @> ARRAY['content']::text[]").pluck(:content).to_set
       @experience.highlights.destroy_all
       @highlights.each_with_index do |content, position|
-        @experience.highlights.build(content: content, position: position)
+        @experience.highlights.build(content: content, position: position,
+          screened_fields: covered.include?(content) ? [ "content" ] : [])
       end
     end
   end

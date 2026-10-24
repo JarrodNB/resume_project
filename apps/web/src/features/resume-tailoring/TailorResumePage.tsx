@@ -95,7 +95,7 @@ function TailorProgress({
         <p className="flex items-center gap-2 font-medium" role="status">
           <LoaderCircle className="size-4 animate-spin text-section-skills-accent" aria-hidden /> Writing your complete draft…
         </p>
-        <p className="text-sm text-muted-foreground">Your sections will appear together when the draft is ready to review.</p>
+        <p className="text-sm text-muted-foreground">Your complete draft will appear when it is ready to review.</p>
       </CardContent>
     </Card>
   )

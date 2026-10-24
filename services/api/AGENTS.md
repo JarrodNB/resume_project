@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Rails API and source of truth for domain data: users, resumes, resume sections, jobs,
+Rails API and source of truth for domain data: users, Markdown resumes, jobs,
 applications, interviews, contacts, goals.
 
 ## Stack
@@ -107,5 +107,5 @@ Future successful nonblank interview answer saves enqueue `InterviewPrep::SyncQu
 after commit. Vectors remain separate from the career library and AI reader grants. Rails embedding
 jobs incur provider costs outside queued-task budgets/attempt reports and Logfire tracing.
 
-Resume tailoring mutations support start, save, section updates, and owned deletion.
-Deletion removes saved sections while keeping the job, library, and accepted task history.
+Resume tailoring mutations support start, first save, Markdown updates, and owned deletion.
+Deletion removes the saved document while keeping the job, structured library, and accepted task history.

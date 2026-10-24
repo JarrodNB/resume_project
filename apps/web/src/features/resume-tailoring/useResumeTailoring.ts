@@ -35,9 +35,11 @@ export function useResumeTailoring(jobId: string) {
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
   const existing = job?.latestTailoring ?? null
   const hasSavedResume = Boolean(job?.resume) || savedResumeJobId === jobId
-  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && (existing.status !== 'COMPLETED' || isMarkdownResult(existing.result)) && !hasSavedResume)
+  const followExisting = Boolean(existing && existing.acceptedAt === null && (existing.status !== 'COMPLETED' || isMarkdownResult(existing.result)) && !hasSavedResume)
   const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
-  const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
+  const initialTask = startedTask ?? (followExisting ? existing : null)
+  const terminal = initialTask?.status === 'COMPLETED' || initialTask?.status === 'FAILED'
+  const { aiTask, error: subscriptionError } = useAiTaskUpdates(terminal ? '' : taskId)
 
   const begin = useCallback(async () => {
     setStartErrors([])

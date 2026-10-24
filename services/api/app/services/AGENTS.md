@@ -82,13 +82,12 @@ All business logic, as service objects grouped by domain folder.
   lock before allowance checks. Accepted tasks without a saved resume allow fresh work;
   snapshots contact, a finished comparison when one exists, and gap
   responses into the task input
-- `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
-  (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
-  uses the supplied edited/included sections in order. An explicit empty
-  selection is rejected; omitting the argument uses the original draft. Deleting the job
-  keeps the resume
-- `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
-  resume (`updateResume`); type, title, and order stay put
+- `resume_tailoring/save_tailored_resume_service.rb` — saves the reviewed Markdown once
+  (`accepted_at`) under owner-then-task locks, blocking another saved resume for the job.
+  An omitted Markdown argument uses the original compatible draft; empty documents and
+  legacy section results are rejected. Deleting the job keeps the saved document.
+- `resume_tailoring/update_resume_service.rb` — replaces saved Markdown after validation;
+  the page target stays unchanged and invalid edits do not replace persisted content.
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
   per-user override columns apply only to general AI)

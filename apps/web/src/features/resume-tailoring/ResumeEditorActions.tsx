@@ -23,8 +23,8 @@ export function ResumeEditorActions({ pending, disabled = false, dirty, reviewFi
           {reviewFirst && <p className="font-medium">Your draft is ready to review</p>}
           <p className="text-sm text-muted-foreground">
             {reviewFirst
-              ? 'Review the full resume to check that it represents you. Expand any section below to edit it.'
-              : 'Review your sections, then preview or save your changes.'}
+              ? 'Review the full resume to check that it represents you. Edit the Markdown below before saving.'
+              : 'Edit your resume Markdown, then preview or save your changes.'}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">

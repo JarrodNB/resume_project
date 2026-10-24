@@ -3,6 +3,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
+import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { TailorResumePage } from './TailorResumePage'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
@@ -16,6 +17,18 @@ function jobMock(task: object | null, resume: object | null = null) {
 function render(mocks: Parameters<typeof renderPage>[0]['mocks']) {
   return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks })
 }
+
+it('shows a restored failed task and lets the user retry', async () => {
+  const user = userEvent.setup()
+  render([
+    jobMock({ ...completedTask, status: 'FAILED', result: null, errorMessage: 'Generation timed out.' }),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'retry-task', status: 'QUEUED' }, errors: [] } } } },
+    { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'retry-task' } }, delay: Infinity },
+  ])
+  expect(await screen.findByText('Generation timed out.')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+})
 
 it('saves a completed Markdown task and opens the saved editor', async () => {
   const user = userEvent.setup()
@@ -49,7 +62,17 @@ it('does not restore a completed legacy section task and starts a fresh one', as
   render([
     jobMock({ ...completedTask, result: { sections: [{ section_type: 'summary', content: { text: 'Old' } }] } }),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } } },
+    { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-2' } }, delay: Infinity },
   ])
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(screen.queryByRole('textbox', { name: 'Resume Markdown' })).not.toBeInTheDocument()
+})
+
+it('restores a queued task and displays its live completed Markdown without starting another task', async () => {
+  render([
+    jobMock({ ...completedTask, status: 'QUEUED', result: null }),
+    { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: 'task-1' } }, result: { data: { aiTaskUpdated: { ...completedTask, taskType: 'TAILOR_RESUME', input: {}, pendingQuestions: null, createdAt: '2026-10-24T00:00:00Z', job: { __typename: 'Job', id: 'job-1' } } } } },
+  ])
+  expect(await screen.findByRole('textbox', { name: 'Resume Markdown' })).toHaveValue(markdown)
+  expect(screen.queryByText("Couldn't follow the resume")).not.toBeInTheDocument()
 })

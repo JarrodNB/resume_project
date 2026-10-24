@@ -2,61 +2,44 @@
 
 ## Purpose
 
-Generate a complete resume draft for one job, then review, edit, exclude sections, preview,
-and save it once. A finished gap analysis is included when one exists; generation does not
-wait for it. Later visits edit the saved resume. Preview opens the current draft as a large PDF.
-Saved resumes download locally as PDF and editable DOCX after all edits save successfully.
+Generate one complete constrained Markdown resume for a job, review and edit it, then save
+it once. The structured career library and resume-import review fields remain independent.
+Saved resumes keep their requested page target and can be edited or downloaded later.
 
 ## Contents
 
-- `TailorResumePage.tsx` (`/jobs/:id/tailor`) — whole-draft loading, failure/retry, the completed
-  editor, or the saved resume (`SavedResumeEditor.tsx`, also used by `/resumes/:id`)
-- `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each
-  section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
-  in the editor; preview and save use the same included content in draft order
-- `SavedResumeEditor.tsx` — saved sections use tone-colored cards and remembered collapse IDs
-  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
-  Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
-  deletion uses the resumes hook/dialog and the route's success destination.
-- `resumeDownload.tsx` — render PDF and lazily load DOCX generation, sanitize saved-title
-  filenames, and release browser object URLs after download handoff. `ResumePdfDocument.test.tsx`
-  parses real PDF output with a test-only reader; editor/page tests control the download boundary.
-- `resumeDocxDocument.ts` — native Word paragraphs, headings, bullets and contact hyperlinks,
-  sharing `resumePdfModel.ts` content/order with PDF. Word pagination can differ.
-  `resumeDocxDocument.test.ts` inspects actual ZIP/XML output.
-- `resumeMarkdown.ts` — inert supported Markdown blocks shared by PDF and DOCX;
-  `renderResumePdf.tsx` is the bounded Node entry bundled into the AI worker image
-- `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback.
-  New drafts lead with Review full resume, opening the existing PDF preview; save stays
-  available without a review confirmation. Saved resumes keep their existing action hierarchy.
-- `ResumeUnsavedChanges.tsx` — leave/discard dialog and native reload warning for unsaved
-  resumes. New drafts are unsaved until persisted; saved editors track the submitted snapshot
-  so edits made during a request remain unsaved. Successful deletion sets a ref read by the
-  blocker at navigation time; do not rely on a state render before navigating after deletion.
-- `SectionFields.tsx` — resume-import review fields for one section
-- `sectionOrder.ts` — section names and display titles
-- `tailorDraft.ts` — section JSON to and from the review-field draft
-- `parseTailorTask.ts` — completed draft sections and warnings
-- `tailorOperations.ts` — job query and start / save / update mutations
-- `useResumeTailoring.ts` — load, start when needed, follow `aiTaskUpdated`, and retry failures
-- `useTailorActions.ts` — save the reviewed resume the first time
-- `useUpdateResume.ts` — `updateResume` for a resume that is already saved
-- `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
-  `ResumePdfPreview.tsx` shows that document in a dialog
-- `TailorResumePage.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
-  editing. `FinalResumeEditor.test.tsx` covers edit/exclude/restore and preview/save parity.
-  The PDF preview is mocked; jsdom cannot draw it
+- `TailorResumePage.tsx` (`/jobs/:id/tailor`) — generation status, failure/retry, completed
+  Markdown editor, or saved editor. Later visits restore compatible unsaved tasks.
+- `FinalResumeEditor.tsx` — review current Markdown through the PDF preview and save it.
+  Draft notes explain generation limits. New drafts remain unsaved until persistence succeeds.
+- `SavedResumeEditor.tsx` — edit saved Markdown, preview current edits, download the last
+  successfully saved snapshot, or delete with confirmation. Edits made during a save remain
+  dirty after that submitted snapshot succeeds; failed saves preserve edits and export locks.
+- `ResumeEditorActions.tsx` — preview/save controls and save feedback.
+- `ResumeUnsavedChanges.tsx` — leave/discard dialog and native reload warning. Successful
+  deletion uses a ref read by the navigation blocker before the next render.
+- `resumeMarkdown.ts` — inert supported Markdown blocks shared by PDF and DOCX.
+- `ResumePdfDocument.tsx`, `renderResumePdf.tsx`, `ResumePdfPreview.tsx` — fixed PDF template,
+  bounded Node renderer entry, and current-draft preview dialog.
+- `resumeDocxDocument.ts`, `resumeDownload.tsx` — Word output from the same Markdown blocks,
+  saved-title filenames and object URL cleanup. Word pagination can differ from PDF.
+- `parseTailorTask.ts` — Markdown and warnings read from task results; legacy section helpers
+  remain temporarily for the old writer's retirement.
+- `tailorOperations.ts`, `useResumeTailoring.ts`, `useTailorActions.ts`, `useUpdateResume.ts` —
+  GraphQL operations, task restoration/subscription, first save, and later Markdown updates.
+- `SectionFields.tsx`, `sectionOrder.ts`, `tailorDraft.ts` — structured resume-import review
+  helpers; do not remove these without inspecting resume-import callers.
+- `TailorResumePage.test.tsx` — completed/queued task restoration, live completion, failure
+  retry, legacy-result rejection, first save, and saved editing. Editor tests cover preview,
+  navigation warnings, save failures, concurrent edits and saved-snapshot export. Real PDF
+  and DOCX tests inspect generated artifacts; jsdom page tests mock the preview boundary.
 
 ## Local Rules
 
-- Reload reads `Job.latestTailoring`; live status and completed results come from
-  `aiTaskUpdated`. There is no token streaming or per-section approval flow.
-- An accepted task without a saved resume is history. A new tailor-page visit starts a
-  fresh task; removing a saved resume during the current visit never starts one or restores
-  the old draft, even when the cached task still lacks its accepted timestamp.
-- The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
-  `updateResume`. Preview shows the current included draft, including unsaved edits.
-- Excluded sections keep their edits and can be restored before saving. Empty selection
-  disables preview and save; sections retain their original draft order.
-- Certifications have a distinct section with name, issuer, issue/expiry dates, credential
-  ID/URL, and description.
+- Reload reads `Job.latestTailoring`. Follow nonterminal work through `aiTaskUpdated`;
+  completed and failed restored tasks do not need a subscription. Never poll.
+- Accepted tasks are history. A saved resume prevents new generation or old draft restoration
+  for the current visit, including cache updates during deletion.
+- First save uses `saveTailoredResume`; subsequent edits use `updateResume`. Preview uses
+  current Markdown. Downloads stay disabled while dirty, saving, deleting or exporting.
+- Structured career-library/import data is not saved-resume Markdown.

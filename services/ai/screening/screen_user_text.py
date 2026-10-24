@@ -164,6 +164,7 @@ async def screen_user_text_async(
     credentials_available: bool | None = None,
     classify_fallback: Callable[[str, str, float], Awaitable[Any]] | None = None,
     _allow_fallback: bool = True,
+    _fallback_model: str | None = None,
 ) -> ScreenOutcome:
     """Apply the same policy without blocking an agent's running event loop.
 
@@ -179,28 +180,29 @@ async def screen_user_text_async(
     if session is None:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback, _allow_fallback,
+            credentials_available, classify_fallback, _allow_fallback, _fallback_model,
         )
     # The same execution can be used by successive asyncio.run calls. Locks belong to
     # their event loop; completed decisions remain shared across those loops.
-    key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases, max_characters))
+    key = (asyncio.get_running_loop(), *_screen_key(text, model, check_phrases,
+                                                    max_characters, _fallback_model))
     lock = session.async_locks.setdefault(key, asyncio.Lock())
     async with lock:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback, _allow_fallback,
+            credentials_available, classify_fallback, _allow_fallback, _fallback_model,
         )
 
 
 async def _drive_async(
     text, model, timeout_seconds, check_phrases, max_characters, classify,
-    credentials_available, classify_fallback, allow_fallback,
+    credentials_available, classify_fallback, allow_fallback, fallback_model,
 ):
     """Drive the common policy after acquiring execution-local source ownership."""
     if model == local_llama.MODEL:
         session = current_session()
         masked = mask_outbound(text)
-        key = _screen_key(masked, model, check_phrases, max_characters)
+        key = _screen_key(masked, model, check_phrases, max_characters, fallback_model)
         if session is not None and key in session.decisions:
             return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
         if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
@@ -230,7 +232,8 @@ async def _drive_async(
         # A timed-out thread can finish later. Only this event-loop owner may cache
         # approval, and only after it has completed inside the caller's deadline.
         if allow_fallback and result.unchecked:
-            fallback_model = load_settings().user_text_screen_fallback_model
+            fallback_model = (fallback_model if fallback_model is not None else
+                              load_settings().user_text_screen_fallback_model)
             remaining = deadline - monotonic()
             if fallback_model != model and remaining > 0:
                 with fallback_execution(_screen_model_id(model), _screen_model_id(fallback_model),
@@ -240,25 +243,27 @@ async def _drive_async(
                         max_characters=max_characters, classify=classify,
                         credentials_available=credentials_available,
                         classify_fallback=classify_fallback, _allow_fallback=False,
+                        _fallback_model=fallback_model,
                     )
         _remember_decision(session, key, masked, result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
                              credentials_available=credentials_available,
-                             allow_fallback=allow_fallback)
+                             allow_fallback=allow_fallback, fallback_model=fallback_model)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
             try:
                 if fallback:
-                    selected = load_settings().user_text_screen_fallback_model
+                    selected = (fallback_model if fallback_model is not None else
+                                load_settings().user_text_screen_fallback_model)
                     resolved = _screen_model_id(selected)
                     with fallback_execution(_screen_model_id(model), resolved, kind="screening"):
                         if selected == local_llama.MODEL:
                             run = await screen_user_text_async(
                                 chunk, selected, timeout, check_phrases=False,
                                 max_characters=max_characters, classify=classify,
-                                _allow_fallback=False,
+                                _allow_fallback=False, _fallback_model=fallback_model,
                             )
                             if run.unchecked:
                                 raise RuntimeError("Local fallback screening unavailable")
@@ -275,7 +280,8 @@ async def _drive_async(
                         )
                     else:
                         run = await classify(chunk, model, timeout)
-                selected = load_settings().user_text_screen_fallback_model if fallback else model
+                selected = ((fallback_model if fallback_model is not None else
+                             load_settings().user_text_screen_fallback_model) if fallback else model)
                 if not isinstance(run, ScreenOutcome):
                     record_guardrail_usage(run.model_name, _screen_model_id(selected), run.usage)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
@@ -286,11 +292,13 @@ async def _drive_async(
         return done.value
 
 
-def _screen_key(text, model, check_phrases, max_characters):
+def _screen_key(text, model, check_phrases, max_characters, fallback_model=None):
     policy = ((local_llama.TARGET_CHARACTERS, local_llama.OVERLAP, local_llama.MAX_TOKENS)
               if model == local_llama.MODEL else (load_settings().user_text_screen_chunk_size, 300))
-    return (mask_outbound(text), model, _screen_model_id(model), check_phrases, policy,
-            max_characters)
+    fallback_choice = (fallback_model if fallback_model is not None else
+                       load_settings().user_text_screen_fallback_model)
+    return (mask_outbound(text), model, _screen_model_id(model), fallback_choice,
+            _screen_model_id(fallback_choice), check_phrases, policy, max_characters)
 
 
 def _preflight(text, check_phrases, max_characters):
@@ -519,18 +527,19 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
 def _screen_pass(
     text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
     *, credentials_available: bool | None = None, allow_fallback: bool = True,
+    fallback_model: str | None = None,
 ) -> Generator[tuple[str, float, bool], Any, ScreenOutcome]:
     """Own one shared policy; sync and async drivers only execute yielded provider work."""
     text = mask_outbound(text)
     size = load_settings().user_text_screen_chunk_size
     session = current_session()
-    key = _screen_key(text, model, check_phrases, max_characters)
+    key = _screen_key(text, model, check_phrases, max_characters, fallback_model)
     if session is not None and key in session.decisions:
         # Reuse is not a new billable call.
         return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
     outcome = yield from _screen_chunks(
         text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available,
-        allow_fallback,
+        allow_fallback, fallback_model,
     )
     _remember_decision(session, key, text, outcome)
     return outcome
@@ -538,7 +547,7 @@ def _screen_pass(
 
 def _screen_chunks(
     text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available=None,
-    allow_fallback=True,
+    allow_fallback=True, fallback_model=None,
 ):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
     if result := _preflight(text, check_phrases, max_characters):
@@ -577,7 +586,8 @@ def _screen_chunks(
             except UsageLimitExceeded:
                 raise
             except Exception:  # Attempted primary failures use the fallback.
-                fallback_model = load_settings().user_text_screen_fallback_model
+                fallback_model = (fallback_model if fallback_model is not None else
+                                  load_settings().user_text_screen_fallback_model)
                 if not allow_fallback or fallback_model == model:
                     raise
                 if _is_jev_model(fallback_model) and not available:
@@ -594,8 +604,9 @@ def _screen_chunks(
         except Exception:
             logger.exception("Prompt screening failed; leaving the text out of the prompt")
             return outcome(False, unchecked=True)
-        configured = _screen_model_id(
-            load_settings().user_text_screen_fallback_model if fallback else model)
+        selected = ((fallback_model if fallback_model is not None else
+                     load_settings().user_text_screen_fallback_model) if fallback else model)
+        configured = _screen_model_id(selected)
         if isinstance(run, ScreenOutcome):
             blocked = not run.allowed
         else:

@@ -111,7 +111,8 @@ class RealInterviewExecutor(InterviewExecutor):
                 return await screen_fallback_message_async(chunk, model, timeout)
 
         outcome = await screen_user_text_async(text, "typesafe:jev-1.13.0", 120,
-                                               classify=classify, classify_fallback=fallback)
+                                               classify=classify, classify_fallback=fallback,
+                                               _fallback_model="openai:gpt-5-nano")
         if not outcome.allowed:
             raise ScreeningRejected("screening_unavailable" if outcome.unchecked else
                                     "context_limit" if outcome.too_long else "screening_blocked")

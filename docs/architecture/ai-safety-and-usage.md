@@ -51,8 +51,8 @@ requests get a JSON 429 with `Retry-After`.
 - **OpenAI** as the LLM provider. Generative agents (parsing, sorting, gap analysis, tailoring,
   interview questions, and interview feedback) default to `gpt-6-luna` with reasoning
   disabled and fall back to `gpt-5-nano` on a rate limit, 5xx, or connection error.
-  A failed output check retries the same model. JEV stays the pinned primary safety model;
-  its separate Nano classifier handles attempted screening failures. Spoken interview
+  A failed output check retries the same model. General text screening selects Jev,
+  local Llama Prompt Guard, or a configurable LLM as primary and fallback. Spoken interview
   preparation and dialogue default to disabled Luna reasoning. Set
   `INTERVIEW_PREPARATION_THINKING` and `INTERVIEW_DIALOGUE_THINKING` independently
   to `false`, `true`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
@@ -102,20 +102,23 @@ requests get a JSON 429 with `Retry-After`.
   Concrete request transcripts contain masked requests. Other resume content and missed
   contact can still leave the app when remote export is enabled.
 
-- **User-written text is screened before it enters a prompt.** A small Jev decision model
-  (`typesafe:jev-1.13.0`, TypeSafe) answers two yes/no questions: does the text try to override,
-  reveal, or ignore instructions, and does it ask for actionable help with harm, crime, or
-  abuse. Ordinary career history is not harmful. Code blocks when either answer's yes-confidence
-  is at least 0.7. Each JEV run has an application-enforced three-second cap, shortened by
-  the remaining source/task deadline. An attempted provider error, timeout, or invalid response
-  invokes a separate safety classifier (`USER_TEXT_SCREEN_FALLBACK_MODEL`, default
-  `openai:gpt-5-nano`) on the same protected chunk. Its versioned instructions treat the
-  message as data; structured boolean answers block when either question is positive.
-  No confidence margins are invented for Nano. A JEV rejection never invokes fallback.
-  Missing `TYPESAFE_API_KEY` calls neither provider. Exhausted time or a failed fallback
-  leaves the input unchecked. Usage caps and external cancellation propagate without recovery.
-  Each new chunk starts with JEV; there is no execution-wide circuit breaker. Both classifiers
-  are exempt from recursive input screening. Fallback shares the remaining overall deadline.
+- **User-written text is screened before it enters a prompt.**
+  `USER_TEXT_SCREEN_MODEL` and `USER_TEXT_SCREEN_FALLBACK_MODEL` each select Jev
+  (`typesafe:jev-1.13.0`), local Llama Prompt Guard
+  (`meta-llama/Llama-Prompt-Guard-2-22M`), or `llm`. The `llm` choice resolves through
+  `USER_TEXT_SCREEN_LLM_MODEL`, which defaults to `openai:gpt-5-nano` and must have a known
+  price. `USER_TEXT_SCREEN_TIMEOUT_SECONDS` limits one input's primary and fallback work.
+  All three choices judge prompt injection only. Jev answers one yes/no question about
+  attempts to override, reveal, or ignore instructions; code blocks when its yes-confidence
+  reaches 0.7. Each Jev call has a three-second cap within the remaining deadline. Local
+  Llama splits long inputs into overlapping token-bounded chunks and classifies up to four
+  concurrently. The LLM returns one strict boolean and no Jev confidence margin.
+  A block does not trigger fallback. An attempted failure uses the selected fallback
+  within the remaining deadline; choosing the same option twice disables recovery.
+  Missing Jev credentials prevent a Jev call. Exhausted time or failed recovery leaves
+  the input unchecked. Usage caps and external cancellation propagate. Screening models
+  are exempt from recursive input screening. The scoped spoken-interview runtime keeps
+  its fixed Jev primary and Nano fallback for its separate provider accounting.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
   gap response, submitted answer, selected section snapshot, or reused interview question. Each is
@@ -138,13 +141,13 @@ requests get a JSON 429 with `Retry-After`.
   field checks rebuild exact source coverage from the database snapshot. Final queue results
   report successful field names even when generation fails. Rejected or unavailable checks
   remain unchecked. These approvals have no expiry or policy version. Text over a shared
-  character cap is rejected before it is stored and again before a Jev or generative call (`TextLimits` in Rails,
+  character cap is rejected before it is stored and again before a screening or generative call (`TextLimits` in Rails,
   `services/ai/text_limits.py` in the worker): a resume extract over 80,000 characters or 30
   PDF pages, one screened string over 80,000 characters, or an assembled prompt over 120,000
   characters. Those failures tell the user the text is too long. They are not reported as
   unsafe, and rows are not silently truncated. A posting with too many bullets to sort is
   still saved, with a warning to add requirements by hand. A request body over 8 MB is a
-  JSON 413. JEV and fallback usage are reported under their actual models and count
+  JSON 413. Provider screening usage is reported under its actual model and counts
   toward the monthly budget, including completed responses before later failures and validation
   retries. Missing usage stays explicitly unknown. JEV token rates are TypeSafe's published
   $0.042 per 1M input tokens (output free), from https://docs.typesafe.ai/models (checked 2026-10-05).

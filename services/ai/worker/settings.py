@@ -81,7 +81,8 @@ class WorkerSettings(BaseSettings):
     @classmethod
     def screen_llm_model_candidate(cls, value: str) -> str:
         """Require a priced generative model before any screening call can bill for it."""
-        if value not in MODEL_PRICES or value.startswith(("typesafe:", "openai:text-embedding")):
+        if value not in MODEL_PRICES or not value.startswith("openai:") or value.startswith(
+            "openai:text-embedding"):
             raise ValueError("Screening LLM model must be a priced generative model")
         return value
 

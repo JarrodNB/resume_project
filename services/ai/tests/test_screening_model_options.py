@@ -54,7 +54,7 @@ def test_legacy_model_specific_selection_maps_to_llm():
 
 
 @pytest.mark.parametrize("model", ["llm", "openai:unknown-model",
-                                    "openai:text-embedding-3-small"])
+                                    "openai:text-embedding-3-small", "jev-1.13.0"])
 def test_screening_llm_requires_a_priced_generative_model(model):
     with pytest.raises(ValueError):
         WorkerSettings(user_text_screen_llm_model=model)
@@ -251,6 +251,28 @@ def test_async_primary_uses_configured_llm_model(monkeypatch):
         classify_fallback=llm,
     ))
     assert result.allowed and calls == [concrete_model]
+
+
+def test_scoped_interview_fallback_ignores_general_screening_choice(monkeypatch):
+    """The fixed interview path retains its accounted Nano recovery model."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", local_llama.MODEL)
+    monkeypatch.setenv("USER_TEXT_SCREEN_LLM_MODEL", "openai:gpt-6-luna")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
+    calls = []
+
+    async def unavailable_jev(text, model, timeout_seconds):
+        calls.append(model)
+        raise RuntimeError("Jev unavailable")
+
+    async def interview_nano(text, model, timeout_seconds):
+        calls.append(model)
+        return _run(model)
+
+    result = asyncio.run(screening.screen_user_text_async(
+        "career note", JEV, 1, check_phrases=False, classify=unavailable_jev,
+        classify_fallback=interview_nano, _fallback_model=DEFAULT_LLM_MODEL,
+    ))
+    assert result.allowed and calls == [JEV, DEFAULT_LLM_MODEL]
 
 
 def test_screening_timeout_caps_both_attempts(monkeypatch):

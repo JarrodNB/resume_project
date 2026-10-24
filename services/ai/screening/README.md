@@ -19,6 +19,8 @@ tokenizer reduces each chunk further until it fits 512 tokens. Every chunk must 
 before the input can enter a generative prompt. Traces contain the model name, chunk
 position, sizes, decision, elapsed time, and error category, but no text or
 token. Local inference does not create billed provider usage.
+Within one input, up to four chunks classify concurrently. A block stops further
+chunk scheduling; already started chunks finish before the model slot is released.
 
 Both the synchronous screening path and async input guardrail return an unavailable decision when their deadline expires,
 including during model loading. A local inference thread may still finish afterward;

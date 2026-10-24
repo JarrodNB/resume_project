@@ -58,6 +58,6 @@ def test_unavailable_and_multichunk_results_are_privacy_safe(monkeypatch):
     assert result["jev"]["decision"] == "allow"
     assert result["jev"]["chunk_count"] > 1
     assert result["llama"]["decision"] == "unavailable"
-    assert result["llama"]["chunk_count"] == 1
+    assert result["llama"]["chunk_count"] == 2
     assert text not in str(result)
     assert "secret-input-must-not-appear" not in str(result)

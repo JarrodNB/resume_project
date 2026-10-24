@@ -219,10 +219,9 @@ def test_local_screen_stops_tokenizing_after_first_block(monkeypatch):
     seen = []
 
     def chunks(text):
-        seen.append("first")
-        yield text[:4], 4
-        seen.append("second")
-        yield text[4:], 4
+        for index in range(10):
+            seen.append(index)
+            yield text[index:index + 1], 1
 
     monkeypatch.setattr(local_llama, "iter_chunks", chunks)
     monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
@@ -230,7 +229,42 @@ def test_local_screen_stops_tokenizing_after_first_block(monkeypatch):
     ))
     outcome = screen_user_text("abcdefgh", local_llama.MODEL, 1)
     assert not outcome.allowed and not outcome.unchecked
-    assert seen == ["first"]
+    assert 1 <= len(seen) <= 4
+
+
+def test_long_local_input_classifies_chunks_concurrently(monkeypatch):
+    barrier = threading.Barrier(2)
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
+        (text[:4], 4), (text[4:], 4),
+    ]))
+
+    def classify(chunk, model, timeout):
+        barrier.wait(timeout=0.5)
+        return SimpleNamespace(blocked=False, tokens=4, duration=0.01)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+    result = screen_user_text("abcdefgh", local_llama.MODEL, 1, check_phrases=False)
+    assert result.allowed
+
+
+def test_local_chunk_concurrency_is_bounded(monkeypatch):
+    state = {"active": 0, "peak": 0}
+    lock = threading.Lock()
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter((char, 1) for char in text))
+
+    def classify(chunk, model, timeout):
+        with lock:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+        threading.Event().wait(0.03)
+        with lock:
+            state["active"] -= 1
+        return SimpleNamespace(blocked=False, tokens=1, duration=0.03)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+    result = screen_user_text("abcdefghijkl", local_llama.MODEL, 2, check_phrases=False)
+    assert result.allowed
+    assert 2 <= state["peak"] <= screening_module.MAX_LOCAL_CHUNKS_IN_FLIGHT
 
 
 def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):

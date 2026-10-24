@@ -1,8 +1,8 @@
 """Compare production Jev and local Llama screening on aligned synthetic inputs.
 
 The runner records only case identifiers and aggregate decisions. It does not print,
-serialize, or attach screened text to evaluation spans. Production screening still
-stops at its first blocked or unavailable chunk, so counts are attempted chunks.
+serialize, or attach screened text to evaluation spans. Counts include chunks started
+before a block or outage; local inference may prefetch up to four at once.
 """
 
 import argparse
@@ -123,7 +123,7 @@ def run_comparison(output_path: Path | None = None) -> dict:
     report = {"models": {"jev": "typesafe:jev-1.13.0", "llama": local_llama.MODEL},
               "summary": summary, "results": rows,
               "limitations": ["Sequential single-run timing; provider and cache conditions vary.",
-                              "Chunk counts stop at the first block or unavailable result.",
+                              "Chunk counts include attempts started before a block or outage; Llama may prefetch four.",
                               "Harmful-only cases are outside Llama prompt-injection scope."]}
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)

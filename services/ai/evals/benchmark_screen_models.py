@@ -14,7 +14,11 @@ from time import monotonic
 import logfire
 
 from screening import local_llama
-from screening.screen_user_text import observe_screen_chunks, screen_user_text
+from screening.screen_user_text import (
+    MAX_LOCAL_CHUNKS_IN_FLIGHT,
+    observe_screen_chunks,
+    screen_user_text,
+)
 from screening.session import screening_session
 from worker.settings import load_settings
 
@@ -104,6 +108,7 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
             "llama_target_chunk_characters": local_llama.TARGET_CHARACTERS,
             "llama_overlap_characters": local_llama.OVERLAP,
             "llama_max_tokens": local_llama.MAX_TOKENS,
+            "llama_max_concurrent_chunks": MAX_LOCAL_CHUNKS_IN_FLIGHT,
             "screen_timeout_seconds": load_settings().llm_run_timeout_seconds,
         },
         "sizes": by_size,

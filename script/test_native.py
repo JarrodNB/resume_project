@@ -50,6 +50,9 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(api["WEB_APP_URL"], "https://web.example")
         self.assertEqual(api["__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS"], "web.example")
         self.assertEqual(api["PGPORT"], "55432")
+        self.assertEqual(api["AWS_DEFAULT_REGION"], "us-east-1")
+        self.assertEqual(api["UV_CACHE_DIR"], str(self.state / "cache/uv"))
+        self.assertEqual(api["npm_config_cache"], str(self.state / "cache/npm"))
         self.assertEqual(ai["DB_USERNAME"], "ai_reader")
         self.assertTrue(ai["DATABASE_URL"].startswith("postgresql://ai_reader:"))
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
@@ -76,6 +79,7 @@ class NativeSetupTests(unittest.TestCase):
 
         with patch.object(native, "require_tools"), patch.object(native.os, "geteuid", return_value=1000), \
                 patch.object(native.subprocess, "check_output", side_effect=output), \
+                patch.object(native.subprocess, "run", return_value=type("Result", (), {"returncode": 0})()), \
                 patch.object(native, "run") as run:
             native.install()
         self.assertEqual(existing.read_text(), "OPENAI_API_KEY=keep-me\n")
@@ -125,6 +129,15 @@ class NativeSetupTests(unittest.TestCase):
             native.stop()
             kill.assert_not_called()
         self.assertFalse(path.exists())
+
+    def test_stop_uses_start_ticks_when_proc_cwd_is_hidden(self):
+        self.state.mkdir()
+        proc = native.spawn("probe", [sys.executable, "-c", "import time; time.sleep(60)"],
+                            self.root, os.environ.copy())
+        self.addCleanup(lambda: proc.poll() is None and proc.kill())
+        with patch.object(native.os, "readlink", side_effect=PermissionError):
+            native.stop()
+        self.assertEqual(proc.wait(timeout=5), -15)
 
 
 if __name__ == "__main__":

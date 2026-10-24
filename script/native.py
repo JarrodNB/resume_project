@@ -36,10 +36,14 @@ def run(args, cwd=ROOT, env=None, **kwargs):
 
 def environment():
     env = os.environ.copy()
-    env["PATH"] = f"{STATE}/ruby/bin:/usr/lib/postgresql/17/bin:" + env.get("PATH", os.defpath)
+    env["PATH"] = (f"{STATE}/ruby/bin:{STATE}/pgsql/bin:"
+                   "/usr/lib/postgresql/17/bin:" + env.get("PATH", os.defpath))
     env["BUNDLE_PATH"] = str(STATE / "bundle")
     env["UV_PROJECT_ENVIRONMENT"] = str(ROOT / "services/ai/.venv")
     env["UV_PYTHON"] = "3.13"
+    env["UV_CACHE_DIR"] = str(STATE / "cache/uv")
+    env["UV_PYTHON_INSTALL_DIR"] = str(STATE / "python")
+    env["npm_config_cache"] = str(STATE / "cache/npm")
     # Preserve the session proxy and extend its local-service bypass list.
     bypass = env.get("NO_PROXY", env.get("no_proxy", ""))
     env["NO_PROXY"] = env["no_proxy"] = bypass + ",localhost,127.0.0.1,::1"
@@ -78,7 +82,8 @@ def app_env(service):
     cfg = config()
     web_origin = env.get("NATIVE_WEB_ORIGIN", "http://localhost:5173")
     env.update({
-        "AWS_REGION": "us-east-1", "AWS_ACCESS_KEY_ID": "local",
+        "AWS_REGION": "us-east-1", "AWS_DEFAULT_REGION": "us-east-1",
+        "AWS_ACCESS_KEY_ID": "local",
         "AWS_SECRET_ACCESS_KEY": "local", "AWS_EC2_METADATA_DISABLED": "true",
         "SQS_ENDPOINT_URL": "http://127.0.0.1:9090",
         "S3_ENDPOINT_URL": "http://127.0.0.1:9090",
@@ -143,9 +148,18 @@ def install():
     # Match the lockfile's Bundler version rather than the host default.
     lock = (ROOT / "services/api/Gemfile.lock").read_text()
     bundler = lock.split("BUNDLED WITH\n", 1)[1].strip().splitlines()[0].strip()
-    run(["gem", "install", "bundler", "--version", bundler, "--no-document"], env=env)
+    installed = subprocess.run(["gem", "list", "--installed", "--exact", "bundler",
+                                "--version", bundler], env=env, cwd=ROOT,
+                               stdout=subprocess.DEVNULL, check=False).returncode == 0
+    if not installed:
+        # RubyGems metadata can use index.rubygems.org, which is not always allowed
+        # even when rubygems.org package downloads are available.
+        archive = STATE / f"bundler-{bundler}.gem"
+        run(["curl", "-fsSL", f"https://rubygems.org/downloads/{archive.name}",
+             "-o", archive], env=env)
+        run(["gem", "install", "--local", archive, "--no-document"], env=env)
     run(["bundle", "install"], cwd=ROOT / "services/api", env=env)
-    run(["uv", "python", "install", "3.13"], env=env)
+    run(["uv", "python", "install", "3.13", "--no-bin"], env=env)
     run(["uv", "sync", "--frozen"], cwd=ROOT / "services/ai", env=env)
     run(["uv", "run", "--no-sync", "python", "-c",
          "import spacy; spacy.load('en_core_web_sm')"], cwd=ROOT / "services/ai", env=env)
@@ -154,6 +168,11 @@ def install():
     run(["uv", "pip", "install", "--python", STATE / "emulators/bin/python",
          "moto[server]==5.1.14"], env=env)
     for app in ("web", "landing"):
+        modules = ROOT / f"apps/{app}/node_modules"
+        if modules.is_dir() and not os.access(modules, os.W_OK):
+            if any(modules.iterdir()):
+                raise RuntimeError(f"{modules} is not writable; fix its ownership before npm ci.")
+            modules.rmdir()
         run(["npm", "ci"], cwd=ROOT / f"apps/{app}", env=env)
     print("Installed. Run: python3 script/native.py start")
 
@@ -289,10 +308,16 @@ def stop():
         try:
             # Linux start_new_session makes the child its own process-group leader.
             cmdline = Path(f"/proc/{pid}/cwd")
-            if not cmdline.exists():
+            try:
+                cwd = os.readlink(cmdline)
+            except FileNotFoundError:
                 path.unlink()
                 continue
-            if not Path(os.readlink(cmdline)).is_relative_to(ROOT):
+            except PermissionError:
+                # Some managed sandboxes deny /proc/PID/cwd even for our own
+                # process. The recorded Linux start tick still guards PID reuse.
+                cwd = None
+            if cwd is not None and not Path(cwd).is_relative_to(ROOT):
                 raise RuntimeError(f"Refusing to stop unrelated process {pid}")
             os.killpg(pid, signal.SIGTERM)
             for _ in range(50):

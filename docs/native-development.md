@@ -27,8 +27,29 @@ python3 script/native.py stop
 pgvector, libpq, and FFmpeg. Package installation can start the distribution's
 PostgreSQL service; the app uses its own cluster on port **55432**. No sudo helper
 or privilege escalation is built into the script. If your managed environment
-does not provide root access, missing system packages need an administrator or a
-different environment. `doctor` is read-only and lists missing programs.
+does not provide root access, you can install PostgreSQL 17 and pgvector under
+`.native/pgsql` after providing the compiler, Bison, Flex, and build libraries.
+The script searches that local prefix before the system PostgreSQL directory.
+For example, from the repository root:
+
+```bash
+mkdir -p .native/sources .native/build-pg
+curl -fsSL https://ftp.postgresql.org/pub/source/v17.6/postgresql-17.6.tar.bz2 \
+  -o .native/sources/postgresql-17.6.tar.bz2
+tar -xf .native/sources/postgresql-17.6.tar.bz2 -C .native/sources
+cd .native/build-pg
+../sources/postgresql-17.6/configure --prefix="$(pwd)/../pgsql" --without-icu
+make -j4 && make install
+cd ../..
+git clone --depth 1 --branch v0.8.1 https://github.com/pgvector/pgvector.git .native/sources/pgvector
+make -C .native/sources/pgvector PG_CONFIG="$(pwd)/.native/pgsql/bin/pg_config" -j4
+make -C .native/sources/pgvector PG_CONFIG="$(pwd)/.native/pgsql/bin/pg_config" install
+```
+
+If optional PostgreSQL headers are absent, configure with `--without-readline
+--without-zlib` as well. `doctor` is read-only and lists missing programs. Ruby
+still needs its build libraries; a local PostgreSQL build alone does not satisfy
+all prerequisites.
 
 Install **Node 22 or newer**, npm, **uv**, and Python 3.9 or newer before running
 the script. The cloud runtime normally provides these. `install` builds Ruby

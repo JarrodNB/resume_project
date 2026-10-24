@@ -76,6 +76,22 @@ class NativeSetupTests(unittest.TestCase):
             self.assertEqual(os.environ["AWS_PROFILE"], supplied["AWS_PROFILE"])
             self.assertEqual(os.environ["AWS_DEFAULT_PROFILE"], supplied["AWS_DEFAULT_PROFILE"])
 
+    def test_worker_uses_this_checkouts_shared_resume_renderer(self):
+        env = native.app_env("ai")
+        self.assertEqual(env["RESUME_RENDER_ENTRY"], str(self.state / "resume-renderer/render.mjs"))
+
+    def test_renderer_build_resolves_dependencies_from_this_checkout(self):
+        modules = self.root / "apps/web/node_modules"
+        modules.mkdir(parents=True)
+        with patch.object(native, "run") as run:
+            native.build_resume_renderer({})
+        renderer = self.state / "resume-renderer"
+        self.assertEqual((renderer / "node_modules").resolve(), modules)
+        command = run.call_args.args[0]
+        self.assertIn("--external", command)
+        self.assertEqual(command[-1], renderer / "render.mjs")
+        self.assertEqual(run.call_args.kwargs["cwd"], self.root / "apps/web")
+
     def test_install_creates_templates_once_without_starting_services(self):
         for service in ("api", "ai"):
             folder = self.root / "services" / service

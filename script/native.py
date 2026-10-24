@@ -116,11 +116,26 @@ def app_env(service):
         "INTERVIEW_TRANSCRIPTION_TARGET": "http://127.0.0.1:8000",
     })
     if service == "ai":
+        env["RESUME_RENDER_ENTRY"] = str(STATE / "resume-renderer/render.mjs")
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
                    PGPASSWORD=cfg["reader_password"],
                    DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
         env.pop("CABLE_DATABASE_URL", None)
     return env
+
+
+def build_resume_renderer(env):
+    """Bundle the web PDF template for this checkout's native worker."""
+    web = ROOT / "apps/web"
+    renderer = STATE / "resume-renderer"
+    renderer.mkdir(parents=True, exist_ok=True)
+    modules = renderer / "node_modules"
+    if not modules.exists():
+        modules.symlink_to(web / "node_modules", target_is_directory=True)
+    run([web / "node_modules/.bin/rolldown",
+         "src/features/resume-tailoring/renderResumePdf.tsx", "--platform", "node",
+         "--format", "esm", "--external", "@react-pdf/renderer", "--external", "react",
+         "--external", "react/jsx-runtime", "--file", renderer / "render.mjs"], cwd=web, env=env)
 
 
 def install():
@@ -180,6 +195,7 @@ def install():
                 raise RuntimeError(f"{modules} is not writable; fix its ownership before npm ci.")
             modules.rmdir()
         run(["npm", "ci"], cwd=ROOT / f"apps/{app}", env=env)
+    build_resume_renderer(env)
     print("Installed. Run: python3 script/native.py start")
 
 
@@ -248,6 +264,7 @@ def start():
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))
     env = app_env("api")
+    build_resume_renderer(env)
     (STATE / "logs").mkdir(exist_ok=True)
     try:
         spawn("emulators", [STATE / "emulators/bin/moto_server", "-H", "127.0.0.1",

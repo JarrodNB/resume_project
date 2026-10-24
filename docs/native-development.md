@@ -113,6 +113,12 @@ Once workers run, queued work or user actions can invoke configured providers.
 emulator, and interview ports. It does not validate every product flow, provider
 credential, subscription, or browser audio path. Inspect worker logs as well.
 
+Markdown resume tailoring also runs a small Node PDF renderer. Install and start
+bundle it from the same web source used by preview and downloads into
+`.native/resume-renderer/`. The worker receives `RESUME_RENDER_ENTRY` for this
+checkout; it needs Node on its inherited path. Restart after changing the PDF
+template so its measurement bundle matches the frontend. This requires no Docker.
+
 For syntax and basic command checks without installing anything:
 
 ```bash

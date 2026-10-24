@@ -1,7 +1,7 @@
 /**
  * Review and edit the finished resume before saving it once. Sections start collapsed.
  * Edits and inclusion choices stay together. Unsaved drafts warn before navigation;
- * Full-resume review is the main next action, with saving always available.
+ * The full resume appears first; the editing view retains all draft choices.
  * Controls pause during the first save because success switches to the saved editor.
  */
 import { useState } from 'react'
@@ -13,7 +13,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ResumeEditorActions } from './ResumeEditorActions'
 import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
@@ -40,7 +39,7 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
     included: true,
   })))
 
-  const [previewOpen, setPreviewOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
   const snapshot = JSON.stringify(drafts)
   const dirty = snapshot !== savedSnapshot
@@ -56,9 +55,9 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="resume-editor">
       <ResumeUnsavedChanges dirty={dirty} />
-      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} disabled={selected.length === 0} errors={errors} onPreview={() => setPreviewOpen(true)} onSave={() => void save()} />
+      <ResumeEditorActions reviewFirst pending={pending} dirty={dirty} editing={editing} empty={selected.length === 0} errors={errors} onPreview={() => setEditing(false)} onEdit={() => setEditing(true)} onSave={() => void save()} />
       {warnings.length > 0 && (
         <Alert>
           <CircleAlert aria-hidden />
@@ -66,7 +65,7 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
           <AlertDescription>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</AlertDescription>
         </Alert>
       )}
-      <fieldset disabled={pending} className="grid min-w-0 gap-4">
+      {editing && <fieldset disabled={pending} className="resume-section-list">
         {drafts.map((section, index) => (
           <FinalSection
             key={section.sectionType}
@@ -78,17 +77,13 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
             onChange={(next) => setDrafts((current) => current.map((draft, position) => (position === index ? { ...draft, draft: next } : draft)))}
           />
         ))}
-      </fieldset>
+      </fieldset>}
       {selected.length === 0 && <p className="text-sm text-muted-foreground">Include at least one section to preview or save your resume.</p>}
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="flex h-[min(68rem,calc(100svh-2rem))] w-[54rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden sm:max-w-[54rem]">
-          <DialogHeader className="w-full pr-8">
-            <DialogTitle>Preview</DialogTitle>
-            <DialogDescription>Preview includes unsaved edits. Save your resume before downloading.</DialogDescription>
-          </DialogHeader>
-          {previewOpen && <ResumePdfPreview model={buildResumePdfModel(selected)} />}
-        </DialogContent>
-      </Dialog>
+      {!editing && selected.length > 0 && (
+        <div className="resume-preview-stage">
+          <ResumePdfPreview model={buildResumePdfModel(selected)} />
+        </div>
+      )}
     </div>
   )
 }
@@ -113,23 +108,23 @@ function FinalSection({
   const tone = SECTION_TONES[draft.kind]
 
   return (
-    <Card className={cn('pt-0', tone.card)}>
-      <CardHeader className={cn('py-3', tone.header, included && open && 'border-b')}>
+    <Card className={cn('resume-section gap-0 py-0 shadow-none', tone.card)}>
+      <CardHeader className={cn('px-5 py-4', tone.header, included && open && 'border-b')}>
         <div className="flex flex-wrap items-center gap-3">
           {included ? (
             <CollapseToggle className="min-w-0 flex-1 basis-40" open={open} panelId={panelId} onToggle={toggle}>
               <tone.Icon className={cn('size-4 shrink-0', tone.icon)} aria-hidden />
-              <h2 className="text-lg font-semibold">{title}</h2>
+              <h2 className="text-base font-medium">{title}</h2>
             </CollapseToggle>
           ) : <h2 className="flex-1 font-medium">{title}</h2>}
-          <Button type="button" variant="outline" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
+          <Button type="button" variant="ghost" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
             {included ? 'Exclude' : 'Include'}
           </Button>
         </div>
       </CardHeader>
-      {!included && <p className="px-4 text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}
+      {!included && <p className="px-5 pb-4 text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}
       {included && open && (
-        <CardContent id={panelId}>
+        <CardContent id={panelId} className="px-5 py-5">
           <SectionFields draft={draft} onChange={onChange} />
         </CardContent>
       )}

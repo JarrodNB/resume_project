@@ -12,7 +12,7 @@ import { UPDATE_RESUME_MUTATION } from './tailorOperations'
 
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
-vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: () => null }))
+vi.mock('./ResumePdfPreview', () => ({ ResumePdfPreview: ({ model }: { model: unknown }) => <pre data-testid="pdf-model">{JSON.stringify(model)}</pre> }))
 
 const sections = [{ id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Original summary.' } }]
 
@@ -41,6 +41,7 @@ it('protects edited content, recognizes reverted edits, and allows leaving after
   const cleanUnload = new Event('beforeunload', { cancelable: true })
   fireEvent(window, cleanUnload)
   expect(cleanUnload.defaultPrevented).toBe(false)
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   await user.click(screen.getByRole('button', { name: 'Summary' }))
   const input = screen.getByRole('textbox', { name: 'Summary' })
   await user.type(input, ' Updated')
@@ -70,6 +71,7 @@ it('protects edited content, recognizes reverted edits, and allows leaving after
 it('keeps unsaved work after failure and clears its warning only after retry succeeds', async () => {
   const user = userEvent.setup()
   renderEditor([updateMock('Edited summary.', ['Save unavailable.']), updateMock('Edited summary.')])
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   await user.click(screen.getByRole('button', { name: 'Summary' }))
   const input = screen.getByRole('textbox', { name: 'Summary' })
   await user.clear(input)
@@ -90,6 +92,7 @@ it('keeps unsaved work after failure and clears its warning only after retry suc
 it('keeps later edits unsaved when an earlier snapshot finishes saving', async () => {
   const user = userEvent.setup()
   renderEditor([updateMock('Submitted summary.', [], 300)])
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   await user.click(screen.getByRole('button', { name: 'Summary' }))
   const input = screen.getByRole('textbox', { name: 'Summary' })
   await user.clear(input)
@@ -114,7 +117,8 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     renderEditor([updateMock('Edited summary.')])
     const button = screen.getByRole('button', { name: `Download ${format}` })
     expect(button).toBeEnabled()
-    await user.click(screen.getByRole('button', { name: 'Summary' }))
+    await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
     await user.clear(screen.getByRole('textbox', { name: 'Summary' }))
     await user.type(screen.getByRole('textbox', { name: 'Summary' }), 'Edited summary.')
     expect(button).toBeDisabled()
@@ -138,7 +142,8 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     await user.click(preparing)
     expect(download).toHaveBeenCalledOnce()
     const captured = vi.mocked(download).mock.calls[0][0]
-    await user.click(screen.getByRole('button', { name: 'Summary' }))
+    await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
     await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Later edit.')
     expect(captured.blocks[0].text).toBe('Original summary.')
     await act(async () => finish())
@@ -158,4 +163,21 @@ describe.each([['PDF', downloadResumePdf], ['DOCX', downloadResumeDocx]] as cons
     expect(screen.queryByText(`Could not download the ${format}. Please try again.`)).not.toBeInTheDocument()
   })
 
+})
+
+
+it('starts with the saved preview and preserves unsaved edits when switching views', async () => {
+  const user = userEvent.setup()
+  renderEditor()
+  expect(screen.getByRole('button', { name: 'Preview' })).toHaveAttribute('aria-pressed', 'true')
+  expect(screen.getByTestId('pdf-model')).toHaveTextContent('Original summary.')
+  expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
+  await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' My edit.')
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).toHaveTextContent('Original summary. My edit.')
+  expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Original summary. My edit.')
 })

@@ -204,3 +204,12 @@ Navigation pairs simple line icons with text. The selected item uses the sidebar
 - Don't restore colored header bands or accent stripes to section cards.
 - Don't replace the mobile navigation with a clipped desktop sidebar.
 - Don't treat the marketing landing page as covered by this workspace system.
+
+
+### Resume workspace
+
+Tailored and saved resumes open in an inline PDF preview. A Preview / Edit sections
+switch sits beside document actions in a ruled toolbar, with save status above it.
+Editing uses one paper surface with divided, remembered disclosures. Deletion sits
+below the saved document. The PDF pages fit the available width on desktop and mobile;
+the preview uses the same document as export, with page captions and accessible text.

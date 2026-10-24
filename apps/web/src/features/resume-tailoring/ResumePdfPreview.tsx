@@ -1,18 +1,14 @@
-/**
- * Description: Letter-size preview of the resume PDF at actual size. It redraws
- * after the draft settles, using the same document a later export downloads.
- * Index:
- *   - ResumePdfPreview: the preview frame
+/** Build the same PDF used by downloads and display it as responsive pages.
+ * A short debounce avoids rebuilding on every keystroke. Each PDF URL owns its
+ * viewer so completed renders cannot overwrite a newer document.
  */
 import { useEffect, useState } from 'react'
 import { usePDF } from '@react-pdf/renderer'
+import { ResumePdfPages } from './ResumePdfPages'
 import { ResumePdfDocument } from './ResumePdfDocument'
 import type { ResumePdfModel } from './resumePdfModel'
 
 const PREVIEW_DELAY_MS = 400
-// Hide the viewer's page list and toolbar so the page fills the frame.
-const PREVIEW_SRC_OPTIONS = '#toolbar=0&navpanes=0&zoom=100'
-
 /** Shows the resume PDF. Typing waits briefly so the document is not rebuilt on every key. */
 export function ResumePdfPreview({ model }: { model: ResumePdfModel }) {
   const debounced = useDebounced(JSON.stringify(model), PREVIEW_DELAY_MS)
@@ -23,13 +19,9 @@ export function ResumePdfPreview({ model }: { model: ResumePdfModel }) {
   }, [debounced, update])
 
   return instance.url ? (
-    <iframe
-      title="Resume preview"
-      src={`${instance.url}${PREVIEW_SRC_OPTIONS}`}
-      className="min-h-0 w-full flex-1 rounded-md border bg-white"
-    />
+    <ResumePdfPages key={instance.url} url={instance.url} />
   ) : (
-    <div className="grid min-h-0 w-full flex-1 place-items-center rounded-md border bg-white text-sm text-muted-foreground">
+    <div role={instance.error ? 'alert' : 'status'} className="resume-preview-message flex-1">
       {instance.error ? "Couldn't draw the preview." : 'Preparing preview…'}
     </div>
   )

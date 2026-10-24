@@ -96,6 +96,7 @@ it('opens the complete editable draft when its subscription finishes', async () 
   renderTailor([jobMock(task({})), completed])
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
   expect(screen.queryByText('Writing your complete draft…')).not.toBeInTheDocument()
@@ -119,6 +120,7 @@ it('retries a failed task and follows the new task through completion', async ()
   expect(await screen.findByText('Provider unavailable.')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Retried draft.')
   expect(screen.queryByText('Provider unavailable.')).not.toBeInTheDocument()
@@ -147,12 +149,16 @@ it('lets the user retry after starting the draft fails', async () => {
 
 it('shows omitted-section explanations alongside the completed draft', async () => {
   const result = {
-    sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } }],
+    sections: [
+      { section_type: 'custom', title: 'Old custom section', content: {} },
+      { section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } },
+    ],
     warnings: ['Projects omitted: no relevant evidence.'],
   }
   renderTailor([jobMock(task({ status: 'COMPLETED', result })), subscription({ status: 'COMPLETED', result })])
 
   expect(await screen.findByText('Projects omitted: no relevant evidence.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Edit sections' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save resume' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Write it from my library anyway' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
@@ -224,13 +230,15 @@ it('edits a resume that was already saved and shows the preview', async () => {
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
   await user.click(screen.getByRole('button', { name: 'Download DOCX' }))
   expect(downloadResumeDocx).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
-  const summary = screen.getByRole('textbox', { name: 'Summary' })
+  let summary = screen.getByRole('textbox', { name: 'Summary' })
   expect(summary).toHaveValue('Backend engineer.')
   expect(screen.queryByTitle('Resume preview')).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Preview' }))
   expect(await screen.findByTitle('Resume preview')).toBeInTheDocument()
-  await user.click(screen.getByRole('button', { name: 'Close' }))
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  summary = screen.getByRole('textbox', { name: 'Summary' })
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
   await user.clear(summary)
   await user.type(summary, 'Backend engineer and writer.')
@@ -260,6 +268,7 @@ it('sends only edited included sections and keeps the draft when saving fails', 
     },
   ])
 
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.clear(screen.getByRole('textbox', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), 'Edited summary.')
@@ -302,6 +311,44 @@ it('starts fresh from accepted history without exposing the old editable draft',
   expect(oldResultReceived).not.toHaveBeenCalled()
 })
 
+it('regenerates an unsaved result in the retired draft format instead of showing an empty editor', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const nextSubscription = subscription({ id: 'task-2' })
+  nextSubscription.request.variables.id = 'task-2'
+  renderTailor([
+    jobMock(task({ status: 'COMPLETED', result: { drafts: [], markdown: 'Old draft' } })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
+    nextSubscription,
+  ])
+
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+  expect(screen.queryByText('Your draft is ready to review')).not.toBeInTheDocument()
+  expect(screen.queryByText('Include at least one section to preview or save your resume.')).not.toBeInTheDocument()
+})
+
+it.each([
+  ['unsupported', { section_type: 'custom', content: {} }],
+  ['omitted', { section_type: 'summary', content: { text: 'Old draft' }, omitted: true }],
+  ['malformed content', { section_type: 'summary', content: 'Malformed draft' }],
+])('starts and follows a new task when the completed result has only %s sections', async (_shape, section) => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const nextResult = { sections: [{ section_type: 'summary', content: { text: 'New draft.' } }] }
+  const nextSubscription = subscription({ id: 'task-2', status: 'COMPLETED', result: nextResult })
+  nextSubscription.request.variables.id = 'task-2'
+  renderTailor([
+    jobMock(task({ status: 'COMPLETED', result: { sections: [section] } })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
+    nextSubscription,
+  ])
+
+  expect(await screen.findByRole('button', { name: 'Edit sections' })).toBeInTheDocument()
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(start).toHaveBeenCalledOnce()
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Summary' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('New draft.')
+})
+
 it('allows retry when starting after accepted history fails', async () => {
   const user = userEvent.setup()
   renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
@@ -325,6 +372,7 @@ it('deletes an edited resume and returns to the job without another discard warn
       { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },
       { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start }],
   })
+  await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Unsaved edit.')
   expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')

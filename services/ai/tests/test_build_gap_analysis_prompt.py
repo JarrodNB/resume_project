@@ -108,3 +108,18 @@ def test_format_date_range() -> None:
     assert format_date_range(date(2015, 1, 1), date(2018, 6, 1)) == "Jan 2015 – Jun 2018"
     assert format_date_range(None, None) is None
     assert format_date_range(None, date(2018, 6, 1)) == "? – Jun 2018"
+
+
+def test_job_screening_uses_the_prompt_job_projection() -> None:
+    """Only fields available to gap generation are sent for required job screening."""
+    from gap_analysis.build_gap_analysis_prompt import gap_job_input, gap_job_screening_text
+
+    context = build_gap_analysis_context(responsibilities=["Ship models to production"])
+    job = gap_job_input(context.job)
+    screened = gap_job_screening_text(job)
+    prompt = build_gap_analysis_prompt(context, TODAY)
+
+    for value in (job.title, job.company, *job.requirements, *job.nice_to_haves):
+        assert value in screened and value in prompt.text
+    assert "Ship models to production" not in screened
+    assert "Ship models to production" not in prompt.text

@@ -14,7 +14,7 @@ Review the supplied base/head snapshot independently. Read repository instructio
 
 ## Blindness and access
 
-- Do not read the Kanban item, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Ask for missing refs or access when needed.
+- Do not read the task request, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Ask for missing refs or access when needed.
 - If you inherited requirements or implementation rationale, report that the review cannot count as blind and request a fresh reviewer. Ignoring known context does not remove it.
 - Do not edit source, tests, tickets, or workflow state. Use isolated writable test artifacts when necessary. Run useful checks in Docker without browser automation or browser-driven tests.
 

@@ -78,10 +78,11 @@ All business logic, as service objects grouped by domain folder.
   applying a result never changes their input snapshots. Attempt IDs deduplicate usage
   independently, including late reports after a finished outcome.
 - `resume_tailoring/start_resume_tailoring_service.rb` — queues `tailor_resume`, or returns the
-  task already in progress; checks saved resumes and resumable work under the enqueue user
-  lock before allowance checks. Accepted tasks without a saved resume allow fresh work;
-  snapshots contact, a finished comparison when one exists, and gap
-  responses into the task input
+  task already in progress or an unsaved draft with at least one browser-supported,
+  non-omitted section whose content is an object; checks saved resumes and resumable work
+  under the enqueue user lock before allowance checks. Accepted tasks without a saved resume
+  allow fresh work; snapshots contact, a finished comparison when one exists, and gap responses
+  into the task input
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
   uses the supplied edited/included sections in order. An explicit empty

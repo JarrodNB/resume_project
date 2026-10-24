@@ -49,7 +49,7 @@ def test_saved_evidence_keeps_its_rendered_field_provenance():
         "E1": {"experience": {"title", "company", "description"}},
         "H1": {"experience": {"title", "company"}, "experience_highlight": {"content"}},
         "P1": {"project": {"name", "description"}},
-        "ED1": {"education": {"degree", "field_of_study", "institution"}},
+        "ED1": {"education": {"degree", "field_of_study", "institution", "description"}},
         "S1": {"skill": {"name"}},
     }
     for label, fields in expected.items():

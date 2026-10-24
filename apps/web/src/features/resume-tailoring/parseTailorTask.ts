@@ -19,15 +19,15 @@ export function warningsFromResult(result: unknown): string[] {
   return isRecord(result) ? stringList(result.warnings) : []
 }
 
-/** One section object, or null when its type is unknown. */
+/** One editable section, or null when its type or content cannot be edited. */
 function parseSection(value: unknown): TailorSection | null {
   if (!isRecord(value)) return null
   const sectionType = asSectionType(value.section_type)
-  if (!sectionType) return null
+  if (!sectionType || !isRecord(value.content)) return null
   return {
     sectionType,
     title: typeof value.title === 'string' ? value.title : SECTION_TITLES[sectionType],
-    content: value.content ?? {},
+    content: value.content,
     omitted: value.omitted === true,
   }
 }

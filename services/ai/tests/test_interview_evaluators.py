@@ -11,7 +11,13 @@ from types import SimpleNamespace
 import pytest
 
 from evals import interview_eval_reporting, telemetry
-from evals.interview_evaluators import FeedbackStructure, QuestionStructure
+from evals.interview_evaluators import (
+    FeedbackEvalInput,
+    FeedbackStructure,
+    QuestionStructure,
+    feedback_context,
+    question_context,
+)
 from evals.run_interview_feedback_evals import load_interview_feedback_dataset
 from evals.run_interview_questions_evals import load_interview_questions_dataset
 from schemas.interview_feedback import InterviewFeedback
@@ -20,6 +26,19 @@ from schemas.interview_questions import (
     InterviewQuestionDraft,
     InterviewQuestions,
 )
+
+
+def test_feedback_eval_uses_readable_production_prompt() -> None:
+    """Synthetic quality cases exercise the same feedback prompt shape as the worker."""
+    context = feedback_context(FeedbackEvalInput(
+        set_type="knowledge", question="How does it work?", answer="I am unsure.",
+        library='I studied "safety".\nThen practiced it.',
+    ))
+    assert "Set type: knowledge" in context.text
+    assert "Question:\nHow does it work?" in context.text
+    assert "Answer:\nI am unsure." in context.text
+    assert 'I studied "safety".\nThen practiced it.' in context.text
+    assert '"career_library"' not in context.text
 
 
 def test_question_structure() -> None:
@@ -53,6 +72,15 @@ def test_question_structure() -> None:
                 assert not QuestionStructure().evaluate(context)["category_variety"]
             output.questions[0].question_text = case.inputs.excluded[0].upper() + "!"
             assert not QuestionStructure().evaluate(context)["distinct_wording"]
+
+
+def test_question_eval_context_uses_readable_production_prompt() -> None:
+    """Question quality evals submit the same readable evidence shape as the worker."""
+    case = load_interview_questions_dataset().cases[0].inputs
+    prompt = question_context(case)
+    assert "Career evidence:\n--" in prompt.text and "\nSummary: " in prompt.text
+    assert case.library in prompt.text
+    assert "Library JSON data" not in prompt.text
 
 
 def test_feedback_structure() -> None:

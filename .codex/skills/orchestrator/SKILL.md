@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Coordinate a Careergrind Kanban item through planning, approved tickets, TDD subagents, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow, including a named Kanban item.
+description: Coordinate requested Careergrind work through planning, approved tickets, TDD subagents, two blind reviews, and a PR for human QA. Use when asked to start or resume this delivery workflow.
 ---
 
 # Orchestrator
@@ -10,32 +10,32 @@ In managed cloud, use its native workflow instead of the Docker-specific steps
 below. Docker commands apply only on the local computer.
 
 
-Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; ignored local Markdown files hold plans and implementation tickets. These workflow artifacts belong to the primary checkout and must not be committed or copied into implementation branches. All implementation work should be done in a worktree.
+Own the delivery process and its recorded state. Ignored local Markdown files hold plans and implementation tickets. These workflow artifacts belong to the primary checkout and must not be committed or copied into implementation branches. All implementation work should be done in a worktree.
 
 ## Select and resume
 
-- Read root and applicable `AGENTS.md` instructions, the board, and existing work for the selected item. Preserve unrelated changes.
-- Use the item the user names; otherwise take the top item. If blocked, explain rather than silently selecting another. Ask if the board is empty or selection is ambiguous.
+- Read root and applicable `AGENTS.md` instructions and existing work for the requested task. Preserve unrelated changes.
+- Use the task the user names. Ask which task to deliver if the request does not identify one. If blocked, explain rather than silently selecting another.
 - Resume existing plans, approvals, branches, and tickets. Check recorded status against actual files, commits, and checks; do not recreate completed work.
-- Leave the item on the board until the human explicitly confirms completion. Then remove only that item. Implementation, a passing review, or a PR is not that confirmation.
+- Treat implementation, a passing review, and a PR as separate from human completion confirmation.
 
 ## Artifacts and naming
 
 - Use a stable lowercase hyphenated feature slug. Honor user-supplied identifiers or branches.
 - Resolve the repository's primary checkout with `git worktree list --porcelain`: it is the non-bare worktree whose Git directory is the repository's common Git directory. Keep all workflow state below that checkout even while implementation agents work elsewhere.
 - Plan: `<primary-checkout>/docs/plans/<feature-slug>/plan.md`. Tickets: one file each at `<primary-checkout>/docs/plans/<feature-slug>/issues/01-<ticket-slug>.md`, numbered in dependency order. Do not renumber published tickets.
-- Treat `KANBAN.md` and `docs/plans/` as ignored, local-only coordination state. Before writing, confirm they are ignored with `git check-ignore`; stop and fix the ignore rule if they are not. Never use `git add -f` for them, include them in commits, or copy them into an integration/ticket worktree.
+- Treat `docs/plans/` as ignored, local-only coordination state. Before writing, confirm it is ignored with `git check-ignore`; stop and fix the ignore rule if it is not. Never use `git add -f` for it, include it in commits, or copy it into an integration/ticket worktree.
 - If legacy workflow artifacts are already tracked, preserve their working copies and remove them from Git's index (`git rm --cached`), then make that cleanup part of the workflow-maintenance change rather than an implementation PR. Do not delete the local records.
 - Pass absolute primary-checkout artifact paths to subagents that need plan or ticket context. Only the orchestrator updates these files; implementation and review agents report results back instead of editing workflow state.
 - Integration branch: `work/<feature-slug>`. Isolated ticket branches when needed: `work/<feature-slug>-<NN>-<ticket-slug>`. Reuse recorded branches on resume; never overwrite an unrelated branch.
-- In the plan record the source item, phase/next action, approvals, base/head commits, branches, linked tickets/dependencies/statuses, actual verification results, review summaries, and PR/manual-QA handoff.
+- In the plan record the user request, phase/next action, approvals, base/head commits, branches, linked tickets/dependencies/statuses, actual verification results, review summaries, and PR/manual-QA handoff.
 - Record each approval from the human's actual response, tied to the approved revision or content hash. An agent summary is not new approval. Material scope/breakdown changes require renewed approval.
 - Ticket states: `ready-for-agent`, `in-progress`, `blocked`, `implemented`. Implemented means integrated and verified, not human acceptance of the overall item. Record blockers and results on each ticket.
 - Create/update local `AGENTS.md` indexes as required by the repository.
 
 ## Research route
 
-For a research-only item, read and use `research`. Give its background agent the question, relevant context, and `docs/plans/<feature-slug>/research.md` as the output path. Inspect the cited findings and report remaining questions. Do not start implementation just because research suggests changes. Await human confirmation before clearing the board item.
+For a research-only request, read and use `research`. Give its background agent the question, relevant context, and `docs/plans/<feature-slug>/research.md` as the output path. Inspect the cited findings and report remaining questions. Do not start implementation just because research suggests changes.
 
 ## Plan and approve
 
@@ -49,13 +49,13 @@ For a research-only item, read and use `research`. Give its background agent the
 1. After plan approval, create/resume the integration branch and record its base commit for review and PR scope in the primary checkout's local plan.
 2. Read/use `to-tickets`, configured to publish local files at the issues path above instead of `.scratch/`. Each normal ticket delivers a narrow, complete, independently verifiable behavior through necessary layers and fits a fresh agent context. Follow its prefactoring and expand–contract guidance where applicable.
 3. Present the proposed tickets, delivered behaviors, and blocking edges. Wait for human breakdown approval before publishing tickets or implementing. Plan approval does not imply breakdown approval.
-4. Publish individual tickets using the skill's local template, extended with progress, branch/worktree, resulting commits, test evidence, and blockers. Record the dependency graph in the plan. Keep implementation tickets off the overall Kanban list.
+4. Publish individual tickets using the skill's local template, extended with progress, branch/worktree, resulting commits, test evidence, and blockers. Record the dependency graph in the plan.
 
 ## Implement with subagents
 
 - Explicitly pass the Implementation section of [Ponytail guidance](references/ponytail.md) to every implementation worker alongside `tdd`, including delegated review fixes. Resolve the reference from this skill's directory and pass an absolute path or the section text; do not assume parent activation reaches a fresh agent. Use this local adaptation without installing the plugin or enabling hooks.
 - Delegate approved tickets to implementation subagents with relevant plan/ticket context, repository instructions, acceptance criteria, branch/base context, and the local `tdd` skill. Give artifact paths as read-only context and require changed files/commits, red/green evidence, actual check results, and concerns; the orchestrator alone records progress in the primary checkout.
-- Run tickets concurrently only when blockers are integrated and verified. Independent dependencies do not guarantee conflict-free writes: use separate worktrees for concurrent writers, or serialize if isolation is unavailable. Assign each worker its own worktree/branch. Workers must not mutate the shared integration branch, board, or PR.
+- Run tickets concurrently only when blockers are integrated and verified. Independent dependencies do not guarantee conflict-free writes: use separate worktrees for concurrent writers, or serialize if isolation is unavailable. Assign each worker its own worktree/branch. Workers must not mutate the shared integration branch, plan, tickets, or PR.
 - Integrate completed ticket commits sequentially. Inspect changes and check acceptance criteria on the integration branch before marking implemented and releasing dependents. Resolve conflicts without discarding unrelated work.
 - Use TDD for behavior changes and run relevant checks in Docker. Do not use browser automation, browser-driven tests, or browser QA. Non-browser component/service/integration tests are appropriate; manual QA belongs to the human.
 - Record failures truthfully, investigate fixable failures, and ask about material ambiguity or external blockers. Unrun checks cannot be counted as passed.
@@ -71,7 +71,7 @@ For a research-only item, read and use `research`. Give its background agent the
 
 1. After integration and relevant checks, fix the candidate base/head commits and verify the diff contains only intended work. Both reviewers assess this same snapshot.
 2. Spawn two fresh reviewers concurrently with no inherited conversation (`fork_turns: none` when supported). Give one `review-correctness`, the other `review-design`, plus repository instructions, code access, base/head refs, and useful non-browser check commands. Explicitly supply only the Review section of [Ponytail guidance](references/ponytail.md) as supplementary instructions to both, including replacement reviewers and later rounds. Keep the existing two-reviewer structure and each review skill's output format.
-3. Do not provide the Kanban item, plan, tickets, acceptance checklist, implementation rationale, agent reports, or the other review. Instruct reviewers not to read these artifacts, PR discussion, or commit messages. Code, tests, schemas, and established technical documentation are available. Use read-only source access or isolated worktrees for test-generated files.
+3. Do not provide the task request, plan, tickets, acceptance checklist, implementation rationale, agent reports, or the other review. Instruct reviewers not to read these artifacts, PR discussion, or commit messages. Code, tests, schemas, and established technical documentation are available. Use read-only source access or isolated worktrees for test-generated files.
 4. Separately check every acceptance criterion; blind review does not establish requirements completion.
 5. Validate findings. Implement supported in-scope fixes as the orchestrator, using TDD for behavior changes. Document dismissals with evidence and rerun affected checks.
 6. Substantial fixes (behavior, interfaces, dependencies, or test coverage) require another pair of fresh blind reviewers of the final full diff. Repeat until no actionable findings remain. If progress is blocked, record it and ask the human instead of claiming a clean review. For purely editorial fixes, inspect the final diff and record why another round was unnecessary.
@@ -79,6 +79,6 @@ For a research-only item, read and use `research`. Give its background agent the
 ## PR and handoff
 
 - After implementation, verification, and review fixes, create/update a focused PR using available repository tooling. Invoking this delivery workflow authorizes its branch, commit, and PR work, not merge or deployment. If tooling/access is unavailable, leave the reviewed branch ready and report the specific blocker.
-- Before committing or opening the PR, verify with `git status --short` and the base/head diff that `KANBAN.md` and `docs/plans/` are absent. Workflow-state changes are never part of the product PR.
+- Before committing or opening the PR, verify with `git status --short` and the base/head diff that `docs/plans/` is absent. Workflow-state changes are never part of the product PR.
 - Describe the problem, resulting behavior, checks actually run, review outcomes, and manual-QA steps. State limitations plainly and exclude unrelated work from commits/PR.
-- Report the PR/branch, retained integration worktree path, and copy-paste test/start command from the primary checkout, then hand off for human review and manual QA. Stop here. Do not merge, deploy, clear the board, or remove the integration worktree without the relevant human instruction.
+- Report the PR/branch, retained integration worktree path, and copy-paste test/start command from the primary checkout, then hand off for human review and manual QA. Stop here. Do not merge, deploy, or remove the integration worktree without the relevant human instruction.

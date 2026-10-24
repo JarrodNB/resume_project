@@ -12,9 +12,9 @@ can't be invented.
   timeout_seconds)` returns a prepared prompt and completed screening usage, or a failure
   retaining that usage. It projects requirements and nice-to-haves, serializes the complete
   library as one source, checks the 80,000-character source and 120,000-character prompt caps
-  before paid calls, then screens job and library separately through the import chunker.
+  before paid calls, then screens readable job and library text separately through the import chunker.
   Both are required: rejection or an incomplete screen stops analysis. It reconstructs and
-  binds the exact prompt from approved JSON; direct unknown prompts remain guarded.
+  binds the exact prompt from approved source snapshots; direct unknown prompts remain guarded.
 - `build_gap_analysis_prompt.py` — `build_gap_analysis_prompt(context, today)` labels the
   complete supplied context and returns text, lookups, and warnings. Labels: `R1`/`N1` for
   requirements and nice-to-haves; `E1` experience, `H1` highlight, `P1` project, `ED1`

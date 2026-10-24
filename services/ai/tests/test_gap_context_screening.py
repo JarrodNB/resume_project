@@ -31,6 +31,60 @@ def jev_model(requests, *, blocked_text=None):
     return FunctionModel(answer, model_name="jev-1.13.0")
 
 
+def test_gap_preparation_screens_readable_sources_and_keeps_exact_prompt(monkeypatch):
+    from datetime import date
+
+    from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import screening_session
+
+    context = build_gap_analysis_context()
+    requests = []
+
+    def allow(text, **_kwargs):
+        requests.append(text)
+        return ScreenOutcome(allowed=True)
+
+    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text", allow)
+    with screening_session():
+        prepared = prepare_gap_analysis(
+            context, today=date(2026, 1, 1), screen_model="test", timeout_seconds=5,
+        )
+    assert prepared.prompt is not None
+    assert len(requests) == 2
+    assert "Job title:\nPlatform Engineer" in requests[0]
+    assert "Requirements:\n" in requests[0]
+    assert '"id"' not in requests[0]
+    assert '"requirements"' not in requests[0]
+    assert "Entry 1\n" in requests[1]
+    assert '"id"' not in requests[1]
+    assert "[R1]" in prepared.prompt.text
+
+
+def test_large_valid_job_stays_within_screening_limit_after_readable_format(monkeypatch):
+    """Readable separators must not reject a saved job that fit the prior source cap."""
+    from datetime import date
+
+    import text_limits
+    from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
+    from screening.screen_user_text import ScreenOutcome
+    from screening.session import screening_session
+
+    context = build_gap_analysis_context()
+    context.job.requirements = ["x" * 995 for _ in range(80)]
+    original = context.job.model_dump_json(exclude_none=True, exclude={"responsibilities"})
+    assert len(original) < text_limits.MAX_SCREENED_TEXT
+    requests = []
+    monkeypatch.setattr("gap_analysis.prepare_gap_analysis.screen_user_text",
+                        lambda text, **_: requests.append(text) or ScreenOutcome(allowed=True))
+    with screening_session():
+        prepared = prepare_gap_analysis(context, today=date(2026, 1, 1),
+                                        screen_model="test", timeout_seconds=5)
+    assert prepared.prompt is not None
+    assert len(requests) == 2
+    assert len(requests[0]) <= text_limits.MAX_SCREENED_TEXT
+
+
 def test_gap_sources_screen_once_without_assembled_request(monkeypatch, task_dependencies, fake_context_reader):
     context = build_gap_analysis_context()
     fake_context_reader.contexts[(USER_ID, JOB_ID)] = context

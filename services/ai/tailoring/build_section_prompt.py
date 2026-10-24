@@ -8,25 +8,14 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 
+from model_inputs.tailoring import TailoringSectionInput, format_tailoring_section_input
 from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.session import bind_screened_prompt
+from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import LabeledSources, label_sources
-from tailoring.section_catalog import SECTION_TITLES
 
 LIBRARY_FACT_OMITTED_WARNING = "One of your notes was left out."
-
-_WRITE_ANYWAY = (
-    "The user asked you to write this section anyway. Use the closest sources and set "
-    "nothing_fits to false when any source can be used without adding a fact."
-)
-_SECTION_NOTE = {
-    "education": "Every source labeled ED is this person's education. Include each one.",
-    "certifications": "Every source labeled C is a certification. Include the relevant credentials; do not claim an expired credential is current.",
-    "projects": "Every source labeled P is a project. Include each one that belongs on this resume.",
-    "skills": "Every source labeled S is a skill. Include the ones this job needs.",
-}
-
 
 @dataclass(frozen=True)
 class SectionPrompt:
@@ -46,6 +35,7 @@ def build_section_prompt(
     *,
     write_anyway: bool,
     gap_analysis: dict[str, object] | None,
+    trusted_gap_analysis: bool = False,
     today: date | None = None,
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
@@ -69,35 +59,28 @@ def build_section_prompt(
         for number, item in enumerate(context.career_library.certifications, start=1)
         if f"C{number}" in sources.records
     ]
-    lines = [
-        f"Today's date: {today.isoformat()}",
-        "Credential expiry status: " + "; ".join(expiry_statuses) if expiry_statuses else "",
-        f"# Write the {SECTION_TITLES[section_type]} section",
-        _SECTION_NOTE.get(section_type, ""),
-        _WRITE_ANYWAY if write_anyway else "",
-        "",
-    ]
     job_text = job_context_text(context)
     if allow_text is not None and not getattr(allow_text(job_text), "allowed", False):
         raise ValueError("The job context could not be screened. Please try again.")
-    summary = (gap_analysis or {}).get("summary")
-    summary = summary.strip() if isinstance(summary, str) else ""
-    if summary and allow_text is not None and not _allowed(summary, allow_text, warnings):
-        summary = ""
-    values = [job_text, *([summary] if summary else []), *[record.text for record in sources.records.values()]]
+    analysis_text = format_gap_analysis(gap_analysis)
+    if analysis_text and allow_text is not None and not trusted_gap_analysis and not _allowed(
+        analysis_text, allow_text, warnings
+    ):
+        analysis_text = ""
+    values = [job_text, *([analysis_text] if analysis_text else []), *[record.text for record in sources.records.values()]]
     labels = list(sources.records)
-    has_summary = bool(summary)
+    has_analysis = bool(analysis_text)
 
     def render(approved_values: Sequence[str]) -> str:
-        """Only supplied approved values contribute user-controlled prompt text."""
-        offset = 1
-        result = [*lines, approved_values[0]]
-        if has_summary:
-            result.extend(["", "## How the library matches this job", approved_values[1]])
-            offset += 1
-        result.extend(["", "# Sources"])
-        result.extend(f"[{label}] {value}" for label, value in zip(labels, approved_values[offset:], strict=True))
-        return "\n".join(result)
+        """Attach approved job, analysis, and sources to their roles before rendering."""
+        offset = 2 if has_analysis else 1
+        section = TailoringSectionInput(
+            section_type=section_type, today=today, expiry_statuses=tuple(expiry_statuses),
+            write_anyway=write_anyway, job_context=approved_values[0],
+            analysis_text=approved_values[1] if has_analysis else None,
+            sources=tuple(zip(labels, approved_values[offset:], strict=True)),
+        )
+        return format_tailoring_section_input(section)
 
     return SectionPrompt(
         text=bind_screened_prompt(values, render) if allow_text is not None else render(values),

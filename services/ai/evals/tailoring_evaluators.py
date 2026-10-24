@@ -1,9 +1,11 @@
 """
-Description: Evaluators for one tailored section: the draft cites only real sources, it is
-relevant to the job when it writes something, and it omits a section the labels say to omit.
+Evaluate whether a tailored section is relevant and omits sections when expected.
+
+These scores describe selection and wording against synthetic cases; they do not
+judge whether every claim in the prose is supported.
 Index:
     - TailorEvalInput / TailorEvalLabels: one case
-    - SectionFaithfulness / SectionRelevance / OmitsWhenAsked: the scores
+    - SectionRelevance / OmitsWhenAsked: the scores
     - labels_to_draft: the draft the hand labels describe
     - TAILORING_EVALUATORS: the classes Dataset.from_file needs
 """
@@ -17,7 +19,6 @@ from documents.text_matching import normalize_text
 from schemas.gap_analysis_context import GapAnalysisContext
 from schemas.tailored_section import ChosenEntry, CitedProse, TailoredSectionDraft
 from tailoring.build_section_prompt import build_section_prompt
-from tailoring.check_section_faithfulness import find_section_problems
 from tailoring.section_catalog import WRITTEN_SECTIONS
 
 
@@ -37,7 +38,7 @@ class TailorEvalInput(BaseModel):
 
 
 class TailorEvalLabels(BaseModel):
-    """What a faithful answer does on this case."""
+    """Expected selection and job terms for a synthetic section case."""
 
     nothing_fits: bool
     entry_label: str | None = None
@@ -82,16 +83,6 @@ def _sources(ctx: TailorContext):
 
 
 @dataclass
-class SectionFaithfulness(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
-    """No claim outside the cited sources."""
-
-    def evaluate(self, ctx: TailorContext) -> float:
-        """1 when the checker accepts the draft."""
-        problems = find_section_problems(ctx.inputs.section_type, ctx.output, _sources(ctx))
-        return 1.0 if not problems else 0.0
-
-
-@dataclass
 class SectionRelevance(Evaluator[TailorEvalInput, TailoredSectionDraft, TailorEvalLabels]):
     """A written section addresses the job. A skill has no prose, so its chosen names count."""
 
@@ -131,4 +122,4 @@ def _relevance_text(ctx: TailorContext) -> str:
     return _sources(ctx).text_for([entry.label for entry in ctx.output.entries])
 
 
-TAILORING_EVALUATORS = (SectionFaithfulness, SectionRelevance, OmitsWhenAsked)
+TAILORING_EVALUATORS = (SectionRelevance, OmitsWhenAsked)

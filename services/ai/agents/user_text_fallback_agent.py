@@ -5,7 +5,6 @@ responses are accounted before validation, so retries and failures keep their re
 """
 
 import asyncio
-import json
 from typing import NamedTuple
 
 from pydantic_ai import Agent
@@ -13,6 +12,7 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RunUsage
 
 from conversation_logging import ConversationLogging
+from model_inputs.safety import format_fallback_input
 from prompts.user_text_fallback_instructions import (
     USER_TEXT_FALLBACK_INSTRUCTIONS,
     USER_TEXT_FALLBACK_PROMPT_VERSION,
@@ -50,7 +50,7 @@ async def screen_fallback_message_async(
     async with asyncio.timeout(timeout_seconds):
         with record_prompt_version(USER_TEXT_FALLBACK_PROMPT_VERSION):
             result = await user_text_fallback_agent.run(
-                json.dumps({"text": text}, ensure_ascii=False), model=accounted_model(model),
+                format_fallback_input(text), model=accounted_model(model),
                 model_settings=ModelSettings(thinking="low"),
                 usage_limits=agent_usage_limits(load_settings()),
             )

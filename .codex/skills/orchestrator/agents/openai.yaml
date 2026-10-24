@@ -1,3 +1,3 @@
 interface:
   display_name: "Orchestrator"
-  short_description: "Deliver Kanban work through human QA"
+  short_description: "Deliver approved work through human QA"

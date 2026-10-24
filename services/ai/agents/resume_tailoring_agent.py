@@ -1,4 +1,4 @@
-"""Write a resume section from screened labeled evidence and check its claims.
+"""Write a resume section from screened labeled evidence and check its output shape.
 
 The async entry supports concurrent complete-draft generation. A sync entry remains for
 standalone section evaluation. Both share validation, provider accounting, and deadlines.
@@ -21,7 +21,7 @@ from schemas.tailored_section import TailoredSectionDraft
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, screening_session, within_screening_session
 from tailoring.build_section_prompt import SectionPrompt
-from tailoring.check_section_faithfulness import find_section_problems
+from tailoring.check_section_output import find_section_problems
 from worker.generative_model import generative_model
 from worker.model_prices import reported_model_name
 from worker.run_limits import agent_usage_limits
@@ -33,17 +33,17 @@ resume_tailoring_agent = Agent(
     deps_type=SectionPrompt,
     output_type=TailoredSectionDraft,
     instructions=RESUME_TAILORING_INSTRUCTIONS,
-    retries=2,
+    retries=1,
     defer_model_check=True,
     capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 
 @resume_tailoring_agent.output_validator
-def check_faithfulness(
+def check_section_output(
     context: RunContext[SectionPrompt], draft: TailoredSectionDraft
 ) -> TailoredSectionDraft:
-    """Sends unsupported claims back to the model. Does not substitute library text."""
+    """Ask the model once to repair unusable structure or unknown source labels."""
     problems = find_section_problems(context.deps.section_type, draft, context.deps.sources)
     if problems:
         raise ModelRetry("Fix these problems and answer again:\n- " + "\n- ".join(problems))

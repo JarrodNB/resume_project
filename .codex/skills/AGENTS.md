@@ -20,7 +20,7 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
   `performance-loop/`, `accessibility-loop/`, `ux-friction-loop/`, `docs-drift-loop/`,
   `observability-loop/`, `dependency-loop/`, `boundary-loop/`, and `architecture-loop/`.
   Architecture iterations require a user decision on the proposed design before implementation.
-- `orchestrator/` — Local Kanban delivery, approvals, delegation, and handoff.
+- `orchestrator/` — Local delivery planning, approvals, delegation, and handoff.
 - `pr-review-environment/` — Isolated local PR stacks with copies of the main development database and existing accounts.
 - `research/` — Upstream Matt Pocock skill for research using primary sources.
 - `review-correctness/` — Blind correctness, security, and reliability review.
@@ -30,3 +30,4 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
 - `to-tickets/` — Upstream Matt Pocock skill for splitting plans into tickets with dependencies.
 - Skill directory names must match their `name` frontmatter.
 - Keep secrets in environment variables.
+- Do not read, edit, stage, commit, or otherwise touch `KANBAN.md`.

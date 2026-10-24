@@ -154,17 +154,14 @@ async def _drive_async(
         key = _screen_key(masked, model, check_phrases, max_characters)
         if session is not None and key in session.decisions:
             return session.decisions[key]
-        deadline = monotonic() + timeout_seconds
-        if session is not None:
-            deadline = min(deadline, session.deadline)
+        deadline = _screen_deadline(timeout_seconds, session)
         while monotonic() < deadline:
             if _local_inference_lock.acquire(blocking=False):
                 break
             await asyncio.sleep(min(0.01, max(0, deadline - monotonic())))
         else:
             result = ScreenOutcome(False, unchecked=True)
-            if session is not None:
-                session.decisions[key] = result
+            _remember_decision(session, key, masked, result)
             return result
         remaining = deadline - monotonic()
         if remaining <= 0:
@@ -181,10 +178,7 @@ async def _drive_async(
                 result = ScreenOutcome(False, unchecked=True)
         # A timed-out thread can finish later. Only this event-loop owner may cache
         # approval, and only after it has completed inside the caller's deadline.
-        if session is not None:
-            session.decisions[key] = result
-            if result.allowed:
-                session.allowed_sources.add(masked)
+        _remember_decision(session, key, masked, result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
                              credentials_available=credentials_available)
@@ -216,6 +210,29 @@ def _screen_key(text, model, check_phrases, max_characters):
     return (mask_outbound(text), model, check_phrases, policy, max_characters)
 
 
+def _preflight(text, check_phrases, max_characters):
+    """Apply source-independent policy before either classifier receives text."""
+    if not text.strip():
+        return ScreenOutcome(True)
+    if len(text) > max_characters:
+        return ScreenOutcome(False, too_long=True)
+    if check_phrases and has_obvious_instruction_override(text):
+        return ScreenOutcome(False)
+    return None
+
+
+def _screen_deadline(timeout_seconds, session):
+    deadline = monotonic() + timeout_seconds
+    return min(deadline, session.deadline) if session is not None else deadline
+
+
+def _remember_decision(session, key, text, result):
+    if session is not None:
+        session.decisions[key] = result
+        if result.allowed:
+            session.allowed_sources.add(text)
+
+
 def _start_local_screen(text, model, remaining, check_phrases, max_characters):
     """Start the sole admitted local worker; its completion releases admission."""
     completed = Future()
@@ -245,9 +262,7 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
     key = _screen_key(masked, model, check_phrases, max_characters)
     if session is not None and key in session.decisions:
         return session.decisions[key]
-    deadline = monotonic() + timeout_seconds
-    if session is not None:
-        deadline = min(deadline, session.deadline)
+    deadline = _screen_deadline(timeout_seconds, session)
     remaining = deadline - monotonic()
     if remaining <= 0 or not _local_inference_lock.acquire(timeout=remaining):
         result = ScreenOutcome(False, unchecked=True)
@@ -267,10 +282,7 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
                     result = completed.result(timeout=remaining)
                 except Exception:  # noqa: BLE001 — local failure is unavailable
                     result = ScreenOutcome(False, unchecked=True)
-    if session is not None:
-        session.decisions[key] = result
-        if result.allowed:
-            session.allowed_sources.add(masked)
+    _remember_decision(session, key, masked, result)
     return result
 
 
@@ -281,16 +293,9 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
     key = _screen_key(text, model, check_phrases, max_characters)
     if session is not None and key in session.decisions:
         return session.decisions[key]
-    if not text.strip():
-        result = ScreenOutcome(True)
-    elif len(text) > max_characters:
-        result = ScreenOutcome(False, too_long=True)
-    elif check_phrases and has_obvious_instruction_override(text):
-        result = ScreenOutcome(False)
-    else:
-        deadline = monotonic() + timeout_seconds
-        if session is not None:
-            deadline = min(deadline, session.deadline)
+    result = _preflight(text, check_phrases, max_characters)
+    if result is None:
+        deadline = _screen_deadline(timeout_seconds, session)
         try:
             result = ScreenOutcome(True)
             for index, (chunk, token_count) in enumerate(local_llama.iter_chunks(text)):
@@ -314,10 +319,8 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
                 pass
             logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
             result = ScreenOutcome(False, unchecked=True)
-    if session is not None and cache_result:
-        session.decisions[key] = result
-        if result.allowed:
-            session.allowed_sources.add(text)
+    if cache_result:
+        _remember_decision(session, key, text, result)
     return result
 
 
@@ -336,10 +339,7 @@ def _screen_pass(
     outcome = yield from _screen_chunks(
         text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available,
     )
-    if session is not None:
-        session.decisions[key] = outcome
-        if outcome.allowed:
-            session.allowed_sources.add(text)
+    _remember_decision(session, key, text, outcome)
     return outcome
 
 
@@ -347,20 +347,14 @@ def _screen_chunks(
     text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available=None,
 ):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
-    if not text.strip():
-        return ScreenOutcome(allowed=True)
-    if len(text) > max_characters:
-        return ScreenOutcome(allowed=False, too_long=True)
-    if check_phrases and has_obvious_instruction_override(text):
-        return ScreenOutcome(allowed=False)
+    if result := _preflight(text, check_phrases, max_characters):
+        return result
     available = (os.environ.get("TYPESAFE_API_KEY", "").strip()
                  if credentials_available is None else credentials_available)
     if not available:
         logger.warning("TYPESAFE_API_KEY is unset; leaving user text out of the prompt")
         return ScreenOutcome(allowed=False, unchecked=True)
-    deadline = monotonic() + timeout_seconds
-    if (session := current_session()) is not None:
-        deadline = min(deadline, session.deadline)
+    deadline = _screen_deadline(timeout_seconds, current_session())
     usage = RunUsage()
     reported_model = None
     completed_usage = []

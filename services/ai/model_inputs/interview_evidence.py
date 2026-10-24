@@ -1,7 +1,7 @@
 """Render screened career-library facts for interview question and feedback prompts.
 
 Both model inputs need the same saved evidence. This keeps their field selection in one
-place while each handler owns its own question, answer, and boundary framing.
+place while the interview input builders own question, answer, and boundary framing.
 """
 
 from hashlib import sha256

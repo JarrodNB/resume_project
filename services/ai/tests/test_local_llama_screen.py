@@ -270,6 +270,10 @@ def test_local_chunk_concurrency_is_bounded(monkeypatch):
 def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
     release = threading.Event()
     first_started = threading.Event()
+    spans = []
+    monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
+        spans.append((name, attrs)) or nullcontext()
+    ))
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
         ("slow", 4), ("attack", 6),
     ]))
@@ -287,6 +291,8 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
         assert first_started.is_set()
         assert not result.allowed and not result.unchecked
         assert monotonic() - started < 0.15
+        assert any(name == "local_prompt_screen_in_flight" and attrs["chunk_index"] == 0
+                   for name, attrs in spans)
     finally:
         release.set()
 

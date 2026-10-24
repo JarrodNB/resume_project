@@ -314,6 +314,16 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
             pending = {}
             started = []
 
+            def trace_in_flight():
+                # A known block can return before other prefetched calls finish. Record
+                # their unresolved state before the task trace is flushed.
+                for future, (index, character_count, token_count) in pending.items():
+                    if not future.done():
+                        with logfire.span("local_prompt_screen_in_flight", model=model,
+                                          chunk_index=index, character_count=character_count,
+                                          token_count=token_count):
+                            pass
+
             def fill_window():
                 while len(pending) < MAX_LOCAL_CHUNKS_IN_FLIGHT:
                     try:
@@ -349,7 +359,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                             completed.set_exception(error)
 
                     threading.Thread(target=classify, name="local-prompt-chunk", daemon=True).start()
-                    pending[completed] = index
+                    pending[completed] = (index, len(chunk), token_count)
                     started.append(completed)
 
             try:
@@ -371,6 +381,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                             result = ScreenOutcome(False)
                     if not result.allowed:
                         if report_decision:
+                            trace_in_flight()
                             report_decision(result)
                         break
                     if errors:
@@ -381,6 +392,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
             except Exception as error:  # noqa: BLE001 — fail closed before cleanup waits
                 result = ScreenOutcome(False, unchecked=True)
                 if report_decision:
+                    trace_in_flight()
                     report_decision(result)
                 with logfire.span("local_prompt_screen_error", model=model,
                                   error_category=type(error).__name__):

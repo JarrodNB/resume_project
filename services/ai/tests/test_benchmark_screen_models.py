@@ -1,6 +1,8 @@
 """Verify the latency benchmark compares aligned inputs and records repeat samples."""
 
+import threading
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from evals import benchmark_screen_models as benchmark
 
@@ -56,3 +58,30 @@ def test_late_failure_keeps_completed_samples(tmp_path, monkeypatch):
     assert any(sample["error"] == "unavailable" for size in report["sizes"].values()
                for model in size.values() for sample in model["samples"])
     assert report["sizes"]["1600"]["llama"]["successful_samples"] == 1
+
+
+def test_serial_control_really_limits_local_chunk_inference(monkeypatch):
+    state = {"active": 0, "peak": 0}
+    lock = threading.Lock()
+    monkeypatch.setattr(benchmark.local_llama, "iter_chunks", lambda text: iter([
+        (text[index:index + 1], 1) for index in range(4)
+    ]))
+
+    def classify(chunk, model, timeout):
+        with lock:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+        threading.Event().wait(0.02)
+        with lock:
+            state["active"] -= 1
+        return SimpleNamespace(blocked=False, tokens=1, duration=0.02)
+
+    monkeypatch.setattr(benchmark.local_llama, "classify_chunk", classify)
+    with patch.object(benchmark.screening_module, "MAX_LOCAL_CHUNKS_IN_FLIGHT", 1):
+        serial = benchmark._measure("ordinary synthetic note", benchmark.MODELS["llama"])
+    serial_peak = state["peak"]
+    state["peak"] = 0
+    parallel = benchmark._measure("ordinary synthetic note", benchmark.MODELS["llama"])
+    assert serial["error"] is None and parallel["error"] is None
+    assert serial_peak == 1
+    assert 2 <= state["peak"] <= benchmark.MAX_LOCAL_CHUNKS_IN_FLIGHT

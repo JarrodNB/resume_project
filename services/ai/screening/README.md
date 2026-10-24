@@ -21,6 +21,8 @@ position, sizes, decision, elapsed time, and error category, but no text or
 token. Local inference does not create billed provider usage.
 Within one input, up to four chunks classify concurrently. A block stops further
 chunk scheduling; already started chunks finish before the model slot is released.
+If a block or outage returns while a prefetched chunk is still running, the task
+trace records that chunk as in flight before the caller continues.
 
 Both the synchronous screening path and async input guardrail return an unavailable decision when their deadline expires,
 including during model loading. A local inference thread may still finish afterward;

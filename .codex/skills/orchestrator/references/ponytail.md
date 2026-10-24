@@ -1,5 +1,8 @@
 # Ponytail guidance for delivery subagents
 
+Follow [execution environment guidance](../../cloud-runtime.md): native in managed cloud, Docker locally.
+
+
 This is Careergrind's local adaptation of [Ponytail core](https://github.com/DietrichGebert/ponytail/blob/09c434ab73ca43761c5d8b0c5d341926c2fba710/skills/ponytail/SKILL.md) and [Ponytail review](https://github.com/DietrichGebert/ponytail/blob/09c434ab73ca43761c5d8b0c5d341926c2fba710/skills/ponytail-review/SKILL.md), pinned to upstream commit `09c434ab73ca43761c5d8b0c5d341926c2fba710`. See the repository's `docs/research/ponytail-workflow-integration.md` for the assessment. Workers and blind reviewers need only the relevant section below, not that research or delivery context.
 
 Use these instructions explicitly for each assigned implementation or review task. They require no plugin, installation, hooks, mode files, or session-wide activation. Repository instructions and the delivery workflow remain authoritative.

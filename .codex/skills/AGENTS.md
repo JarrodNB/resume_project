@@ -4,6 +4,9 @@
 
 Reusable, repository-scoped workflows for Codex.
 
+Skills are discoverable through `.agents/skills`, a symlink to this directory.
+Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker execution.
+
 ## Contents
 
 - `codebase-design/` — Upstream Matt Pocock deep-module design skill and supporting references.

@@ -8,9 +8,12 @@ Llama inference detects prompt injection only and has no billed provider usage.
 """
 
 import asyncio
+import contextvars
 import logging
 import os
+import threading
 from collections.abc import Awaitable, Callable, Generator
+from concurrent.futures import Future
 from contextlib import nullcontext
 from time import monotonic
 from typing import Any, NamedTuple
@@ -34,6 +37,7 @@ from worker.queue_messages import ModelUsage
 from worker.settings import load_settings
 
 logger = logging.getLogger(__name__)
+_local_inference_lock = threading.Lock()
 
 
 class ScreenOutcome(NamedTuple):
@@ -72,7 +76,7 @@ def screen_user_text(
     privacy placeholders expand the protected text, but every character is still screened.
     """
     if model == local_llama.MODEL:
-        return _local_screen(text, model, timeout_seconds, check_phrases, max_characters)
+        return _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters)
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
     try:
         chunk, timeout, fallback = next(screening)
@@ -135,7 +139,7 @@ async def _drive_async(
         else:
             try:
                 result = await asyncio.wait_for(
-                    asyncio.to_thread(_local_screen, text, model, remaining, check_phrases,
+                    asyncio.to_thread(_local_screen_guarded, text, model, remaining, check_phrases,
                                       max_characters, False),
                     timeout=remaining,
                 )
@@ -179,6 +183,45 @@ def _screen_key(text, model, check_phrases, max_characters):
     return (mask_outbound(text), model, check_phrases, policy, max_characters)
 
 
+def _local_screen_guarded(*args):
+    """Bound concurrent model work even if a timed-out inference keeps running."""
+    with _local_inference_lock:
+        return _local_screen(*args)
+
+
+def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters):
+    """Abandon stalled local work at the deadline without caching a late approval."""
+    session = current_session()
+    masked = mask_outbound(text)
+    key = _screen_key(masked, model, check_phrases, max_characters)
+    if session is not None and key in session.decisions:
+        return session.decisions[key]
+    remaining = min(timeout_seconds, session.deadline - monotonic()) if session else timeout_seconds
+    if remaining <= 0:
+        result = ScreenOutcome(False, unchecked=True)
+    else:
+        completed = Future()
+        context = contextvars.copy_context()
+
+        def run():
+            try:
+                completed.set_result(context.run(_local_screen_guarded, text, model, remaining,
+                                                 check_phrases, max_characters, False))
+            except Exception as error:  # noqa: BLE001 — any local failure must resolve the caller
+                completed.set_exception(error)
+
+        threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
+        try:
+            result = completed.result(timeout=remaining)
+        except Exception:  # noqa: BLE001 — local failure is unavailable
+            result = ScreenOutcome(False, unchecked=True)
+    if session is not None:
+        session.decisions[key] = result
+        if result.allowed:
+            session.allowed_sources.add(masked)
+    return result
+
+
 def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, cache_result=True):
     """Apply the same fail-closed contract to local inference and cache exact decisions."""
     text = mask_outbound(text)
@@ -197,15 +240,15 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters, c
         if session is not None:
             deadline = min(deadline, session.deadline)
         try:
-            chunks = list(local_llama.iter_chunks(text))
             result = ScreenOutcome(True)
-            for index, (chunk, token_count) in enumerate(chunks):
+            for index, (chunk, token_count) in enumerate(local_llama.iter_chunks(text)):
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     raise TimeoutError("Local screening deadline exceeded")
                 run = local_llama.classify_chunk(chunk, model, remaining)
+                if monotonic() >= deadline:
+                    raise TimeoutError("Local screening deadline exceeded")
                 with logfire.span("local_prompt_screen", model=model, chunk_index=index,
-                                  chunk_count=len(chunks),
                                   character_count=len(chunk), token_count=token_count,
                                   blocked=run.blocked, duration_seconds=run.duration):
                     pass

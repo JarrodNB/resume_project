@@ -10,15 +10,16 @@ The worker loads the gated model lazily through Transformers. Provision access t
 the worker environment. Keep the token out of repository files and traces. Confirm the
 model license and artifact access before deployment. `LABEL_0` allows and `LABEL_1`
 blocks; any unexpected configuration or inference output is unavailable and fails closed.
-The label mapping and production operating threshold require a live artifact check and
-representative evaluation before enabling this setting in production.
+Run `python -m evals.check_local_llama_model` against the real gated artifact to verify
+the label mapping on known benign and injection inputs. The production operating
+threshold also requires representative evaluation before enabling this setting in production.
 
 Each input is split into overlapping exact substrings near 1,700 characters. The local
 tokenizer reduces each chunk further until it fits 512 tokens. Every chunk must allow
 before the input can enter a generative prompt. Traces contain the model name, chunk
-position and count, sizes, decision, elapsed time, and error category, but no text or
+position, sizes, decision, elapsed time, and error category, but no text or
 token. Local inference does not create billed provider usage.
 
-The async input guardrail returns an unavailable decision when its deadline expires,
+Both the synchronous screening path and async input guardrail return an unavailable decision when their deadline expires,
 including during model loading. A local inference thread may still finish afterward;
 its result cannot approve a source or replace the unavailable decision in the task cache.

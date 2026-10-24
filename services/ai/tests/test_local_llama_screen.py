@@ -86,7 +86,7 @@ def test_local_trace_has_chunk_metadata_without_text(monkeypatch):
     outcome = screen_user_text("secret resume sentence", local_llama.MODEL, 10)
     assert outcome.allowed
     assert spans[0][1]["model"] == local_llama.MODEL
-    assert spans[0][1]["chunk_count"] == 1
+    assert spans[0][1]["chunk_index"] == 0
     assert "secret resume sentence" not in str(spans)
 
 
@@ -118,6 +118,45 @@ def test_async_local_load_timeout_cannot_approve_in_background(monkeypatch):
             assert "slow input" not in current_session().allowed_sources
 
     asyncio.run(check())
+
+
+def test_sync_local_load_timeout_cannot_approve_in_background(monkeypatch):
+    finished = threading.Event()
+
+    def slow_chunks(text):
+        threading.Event().wait(0.2)
+        finished.set()
+        return [(text, 3)]
+
+    monkeypatch.setattr(local_llama, "iter_chunks", slow_chunks)
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=False, tokens=3, duration=0.01,
+    ))
+    with screening_session(1):
+        started = monotonic()
+        outcome = screen_user_text("slow sync input", local_llama.MODEL, 0.02)
+        assert outcome.unchecked and not outcome.allowed
+        assert monotonic() - started < 0.15
+        assert finished.wait(1)
+        assert "slow sync input" not in current_session().allowed_sources
+
+
+def test_local_screen_stops_tokenizing_after_first_block(monkeypatch):
+    seen = []
+
+    def chunks(text):
+        seen.append("first")
+        yield text[:4], 4
+        seen.append("second")
+        yield text[4:], 4
+
+    monkeypatch.setattr(local_llama, "iter_chunks", chunks)
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=True, tokens=4, duration=0.01,
+    ))
+    outcome = screen_user_text("abcdefgh", local_llama.MODEL, 1)
+    assert not outcome.allowed and not outcome.unchecked
+    assert seen == ["first"]
 
 
 def test_local_chunks_cover_every_character_when_tokens_force_smaller_windows(monkeypatch):

@@ -23,7 +23,7 @@ score attached, so runs can be compared across prompt and model changes.
   Specialized suites supply setup before the run span, custom score emission inside it,
   and their existing print options. Guardrail emits decision/error scores only.
 
-- `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — live Jev through
+- `run_prompt_guardrail_evals.py` / `datasets/prompt_guardrail_cases.yaml` — configured prompt screening through
   the official InputGuardrail capability, with a fake generative model. Measures allow/block
   decisions on assembled prompts and the parsing dataset's `expects_input_block` cases.
   Outages fail evaluation rather than scoring as successful attack detection.
@@ -86,11 +86,11 @@ score attached, so runs can be compared across prompt and model changes.
   query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
 - `datasets/user_text_screen_cases.yaml` — synthetic user messages (career notes that must be
-  allowed, including metaphors and a talk about prompt injection; jailbreaks; a request for
-  help breaking into an account; an ordinary resume, a resume with an embedded jailbreak, and
-  a security-engineer resume). `block` is the decision at the 0.7 bar
+  allowed, including metaphors, a talk about prompt injection, and a harmful-only
+  non-injection; jailbreaks; an ordinary resume, a resume with an embedded jailbreak, and
+  a security-engineer resume). `block` is the prompt-injection decision at Jev's 0.7 bar
 - `user_text_screen_evaluators.py` — `DecisionMatch` (the production bar) and `QuestionMatch`
-  (each yes/no bool)
+  (the prompt-injection yes/no answer)
 - `run_user_text_screen_evals.py` — pinned Jev prompt-injection runner (the Jev call itself, not the phrase list):
   `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
 - `run_user_text_fallback_evals.py` — dedicated configured LLM prompt-injection quality run on the

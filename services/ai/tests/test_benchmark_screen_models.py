@@ -18,7 +18,7 @@ def test_benchmark_uses_same_text_and_alternates_model_order(monkeypatch):
     report = benchmark.run_benchmark(repeats=2)
     assert report["settings"]["jev_chunk_characters"] in (2000, 4000)
     assert report["settings"]["llama_max_tokens"] == 512
-    assert len(seen) == 2 + 2 * len(benchmark.SIZES) * 2
+    assert len(seen) == 2 + 2 * len(benchmark.SIZES) * 2 + 2 * 2 * 2
     for size in benchmark.SIZES:
         results = report["sizes"][str(size)]
         assert [sample["seconds"] for sample in results["jev"]["samples"]] == [0.1, 0.1]
@@ -28,6 +28,7 @@ def test_benchmark_uses_same_text_and_alternates_model_order(monkeypatch):
     second_round = seen[2 + len(benchmark.SIZES) * 2:]
     assert [model for _, model in first_round[:2]] == list(benchmark.MODELS.values())
     assert [model for _, model in second_round[:2]] == list(reversed(benchmark.MODELS.values()))
+    assert report["local_concurrency_control"]["5000"]["serial"]["successful_samples"] == 2
 
 
 def test_fallback_sample_is_excluded_from_jev_latency(monkeypatch):

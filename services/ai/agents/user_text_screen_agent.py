@@ -1,5 +1,5 @@
 """
-Description: Pydantic AI agent that asks Jev two yes/no questions about one user-written
+Description: Pydantic AI agent that asks Jev one prompt-injection question about user-written
 message. The screening policy owns recovery; this agent only runs JEV with a three-second cap.
 Index:
     - user_text_screen_agent: the agent (model chosen per run; output UserTextScreen)

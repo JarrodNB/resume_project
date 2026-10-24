@@ -2,9 +2,9 @@
 Description: Turns Jev's bool answer and its reported margin back into the probability of yes,
 then applies the block bar. The bar is owned by code, not by the model.
 Index:
-    - YES_CONFIDENCE_THRESHOLD: block when P(yes) for either question is at least this
+    - YES_CONFIDENCE_THRESHOLD: block when P(yes) for injection is at least this
     - yes_probability: P(yes) from the bool and the margin, at the agent's boolean threshold
-    - blocks_on_yes_confidence: true when either field's P(yes) reaches the bar, or the
+    - blocks_on_yes_confidence: true when injection's P(yes) reaches the bar, or the
       margin is missing (fail closed)
 """
 
@@ -12,7 +12,7 @@ from schemas.user_text_screen import UserTextScreen
 
 # Starting bar, recorded so it can be tuned. The screen model is pinned in WorkerSettings.
 YES_CONFIDENCE_THRESHOLD = 0.7
-_FIELDS = ("prompt_injection", "harmful_request")
+_FIELDS = ("prompt_injection",)
 
 
 def yes_probability(answered_yes: bool, margin: float, *, boolean_threshold: float = 0.5) -> float:
@@ -26,7 +26,7 @@ def yes_probability(answered_yes: bool, margin: float, *, boolean_threshold: flo
 def blocks_on_yes_confidence(
     screen: UserTextScreen, confidence: dict[str, float], *, boolean_threshold: float = 0.5
 ) -> bool:
-    """True when either question's P(yes) is at least YES_CONFIDENCE_THRESHOLD. A missing
+    """True when injection's P(yes) is at least YES_CONFIDENCE_THRESHOLD. A missing
     margin blocks too: there is nothing to check the bar against."""
     for field in _FIELDS:
         margin = confidence.get(field)

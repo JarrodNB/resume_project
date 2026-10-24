@@ -1,6 +1,6 @@
-"""Decide whether protected input can enter generation with Jev or local Llama.
+"""Decide whether protected input can enter generation with Jev, local Llama, or Nano.
 
-JEV gets at most three seconds per chunk. An attempted failure uses a boolean fallback
+JEV gets at most three seconds per chunk. An attempted failure uses the configured fallback
 within the remaining source/task deadline. Missing credentials and unsuccessful screening
 stay unavailable; limits and external cancellation propagate. Completed model usage is
 kept separately per provider, including chunks before a later block or outage. Local
@@ -42,6 +42,11 @@ _local_inference_lock = threading.Lock()
 _local_chunk_slots = threading.BoundedSemaphore(4)
 _chunk_observer: ContextVar[Callable[[], None] | None] = ContextVar("screen_chunk_observer", default=None)
 MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
+
+
+def _is_jev_model(model: str) -> bool:
+    """Recognize the pinned model and its provider-reported name."""
+    return model in ("typesafe:jev-1.13.0", "jev-1.13.0")
 
 
 @contextmanager
@@ -86,6 +91,7 @@ class ScreenOutcome(NamedTuple):
 def screen_user_text(
     text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True,
     max_characters: int = MAX_SCREENED_TEXT,
+    _allow_fallback: bool = True,
 ) -> ScreenOutcome:
     """Return a decision from the selected classifier, failing closed on outages.
 
@@ -94,17 +100,37 @@ def screen_user_text(
     Trusted import code may adjust `max_characters` after validating original text:
     privacy placeholders expand the protected text, but every character is still screened.
     """
+    timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     if model == local_llama.MODEL:
-        return _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters)
-    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
+        started = monotonic()
+        result = _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters)
+        fallback_model = load_settings().user_text_screen_fallback_model
+        if _allow_fallback and result.unchecked and fallback_model != model:
+            remaining = timeout_seconds - (monotonic() - started)
+            if remaining > 0:
+                result = screen_user_text(text, fallback_model, remaining,
+                                          check_phrases=check_phrases,
+                                          max_characters=max_characters, _allow_fallback=False)
+                _remember_decision(current_session(), _screen_key(text, model, check_phrases,
+                                                                   max_characters),
+                                   mask_outbound(text), result)
+        return result
+    screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
+                             allow_fallback=_allow_fallback)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
             try:
-                classifier = screen_fallback_message if fallback else screen_user_message
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
+                classifier = (screen_user_message if _is_jev_model(selected) else
+                              screen_fallback_message)
                 with fallback_execution(model, selected, kind="screening") if fallback else nullcontext():
-                    run = classifier(chunk, model=selected, timeout_seconds=timeout)
+                    if selected == local_llama.MODEL:
+                        run = _local_screen_sync(chunk, selected, timeout, False, max_characters)
+                        if run.unchecked:
+                            raise RuntimeError("Local fallback screening unavailable")
+                    else:
+                        run = classifier(chunk, model=selected, timeout_seconds=timeout)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -119,6 +145,7 @@ async def screen_user_text_async(
     classify: Callable[[str, str, float], Awaitable[Any]],
     credentials_available: bool | None = None,
     classify_fallback: Callable[[str, str, float], Awaitable[Any]] | None = None,
+    _allow_fallback: bool = True,
 ) -> ScreenOutcome:
     """Apply the same policy without blocking an agent's running event loop.
 
@@ -128,11 +155,12 @@ async def screen_user_text_async(
     preserve the production credential check and remote fallback. These seams never
     create an allowed decision themselves.
     """
+    timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     session = current_session()
     if session is None:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback,
+            credentials_available, classify_fallback, _allow_fallback,
         )
     # The same execution can be used by successive asyncio.run calls. Locks belong to
     # their event loop; completed decisions remain shared across those loops.
@@ -141,13 +169,13 @@ async def screen_user_text_async(
     async with lock:
         return await _drive_async(
             text, model, timeout_seconds, check_phrases, max_characters, classify,
-            credentials_available, classify_fallback,
+            credentials_available, classify_fallback, _allow_fallback,
         )
 
 
 async def _drive_async(
     text, model, timeout_seconds, check_phrases, max_characters, classify,
-    credentials_available, classify_fallback,
+    credentials_available, classify_fallback, allow_fallback,
 ):
     """Drive the common policy after acquiring execution-local source ownership."""
     if model == local_llama.MODEL:
@@ -160,17 +188,16 @@ async def _drive_async(
             _remember_decision(session, key, masked, preflight)
             return preflight
         deadline = _screen_deadline(timeout_seconds, session)
+        admitted = False
         while monotonic() < deadline:
             if _local_inference_lock.acquire(blocking=False):
+                admitted = True
                 break
             await asyncio.sleep(min(0.01, max(0, deadline - monotonic())))
-        else:
-            result = ScreenOutcome(False, unchecked=True)
-            _remember_decision(session, key, masked, result)
-            return result
         remaining = deadline - monotonic()
-        if remaining <= 0:
-            _local_inference_lock.release()
+        if not admitted or remaining <= 0:
+            if admitted:
+                _local_inference_lock.release()
             result = ScreenOutcome(False, unchecked=True)
         else:
             try:
@@ -183,10 +210,21 @@ async def _drive_async(
                 result = ScreenOutcome(False, unchecked=True)
         # A timed-out thread can finish later. Only this event-loop owner may cache
         # approval, and only after it has completed inside the caller's deadline.
+        if allow_fallback and result.unchecked:
+            fallback_model = load_settings().user_text_screen_fallback_model
+            remaining = deadline - monotonic()
+            if fallback_model != model and remaining > 0:
+                result = await screen_user_text_async(
+                    text, fallback_model, remaining, check_phrases=check_phrases,
+                    max_characters=max_characters, classify=classify,
+                    credentials_available=credentials_available,
+                    classify_fallback=classify_fallback, _allow_fallback=False,
+                )
         _remember_decision(session, key, masked, result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
-                             credentials_available=credentials_available)
+                             credentials_available=credentials_available,
+                             allow_fallback=allow_fallback)
     try:
         chunk, timeout, fallback = next(screening)
         while True:
@@ -194,13 +232,30 @@ async def _drive_async(
                 if fallback:
                     selected = load_settings().user_text_screen_fallback_model
                     with fallback_execution(model, selected, kind="screening"):
-                        run = await (classify_fallback or screen_fallback_message_async)(
-                            chunk, selected, timeout,
-                        )
+                        if selected == local_llama.MODEL:
+                            run = await screen_user_text_async(
+                                chunk, selected, timeout, check_phrases=False,
+                                max_characters=max_characters, classify=classify,
+                                _allow_fallback=False,
+                            )
+                            if run.unchecked:
+                                raise RuntimeError("Local fallback screening unavailable")
+                        elif _is_jev_model(selected):
+                            run = await classify(chunk, selected, timeout)
+                        else:
+                            run = await (classify_fallback or screen_fallback_message_async)(
+                                chunk, selected, timeout,
+                            )
                 else:
-                    run = await classify(chunk, model, timeout)
+                    if model == "openai:gpt-5-nano":
+                        run = await (classify_fallback or screen_fallback_message_async)(
+                            chunk, model, timeout,
+                        )
+                    else:
+                        run = await classify(chunk, model, timeout)
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
-                record_guardrail_usage(run.model_name, selected, run.usage)
+                if not isinstance(run, ScreenOutcome):
+                    record_guardrail_usage(run.model_name, selected, run.usage)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -440,7 +495,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
 
 def _screen_pass(
     text: str, model: str, timeout_seconds: float, check_phrases: bool, max_characters: int,
-    *, credentials_available: bool | None = None,
+    *, credentials_available: bool | None = None, allow_fallback: bool = True,
 ) -> Generator[tuple[str, float, bool], Any, ScreenOutcome]:
     """Own one shared policy; sync and async drivers only execute yielded provider work."""
     text = mask_outbound(text)
@@ -452,6 +507,7 @@ def _screen_pass(
         return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
     outcome = yield from _screen_chunks(
         text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available,
+        allow_fallback,
     )
     _remember_decision(session, key, text, outcome)
     return outcome
@@ -459,13 +515,14 @@ def _screen_pass(
 
 def _screen_chunks(
     text, model, timeout_seconds, check_phrases, size, max_characters, credentials_available=None,
+    allow_fallback=True,
 ):
     """Visit every character once per pass, with intentional 300-character boundary overlap."""
     if result := _preflight(text, check_phrases, max_characters):
         return result
     available = (os.environ.get("TYPESAFE_API_KEY", "").strip()
                  if credentials_available is None else credentials_available)
-    if not available:
+    if _is_jev_model(model) and not available:
         logger.warning("TYPESAFE_API_KEY is unset; leaving user text out of the prompt")
         return ScreenOutcome(allowed=False, unchecked=True)
     deadline = _screen_deadline(timeout_seconds, current_session())
@@ -491,28 +548,39 @@ def _screen_chunks(
             if remaining <= 0:
                 raise TimeoutError("Screening deadline exceeded")
             try:
-                run = yield chunk, min(JEV_REQUEST_TIMEOUT_SECONDS, remaining), False
+                limit = (min(JEV_REQUEST_TIMEOUT_SECONDS, remaining)
+                         if _is_jev_model(model) else remaining)
+                run = yield chunk, limit, False
             except UsageLimitExceeded:
                 raise
-            except Exception:  # noqa: BLE001 — provider failures use the safety fallback
-                # Only an attempted JEV failure triggers recovery. Missing credentials,
-                # exhausted deadlines, external cancellation and limits never get here.
+            except Exception:  # Attempted primary failures use the fallback.
+                fallback_model = load_settings().user_text_screen_fallback_model
+                if not allow_fallback or fallback_model == model:
+                    raise
+                if _is_jev_model(fallback_model) and not available:
+                    raise
                 fallback = True
                 remaining = deadline - monotonic()
                 if remaining <= 0:
                     raise TimeoutError("Screening deadline exceeded") from None
-                run = yield chunk, remaining, True
+                limit = (min(JEV_REQUEST_TIMEOUT_SECONDS, remaining)
+                         if _is_jev_model(fallback_model) else remaining)
+                run = yield chunk, limit, True
         except UsageLimitExceeded:
             raise
         except Exception:
-            logger.exception("Safety screening failed; leaving the text out of the prompt")
+            logger.exception("Prompt screening failed; leaving the text out of the prompt")
             return outcome(False, unchecked=True)
-        usage.incr(run.usage)
         configured = load_settings().user_text_screen_fallback_model if fallback else model
-        reported_model = reported_model_name(run.model_name, configured)
-        models.add(reported_model)
-        completed_usage.append(build_model_usage(reported_model, run.usage))
-        blocked = run.screen.blocked if fallback else blocks_on_yes_confidence(run.screen, run.confidence)
+        if isinstance(run, ScreenOutcome):
+            blocked = not run.allowed
+        else:
+            usage.incr(run.usage)
+            reported_model = reported_model_name(run.model_name, configured)
+            models.add(reported_model)
+            completed_usage.append(build_model_usage(reported_model, run.usage))
+            blocked = (blocks_on_yes_confidence(run.screen, run.confidence)
+                       if _is_jev_model(configured) else run.screen.blocked)
         if blocked:
             return outcome(False)
         if start + size >= len(text):

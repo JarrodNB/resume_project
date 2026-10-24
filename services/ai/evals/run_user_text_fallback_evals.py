@@ -1,4 +1,4 @@
-"""Evaluate the fallback classifier directly on the shared synthetic safety cases.
+"""Evaluate Nano's prompt-injection classifier on shared synthetic cases.
 
 Boolean decisions use the production policy. Outages remain case errors, and no JEV
 confidence margins are invented. Run with python -m evals.run_user_text_fallback_evals.
@@ -13,6 +13,8 @@ from prompts.user_text_fallback_instructions import USER_TEXT_FALLBACK_PROMPT_VE
 from schemas.user_text_fallback import UserTextFallbackScreen
 from worker.settings import load_settings
 
+NANO_MODEL = "openai:gpt-5-nano"
+
 
 def load_user_text_fallback_dataset():
     """Reuse labeled messages, with a separate boolean task and no confidence evaluators."""
@@ -23,12 +25,13 @@ def load_user_text_fallback_dataset():
 
 
 def run_user_text_fallback_evals():
-    """Report decision and individual-question accuracy and fail visibly on case errors."""
+    """Report decision and injection accuracy and fail visibly on case errors."""
     settings = load_settings()
-    model = settings.user_text_screen_fallback_model
+    model = NANO_MODEL
 
     def classify(case) -> UserTextFallbackScreen:
-        return screen_fallback_message(case.text, model, settings.llm_run_timeout_seconds).screen
+        timeout = min(settings.llm_run_timeout_seconds, settings.user_text_screen_timeout_seconds)
+        return screen_fallback_message(case.text, model, timeout).screen
 
     def score(report):
         total = len(report.cases)
@@ -36,8 +39,6 @@ def run_user_text_fallback_evals():
             "decision_match": sum(case.output.blocked == case.metadata.block for case in report.cases),
             "prompt_injection_match": sum(case.output.prompt_injection == case.metadata.prompt_injection
                                           for case in report.cases),
-            "harmful_request_match": sum(case.output.harmful_request == case.metadata.harmful_request
-                                        for case in report.cases),
         }.items():
             record_score(name=name, value=matches / total if total else 0)
         record_score(name="case_errors", value=len(report.failures))

@@ -1,5 +1,5 @@
 """
-Description: Evaluators for the Jev user-text screen. Labels say whether each question is yes
+Description: Evaluators for the Jev user-text screen. Labels say whether injection is present
 and whether the production bar would block. Scores use that same bar, not a new one.
 Index:
     - UserTextScreenEvalInput / UserTextScreenEvalLabels / UserTextScreenEvalOutput: one case
@@ -31,7 +31,7 @@ class UserTextScreenEvalLabels(BaseModel):
 
     block: bool
     prompt_injection: bool
-    harmful_request: bool
+    harmful_request: bool  # Retained as dataset context; no longer part of screening policy.
 
 
 class UserTextScreenEvalOutput(BaseModel):
@@ -52,9 +52,8 @@ def labels_to_output(labels: UserTextScreenEvalLabels) -> UserTextScreenEvalOutp
     return UserTextScreenEvalOutput(
         screen=UserTextScreen(
             prompt_injection=labels.prompt_injection,
-            harmful_request=labels.harmful_request,
         ),
-        confidence={"prompt_injection": _SURE, "harmful_request": _SURE},
+        confidence={"prompt_injection": _SURE},
     )
 
 
@@ -72,7 +71,7 @@ class DecisionMatch(ScreenEvaluator):
 
 @dataclass
 class QuestionMatch(ScreenEvaluator):
-    """Each yes/no question matches its label, apart from how sure Jev was."""
+    """The prompt-injection answer matches its label, apart from Jev's margin."""
 
     def evaluate(self, ctx: ScreenContext) -> dict[str, float]:
         """1 per field when the bool matches."""
@@ -80,10 +79,8 @@ class QuestionMatch(ScreenEvaluator):
         assert labels is not None
         screen = ctx.output.screen
         injection_matches = screen.prompt_injection == labels.prompt_injection
-        harm_matches = screen.harmful_request == labels.harmful_request
         return {
             "prompt_injection_match": 1.0 if injection_matches else 0.0,
-            "harmful_request_match": 1.0 if harm_matches else 0.0,
         }
 
 

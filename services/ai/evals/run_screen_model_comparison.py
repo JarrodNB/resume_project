@@ -37,7 +37,7 @@ class ComparisonCase:
 
 
 def load_cases() -> list[ComparisonCase]:
-    """Reuse the existing synthetic Jev cases, including harmful-only examples."""
+    """Reuse the synthetic cases, including harmful-only non-injection examples."""
     source = yaml.safe_load(DATASET_PATH.read_text(encoding="utf-8"))
     short_cases = [ComparisonCase(row["name"], row["inputs"]["text"],
                                   row["metadata"]["prompt_injection"],
@@ -68,7 +68,8 @@ def evaluate_case(case: ComparisonCase) -> dict:
                   screening.observe_screen_chunks(observed)):
                 outcome = screening.screen_user_text(case.text, model,
                                                      settings.llm_run_timeout_seconds,
-                                                     check_phrases=False)
+                                                     check_phrases=False,
+                                                     _allow_fallback=False)
             decision = ("unavailable" if outcome.unchecked or outcome.too_long else
                         "allow" if outcome.allowed else "block")
             if outcome.too_long:
@@ -82,7 +83,7 @@ def evaluate_case(case: ComparisonCase) -> dict:
             with count_lock:
                 counter["closed"] = True
                 count = counter["count"]
-        expected_block = case.prompt_injection or (name == "jev" and case.harmful_request)
+        expected_block = case.prompt_injection
         results[name] = {
             "decision": decision, "chunk_count": count,
             "elapsed_seconds": monotonic() - started, "error": error,
@@ -124,7 +125,7 @@ def run_comparison(output_path: Path | None = None) -> dict:
               "summary": summary, "results": rows,
               "limitations": ["Sequential single-run timing; provider and cache conditions vary.",
                               "Chunk counts include attempts started before a block or outage; Llama may prefetch four.",
-                              "Harmful-only cases are outside Llama prompt-injection scope."]}
+                              "Harmful-only cases are outside all three prompt-injection models' scope."]}
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

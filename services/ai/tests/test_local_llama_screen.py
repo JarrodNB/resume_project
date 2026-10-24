@@ -413,6 +413,9 @@ def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):
 
 
 def test_async_stalled_model_does_not_queue_screening_threads(monkeypatch):
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", local_llama.MODEL)
+    baseline_async_threads = sum(thread.name.startswith("asyncio_")
+                                 for thread in threading.enumerate())
     release = threading.Event()
     entered = threading.Event()
     calls = []
@@ -441,7 +444,8 @@ def test_async_stalled_model_does_not_queue_screening_threads(monkeypatch):
         results = await asyncio.gather(first, *others)
         assert all(result.unchecked for result in results)
         assert calls == ["first async stalled input"]
-        assert sum(thread.name.startswith("asyncio_") for thread in threading.enumerate()) <= 1
+        assert (sum(thread.name.startswith("asyncio_") for thread in threading.enumerate())
+                <= baseline_async_threads + 1)
 
     try:
         asyncio.run(check())

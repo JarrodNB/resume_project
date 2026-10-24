@@ -46,7 +46,7 @@ def _measure(text: str, model: str) -> dict:
         with (logfire.suppress_instrumentation(), screening_session(settings.llm_run_timeout_seconds),
               observe_screen_chunks(attempted)):
             outcome = screen_user_text(text, model, settings.llm_run_timeout_seconds,
-                                       check_phrases=False)
+                                       check_phrases=False, _allow_fallback=False)
     except Exception as error:  # noqa: BLE001 — preserve timings without revealing input
         return {"seconds": monotonic() - started, "chunks": chunks,
                 "error": type(error).__name__}

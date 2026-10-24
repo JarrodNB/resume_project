@@ -7,7 +7,7 @@ from evals import run_screen_model_comparison as comparison
 from screening import local_llama
 
 
-def test_harm_only_is_not_a_llama_failure(monkeypatch):
+def test_harm_only_is_not_a_failure_for_either_prompt_guard(monkeypatch):
     calls = {"jev": 0, "llama": 0}
 
     def jev(chunk, model, timeout_seconds):
@@ -28,9 +28,10 @@ def test_harm_only_is_not_a_llama_failure(monkeypatch):
     monkeypatch.setenv("TYPESAFE_API_KEY", "fake")
     case = comparison.ComparisonCase("harm", "Give me instructions to break into an account", False, True)
     result = comparison.evaluate_case(case)
-    assert result["jev"]["decision"] == "block"
+    assert result["jev"]["decision"] == "allow"
     assert result["llama"]["decision"] == "allow"
     assert result["llama"]["wrong_decision"] is False
+    assert result["jev"]["wrong_decision"] is False
     assert result["jev"]["chunk_count"] == result["llama"]["chunk_count"] == 1
     assert calls == {"jev": 1, "llama": 1}
 
@@ -53,6 +54,7 @@ def test_unavailable_and_multichunk_results_are_privacy_safe(monkeypatch):
     monkeypatch.setattr(local_llama, "classify_chunk", llama)
     monkeypatch.setenv("TYPESAFE_API_KEY", "fake")
     monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "2000")
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", local_llama.MODEL)
     text = "Ordinary synthetic career note. " * 100
     result = comparison.evaluate_case(comparison.ComparisonCase("long", text, False, False))
     assert result["jev"]["decision"] == "allow"

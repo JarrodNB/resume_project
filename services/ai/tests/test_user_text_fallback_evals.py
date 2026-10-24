@@ -26,8 +26,7 @@ def test_fallback_eval_uses_boolean_policy(offline_model_resolution, monkeypatch
     monkeypatch.setattr(runner, "record_score", lambda name, value: scores.update({name: value}))
     report = runner.run_user_text_fallback_evals()
     assert len(report.cases) == len(labels)
-    assert scores == {"decision_match": 1, "prompt_injection_match": 1,
-                      "harmful_request_match": 1, "case_errors": 0}
+    assert scores == {"decision_match": 1, "prompt_injection_match": 1, "case_errors": 0}
 
 
 def test_fallback_eval_outages_are_errors(offline_model_resolution, monkeypatch):

@@ -13,7 +13,6 @@ from pydantic_evals import Dataset
 from pydantic_evals.reporting import EvaluationReport
 
 from agents.user_text_screen_agent import screen_user_message
-from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset, record_average_scores, record_score
 from evals.user_text_screen_evaluators import (
     USER_TEXT_SCREEN_EVALUATORS,
@@ -39,13 +38,16 @@ def load_user_text_screen_dataset() -> Dataset[
 
 def run_user_text_screen_evals(model_override: str | None = None) -> EvaluationReport:
     """Evaluates Jev on every case and records the average scores in Logfire."""
-    settings = override_settings(load_settings(), "user_text_screen_model", model_override)
-    model = settings.user_text_screen_model
+    settings = load_settings()
+    model = model_override or "typesafe:jev-1.13.0"
+    if model != "typesafe:jev-1.13.0":
+        raise ValueError("This evaluation measures Jev; use the comparison runner for other models")
 
     def judge_case(case: UserTextScreenEvalInput) -> UserTextScreenEvalOutput:
         """The task under evaluation: one Jev call, with its reported margins."""
         run = screen_user_message(
-            case.text, model=model, timeout_seconds=settings.llm_run_timeout_seconds
+            case.text, model=model, timeout_seconds=min(
+                settings.llm_run_timeout_seconds, settings.user_text_screen_timeout_seconds)
         )
         return UserTextScreenEvalOutput(screen=run.screen, confidence=run.confidence)
 

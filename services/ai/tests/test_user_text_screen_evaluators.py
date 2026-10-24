@@ -35,8 +35,8 @@ def test_unsure_yes_misses_a_labelled_block() -> None:
     case = next(case for case in load_user_text_screen_dataset().cases if case.name == "dan_jailbreak")
     assert case.metadata is not None
     output = labels_to_output(case.metadata)
-    output.screen = UserTextScreen(prompt_injection=True, harmful_request=False)
-    output.confidence = {"prompt_injection": 0.0, "harmful_request": 1.0}
+    output.screen = UserTextScreen(prompt_injection=True)
+    output.confidence = {"prompt_injection": 0.0}
     context = SimpleNamespace(inputs=case.inputs, output=output, metadata=case.metadata)
 
     scores = DecisionMatch().evaluate(context)  # type: ignore[arg-type]

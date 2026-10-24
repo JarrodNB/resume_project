@@ -1,9 +1,12 @@
 # Local prompt-injection screening
 
-Set `USER_TEXT_SCREEN_MODEL=meta-llama/Llama-Prompt-Guard-2-22M` in the AI worker environment
-to select the local classifier. The default remains `typesafe:jev-1.13.0`. Only one
-classifier screens each production input. Llama mode detects prompt injection only;
-Jev's harmful-request question and its existing recovery path remain specific to Jev.
+Set `USER_TEXT_SCREEN_MODEL` to `typesafe:jev-1.13.0`,
+`meta-llama/Llama-Prompt-Guard-2-22M`, or `openai:gpt-5-nano`. The default is Jev.
+Set `USER_TEXT_SCREEN_FALLBACK_MODEL` to one of the same three models; it runs only
+after an attempted primary failure. Setting it to the primary model disables recovery.
+`USER_TEXT_SCREEN_TIMEOUT_SECONDS` caps the whole input check, including fallback,
+within the caller's task deadline. Jev also has a three-second limit per call.
+All three models check prompt injection only.
 
 The worker loads the gated model lazily through Transformers. Provision access to
 `meta-llama/Llama-Prompt-Guard-2-22M` in the Hugging Face cache or provide a token through

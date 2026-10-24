@@ -30,11 +30,11 @@ instructions from `prompts/`.
   verdict per requirement citing library labels); its output validator retries with
   `find_gap_analysis_problems` messages; `analyze_gaps(prompt, model, thinking, timeout_seconds)`
   returns a `GapAnalysisRun` (`gap_analysis`, `usage`)
-- `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (two bool questions on
+- `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (one bool question on
   `typesafe:jev-1.13.0`); `screen_user_message` returns the screen, model name, confidence, and
   usage. The screening policy owns outage fallback, not this agent
-- `user_text_fallback_agent.py` — same two safety questions as strict booleans on the separate
-  screening fallback model. Either true blocks; no fabricated JEV confidence. Exempt from
+- `user_text_fallback_agent.py` — prompt-injection question as a strict boolean on Nano.
+  A true answer blocks; no fabricated JEV confidence. Exempt from
   input screening to prevent recursion; concrete requests use normal task accounting
 - `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
   validator retries with `find_section_problems`; `write_resume_section_async` supports
@@ -84,5 +84,5 @@ instructions from `prompts/`.
   and readable frozen system context; the fake executor retains its existing guard. Masking
   remains active; its model wrapper registers every concrete dispatch with Rails. This approved
   spoken path intentionally keeps gpt-6-luna without generative model substitution;
-  the shared Jev → Nano safety fallback remains. Offline eval fixture checks are in
+  the configured prompt-injection screening fallback remains. Offline eval fixture checks are in
   `evals/run_spoken_interviewer_evals.py`; paid quality checks are deferred.

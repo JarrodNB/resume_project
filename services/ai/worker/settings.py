@@ -10,7 +10,7 @@ Index:
     - worker_environment / conversation_logging_enabled: explicit local transcript gate
 """
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_ai.settings import ThinkingLevel
 from pydantic_settings import BaseSettings
 
@@ -52,18 +52,20 @@ class WorkerSettings(BaseSettings):
     eval_judge_model: str = "openai:gpt-6.1-sol"
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingLevel = False
-    # JEV remains primary; its separate safety fallback only runs after an attempted failure.
+    # The fallback runs only after an attempted primary provider failure.
     user_text_screen_model: str = "typesafe:jev-1.13.0"
     user_text_screen_fallback_model: str = "openai:gpt-5-nano"
+    user_text_screen_timeout_seconds: float = Field(default=240, gt=0)
     # Live synthetic comparison: same decisions as 2000, with fewer requests and lower latency.
     # Keep both sizes available for repeat evaluation; overlap is 300 characters.
     user_text_screen_chunk_size: int = 4000
 
-    @field_validator("user_text_screen_model")
+    @field_validator("user_text_screen_model", "user_text_screen_fallback_model")
     @classmethod
     def screen_model_candidate(cls, value: str) -> str:
-        """Keep production selection limited to the approved Jev and local Llama models."""
-        if value not in ("typesafe:jev-1.13.0", "meta-llama/Llama-Prompt-Guard-2-22M"):
+        """Limit both screening positions to the three supported classifiers."""
+        if value not in ("typesafe:jev-1.13.0", "meta-llama/Llama-Prompt-Guard-2-22M",
+                         "openai:gpt-5-nano"):
             raise ValueError("Unknown user text screening model")
         return value
 

@@ -112,9 +112,10 @@ def screen_user_text(
         if _allow_fallback and result.unchecked and fallback_model != model:
             remaining = timeout_seconds - (monotonic() - started)
             if remaining > 0:
-                result = screen_user_text(text, fallback_model, remaining,
-                                          check_phrases=check_phrases,
-                                          max_characters=max_characters, _allow_fallback=False)
+                with fallback_execution(model, fallback_model, kind="screening"):
+                    result = screen_user_text(text, fallback_model, remaining,
+                                              check_phrases=check_phrases,
+                                              max_characters=max_characters, _allow_fallback=False)
                 _remember_decision(session, key, mask_outbound(text), result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
@@ -216,12 +217,13 @@ async def _drive_async(
             fallback_model = load_settings().user_text_screen_fallback_model
             remaining = deadline - monotonic()
             if fallback_model != model and remaining > 0:
-                result = await screen_user_text_async(
-                    text, fallback_model, remaining, check_phrases=check_phrases,
-                    max_characters=max_characters, classify=classify,
-                    credentials_available=credentials_available,
-                    classify_fallback=classify_fallback, _allow_fallback=False,
-                )
+                with fallback_execution(model, fallback_model, kind="screening"):
+                    result = await screen_user_text_async(
+                        text, fallback_model, remaining, check_phrases=check_phrases,
+                        max_characters=max_characters, classify=classify,
+                        credentials_available=credentials_available,
+                        classify_fallback=classify_fallback, _allow_fallback=False,
+                    )
         _remember_decision(session, key, masked, result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,

@@ -83,6 +83,41 @@ def test_screening_fallback_execution(monkeypatch, tmp_path, offline_model_resol
     assert text.count(f'Fallback execution: {execution}') >= 2
 
 
+@pytest.mark.parametrize('async_path', [False, True])
+def test_local_primary_fallback_is_linked_in_transcript(
+    monkeypatch, tmp_path, offline_model_resolution, async_path,
+):
+    from agents.user_text_screen_agent import screen_user_message_async
+    from screening import local_llama
+    from screening.screen_user_text import screen_user_text, screen_user_text_async
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('USER_TEXT_SCREEN_FALLBACK_MODEL', 'openai:gpt-5-nano')
+    monkeypatch.setattr(local_llama, 'iter_chunks', lambda text: iter([(text, len(text))]))
+
+    def unavailable(*_args):
+        raise RuntimeError('Local model unavailable')
+
+    monkeypatch.setattr(local_llama, 'classify_chunk', unavailable)
+    offline_model_resolution('openai:gpt-5-nano', FunctionModel(
+        lambda messages, info: ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+                                               {'prompt_injection': False})])))
+    with scope(WorkerSettings(worker_environment='local')), collect_task_usage():
+        if async_path:
+            outcome = asyncio.run(screen_user_text_async(
+                'Career notes', local_llama.MODEL, 5, classify=screen_user_message_async))
+        else:
+            outcome = screen_user_text('Career notes', local_llama.MODEL, 5)
+    assert outcome.allowed
+    text = next(tmp_path.glob('conversation_logs/**/*.md')).read_text()
+    assert text.count('### FALLBACK EXECUTION') == 1
+    assert f'From model: {local_llama.MODEL}' in text
+    assert 'To model: openai:gpt-5-nano' in text
+    import re
+    execution = re.search(r'Fallback execution: ([a-f0-9-]+)', text)[1]
+    assert text.count(f'Fallback execution: {execution}') >= 2
+
+
 @pytest.mark.parametrize('environment,enabled', [('production', True), ('local', False)])
 def test_disabled_transcripts_keep_validation_fallback_and_tracing(monkeypatch, tmp_path, environment, enabled, exporters):  # noqa: F811 - pytest fixture
     """Disabled capture still runs fallback and validation beneath an independent trace."""

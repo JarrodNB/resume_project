@@ -55,6 +55,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 12. **Do design work on a branch.** For Impeccable and frontend design changes,
     use a dedicated `codex/` branch rather than editing on the default branch.
     Build new surfaces directly in code by default; see `.impeccable/config.json`.
+13. DO NOT JSON DUMP INTO PROMPTS
 
 ## Human-friendly file headers
 

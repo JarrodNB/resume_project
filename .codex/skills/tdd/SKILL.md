@@ -31,4 +31,4 @@ Read applicable repository instructions and existing tests. Implement approved b
 
 ## Delegated tickets
 
-Stay within the assigned worktree/branch and approved scope. Respect blockers and report material ambiguity to the orchestrator. Do not change the board, publish tickets, open PRs, merge, or deploy. Return changed files/commits, acceptance outcomes, verification evidence, and concerns. The orchestrator owns integration and ticket status.
+Stay within the assigned worktree/branch and approved scope. Respect blockers and report material ambiguity to the orchestrator. Do not publish tickets, open PRs, merge, or deploy. Return changed files/commits, acceptance outcomes, verification evidence, and concerns. The orchestrator owns integration and ticket status.

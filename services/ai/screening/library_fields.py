@@ -1,11 +1,11 @@
 """Reuse saved checks for career-library fields without putting metadata in prompts.
 
 Callers choose a library snapshot containing only the entries and fields they use.
-Unchecked text is screened together; a rejected batch grants no new approvals.
+Unchecked text is screened together as labeled plain text; a rejected batch
+grants no new approvals.
 Rails saves successful field names from the execution's final result.
 """
 
-import json
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
@@ -33,7 +33,7 @@ def screen_library_fields(
     callers must never pass additional user text or hidden record fields there.
     """
     pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
-    decision = allow_text(json.dumps(pending, ensure_ascii=False)) if pending else True
+    decision = allow_text(_screening_text(pending)) if pending else True
     return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
 
 
@@ -44,7 +44,7 @@ async def screen_library_fields_async(
 ) -> Any:
     """Apply the same saved-field checks without blocking asynchronous consumers."""
     pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
-    decision = await allow_text(json.dumps(pending, ensure_ascii=False)) if pending else True
+    decision = await allow_text(_screening_text(pending)) if pending else True
     return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
 
 
@@ -79,6 +79,16 @@ def _unchecked_fields(library, include_fact_requirements, used_fields):
                 collect("experience_highlight", highlight.id, {"content": highlight.content},
                         highlight.screened_fields)
     return pending, reports
+
+
+def _screening_text(pending: list[dict[str, str]]) -> str:
+    """Label each unchecked field while preserving its text and entry boundaries."""
+    return "\n\n---\n\n".join(
+        f"Entry {entry_number}\n" + "\n\n".join(
+            f"{field}:\n{value}" for field, value in fields.items()
+        )
+        for entry_number, fields in enumerate(pending, 1)
+    )
 
 
 def _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements):

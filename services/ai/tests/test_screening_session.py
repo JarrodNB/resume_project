@@ -255,3 +255,21 @@ def test_concurrent_same_source_has_one_classifier_request(monkeypatch):
         assert all(result.allowed for result in results)
         assert sum(result.usage.input_tokens for result in results if result.usage) == 10
     asyncio.run(run())
+
+
+def test_projected_source_requires_the_exact_checked_text() -> None:
+    """A serialized source cannot gain coverage from a different screened projection."""
+    from types import SimpleNamespace
+
+    from screening.session import approve_projected_source, prompt_is_covered, screening_session
+
+    source = '{"title":"Engineer"}'
+    project = lambda _: "Job title:\nEngineer"
+    with screening_session():
+        with pytest.raises(ValueError):
+            approve_projected_source(source, "Job title:\nDesigner", project, SimpleNamespace(allowed=True))
+        with pytest.raises(ValueError):
+            approve_projected_source(source, project(source), project, SimpleNamespace(allowed=False))
+        approve_projected_source(source, project(source), project, SimpleNamespace(allowed=True))
+        assert bind_screened_prompt([source], lambda values: values[0]) == source
+        assert prompt_is_covered(source)

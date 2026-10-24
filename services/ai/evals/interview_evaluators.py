@@ -6,12 +6,13 @@ Index:
     - QuestionStructure / FeedbackStructure: deterministic scores
     - question_context / feedback_context: production-shaped prompts
 """
-import json
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
+from model_inputs.interview import format_feedback_prompt, format_interview_question_prompt
+from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
@@ -48,16 +49,15 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    text = f"Generate {case.count} {case.set_type} questions.\nLibrary JSON data:\n{json.dumps({'summary': case.library})}"
-    if case.excluded:
-        text += "\nExcluded questions JSON data:\n" + json.dumps(case.excluded)
+    library = CareerLibrary(summary=case.library)
+    text = format_interview_question_prompt(library, case.excluded, case.count, case.set_type)
     return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded), case.set_type)
 
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
-    text = json.dumps({"set_type": case.set_type, "question": case.question, "answer": case.answer,
-                       "career_library": {"summary": case.library}})
+    text = format_feedback_prompt(case.set_type, case.question, case.answer,
+                                  CareerLibrary(summary=case.library or None))
     return InterviewFeedbackContext(text, case.answer + "\n" + case.library, case.set_type)
 
 

@@ -2,10 +2,9 @@
 Description: Read-only handlers for interview set generation and single-question replacement.
 Index:
     - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical/knowledge scope
-    - _library_evidence_text: original library strings for excerpt validation
+    - interview_career_evidence: displayed fields and exact quote sources
     - handle_interview_questions_task: screens source inputs once, then generates questions
 """
-import json
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,6 +15,8 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
+from model_inputs.interview import format_interview_question_prompt
+from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
@@ -66,8 +67,6 @@ def handle_interview_questions_task(
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.
-    content = library.model_dump(mode="json", exclude_none=True,
-                                 exclude={"facts": {"__all__": {"requirement"}}})
     usable = bool(library.summary and library.summary.strip()) or any(
         value.strip() for rows, fields in (
             (library.experiences, ("title", "company", "description")),
@@ -94,7 +93,7 @@ def handle_interview_questions_task(
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Your career library is too long for interview questions. Shorten its entries and try again.")
-    prompt = InterviewQuestionContext(text, _library_evidence_text(content), count, tuple(excluded), snapshot.set_type)
+    prompt = InterviewQuestionContext(text, interview_career_evidence(library)[1], count, tuple(excluded), snapshot.set_type)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_questions(prompt, model=settings.interview_questions_model,
@@ -120,21 +119,4 @@ def handle_interview_questions_task(
 def _question_prompt_text(values, fields, count, set_type):
     """Render only checked library and excluded-question values with trusted scope."""
     library = rebuild_library(values[:len(fields)], fields)
-    content = library.model_dump(mode="json", exclude_none=True,
-        exclude={"facts": {"__all__": {"requirement"}}})
-    text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
-    excluded = values[len(fields):]
-    if excluded:
-        text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
-    return text
-
-
-def _library_evidence_text(value: object) -> str:
-    """Preserves original text for quote checks, including JSON-escaped newlines and quotes."""
-    if isinstance(value, str):
-        return value
-    if isinstance(value, dict):
-        return "\n".join(_library_evidence_text(item) for key, item in value.items() if key != "id")
-    if isinstance(value, list):
-        return "\n".join(_library_evidence_text(item) for item in value)
-    return ""
+    return format_interview_question_prompt(library, values[len(fields):], count, set_type)

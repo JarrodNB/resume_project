@@ -1,9 +1,11 @@
-"""Saved field checks reuse only the fields read by the current feature."""
+"""Saved field checks reuse only used text and send readable screening input."""
+
+import asyncio
 
 import pytest
 
-from schemas.gap_analysis_context import CareerLibrary, LibraryFact
-from screening.library_fields import screen_library_fields
+from schemas.gap_analysis_context import CareerLibrary, LibraryExperience, LibraryFact
+from screening.library_fields import screen_library_fields, screen_library_fields_async
 from screening.session import current_session, screening_session
 
 
@@ -44,3 +46,44 @@ def test_projected_approval_does_not_cover_full_library_with_unchecked_fields():
                                      used_fields={"library_fact": {"response"}})
         assert not current_session().allowed_sources
         assert current_session().library_screening[0].fields == ["response"]
+
+
+def test_unchecked_fields_are_plain_text_with_distinct_field_boundaries():
+    library = CareerLibrary(experiences=[LibraryExperience(
+        id="secret-record-id", company="Acme", title="Engineer",
+        description="Built a parser.\nHandled quoted \"inputs\".",
+        screened_fields=["company"],
+    )], facts=[LibraryFact(id="secret-fact-id", requirement="On call", response="Weekly")])
+    requests = []
+
+    with screening_session():
+        assert screen_library_fields(library, lambda text: requests.append(text) or True)
+        assert [(report.record_type, report.fields) for report in current_session().library_screening] == [
+            ("experience", ["title", "description"]),
+            ("library_fact", ["requirement", "response"]),
+        ]
+
+    prompt = requests[0]
+    assert "Engineer" in prompt
+    assert "Built a parser.\nHandled quoted \"inputs\"." in prompt
+    assert "On call" in prompt and "Weekly" in prompt
+    assert prompt.index("title:") < prompt.index("description:") < prompt.index("requirement:") < prompt.index("response:")
+    assert "Acme" not in prompt
+    assert "secret-record-id" not in prompt and "secret-fact-id" not in prompt
+    assert "[{" not in prompt and "\\n" not in prompt
+
+
+def test_async_screening_uses_same_readable_input_and_keeps_fail_closed():
+    library = CareerLibrary(facts=[LibraryFact(id="fact-id", requirement="On call", response="Weekly")])
+    requests = []
+
+    async def reject(text):
+        requests.append(text)
+        return False
+
+    with screening_session():
+        assert not asyncio.run(screen_library_fields_async(library, reject))
+        assert not current_session().library_screening
+    assert "requirement:\nOn call" in requests[0]
+    assert "response:\nWeekly" in requests[0]
+    assert "fact-id" not in requests[0]

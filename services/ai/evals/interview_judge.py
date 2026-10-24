@@ -4,7 +4,6 @@ The complete response must be valid before any named score enters the report.
 Provider and output failures remain native evaluator errors, without repair calls.
 """
 
-import json
 from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -13,9 +12,9 @@ from pydantic_ai.models import Model, infer_model
 from pydantic_ai.models.openai import OpenAIChatModel, OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
 from pydantic_ai.usage import UsageLimits
-from pydantic_core import to_jsonable_python
 from pydantic_evals.evaluators import EvaluationReason, Evaluator
 
+from model_inputs.judge import format_judge_input
 from prompts.interview_judge_instructions import INTERVIEW_JUDGE_INSTRUCTIONS
 
 
@@ -60,6 +59,8 @@ def single_attempt_model(model: Model | str) -> Model:
     return resolved
 
 
+
+
 @dataclass
 class InterviewJudge(Evaluator):
     """Hide scope selection, single-attempt execution and complete score validation."""
@@ -76,9 +77,8 @@ class InterviewJudge(Evaluator):
                       instructions=INTERVIEW_JUDGE_INSTRUCTIONS, retries=0,
                       model_settings={"timeout": self.timeout_seconds},
                       name="interview_judge")
-        result = await agent.run(json.dumps(to_jsonable_python({
-            "rubrics": rubrics, "inputs": ctx.inputs, "output": ctx.output,
-        })), usage_limits=UsageLimits(request_limit=1))
+        prompt = format_judge_input(rubrics, ctx.inputs, ctx.output)
+        result = await agent.run(prompt, usage_limits=UsageLimits(request_limit=1))
         scores = result.output.scores
         if len(scores) != len(rubrics) or {score.name for score in scores} != set(rubrics):
             raise ValueError("Judge must return each requested rubric exactly once")

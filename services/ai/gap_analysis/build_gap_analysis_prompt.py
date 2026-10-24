@@ -16,7 +16,31 @@ from datetime import date
 
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis import EvidenceItem, RequirementKind
-from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_analysis_context import GapAnalysisContext, JobToAnalyze
+
+
+@dataclass(frozen=True)
+class GapJobInput:
+    """The complete set of job fields this workflow can show to the model."""
+
+    title: str
+    company: str | None
+    requirements: tuple[str, ...]
+    nice_to_haves: tuple[str, ...]
+
+
+def gap_job_input(job: JobToAnalyze) -> GapJobInput:
+    return GapJobInput(job.title, job.company, tuple(job.requirements), tuple(job.nice_to_haves))
+
+
+def gap_job_screening_text(job: GapJobInput) -> str:
+    """Screen precisely the user-authored job fields available to the prompt."""
+    return "\n\n".join(section for section in (
+        f"Job title:\n{job.title}",
+        f"Company:\n{job.company}" if job.company else "",
+        "Requirements:\n" + "\n".join(job.requirements) if job.requirements else "",
+        "Nice to have:\n" + "\n".join(job.nice_to_haves) if job.nice_to_haves else "",
+    ) if section)
 
 
 @dataclass(frozen=True)
@@ -49,14 +73,15 @@ def format_date_range(start_date: date | None, end_date: date | None) -> str | N
 def build_gap_analysis_prompt(context: GapAnalysisContext, today: date) -> GapAnalysisPrompt:
     """Label the complete supplied context; production preparation owns required screening."""
     prompt = GapAnalysisPrompt(text="")
+    job = gap_job_input(context.job)
     lines = [
         f"Today's date: {today.isoformat()}",
         "",
-        f"# Job: {context.job.title} at {context.job.company or 'Unknown company'}",
+        f"# Job: {job.title} at {job.company or 'Unknown company'}",
     ]
-    lines += _requirement_lines(prompt, "required", "R", "Requirements", context.job.requirements)
+    lines += _requirement_lines(prompt, "required", "R", "Requirements", job.requirements)
     lines += _requirement_lines(
-        prompt, "nice_to_have", "N", "Nice to have", context.job.nice_to_haves
+        prompt, "nice_to_have", "N", "Nice to have", job.nice_to_haves
     )
     lines += ["", "# Career library"]
     lines += _library_lines(prompt, context)

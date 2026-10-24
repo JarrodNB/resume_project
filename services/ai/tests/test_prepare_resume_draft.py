@@ -362,7 +362,7 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
             reports = list(session.library_screening)
             assert reports
             assert all(prompt_is_covered(prompt.text) for prompt in first.prompts.values())
-        assert sum('"company"' in text for text in calls) == len(library.experiences)
+        assert sum("company:\n" in text for text in calls) == len(library.experiences)
         records = {("user", str(user)): library}
         for collection, kind in (("experiences", "experience"), ("projects", "project"),
                                  ("educations", "education"), ("certifications", "certification"),
@@ -416,8 +416,6 @@ def test_approved_oversized_library_still_fails_before_screening(preparation):
 
 def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
     """Fields absent from evidence cannot gain approvals; structured dates stay structured."""
-    import json
-
     from schemas.gap_analysis_context import CareerLibrary
     from tailoring.labeled_sources import label_sources
     from tailoring.prepare_resume_draft import prepare_resume_draft
@@ -479,10 +477,11 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
             assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
             assert all("screened_fields" not in prompt.text and "provenance" not in prompt.text
                        for prompt in prepared.prompts.values())
-        pending = [row for text in calls[1:] for row in json.loads(text)]
-        assert {json.dumps(row, sort_keys=True) for row in pending} == {
-            json.dumps(row, sort_keys=True) for row in expected.values()}
-        assert len(pending) == len(expected)
+        pending = "\n\n".join(calls[1:])
+        assert pending.count("Entry ") == len(expected)
+        for values in expected.values():
+            for field, value in values.items():
+                assert pending.count(f"{field}:\n{value}") == 1
         rendered = sources.text_for(list(sources.records))
         assert all(value in rendered for values in expected.values() for value in values.values())
         assert "Omitted" not in rendered
@@ -492,8 +491,6 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
 
 def test_highlights_reuse_partial_saved_parent_checks(preparation):
     """Role identity screens once and highlights screen only their unchecked content."""
-    import json
-
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
     dependencies, context, _, calls, _, user, job = preparation
@@ -514,7 +511,7 @@ def test_highlights_reuse_partial_saved_parent_checks(preparation):
                            and str(report.record_id) == highlight.id]
                 assert len(reports) == 1
                 assert reports[0].fields == ["content"]
-        fields = [row for text in calls[1:] for row in json.loads(text)]
-        assert not any("title" in row and row["title"] == role.title for row in fields)
-        assert sum(row.get("company") == role.company for row in fields) == 1
+        pending = "\n\n".join(calls[1:])
+        assert f"title:\n{role.title}" not in pending
+        assert pending.count(f"company:\n{role.company}") == 1
     asyncio.run(run())

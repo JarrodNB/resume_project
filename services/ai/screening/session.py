@@ -70,6 +70,21 @@ def within_screening_session(function):
     return wrapped
 
 
+def approve_projected_source(
+    source: str, checked_text: str, project: Callable[[str], str], decision: Any,
+) -> None:
+    """Approve a serialized source only when its checked projection matches exactly.
+
+    Use this when screening receives readable text but a trusted builder reconstructs
+    its source from a serialized snapshot. The projection must cover every user-authored
+    field the builder can render from that snapshot.
+    """
+    if not getattr(decision, "allowed", False) or project(source) != checked_text:
+        raise ValueError("The approved source does not match screened text")
+    if (session := _current.get()) is not None:
+        session.allowed_sources.add(mask_outbound(source))
+
+
 def trust_generated_source(source: str) -> None:
     """Cover immutable AI output from an earlier owned task in this execution only.
 

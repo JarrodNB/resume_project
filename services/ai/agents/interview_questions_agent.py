@@ -67,8 +67,19 @@ def check_labels(context: RunContext[InterviewQuestionContext], analysis: Interv
         if key in seen:
             problems.append("Questions must be distinct from one another and excluded questions.")
         seen.add(key)
-        if any(not quote.strip() or quote not in context.deps.library_text for quote in question.evidence_quotes):
-            problems.append("Evidence quotes must be exact nonblank excerpts of the library.")
+        normalized_quotes = []
+        for quote in question.evidence_quotes:
+            if quote.strip() and quote in context.deps.library_text:
+                normalized_quotes.append(quote)
+                continue
+            # The readable prompt may cause the model to copy a field label.
+            # Save only the source excerpt after that label, if it is exact.
+            excerpt = quote.split(":", 1)[1].strip() if ":" in quote else ""
+            if excerpt and excerpt in context.deps.library_text:
+                normalized_quotes.append(excerpt)
+            else:
+                problems.append("Evidence quotes must be exact nonblank excerpts of the library.")
+        question.evidence_quotes = normalized_quotes
     if problems:
         raise ModelRetry("Fix these problems and answer again:\n- " + "\n- ".join(problems))
     return analysis

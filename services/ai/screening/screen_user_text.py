@@ -154,6 +154,9 @@ async def _drive_async(
         key = _screen_key(masked, model, check_phrases, max_characters)
         if session is not None and key in session.decisions:
             return session.decisions[key]
+        if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
+            _remember_decision(session, key, masked, preflight)
+            return preflight
         deadline = _screen_deadline(timeout_seconds, session)
         while monotonic() < deadline:
             if _local_inference_lock.acquire(blocking=False):
@@ -262,6 +265,9 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
     key = _screen_key(masked, model, check_phrases, max_characters)
     if session is not None and key in session.decisions:
         return session.decisions[key]
+    if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
+        _remember_decision(session, key, masked, preflight)
+        return preflight
     deadline = _screen_deadline(timeout_seconds, session)
     remaining = deadline - monotonic()
     if remaining <= 0 or not _local_inference_lock.acquire(timeout=remaining):

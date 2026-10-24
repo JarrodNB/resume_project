@@ -124,42 +124,24 @@ tailoring) instead of sending everything.
   no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
   reserved for a later feature where the AI rewrites career library entries and must ask for facts.
 
-- **Tailoring returns one complete draft for review.** Section-by-section approval made the
-  user wait repeatedly and repeated preparation. One queued execution now owns shared
-  evidence and generation behind `tailoring.generate_resume_draft`. Rails snapshots profile
-  contact, gap analysis, and gap responses; the worker reads the owned job and library once.
-  Contact, every degree, and every certification are copied without a generative call,
-  preserving descriptions and credential date precision. Experience, projects, and skill
-  selection run concurrently, with at most three writers in flight. The summary follows
-  selected content and its original source labels, including copied credentials for sparse
-  libraries. Newly assembled section snapshots are screened before reuse in that prompt.
-  The model selects, orders, and rewrites toward the job without inventing employers,
-  titles, tools, dates, metrics, or responsibilities. Each sentence cites evidence labels;
-  a local checker requests a retry for suspicious claims and keeps valid model wording.
-  Empty sections skip generation. A successful optional writer may omit its section with
-  an explanation when nothing fits. A failed writer or the shared task deadline cancels and
-  awaits outstanding work; no successful fragments are published as a complete draft.
-  Transient retries and provider accounting remain task-wide. Career-library records remember
-  checked field names in `screened_fields`, including summary on the user and highlight content.
-  All library consumers reuse these checks; each screens only unchecked fields it uses.
-  Interviews exclude fact requirements. Edits remove only changed field names; reordering
-  preserves checks. Text editors reload the locked record before assigning changes, so
-  an approval earned after an editor loaded cannot remain attached to edited text.
-  Profile imports and clearing lock the owner first; merges then lock persisted rows
-  in ID order. The edited text and its field-check invalidation save atomically.
-  New/imported rows start unchecked. Rails applies successful check reports
-  from completed or failed AI results to owner-scoped records; Python remains read-only.
-  Other input and prompt coverage remain execution-local. Checks have no expiry or policy
-  version, and results carry no edit revision check.
-  The result stays on the task as ordered section snapshots and warnings. There is no
-  tailoring `needs_user_input`, generation counter, submit-section mutation, or reopening
-  state. Users edit or exclude sections, preview, then explicitly save once. Save holds the
-  owner-then-task locks and records `accepted_at`, creating `Resume` and `ResumeSection` snapshots
-  without changing the library. Explicitly excluding every section is rejected. Saved
-  resume edits change snapshots; deleting the job keeps the resume. Deleting a saved resume
-  removes only its snapshots and leaves acceptance/history intact. Starting again after
-  deletion creates a fresh task; an accepted task can never be saved twice. Existing paused
-  development tasks have no compatibility path and are not deleted by this change.
+- **Tailoring returns a complete Markdown document for review.** The structured career
+  library remains the source of experience. The worker reads the complete owned library
+  and job, preserving field screening and contact privacy. One writer assesses job-specific
+  sufficiency, writes the whole document, renders/measures it, then receives a separate LLM
+  editorial review. At most two revisions follow the first draft. Two pages are offered
+  only after a quick owner-scoped 700-word substantive narrative check, rechecked when a
+  task starts; this is an eligibility check, not a promise of two useful pages for every job.
+  If relevant evidence is too sparse, the writer returns a stronger shorter resume with an
+  explanation. It must not add filler or change the fixed template to force a page count.
+  Automated section validators, source labels and section materialization are retired.
+  Field screening approvals remain reusable; edits invalidate changed fields atomically.
+  The task stores Markdown, requested target, warnings and measurement/review metadata.
+  No unmeasured or unreviewed result is published. Users review and edit one document before
+  saving; the same content drives preview, PDF and DOCX. Save uses owner-then-task locks
+  and `accepted_at` to prevent duplicate saves. Resume edits do not change library entries.
+  Deleting a job keeps saved resumes. Deleting a saved resume keeps acceptance/history;
+  starting afterward creates fresh work. Old section-based saved resumes are deleted by
+  migration without conversion, while old task history remains and cannot resume as Markdown.
 
 - **AI results are reviewed before they change user data.** A parsed resume is stored on the
   `AiTask`; the user edits it and explicitly imports it. Imports append to the career library

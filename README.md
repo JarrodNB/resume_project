@@ -14,7 +14,7 @@ prompt injection defenses, and evaluation workflows in a full-stack application.
 - **Career library:** Organize experience, education, projects, skills, and certifications
   in a reusable profile.
 - **Resume import:** Extract information from PDF and DOCX resumes for review and import.
-- **Resume tailoring:** Adapt resume content to a job posting and export it as a PDF.
+- **Resume tailoring:** Adapt resume content to a job posting and export it as PDF or editable DOCX.
 - **Job management:** Save job postings and track applications through their stages.
 - **Gap analysis:** Compare a career profile with job requirements and capture additional evidence.
 - **Interview preparation:** Generate job-specific questions, save answers, and receive feedback.
@@ -23,12 +23,17 @@ prompt injection defenses, and evaluation workflows in a full-stack application.
 
 ### Retrieval-augmented generation
 
-Resume tailoring retrieves career evidence for each section using the role and job requirements.
-[Hybrid search](services/ai/database/library_embedding_search.py) combines pgvector cosine
-ranking with BM25 keyword ranking through reciprocal rank fusion. Queries are scoped to
-the user and embedding model; the highest-ranked entries ground the section's context.
-[Section retrieval](services/ai/tailoring/retrieve_for_section.py) selects up to eight entries
-and falls back to the full library when no matching embeddings exist.
+The career library retains structured, owner-scoped evidence. [Hybrid search](services/ai/database/library_embedding_search.py)
+combines pgvector cosine ranking and BM25 through reciprocal rank fusion for retrieval
+experiments and other library search consumers. Resume tailoring receives the complete
+screened library and job description rather than selecting a few retrieved entries.
+
+Tailored resumes are one constrained Markdown document. A fixed template produces preview,
+PDF, and DOCX. The writer renders and measures each draft, then a separate LLM reviews its
+relevance, clarity, job coverage, repetition, and evidence. It can revise twice; users review
+and edit the result before saving. Two-page selection requires at least 700 words of substantive
+library narrative; the writer may return a stronger shorter resume when job-relevant evidence
+cannot support two useful pages.
 
 ### Prompt injection defenses and grounded outputs
 
@@ -42,10 +47,10 @@ the final guard checks the remaining context. Jev itself is excluded to avoid re
 Adversarial eval cases cover embedded instructions and legitimate security-related content.
 
 Pydantic schemas constrain model output. Resume parsing applies
-[source-faithfulness checks](services/ai/documents/enforce_source_faithfulness.py), while
-[tailoring validators](services/ai/agents/resume_tailoring_agent.py) check evidence labels
-and unsupported claims, requesting a retry when validation fails. These checks reduce
-unsupported output; users review generated content before using it.
+[source-faithfulness checks](services/ai/documents/enforce_source_faithfulness.py).
+Tailoring uses a separate editorial LLM review instead of automated evidence-label validators.
+Neither model review nor page measurements establish factual correctness; users review the
+final document before using it.
 
 ### Evaluations
 

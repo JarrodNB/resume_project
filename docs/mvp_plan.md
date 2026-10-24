@@ -55,7 +55,7 @@ employed-mode work journal.
 1. **Local dev foundation** — install Docker Engine and the Docker Compose plugin on Ubuntu, root `docker-compose.yml`
    (Postgres + pgvector, ElasticMQ for SQS, api, ai worker, web, landing), a Dockerfile per
    app, and scaffold all four apps with their `AGENTS.md` files.
-2. **Rails core** — auth, models (User, Resume, ResumeSection, Job, AiTask), GraphQL schema.
+2. **Rails core** — auth, models (User, Markdown Resume, Job, AiTask), GraphQL schema.
 3. **Queue round trip** (done) — Rails publishes to `ai_tasks`, a Python worker echoes to
    `ai_results`, Rails consumes it and pushes the `aiTaskUpdated` subscription. Proves the
    pipeline end to end.

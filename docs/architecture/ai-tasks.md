@@ -96,23 +96,25 @@ Per task type:
   re-running creates a new task. A deleted job, an empty library, or a job without
   requirements fails the task with a user-facing message.
 
-- `tailor_resume`: input `{job_id, contact, gap_analysis, gap_responses}`; the subject is the
-  Job. Contact and gap fields are immutable request snapshots. The worker reads the owned
-  job and career library, prepares shared screened evidence, and returns one complete draft:
-  `{sections: [{section_type, title, content}], warnings: [...]}`. Display order is contact,
-  summary, experience, projects, education, certifications, skills, omitting empty or
-  nothing-fits sections. Contact, education, and certifications are copied; independent
-  experience/project/skill writers overlap, and the summary uses selected content afterward.
-  The task completes or fails without section approvals or a generation counter. Failure
-  never publishes a partial draft. Users review, edit or exclude sections, preview, then
-  `saveTailoredResume` creates snapshots once under owner-then-task locks (`accepted_at`).
-  Starting tailoring checks saved resumes and resumable tasks under the same owner lock;
-  queue publication follows commit. Existing work can be resumed even at usage limits.
-  Later `updateResume` changes the saved resume only. `deleteResume` removes the owned resume
-  and sections, including resumes whose job is gone, while keeping job/library/task history.
-  An accepted task stays accepted and cannot be saved again after deletion. A remaining saved
-  resume blocks new generation; after deletion, an explicit start creates a fresh task. See
-  [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
+- `tailor_resume`: input includes `{job_id, contact, gap_analysis, gap_responses, target_pages}`;
+  the subject is the owned Job. The target is one or two pages and is immutable for resumed
+  work. Rails checks the owner-scoped library narrative before offering two pages and again
+  at task start. Names, titles, dates, contact, labels and bare skills do not count toward
+  the 700-word threshold. The worker receives the complete screened library and job.
+  One writer assesses job-specific sufficiency and writes constrained Markdown. Each draft
+  is rendered with the shared fixed PDF template, measured for page count and final-page
+  occupancy, and reviewed by a separate editorial LLM. Measurements and review feed up to
+  two revisions (three drafts total). A shorter useful fallback explains missing relevant
+  material; filler and formatting tricks are not substitutes for evidence. Failed rendering
+  or review never publishes a completed draft. Screening, deadlines, usage and cancellation
+  remain task-wide; the new path does not use section validators or evidence labels.
+  Result includes `{markdown, target_pages, warnings}` and measurement/review metadata.
+  Users edit the same document used by preview/PDF/DOCX, then explicitly save. Saving creates
+  one Markdown Resume with title, job and target under owner-then-task locks and records
+  `accepted_at`. Existing work can resume at usage limits. Saved edits affect the document,
+  not the library. Deleting the job keeps the saved resume; deleting the resume leaves task
+  acceptance/history intact. Old section-based tasks are not editable Markdown drafts.
+  The migration deletes structured saved resumes without conversion.
 
 - `generate_interview_questions`: input `{question_set_id, set_number, set_type}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns

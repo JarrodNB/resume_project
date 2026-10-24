@@ -90,11 +90,11 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   backfill historical traces or replace the separate Rails budget accounting.
 
 - **Page sections are collapsible and start collapsed.** Long pages are a stack of titled
-  sections (the career library, a job, a tailored resume). Each starts collapsed and stays that
+  sections (the career library and a job). Each starts collapsed and stays that
   way until the user opens it. The browser remembers the open ones in localStorage
   (`careergrind.openSections`), the same way it remembers the color theme, so the choice is not
   stored on the account. The section the user is in the middle of editing stays open: the import
-  review form, and the resume section being written. A new titled section on a page follows this
+  review form and the Markdown resume editor. A new titled section on a page follows this
   rather than rendering fully open.
 
 - **File history in git**, not in file headers.

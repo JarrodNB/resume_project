@@ -1,7 +1,7 @@
 """
 Description: Evaluators for career-library hybrid search. A case ranks one section's query
 against synthetic library texts and scores recall@k, precision@k, and MRR inside the
-production limit.
+benchmark limit.
 Index:
     - LibraryDocument / RetrievalEvalInput / RetrievalEvalLabels: one case
     - RankedLibrary: document ids, best first
@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
+from evals.library_retrieval_query import RETRIEVAL_LIMIT
 from schemas.gap_analysis_context import JobToAnalyze
-from tailoring.retrieve_for_section import _LIMIT
 
 
 class LibraryDocument(BaseModel):
@@ -105,7 +105,7 @@ class PrecisionAtK(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLab
 
 @dataclass
 class MeanReciprocalRank(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLabels]):
-    """Reciprocal rank of the first relevant row inside the production limit."""
+    """Reciprocal rank of the first relevant row inside the benchmark limit."""
 
     def evaluate(self, ctx: RetrievalContext) -> float:
         """1/rank of the first hit, or 0 when none of the kept rows is relevant."""
@@ -116,7 +116,7 @@ def _score(ctx: RetrievalContext, name: str) -> float:
     """One retrieval metric for this case."""
     labels = ctx.metadata
     assert labels is not None
-    return retrieval_scores(ctx.output.ids, labels.relevant_ids, _LIMIT)[name]
+    return retrieval_scores(ctx.output.ids, labels.relevant_ids, RETRIEVAL_LIMIT)[name]
 
 
 LIBRARY_RETRIEVAL_EVALUATORS = (HitAt1, RecallAtK, PrecisionAtK, MeanReciprocalRank)

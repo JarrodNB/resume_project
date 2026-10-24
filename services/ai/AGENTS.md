@@ -85,7 +85,7 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
     exception: automated quality datasets, evaluators and LLM judges remain deferred.
     Verify contracts offline and use bounded representative provider smoke checks; do not
     report deterministic tests as evidence of interview quality.
-  - One dataset file per agent (`evals/datasets/tailoring_cases.yaml`) and one runner per
+  - One dataset file per agent (`evals/datasets/resume_document_cases.yaml`) and one runner per
     agent (`evals/run_tailoring_evals.py`).
   - Use deterministic evaluators where possible; use LLM-as-judge only for subjective
     checks (relevance, question quality, faithfulness).
@@ -113,7 +113,7 @@ skip it. Export indexes are not required.
   clients, Logfire tracing (see `worker/AGENTS.md`)
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
   `job_requirements_sorting_agent.py`,
-  `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,
+  `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_document_agent.py`, `resume_editorial_agent.py`,
   `interview_questions_agent.py`, `interview_feedback_agent.py`)
 - `prompts/` — agent instructions
 - `schemas/` — structured output models (`ParsedResume`, `ParsedJobPosting`, `ScrapedJobPosting`,
@@ -129,8 +129,8 @@ skip it. Export indexes are not required.
 - `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for
   obvious instruction overrides. A string over the screen cap is rejected before the call
   (`too_long`)
-- `tailoring/` — section order, retrieval, labeled sources, the section prompt, the
-  faithfulness check, and turning the agent's draft into resume section JSON
+- `tailoring/` — complete screened library preparation, whole-document writing, bounded
+  render/measurement/editorial review revisions, and substantive narrative counting
 - `documents/` — PDF/DOCX text extraction
 - `pii/` — local import contact detection, opaque task-local replacements, and restoration;
   bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README

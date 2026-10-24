@@ -36,11 +36,9 @@ instructions from `prompts/`.
 - `user_text_fallback_agent.py` — same two safety questions as strict booleans on the separate
   screening fallback model. Either true blocks; no fabricated JEV confidence. Exempt from
   input screening to prevent recursion; concrete requests use normal task accounting
-- `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output
-  validator retries with `find_section_problems`; `write_resume_section_async` supports
-  concurrent draft generation and `write_resume_section` remains a standalone sync entry.
-  Both return the draft and usage. It writes prose and must not invent employers, titles, tools, dates, metrics, or
-  responsibilities
+- `resume_document_agent.py` — whole screened library/job/target -> complete Markdown draft.
+- `resume_editorial_agent.py` — independent editorial review of draft plus measured layout;
+  assesses relevance, clarity, coverage, repetition and available evidence.
 
 ## Local Rules
 

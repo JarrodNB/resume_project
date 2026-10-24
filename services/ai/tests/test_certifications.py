@@ -1,9 +1,8 @@
 """
-Description: Certification parsing compatibility, evidence labels, and resume snapshots.
+Description: Certification parsing compatibility, comparison evidence, and precise dates.
 Index:
     - test_old_parse_payload_accepts_missing_certifications
     - test_certification_only_library_supplies_gap_evidence
-    - test_native_certifications_survive_retrieval_and_copy_identity
 """
 from datetime import date
 
@@ -15,9 +14,6 @@ from schemas.gap_analysis_context import (
     LibraryCertification,
 )
 from schemas.parsed_resume import ParsedResume
-from schemas.tailored_section import ChosenEntry, TailoredSectionDraft
-from tailoring.labeled_sources import label_sources
-from tailoring.materialize_section import materialize_section
 
 
 def _context() -> GapAnalysisContext:
@@ -49,41 +45,14 @@ def test_certification_only_library_supplies_gap_evidence() -> None:
     assert "## Education" not in prompt.text
 
 
-def test_native_certifications_survive_retrieval_and_copy_identity() -> None:
-    """Unrelated search results cannot hide credentials; identity comes from library rows."""
-    context = _context()
-    sources = label_sources(context, [], [], {("Experience", "unrelated")}, "certifications")
-    assert sources.records["C1"].source_type == "Certification"
-    draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="C1")])
-    content = materialize_section("certifications", draft, context.career_library, sources)
-    assert content == {"items": [{
-        "name": "AWS Solutions Architect", "issuer": "Amazon",
-        "issued_date": "2024-03-01", "expiry_date": "2027-03-01",
-        "credential_id": "AWS-123", "credential_url": "https://example.com/credential",
-        "description": None,
-    }]}
-
-
-def test_partial_date_materialization_and_prompt_preserve_precision() -> None:
-    """Year/month credential dates never gain a made-up day in snapshots or prompts."""
-    from tailoring.build_section_prompt import build_section_prompt
-
+def test_partial_date_gap_prompt_preserves_precision() -> None:
+    """Year/month credential dates never gain a made-up day in comparison prompts."""
     context = _context()
     certification = context.career_library.certifications[0]
     certification.issued_date_precision = "year"
     certification.expiry_date_precision = "month"
-    prompt = build_section_prompt("certifications", context, [], [], None,
-                                  write_anyway=False, gap_analysis=None, today=date(2027, 3, 10))
-    assert "Today's date: 2027-03-10" in prompt.text
-    assert "unknown within stated expiry period" in prompt.text
-    assert "issued 2024" in prompt.text
-    assert "expires 2027-03" in prompt.text
-    assert "2027-03-01" not in prompt.text
-    content = materialize_section("certifications", TailoredSectionDraft(
-        nothing_fits=False, entries=[ChosenEntry(label="C1")]), context.career_library, prompt.sources)
-    assert content["items"][0]["issued_date"] == "2024"
-    assert content["items"][0]["expiry_date"] == "2027-03"
     gap = build_gap_analysis_prompt(context, date(2027, 3, 10))
+    assert "issued 2024" in gap.text
     assert "expires 2027-03" in gap.text
     assert "2027-03-01" not in gap.text
 

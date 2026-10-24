@@ -24,8 +24,8 @@ output in addition to the usual Description/Index.
 - `user_text_screen_instructions.py` — `USER_TEXT_SCREEN_PROMPT_VERSION` and framing for the Jev screen (a whole resume is ordinary
   career history, and an instruction inside it is still an instruction); the yes/no questions
   live on the output type
-- `resume_tailoring_instructions.py` — `RESUME_TAILORING_PROMPT_VERSION`, `RESUME_TAILORING_INSTRUCTIONS` (write toward the job
-  from the labeled library only; cite labels; say when nothing fits)
+- `resume_document_instructions.py` — constrained Markdown writing and job-specific sufficiency.
+- `resume_editorial_instructions.py` — separate editorial assessment and revision guidance.
 
 - `user_text_fallback_instructions.py` — versioned safety classifier instructions; untrusted
   input is data, and either positive boolean blocks.

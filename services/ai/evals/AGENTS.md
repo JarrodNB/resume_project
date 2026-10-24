@@ -67,21 +67,17 @@ score attached, so runs can be compared across prompt and model changes.
   (incl. met agreement), `GapRecall`, `EvidenceRecall`
 - `run_gap_analysis_evals.py` — runner (fixed "today" so year counts are stable):
   `docker compose run --rm ai python -m evals.run_gap_analysis_evals`
-- `datasets/tailoring_cases.yaml` — every production writer (summary, experience, projects,
-  skill selection): faithfulness, relevance, and sections that should be omitted. Summary
-  cases include degree-only and credential-only evidence. Copied education/certification
-  identity, descriptions, and date precision are checked deterministically by
-  `tests/test_certifications.py` and `tests/test_complete_resume_draft.py`, without paid generation.
-  A skill draft has no prose, so relevance uses the chosen skill name
-- `tailoring_evaluators.py` — faithfulness and relevance checks for a written section
-- `run_tailoring_evals.py` — runner:
-  `docker compose run --rm ai python -m evals.run_tailoring_evals`. This section quality
-  suite does not benchmark complete-draft execution or create a second orchestration path
+- `datasets/resume_document_cases.yaml` / `run_tailoring_evals.py` — complete Markdown writer
+  and independent editorial reviewer quality on synthetic libraries and jobs.
+- `tailoring_evaluators.py` — whole-document quality evaluation; runtime generation has no
+  automated section faithfulness validators or evidence labels.
+- `library_retrieval_query.py` — stable synthetic focus queries and eight-result benchmark
+  cutoff, independent of complete-library resume generation.
 - `datasets/library_retrieval_cases.yaml` — synthetic libraries in the text shape Rails embeds
   (experience highlight, project, education, skill, library fact). An experience query and a
   summary query, each with more rows than the search keeps, and the ids that should rank
 - `library_retrieval_evaluators.py` — `HitAt1`, `RecallAtK`, `PrecisionAtK`, and
-  `MeanReciprocalRank` (k is the production limit from `retrieve_for_section`)
+  `MeanReciprocalRank` (k is the stable benchmark cutoff)
 - `run_library_retrieval_evals.py` — embeds the corpus with `Embedder.embed_documents` and the
   query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
@@ -137,7 +133,7 @@ score attached, so runs can be compared across prompt and model changes.
 - All data is synthetic. Never commit real resumes.
 - `tests/test_resume_parsing_evaluators.py`, `tests/test_job_posting_extraction_evaluators.py`,
   `tests/test_job_posting_parse_evaluators.py`,
-  `tests/test_gap_analysis_evaluators.py`, `tests/test_tailoring_evaluators.py`,
+  `tests/test_gap_analysis_evaluators.py`,
   `tests/test_library_retrieval_evaluators.py`, and `tests/test_user_text_screen_evaluators.py`
   check that the hand labels score 1.0 against their own inputs; keep them passing when adding
   cases.

@@ -94,15 +94,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_enforce_source_faithfulness.py` — runtime guard drops rewritten highlights and invented
   skills, warns on unmatched names, leaves faithful parses unchanged
 - `test_screen_user_text.py` — phrase block, missing key fails closed, yes-confidence threshold
-- `test_check_section_faithfulness.py` — unsupported claims are rejected; library text is not
-  substituted
-- `test_labeled_sources.py` — a section's own rows stay labeled when retrieval returned other rows
-- `test_tailor_resume_handler.py` — copied contact/credentials, prompt failures, empty section
-  skipping and completed output without section approval metadata
-- `test_complete_resume_draft.py` — complete-draft ordering, preserved copied descriptions,
-  sparse evidence, omissions, bounded writer overlap, awaited failure/deadline cancellation,
-  request-level accounting, privacy, and transcript contexts
-- `test_tailoring_evaluators.py` — hand labels score as expected
+- `test_markdown_resume_workflow.py` — full-library whole-document writer/render/reviewer
+  execution, bounded revision, failure, accounting and shorter fallback contracts.
+- `test_resume_measure.py` — actual shared-template PDF page count/occupancy and bounds.
 - `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block
@@ -128,7 +122,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
-`test_certifications.py` checks compatibility, citable evidence, retrieval, and copied identity.
+`test_certifications.py` checks parsing compatibility, comparison evidence and precise dates.
 
 Certification tests cover year/month/day precision, leap-month expiry boundaries, and
 unknown expiration within partially stated periods.

@@ -23,5 +23,6 @@ token. Local inference does not create billed provider usage.
 Both the synchronous screening path and async input guardrail return an unavailable decision when their deadline expires,
 including during model loading. A local inference thread may still finish afterward;
 its result cannot approve a source or replace the unavailable decision in the task cache.
-Only one local inference runs at a time; new synchronous checks wait only until their
-deadline and do not add threads behind a stalled inference.
+Only one local inference runs at a time; new checks wait only until their deadline
+and do not add threads behind a stalled inference. Async checks reuse exact
+task-local decisions before waiting for model admission.

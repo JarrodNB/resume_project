@@ -133,8 +133,25 @@ async def _drive_async(
     """Drive the common policy after acquiring execution-local source ownership."""
     if model == local_llama.MODEL:
         session = current_session()
-        remaining = min(timeout_seconds, session.deadline - monotonic()) if session else timeout_seconds
-        if remaining <= 0 or not _local_inference_lock.acquire(blocking=False):
+        masked = mask_outbound(text)
+        key = _screen_key(masked, model, check_phrases, max_characters)
+        if session is not None and key in session.decisions:
+            return session.decisions[key]
+        deadline = monotonic() + timeout_seconds
+        if session is not None:
+            deadline = min(deadline, session.deadline)
+        while monotonic() < deadline:
+            if _local_inference_lock.acquire(blocking=False):
+                break
+            await asyncio.sleep(min(0.01, max(0, deadline - monotonic())))
+        else:
+            result = ScreenOutcome(False, unchecked=True)
+            if session is not None:
+                session.decisions[key] = result
+            return result
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            _local_inference_lock.release()
             result = ScreenOutcome(False, unchecked=True)
         else:
             try:
@@ -148,8 +165,7 @@ async def _drive_async(
         # A timed-out thread can finish later. Only this event-loop owner may cache
         # approval, and only after it has completed inside the caller's deadline.
         if session is not None:
-            masked = mask_outbound(text)
-            session.decisions[_screen_key(masked, model, check_phrases, max_characters)] = result
+            session.decisions[key] = result
             if result.allowed:
                 session.allowed_sources.add(masked)
         return result

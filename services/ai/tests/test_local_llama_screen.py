@@ -7,6 +7,7 @@ from itertools import pairwise
 from time import monotonic
 from types import SimpleNamespace
 
+import screening.screen_user_text as screening_module
 from screening import local_llama
 from screening.screen_user_text import screen_user_text, screen_user_text_async
 from screening.session import current_session, screening_session
@@ -53,6 +54,54 @@ def test_local_allow_is_reused_within_a_screening_session(monkeypatch):
         second = screen_user_text("Ordinary experience", local_llama.MODEL, 10)
     assert first.allowed and second.allowed
     assert len(calls) == 1
+
+
+def test_async_guard_reuses_local_decision_from_sync_screen(monkeypatch):
+    calls = []
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, 3)]))
+
+    def classify(chunk, model, timeout):
+        calls.append(chunk)
+        return SimpleNamespace(blocked=False, tokens=3, duration=0.01)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+
+    async def remote(*_):
+        raise AssertionError("Remote classifier must not run")
+
+    with screening_session(10):
+        first = screen_user_text("shared career fact", local_llama.MODEL, 10)
+        screening_module._local_inference_lock.acquire()
+        try:
+            second = asyncio.run(screen_user_text_async(
+                "shared career fact", local_llama.MODEL, 0.02, classify=remote, check_phrases=True,
+            ))
+        finally:
+            screening_module._local_inference_lock.release()
+    assert first.allowed and second.allowed
+    assert calls == ["shared career fact"]
+
+
+def test_concurrent_async_local_inputs_wait_for_inference(monkeypatch):
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, 3)]))
+
+    def classify(chunk, model, timeout):
+        threading.Event().wait(0.05)
+        return SimpleNamespace(blocked=False, tokens=3, duration=0.05)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+
+    async def remote(*_):
+        raise AssertionError("Remote classifier must not run")
+
+    async def check():
+        return await asyncio.gather(*(
+            screen_user_text_async(f"career fact {index}", local_llama.MODEL, 0.5,
+                                   classify=remote) for index in range(2)
+        ))
+
+    outcomes = asyncio.run(check())
+    assert all(outcome.allowed for outcome in outcomes)
 
 
 def test_async_shared_screen_selects_local_classifier(monkeypatch):

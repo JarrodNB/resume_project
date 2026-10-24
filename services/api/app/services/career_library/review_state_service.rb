@@ -18,6 +18,17 @@ module CareerLibrary
 
         item.merge("stale" => item["source_digest"] != target["source_digest"])
       end
+      accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil).order(accepted_at: :asc, id: :asc)
+      accepted = accepted.where("accepted_at > ?", completed.created_at) if completed
+      accepted.each do |task|
+        item = task.result&.dig("assessment")
+        next unless item.is_a?(Hash)
+        key = ReviewSnapshot.target_key(item)
+        target = current[key]
+        next unless target
+        assessments.reject! { |old| ReviewSnapshot.target_key(old) == key }
+        assessments << item.merge("stale" => item["source_digest"] != target["source_digest"])
+      end
       success({ ai_task: tasks.first, assessments: assessments })
     end
   end

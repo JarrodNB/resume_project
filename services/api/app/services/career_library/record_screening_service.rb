@@ -1,5 +1,6 @@
-# Remembers successful checks of saved career-library fields and forgets fields when edited.
-# Reports can only approve allowed fields belonging to the task owner. No screening happens here.
+# Remembers reusable coverage of saved career-library fields and forgets it on user edits.
+# Ordinary reports represent successful classifier checks; AI edit acceptance also covers
+# the exact server-owned generated field without classifying it. No screening happens here.
 module CareerLibrary
   class RecordScreeningService < ApplicationService
     FIELDS = {

@@ -94,6 +94,9 @@ module Types
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
     field :review_library_section, mutation: Mutations::CareerLibrary::ReviewLibrarySection
+    field :start_library_edit, mutation: Mutations::CareerLibrary::StartLibraryEdit
+    field :accept_library_edit, mutation: Mutations::CareerLibrary::AcceptLibraryEdit
+    field :discard_library_edit, mutation: Mutations::CareerLibrary::DiscardLibraryEdit
     field :clear_career_library, mutation: Mutations::CareerLibrary::ClearCareerLibrary
 
     field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact

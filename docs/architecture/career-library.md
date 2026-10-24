@@ -121,7 +121,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
   and rejected here: the comparison already lists every gap, so a plain form is simpler, needs
   no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
-  reserved for a later feature where the AI rewrites career library entries and must ask for facts.
+  used by individual library editing, where the AI rewrites one selected field and may ask for facts.
 
 - **Tailoring returns one complete draft for review.** Section-by-section approval made the
   user wait repeatedly and repeated preparation. One queued execution now owns shared
@@ -181,7 +181,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   not stated stays null, so evals can check faithfulness deterministically (every extracted
   highlight, skill, and company must appear in the source text). Ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
-  planned for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
+  implemented for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.
   The rule is also enforced at runtime: after every parse, `enforce_source_faithfulness`
   (`services/ai/documents/`) removes highlights and skills that don't appear in the source text

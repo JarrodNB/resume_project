@@ -81,3 +81,6 @@ their category.
 - Experience review assesses descriptions and highlights individually. Other sections are not
   sent as context. Highlight moves refresh assessments after saving, because the optimistic
   library change may be visible before persistence.
+- `LibraryEditControl` opens an inline individual edit; `useLibraryEdit` owns loading, queued
+  turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
+  Closing keeps saved work; discarding closes it server-side. Accepted targets can start again.

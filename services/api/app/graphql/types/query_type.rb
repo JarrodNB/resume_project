@@ -64,6 +64,15 @@ module Types
       ::CareerLibrary::ReviewStateService.call(user: current_user, section: section).value
     end
 
+    field :library_edit, Types::LibraryEditType, null: false do
+      argument :kind, String, required: true
+      argument :record_id, ID, required: true
+    end
+
+    def library_edit(kind:, record_id:)
+      ::CareerLibrary::EditStateService.call(user: current_user, kind: kind, record_id: record_id).value
+    end
+
     field :jobs, [ Types::JobType ], null: false do
       argument :stage, Types::JobStageEnum, required: false
     end

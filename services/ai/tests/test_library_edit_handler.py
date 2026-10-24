@@ -1,0 +1,149 @@
+"""Exercise individual regeneration, deferred questions, and user-only screening offline."""
+
+from uuid import uuid4
+
+import pytest
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.test import TestModel
+
+from tests.test_library_review_handler import review_input
+from worker.queue_messages import AiTaskMessage
+from worker.task_handlers import handle_ai_task
+
+pytestmark = pytest.mark.real_guardrail
+
+
+def edit_input():
+    payload = review_input()
+    payload.update(target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
+    return payload
+
+
+def test_generates_one_proposal_without_changing_its_target(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Contributed to the service migration.", "color": "yellow", "reason": "The contribution could be more specific.",
+    })):
+        result = handle_ai_task(task, task_dependencies)
+    assert result.status == "completed"
+    assert result.result["text"] == "Contributed to the service migration."
+    assert result.message_history
+
+
+def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+
+    screened = []
+    def screen(text, *_args, **_kwargs):
+        screened.append(text)
+        return ScreenOutcome(True)
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", screen)
+    async def unexpected(*_args, **_kwargs):
+        raise AssertionError("Saved generated history must not be sent to the generic classifier")
+    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+
+    first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
+    def question(_messages, _info):
+        return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "Which part did you handle?"}, tool_call_id="question-1")])
+    with library_edit_agent.override(model=FunctionModel(question)):
+        paused = handle_ai_task(first, task_dependencies)
+    assert paused.status == "needs_user_input"
+    assert paused.pending_questions == [{"id": "question-1", "question": "Which part did you handle?"}]
+
+    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+                "question_id": "question-1", "feedback": "I migrated the billing API; I did not lead the team."}
+    def proposal(messages, info):
+        rendered = str(messages)
+        assert "I did not lead the team" in rendered
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "text": "Migrated the billing API as part of the platform team.", "color": "yellow", "reason": "Add an outcome if known.",
+        })])
+    with library_edit_agent.override(model=FunctionModel(proposal)):
+        completed = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=first.user_id,
+            task_type="improve_library_entry", input=followup), task_dependencies)
+    assert completed.status == "completed"
+    assert screened == ["Make this clearer", "I migrated the billing API; I did not lead the team."]
+
+    # A normal feedback turn after a completed draft also reuses its saved history.
+    followup.update(history=completed.message_history, previous_task_id=str(uuid4()), turn=3,
+                    question_id=None, feedback="Keep the technical detail")
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Migrated the billing API with the platform team.", "color": "yellow", "reason": "Outcome remains unknown.",
+    })):
+        revised = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=first.user_id,
+            task_type="improve_library_entry", input=followup), task_dependencies)
+    assert revised.status == "completed"
+    assert screened[-1] == "Keep the technical detail"
+    assert len(screened) == 3
+
+
+@pytest.mark.parametrize("unchecked", [False, True])
+def test_blocked_or_unavailable_user_message_stops_before_generation(task_dependencies, monkeypatch, unchecked):
+    from screening.screen_user_text import ScreenOutcome
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False, unchecked=unchecked))
+    result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input()), task_dependencies)
+    assert result.status == "failed"
+    assert result.result is None
+    assert ("unavailable" in result.error_message) == unchecked
+
+
+def test_skipping_a_saved_question_does_not_screen_generated_question_or_skip_note(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+    screened = []
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    def question(_messages, _info):
+        return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "What changed afterward?"}, tool_call_id="q-skip")])
+    first = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input())
+    with library_edit_agent.override(model=FunctionModel(question)):
+        paused = handle_ai_task(first, task_dependencies)
+    followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
+                "question_id": "q-skip", "feedback": "", "skip": True}
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={
+        "text": "Contributed to the service migration.", "color": "yellow", "reason": "Outcome is not known.",
+    })):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=first.user_id, task_type="improve_library_entry", input=followup), task_dependencies)
+    assert result.status == "completed"
+    assert screened == ["Make this clearer"]
+
+
+def test_history_limit_preserves_consumed_model_usage(task_dependencies, monkeypatch):
+    from pydantic_ai.usage import RunUsage
+
+    from agents.library_edit_agent import LibraryEditRun
+    from schemas.library_edit import LibraryEditDraft
+    from screening.screen_user_text import ScreenOutcome
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", lambda *_args: LibraryEditRun(
+        LibraryEditDraft(text="Contributed to migration.", color="yellow", reason="Add detail."),
+        [{"content": "x" * 100_001}], RunUsage(input_tokens=20, output_tokens=10), "openai:gpt-6-luna"))
+    result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=edit_input()), task_dependencies)
+    assert result.status == "failed"
+    assert result.usage[0].input_tokens == 20
+
+
+def test_registered_edit_agent_masks_known_contact_in_source_and_feedback(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+    from worker.contact_mask import contact_scope, install_contact_hooks
+    from worker.known_contact import KnownContact
+    install_contact_hooks()
+    screened = []
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    payload = edit_input()
+    payload["feedback"] = "Jane Doe wants clearer wording"
+    payload["library"]["experiences"][0]["description"] = "Jane Doe built services"
+    def proposal(messages, info):
+        assert "Jane Doe" not in str(messages)
+        assert "«name»" in str(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"text": "Contributed to migration.", "color": "yellow", "reason": "Add detail."})])
+    with contact_scope(KnownContact.from_values(names=["Jane Doe"])), library_edit_agent.override(model=FunctionModel(proposal)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert screened == ["«name» wants clearer wording"]

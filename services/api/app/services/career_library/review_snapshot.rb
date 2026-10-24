@@ -5,10 +5,12 @@ module CareerLibrary
     MAX_TARGETS = 250
     MAX_SOURCE_BYTES = 80_000
 
-    def self.build(user:, section:)
+    def self.build(user:, section:, experience_id: nil)
       raise ArgumentError, "Choose a supported library section" unless section == "experience"
 
-      experiences = user.experiences.includes(:highlights).map do |role|
+      roles = user.experiences.includes(:highlights)
+      roles = roles.where(id: experience_id) if experience_id
+      experiences = roles.map do |role|
         role.attributes.slice("id", "company", "title", "location", "start_date", "end_date", "description", "screened_fields").merge(
           "highlights" => role.highlights.map { |item| item.attributes.slice("id", "content", "screened_fields") }
         )

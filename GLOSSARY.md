@@ -5,6 +5,10 @@ Index: language and shared domain terms.
 
 ## Language
 
+**Library proposal**:
+A suggested replacement for one career-library detail. It changes the saved detail only
+when the user accepts it; feedback and follow-up answers can refine it first.
+
 **Interview Q&A vector**:
 A derived embedding of one saved interview question and its current nonblank user-written answer.
 It excludes feedback and example answers, stays separate from career-library evidence, and is not searched yet.

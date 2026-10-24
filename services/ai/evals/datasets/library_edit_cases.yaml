@@ -1,0 +1,38 @@
+cases:
+  - name: correction-preserves-contributor-ownership
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Logistics
+            title: Engineer
+            highlights:
+              - id: highlight-1
+                content: Led the migration of the billing API and updated its integration tests.
+      feedback: I did not lead the migration. I migrated the billing endpoints and updated the integration tests as part of the platform team. That is all the detail I have; improve this without questions or metrics.
+  - name: qualitative-result-needs-no-metric
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Clinic
+            title: Receptionist
+            highlights:
+              - id: highlight-1
+                content: Rewrote the patient check-in guide to clarify paperwork and reduce repeated questions at reception.
+      feedback: Keep the qualitative result and make this easier to read. We did not measure a percentage. No further details are available, so propose a revision now.
+  - name: ask-for-contribution-and-use-answer
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Retail
+            title: Store Assistant
+            highlights:
+              - id: highlight-1
+                content: Helped improve stock management.
+      feedback: Ask me one question about my own contribution before rewriting this.
+      answer: I created a shared stock count sheet so staff could see which items needed reordering. I do not have measurements or further details; use that to revise now.
+      expects_question: true
+evaluators:
+  - EditStructure

@@ -52,3 +52,13 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
 - `ApplyReviewService` validates exact target coverage and records screening approvals only
   while the source field still matches the queued snapshot under its record lock.
+
+## Individual editing
+
+- `EditSnapshot`, `StartEditService`, and `EditStateService` select one owned field and keep
+  resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
+- `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
+  proposal once, preserving highlight identity, or discards without changing career facts.
+- Acceptance requires unchanged source/context, queues embeddings, and stores the proposed
+  assessment for the new digest. Exact generated text receives reusable field coverage without
+  a classifier call; existing manual editors revoke coverage when user text changes.

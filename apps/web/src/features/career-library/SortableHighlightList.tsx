@@ -5,6 +5,7 @@
  *   - SortableHighlightList: drop area with one draggable row per highlight
  */
 import { LibraryAssessment, type Assessment } from './LibraryAssessment'
+import type { ReactNode } from 'react'
 import { SortableGroup } from '@/components/dnd/SortableGroup'
 import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableGroupId, sortableId } from '@/components/dnd/moveItems'
@@ -14,10 +15,11 @@ interface SortableHighlightListProps {
   experienceId: string
   highlights: { id: string; content: string }[]
   assessmentFor?: (id: string) => Assessment | undefined
+  editControlFor?: (highlight: { id: string; content: string }) => ReactNode
 }
 
 /** Renders the highlights as draggable rows; an empty role shows a drop hint. */
-export function SortableHighlightList({ experienceId, highlights, assessmentFor }: SortableHighlightListProps) {
+export function SortableHighlightList({ experienceId, highlights, assessmentFor, editControlFor }: SortableHighlightListProps) {
   const group = sortableGroupId('highlights', experienceId)
 
   return (
@@ -41,6 +43,7 @@ export function SortableHighlightList({ experienceId, highlights, assessmentFor 
               <div className="min-w-0 flex-1 py-0.5">
                 <span>{highlight.content}</span>
                 {assessmentFor && <LibraryAssessment assessment={assessmentFor(highlight.id)} />}
+                {editControlFor?.(highlight)}
               </div>
             </>
           )}

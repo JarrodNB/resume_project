@@ -16,6 +16,7 @@ import { LibraryEntryActions } from './LibraryEntryActions'
 import { experienceLabel } from './libraryEntryLabels'
 import { LibrarySection } from './LibrarySection'
 import { SortableHighlightList } from './SortableHighlightList'
+import { LibraryEditControl } from './LibraryEditControl'
 
 type Experience = CareerLibraryQuery['experiences'][number]
 type Highlight = { id: string; content: string }
@@ -61,8 +62,10 @@ export function ExperienceSection({ experiences, highlightsOf, movingHighlight =
             }
           >
             {entry.description && <LibraryAssessment assessment={assessment('experience', entry.id)} />}
+            {entry.description && <LibraryEditControl kind="experience" recordId={entry.id} currentText={entry.description} sourceRevision={JSON.stringify(entry)} disabled={movingHighlight} />}
             <SortableHighlightList experienceId={entry.id} highlights={highlightsOf(entry.id)}
-              assessmentFor={(id) => assessment('experience_highlight', id)} />
+              assessmentFor={(id) => assessment('experience_highlight', id)}
+              editControlFor={(highlight) => <LibraryEditControl kind="experience_highlight" recordId={highlight.id} currentText={highlight.content} sourceRevision={JSON.stringify(entry)} disabled={movingHighlight} />} />
           </LibraryEntry>
         ))}
       </LibrarySection>

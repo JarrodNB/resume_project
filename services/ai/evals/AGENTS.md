@@ -158,3 +158,7 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   section reviews through real production screening and grading. Hand labels check color
   calibration, including a clear qualitative result without metrics. This small set does not
   establish broad writing quality. Run `python -m evals.run_library_review_evals`.
+- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — three synthetic edits
+  through production screening and generation, including a real deferred question/answer.
+  Checks output shape and uses the configured independent judge for faithfulness/usefulness.
+  This bounded sample does not establish broad editing quality. Run `python -m evals.run_library_edit_evals`.

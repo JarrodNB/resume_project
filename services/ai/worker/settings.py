@@ -57,6 +57,10 @@ class WorkerSettings(BaseSettings):
     eval_judge_model: str = "openai:gpt-6.1-sol"
     library_review_model: str = "openai:gpt-6-luna"
     library_review_thinking: ThinkingLevel = False
+    library_edit_model: str = "openai:gpt-6-luna"
+    library_edit_thinking: ThinkingLevel = False
+    # Other queued writers have no tools. Library editing allows one deferred question.
+    library_edit_tool_calls_limit: int = Field(default=1, ge=0)
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingLevel = False
     # The fallback runs only after an attempted primary provider failure.

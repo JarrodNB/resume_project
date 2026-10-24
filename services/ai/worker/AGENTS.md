@@ -134,3 +134,6 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `library_review_handler.py` — screens only unchecked fields of a Rails-owned Experience
   snapshot, renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
+- `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
+  prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
+  are not classified. Source/input/history/turn caps bound every exchange.

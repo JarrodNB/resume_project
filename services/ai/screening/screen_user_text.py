@@ -134,16 +134,16 @@ async def _drive_async(
     if model == local_llama.MODEL:
         session = current_session()
         remaining = min(timeout_seconds, session.deadline - monotonic()) if session else timeout_seconds
-        if remaining <= 0:
+        if remaining <= 0 or not _local_inference_lock.acquire(blocking=False):
             result = ScreenOutcome(False, unchecked=True)
         else:
             try:
+                completed = _start_local_screen(text, model, remaining, check_phrases,
+                                                max_characters)
                 result = await asyncio.wait_for(
-                    asyncio.to_thread(_local_screen_guarded, text, model, remaining, check_phrases,
-                                      max_characters, False),
-                    timeout=remaining,
+                    asyncio.shield(asyncio.wrap_future(completed)), timeout=remaining,
                 )
-            except TimeoutError:
+            except Exception:  # noqa: BLE001 — local failure is unavailable
                 result = ScreenOutcome(False, unchecked=True)
         # A timed-out thread can finish later. Only this event-loop owner may cache
         # approval, and only after it has completed inside the caller's deadline.
@@ -183,10 +183,26 @@ def _screen_key(text, model, check_phrases, max_characters):
     return (mask_outbound(text), model, check_phrases, policy, max_characters)
 
 
-def _local_screen_guarded(*args):
-    """Bound concurrent model work even if a timed-out inference keeps running."""
-    with _local_inference_lock:
-        return _local_screen(*args)
+def _start_local_screen(text, model, remaining, check_phrases, max_characters):
+    """Start the sole admitted local worker; its completion releases admission."""
+    completed = Future()
+    context = contextvars.copy_context()
+
+    def run():
+        try:
+            completed.set_result(context.run(_local_screen, text, model, remaining,
+                                             check_phrases, max_characters, False))
+        except Exception as error:  # noqa: BLE001 — local failure resolves the caller
+            completed.set_exception(error)
+        finally:
+            _local_inference_lock.release()
+
+    try:
+        threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
+    except RuntimeError:
+        _local_inference_lock.release()
+        raise
+    return completed
 
 
 def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters):
@@ -208,22 +224,10 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
             _local_inference_lock.release()
             result = ScreenOutcome(False, unchecked=True)
         else:
-            completed = Future()
-            context = contextvars.copy_context()
-
-            def run():
-                try:
-                    completed.set_result(context.run(_local_screen, text, model, remaining,
-                                                     check_phrases, max_characters, False))
-                except Exception as error:  # noqa: BLE001 — local failure resolves the caller
-                    completed.set_exception(error)
-                finally:
-                    _local_inference_lock.release()
-
             try:
-                threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
+                completed = _start_local_screen(text, model, remaining, check_phrases,
+                                                max_characters)
             except RuntimeError:
-                _local_inference_lock.release()
                 result = ScreenOutcome(False, unchecked=True)
             else:
                 try:

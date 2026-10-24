@@ -185,6 +185,43 @@ def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):
         release.set()
 
 
+def test_async_stalled_model_does_not_queue_screening_threads(monkeypatch):
+    release = threading.Event()
+    entered = threading.Event()
+    calls = []
+
+    def stalled_chunks(text):
+        calls.append(text)
+        entered.set()
+        release.wait(1)
+        return [(text, 3)]
+
+    monkeypatch.setattr(local_llama, "iter_chunks", stalled_chunks)
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=False, tokens=3, duration=0.01,
+    ))
+
+    async def remote(*_):
+        raise AssertionError("Remote classifier must not run")
+
+    async def check():
+        first = asyncio.create_task(screen_user_text_async(
+            "first async stalled input", local_llama.MODEL, 0.02, classify=remote,
+        ))
+        assert await asyncio.to_thread(entered.wait, 1)
+        others = [screen_user_text_async(f"async input {index}", local_llama.MODEL, 0.02,
+                                         classify=remote) for index in range(3)]
+        results = await asyncio.gather(first, *others)
+        assert all(result.unchecked for result in results)
+        assert calls == ["first async stalled input"]
+        assert sum(thread.name.startswith("asyncio_") for thread in threading.enumerate()) <= 1
+
+    try:
+        asyncio.run(check())
+    finally:
+        release.set()
+
+
 def test_local_chunks_cover_every_character_when_tokens_force_smaller_windows(monkeypatch):
     monkeypatch.setattr(local_llama, "_model_pair", lambda: (
         lambda text, **kwargs: {"input_ids": [0] * (len(text) * 2 + 2)}, None,

@@ -58,7 +58,23 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
         self.assertNotIn("CABLE_DATABASE_URL", ai)
         self.assertEqual(api["INTERVIEW_SERVICE_SECRET"], ai["INTERVIEW_SERVICE_SECRET"])
+        self.assertEqual(api["INTERVIEW_REAL_ADMISSION_ENABLED"], "true")
+        self.assertEqual(api["INTERVIEW_REAL_RUNTIME_ORIGIN"], "http://127.0.0.1:8000")
         self.assertNotEqual(api["DB_PASSWORD"], ai["DB_PASSWORD"])
+
+    def test_local_services_do_not_inherit_cloud_aws_profiles(self):
+        supplied = {"AWS_PROFILE": "missing-cloud-profile",
+                    "AWS_DEFAULT_PROFILE": "another-missing-profile"}
+        with patch.dict(os.environ, supplied):
+            for service in ("api", "ai"):
+                env = native.app_env(service)
+                self.assertNotIn("AWS_PROFILE", env)
+                self.assertNotIn("AWS_DEFAULT_PROFILE", env)
+                self.assertEqual(env["AWS_ACCESS_KEY_ID"], "local")
+                self.assertEqual(env["SQS_ENDPOINT_URL"], "http://127.0.0.1:9090")
+                self.assertEqual(env["S3_ENDPOINT_URL"], "http://127.0.0.1:9090")
+            self.assertEqual(os.environ["AWS_PROFILE"], supplied["AWS_PROFILE"])
+            self.assertEqual(os.environ["AWS_DEFAULT_PROFILE"], supplied["AWS_DEFAULT_PROFILE"])
 
     def test_install_creates_templates_once_without_starting_services(self):
         for service in ("api", "ai"):

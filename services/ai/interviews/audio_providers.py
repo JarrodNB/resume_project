@@ -19,6 +19,7 @@ import httpx
 
 from interviews.media import validate_audio
 from interviews.provider_calls import ProviderCalls
+from interviews.provider_transport import provider_transport
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class AudioProviders:
             raise ValueError("Missing provider credential")
         self._calls = ProviderCalls(rails)
         self._http = httpx.AsyncClient(
-            transport=transport or httpx.AsyncHTTPTransport(retries=0),
+            transport=transport or provider_transport(httpx.AsyncHTTPTransport),
             timeout=httpx.Timeout(30, connect=5),
             follow_redirects=False,
             trust_env=False,

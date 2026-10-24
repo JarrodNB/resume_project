@@ -29,10 +29,15 @@ After installation, use:
 ```bash
 python3 script/native.py doctor
 python3 -m unittest discover -s script -p test_native.py -v
-python3 script/native.py start
+bash script/start-native-cloud.sh
 python3 script/native.py check
 python3 script/native.py stop
 ```
+
+Use `bash script/start-native-cloud.sh` as the cloud **start hook**. It returns
+success when this checkout's services are already healthy and restarts a partial
+stack before checking it again. Run the install hook before the start hook in a
+new container. A restart clears Moto's in-memory queues and uploads.
 
 `system-deps` remains available for hosts where root can install system
 packages. The app's own PostgreSQL cluster runs on port **55432**. `doctor` is

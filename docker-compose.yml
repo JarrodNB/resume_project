@@ -134,6 +134,8 @@ services:
       DB_PASSWORD: ai_reader
       LOGFIRE_ENVIRONMENT: development
       WORKER_ENVIRONMENT: local
+      # The host UID has no container home; keep model downloads writable and persistent.
+      HF_HOME: /app/.cache/huggingface
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
     volumes:
       - ./services/ai:/app

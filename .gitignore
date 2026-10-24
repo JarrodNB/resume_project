@@ -44,6 +44,7 @@ services/api/tmp/pids/*
 !services/api/storage/.keep
 
 # Python
+services/ai/.cache/
 services/ai/conversation_logs/
 __pycache__/
 *.pyc

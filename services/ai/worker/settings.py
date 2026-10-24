@@ -61,10 +61,10 @@ class WorkerSettings(BaseSettings):
     user_text_screen_model: str = "typesafe:jev-1.13.0"
     user_text_screen_fallback_model: str = SCREEN_LLM_OPTION
     user_text_screen_llm_model: str = DEFAULT_SCREEN_LLM_MODEL
-    user_text_screen_timeout_seconds: float = Field(default=240, gt=0)
+    user_text_screen_timeout_seconds: float = Field(default=30, gt=0)
     # Live synthetic comparison: same decisions as 2000, with fewer requests and lower latency.
     # Keep both sizes available for repeat evaluation; overlap is 300 characters.
-    user_text_screen_chunk_size: int = 4000
+    user_text_screen_chunk_size: int = 6000
 
     @field_validator("user_text_screen_model", "user_text_screen_fallback_model")
     @classmethod
@@ -86,13 +86,6 @@ class WorkerSettings(BaseSettings):
             raise ValueError("Screening LLM model must be a priced generative model")
         return value
 
-    @field_validator("user_text_screen_chunk_size")
-    @classmethod
-    def screen_chunk_candidate(cls, value: int) -> int:
-        """Only the two candidates under evaluation are accepted."""
-        if value not in (2000, 4000):
-            raise ValueError("Screen chunk size must be 2000 or 4000")
-        return value
     resume_tailoring_model: str = "openai:gpt-6-luna"
     resume_tailoring_thinking: ThinkingLevel = False
     # Used when a generative OpenAI call hits a rate limit, 5xx, or connection error.

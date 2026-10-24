@@ -17,6 +17,9 @@ The worker loads the gated model lazily through Transformers. Provision access t
 the worker environment. Keep the token out of repository files and traces. Confirm the
 model license and artifact access before deployment. `LABEL_0` allows and `LABEL_1`
 blocks; any unexpected configuration or inference output is unavailable and fails closed.
+Local Docker Compose sets `HF_HOME=/app/.cache/huggingface`, backed by the ignored
+`services/ai/.cache/` directory, so the host UID can write model downloads and reuse
+them across disposable containers.
 Run `python -m evals.check_local_llama_model` against the real gated artifact to verify
 the label mapping on known benign and injection inputs. The production operating
 threshold also requires representative evaluation before enabling this setting in production.

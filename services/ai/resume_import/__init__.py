@@ -17,6 +17,7 @@ from agents.resume_import_agent import resume_import_agent
 from prompts.resume_import_instructions import RESUME_IMPORT_PROMPT_VERSION
 from resume_import.budget import ImportBudgetModel
 from resume_import.chunks import structural_chunks
+from resume_import.placement import place_single_role_bullets, place_with_model
 from resume_import.source import ResumeSource
 from schemas.parsed_resume import ParsedResume
 from schemas.resume_import import ResumeImportExtraction
@@ -95,6 +96,10 @@ async def _import(text, model, thinking, timeout_seconds, fallback_model):
             ],
             parsing_warnings=[warning for output in outputs for warning in output.parsing_warnings],
         )
+        place_single_role_bullets(source, combined)
+        placement_usage = await place_with_model(
+            source, combined, [chunk for chunk, _, _ in chunks], budget, model, thinking, settings
+        )
         parsed = source.reconstruct(combined)
         usage = RunUsage()
         usages = []
@@ -102,6 +107,9 @@ async def _import(text, model, thinking, timeout_seconds, fallback_model):
             usage.incr(result.usage)
             answering_model = reported_model_name(result.response.model_name or model, model)
             usages.extend([build_model_usage(answering_model, result.usage), *screen.model_usages])
+        if placement_usage is not None:
+            usage.incr(placement_usage[0])
+            usages.extend(placement_usage[1])
         return ResumeImportRun(parsed, usage, answering_model, usages)
 
 

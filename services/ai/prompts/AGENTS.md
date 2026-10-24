@@ -54,3 +54,4 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   The feedback agent selects these instructions using trusted deps; general/technical runs receive the personal-fact base policy, with STAR guidance added only for general.
 
 - `resume_import_instructions.py` — versioned domain-model catalog, classification/null rules, and source-reference/ambiguous-ownership instructions for the isolated importer.
+- `resume_placement_instructions.py` — versioned source-backed placement rules for the optional ambiguous-bullet pass.

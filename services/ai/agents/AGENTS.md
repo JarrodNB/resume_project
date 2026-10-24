@@ -16,6 +16,8 @@ instructions from `prompts/`.
   when it contains a space or a newline;
   `parse_resume_text(text, model, thinking, timeout_seconds)`
   returns a `ResumeParsingRun` (`parsed_resume`, `usage`)
+- `resume_placement_agent.py` — optional one-call source-backed suggestions for ambiguous
+  bullets after structural extraction; local checks accept only uniquely supported roles.
 - `parse_job_posting_agent.py` — pasted job ad -> `ParsedJobPosting` (title, company, optional
   location and url, requirement, responsibility, and nice-to-have lines copied from the ad);
   its output validator retries with

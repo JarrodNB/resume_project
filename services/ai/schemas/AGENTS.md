@@ -56,3 +56,4 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - `interview_feedback.py` — strengths, improvements, scope-aware example descriptions, evidence quotes, and trusted source context; results use `interview_feedback`. Knowledge examples may correct subject facts without personal-fact placeholders; all scopes forbid invented personal experience.
 
 - `resume_import.py` — strict internal discriminated records, non-experience supporting evidence, and unassigned bullet references; the factory binds allowed bare IDs to each chunk while public output remains `ParsedResume`.
+- `resume_placement.py` — internal typed suggestions for ambiguous bullet IDs and cited role evidence; the public resume shape is unchanged.

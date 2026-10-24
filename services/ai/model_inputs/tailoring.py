@@ -24,7 +24,7 @@ class TailoringSectionInput:
     expiry_statuses: tuple[str, ...]
     write_anyway: bool
     job_context: str
-    match_summary: str | None
+    analysis_text: str | None
     sources: tuple[tuple[str, str], ...]
 
 
@@ -39,8 +39,8 @@ def format_tailoring_section_input(section: TailoringSectionInput) -> str:
         "",
         section.job_context,
     ]
-    if section.match_summary:
-        lines.extend(["", "## How the library matches this job", section.match_summary])
+    if section.analysis_text:
+        lines.extend(["", section.analysis_text])
     lines.extend(["", "# Sources"])
     lines.extend(f"[{label}] {value}" for label, value in section.sources)
     return "\n".join(lines)

@@ -24,6 +24,7 @@ class ScreeningSession:
     decisions: dict[tuple, Any] = field(default_factory=dict)
     async_locks: dict[tuple, Any] = field(default_factory=dict)
     allowed_sources: set[str] = field(default_factory=set)
+    trusted_generated_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
     library_screening: list[Any] = field(default_factory=list)
 
@@ -84,16 +85,29 @@ def approve_projected_source(
         session.allowed_sources.add(mask_outbound(source))
 
 
+def trust_generated_source(source: str) -> None:
+    """Cover immutable AI output from an earlier owned task in this execution only.
+
+    Callers must validate its saved result shape and provenance. Never use this for
+    user-editable fields or text arriving directly from a browser or external site.
+    """
+    if source and (session := _current.get()) is not None:
+        session.trusted_generated_sources.add(mask_outbound(source))
+
+
 def bind_screened_prompt(sources: Sequence[str], render: Callable[[Sequence[str]], str]) -> str:
-    """Render trusted scaffolding around already allowed source values.
+    """Render trusted scaffolding around screened or trusted generated source values.
 
     The renderer owns escaping and formatting. Every untrusted value it includes must
     appear in sources; do not capture untrusted values in its closure. No approval is
-    minted when a source lacks a real allowed decision in this execution.
+    minted when a source lacks screening or explicit generated-output provenance.
     """
     prompt = render(sources)
     session = _current.get()
-    if session is not None and sources and all(mask_outbound(source) in session.allowed_sources for source in sources):
+    if session is not None and sources and all(
+        mask_outbound(source) in session.allowed_sources or
+        mask_outbound(source) in session.trusted_generated_sources for source in sources
+    ):
         session.prompts.add(mask_outbound(prompt))
     return prompt
 

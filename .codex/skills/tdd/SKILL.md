@@ -5,6 +5,11 @@ description: Implement or fix behavior through small red-green-refactor cycles a
 
 # TDD
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Read applicable repository instructions and existing tests. Implement approved behavior one observable outcome at a time through a real interface, using existing test seams and conventions. Do not add abstractions just to make mocking convenient.
 
 ## Red → green → refactor
@@ -26,4 +31,4 @@ Read applicable repository instructions and existing tests. Implement approved b
 
 ## Delegated tickets
 
-Stay within the assigned worktree/branch and approved scope. Respect blockers and report material ambiguity to the orchestrator. Do not change the board, publish tickets, open PRs, merge, or deploy. Return changed files/commits, acceptance outcomes, verification evidence, and concerns. The orchestrator owns integration and ticket status.
+Stay within the assigned worktree/branch and approved scope. Respect blockers and report material ambiguity to the orchestrator. Do not publish tickets, open PRs, merge, or deploy. Return changed files/commits, acceptance outcomes, verification evidence, and concerns. The orchestrator owns integration and ticket status.

@@ -8,10 +8,11 @@ from datetime import date
 from uuid import uuid4
 
 import pytest
+from pydantic_ai.models.function import FunctionModel
 
 import text_limits
 from agents.resume_tailoring_agent import resume_tailoring_agent
-from schemas.gap_analysis_context import LibraryCertification
+from schemas.gap_analysis_context import CareerLibrary, LibraryCertification, LibraryExperience
 from tests import test_complete_resume_draft as complete_draft_tests
 from worker.queue_messages import AiTaskMessage
 from worker.tailor_resume_handler import JOB_NOT_FOUND_MESSAGE
@@ -81,6 +82,116 @@ def test_too_long_prompt_has_a_length_message(generation, monkeypatch: pytest.Mo
     monkeypatch.setattr(text_limits, "MAX_PROMPT_TEXT", 1)
     with resume_tailoring_agent.override(model=model):
         result = handle_ai_task(_task(_base_input()), dependencies)
+    assert result.status == "failed"
+    assert result.error_message == text_limits.TAILOR_PROMPT_TOO_LONG_MESSAGE
+    assert result.result is None
+    assert seen == []
+
+
+def test_oversized_library_fails_before_writing(generation) -> None:
+    """Saved career text beyond the aggregate cap fails the whole task clearly."""
+    dependencies, context, seen, model = generation
+    context.career_library.summary = "x" * (text_limits.MAX_SCREENED_TEXT + 1)
+
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(_base_input()), dependencies)
+
+    assert result.status == "failed"
+    assert result.error_message == text_limits.TAILOR_LIBRARY_TOO_LONG_MESSAGE
+    assert result.result is None
+    assert result.usage == []
+    assert seen == []
+
+
+def test_library_at_limit_uses_full_text_when_prompt_fits(generation) -> None:
+    """An exact-cap source remains available to the summary writer in full."""
+    dependencies, context, seen, _ = generation
+    context.career_library = CareerLibrary(summary="x" * text_limits.MAX_SCREENED_TEXT)
+
+    async def generate(messages, info):
+        prompt = messages[-1].parts[-1].content
+        seen.append(prompt)
+        return complete_draft_tests.answer(info, {"nothing_fits": False, "entries": [],
+            "summary": {"text": "Experienced engineer.", "source_labels": ["SUMMARY"]}})
+
+    with resume_tailoring_agent.override(model=FunctionModel(generate, model_name="gpt-5-mini")):
+        result = handle_ai_task(_task(_base_input()), dependencies)
+
+    assert result.status == "completed", result.error_message
+    assert result.result["sections"][1]["section_type"] == "summary"
+    assert len(seen) == 1
+    assert "[SUMMARY] " + context.career_library.summary in seen[0]
+
+
+def test_library_at_limit_keeps_labeled_role(generation) -> None:
+    """Many valid roles at the cap all remain in the writer's evidence."""
+    dependencies, context, seen, _ = generation
+    descriptions = ["x" * 4_000 for _ in range(19)] + ["y" * 3_800]
+    context.career_library = CareerLibrary(experiences=[LibraryExperience(
+        id=f"role-{number}", company="Co", title="Engineer", description=description)
+        for number, description in enumerate(descriptions, start=1)])
+
+    async def generate(messages, info):
+        section = complete_draft_tests.section_name(messages)
+        seen.append((section, messages[-1].parts[-1].content))
+        if section == "summary":
+            return complete_draft_tests.answer(info, {"nothing_fits": True, "entries": []})
+        return complete_draft_tests.answer(info, {"nothing_fits": False,
+            "entries": [{"label": "E1", "prose": []}]})
+
+    with resume_tailoring_agent.override(model=FunctionModel(generate, model_name="gpt-5-mini")):
+        result = handle_ai_task(_task(_base_input()), dependencies)
+
+    assert result.status == "completed", result.error_message
+    assert any(section["section_type"] == "experience" for section in result.result["sections"])
+    assert any(section == "experience" and f"[E20] Engineer at Co: {descriptions[-1]}" in prompt
+               for section, prompt in seen)
+
+
+def test_many_valid_roles_fail_with_library_message_before_writing(generation) -> None:
+    """Descriptions at saved-field maximum add up beyond the library cap."""
+    dependencies, context, seen, model = generation
+    context.career_library = CareerLibrary(experiences=[
+        LibraryExperience(id=f"role-{number}", company=f"Company {number}",
+            title="Engineer", description="x" * 4_000)
+        for number in range(31)
+    ])
+
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(_base_input()), dependencies)
+
+    assert result.status == "failed"
+    assert result.error_message == text_limits.TAILOR_LIBRARY_TOO_LONG_MESSAGE
+    assert result.result is None
+    assert seen == []
+
+
+def test_aggregate_counts_distinct_saved_fields(generation) -> None:
+    """Small individual fields can exceed the cap together, including copied identity."""
+    dependencies, context, seen, model = generation
+    context.career_library = CareerLibrary(
+        summary="s" * 40_000,
+        experiences=[LibraryExperience(id="role", company="C" * 20_000,
+            title="Engineer", location="L" * 20_000)],
+    )
+
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(_base_input()), dependencies)
+
+    assert result.status == "failed"
+    assert result.error_message == text_limits.TAILOR_LIBRARY_TOO_LONG_MESSAGE
+    assert seen == []
+
+
+def test_large_combined_context_keeps_prompt_limit(generation) -> None:
+    """A fitting library can still fail when job and analysis expand the prompt."""
+    dependencies, context, seen, model = generation
+    context.job.requirements = ["j" * 70_000]
+    analysis = {"summary": "a" * 55_000, "assessments": []}
+
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(_base_input(gap_analysis=analysis)), dependencies)
+
     assert result.status == "failed"
     assert result.error_message == text_limits.TAILOR_PROMPT_TOO_LONG_MESSAGE
     assert result.result is None

@@ -12,6 +12,7 @@ from model_inputs.tailoring import TailoringSectionInput, format_tailoring_secti
 from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
 from screening.session import bind_screened_prompt
+from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import LabeledSources, label_sources
 
 LIBRARY_FACT_OMITTED_WARNING = "One of your notes was left out."
@@ -34,6 +35,7 @@ def build_section_prompt(
     *,
     write_anyway: bool,
     gap_analysis: dict[str, object] | None,
+    trusted_gap_analysis: bool = False,
     today: date | None = None,
     allow_text: Callable[[str], object] | None = None,
     warnings: list[str] | None = None,
@@ -60,21 +62,22 @@ def build_section_prompt(
     job_text = job_context_text(context)
     if allow_text is not None and not getattr(allow_text(job_text), "allowed", False):
         raise ValueError("The job context could not be screened. Please try again.")
-    summary = (gap_analysis or {}).get("summary")
-    summary = summary.strip() if isinstance(summary, str) else ""
-    if summary and allow_text is not None and not _allowed(summary, allow_text, warnings):
-        summary = ""
-    values = [job_text, *([summary] if summary else []), *[record.text for record in sources.records.values()]]
+    analysis_text = format_gap_analysis(gap_analysis)
+    if analysis_text and allow_text is not None and not trusted_gap_analysis and not _allowed(
+        analysis_text, allow_text, warnings
+    ):
+        analysis_text = ""
+    values = [job_text, *([analysis_text] if analysis_text else []), *[record.text for record in sources.records.values()]]
     labels = list(sources.records)
-    has_summary = bool(summary)
+    has_analysis = bool(analysis_text)
 
     def render(approved_values: Sequence[str]) -> str:
-        """Attach the approvals to their roles before formatting the section."""
-        offset = 2 if has_summary else 1
+        """Attach approved job, analysis, and sources to their roles before rendering."""
+        offset = 2 if has_analysis else 1
         section = TailoringSectionInput(
             section_type=section_type, today=today, expiry_statuses=tuple(expiry_statuses),
             write_anyway=write_anyway, job_context=approved_values[0],
-            match_summary=approved_values[1] if has_summary else None,
+            analysis_text=approved_values[1] if has_analysis else None,
             sources=tuple(zip(labels, approved_values[offset:], strict=True)),
         )
         return format_tailoring_section_input(section)

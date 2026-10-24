@@ -45,7 +45,8 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   synthetic comparison found identical decisions with fewer requests for 4,000;
   it does not establish a general detection advantage over whole-document screening.
   `bind_screened_prompt(sources, render)` grants exact rendered-prompt coverage only when
-  every supplied source has an allowed decision. Renderers are trusted application code:
+  every supplied source has an allowed decision or explicit, validated generated-output
+  provenance in this execution. Renderers are trusted application code:
   all untrusted values must come from the supplied source arguments, never closure state.
   Empty sources cannot grant coverage. Unknown history and changed prompts remain guarded.
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
@@ -56,6 +57,8 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   Required inputs fail closed; optional entries can be omitted.
 - Never grant coverage by substring matching or a caller-controlled boolean.
   Saved library checks can authorize exact sources reconstructed from their approved fields.
+  `trust_generated_source` is only for immutable output from an owned completed AI task;
+  never use it for user-editable text or external content.
   A trusted renderer must reconstruct every untrusted value from supplied sources.
 - Neither safety classifier carries an input guardrail (that would recurse).
 - Preserve guard ordering for each input: a blocked input must never reach the generative

@@ -5,11 +5,16 @@ description: Review a code diff for correctness, security, and reliability using
 
 # Correctness Review
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Review the supplied base/head snapshot independently. Read repository instructions and trace changed behavior through code, tests, schemas, and established technical documentation. This is not requirements approval.
 
 ## Blindness and access
 
-- Do not read the Kanban item, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Ask for missing refs or access when needed.
+- Do not read the task request, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Ask for missing refs or access when needed.
 - If you inherited requirements or implementation rationale, report that the review cannot count as blind and request a fresh reviewer. Ignoring known context does not remove it.
 - Do not edit source, tests, tickets, or workflow state. Use isolated writable test artifacts when necessary. Run useful checks in Docker without browser automation or browser-driven tests.
 

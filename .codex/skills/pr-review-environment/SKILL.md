@@ -1,9 +1,27 @@
 ---
 name: pr-review-environment
-description: Run a fully functional local Careergrind PR review app in isolated Docker Compose, with development credentials, AI workers, and a copy of the main database so existing accounts and saved work are available.
+description: Run a Careergrind PR review app natively in managed cloud or in isolated local Docker Compose, with development credentials, AI workers, and a copy of the main database so existing accounts and saved work are available.
 ---
 
 # PR review environment
+
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
+## Managed cloud review
+
+Use the native hooks in the shared guidance in the PR's isolated cloud workspace.
+Preserve normal authentication, provider credentials, and telemetry. Verify API,
+frontends, workers, database, queues, and storage; hand off verified forwarded URLs
+and absolute start/log/stop commands. Disclose missing functionality and ephemeral
+emulator data. Do not use the Docker database-copy helper or require the main local
+database. Report available accounts/data; request authorization before importing
+local account data into cloud. Preserve existing review data where supported.
+The remaining sections apply only to local Docker review.
+
+## Local review
 
 Run the requested PR or branch in its own checkout, Compose project, database volumes,
 network, and browser origin. Copy the main local development database on first setup;

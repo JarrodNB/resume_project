@@ -91,19 +91,23 @@ async def generate_resume_draft(
                 if labels:
                     selected_labels.update(labels)
                     sections[section] = copy_library_section(section, library, sources)
+            # The profile summary can support an overall career claim such as years of
+            # experience even when no individual selected role says it verbatim.
+            if "SUMMARY" in prepared.prompts["summary"].sources.records:
+                selected_labels.add("SUMMARY")
             if not selected_labels:
                 selected_labels.update(label for label, record in prepared.prompts["summary"].sources.records.items()
                     if record.kind in {"summary", "fact", "gap_response"})
-            snapshots = [{"section_type": section, "title": SECTION_TITLES[section], "content": sections[section]}
-                for section in SECTION_ORDER if section in sections and section != "contact"]
-            summary = await prepared.summary_prompt(snapshots, selected_labels=selected_labels)
+            # The selected labels already point to screened library evidence. Passing
+            # assembled sections here would screen that same evidence a second time.
+            summary = await prepared.summary_prompt([], selected_labels=selected_labels)
             if summary.sources.records:
                 draft = await write(summary)
                 if draft.nothing_fits:
                     warnings.append("Summary was omitted because no relevant evidence fit this job.")
                 else:
                     sections["summary"] = materialize_section("summary", draft, library, summary.sources)
-            elif selected_labels or snapshots:
+            elif selected_labels or len(sections) > 1:
                 warnings.append("Summary was omitted because no usable evidence remained after screening.")
             return ResumeDraft([{"section_type": section, "title": SECTION_TITLES[section], "content": sections[section]}
                 for section in SECTION_ORDER if section in sections], warnings)

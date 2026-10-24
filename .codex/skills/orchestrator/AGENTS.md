@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Coordinate Kanban delivery through approved plans, implementation, reviews, and human QA.
+Coordinate requested work through approved plans, implementation, reviews, and human QA.
 
 ## Contents
 

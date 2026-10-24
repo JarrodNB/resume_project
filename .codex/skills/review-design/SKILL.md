@@ -5,11 +5,16 @@ description: Review a code diff for architecture, maintainability, and meaningfu
 
 # Design Review
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Review the supplied base/head snapshot independently. Read applicable repository instructions and the installed `codebase-design` skill. Judge changes against surrounding code and actual usage, not a preferred rewrite.
 
 ## Blindness and access
 
-- Do not read the Kanban item, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Code, tests, schemas, and established technical documentation are available.
+- Do not read the task request, plan, implementation tickets, implementation-agent reports, PR discussion, commit messages, or another reviewer's findings. Do not request intended requirements. Code, tests, schemas, and established technical documentation are available.
 - If you inherited requirements or implementation rationale, report the contamination and request a fresh reviewer before this can count as blind.
 - Do not modify source, tests, tickets, or workflow state. Run useful Docker checks with isolated writable test artifacts when needed. No browser automation or browser-driven tests.
 

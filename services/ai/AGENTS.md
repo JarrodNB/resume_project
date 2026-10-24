@@ -72,6 +72,8 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   Harness `InputGuardrail` through `capabilities`. Trusted builders bind exact assembled
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
+  A validated completed gap-analysis result can be trusted as generated output within
+  one tailoring execution; user-written gap responses are screened together once.
   The spoken-interview runtime is a scoped conversational exception: it reconstructs prior
   dialogue from authenticated Rails-owned public utterances and screens only the newest
   candidate message with `screening/conversation.py`. Frozen library field approvals are
@@ -130,8 +132,8 @@ skip it. Export indexes are not required.
 - `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for
   obvious instruction overrides. A string over the screen cap is rejected before the call
   (`too_long`)
-- `tailoring/` — section order, retrieval, labeled sources, the section prompt, the
-  faithfulness check, and turning the agent's draft into resume section JSON
+- `tailoring/` — section order, labeled sources, the section prompt, output-shape
+  and label checks, and turning the agent's draft into resume section JSON
 - `documents/` — PDF/DOCX text extraction
 - `pii/` — local import contact detection, opaque task-local replacements, and restoration;
   bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README

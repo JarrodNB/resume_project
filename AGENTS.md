@@ -55,6 +55,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 12. **Do design work on a branch.** For Impeccable and frontend design changes,
     use a dedicated `codex/` branch rather than editing on the default branch.
     Build new surfaces directly in code by default; see `.impeccable/config.json`.
+13. DO NOT JSON DUMP INTO PROMPTS
 
 ## Human-friendly file headers
 
@@ -96,9 +97,10 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 
 ## Running Things
 
-- Everything runs in Docker. Do not assume Ruby, Node, or Python are installed on the host.
-- Exception: the opt-in `script/native.py` cloud workflow runs natively; see
-  `docs/native-development.md` for prerequisites, commands, and emulator limits.
+- Local development runs in Docker. Do not assume Ruby, Node, or Python are installed on the host.
+- In managed cloud, run natively without Docker. Follow `docs/native-development.md`,
+  `script/install-native-cloud.sh`, and `script/start-native-cloud.sh` for installation,
+  startup, prerequisites, and emulator limits.
 - The host is native Ubuntu with bash. The current checkout is at
   `/home/jarrod/Desktop/resume_project`. Use Linux commands and Docker Engine with the
   Docker Compose plugin; run commands from the checkout being changed.

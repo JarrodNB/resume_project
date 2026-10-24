@@ -3,6 +3,7 @@
 Keep DOCX paragraphs and tables in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
+Explicitly removed DOCX numbering does not create a list marker.
 """
 
 from io import BytesIO
@@ -165,12 +166,9 @@ def _docx_block_lines(container: Any) -> list[str]:
 def _docx_paragraph_text(paragraph: Any) -> str:
     """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
     style_name = paragraph.style.name.casefold()
-    if style_name.startswith("list bullet"):
-        text = f"• {paragraph.text}"
-    elif style_name.startswith("list number"):
-        text = f"1. {paragraph.text}"
-    elif _docx_paragraph_is_numbered(paragraph):
-        text = f"• {paragraph.text}"
+    if _docx_paragraph_is_numbered(paragraph):
+        marker = "1." if style_name.startswith("list number") else "•"
+        text = f"{marker} {paragraph.text}"
     else:
         text = paragraph.text
     markers = [
@@ -182,16 +180,18 @@ def _docx_paragraph_text(paragraph: Any) -> str:
 
 
 def _docx_paragraph_is_numbered(paragraph: Any) -> bool:
-    """Find list numbering stored on the paragraph or inherited from a paragraph style."""
-    paragraph_properties = paragraph._p.pPr
-    if paragraph_properties is not None and paragraph_properties.find(qn("w:numPr")) is not None:
-        return True
+    """Resolve numbering overrides before styles; numId zero explicitly removes a list."""
+    properties = [paragraph._p.pPr]
     style = paragraph.style
     while style is not None:
-        style_properties = style._element.pPr
-        if style_properties is not None and style_properties.find(qn("w:numPr")) is not None:
-            return True
+        properties.append(style._element.pPr)
         style = style.base_style
+    for paragraph_properties in properties:
+        if paragraph_properties is None:
+            continue
+        number_properties = paragraph_properties.find(qn("w:numPr"))
+        if number_properties is not None and number_properties.numId is not None:
+            return number_properties.numId.val != 0
     return False
 
 

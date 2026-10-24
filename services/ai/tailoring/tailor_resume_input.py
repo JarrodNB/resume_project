@@ -1,6 +1,6 @@
 """Validate snapshots supplied when a complete resume draft is requested."""
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class TailorResumeInput(BaseModel):
     """Read-only job, profile, and gap snapshots for one complete generation."""
 
+    target_pages: Literal[1, 2] = 1
     job_id: UUID
     contact: dict[str, Any] = Field(default_factory=dict)
     gap_analysis: dict[str, Any] | None = None

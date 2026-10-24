@@ -24,4 +24,5 @@ def handle_tailor_resume_task(task: AiTaskMessage, dependencies: TaskDependencie
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message=str(error),
             usage=usage)
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"sections": draft.sections, "warnings": draft.warnings}, usage=usage)
+        result={"markdown": draft.markdown, "target_pages": draft.target_pages, "warnings": draft.warnings,
+                "measurements": draft.measurements, "editorial_review": draft.editorial_review, "drafts": draft.drafts}, usage=usage)

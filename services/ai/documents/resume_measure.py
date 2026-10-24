@@ -1,5 +1,6 @@
 """Render and measure a Markdown resume using the shared PDF module."""
 
+import os
 import subprocess
 from dataclasses import dataclass
 from io import BytesIO
@@ -25,16 +26,18 @@ class ResumeMeasurement:
     final_page_occupied_share: float
 
 
-def render_and_measure_resume(markdown: str) -> ResumeMeasurement:
+def render_and_measure_resume(
+    markdown: str, *, timeout_seconds: float = RENDER_TIMEOUT_SECONDS
+) -> ResumeMeasurement:
     """Return PDF bytes and measured page information for one Markdown document."""
     if len(markdown) > MAX_MARKDOWN_CHARS:
         raise ResumeRenderError("Resume Markdown is too long")
     try:
         process = subprocess.run(
-            ["node", RENDER_ENTRY],
+            ["node", os.environ.get("RESUME_RENDER_ENTRY", RENDER_ENTRY)],
             input=markdown.encode("utf-8"),
             capture_output=True,
-            timeout=RENDER_TIMEOUT_SECONDS,
+            timeout=max(0.001, min(RENDER_TIMEOUT_SECONDS, timeout_seconds)),
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as error:

@@ -31,3 +31,5 @@ For a speed comparison, run `python -m evals.benchmark_screen_models` with both
 model credentials available. The benchmark measures cold local loading separately,
 then repeats fresh-session benign screens at four input sizes and reports warm p50/p90
 latency and attempted chunk counts. Jev timing includes its network request time.
+Failed or fallback samples remain in the report but do not enter the latency percentiles;
+the command exits nonzero if any timed sample fails.

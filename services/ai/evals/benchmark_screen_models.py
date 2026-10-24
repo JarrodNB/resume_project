@@ -36,15 +36,23 @@ def _measure(text: str, model: str) -> dict:
 
     settings = load_settings()
     started = monotonic()
-    with (logfire.suppress_instrumentation(), screening_session(settings.llm_run_timeout_seconds),
-          observe_screen_chunks(attempted)):
-        outcome = screen_user_text(text, model, settings.llm_run_timeout_seconds,
-                                   check_phrases=False)
+    try:
+        with (logfire.suppress_instrumentation(), screening_session(settings.llm_run_timeout_seconds),
+              observe_screen_chunks(attempted)):
+            outcome = screen_user_text(text, model, settings.llm_run_timeout_seconds,
+                                       check_phrases=False)
+    except Exception as error:  # noqa: BLE001 — preserve timings without revealing input
+        return {"seconds": monotonic() - started, "chunks": chunks,
+                "error": type(error).__name__}
     elapsed = monotonic() - started
+    error = None
     if not outcome.allowed:
-        state = "unavailable" if outcome.unchecked or outcome.too_long else "blocked"
-        raise RuntimeError(f"Benchmark input was {state} by {model}")
-    return {"seconds": elapsed, "chunks": chunks}
+        error = "unavailable" if outcome.unchecked or outcome.too_long else "blocked"
+    elif model == MODELS["jev"]:
+        used = {usage.model for usage in outcome.model_usages}
+        if not used or not used <= {"typesafe:jev-1.13.0", "jev-1.13.0"}:
+            error = "fallback_or_unknown_model"
+    return {"seconds": elapsed, "chunks": chunks, "error": error}
 
 
 def _percentile(values: list[float], fraction: float) -> float:
@@ -60,7 +68,9 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
     local_llama._model_pair()
     load_seconds = monotonic() - started
     for model in MODELS.values():
-        _measure(_text_of_length(SIZES[0]), model)
+        warmup = _measure(_text_of_length(SIZES[0]), model)
+        if warmup["error"]:
+            raise RuntimeError(f"Warmup failed for {model}: {warmup['error']}")
 
     samples = {length: {name: [] for name in MODELS} for length in SIZES}
     for repeat in range(repeats):
@@ -74,13 +84,13 @@ def run_benchmark(repeats: int = 10, output_path: Path | None = None) -> dict:
     for length, models in samples.items():
         by_size[str(length)] = {}
         for name, runs in models.items():
-            seconds = [run["seconds"] for run in runs]
+            seconds = [run["seconds"] for run in runs if not run["error"]]
             by_size[str(length)][name] = {
-                "seconds": seconds,
-                "chunks": [run["chunks"] for run in runs],
-                "mean_seconds": mean(seconds),
-                "p50_seconds": median(seconds),
-                "p90_seconds": _percentile(seconds, 0.9),
+                "samples": runs,
+                "successful_samples": len(seconds),
+                "mean_seconds": mean(seconds) if seconds else None,
+                "p50_seconds": median(seconds) if seconds else None,
+                "p90_seconds": _percentile(seconds, 0.9) if seconds else None,
             }
     report = {
         "cold_llama_load_seconds": load_seconds,
@@ -105,7 +115,10 @@ def main() -> None:
     parser.add_argument("--repeats", type=int, default=10)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
-    run_benchmark(args.repeats, args.output)
+    report = run_benchmark(args.repeats, args.output)
+    if any(sample["error"] for size in report["sizes"].values()
+           for model in size.values() for sample in model["samples"]):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

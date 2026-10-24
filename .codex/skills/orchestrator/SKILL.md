@@ -5,6 +5,11 @@ description: Coordinate a Careergrind Kanban item through planning, approved tic
 
 # Orchestrator
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Own the delivery process and its recorded state. `KANBAN.md` is the user-maintained list of overall work; ignored local Markdown files hold plans and implementation tickets. These workflow artifacts belong to the primary checkout and must not be committed or copied into implementation branches. All implementation work should be done in a worktree.
 
 ## Select and resume

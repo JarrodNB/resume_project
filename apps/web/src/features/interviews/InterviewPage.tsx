@@ -17,7 +17,6 @@ import { useAuth } from '@/features/auth/useAuth'
 import { InterviewClarification } from './InterviewClarification'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
-import { interviewsEnabled } from './interviewsEnabled'
 import { InterviewPreparation } from './InterviewPreparation'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
@@ -48,7 +47,7 @@ export function InterviewPage() {
   const { state: navigationState } = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
     <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
-    {!interviewsEnabled() ? <p>Interviews are unavailable in this environment.</p> : id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
+    {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
       <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}

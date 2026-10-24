@@ -5,6 +5,11 @@ description: Deliver a Careergrind Kanban item through requirements discussion, 
 
 # Workflow
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Own delivery and its recorded state. This skill contains its planning, ticketing, TDD, and review instructions; no other skills are required. Write artifacts in plain language. Keep workflow records local to the primary checkout and product changes isolated in worktrees.
 
 ## Select and resume

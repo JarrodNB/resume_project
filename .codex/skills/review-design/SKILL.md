@@ -5,6 +5,11 @@ description: Review a code diff for architecture, maintainability, and meaningfu
 
 # Design Review
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Review the supplied base/head snapshot independently. Read applicable repository instructions and the installed `codebase-design` skill. Judge changes against surrounding code and actual usage, not a preferred rewrite.
 
 ## Blindness and access

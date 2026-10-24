@@ -1,8 +1,8 @@
-# Restricts the synthetic interview surface to explicitly enabled local development.
+# Checks access to user-owned spoken interviews and admission to the real runtime.
 module Interviews
   module DemoAccess
     def self.enabled?
-      Rails.env.development? && ENV["INTERVIEW_DEMO_ENABLED"] == "true"
+      true
     end
 
     def self.real_enabled?
@@ -18,7 +18,7 @@ module Interviews
 
     def self.check!(user)
       raise GraphQL::ExecutionError, "Authentication required" unless user
-      raise GraphQL::ExecutionError, "Interview demo unavailable" unless enabled?
+      raise GraphQL::ExecutionError, "Interviews unavailable in this environment" unless enabled?
     end
   end
 end

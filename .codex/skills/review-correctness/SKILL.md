@@ -5,6 +5,11 @@ description: Review a code diff for correctness, security, and reliability using
 
 # Correctness Review
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Review the supplied base/head snapshot independently. Read repository instructions and trace changed behavior through code, tests, schemas, and established technical documentation. This is not requirements approval.
 
 ## Blindness and access

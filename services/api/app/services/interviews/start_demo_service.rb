@@ -11,7 +11,7 @@ module Interviews
       return failure("Scripted interviews are retired. Start a real spoken interview.") unless @execution_mode == "real"
 
       if !DemoAccess.real_enabled?
-        return failure("Real interview unavailable. Enable the dedicated real runtime and admission in development.")
+        return failure("Interview service is unavailable. Check the interview runtime and admission settings.")
       end
       if !RealRuntimeReadiness.ready?
         return failure("Real interview unavailable. Check the real runtime readiness and required provider configuration.")

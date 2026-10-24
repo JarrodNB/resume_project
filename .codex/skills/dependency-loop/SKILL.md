@@ -5,6 +5,11 @@ description: Upgrade dependencies with verified compatibility in a bounded loop 
 
 # Dependency Loop
 
+Before running commands, follow [execution environment guidance](../cloud-runtime.md).
+In managed cloud, use its native workflow instead of the Docker-specific steps
+below. Docker commands apply only on the local computer.
+
+
 Read and follow the [shared protocol](../super-loop/references/iteration-protocol.md) for count selection, isolation, verification, fresh review, publication, and stopping.
 
 Use [research](../research/SKILL.md) for substantial compatibility or migration investigations that warrant a cited findings file. Routine release-note and version checks stay within this loop. Research supports the selected iteration and does not create another delivery quota.

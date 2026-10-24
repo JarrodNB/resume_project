@@ -1,11 +1,11 @@
 # Interview sessions
 
 Interview sessions own spoken interview dialogue and progress, separate from written
-InterviewPrep. Basic Interview is the first supported type, exposed as a development-only demo.
+InterviewPrep. Basic Interview is the first supported type in the app.
 New sessions prepare a frozen fictional role and 5, 8 or 12 typed main questions from the owner's career
 library, then begin explicitly after review. Each question allows at most three accepted
-answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers are available
-for explicitly enabled local browser QA; production deployment is deferred.
+answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers
+run in the normal local Compose stack when its credentials are configured.
 
 Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
 (Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions
@@ -515,11 +515,9 @@ the isolated [recovery guide](../interview-demo.md). For real browser QA, use th
 [real QA guide](../interview-real-qa.md). Do not enable paid execution in an offline
 test database or create another ledger to renew the verification allowance.
 
-## Public development demo contract
+## Spoken interview access
 
-`INTERVIEW_DEMO_ENABLED=true` enables the surface only when Rails runs in development.
-The default is disabled. `interviewDemoEnabled` lets the authenticated UI discover this gate;
-every query, mutation, and subscription checks it independently. `startInterviewDemo` creates
+The spoken interview surface is available to authenticated users. `startInterviewDemo` creates
 fictional context in real mode (legacy explicit fake requests are rejected);
 `interviewSession(id)` and `interviewSessionUpdated(id)` read through the
 current user's sessions. Initial subscription delivery and reconnect return a fresh snapshot.
@@ -538,11 +536,10 @@ nothing; delivery failure leaves durable state available through query/reconnect
 notifications can describe the same revision, so clients reconcile snapshots by session
 identity and reload when connection delivery is uncertain.
 
-The React entrypoint is `/interviews/demo` (and `/interviews/demo/:id` for reloads).
-Set `VITE_INTERVIEW_DEMO_ENABLED=true` explicitly for the development web server as well
-as `INTERVIEW_DEMO_ENABLED=true` for Rails. Compose passes both settings with false defaults.
-Production builds hide the route content even if the frontend flag is set; Rails independently
-denies public demo operations outside development. Written practice remains at `/interview-prep`.
+The React entrypoint is `/interviews` (and `/interviews/:id` for reloads).
+The normal Compose stack starts the real runtime with credentials from the ignored
+`services/ai/.env` and a shared private service secret from the ignored root `.env`.
+Written practice remains at `/interview-prep`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
 The active room keeps the original main question visible while showing the latest follow-up

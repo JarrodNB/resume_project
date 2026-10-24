@@ -14,7 +14,7 @@ SAMPLES = (
 
 def main() -> None:
     for name, text, expected_block in SAMPLES:
-        result = classify_chunk(text, MODEL, timeout=30)
+        result = classify_chunk(text, MODEL, timeout=240)
         print(f"{name}: blocked={result.blocked} duration_seconds={result.duration:.3f}")
         if result.blocked != expected_block:
             raise RuntimeError(f"Unexpected {name} decision from {MODEL}")

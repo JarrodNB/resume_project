@@ -14,7 +14,7 @@ import os
 import threading
 from collections.abc import Awaitable, Callable, Generator
 from concurrent.futures import FIRST_COMPLETED, Future, wait
-from contextlib import contextmanager, nullcontext, suppress
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 from time import monotonic
 from typing import Any, NamedTuple
@@ -39,6 +39,7 @@ from worker.settings import load_settings
 
 logger = logging.getLogger(__name__)
 _local_inference_lock = threading.Lock()
+_local_chunk_slots = threading.BoundedSemaphore(4)
 _chunk_observer: ContextVar[Callable[[], None] | None] = ContextVar("screen_chunk_observer", default=None)
 MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
 
@@ -312,7 +313,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
             result = ScreenOutcome(True)
             chunks = enumerate(local_llama.iter_chunks(text))
             pending = {}
-            started = []
+            decision_returned = threading.Event()
 
             def trace_in_flight():
                 # A known block can return before other prefetched calls finish. Record
@@ -333,6 +334,8 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                     remaining = deadline - monotonic()
                     if remaining <= 0:
                         raise TimeoutError("Local screening deadline exceeded")
+                    if not _local_chunk_slots.acquire(timeout=remaining):
+                        raise TimeoutError("Local screening capacity unavailable")
                     _record_chunk_attempt()
                     completed = Future()
 
@@ -357,10 +360,18 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                                     pass
                             context.run(trace_error)
                             completed.set_exception(error)
+                        finally:
+                            _local_chunk_slots.release()
+                            if decision_returned.is_set() and os.getenv("LOGFIRE_TOKEN"):
+                                from worker.tracing import flush_tracing
+                                flush_tracing()
 
-                    threading.Thread(target=classify, name="local-prompt-chunk", daemon=True).start()
+                    try:
+                        threading.Thread(target=classify, name="local-prompt-chunk", daemon=True).start()
+                    except RuntimeError:
+                        _local_chunk_slots.release()
+                        raise
                     pending[completed] = (index, len(chunk), token_count)
-                    started.append(completed)
 
             try:
                 fill_window()
@@ -382,6 +393,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                     if not result.allowed:
                         if report_decision:
                             trace_in_flight()
+                            decision_returned.set()
                             report_decision(result)
                         break
                     if errors:
@@ -393,17 +405,12 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                 result = ScreenOutcome(False, unchecked=True)
                 if report_decision:
                     trace_in_flight()
+                    decision_returned.set()
                     report_decision(result)
                 with logfire.span("local_prompt_screen_error", model=model,
                                   error_category=type(error).__name__):
                     pass
                 logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
-            finally:
-                # The caller can time out independently; keep the global model lock held
-                # until every started chunk finishes, even after an early block.
-                for completed in started:
-                    with suppress(Exception):
-                        completed.result()
         except Exception as error:  # noqa: BLE001 — unavailable local inference fails closed
             with logfire.span("local_prompt_screen_error", model=model,
                               error_category=type(error).__name__):

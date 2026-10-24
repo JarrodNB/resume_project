@@ -20,7 +20,8 @@ before the input can enter a generative prompt. Traces contain the model name, c
 position, sizes, decision, elapsed time, and error category, but no text or
 token. Local inference does not create billed provider usage.
 Within one input, up to four chunks classify concurrently. A block stops further
-chunk scheduling; already started chunks finish before the model slot is released.
+chunk scheduling. Global chunk slots limit active local inferences to four, even
+when an earlier input returns while a prefetched chunk is still running.
 If a block or outage returns while a prefetched chunk is still running, the task
 trace records that chunk as in flight before the caller continues.
 

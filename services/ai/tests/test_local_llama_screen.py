@@ -274,9 +274,9 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
     monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
         spans.append((name, attrs)) or nullcontext()
     ))
-    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
-        ("slow", 4), ("attack", 6),
-    ]))
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter(
+        [("slow", 4), ("attack", 6)] if text == "synthetic" else [("ordinary", 8)]
+    ))
 
     def classify(chunk, model, timeout):
         if chunk == "slow":
@@ -293,23 +293,42 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
         assert monotonic() - started < 0.15
         assert any(name == "local_prompt_screen_in_flight" and attrs["chunk_index"] == 0
                    for name, attrs in spans)
+        assert screen_user_text("next input", local_llama.MODEL, 0.5,
+                                check_phrases=False).allowed
     finally:
         release.set()
 
 
 def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
+    release = threading.Event()
+    finished = threading.Event()
+    flushed = threading.Event()
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([
         ("attack", 6), ("ordinary", 8),
     ]))
-    monkeypatch.setattr(local_llama, "classify_chunk", lambda chunk, *_: SimpleNamespace(
-        blocked=chunk == "attack", tokens=len(chunk), duration=0.01,
-    ))
+
+    def classify(chunk, *_):
+        if chunk == "ordinary":
+            release.wait(1)
+            finished.set()
+        return SimpleNamespace(blocked=chunk == "attack", tokens=len(chunk), duration=0.01)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", classify)
+    monkeypatch.setenv("LOGFIRE_TOKEN", "offline-placeholder")
+    monkeypatch.setattr("worker.tracing.flush_tracing", flushed.set)
     spans = []
     monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
         spans.append((name, attrs)) or nullcontext()
     ))
-    result = screen_user_text("synthetic", local_llama.MODEL, 1, check_phrases=False)
-    assert not result.allowed and not result.unchecked
+    try:
+        result = screen_user_text("synthetic", local_llama.MODEL, 1, check_phrases=False)
+        assert not result.allowed and not result.unchecked
+        assert any(name == "local_prompt_screen_in_flight" and attrs["chunk_index"] == 1
+                   for name, attrs in spans)
+    finally:
+        release.set()
+    assert finished.wait(1)
+    assert flushed.wait(1)
     assert {attrs["chunk_index"] for name, attrs in spans if name == "local_prompt_screen"} == {0, 1}
 
 

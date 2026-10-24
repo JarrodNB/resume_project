@@ -21,6 +21,7 @@ from typesafe_sdk import AsyncTypeSafeClient, RetryPolicy
 from conversation_logging import observe_request
 from interviews.audio_providers import ProviderError
 from interviews.provider_calls import ProviderCalls
+from interviews.provider_transport import provider_transport
 from worker.model_prices import build_model_usage
 
 
@@ -75,11 +76,11 @@ class InterviewModels:
         self._stack = AsyncExitStack()
         self.openai = AsyncOpenAI(api_key=openai_key, max_retries=0, base_url="https://api.openai.com/v1",
                                  http_client=httpx.AsyncClient(trust_env=False,
-                                     transport=openai_transport or httpx.AsyncHTTPTransport(retries=0), timeout=30))
+                                     transport=openai_transport or provider_transport(httpx.AsyncHTTPTransport), timeout=30))
         self.typesafe = AsyncTypeSafeClient(api_key=typesafe_key, retry=RetryPolicy(max_retries=0),
                                            base_url="https://api.typesafe.ai", timeout=3,
                                            http_client=httpx2.AsyncClient(trust_env=False,
-                                               transport=typesafe_transport or httpx2.AsyncHTTPTransport(retries=0), timeout=3))
+                                               transport=typesafe_transport or provider_transport(httpx2.AsyncHTTPTransport), timeout=3))
         self.models = {
             "gpt-6-luna": OpenAIResponsesModel("gpt-6-luna", provider=OpenAIProvider(openai_client=self.openai)),
             "gpt-5-nano": OpenAIResponsesModel("gpt-5-nano", provider=OpenAIProvider(openai_client=self.openai)),

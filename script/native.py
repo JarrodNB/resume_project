@@ -76,6 +76,10 @@ def config():
 
 def app_env(service):
     env = environment()
+    # This stack uses only local Moto endpoints and dummy AWS credentials.
+    # An inherited cloud profile can fail before boto3 reads those credentials.
+    for key in ("AWS_PROFILE", "AWS_DEFAULT_PROFILE"):
+        env.pop(key, None)
     # Never let inherited Rails URLs redirect native db:prepare to another database.
     for key in ("DATABASE_URL", "PRIMARY_DATABASE_URL", "CABLE_DATABASE_URL"):
         env.pop(key, None)
@@ -102,6 +106,8 @@ def app_env(service):
         "INTERVIEW_SERVICE_SECRET": cfg["interview_secret"],
         "INTERVIEW_RAILS_ORIGIN": "http://127.0.0.1:3000",
         "INTERVIEW_REAL_RUNTIME_ENABLED": "true",
+        "INTERVIEW_REAL_ADMISSION_ENABLED": "true",
+        "INTERVIEW_REAL_RUNTIME_ORIGIN": "http://127.0.0.1:8000",
         "INTERVIEW_ENVIRONMENT": "development",
         "INTERVIEW_BROWSER_ORIGINS": web_origin,
         "INTERVIEW_STORAGE_ORIGINS": "http://127.0.0.1:9090",
@@ -237,6 +243,9 @@ def start():
     import socket
     for port in (int(PORT), 9090, 3000, 8000, 5173, 5174):
         with socket.socket() as sock:
+            # Closed connections can remain in TIME_WAIT after a clean stop.
+            # Reuse those addresses while still refusing active listeners.
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))
     env = app_env("api")
     (STATE / "logs").mkdir(exist_ok=True)

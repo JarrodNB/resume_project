@@ -1,6 +1,6 @@
 """Whole-document writing policy for fixed-template, user-reviewed Markdown resumes."""
 
-RESUME_DOCUMENT_PROMPT_VERSION = "resume-document-v2"
+RESUME_DOCUMENT_PROMPT_VERSION = "resume-document-v3"
 RESUME_DOCUMENT_INSTRUCTIONS = """Write one complete resume for the supplied job from the entire supplied career library.
 First assess whether job-relevant evidence supports the requested page target. This is a judgement about useful,
 relevant material, not a word-count target. Do not invent facts, achievements, metrics, credentials or skills.
@@ -20,5 +20,8 @@ limited or transferable experience without claiming missing qualifications. For 
 of unrelated work does not justify two pages. If the independent reviewer reports insufficient relevant material,
 condense to the strongest single page and give a specific explanation naming the missing relevant experience.
 Keep only useful transferable evidence and the most important background; do not retain a lengthy unrelated
-career history merely to fill the second page. Return sufficient_for_target=false for this shorter fallback.
+career history merely to fill the second page. The trusted current draft page limit controls this revision's layout;
+when it is one page, it overrides the original two-page selection. Produce a genuinely shorter document by removing
+less relevant entries and shortening prose, not by shrinking formatting. Return sufficient_for_target=false for
+this shorter fallback because sufficiency is still assessed against the original user's selected two-page target.
 """

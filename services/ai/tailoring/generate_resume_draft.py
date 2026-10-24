@@ -98,12 +98,15 @@ async def generate_resume_draft(
                             "The resume context could not pass the input safety check."
                         )
 
+            draft_page_limit = data.target_pages
+
             def build_prompt(payloads: list[str], instruction: str = "") -> str:
                 """Bind original source approvals plus independently screened generated payloads."""
 
                 def render(texts):
                     parts = [
-                        f"Requested pages: {data.target_pages}",
+                        f"Requested pages: {data.target_pages} (original user selection)",
+                        f"Current draft page limit: {draft_page_limit}",
                         "Complete career library:",
                         texts[0],
                         "Job:",
@@ -183,9 +186,13 @@ async def generate_resume_draft(
                 if within_pages and review.ready and supported_length:
                     break
                 if data.target_pages == 2 and not review.sufficient_for_target:
+                    draft_page_limit = 1
                     revision_instruction = (
                         "The independent review says the job-relevant evidence cannot support two useful pages. "
+                        "The current draft page limit is now ONE PAGE; this overrides the original two-page length for the fallback draft. "
                         "Return the strongest shorter single-page resume with a specific insufficiency explanation. "
+                        "Keep only the most useful transferable evidence and a compact account of background. "
+                        "Omit older unrelated roles and projects rather than preserving every entry. "
                         "Remove unrelated detail and filler; do not invent qualifications. "
                         "Use the previous draft, measured layout and editorial review below:"
                     )

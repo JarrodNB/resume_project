@@ -298,6 +298,10 @@ def test_two_page_ready_but_insufficient_review_revises_to_supported_shorter(wor
     monkeypatch.setattr("tailoring.generate_resume_draft.review_resume_document", review)
     result = run_workflow(deps, target=2)
     assert result.drafts == 2
+    written_prompts = [call[1] for call in calls if call[0] == "write"]
+    assert "Current draft page limit: 2" in written_prompts[0]
+    assert "Current draft page limit: 1" in written_prompts[1]
+    assert "Requested pages: 2" in written_prompts[1]
     assert result.measurements["page_count"] == 1
     assert result.warnings == [
         "No clinical experience or nursing licensure supports two relevant pages."

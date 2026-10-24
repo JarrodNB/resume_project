@@ -1,18 +1,46 @@
-"""Render one screened tailoring section without choosing or approving sources."""
+"""Render one screened tailoring section from a cohesive input snapshot."""
 
-from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import date
+
+from tailoring.section_catalog import SECTION_TITLES
+
+_WRITE_ANYWAY = (
+    "The user asked you to write this section anyway. Use the closest sources and set "
+    "nothing_fits to false when any source can be used without adding a fact."
+)
+_SECTION_NOTE = {
+    "education": "Every source labeled ED is this person's education. Include each one.",
+    "certifications": "Every source labeled C is a certification. Include the relevant credentials; do not claim an expired credential is current.",
+    "projects": "Every source labeled P is a project. Include each one that belongs on this resume.",
+    "skills": "Every source labeled S is a skill. Include the ones this job needs.",
+}
 
 
-def format_tailoring_section_input(
-    heading_lines: Sequence[str], approved_values: Sequence[str],
-    labels: Sequence[str], has_summary: bool,
-) -> str:
-    """Keep source labels aligned with the exact values approved by screening."""
-    offset = 1
-    result = [*heading_lines, approved_values[0]]
-    if has_summary:
-        result.extend(["", "## How the library matches this job", approved_values[1]])
-        offset += 1
-    result.extend(["", "# Sources"])
-    result.extend(f"[{label}] {value}" for label, value in zip(labels, approved_values[offset:], strict=True))
-    return "\n".join(result)
+@dataclass(frozen=True)
+class TailoringSectionInput:
+    section_type: str
+    today: date
+    expiry_statuses: tuple[str, ...]
+    write_anyway: bool
+    job_context: str
+    match_summary: str | None
+    sources: tuple[tuple[str, str], ...]
+
+
+def format_tailoring_section_input(section: TailoringSectionInput) -> str:
+    """Preserve each approved source's label, wording, and order."""
+    lines = [
+        f"Today's date: {section.today.isoformat()}",
+        "Credential expiry status: " + "; ".join(section.expiry_statuses) if section.expiry_statuses else "",
+        f"# Write the {SECTION_TITLES[section.section_type]} section",
+        _SECTION_NOTE.get(section.section_type, ""),
+        _WRITE_ANYWAY if section.write_anyway else "",
+        "",
+        section.job_context,
+    ]
+    if section.match_summary:
+        lines.extend(["", "## How the library matches this job", section.match_summary])
+    lines.extend(["", "# Sources"])
+    lines.extend(f"[{label}] {value}" for label, value in section.sources)
+    return "\n".join(lines)

@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from datetime import date
 
 import text_limits
-from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt, build_gap_analysis_prompt
+from gap_analysis.build_gap_analysis_prompt import (
+    GapAnalysisPrompt,
+    build_gap_analysis_prompt,
+    gap_job_input,
+    gap_job_screening_text,
+)
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobToAnalyze
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
@@ -37,15 +42,7 @@ def prepare_gap_analysis(
         context.career_library.model_dump_json(exclude_none=True),
     )
     usage: list[ModelUsage] = []
-    job = context.job
-    job_screening_text = "\n\n".join(
-        section for section in (
-            f"Job title:\n{job.title}",
-            f"Company:\n{job.company}" if job.company else "",
-            "Requirements:\n" + "\n".join(job.requirements) if job.requirements else "",
-            "Nice to have:\n" + "\n".join(job.nice_to_haves) if job.nice_to_haves else "",
-        ) if section
-    )
+    job_screening_text = gap_job_screening_text(gap_job_input(context.job))
 
     def render(values):
         return build_gap_analysis_prompt(GapAnalysisContext(

@@ -9,7 +9,7 @@ screened by callers. See `README.md` for the boundary and existing domain builde
 
 - `interview.py` — complete question and feedback inputs; shared career projection stays
   in `interview_evidence.py`, including the delimiter test seam.
-- `tailoring.py` — final section text from approved values and stable source labels.
+- `tailoring.py` — cohesive section input and final text from approved values and stable source labels.
 - `safety.py` — quoted user text for the outage fallback classifier.
 - `judge.py` — readable rubric, case input, and output for the interview eval judge.
 

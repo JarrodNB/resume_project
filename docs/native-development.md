@@ -7,49 +7,36 @@ Ubuntu also needs a configured PostgreSQL package repository providing PostgreSQ
 
 ## Setup
 
-Run from the repository root. Use a normal, non-root account for installation and
-services. System packages require root once:
+On a fresh Codex cloud container, run this as the normal workspace user. It
+downloads build prerequisites and compiles PostgreSQL 17, pgvector, and Ruby
+under the ignored `.native/` directory, then installs the application:
 
 ```bash
-# Run this step as root, or ask your environment administrator to install the packages.
-python3 script/native.py system-deps
+#!/usr/bin/env bash
+set -euo pipefail
+cd /workspace/resume_project
+bash script/install-native-cloud.sh
+```
 
-# Run these steps as your normal account.
+The installer is safe to rerun and requires no root access. It targets Debian
+13 (trixie), needs at least 5 GiB of free disk space during compilation, and downloads from
+`deb.debian.org`, `ftp.postgresql.org`, `github.com`, and the application package
+registries. Build logs are in `.native/logs/`. A fresh container has no `.native`
+directory, so running `python3 script/native.py install` alone is insufficient.
+
+After installation, use:
+
+```bash
 python3 script/native.py doctor
 python3 -m unittest discover -s script -p test_native.py -v
-python3 script/native.py install
 python3 script/native.py start
 python3 script/native.py check
 python3 script/native.py stop
 ```
 
-`system-deps` uses apt to install a compiler, Ruby build libraries, PostgreSQL 17,
-pgvector, libpq, and FFmpeg. Package installation can start the distribution's
-PostgreSQL service; the app uses its own cluster on port **55432**. No sudo helper
-or privilege escalation is built into the script. If your managed environment
-does not provide root access, you can install PostgreSQL 17 and pgvector under
-`.native/pgsql` after providing the compiler, Bison, Flex, and build libraries.
-The script searches that local prefix before the system PostgreSQL directory.
-For example, from the repository root:
-
-```bash
-mkdir -p .native/sources .native/build-pg
-curl -fsSL https://ftp.postgresql.org/pub/source/v17.6/postgresql-17.6.tar.bz2 \
-  -o .native/sources/postgresql-17.6.tar.bz2
-tar -xf .native/sources/postgresql-17.6.tar.bz2 -C .native/sources
-cd .native/build-pg
-../sources/postgresql-17.6/configure --prefix="$(pwd)/../pgsql" --without-icu
-make -j4 && make install
-cd ../..
-git clone --depth 1 --branch v0.8.1 https://github.com/pgvector/pgvector.git .native/sources/pgvector
-make -C .native/sources/pgvector PG_CONFIG="$(pwd)/.native/pgsql/bin/pg_config" -j4
-make -C .native/sources/pgvector PG_CONFIG="$(pwd)/.native/pgsql/bin/pg_config" install
-```
-
-If optional PostgreSQL headers are absent, configure with `--without-readline
---without-zlib` as well. `doctor` is read-only and lists missing programs. Ruby
-still needs its build libraries; a local PostgreSQL build alone does not satisfy
-all prerequisites.
+`system-deps` remains available for hosts where root can install system
+packages. The app's own PostgreSQL cluster runs on port **55432**. `doctor` is
+read-only and lists missing programs.
 
 Install **Node 22 or newer**, npm, **uv**, and Python 3.9 or newer before running
 the script. The cloud runtime normally provides these. `install` builds Ruby

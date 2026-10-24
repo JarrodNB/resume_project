@@ -59,6 +59,14 @@ class WorkerSettings(BaseSettings):
     # Keep both sizes available for repeat evaluation; overlap is 300 characters.
     user_text_screen_chunk_size: int = 4000
 
+    @field_validator("user_text_screen_model")
+    @classmethod
+    def screen_model_candidate(cls, value: str) -> str:
+        """Keep production selection limited to the approved Jev and local Llama models."""
+        if value not in ("typesafe:jev-1.13.0", "meta-llama/Llama-Prompt-Guard-2-22M"):
+            raise ValueError("Unknown user text screening model")
+        return value
+
     @field_validator("user_text_screen_chunk_size")
     @classmethod
     def screen_chunk_candidate(cls, value: int) -> int:

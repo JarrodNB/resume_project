@@ -12,6 +12,11 @@ answers strict booleans. Screening owns recovery and returns a small decision in
   Its caller reconstructs history from authenticated Rails accepted public dialogue, never
   caller-controlled private model history. It does not change `screen_prompt` or queued tasks.
 
+- `local_llama.py` — optional local Llama Prompt Guard 2 22M prompt-injection classifier.
+  Exact overlapping substrings are checked against the tokenizer's 512-token limit before
+  inference. Model loading and inference errors remain unavailable checks. It does not
+  classify harmful requests or report provider token charges.
+
 - `prompt_guardrail.py` — async `screen_prompt` policy for official Harness `InputGuardrail`,
   registered through `capabilities` on every generative agent. Enforces exact source coverage
   and screens unknown direct input and user/tool history, under the prompt cap. Blocks fail

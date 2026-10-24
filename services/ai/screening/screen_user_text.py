@@ -1,9 +1,10 @@
-"""Decide whether protected input can enter generation, hiding screening recovery.
+"""Decide whether protected input can enter generation with Jev or local Llama.
 
 JEV gets at most three seconds per chunk. An attempted failure uses a boolean fallback
 within the remaining source/task deadline. Missing credentials and unsuccessful screening
 stay unavailable; limits and external cancellation propagate. Completed model usage is
-kept separately per provider, including chunks before a later block or outage.
+kept separately per provider, including chunks before a later block or outage. Local
+Llama inference detects prompt injection only and has no billed provider usage.
 """
 
 import asyncio
@@ -14,12 +15,14 @@ from contextlib import nullcontext
 from time import monotonic
 from typing import Any, NamedTuple
 
+import logfire
 from pydantic_ai.exceptions import UsageLimitExceeded
 from pydantic_ai.usage import RunUsage
 
 from agents.user_text_fallback_agent import screen_fallback_message, screen_fallback_message_async
 from agents.user_text_screen_agent import JEV_REQUEST_TIMEOUT_SECONDS, screen_user_message
 from conversation_logging import fallback_execution
+from screening import local_llama
 from screening.guardrail_usage import record_guardrail_usage
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.session import current_session
@@ -61,13 +64,15 @@ def screen_user_text(
     text: str, model: str, timeout_seconds: float, *, check_phrases: bool = True,
     max_characters: int = MAX_SCREENED_TEXT,
 ) -> ScreenOutcome:
-    """Return a decision after JEV and, on attempted failure, fallback screening.
+    """Return a decision from the selected classifier, failing closed on outages.
 
     Unavailable screening returns unchecked; request, tool-call, or token caps propagate.
     `check_phrases` is for a short note. A whole resume skips the phrase prefilter.
     Trusted import code may adjust `max_characters` after validating original text:
     privacy placeholders expand the protected text, but every character is still screened.
     """
+    if model == local_llama.MODEL:
+        return _local_screen(text, model, timeout_seconds, check_phrases, max_characters)
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters)
     try:
         chunk, timeout, fallback = next(screening)
@@ -122,6 +127,10 @@ async def _drive_async(
     credentials_available, classify_fallback,
 ):
     """Drive the common policy after acquiring execution-local source ownership."""
+    if model == local_llama.MODEL:
+        return await asyncio.to_thread(
+            _local_screen, text, model, timeout_seconds, check_phrases, max_characters,
+        )
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
                              credentials_available=credentials_available)
     try:
@@ -147,7 +156,55 @@ async def _drive_async(
 
 
 def _screen_key(text, model, check_phrases, max_characters):
-    return (mask_outbound(text), model, check_phrases, load_settings().user_text_screen_chunk_size, max_characters)
+    policy = ((local_llama.TARGET_CHARACTERS, local_llama.OVERLAP, local_llama.MAX_TOKENS)
+              if model == local_llama.MODEL else (load_settings().user_text_screen_chunk_size, 300))
+    return (mask_outbound(text), model, check_phrases, policy, max_characters)
+
+
+def _local_screen(text, model, timeout_seconds, check_phrases, max_characters):
+    """Apply the same fail-closed contract to local inference and cache exact decisions."""
+    text = mask_outbound(text)
+    session = current_session()
+    key = _screen_key(text, model, check_phrases, max_characters)
+    if session is not None and key in session.decisions:
+        return session.decisions[key]
+    if not text.strip():
+        result = ScreenOutcome(True)
+    elif len(text) > max_characters:
+        result = ScreenOutcome(False, too_long=True)
+    elif check_phrases and has_obvious_instruction_override(text):
+        result = ScreenOutcome(False)
+    else:
+        deadline = monotonic() + timeout_seconds
+        if session is not None:
+            deadline = min(deadline, session.deadline)
+        try:
+            chunks = list(local_llama.iter_chunks(text))
+            result = ScreenOutcome(True)
+            for index, (chunk, token_count) in enumerate(chunks):
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Local screening deadline exceeded")
+                run = local_llama.classify_chunk(chunk, model, remaining)
+                with logfire.span("local_prompt_screen", model=model, chunk_index=index,
+                                  chunk_count=len(chunks),
+                                  character_count=len(chunk), token_count=token_count,
+                                  blocked=run.blocked, duration_seconds=run.duration):
+                    pass
+                if run.blocked:
+                    result = ScreenOutcome(False)
+                    break
+        except Exception as error:  # noqa: BLE001 — unavailable local inference fails closed
+            with logfire.span("local_prompt_screen_error", model=model,
+                              error_category=type(error).__name__):
+                pass
+            logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
+            result = ScreenOutcome(False, unchecked=True)
+    if session is not None:
+        session.decisions[key] = result
+        if result.allowed:
+            session.allowed_sources.add(text)
+    return result
 
 
 def _screen_pass(

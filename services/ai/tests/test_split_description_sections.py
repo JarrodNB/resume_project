@@ -70,6 +70,21 @@ def test_keeps_inline_formatting_text_verbatim() -> None:
     assert sections.requirements == ["Use PyTorch, daily work"]
 
 
+@pytest.mark.parametrize("hidden", [
+    "<!-- internal tracking marker -->",
+    "<script>internalTracking()</script>",
+    "<style>.tracking { color: red; }</style>",
+])
+def test_bullets_exclude_nonrendered_html(hidden: str) -> None:
+    """Hidden HTML is not part of the requirement visible to the user."""
+    sections = split_description_sections(
+        f"<h3>Requirements</h3><ul><li>Use {hidden}<b>Python</b>, daily.</li></ul>"
+    )
+
+    assert sections.requirements == ["Use Python, daily."]
+    assert sections.all_bullets == ["Use Python, daily."]
+
+
 def test_long_bold_paragraph_is_not_a_heading() -> None:
     """Prose that happens to be bold doesn't start a section."""
     long_bold = (
@@ -98,6 +113,17 @@ def test_description_text_keeps_paragraphs_and_bullets() -> None:
     )
 
     assert text == "About\n\nWe build payments.\nRemote friendly.\n\n- Python\n- SQL\n\nApply now."
+
+
+@pytest.mark.parametrize("tag", ["p", "div"])
+def test_description_bullet_blocks_keep_word_boundaries(tag: str) -> None:
+    """Paragraphs in one bullet stay readable without merging adjacent words."""
+    text = html_to_description_text(
+        f"<ul><li><{tag}>Build <b>APIs</b>, daily.</{tag}>"
+        f"<{tag}>Maintain services.</{tag}></li><li>Python</li></ul>"
+    )
+
+    assert text == "- Build APIs, daily. Maintain services.\n- Python"
 
 
 @pytest.mark.parametrize(

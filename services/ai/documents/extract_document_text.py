@@ -1,20 +1,24 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
-Keep DOCX paragraphs and tables in document order, retaining list markers and
+Keep DOCX paragraphs and distinct table cells in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
 PDF annotation arrays may be indirect references or explicitly absent via null.
+Explicitly removed DOCX numbering does not create a list marker.
+Known PDF and DOCX container read errors become the caller's unreadable-file error.
 """
 
 from io import BytesIO
 from math import ceil
 from typing import Any
 from urllib.parse import urlparse
+from zipfile import BadZipFile
 
 from docx import Document
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
 from pypdf import PdfReader
+from pypdf.errors import PdfReadError
 from pypdf.generic import NullObject
 
 from text_limits import MAX_PDF_PAGES, MAX_RESUME_TEXT
@@ -24,7 +28,7 @@ DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessin
 
 
 class UnsupportedDocumentError(Exception):
-    """The file can't be turned into text (wrong type, or a scanned PDF with no text layer)."""
+    """The file has an unsupported type, unreadable container, or no text layer."""
 
 
 class DocumentTooLongError(Exception):
@@ -34,12 +38,15 @@ class DocumentTooLongError(Exception):
 def extract_document_text(file_bytes: bytes, content_type: str) -> str:
     """Returns the file's text. Raises UnsupportedDocumentError if there is none, and
     DocumentTooLongError when the page count or the text is over the import cap."""
-    if content_type == PDF_CONTENT_TYPE:
-        text = _extract_pdf_text(file_bytes)
-    elif content_type == DOCX_CONTENT_TYPE:
-        text = _extract_docx_text(file_bytes)
-    else:
-        raise UnsupportedDocumentError(f"Unsupported file type: {content_type}")
+    try:
+        if content_type == PDF_CONTENT_TYPE:
+            text = _extract_pdf_text(file_bytes)
+        elif content_type == DOCX_CONTENT_TYPE:
+            text = _extract_docx_text(file_bytes)
+        else:
+            raise UnsupportedDocumentError(f"Unsupported file type: {content_type}")
+    except (PdfReadError, BadZipFile):
+        raise UnsupportedDocumentError("The file's document container could not be read") from None
 
     if len(text) > MAX_RESUME_TEXT:
         raise DocumentTooLongError("The file's text is over the import cap")
@@ -163,8 +170,13 @@ def _docx_block_lines(container: Any) -> list[str]:
         if isinstance(block, Paragraph):
             lines.append(_docx_paragraph_text(block))
         else:
+            seen_cells = set()
             for row in block.rows:
                 for cell in row.cells:
+                    # Merged grid positions can refer to the same underlying cell.
+                    if cell._tc in seen_cells:
+                        continue
+                    seen_cells.add(cell._tc)
                     lines.extend(_docx_block_lines(cell))
     return lines
 
@@ -172,12 +184,9 @@ def _docx_block_lines(container: Any) -> list[str]:
 def _docx_paragraph_text(paragraph: Any) -> str:
     """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
     style_name = paragraph.style.name.casefold()
-    if style_name.startswith("list bullet"):
-        text = f"• {paragraph.text}"
-    elif style_name.startswith("list number"):
-        text = f"1. {paragraph.text}"
-    elif _docx_paragraph_is_numbered(paragraph):
-        text = f"• {paragraph.text}"
+    if _docx_paragraph_is_numbered(paragraph):
+        marker = "1." if style_name.startswith("list number") else "•"
+        text = f"{marker} {paragraph.text}"
     else:
         text = paragraph.text
     markers = [
@@ -189,16 +198,18 @@ def _docx_paragraph_text(paragraph: Any) -> str:
 
 
 def _docx_paragraph_is_numbered(paragraph: Any) -> bool:
-    """Find list numbering stored on the paragraph or inherited from a paragraph style."""
-    paragraph_properties = paragraph._p.pPr
-    if paragraph_properties is not None and paragraph_properties.find(qn("w:numPr")) is not None:
-        return True
+    """Resolve numbering overrides before styles; numId zero explicitly removes a list."""
+    properties = [paragraph._p.pPr]
     style = paragraph.style
     while style is not None:
-        style_properties = style._element.pPr
-        if style_properties is not None and style_properties.find(qn("w:numPr")) is not None:
-            return True
+        properties.append(style._element.pPr)
         style = style.base_style
+    for paragraph_properties in properties:
+        if paragraph_properties is None:
+            continue
+        number_properties = paragraph_properties.find(qn("w:numPr"))
+        if number_properties is not None and number_properties.numId is not None:
+            return number_properties.numId.val != 0
     return False
 
 

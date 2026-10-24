@@ -213,3 +213,48 @@ def test_pdf_malformed_link_does_not_abort_extraction(uri: str) -> None:
     text = extract_document_text(buffer.getvalue(), "application/pdf")
 
     assert f'url="{uri}"' in text
+
+
+def test_pdf_indirect_annotation_array_preserves_links() -> None:
+    """The PDF annotation array may live in a separate indirect object."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import NameObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=300, height=300)
+    writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url="https://github.com/example"))
+    page[NameObject("/Annots")] = writer._add_object(page["/Annots"])
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert '[hyperlink label="GitHub" url="https://github.com/example"]' in text
+
+
+@pytest.mark.parametrize("indirect", [False, True])
+def test_pdf_null_annotations_are_treated_as_absent(indirect: bool) -> None:
+    """A null optional entry is equivalent to an absent entry in a PDF dictionary."""
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject, NullObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=300, height=300)
+    font = DictionaryObject({
+        NameObject("/Type"): NameObject("/Font"),
+        NameObject("/Subtype"): NameObject("/Type1"),
+        NameObject("/BaseFont"): NameObject("/Helvetica"),
+    })
+    page[NameObject("/Resources")] = DictionaryObject({
+        NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
+    })
+    stream = DecodedStreamObject()
+    stream.set_data(b"BT /F1 12 Tf 10 20 Td (Software Engineer) Tj ET")
+    page[NameObject("/Contents")] = writer._add_object(stream)
+    null = NullObject()
+    page[NameObject("/Annots")] = writer._add_object(null) if indirect else null
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    assert extract_document_text(buffer.getvalue(), "application/pdf") == "Software Engineer"

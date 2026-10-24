@@ -311,7 +311,7 @@ def test_source_cannot_close_its_own_evidence_block(task_dependencies, monkeypat
 
 def test_question_boundary_retries_marker_found_in_source(monkeypatch):
     """Even a generated marker already present in evidence cannot become its closing line."""
-    from worker import interview_evidence
+    from model_inputs import interview_evidence
 
     candidates = iter(["deadbeefcafe", "0123456789ab"])
     monkeypatch.setattr(interview_evidence, "sha256",

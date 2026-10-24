@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
+from model_inputs.interview import format_feedback_prompt, format_interview_question_prompt
 from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
@@ -20,8 +21,6 @@ from schemas.interview_questions import (
     InterviewSetType,
     normalize_question,
 )
-from worker.interview_feedback_handler import format_feedback_prompt
-from worker.interview_questions_handler import format_interview_question_prompt
 
 
 class QuestionEvalInput(BaseModel):

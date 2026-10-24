@@ -8,8 +8,7 @@ screened by callers. See `README.md` for the boundary and existing domain builde
 ## Contents
 
 - `interview.py` — complete question and feedback inputs; shared career projection stays
-  in `worker/interview_evidence.py` so exact quote validation and its delimiter test seam
-  remain available.
+  in `interview_evidence.py`, including the delimiter test seam.
 - `tailoring.py` — final section text from approved values and stable source labels.
 - `safety.py` — quoted user text for the outage fallback classifier.
 - `judge.py` — readable rubric, case input, and output for the interview eval judge.

@@ -1,7 +1,10 @@
 """Complete interview model inputs from screened career evidence."""
 
+from model_inputs.interview_evidence import (
+    format_interview_career_evidence,
+    interview_data_boundary,
+)
 from schemas.gap_analysis_context import CareerLibrary
-from worker.interview_evidence import format_interview_career_evidence, interview_data_boundary
 
 
 def format_interview_question_prompt(library: CareerLibrary, excluded, count: int, set_type: str) -> str:

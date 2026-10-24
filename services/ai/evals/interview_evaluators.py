@@ -50,8 +50,8 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    text = format_interview_question_prompt(CareerLibrary(summary=case.library),
-                                            case.excluded, case.count, case.set_type)
+    library = CareerLibrary(summary=case.library)
+    text = format_interview_question_prompt(library, case.excluded, case.count, case.set_type)
     return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded), case.set_type)
 
 

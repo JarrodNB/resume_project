@@ -126,6 +126,16 @@ def test_feedback_boundary_stays_short_with_long_hyphen_input():
     assert evidence in text
 
 
+def test_same_feedback_sources_produce_same_prompt():
+    """The exact same case yields a stable model input across eval runs."""
+    from worker.interview_feedback_handler import format_feedback_prompt
+
+    library = CareerLibrary(summary="Python")
+    first = format_feedback_prompt("general", "Describe Python", "I used Python", library)
+    second = format_feedback_prompt("general", "Describe Python", "I used Python", library)
+    assert first == second
+
+
 def test_feedback_prompt_dates_identify_current_role_and_project():
     """Coaching can distinguish ongoing work from earlier work in readable evidence."""
     from worker.interview_feedback_handler import format_feedback_prompt

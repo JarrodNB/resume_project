@@ -5,7 +5,7 @@ Index:
     - _library_evidence_text: original library strings for excerpt validation
     - handle_interview_questions_task: screens source inputs once, then generates questions
 """
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from pydantic_ai import capture_run_messages
@@ -20,7 +20,7 @@ from schemas.interview_questions import InterviewQuestionContext, InterviewSetTy
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.interview_evidence import format_interview_career_evidence
+from worker.interview_evidence import format_interview_career_evidence, interview_data_boundary
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -129,9 +129,7 @@ def format_interview_question_prompt(library: CareerLibrary, excluded, count: in
     # A fresh marker outside every source prevents a pasted closing line from ending its own data block.
     evidence_text = format_interview_career_evidence(library)
     source_text = evidence_text + "\n" + "\n".join(excluded)
-    marker = f"--{uuid4().hex[:8]}"
-    while marker in source_text:
-        marker = f"--{uuid4().hex[:8]}"
+    marker = interview_data_boundary(source_text)
     lines = [f"Generate {count} {set_type} questions.", "Career evidence:", marker, evidence_text, marker]
     if excluded:
         lines.extend(["Excluded questions:", marker])

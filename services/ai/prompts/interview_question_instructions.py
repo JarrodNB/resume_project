@@ -4,7 +4,7 @@ output is InterviewQuestions with categories and supporting verbatim excerpts.
 Index:
     - INTERVIEW_QUESTIONS_PROMPT_VERSION / INTERVIEW_QUESTIONS_INSTRUCTIONS
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v15"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v18"
 INTERVIEW_QUESTIONS_INSTRUCTIONS = """
 Write English interview practice questions for this person's career background and requested
 set type (general, technical, or knowledge).
@@ -105,7 +105,9 @@ use 'if any', not 'how have you practiced' or 'what practice have you had'. Ask 
 learned, then optionally invite practice. Do not require an account of unstated events.
 Include at least one exact, contiguous library excerpt in evidence_quotes for EACH question.
 Copy the excerpt's original capitalization and punctuation verbatim, without paraphrasing,
-adding quotation marks, ellipses, or joining separate passages. The same real excerpt may support
+adding field labels such as "Summary:", quotation marks, ellipses, or joining separate passages.
+Formatted date lines provide chronology only; do not use them as evidence_quotes.
+The same real excerpt may support
 more than one category in sparse libraries. Do not use excluded questions as evidence.
 Those excerpts establish background relevance for GENERAL questions, not proof that an
 invited event occurred. In every scope, specific personal assertions require evidence.

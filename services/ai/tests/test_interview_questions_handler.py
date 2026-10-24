@@ -311,9 +311,11 @@ def test_source_cannot_close_its_own_evidence_block(task_dependencies, monkeypat
 
 def test_question_boundary_retries_marker_found_in_source(monkeypatch):
     """Even a generated marker already present in evidence cannot become its closing line."""
+    from worker import interview_evidence
+
     candidates = iter(["deadbeefcafe", "0123456789ab"])
-    monkeypatch.setattr(interview_questions_handler, "uuid4",
-                        lambda: SimpleNamespace(hex=next(candidates)))
+    monkeypatch.setattr(interview_evidence, "sha256",
+                        lambda *_: SimpleNamespace(hexdigest=lambda: next(candidates)))
     prompt = interview_questions_handler.format_interview_question_prompt(
         CareerLibrary(summary="--deadbeef"), [], 5, "general")
     assert "--01234567" in prompt
@@ -326,6 +328,53 @@ def test_sparse_question_prompt_stays_below_old_json_size():
     excluded = ["Tell me about your retail background?", "How did you help customers?"]
     prompt = interview_questions_handler.format_interview_question_prompt(library, excluded, 1, "general")
     assert len(prompt) < 340
+
+
+def test_same_question_sources_produce_same_prompt():
+    """A repeat eval or retry receives the same source framing."""
+    library = CareerLibrary(summary="Python")
+    first = interview_questions_handler.format_interview_question_prompt(library, [], 5, "general")
+    second = interview_questions_handler.format_interview_question_prompt(library, [], 5, "general")
+    assert first == second
+
+
+def test_question_quotes_may_copy_visible_evidence_label(task_dependencies):
+    """A model can cite the readable evidence line without exhausting retries."""
+    library = CareerLibrary(summary="Python")
+    deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
+    output = _output()
+    for question in output["questions"]:
+        question["evidence_quotes"] = ["Summary: Python"]
+    with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
+        result = handle_ai_task(_task(), deps)
+    assert result.status == "completed"
+    assert all(question["evidence_quotes"] == ["Python"] for question in result.result["interview_questions"]["questions"])
+
+
+def test_question_presentation_label_alone_is_not_evidence(task_dependencies):
+    """An application heading cannot pass as a saved career excerpt."""
+    library = CareerLibrary(experiences=[LibraryExperience(id="e", title="Engineer", company="Acme")])
+    deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
+    output = _output()
+    for question in output["questions"]:
+        question["evidence_quotes"] = ["Experience:"]
+    with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
+        result = handle_ai_task(_task(), deps)
+    assert result.status == "failed"
+
+
+def test_formatted_date_is_context_not_verbatim_quote(task_dependencies):
+    """A date display derived from saved fields does not become a source excerpt."""
+    library = CareerLibrary(experiences=[LibraryExperience(
+        id="e", title="Engineer", company="Acme", start_date=date(2022, 1, 1),
+    )])
+    deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
+    output = _output()
+    for question in output["questions"]:
+        question["evidence_quotes"] = ["Jan 2022 – present"]
+    with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
+        result = handle_ai_task(_task(), deps)
+    assert result.status == "failed"
 
 
 def test_question_prompt_retains_relevant_career_context():

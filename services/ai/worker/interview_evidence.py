@@ -4,6 +4,8 @@ Both model inputs need the same saved evidence. This keeps their field selection
 place while each handler owns its own question, answer, and boundary framing.
 """
 
+from hashlib import sha256
+
 from gap_analysis.build_gap_analysis_prompt import format_date_range
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import CareerLibrary
@@ -60,3 +62,14 @@ def format_interview_career_evidence(library: CareerLibrary) -> str:
         evidence.append(f"Skill: {skill.name}" + (f" ({skill.category})" if skill.category and skill.category.strip() else ""))
     evidence.extend(f"Career fact: {fact.response}" for fact in library.facts if fact.response.strip())
     return "\n\n".join(evidence) if evidence else "None provided."
+
+
+def interview_data_boundary(source: str) -> str:
+    """Choose a short, repeatable delimiter absent from the exact source text."""
+    digest = sha256(source.encode("utf-8")).hexdigest()
+    marker = f"--{digest[:8]}"
+    counter = 0
+    while marker in source:
+        counter += 1
+        marker = f"--{sha256(f'{digest}:{counter}'.encode()).hexdigest()[:8]}"
+    return marker

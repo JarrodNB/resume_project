@@ -35,7 +35,7 @@ from text_limits import MAX_SCREENED_TEXT
 from worker.contact_mask import mask_outbound
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import ModelUsage
-from worker.settings import load_settings
+from worker.settings import DEFAULT_SCREEN_LLM_MODEL, SCREEN_LLM_OPTION, load_settings
 
 logger = logging.getLogger(__name__)
 _local_inference_lock = threading.Lock()
@@ -47,6 +47,17 @@ MAX_LOCAL_CHUNKS_IN_FLIGHT = 4
 def _is_jev_model(model: str) -> bool:
     """Recognize the pinned model and its provider-reported name."""
     return model in ("typesafe:jev-1.13.0", "jev-1.13.0")
+
+
+def _screen_option(model: str) -> str:
+    """Accept the old model-specific value while using a generic LLM selection."""
+    return SCREEN_LLM_OPTION if model == DEFAULT_SCREEN_LLM_MODEL else model
+
+
+def _screen_model_id(option: str) -> str:
+    """Resolve the generic LLM option to its configured provider model."""
+    return (load_settings().user_text_screen_llm_model
+            if option == SCREEN_LLM_OPTION else option)
 
 
 @contextmanager
@@ -100,6 +111,7 @@ def screen_user_text(
     Trusted import code may adjust `max_characters` after validating original text:
     privacy placeholders expand the protected text, but every character is still screened.
     """
+    model = _screen_option(model)
     timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     if model == local_llama.MODEL:
         session = current_session()
@@ -112,7 +124,8 @@ def screen_user_text(
         if _allow_fallback and result.unchecked and fallback_model != model:
             remaining = timeout_seconds - (monotonic() - started)
             if remaining > 0:
-                with fallback_execution(model, fallback_model, kind="screening"):
+                with fallback_execution(_screen_model_id(model), _screen_model_id(fallback_model),
+                                        kind="screening"):
                     result = screen_user_text(text, fallback_model, remaining,
                                               check_phrases=check_phrases,
                                               max_characters=max_characters, _allow_fallback=False)
@@ -127,13 +140,15 @@ def screen_user_text(
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
                 classifier = (screen_user_message if _is_jev_model(selected) else
                               screen_fallback_message)
-                with fallback_execution(model, selected, kind="screening") if fallback else nullcontext():
+                resolved = _screen_model_id(selected)
+                with (fallback_execution(_screen_model_id(model), resolved, kind="screening")
+                      if fallback else nullcontext()):
                     if selected == local_llama.MODEL:
                         run = _local_screen_sync(chunk, selected, timeout, False, max_characters)
                         if run.unchecked:
                             raise RuntimeError("Local fallback screening unavailable")
                     else:
-                        run = classifier(chunk, model=selected, timeout_seconds=timeout)
+                        run = classifier(chunk, model=resolved, timeout_seconds=timeout)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -158,6 +173,7 @@ async def screen_user_text_async(
     preserve the production credential check and remote fallback. These seams never
     create an allowed decision themselves.
     """
+    model = _screen_option(model)
     timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     session = current_session()
     if session is None:
@@ -217,7 +233,8 @@ async def _drive_async(
             fallback_model = load_settings().user_text_screen_fallback_model
             remaining = deadline - monotonic()
             if fallback_model != model and remaining > 0:
-                with fallback_execution(model, fallback_model, kind="screening"):
+                with fallback_execution(_screen_model_id(model), _screen_model_id(fallback_model),
+                                        kind="screening"):
                     result = await screen_user_text_async(
                         text, fallback_model, remaining, check_phrases=check_phrases,
                         max_characters=max_characters, classify=classify,
@@ -235,7 +252,8 @@ async def _drive_async(
             try:
                 if fallback:
                     selected = load_settings().user_text_screen_fallback_model
-                    with fallback_execution(model, selected, kind="screening"):
+                    resolved = _screen_model_id(selected)
+                    with fallback_execution(_screen_model_id(model), resolved, kind="screening"):
                         if selected == local_llama.MODEL:
                             run = await screen_user_text_async(
                                 chunk, selected, timeout, check_phrases=False,
@@ -245,21 +263,21 @@ async def _drive_async(
                             if run.unchecked:
                                 raise RuntimeError("Local fallback screening unavailable")
                         elif _is_jev_model(selected):
-                            run = await classify(chunk, selected, timeout)
+                            run = await classify(chunk, resolved, timeout)
                         else:
                             run = await (classify_fallback or screen_fallback_message_async)(
-                                chunk, selected, timeout,
+                                chunk, resolved, timeout,
                             )
                 else:
-                    if model == "openai:gpt-5-nano":
+                    if model == SCREEN_LLM_OPTION:
                         run = await (classify_fallback or screen_fallback_message_async)(
-                            chunk, model, timeout,
+                            chunk, _screen_model_id(model), timeout,
                         )
                     else:
                         run = await classify(chunk, model, timeout)
                 selected = load_settings().user_text_screen_fallback_model if fallback else model
                 if not isinstance(run, ScreenOutcome):
-                    record_guardrail_usage(run.model_name, selected, run.usage)
+                    record_guardrail_usage(run.model_name, _screen_model_id(selected), run.usage)
             except Exception as error:  # noqa: BLE001 — shared policy below logs and fails closed
                 chunk, timeout, fallback = screening.throw(error)
             else:
@@ -271,7 +289,8 @@ async def _drive_async(
 def _screen_key(text, model, check_phrases, max_characters):
     policy = ((local_llama.TARGET_CHARACTERS, local_llama.OVERLAP, local_llama.MAX_TOKENS)
               if model == local_llama.MODEL else (load_settings().user_text_screen_chunk_size, 300))
-    return (mask_outbound(text), model, check_phrases, policy, max_characters)
+    return (mask_outbound(text), model, _screen_model_id(model), check_phrases, policy,
+            max_characters)
 
 
 def _preflight(text, check_phrases, max_characters):
@@ -575,7 +594,8 @@ def _screen_chunks(
         except Exception:
             logger.exception("Prompt screening failed; leaving the text out of the prompt")
             return outcome(False, unchecked=True)
-        configured = load_settings().user_text_screen_fallback_model if fallback else model
+        configured = _screen_model_id(
+            load_settings().user_text_screen_fallback_model if fallback else model)
         if isinstance(run, ScreenOutcome):
             blocked = not run.allowed
         else:

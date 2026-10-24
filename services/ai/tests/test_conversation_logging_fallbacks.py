@@ -92,7 +92,7 @@ def test_local_primary_fallback_is_linked_in_transcript(
     from screening.screen_user_text import screen_user_text, screen_user_text_async
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('USER_TEXT_SCREEN_FALLBACK_MODEL', 'openai:gpt-5-nano')
+    monkeypatch.setenv('USER_TEXT_SCREEN_FALLBACK_MODEL', 'llm')
     monkeypatch.setattr(local_llama, 'iter_chunks', lambda text: iter([(text, len(text))]))
 
     def unavailable(*_args):

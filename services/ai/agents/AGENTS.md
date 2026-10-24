@@ -33,7 +33,8 @@ instructions from `prompts/`.
 - `user_text_screen_agent.py` — user-written text -> `UserTextScreen` (one bool question on
   `typesafe:jev-1.13.0`); `screen_user_message` returns the screen, model name, confidence, and
   usage. The screening policy owns outage fallback, not this agent
-- `user_text_fallback_agent.py` — prompt-injection question as a strict boolean on Nano.
+- `user_text_fallback_agent.py` — prompt-injection question as a strict boolean on the
+  configured screening LLM.
   A true answer blocks; no fabricated JEV confidence. Exempt from
   input screening to prevent recursion; concrete requests use normal task accounting
 - `resume_tailoring_agent.py` — one written section -> `TailoredSectionDraft`; its output

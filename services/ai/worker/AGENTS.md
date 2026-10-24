@@ -77,7 +77,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   `mask_outbound` (search-query embeddings). The model response is restored before the app
   sees it
 - `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
-  three supported screening model choices, `user_text_screen_timeout_seconds`,
+  three supported screening choices, `user_text_screen_llm_model`,
+  `user_text_screen_timeout_seconds`,
   `generative_fallback_model`, the
   embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
   read-only database connection (`DB_*`), `llm_run_timeout_seconds` (must stay below the

@@ -1,4 +1,4 @@
-"""Boolean prompt-injection answer from Nano, without JEV confidence margins."""
+"""Boolean prompt-injection answer from the screening LLM, without JEV confidence margins."""
 
 from pydantic import BaseModel, Field, StrictBool
 

@@ -1,9 +1,13 @@
 # Local prompt-injection screening
 
 Set `USER_TEXT_SCREEN_MODEL` to `typesafe:jev-1.13.0`,
-`meta-llama/Llama-Prompt-Guard-2-22M`, or `openai:gpt-5-nano`. The default is Jev.
+`meta-llama/Llama-Prompt-Guard-2-22M`, or `llm`. The default is Jev.
 Set `USER_TEXT_SCREEN_FALLBACK_MODEL` to one of the same three models; it runs only
 after an attempted primary failure. Setting it to the primary model disables recovery.
+`USER_TEXT_SCREEN_LLM_MODEL` chooses the provider model behind `llm` in either position;
+it defaults to `openai:gpt-5-nano` and must have a price in the worker's model table.
+Older settings that named that model directly
+continue to select `llm` during migration.
 `USER_TEXT_SCREEN_TIMEOUT_SECONDS` caps the whole input check, including fallback,
 within the caller's task deadline. Jev also has a three-second limit per call.
 All three models check prompt injection only.

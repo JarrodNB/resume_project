@@ -93,7 +93,7 @@ score attached, so runs can be compared across prompt and model changes.
   (each yes/no bool)
 - `run_user_text_screen_evals.py` — pinned Jev prompt-injection runner (the Jev call itself, not the phrase list):
   `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
-- `run_user_text_fallback_evals.py` — dedicated Nano prompt-injection classifier quality run on the
+- `run_user_text_fallback_evals.py` — dedicated configured LLM prompt-injection quality run on the
   shared synthetic screening cases. Uses production boolean policy, never JEV margins.
   Outages are errors and wrong decisions fail the runner. Run
   `docker compose run --rm ai python -m evals.run_user_text_fallback_evals`.

@@ -1,4 +1,4 @@
-"""Evaluate Nano's prompt-injection classifier on shared synthetic cases.
+"""Evaluate the configured screening LLM's prompt-injection classifier.
 
 Boolean decisions use the production policy. Outages remain case errors, and no JEV
 confidence margins are invented. Run with python -m evals.run_user_text_fallback_evals.
@@ -13,8 +13,6 @@ from prompts.user_text_fallback_instructions import USER_TEXT_FALLBACK_PROMPT_VE
 from schemas.user_text_fallback import UserTextFallbackScreen
 from worker.settings import load_settings
 
-NANO_MODEL = "openai:gpt-5-nano"
-
 
 def load_user_text_fallback_dataset():
     """Reuse labeled messages, with a separate boolean task and no confidence evaluators."""
@@ -27,7 +25,7 @@ def load_user_text_fallback_dataset():
 def run_user_text_fallback_evals():
     """Report decision and injection accuracy and fail visibly on case errors."""
     settings = load_settings()
-    model = NANO_MODEL
+    model = settings.user_text_screen_llm_model
 
     def classify(case) -> UserTextFallbackScreen:
         timeout = min(settings.llm_run_timeout_seconds, settings.user_text_screen_timeout_seconds)

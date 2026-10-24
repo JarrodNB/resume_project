@@ -16,7 +16,8 @@ from screening.session import screening_session
 from worker.settings import WorkerSettings
 
 JEV = "typesafe:jev-1.13.0"
-NANO = "openai:gpt-5-nano"
+LLM = "llm"
+DEFAULT_LLM_MODEL = "openai:gpt-5-nano"
 
 
 def _run(model, blocked=False):
@@ -27,7 +28,7 @@ def _run(model, blocked=False):
 
 
 @pytest.mark.parametrize("primary,fallback", list(product(
-    (JEV, NANO, local_llama.MODEL), repeat=2)))
+    (JEV, LLM, local_llama.MODEL), repeat=2)))
 def test_settings_accept_three_screening_models(primary, fallback):
     settings = WorkerSettings(user_text_screen_model=primary,
                               user_text_screen_fallback_model=fallback,
@@ -46,6 +47,49 @@ def test_screening_timeout_must_be_positive():
         WorkerSettings(user_text_screen_timeout_seconds=0)
 
 
+def test_legacy_model_specific_selection_maps_to_llm():
+    settings = WorkerSettings(user_text_screen_model=DEFAULT_LLM_MODEL,
+                              user_text_screen_fallback_model=DEFAULT_LLM_MODEL)
+    assert settings.user_text_screen_model == settings.user_text_screen_fallback_model == LLM
+
+
+@pytest.mark.parametrize("model", ["llm", "openai:unknown-model",
+                                    "openai:text-embedding-3-small"])
+def test_screening_llm_requires_a_priced_generative_model(model):
+    with pytest.raises(ValueError):
+        WorkerSettings(user_text_screen_llm_model=model)
+
+
+@pytest.mark.parametrize("llm_is_primary", [False, True])
+def test_configured_llm_model_is_used_in_either_position(monkeypatch, llm_is_primary):
+    concrete_model = "openai:gpt-6-luna"
+    calls = []
+    monkeypatch.setenv("USER_TEXT_SCREEN_LLM_MODEL", concrete_model)
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", JEV if llm_is_primary else LLM)
+    monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
+
+    def jev(text, model, timeout_seconds):
+        calls.append(model)
+        if not llm_is_primary:
+            raise RuntimeError("Jev unavailable")
+        return _run(model)
+
+    def llm(text, model, timeout_seconds):
+        calls.append(model)
+        if llm_is_primary:
+            raise RuntimeError("LLM unavailable")
+        return _run(model)
+
+    monkeypatch.setattr(screening, "screen_user_message", jev)
+    monkeypatch.setattr(screening, "screen_fallback_message", llm)
+    primary = LLM if llm_is_primary else JEV
+    result = screening.screen_user_text("career note", primary, 1, check_phrases=False)
+    assert result.allowed
+    assert calls == ([concrete_model, JEV] if llm_is_primary else [JEV, concrete_model])
+    expected_model = JEV if llm_is_primary else concrete_model
+    assert result.model_usages[-1].model == expected_model
+
+
 def test_nano_primary_recovers_with_jev(monkeypatch):
     calls = []
     monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", JEV)
@@ -61,8 +105,8 @@ def test_nano_primary_recovers_with_jev(monkeypatch):
 
     monkeypatch.setattr(screening, "screen_fallback_message", nano)
     monkeypatch.setattr(screening, "screen_user_message", jev)
-    result = screening.screen_user_text("career note", NANO, 1, check_phrases=False)
-    assert result.allowed and calls == [NANO, JEV]
+    result = screening.screen_user_text("career note", LLM, 1, check_phrases=False)
+    assert result.allowed and calls == [DEFAULT_LLM_MODEL, JEV]
 
 
 def test_jev_recovers_with_local_llama(monkeypatch):
@@ -87,12 +131,12 @@ def test_nano_recovers_with_local_llama(monkeypatch):
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, len(text))]))
     monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
         blocked=False, duration=0.01))
-    assert screening.screen_user_text("career note", NANO, 1, check_phrases=False).allowed
+    assert screening.screen_user_text("career note", LLM, 1, check_phrases=False).allowed
 
 
 def test_local_llama_recovers_with_nano(monkeypatch):
     calls = []
-    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", NANO)
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", LLM)
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, len(text))]))
     monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: (
         (_ for _ in ()).throw(RuntimeError("Llama unavailable"))))
@@ -100,7 +144,7 @@ def test_local_llama_recovers_with_nano(monkeypatch):
         calls.append(model) or _run(model)))
     result = screening.screen_user_text("career note", local_llama.MODEL, 1,
                                         check_phrases=False)
-    assert result.allowed and calls == [NANO]
+    assert result.allowed and calls == [DEFAULT_LLM_MODEL]
 
 
 def test_local_llama_recovers_with_jev(monkeypatch):
@@ -126,7 +170,7 @@ def test_local_llama_recovers_with_jev(monkeypatch):
 @pytest.mark.parametrize("async_path", [False, True])
 def test_local_fallback_usage_is_not_repeated_from_cache(monkeypatch, async_path):
     calls = []
-    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", NANO)
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", LLM)
     monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, len(text))]))
 
     def unavailable(*_args):
@@ -166,7 +210,7 @@ def test_local_fallback_usage_is_not_repeated_from_cache(monkeypatch, async_path
                                                 check_phrases=False)
     assert first.allowed and second.allowed
     assert len(first.model_usages) == 1 and second.model_usages == []
-    assert calls == [NANO]
+    assert calls == [DEFAULT_LLM_MODEL]
 
 
 def test_async_nano_primary_recovers_with_jev(monkeypatch):
@@ -183,16 +227,36 @@ def test_async_nano_primary_recovers_with_jev(monkeypatch):
         return _run(model)
 
     result = asyncio.run(screening.screen_user_text_async(
-        "career note", NANO, 1, check_phrases=False, classify=jev,
+        "career note", LLM, 1, check_phrases=False, classify=jev,
         classify_fallback=nano,
     ))
-    assert result.allowed and calls == [NANO, JEV]
+    assert result.allowed and calls == [DEFAULT_LLM_MODEL, JEV]
+
+
+def test_async_primary_uses_configured_llm_model(monkeypatch):
+    concrete_model = "openai:gpt-6-luna"
+    monkeypatch.setenv("USER_TEXT_SCREEN_LLM_MODEL", concrete_model)
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", LLM)
+    calls = []
+
+    async def llm(text, model, timeout_seconds):
+        calls.append(model)
+        return _run(model)
+
+    async def unused_jev(*_args):
+        raise AssertionError("Jev must not run")
+
+    result = asyncio.run(screening.screen_user_text_async(
+        "career note", LLM, 1, check_phrases=False, classify=unused_jev,
+        classify_fallback=llm,
+    ))
+    assert result.allowed and calls == [concrete_model]
 
 
 def test_screening_timeout_caps_both_attempts(monkeypatch):
     timeouts = []
     monkeypatch.setenv("USER_TEXT_SCREEN_TIMEOUT_SECONDS", "0.15")
-    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", NANO)
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", LLM)
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
 
     def jev(text, model, timeout_seconds):

@@ -17,7 +17,9 @@ def test_every_configured_production_model_has_a_price() -> None:
     """Production billing defaults must have prices; eval judges allow unknown costs."""
     settings = WorkerSettings()
     model_fields = [name for name in WorkerSettings.model_fields
-                    if name.endswith("_model") and name != "eval_judge_model"]
+                    if name.endswith("_model") and name not in (
+                        "eval_judge_model", "user_text_screen_model",
+                        "user_text_screen_fallback_model")]
 
     assert model_fields
     for field_name in model_fields:

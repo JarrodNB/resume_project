@@ -4,7 +4,7 @@
 
 Decide whether user-written text may enter a prompt. JEV answers a prompt-injection
 yes/no question; code applies the confidence threshold. Primary and fallback each select
-Jev, local Llama, or Nano. Screening owns recovery and returns a small decision interface.
+Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a small decision interface.
 
 ## Contents
 

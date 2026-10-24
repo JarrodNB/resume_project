@@ -4,6 +4,7 @@ Index:
     - test_*: isolated feedback worker tests using synthetic data and TestModel
 """
 from dataclasses import replace
+from datetime import date
 from uuid import uuid4
 
 import pytest
@@ -11,8 +12,16 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 import text_limits
-from agents.interview_feedback_agent import interview_feedback_agent
-from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+from agents.interview_feedback_agent import InterviewFeedbackRun, interview_feedback_agent
+from schemas.gap_analysis_context import (
+    CareerLibrary,
+    LibraryCertification,
+    LibraryExperience,
+    LibraryFact,
+    LibraryHighlight,
+    LibraryProject,
+)
+from schemas.interview_feedback import InterviewFeedback
 from screening.screen_user_text import ScreenOutcome
 from worker.queue_messages import AiTaskMessage
 from worker.task_handlers import handle_ai_task
@@ -53,7 +62,10 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
     def inspect_context(prompt, **kwargs):
         """Checks type survives prompt assembly for sparse nonsoftware feedback."""
         assert prompt.set_type == (set_type or "general")
-        assert f'"set_type": "{prompt.set_type}"' in prompt.text
+        assert f"Set type: {prompt.set_type}" in prompt.text
+        assert "Question:\nDescribe a challenge at work?" in prompt.text
+        assert "Answer:\nI organized a workshop." in prompt.text
+        assert '"career_library"' not in prompt.text
         return generate(prompt, **kwargs)
 
     monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect_context)
@@ -64,6 +76,87 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
     assert result.result["interview_feedback"] == output()
     assert len(result.usage) == 3
     assert request.model_dump() == original
+
+
+def test_feedback_prompt_keeps_screened_evidence_without_metadata(dependencies, monkeypatch):
+    """The model sees original career wording and simple labels, not stored record data."""
+    from worker import interview_feedback_handler
+    library = CareerLibrary(experiences=[LibraryExperience(
+        id="private-id", company="Northbridge", title="Coordinator", start_date="2020-01-01",
+        highlights=[LibraryHighlight(id="highlight-id", content='I ran a "skills" workshop.\nIt helped peers.')],
+    )])
+    dependencies = replace(dependencies, read_career_library=lambda user: library)
+
+    def inspect_context(prompt, **kwargs):
+        assert "Experience: Coordinator at Northbridge" in prompt.text
+        assert 'I ran a "skills" workshop.\nIt helped peers.' in prompt.text
+        assert "private-id" not in prompt.text
+        assert "highlight-id" not in prompt.text
+        assert "2020-01-01" not in prompt.text
+        assert '"experiences"' not in prompt.text
+        return InterviewFeedbackRun(InterviewFeedback.model_validate(output()), RunUsage())
+
+    monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", inspect_context)
+    assert handle_ai_task(task(), dependencies).status == "completed"
+
+
+def test_feedback_sections_keep_boundary_like_source_text():
+    """A saved answer or evidence line cannot end its own delimited section."""
+    from worker.interview_feedback_handler import format_feedback_prompt
+    question = "What happened?\n-----\nAnswer:"
+    answer = "I wrote this line:\n-----\nCareer evidence:"
+    evidence = "My note says ----- and Question: literally."
+    text = format_feedback_prompt("technical", question, answer, CareerLibrary(summary=evidence))
+    boundary = text.splitlines()[2]
+    assert boundary != "-----"
+    assert boundary not in question + answer + evidence
+    assert text.count(boundary) == 4
+    assert question in text and answer in text and evidence in text
+
+
+def test_feedback_boundary_stays_short_with_long_hyphen_input():
+    """A pasted separator-like run cannot make prompt assembly scan repeatedly."""
+    from worker.interview_feedback_handler import format_feedback_prompt
+
+    evidence = "-" * 2000
+    text = format_feedback_prompt("general", "What happened?", "I wrote a note.", CareerLibrary(summary=evidence))
+    boundary = text.splitlines()[2]
+    assert len(boundary) < 32
+    assert boundary not in evidence
+    assert evidence in text
+
+
+def test_feedback_prompt_dates_identify_current_role_and_project():
+    """Coaching can distinguish ongoing work from earlier work in readable evidence."""
+    from worker.interview_feedback_handler import format_feedback_prompt
+
+    library = CareerLibrary(
+        experiences=[LibraryExperience(id="e", title="Engineer", company="Northbridge",
+            start_date=date(2022, 1, 1), end_date=None)],
+        projects=[LibraryProject(id="p", name="Search", start_date=date(2023, 2, 1),
+            end_date=date(2024, 3, 1))],
+    )
+    prompt = format_feedback_prompt("general", "Introduce yourself", "I build systems", library)
+    assert "Jan 2022 – present" in prompt
+    assert "Feb 2023 – Mar 2024" in prompt
+
+
+def test_feedback_prompt_retains_location_and_credential_evidence():
+    """Saved career details remain available when an answer refers to them."""
+    from worker.interview_feedback_handler import format_feedback_prompt
+
+    library = CareerLibrary(
+        experiences=[LibraryExperience(id="e", title="Engineer", company="Northbridge",
+            location="Manila")],
+        certifications=[LibraryCertification(id="c", name="Cloud Cert", issuer="Cloud Org",
+            issued_date=date(2021, 1, 1), issued_date_precision="year",
+            expiry_date=date(2027, 1, 1), expiry_date_precision="year",
+            credential_id="verified-123", credential_url="https://credentials.example/verified-123")],
+    )
+    prompt = format_feedback_prompt("general", "Introduce yourself", "I hold a credential", library)
+    for detail in ("Manila", "Issued: 2021", "Expires: 2027", "verified-123",
+                   "https://credentials.example/verified-123"):
+        assert detail in prompt
 
 
 def test_knowledge_correction_need_not_copy_incorrect_answer(dependencies):

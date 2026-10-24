@@ -5,8 +5,7 @@ Index:
     - _library_evidence_text: original library strings for excerpt validation
     - handle_interview_questions_task: screens source inputs once, then generates questions
 """
-import json
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 from pydantic_ai import capture_run_messages
@@ -16,10 +15,12 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
+from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
+from worker.interview_evidence import format_interview_career_evidence
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -120,17 +121,28 @@ def handle_interview_questions_task(
 def _question_prompt_text(values, fields, count, set_type):
     """Render only checked library and excluded-question values with trusted scope."""
     library = rebuild_library(values[:len(fields)], fields)
-    content = library.model_dump(mode="json", exclude_none=True,
-        exclude={"facts": {"__all__": {"requirement"}}})
-    text = f"Generate {count} {set_type} questions.\nLibrary JSON data:\n" + json.dumps(content, ensure_ascii=False)
-    excluded = values[len(fields):]
+    return format_interview_question_prompt(library, values[len(fields):], count, set_type)
+
+
+def format_interview_question_prompt(library: CareerLibrary, excluded, count: int, set_type: str) -> str:
+    """Show relevant career text with short labels; preserve source wording for quotes."""
+    # A fresh marker outside every source prevents a pasted closing line from ending its own data block.
+    evidence_text = format_interview_career_evidence(library)
+    source_text = evidence_text + "\n" + "\n".join(excluded)
+    marker = f"--{uuid4().hex[:8]}"
+    while marker in source_text:
+        marker = f"--{uuid4().hex[:8]}"
+    lines = [f"Generate {count} {set_type} questions.", "Career evidence:", marker, evidence_text, marker]
     if excluded:
-        text += "\nExcluded questions JSON data:\n" + json.dumps(excluded, ensure_ascii=False)
-    return text
+        lines.extend(["Excluded questions:", marker])
+        for index, question in enumerate(excluded, 1):
+            lines.append(f"Question {index}: {question}")
+        lines.append(marker)
+    return "\n".join(lines)
 
 
 def _library_evidence_text(value: object) -> str:
-    """Preserves original text for quote checks, including JSON-escaped newlines and quotes."""
+    """Preserve original strings for quote checks, including newlines and quotes."""
     if isinstance(value, str):
         return value
     if isinstance(value, dict):

@@ -4,8 +4,7 @@ Index:
     - InterviewFeedbackInput: immutable Rails snapshot
     - handle_interview_feedback_task: read-only coaching and usage reporting
 """
-import json
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
 from pydantic_ai import capture_run_messages
@@ -20,6 +19,7 @@ from schemas.interview_questions import InterviewSetType
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
+from worker.interview_evidence import format_interview_career_evidence
 from worker.interview_questions_handler import _library_evidence_text
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -103,7 +103,15 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
 def _feedback_prompt_text(values, fields, set_type):
     """Render question, answer and library solely from supplied screened sources."""
     library = rebuild_library(values[2:], fields)
-    content = library.model_dump(mode="json", exclude_none=True,
-        exclude={"facts": {"__all__": {"requirement"}}})
-    return json.dumps({"set_type": set_type, "question": values[1], "answer": values[0],
-        "career_library": content}, ensure_ascii=False)
+    return format_feedback_prompt(set_type, values[1], values[0], library)
+
+
+def format_feedback_prompt(set_type, question, answer, library):
+    """Give the model readable screened facts while preserving each source's exact wording."""
+    evidence_text = format_interview_career_evidence(library)
+    # A short fresh boundary avoids scanning long runs of user-supplied separators.
+    boundary = f"--{uuid4().hex[:12]}--"
+    while any(boundary in value for value in (question, answer, evidence_text)):
+        boundary = f"--{uuid4().hex[:12]}--"
+    return (f"Set type: {set_type}\n\n{boundary}\nQuestion:\n{question}\n{boundary}"
+            f"\nAnswer:\n{answer}\n{boundary}\nCareer evidence:\n{evidence_text}\n{boundary}")

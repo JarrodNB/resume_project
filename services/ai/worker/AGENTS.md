@@ -120,3 +120,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `interview_feedback_handler.py` — screens saved answers before model use, screens library notes, excludes job requirements, and reports coaching plus usage without writes.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
+- `interview_evidence.py` — one readable career-library field projection shared by question generation and feedback; their handlers add task-specific framing.

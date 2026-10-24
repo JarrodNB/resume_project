@@ -19,8 +19,7 @@ from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobT
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, current_session
-from worker.contact_mask import mask_outbound
+from screening.session import approve_projected_source, bind_screened_prompt
 from worker.queue_messages import ModelUsage
 
 
@@ -74,8 +73,11 @@ def prepare_gap_analysis(
             UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE
         )
         return PreparedGapAnalysis(None, usage, message)
-    if (session := current_session()) is not None:
-        session.allowed_sources.add(mask_outbound(sources[0]))
+    approve_projected_source(
+        sources[0], job_screening_text,
+        lambda source: gap_job_screening_text(gap_job_input(JobToAnalyze.model_validate_json(source))),
+        outcome,
+    )
     outcome = screen_library_fields(context.career_library, check)
     if outcome is not True and not outcome.allowed:
         message = TOO_LONG_MESSAGE if outcome.too_long else (

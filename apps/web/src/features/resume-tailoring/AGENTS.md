@@ -52,8 +52,9 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - An accepted task without a saved resume is history. A new tailor-page visit starts a
   fresh task; removing a saved resume during the current visit never starts one or restores
   the old draft, even when the cached task still lacks its accepted timestamp.
-- A completed task without current-format editable sections is also history. Start a fresh
-  task rather than showing an empty editor; Rails must not return that result as resumable.
+- A completed task needs at least one supported, non-omitted section with object content to
+  resume. Unsupported-only, omitted-only, and malformed results are history; start a fresh
+  task rather than showing an empty editor. Rails uses the same rule.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current included draft, including unsaved edits.
 - Excluded sections keep their edits and can be restored before saving. Empty selection

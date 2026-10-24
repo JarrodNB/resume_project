@@ -4,6 +4,7 @@
 module ResumeTailoring
   class StartResumeTailoringService < ApplicationService
     ALREADY_SAVED_MESSAGE = "This job already has a saved resume.".freeze
+    EDITABLE_SECTION_TYPES = %w[contact summary experience projects education certifications skills].freeze
 
     def initialize(user:, job:)
       @user = user
@@ -30,14 +31,15 @@ module ResumeTailoring
       success(existing) if resumable?(existing)
     end
 
-    # A queued task inside the in-flight window, or a current-format draft not yet saved.
+    # A queued task inside the in-flight window, or a draft with a section the browser can edit.
     def resumable?(task)
       return false unless task
       return false if task.accepted?
       if task.completed?
         sections = task.result.is_a?(Hash) ? task.result["sections"] : nil
         return sections.is_a?(Array) && sections.any? { |section|
-          section.is_a?(Hash) && ResumeSection::SECTION_TYPES.include?(section["section_type"]) && section["content"].is_a?(Hash)
+          section.is_a?(Hash) && EDITABLE_SECTION_TYPES.include?(section["section_type"]) &&
+            section["omitted"] != true && section["content"].is_a?(Hash)
         }
       end
 

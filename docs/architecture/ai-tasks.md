@@ -107,7 +107,11 @@ Per task type:
   never publishes a partial draft. Users review, edit or exclude sections, preview, then
   `saveTailoredResume` creates snapshots once under owner-then-task locks (`accepted_at`).
   Starting tailoring checks saved resumes and resumable tasks under the same owner lock;
-  queue publication follows commit. Existing work can be resumed even at usage limits.
+  queue publication follows commit. A completed unsaved draft is resumable only when it has
+  at least one supported section (contact, summary, experience, projects, education,
+  certifications, or skills) that is not omitted and has object content. Unsupported-only,
+  omitted-only, and malformed completed results are history, so a new start queues a fresh
+  task. Existing resumable work can be resumed even at usage limits.
   Later `updateResume` changes the saved resume only. `deleteResume` removes the owned resume
   and sections, including resumes whose job is gone, while keeping job/library/task history.
   An accepted task stays accepted and cannot be saved again after deletion. A remaining saved

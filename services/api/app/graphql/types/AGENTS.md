@@ -45,8 +45,6 @@ GraphQL output/input types, enums, and root operation fields.
 - `project_attributes_input.rb`
 - `project_type.rb`
 - `query_type.rb`
-- `resume_section_type.rb`
-- `resume_section_type_enum.rb`
 - `resume_type.rb`
 - `skill_attributes_input.rb`
 - `skill_type.rb`

@@ -117,7 +117,7 @@ module Types
     def job(id:) = current_user.jobs.find(id)
 
     # Returns the user's resumes, most recently updated first.
-    def resumes = current_user.resumes.includes(:job, :sections).order(updated_at: :desc)
+    def resumes = current_user.resumes.includes(:job).order(updated_at: :desc)
 
     # Returns one of the user's resumes.
     def resume(id:) = current_user.resumes.find(id)

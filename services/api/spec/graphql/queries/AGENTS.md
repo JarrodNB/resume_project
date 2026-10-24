@@ -8,6 +8,7 @@ Authorized GraphQL query specs.
 
 - `interview_prep_spec.rb`
 - `scoping_spec.rb`
+- `resumes_spec.rb` — real owned saved-resume listing, including resumes kept after job deletion.
 
 ## Local Rules
 

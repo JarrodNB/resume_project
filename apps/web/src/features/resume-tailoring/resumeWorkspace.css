@@ -1,0 +1,44 @@
+/* A quiet document desk for reviewing a resume, with editing one action away.
+ * Styles stay inside the resume pages and their shared saved/draft editors.
+ */
+.resume-page { min-width: 0; }
+.resume-editor { display: grid; min-width: 0; gap: 24px; }
+.resume-toolbar { display: grid; min-width: 0; gap: 20px; padding: 20px 0; border-block: 1px solid var(--border); }
+.resume-toolbar-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px 32px; }
+.resume-save-status { display: flex; flex-shrink: 0; align-items: center; gap: 7px; padding-top: 3px; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+.resume-toolbar-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.resume-view-switch { display: flex; flex-wrap: wrap; gap: 4px; }
+.resume-view-switch [aria-pressed=true] { color: var(--secondary-foreground); }
+.resume-document-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.resume-preview-stage { display: flex; min-width: 0; height: max(600px, calc(100svh - 22rem)); padding: 20px; border-radius: 12px; background: var(--muted); }
+.resume-section-list { display: grid; min-width: 0; gap: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.resume-section-list > [data-slot=card] { border: 0; border-radius: 0; box-shadow: none; }
+.resume-section-list > [data-slot=card] + [data-slot=card] { border-top: 1px solid var(--border); }
+.resume-section-list button[aria-expanded] { min-height: 36px; transition: color 160ms; }
+.resume-section-list button[aria-expanded]:hover { color: var(--primary); }
+.resume-editor input, .resume-editor textarea { caret-color: var(--primary); }
+.resume-editor ::selection { background: var(--primary); color: var(--primary-foreground); }
+.resume-delete-action { display: flex; justify-content: flex-end; padding-top: 4px; }
+@media (max-width: 899px) {
+  .resume-toolbar-heading { flex-direction: column; gap: 12px; }
+  .resume-preview-stage { padding: 12px; }
+}
+@media (max-width: 599px) {
+  .resume-toolbar { gap: 16px; }
+  .resume-toolbar-controls { align-items: stretch; }
+  .resume-document-actions { width: 100%; }
+  .resume-document-actions > button { flex: 1 1 auto; }
+  .resume-preview-stage { height: max(540px, calc(100svh - 20rem)); padding: 6px; }
+  .resume-section-list [data-slot=card-header], .resume-section-list [data-slot=card-content] { padding-inline: 16px; }
+}
+.resume-page-heading { min-width: 0; }
+.resume-page-heading h1 { font-size: 2rem; line-height: 1.2; letter-spacing: -0.035em; text-wrap: balance; }
+.resume-pdf-pages { width: 100%; min-height: 0; overflow: auto; scrollbar-color: var(--input) var(--muted); scrollbar-width: thin; outline-offset: 4px; }
+.resume-pdf-pages:focus-visible { outline: 2px solid var(--ring); }
+.resume-pdf-page { margin: 0 0 20px; }
+.resume-pdf-page canvas { display: block; width: 100%; height: auto; background: white; }
+.resume-pdf-page figcaption { padding-top: 12px; text-align: center; font-size: 12px; color: var(--muted-foreground); }
+.resume-preview-message { display: grid; min-height: 180px; padding: 24px; align-content: center; text-align: center; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+@media (max-width: 899px) {
+  .resume-page-heading h1 { font-size: 1.75rem; }
+}

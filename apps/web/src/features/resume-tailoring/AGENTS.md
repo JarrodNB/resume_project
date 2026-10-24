@@ -4,7 +4,8 @@
 
 Generate a complete resume draft for one job, then review, edit, exclude sections, preview,
 and save it once. A finished gap analysis is included when one exists; generation does not
-wait for it. Later visits edit the saved resume. Preview opens the current draft as a large PDF.
+wait for it. Later visits open the saved resume in preview. Edit sections switches to the remembered
+collapsible fields; switching views retains unsaved edits and inclusion choices.
 Saved resumes download locally as PDF and editable DOCX after all edits save successfully.
 
 ## Contents
@@ -14,19 +15,19 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor; preview and save use the same included content in draft order
-- `SavedResumeEditor.tsx` — saved sections use tone-colored cards and remembered collapse IDs
+- `SavedResumeEditor.tsx` — saved sections use quiet ruled rows with section icons and remembered collapse IDs
   (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
   Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
 - `resumeDownload.tsx` — render PDF and lazily load DOCX generation, sanitize saved-title
   filenames, and release browser object URLs after download handoff. `ResumePdfDocument.test.tsx`
-  parses real PDF output with a test-only reader; editor/page tests control the download boundary.
+  parses real PDF output with PDF.js; editor/page tests control the download boundary.
 - `resumeDocxDocument.ts` — native Word paragraphs, headings, bullets and contact hyperlinks,
   sharing `resumePdfModel.ts` content/order with PDF. Word pagination can differ.
   `resumeDocxDocument.test.ts` inspects actual ZIP/XML output.
-- `ResumeEditorActions.tsx` — shared wrapping Preview/Save actions and save feedback.
-  New drafts lead with Review full resume, opening the existing PDF preview; save stays
-  available without a review confirmation. Saved resumes keep their existing action hierarchy.
+- `ResumeEditorActions.tsx` — shared Preview/Edit sections switch, save feedback, and document actions.
+  Both editors start in preview; saving stays available in either view. Deletion sits below
+  the saved workspace, separate from everyday document actions.
 - `ResumeUnsavedChanges.tsx` — leave/discard dialog and native reload warning for unsaved
   resumes. New drafts are unsaved until persisted; saved editors track the submitted snapshot
   so edits made during a request remain unsaved. Successful deletion sets a ref read by the
@@ -40,7 +41,10 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
 - `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
-  `ResumePdfPreview.tsx` shows that document in a dialog
+  `ResumePdfPreview.tsx` builds the same PDF inline; `ResumePdfPages.tsx` uses a lazy
+  PDF.js renderer to fit every page to the available width, expose readable text to assistive
+  technology, and cancel loading/drawing when unmounted. `resumeWorkspace.css` scopes the
+  document desk, toolbar, and ruled editing sections
 - `TailorResumePage.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
   editing. `FinalResumeEditor.test.tsx` covers edit/exclude/restore and preview/save parity.
   The PDF preview is mocked; jsdom cannot draw it

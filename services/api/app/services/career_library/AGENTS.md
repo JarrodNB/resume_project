@@ -44,3 +44,11 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   together when another entry type becomes mergeable.
 
 - Certifications match normalized name + issuer and compatible issued dates; merges fill optional credential facts. Clear and embedding synchronization include certifications.
+
+## Section review
+
+- `ReviewSnapshot` captures only the requested Experience section and per-role context digests.
+- `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
+  returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
+- `ApplyReviewService` validates exact target coverage and records screening approvals only
+  while the source field still matches the queued snapshot under its record lock.

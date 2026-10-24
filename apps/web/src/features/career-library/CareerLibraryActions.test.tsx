@@ -12,6 +12,7 @@ import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
 import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
+import { emptyExperienceReviewMock } from './libraryReviewTestFixtures'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
 function experience(id: string, title: string, startDate: string | null) {
@@ -66,7 +67,7 @@ function renderLibrary(
     path: '/library',
     url: '/library',
     element: <CareerLibraryPage />,
-    mocks: [library, mutationMock, library],
+    mocks: [emptyExperienceReviewMock, library, mutationMock, library],
   })
 }
 

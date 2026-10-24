@@ -1,0 +1,36 @@
+cases:
+  - name: vague-migration
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Logistics
+          title: Engineer
+          highlights:
+            - id: highlight-1
+              content: Helped with stuff.
+    metadata:
+      - [red]
+  - name: concrete-qualitative-result
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Clinic
+          title: Receptionist
+          highlights:
+            - id: highlight-1
+              content: Rewrote the patient check-in guide to clarify required paperwork and reduce repeat questions at reception.
+    metadata:
+      - [green]
+  - name: useful-but-vague-contribution
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Retail
+          title: Store Assistant
+          highlights:
+            - id: highlight-1
+              content: Maintained stock records and helped improve ordering.
+    metadata:
+      - [yellow, red]
+evaluators:
+  - ReviewCalibration

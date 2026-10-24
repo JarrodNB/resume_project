@@ -93,6 +93,7 @@ module Types
     field :delete_resume, mutation: Mutations::ResumeTailoring::DeleteResume
 
     field :save_gap_response, mutation: Mutations::GapResponses::SaveGapResponse
+    field :review_library_section, mutation: Mutations::CareerLibrary::ReviewLibrarySection
     field :clear_career_library, mutation: Mutations::CareerLibrary::ClearCareerLibrary
 
     field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact

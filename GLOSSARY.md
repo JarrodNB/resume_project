@@ -77,3 +77,7 @@ and do not increase the chosen number of core questions.
 A core question whose remaining prompts the user chose to skip. Previous accepted answers
 stay saved; the skip itself is not an answer and does not use the answer allowance or count
 in answer-quality scoring. Skipping a follow-up moves directly to the next core question.
+
+**Library assessment**:
+A red, yellow, or green indication of how clearly a saved piece captures useful career evidence,
+with a short reason. It evaluates the description, not the person's employability.

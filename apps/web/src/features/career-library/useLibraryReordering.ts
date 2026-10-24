@@ -11,6 +11,7 @@ import { useApolloClient } from '@apollo/client/react'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { moveBetweenGroups } from '@/components/dnd/moveItems'
+import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { MOVE_EXPERIENCE_HIGHLIGHT_MUTATION, REORDER_SKILLS_MUTATION } from './careerLibraryReorderMutations'
 
@@ -43,6 +44,7 @@ function withHighlightMoved(experiences: CareerLibraryQuery['experiences'], from
 export function useLibraryReordering() {
   const client = useApolloClient()
   const [errors, setErrors] = useState<string[]>([])
+  const [pendingHighlightMoves, setPendingHighlightMoves] = useState(0)
 
   /** Writes a change into the cached library query. */
   function updateCachedLibrary(change: (library: CareerLibraryQuery) => CareerLibraryQuery) {
@@ -74,15 +76,20 @@ export function useLibraryReordering() {
 
   /** Moves a highlight to another place in its role or into another role. */
   function moveHighlight(highlightId: string, from: HighlightPlacement, to: HighlightPlacement) {
+    setPendingHighlightMoves((count) => count + 1)
     updateCachedLibrary((library) => ({ ...library, experiences: withHighlightMoved(library.experiences, from, to) }))
     return save(async () => {
       const { data } = await client.mutate({
         mutation: MOVE_EXPERIENCE_HIGHLIGHT_MUTATION,
         variables: { highlightId, experienceId: to.experienceId, position: to.index },
+        // The optimistic move can precede the source-change effect's review fetch.
+        // Refresh again after persistence so the old role's grades cannot stay current.
+        refetchQueries: [LIBRARY_REVIEW_QUERY],
+        awaitRefetchQueries: true,
       })
       return data?.moveExperienceHighlight?.errors ?? [GENERIC_FAILURE]
-    })
+    }).finally(() => setPendingHighlightMoves((count) => count - 1))
   }
 
-  return { reorderSkills, moveHighlight, errors, clearErrors: () => setErrors([]) }
+  return { reorderSkills, moveHighlight, movingHighlight: pendingHighlightMoves > 0, errors, clearErrors: () => setErrors([]) }
 }

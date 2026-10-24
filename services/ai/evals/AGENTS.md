@@ -153,3 +153,8 @@ score attached, so runs can be compared across prompt and model changes.
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+
+- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — three synthetic
+  section reviews through real production screening and grading. Hand labels check color
+  calibration, including a clear qualitative result without metrics. This small set does not
+  establish broad writing quality. Run `python -m evals.run_library_review_evals`.

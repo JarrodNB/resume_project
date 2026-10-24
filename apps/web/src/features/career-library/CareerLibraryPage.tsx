@@ -47,7 +47,7 @@ export function CareerLibraryPage() {
           <div className="library-sections">
             <DragDropProvider {...handlers}>
               <ProfileSection profile={library.me} />
-              <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} />
+              <ExperienceSection experiences={library.experiences} highlightsOf={highlightsOf} movingHighlight={reordering.movingHighlight} />
               <ProjectSection projects={library.projects} />
               <EducationSection educations={library.educations} />
               <CertificationSection certifications={library.certifications} />

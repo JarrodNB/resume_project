@@ -7,6 +7,7 @@ import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
+import { emptyExperienceReviewMock } from './libraryReviewTestFixtures'
 import { CareerLibraryPage } from './CareerLibraryPage'
 
 const libraryMock = {
@@ -54,10 +55,10 @@ function openLibrarySections() {
 
 it('keeps a section collapsed until it is opened', async () => {
   const user = userEvent.setup()
-  const page = { path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [libraryMock] }
+  const page = { path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [emptyExperienceReviewMock, libraryMock] }
   const { unmount } = renderPage(page)
 
-  const experience = await screen.findByRole('button', { name: /Experience/ })
+  const experience = await screen.findByRole('button', { name: /^Experience/ })
   expect(experience).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByText('Engineer')).not.toBeInTheDocument()
 
@@ -67,7 +68,7 @@ it('keeps a section collapsed until it is opened', async () => {
   unmount()
   renderPage(page)
   expect(await screen.findByText('Engineer')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /Experience/ })).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('button', { name: /^Experience/ })).toHaveAttribute('aria-expanded', 'true')
 })
 
 it('shows a fact added from a gap response', async () => {
@@ -77,6 +78,7 @@ it('shows a fact added from a gap response', async () => {
     url: '/library',
     element: <CareerLibraryPage />,
     mocks: [
+      emptyExperienceReviewMock,
       {
         ...libraryMock,
         result: {
@@ -102,7 +104,7 @@ it('shows a fact added from a gap response', async () => {
 
 it('shows the imported library', async () => {
   openLibrarySections()
-  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [libraryMock] })
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [emptyExperienceReviewMock, libraryMock] })
 
   expect(await screen.findByText('Engineer')).toBeInTheDocument()
   expect(screen.getByText('Acme · Perth')).toBeInTheDocument()
@@ -119,7 +121,7 @@ it('shows the imported library', async () => {
 
 it('shows certifications in their own section with credential metadata', async () => {
   openLibrarySections()
-  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [{
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [emptyExperienceReviewMock, {
     ...libraryMock,
     result: { data: { ...libraryMock.result.data, certifications: [{ __typename: 'Certification', id: 'cert-1', name: 'Cloud Architect', issuer: 'Cloud Co', issuedDate: '2024-01-01', issuedDatePrecision: 'day', expiryDate: null, expiryDatePrecision: null, credentialId: 'ABC', credentialUrl: 'https://example.com/ABC', description: null }] } },
   }] })

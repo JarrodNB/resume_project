@@ -88,3 +88,6 @@ instructions from `prompts/`.
   spoken path intentionally keeps gpt-6-luna without generative model substitution;
   the configured prompt-injection screening fallback remains. Offline eval fixture checks are in
   `evals/run_spoken_interviewer_evals.py`; paid quality checks are deferred.
+
+- `library_review_agent.py` — section-scoped red/yellow/green assessments with short reasons;
+  validates complete short-label coverage. It does not rewrite text or rate employability.

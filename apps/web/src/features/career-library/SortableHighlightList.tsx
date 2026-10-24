@@ -4,6 +4,7 @@
  * Index:
  *   - SortableHighlightList: drop area with one draggable row per highlight
  */
+import { LibraryAssessment, type Assessment } from './LibraryAssessment'
 import { SortableGroup } from '@/components/dnd/SortableGroup'
 import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableGroupId, sortableId } from '@/components/dnd/moveItems'
@@ -12,10 +13,11 @@ import { HIGHLIGHT_TYPE } from './useLibraryDragHandlers'
 interface SortableHighlightListProps {
   experienceId: string
   highlights: { id: string; content: string }[]
+  assessmentFor?: (id: string) => Assessment | undefined
 }
 
 /** Renders the highlights as draggable rows; an empty role shows a drop hint. */
-export function SortableHighlightList({ experienceId, highlights }: SortableHighlightListProps) {
+export function SortableHighlightList({ experienceId, highlights, assessmentFor }: SortableHighlightListProps) {
   const group = sortableGroupId('highlights', experienceId)
 
   return (
@@ -36,7 +38,10 @@ export function SortableHighlightList({ experienceId, highlights }: SortableHigh
           {(dragHandle) => (
             <>
               {dragHandle}
-              <span className="py-0.5">{highlight.content}</span>
+              <div className="min-w-0 flex-1 py-0.5">
+                <span>{highlight.content}</span>
+                {assessmentFor && <LibraryAssessment assessment={assessmentFor(highlight.id)} />}
+              </div>
             </>
           )}
         </SortableItem>

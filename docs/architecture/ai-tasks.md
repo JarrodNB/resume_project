@@ -218,3 +218,14 @@ The worker retries through SQS redelivery instead of in-process loops:
   key, read-only. Locally the bucket is Adobe S3Mock (MinIO's community edition is archived,
   LocalStack needs an account token). Text extraction (pypdf, python-docx) happens in Python,
   next to the agents. The upload's type is detected from its bytes, not the client's claim.
+
+### Career library review
+
+`review_library_section` takes `{section, library, targets}`: a Rails-owned Experience-only
+snapshot with saved field-check metadata and short-label target identities/context digests.
+It returns `{assessments: [{kind, record_id, field, source_digest, color, reason}]}`. The model
+emits only target labels, colors, and reasons; code copies the identities from the snapshot.
+`reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`
+returns its latest task and last completed grades with current freshness. No career text is
+saved by this task. Unsupported sections fail before enqueueing; oversized sections fail
+without truncation. Existing usage limits, retries, privacy, and subscriptions apply.

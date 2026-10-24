@@ -55,6 +55,8 @@ class WorkerSettings(BaseSettings):
     interview_questions_thinking: ThinkingLevel = False
     # Interview eval judging stays independent of production and comparison models.
     eval_judge_model: str = "openai:gpt-6.1-sol"
+    library_review_model: str = "openai:gpt-6-luna"
+    library_review_thinking: ThinkingLevel = False
     gap_analysis_model: str = "openai:gpt-6-luna"
     gap_analysis_thinking: ThinkingLevel = False
     # The fallback runs only after an attempted primary provider failure.

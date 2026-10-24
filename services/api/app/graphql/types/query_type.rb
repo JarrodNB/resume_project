@@ -56,6 +56,13 @@ module Types
     field :certifications, [ Types::CertificationType ], null: false
     field :skills, [ Types::SkillType ], null: false
     field :library_facts, [ Types::LibraryFactType ], null: false
+    field :library_review, Types::LibraryReviewType, null: false do
+      argument :section, String, required: true
+    end
+
+    def library_review(section:)
+      ::CareerLibrary::ReviewStateService.call(user: current_user, section: section).value
+    end
 
     field :jobs, [ Types::JobType ], null: false do
       argument :stage, Types::JobStageEnum, required: false

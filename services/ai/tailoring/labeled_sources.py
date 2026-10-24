@@ -155,7 +155,8 @@ def _add_simple(
     for number, education in enumerate(library.educations, start=1):
         if _keep(retrieved, "Education", education.id, native):
             provenance = SourceProvenance()
-            values = provenance.select("educations", "education", education, "degree", "field_of_study", "institution")
+            values = provenance.select("educations", "education", education,
+                                       "degree", "field_of_study", "institution", "description")
             text = ", ".join(part for part in values.values() if part)
             sources.records[f"ED{number}"] = SourceRecord(
                 f"ED{number}", "education", text, education.id, "Education", provenance

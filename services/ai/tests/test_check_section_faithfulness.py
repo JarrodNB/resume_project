@@ -42,6 +42,15 @@ def test_supported_bullet_passes() -> None:
     assert find_section_problems("experience", draft, _sources()) == []
 
 
+def test_sentence_boundary_does_not_create_a_false_product_name() -> None:
+    sources = LabeledSources(records={"SUMMARY": SourceRecord(
+        "SUMMARY", "summary", "Built on AWS and Kubernetes with production AI experience.")})
+    draft = TailoredSectionDraft(nothing_fits=False, entries=[], summary=CitedProse(
+        text="Built on AWS and Kubernetes. Brings production AI experience.", source_labels=["SUMMARY"]))
+
+    assert find_section_problems("summary", draft, sources) == []
+
+
 def test_invented_metric_is_rejected() -> None:
     """A number none of the cited sources state is a problem, and the prose is unchanged."""
     prose = CitedProse(text="Cut latency 99% at Initech.", source_labels=["H1"])

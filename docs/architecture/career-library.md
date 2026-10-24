@@ -6,9 +6,8 @@ Library persistence and retrieval, resume imports, job ingestion, gap analysis, 
 
 ## Memory
 
-User facts are stored as rows with embeddings in pgvector, so the AI service can retrieve the
-ones relevant to a task (e.g. the library entries closest to each job requirement when
-tailoring) instead of sending everything.
+User facts are stored as rows with embeddings in pgvector for tasks that need semantic
+search. Complete-draft tailoring reads the owned library once and uses its entries directly.
 
 - **What's embedded:** every career library entry: experiences, highlights, projects,
   educations, skills, and saved library facts. Each is embedded as one text with enough context to stand alone
@@ -26,8 +25,8 @@ tailoring) instead of sending everything.
   `Embedder` (traced in Logfire). `database/library_embedding_search.py` loads that user's
   rows for the stored model in cosine order (HNSW iterative scans, so the user filter does
   not drop a row). `memory/hybrid_rank.py` then fuses that order with BM25 over the same
-  texts (reciprocal rank fusion, k=60). Tailoring prepares retrieval for summary and
-  experience together. Projects and skills keep their native library rows available.
+  texts (reciprocal rank fusion, k=60). Complete-draft tailoring does not call this search;
+  it already has the library snapshot and avoids per-section query embeddings.
 
 ## Decisions
 
@@ -131,8 +130,12 @@ tailoring) instead of sending everything.
   Contact, every degree, and every certification are copied without a generative call,
   preserving descriptions and credential date precision. Experience, projects, and skill
   selection run concurrently, with at most three writers in flight. The summary follows
-  selected content and its original source labels, including copied credentials for sparse
-  libraries. Newly assembled section snapshots are screened before reuse in that prompt.
+  selected original source labels, including copied credentials for sparse libraries.
+  Education descriptions are part of screened source evidence, so copied sections need no
+  second safety check before the summary. Every saved gap-analysis assessment, including
+  verdict, explanation, and cited evidence, is included as writing guidance. The completed
+  analysis is worker-produced output and is validated instead of screened again. Saved
+  user-written gap responses receive one grouped screening decision before entering prompts.
   The model selects, orders, and rewrites toward the job without inventing employers,
   titles, tools, dates, metrics, or responsibilities. Each sentence cites evidence labels;
   a local checker requests a retry for suspicious claims and keeps valid model wording.

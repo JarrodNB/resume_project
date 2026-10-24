@@ -302,6 +302,22 @@ it('starts fresh from accepted history without exposing the old editable draft',
   expect(oldResultReceived).not.toHaveBeenCalled()
 })
 
+it('regenerates an unsaved result in the retired draft format instead of showing an empty editor', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const nextSubscription = subscription({ id: 'task-2' })
+  nextSubscription.request.variables.id = 'task-2'
+  renderTailor([
+    jobMock(task({ status: 'COMPLETED', result: { drafts: [], markdown: 'Old draft' } })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
+    nextSubscription,
+  ])
+
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+  expect(screen.queryByText('Your draft is ready to review')).not.toBeInTheDocument()
+  expect(screen.queryByText('Include at least one section to preview or save your resume.')).not.toBeInTheDocument()
+})
+
 it('allows retry when starting after accepted history fails', async () => {
   const user = userEvent.setup()
   renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),

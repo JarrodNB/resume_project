@@ -10,7 +10,7 @@ from pydantic_ai.usage import RunUsage
 
 from agents.user_text_screen_agent import UserTextScreenRun
 from schemas.user_text_screen import UserTextScreen
-from screening.session import current_session, prompt_is_covered, screening_session
+from screening.session import prompt_is_covered, screening_session
 from tailoring.build_section_prompt import job_context_text
 from tests.fakes import build_gap_analysis_context
 
@@ -37,14 +37,7 @@ def preparation(task_dependencies, monkeypatch):
         calls.append(text)
         return allowed_run(text)
 
-    async def retrieve(user, section, job, settings):
-        assert job_context_text(context) in current_session().allowed_sources
-        assert user == user_id
-        retrievals.append(section)
-        return None, None
-
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
-    monkeypatch.setattr("tailoring.prepare_resume_draft.retrieve_source_keys_async", retrieve)
     return replace(task_dependencies, read_gap_analysis_context=read), context, reads, calls, retrievals, user_id, job_id
 
 
@@ -73,7 +66,66 @@ def test_shared_evidence_once_exact_prompts_and_fresh_execution(preparation):
         assert len(calls) > first_count
     asyncio.run(run())
     assert reads == [(user, job), (user, job)]
-    assert retrievals == ["summary", "experience"] * 2
+    assert not retrievals
+
+
+def test_completed_gap_analysis_includes_every_assessment_without_rescreening(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, calls, _, user, job = preparation
+    analysis = {
+        "summary": "Strong match with one gap.",
+        "assessments": [
+            {"kind": "required", "requirement": "Build Python APIs", "verdict": "met",
+             "explanation": "The candidate has done this.",
+             "evidence": [{"kind": "highlight", "id": "highlight-1", "text": "Built Python APIs"}]},
+            {"kind": "nice_to_have", "requirement": "Use a cloud platform", "verdict": "partial",
+             "explanation": "Production deployment is documented, but the provider is unclear.",
+             "evidence": []},
+        ],
+    }
+
+    async def run():
+        with screening_session():
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_analysis=analysis)
+            prompt = prepared.prompts["experience"].text
+            assert "Strong match with one gap." in prompt
+            assert "Build Python APIs" in prompt
+            assert "The candidate has done this." in prompt
+            assert "Evidence (highlight): Built Python APIs" in prompt
+            assert "Use a cloud platform" in prompt
+            assert "Production deployment is documented" in prompt
+            assert prompt_is_covered(prompt)
+        assert all("Strong match with one gap." not in text for text in calls)
+        assert all("The candidate has done this." not in text for text in calls)
+
+    asyncio.run(run())
+
+
+def test_user_gap_responses_are_screened_together(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, calls, _, user, job = preparation
+    responses = [
+        {"requirement": "Python", "body": "Built backend services."},
+        {"requirement": "AWS", "body": "Deployed production workloads."},
+    ]
+
+    async def run():
+        with screening_session():
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_responses=responses)
+            assert "[GR1]" in prepared.prompts["experience"].text
+            assert "[GR2]" in prepared.prompts["experience"].text
+            assert prompt_is_covered(prepared.prompts["experience"].text)
+        grouped = [text for text in calls if "Built backend services." in text or
+                   "Deployed production workloads." in text]
+        assert len(grouped) == 1
+        assert "Built backend services." in grouped[0]
+        assert "Deployed production workloads." in grouped[0]
+
+    asyncio.run(run())
 
 
 def test_required_rejection_before_retrieval_and_optional_omission(preparation):
@@ -191,11 +243,7 @@ def test_real_guardrail_reuses_coverage_and_preserves_task_privacy(
             model_name="jev-1.13.0", usage=RunUsage(input_tokens=7),
             provider_details={"confidence": {"prompt_injection": 1., "harmful_request": 1.}})
 
-    async def retrieve(*_):
-        return None, None
-
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
-    monkeypatch.setattr("tailoring.prepare_resume_draft.retrieve_source_keys_async", retrieve)
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
 
     async def run():
@@ -226,21 +274,16 @@ def test_real_guardrail_reuses_coverage_and_preserves_task_privacy(
     asyncio.run(run())
 
 
-def test_summary_selected_labels_can_come_from_other_writers(preparation, monkeypatch):
-    """Summary retrieval must not hide evidence selected by another section's writer."""
+def test_summary_selected_labels_filter_the_full_library(preparation):
+    """The summary keeps selected evidence without embedding a search query."""
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
     dependencies, _, _, _, _, user, job = preparation
 
-    async def retrieve(_user, section, _job, _settings):
-        return ({("Skill", "skill-1")} if section == "summary" else None), None
-
-    monkeypatch.setattr("tailoring.prepare_resume_draft.retrieve_source_keys_async", retrieve)
-
     async def run():
         with screening_session():
             prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-            assert "S2" not in prepared.prompts["summary"].sources.records
+            assert "S2" in prepared.prompts["summary"].sources.records
             summary = await prepared.summary_prompt([], selected_labels={"S2"})
             assert set(summary.sources.records) == {"S2"}
             assert prompt_is_covered(summary.text)
@@ -261,10 +304,6 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
     dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context)
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline")
 
-    async def retrieve(*_):
-        return None, None
-
-    monkeypatch.setattr("tailoring.prepare_resume_draft.retrieve_source_keys_async", retrieve)
 
     async def run():
         started = asyncio.Event()
@@ -315,7 +354,7 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
     library.projects[0].role = "unused project role"
     library.projects[0].description = "A saved project description"
     library.skills[0].category = "unused category"
-    library.educations[0].description = "unused education description"
+    library.educations[0].description = "education description"
 
     async def run():
         with screening_session() as session:
@@ -336,7 +375,7 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
             record.screened_fields = list(set(record.screened_fields) | set(report.fields))
         assert "role" not in library.projects[0].screened_fields
         assert "category" not in library.skills[0].screened_fields
-        assert "description" not in library.educations[0].screened_fields
+        assert "description" in library.educations[0].screened_fields
         calls.clear()
         with screening_session() as session:
             second = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
@@ -402,7 +441,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
                       "description": "Project description", "role": "Omitted project role"}],
         "educations": [{"id": ids["education"], "institution": "School evidence",
                         "degree": "Degree evidence", "field_of_study": "Subject evidence",
-                        "description": "Omitted school description"}],
+                        "description": "School description"}],
         "certifications": [{
             "id": ids["certification"], "name": "Credential evidence", "issuer": "Issuer evidence",
             "credential_id": "Credential identifier", "credential_url": "https://credential.example",
@@ -420,7 +459,8 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
         ("experience_highlight", ids["highlight"]): {"content": "Highlight evidence"},
         ("project", ids["project"]): {"name": "Project evidence", "description": "Project description"},
         ("education", ids["education"]): {
-            "institution": "School evidence", "degree": "Degree evidence", "field_of_study": "Subject evidence"},
+            "institution": "School evidence", "degree": "Degree evidence",
+            "field_of_study": "Subject evidence", "description": "School description"},
         ("certification", ids["certification"]): {
             "name": "Credential evidence", "issuer": "Issuer evidence", "credential_id": "Credential identifier",
             "credential_url": "https://credential.example", "description": "Credential description"},

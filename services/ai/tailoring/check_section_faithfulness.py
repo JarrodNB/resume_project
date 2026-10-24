@@ -13,10 +13,11 @@ from tailoring.labeled_sources import LabeledSources
 from tailoring.section_catalog import ENTRY_PREFIX
 
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?%?")
-_TITLE_PHRASE = re.compile(r"\b(?:[A-Z][A-Za-z0-9+#.]* ){1,5}[A-Z][A-Za-z0-9+#.]+\b")
+_TITLE_WORD = r"[A-Z][A-Za-z0-9+#]*(?:\.[A-Za-z0-9+#]+)*"
+_TITLE_PHRASE = re.compile(rf"\b(?:{_TITLE_WORD} ){{1,5}}{_TITLE_WORD}\b")
 _MARKED_TOKEN = re.compile(r"\b(?:[A-Z]{2,}|[A-Za-z]*\d[A-Za-z0-9+.#-]*)\b")
 _OPENING_ACTIONS = frozenset({
-    "Built", "Created", "Delivered", "Designed", "Developed", "Implemented",
+    "Added", "Built", "Created", "Delivered", "Designed", "Developed", "Implemented",
     "Improved", "Integrated", "Led", "Managed", "Migrated", "Optimized",
     "Shipped", "Supported", "Used",
 })

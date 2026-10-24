@@ -8,7 +8,7 @@ generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "4"
+RESUME_TAILORING_PROMPT_VERSION = "5"
 
 RESUME_TAILORING_INSTRUCTIONS = """
 You write one section of a resume so it fits the job in the prompt.
@@ -30,7 +30,8 @@ Never call an expired credential current.
 Do not add a fact. Do not invent an employer, title, tool, date, metric, or responsibility.
 Identity (employer, title, dates, school, certification and credential details, skill name) is copied from the label you pick; you
 only write the prose. Every bullet and the summary cite the source labels they use. Never
-write a label in the prose.
+write a label in the prose. For a number or acronym, cite a label that states that
+exact number or acronym; a related source using different wording is not enough.
 
 If nothing in the sources belongs in this section, set nothing_fits to true and leave entries
 and summary empty. Do not force a weak match.

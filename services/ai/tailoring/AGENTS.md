@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Code around the resume-tailoring agent: section order, retrieval, labeled sources, the
+Code around the resume-tailoring agent: section order, labeled sources, the
 prompt, the faithfulness check, and the resume JSON the model does not get to invent.
 
 ## Contents
@@ -10,33 +10,35 @@ prompt, the faithfulness check, and the resume JSON the model does not get to in
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
   education, certifications, skills) and entry label prefixes
 - `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, and gap responses
-- `retrieve_for_section.py` — embeds that section's job requirements and hybrid-searches
-  `library_embeddings` with explicitly selected library types; no matches means the whole library
+- `retrieve_for_section.py` — legacy search helper retained for retrieval evaluation;
+  complete-draft tailoring now uses the library snapshot already read for the task
 - `labeled_sources.py` — short labels for retrieved entries, gap responses, and selected draft snapshots.
   Text and saved-field provenance are built together; preparation passes that provenance
   to screening without looking entries up again. Projects, education, certifications, and
   skills are labeled even when retrieval returned other rows
 - `build_section_prompt.py` — the user prompt for one written section
+- `format_gap_analysis.py` — readable overview and every saved requirement assessment
 - `check_section_faithfulness.py` — rejects claims the cited sources don't support. Does not
   replace the rewrite with the original library text
 - `materialize_section.py` — copies identity (employer, title, dates, skill name) from the
   library and keeps the model's prose; also copies education and certifications exactly
 - `generate_resume_draft.py` — prepares shared evidence, overlaps at most three independent
-  writers, then writes the summary from selected content and assembles an ordered draft
+  writers, then writes the summary from selected screened source labels and assembles an ordered draft
 
 ## Local Rules
 
 - Contact, education, and certifications are copied with no model call. Original credential
-  descriptions and date precision remain intact. Copied text still requires screening
-  before it is reused in the summary prompt.
+  descriptions and date precision remain intact. The summary uses their screened library
+  source labels rather than screening copied sections again.
 - A failed writer or deadline cancels and awaits outstanding requests before returning to
   the worker. No partial draft is published. Empty sections skip generation; nothing-fits
   sections are omitted with an explanation.
 - The checker never substitutes library text for a rejected rewrite.
-- Screen each selected labeled source (including library entries, gap-response requirements
-  and bodies, and selected snapshot titles/content), the job context, and optional gap summary once
-  per execution. Unsafe optional sources are omitted with warnings. The job must pass
-  before retrieval embeds it. Bind the exact rendered prompt to those approvals; direct
+- Screen each labeled library source and the job context once per execution. Group
+  the user's saved gap responses for one screening decision; omit the whole group if
+  blocked. The completed worker-produced gap analysis is validated, included in full,
+  and trusted for this execution without another classifier call. The job must pass
+  before section prompts use it. Bind the exact rendered prompt to those approvals; direct
   unknown writer prompts retain the capability guard.
 
 ## Certification support

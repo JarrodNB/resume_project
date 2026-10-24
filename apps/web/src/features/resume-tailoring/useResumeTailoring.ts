@@ -12,6 +12,7 @@ import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { finishedSectionsFromResult } from './parseTailorTask'
 import { START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY } from './tailorOperations'
 
 export interface TailorTaskView {
@@ -35,7 +36,8 @@ export function useResumeTailoring(jobId: string) {
   if (job?.resume && savedResumeJobId !== jobId) setSavedResumeJobId(jobId)
   const existing = job?.latestTailoring ?? null
   const hasSavedResume = Boolean(job?.resume) || savedResumeJobId === jobId
-  const followExisting = Boolean(existing && existing.acceptedAt === null && existing.status !== 'FAILED' && !hasSavedResume)
+  const usableExisting = Boolean(existing && (existing.status !== 'COMPLETED' || finishedSectionsFromResult(existing.result).length > 0))
+  const followExisting = Boolean(existing && usableExisting && existing.acceptedAt === null && existing.status !== 'FAILED' && !hasSavedResume)
   const taskId = hasSavedResume ? '' : startedTask?.id ?? (followExisting && existing ? existing.id : '')
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(taskId)
 
@@ -57,10 +59,10 @@ export function useResumeTailoring(jobId: string) {
   useEffect(() => {
     // Deleting the saved resume must not turn this visit into a generation request.
     if (job?.resume) started.current = true
-    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt) || started.current) return
+    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt && usableExisting) || started.current) return
     started.current = true
     void begin()
-  }, [loading, job, jobId, begin])
+  }, [loading, job, jobId, begin, usableExisting])
 
   /** Starts again after a failed task. */
   function retry() {
@@ -68,7 +70,7 @@ export function useResumeTailoring(jobId: string) {
     void begin()
   }
 
-  const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt ? null : existing)
+  const task = hasSavedResume ? null : (aiTask?.id === taskId ? taskFrom(aiTask) : null) ?? startedTask ?? taskFrom(existing?.acceptedAt || !usableExisting ? null : existing)
   return { job, task, loading, error, startErrors, subscriptionError, retry, refetch }
 }
 

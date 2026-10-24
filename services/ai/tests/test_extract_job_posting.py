@@ -58,6 +58,20 @@ def test_headings_fill_requirements_without_the_agent() -> None:
     assert extraction.sorting_usage is None
 
 
+def test_hidden_markup_is_not_saved_as_job_requirements() -> None:
+    """Structured requirements match the visible saved description, not hidden HTML."""
+    page = build_page(
+        "<h3>Requirements</h3><ul><li>Use <!-- tracking -->"
+        "<script>tracking()</script><style>.tracking { color: red; }</style>"
+        "<b>Python</b>, daily.</li></ul>"
+    )
+
+    posting = extract_job_posting(page, never_called).posting
+
+    assert posting.requirements == ["Use Python, daily."]
+    assert posting.description == "Requirements\n\n- Use Python, daily."
+
+
 def test_falls_back_to_the_sorter_without_requirement_headings() -> None:
     """Bullets without headings go to the sorter, and its numbers pick the bullets."""
     page = build_page("<ul><li>Run clusters</li><li>Kubernetes</li><li>Go is a plus</li></ul>")

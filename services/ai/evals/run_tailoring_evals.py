@@ -15,6 +15,7 @@ from evals.report_capture import override_settings
 from evals.tailoring_evaluators import (
     MeasuredResumeContract,
     ResumeDocumentEvalInput,
+    ResumeDocumentEvalLabels,
     ResumeDocumentEvalOutput,
 )
 from evals.telemetry import evaluate_dataset
@@ -29,7 +30,9 @@ TRACE_NAME = "evals.tailoring"
 
 
 def load_tailoring_dataset():
-    dataset = Dataset[ResumeDocumentEvalInput, ResumeDocumentEvalOutput].from_file(DATASET_PATH)
+    dataset = Dataset[
+        ResumeDocumentEvalInput, ResumeDocumentEvalOutput, ResumeDocumentEvalLabels
+    ].from_file(DATASET_PATH)
     dataset.add_evaluator(MeasuredResumeContract())
     return dataset
 

@@ -62,3 +62,173 @@ cases:
               company: Example Bakery
               title: Pastry Chef
               description: Designed seasonal menus and coordinated daily preparation with a three-person bakery team. Trained new staff on food safety and preparation routines.
+  - name: substantial_relevant_library_supports_two_pages
+    metadata:
+      expected_page_count: 2
+    inputs:
+      target_pages: 2
+      contact: {full_name: Morgan Synthetic, email: morgan@example.test}
+      context:
+        job:
+          id: senior-platform
+          title: Senior Backend and Platform Engineer
+          company: Example Infrastructure
+          requirements: [Python and Java services, PostgreSQL performance, asynchronous processing, safe production operations, mentoring engineers]
+          responsibilities: [Design reliable APIs, improve deployment safety, troubleshoot incidents, explain technical tradeoffs, maintain observability and access controls]
+          description: Lead practical improvements to a mature backend platform. The team needs an experienced individual contributor who can design database-backed services, improve operational reliability, mentor teammates, and communicate decisions across engineering and support. Relevant examples from multiple roles and projects are welcome.
+        career_library: &substantial_software_library
+          summary: >-
+            Backend and platform engineer with experience maintaining production services, designing database-backed applications,
+            and improving the day-to-day work of engineering teams. Worked across inventory, logistics, community platforms,
+            and internal business tooling. Interested in clear interfaces, careful operations, and software that colleagues can
+            understand and maintain. Combines hands-on Python and Java development with operational documentation, peer review,
+            and mentoring. Has worked with product managers, support staff, and small engineering teams to turn ambiguous problems
+            into incremental changes with observable outcomes.
+          experiences:
+            - id: substantial-e1
+              company: Example Inventory Systems
+              title: Senior Backend Engineer
+              start_date: 2022-01-01
+              end_date: 2025-12-31
+              description: >-
+                Maintained Python services supporting inventory reservations and warehouse adjustments. Worked with product
+                managers to define what should happen when a reservation expired or a shipment changed after checkout.
+                Designed explicit state transitions rather than allowing unrelated endpoints to update the same records
+                independently. Added database constraints and transaction boundaries to preserve reservation ownership.
+                Reviewed incident reports with warehouse support and translated recurring failure patterns into small
+                reliability improvements. Documented service behavior with examples that engineers could use during code
+                review. Paired with newer teammates on query design, test fixtures, and production troubleshooting while
+                continuing to implement features within the team's normal release process.
+              highlights:
+                - id: substantial-h1
+                  content: Replaced a query-per-item inventory lookup with a batched query and measured the change using production-shaped test data. Median endpoint latency fell from 420 milliseconds to 180 milliseconds without changing reservation results or access rules.
+                - id: substantial-h2
+                  content: Introduced idempotency keys for warehouse adjustment requests and stored completed outcomes inside the transaction. Replayed captured duplicate messages in an isolated test environment to verify that retries could not apply the same stock adjustment twice.
+                - id: substantial-h3
+                  content: Wrote a recovery guide covering reservation inspection, queue lag, and safe replay boundaries. Used the guide during an incident simulation with support colleagues and updated unclear steps based on the questions they asked.
+            - id: substantial-e2
+              company: Example Delivery Network
+              title: Backend Engineer
+              start_date: 2019-03-01
+              end_date: 2021-12-31
+              description: >-
+                Developed Java services for delivery status updates and partner integrations. Partner systems used different
+                event formats and sometimes sent updates late or more than once. Built adapters that normalized those
+                events while retaining the original timestamps and partner identifiers for investigation. Collaborated
+                with a four-person engineering team to define retry policies and distinguish invalid input from temporary
+                downstream failures. Added integration tests using representative partner payloads rather than only happy
+                path examples. Worked with support staff to make error responses understandable and to identify which
+                failures required a partner correction. Maintained API documentation alongside changes so that new
+                integration engineers could follow the supported contract.
+              highlights:
+                - id: substantial-h4
+                  content: Added bounded asynchronous processing for partner events and exposed queue age alongside queue depth. This helped the on-call engineer distinguish a growing backlog from a burst that was already recovering without requesting a new dashboard from another team.
+                - id: substantial-h5
+                  content: Investigated lock contention during a partner import by comparing query plans and transaction timing. Split a long transaction into smaller independently retryable batches while retaining a durable import identifier and visible progress for support.
+                - id: substantial-h6
+                  content: Organized a weekly review of integration changes with two junior engineers. Discussed concrete failure cases, asked each author to explain their retry assumptions, and turned frequently repeated review comments into examples in the team guide.
+            - id: substantial-e3
+              company: Example Civic Tools
+              title: Software Engineer
+              start_date: 2017-02-01
+              end_date: 2019-02-28
+              description: >-
+                Built internal Python applications for staff who managed community-program registrations. Interviewed
+                coordinators about their spreadsheet workflow and prototyped a searchable registration interface before
+                replacing existing exports. Implemented role-based access checks so that each coordinator could see the
+                programs they managed without gaining access to unrelated participant records. Added structured audit
+                events for record changes and supported a documented correction process for mistaken entries. Worked
+                closely with a designer to improve form instructions and make validation errors point to a useful next
+                action. Shipped changes incrementally, observed staff using them, and used their feedback to prioritize
+                follow-up work rather than assuming that a technically complete feature was easy to use.
+              highlights:
+                - id: substantial-h7
+                  content: Built a reusable import preview that showed proposed additions and rejected rows before staff committed a spreadsheet. Kept row-level explanations in the preview and preserved the original file so that coordinators could correct source data without guessing which records had changed.
+                - id: substantial-h8
+                  content: Added authorization regression tests for list views, detail pages, export downloads, and update actions. Tested two coordinators with different program assignments to catch accidental information disclosure through endpoints that shared a serializer.
+            - id: substantial-e4
+              company: Example Business Software
+              title: Junior Software Developer
+              start_date: 2015-06-01
+              end_date: 2017-01-31
+              description: >-
+                Contributed to a database-backed application used by a small accounting team. Started with bug fixes and
+                report changes, then took responsibility for a scheduled reconciliation job. Learned to compare business
+                expectations with actual records before proposing a code change. Wrote tests around rounding and missing
+                data cases that had previously required manual corrections. Reviewed changes with a senior developer
+                and recorded the reasons behind non-obvious decisions in the code and support notes. Helped prepare
+                releases by testing representative customer workflows in a staging environment and checking that
+                database changes could be deployed in a controlled sequence. Communicated investigation results in
+                concise notes for colleagues who did not work on the application every day.
+              highlights:
+                - id: substantial-h9
+                  content: Reworked a nightly reconciliation report to separate unmatched records from processing errors. Added stable identifiers to both outputs so that the accounting team could trace an item back to its source without requesting a custom database query.
+                - id: substantial-h10
+                  content: Assisted with a deployment checklist that covered database backups, migration order, smoke checks, and rollback decisions. Used staging rehearsals to find unclear ownership and missing verification steps before the team attempted the production release.
+          projects:
+            - id: substantial-p1
+              name: Safe deployment demonstrator
+              role: Maintainer
+              description: >-
+                Built a small Python service and deployment demonstrator to teach expand-and-contract database changes.
+                The example retained an old reader while a new field was introduced, backfilled data in bounded batches,
+                and switched reads only after verification. Included tests for interrupted backfills and a written
+                explanation of which rollback paths remained available at each stage. Used the project in an internal
+                workshop where engineers practiced identifying unsafe assumptions in a proposed migration. Kept the
+                sample deliberately small so that attendees could inspect every relevant query rather than treating
+                deployment safety as a property supplied by a large framework.
+            - id: substantial-p2
+              name: Service health workbook
+              role: Developer
+              description: >-
+                Created a teaching application that emits request counts, latency distributions, error categories, and
+                queue age for a simulated order pipeline. Added exercises where a slow database, rejected input, and a
+                delayed consumer produced different signals. Documented how to form an investigation hypothesis and
+                verify it against traces rather than treating a single red graph as an explanation. Shared the workbook
+                with teammates learning on-call support and incorporated their feedback about confusing units and
+                missing context. The project contains synthetic data only and is intended for learning rather than
+                being presented as a production observability platform.
+            - id: substantial-p3
+              name: Community equipment directory
+              role: Volunteer developer
+              description: >-
+                Built a searchable directory for a volunteer group that lends shared equipment. Used PostgreSQL for
+                availability records and a simple web interface for coordinators. Discussed the difference between
+                an inquiry and a confirmed reservation with the volunteers before choosing the data model. Added
+                a printable pickup checklist, clear empty states, and a record of who changed a reservation. Tested
+                the workflow with coordinators using realistic examples and adjusted labels that they interpreted
+                differently from the development team. Documented backup and restoration steps so that the group
+                would not depend on one developer remembering how the service was configured.
+          educations:
+            - id: substantial-ed1
+              institution: Example Technical University
+              degree: Bachelor of Science
+              field_of_study: Computer Science
+              description: >-
+                Studied algorithms, database systems, operating systems, software engineering, and computer networks.
+                Completed a team capstone building a scheduling service and wrote an individual report describing
+                transaction boundaries, data consistency choices, and test limitations. Practiced explaining design
+                decisions in written reviews and presentations with classmates from different technical backgrounds.
+          skills:
+            - {id: substantial-s1, name: Python}
+            - {id: substantial-s2, name: Java}
+            - {id: substantial-s3, name: PostgreSQL}
+            - {id: substantial-s4, name: API design}
+            - {id: substantial-s5, name: Production troubleshooting}
+  - name: substantial_unrelated_library_requires_specific_shorter_fallback
+    metadata:
+      expected_page_count: 1
+      expected_shorter_fallback: true
+      fallback_reason_terms: [clinical, nursing, license, licensure, patient]
+    inputs:
+      target_pages: 2
+      contact: {full_name: Morgan Synthetic, email: morgan@example.test}
+      context:
+        job:
+          id: clinical-nurse
+          title: Registered Nurse - Intensive Care
+          company: Example Clinical Centre
+          requirements: [Active registered nursing license, direct intensive-care patient assessment experience, clinical medication administration, accredited nursing qualification]
+          responsibilities: [Assess critically ill patients, administer prescribed medications, coordinate bedside care, maintain clinical records]
+          description: This regulated bedside clinical role requires an active nursing license, accredited nursing education, and demonstrated direct patient-care experience. Software development or hospital IT support does not substitute for the required clinical qualifications. The employer needs evidence of nursing practice rather than general technical or communication skills.
+        career_library: *substantial_software_library

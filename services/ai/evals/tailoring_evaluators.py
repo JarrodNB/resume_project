@@ -14,6 +14,14 @@ class ResumeDocumentEvalInput(BaseModel):
     contact: dict[str, str] = Field(default_factory=dict)
 
 
+class ResumeDocumentEvalLabels(BaseModel):
+    """Expected case outcomes stay outside model inputs."""
+
+    expected_page_count: int | None = None
+    expected_shorter_fallback: bool = False
+    fallback_reason_terms: list[str] = Field(default_factory=list)
+
+
 class ResumeDocumentEvalOutput(BaseModel):
     markdown: str
     page_count: int
@@ -24,12 +32,14 @@ class ResumeDocumentEvalOutput(BaseModel):
 
 
 @dataclass
-class MeasuredResumeContract(Evaluator[ResumeDocumentEvalInput, ResumeDocumentEvalOutput]):
+class MeasuredResumeContract(
+    Evaluator[ResumeDocumentEvalInput, ResumeDocumentEvalOutput, ResumeDocumentEvalLabels]
+):
     """Score actual task metadata, without claiming these checks establish writing quality."""
 
     def evaluate(self, ctx):
         output = ctx.output
-        return {
+        scores = {
             "measured_page_target": float(0 < output.page_count <= ctx.inputs.target_pages),
             "bounded_drafts": float(1 <= output.drafts <= 3),
             "editorial_review_present": float(bool(output.editorial_review.get("feedback"))),
@@ -38,3 +48,20 @@ class MeasuredResumeContract(Evaluator[ResumeDocumentEvalInput, ResumeDocumentEv
                 ctx.inputs.target_pages == 1 or output.page_count == 2 or bool(output.warnings)
             ),
         }
+
+        labels = ctx.metadata
+        if labels and labels.expected_page_count is not None:
+            scores["expected_page_count"] = float(output.page_count == labels.expected_page_count)
+        if labels and labels.expected_shorter_fallback:
+            explanation = str(output.editorial_review.get("sufficiency_explanation", ""))
+            scores["specific_shorter_fallback"] = float(
+                output.page_count < ctx.inputs.target_pages
+                and output.editorial_review.get("sufficient_for_target") is False
+                and bool(explanation.strip())
+                and any(explanation in warning for warning in output.warnings)
+                and (
+                    not labels.fallback_reason_terms
+                    or any(term in explanation.casefold() for term in labels.fallback_reason_terms)
+                )
+            )
+        return scores

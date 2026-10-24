@@ -16,6 +16,13 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `main.py` — entry point and polling loop (`python -m worker.main`); `process_task_message`
   wraps each task in a Logfire trace and publishes the result before the task message may be
   deleted; `poll_until_stopped` logs and retries errors (5s pause) instead of exiting
+- SIGTERM/SIGINT interrupt the current execution with `WorkerShutdown` (a `SystemExit`
+  subclass so neither handler failure policies nor asyncio callbacks swallow it). Task
+  contexts close and flush before process exit; interrupted messages are not acknowledged
+  and SQS can redeliver them after
+  visibility expires. Repeated stop signals do not interrupt cleanup. Local Compose allows
+  30 seconds for shutdown. SIGKILL and native code that delays Python signal handling can
+  still leave pending spans; flushing cannot close a span whose context never unwinds.
 - `queue_messages.py` — Pydantic models for `ai_tasks` and `ai_results` messages (keep them in
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types

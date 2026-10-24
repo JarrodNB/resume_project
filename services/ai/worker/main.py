@@ -1,6 +1,7 @@
 """
 Description: Entry point for the AI worker. Long-polls the ai_tasks queue, handles each task, and
-publishes its result to ai_results.
+publishes its result to ai_results. Stop signals unwind active task traces and leave interrupted
+messages unacknowledged for redelivery.
 Index:
     - process_task_message: handles one raw task message; says whether it can be deleted
     - poll_task_queue_once: receives at most one task, handles it, and deletes it if allowed
@@ -36,11 +37,15 @@ from worker.sqs_queue_client import SqsQueueClient
 from worker.task_dependencies import TaskDependencies, build_http_client
 from worker.task_handlers import handle_ai_task
 from worker.task_usage import TaskUsage, collect_task_usage
-from worker.tracing import configure_tracing, trace_ai_task
+from worker.tracing import configure_tracing, flush_tracing, trace_ai_task
 
 logger = logging.getLogger(__name__)
 
 POLL_ERROR_BACKOFF_SECONDS = 5
+
+
+class WorkerShutdown(SystemExit):
+    """Unwind task scopes, including asyncio callbacks that swallow other BaseExceptions."""
 
 
 def process_task_message(
@@ -167,7 +172,7 @@ def poll_until_stopped(
 
 
 def run_worker() -> None:
-    """Long-polls the ai_tasks queue and handles messages until asked to stop."""
+    """Poll until stopped, unwinding task spans and leaving interrupted work for redelivery."""
     settings = load_settings()
     configure_tracing()
     task_queue = SqsQueueClient(settings, settings.ai_tasks_queue_name)
@@ -183,16 +188,27 @@ def run_worker() -> None:
     stop_requested = False
 
     def request_stop(signal_number: int, _frame: object) -> None:
-        """Finishes the current message, then exits the polling loop."""
+        """Interrupt once; repeated signals must not interrupt span cleanup or flushing."""
         nonlocal stop_requested
-        logger.info("Received signal %d, stopping after current message", signal_number)
+        if stop_requested:
+            return
         stop_requested = True
+        raise WorkerShutdown(f"Worker stopping on signal {signal_number}")
 
-    signal.signal(signal.SIGTERM, request_stop)
-    signal.signal(signal.SIGINT, request_stop)
-
-    logger.info("Worker polling queue %s", settings.ai_tasks_queue_name)
-    poll_until_stopped(task_queue, result_queue, dependencies, lambda: stop_requested)
+    previous_handlers = {
+        number: signal.signal(number, request_stop) for number in (signal.SIGTERM, signal.SIGINT)
+    }
+    try:
+        logger.info("Worker polling queue %s", settings.ai_tasks_queue_name)
+        poll_until_stopped(task_queue, result_queue, dependencies, lambda: stop_requested)
+    except WorkerShutdown:
+        logger.info("Worker stopping; interrupted messages remain available for redelivery")
+    finally:
+        try:
+            flush_tracing()
+        finally:
+            for number, handler in previous_handlers.items():
+                signal.signal(number, handler)
 
 
 if __name__ == "__main__":

@@ -23,12 +23,9 @@ Saved resumes keep their requested page target and can be edited or downloaded l
   bounded Node renderer entry, and current-draft preview dialog.
 - `resumeDocxDocument.ts`, `resumeDownload.tsx` — Word output from the same Markdown blocks,
   saved-title filenames and object URL cleanup. Word pagination can differ from PDF.
-- `parseTailorTask.ts` — Markdown and warnings read from task results; legacy section helpers
-  remain temporarily for the old writer's retirement.
+- `parseTailorTask.ts` — Markdown and warnings read from task results.
 - `tailorOperations.ts`, `useResumeTailoring.ts`, `useTailorActions.ts`, `useUpdateResume.ts` —
   GraphQL operations, task restoration/subscription, first save, and later Markdown updates.
-- `SectionFields.tsx`, `sectionOrder.ts`, `tailorDraft.ts` — structured resume-import review
-  helpers; do not remove these without inspecting resume-import callers.
 - `TailorResumePage.test.tsx` — completed/queued task restoration, live completion, failure
   retry, legacy-result rejection, first save, and saved editing. Editor tests cover preview,
   navigation warnings, save failures, concurrent edits and saved-snapshot export. Real PDF

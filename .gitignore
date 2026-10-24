@@ -72,6 +72,7 @@ crash.*.log
 
 
 # Local notes / downloaded reference docs
+/.native/
 /initial_project_description_and_notes.txt
 /running_notes.txt
 /docs/pydanticAI/

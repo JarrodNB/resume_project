@@ -26,3 +26,8 @@ its result cannot approve a source or replace the unavailable decision in the ta
 Only one local inference runs at a time; new checks wait only until their deadline
 and do not add threads behind a stalled inference. Async checks reuse exact
 task-local decisions before waiting for model admission.
+
+For a speed comparison, run `python -m evals.benchmark_screen_models` with both
+model credentials available. The benchmark measures cold local loading separately,
+then repeats fresh-session benign screens at four input sizes and reports warm p50/p90
+latency and attempted chunk counts. Jev timing includes its network request time.

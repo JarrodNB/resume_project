@@ -159,6 +159,32 @@ def test_local_screen_stops_tokenizing_after_first_block(monkeypatch):
     assert seen == ["first"]
 
 
+def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):
+    release = threading.Event()
+    entered = threading.Event()
+    calls = []
+
+    def stalled_chunks(text):
+        calls.append(text)
+        entered.set()
+        release.wait(1)
+        return [(text, 3)]
+
+    monkeypatch.setattr(local_llama, "iter_chunks", stalled_chunks)
+    monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
+        blocked=False, tokens=3, duration=0.01,
+    ))
+    try:
+        assert screen_user_text("first stalled input", local_llama.MODEL, 0.02).unchecked
+        assert entered.wait(1)
+        for index in range(3):
+            assert screen_user_text(f"another input {index}", local_llama.MODEL, 0.02).unchecked
+        assert calls == ["first stalled input"]
+        assert sum(thread.name == "local-prompt-screen" for thread in threading.enumerate()) == 1
+    finally:
+        release.set()
+
+
 def test_local_chunks_cover_every_character_when_tokens_force_smaller_windows(monkeypatch):
     monkeypatch.setattr(local_llama, "_model_pair", lambda: (
         lambda text, **kwargs: {"input_ids": [0] * (len(text) * 2 + 2)}, None,

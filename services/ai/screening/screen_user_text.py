@@ -196,25 +196,40 @@ def _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characte
     key = _screen_key(masked, model, check_phrases, max_characters)
     if session is not None and key in session.decisions:
         return session.decisions[key]
-    remaining = min(timeout_seconds, session.deadline - monotonic()) if session else timeout_seconds
-    if remaining <= 0:
+    deadline = monotonic() + timeout_seconds
+    if session is not None:
+        deadline = min(deadline, session.deadline)
+    remaining = deadline - monotonic()
+    if remaining <= 0 or not _local_inference_lock.acquire(timeout=remaining):
         result = ScreenOutcome(False, unchecked=True)
     else:
-        completed = Future()
-        context = contextvars.copy_context()
-
-        def run():
-            try:
-                completed.set_result(context.run(_local_screen_guarded, text, model, remaining,
-                                                 check_phrases, max_characters, False))
-            except Exception as error:  # noqa: BLE001 — any local failure must resolve the caller
-                completed.set_exception(error)
-
-        threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
-        try:
-            result = completed.result(timeout=remaining)
-        except Exception:  # noqa: BLE001 — local failure is unavailable
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            _local_inference_lock.release()
             result = ScreenOutcome(False, unchecked=True)
+        else:
+            completed = Future()
+            context = contextvars.copy_context()
+
+            def run():
+                try:
+                    completed.set_result(context.run(_local_screen, text, model, remaining,
+                                                     check_phrases, max_characters, False))
+                except Exception as error:  # noqa: BLE001 — local failure resolves the caller
+                    completed.set_exception(error)
+                finally:
+                    _local_inference_lock.release()
+
+            try:
+                threading.Thread(target=run, name="local-prompt-screen", daemon=True).start()
+            except RuntimeError:
+                _local_inference_lock.release()
+                result = ScreenOutcome(False, unchecked=True)
+            else:
+                try:
+                    result = completed.result(timeout=remaining)
+                except Exception:  # noqa: BLE001 — local failure is unavailable
+                    result = ScreenOutcome(False, unchecked=True)
     if session is not None:
         session.decisions[key] = result
         if result.allowed:

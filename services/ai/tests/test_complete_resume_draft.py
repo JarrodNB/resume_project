@@ -95,6 +95,57 @@ def test_one_task_returns_complete_draft_without_query_embeddings(generation, mo
     assert "Synthetic Candidate" not in seen[-1][1]
 
 
+def test_novel_prose_finishes_on_first_response_and_keeps_saved_role_identity(generation, offline_model_resolution):
+    dependencies, context, seen, _ = generation
+    novel_bullet = "Improved the Orion API by 37% for Aurora Labs."
+
+    async def generate(messages, info):
+        section = section_name(messages)
+        seen.append(section)
+        output = selected_output(section)
+        if section == "experience":
+            output["entries"][0]["prose"] = [{"text": novel_bullet, "source_labels": []}]
+        if section == "summary":
+            output["summary"]["source_labels"] = ["E1"]
+        return answer(info, output)
+
+    model = FunctionModel(generate, model_name="gpt-5-mini")
+    offline_model_resolution(dependencies.settings.resume_tailoring_model, model)
+    offline_model_resolution(dependencies.settings.generative_fallback_model, model)
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(task(), dependencies)
+
+    assert result.status == "completed"
+    assert seen.count("experience") == 1
+    role = next(section for section in result.result["sections"] if section["section_type"] == "experience")["content"]["items"][0]
+    saved_role = context.career_library.experiences[0]
+    assert role["highlights"] == [novel_bullet]
+    assert (role["company"], role["title"], role["start_date"]) == (
+        saved_role.company, saved_role.title, saved_role.start_date.strftime("%Y-%m"))
+
+
+def test_unknown_entry_label_gets_one_repair_then_completes(generation, offline_model_resolution):
+    dependencies, _, seen, _ = generation
+
+    async def generate(messages, info):
+        section = section_name(messages)
+        seen.append(section)
+        output = selected_output(section)
+        if section == "experience" and seen.count("experience") == 1:
+            output["entries"][0]["label"] = "E99"
+        return answer(info, output)
+
+    model = FunctionModel(generate, model_name="gpt-5-mini")
+    offline_model_resolution(dependencies.settings.resume_tailoring_model, model)
+    offline_model_resolution(dependencies.settings.generative_fallback_model, model)
+    with resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(task(), dependencies)
+
+    assert result.status == "completed"
+    assert seen.count("experience") == 2
+    assert len(result.result["sections"]) == 6
+
+
 @pytest.mark.real_guardrail
 @pytest.mark.parametrize("queued", [False, True])
 def test_complete_draft_recovery_keeps_each_classifier_cost_once(
@@ -341,7 +392,9 @@ def test_failed_writer_cancels_peers_before_failed_result_and_retains_costs(
         finally:
             active.discard(section)
 
-    offline_model_resolution(dependencies.settings.resume_tailoring_model, FunctionModel(generate, model_name="openai:gpt-5-mini"))
+    model = FunctionModel(generate, model_name="openai:gpt-5-mini")
+    offline_model_resolution(dependencies.settings.resume_tailoring_model, model)
+    offline_model_resolution(dependencies.settings.generative_fallback_model, model)
     queue = FakeResultQueue()
     assert process_task_message(task().model_dump_json(), 1, queue, dependencies)
     result = json.loads(queue.sent_bodies[-1])
@@ -351,8 +404,8 @@ def test_failed_writer_cancels_peers_before_failed_result_and_retains_costs(
                for report in result["library_screening"])
     assert active == set()
     assert cancelled == ["projects"]
-    assert len(attempts) == 3
-    assert sum(item["input_tokens"] for item in result["usage"]) == 44
+    assert len(attempts) == 2
+    assert sum(item["input_tokens"] for item in result["usage"]) == 33
     assert result["usage_incomplete"] is True
 
 

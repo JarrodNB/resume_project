@@ -9,8 +9,9 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass, field
 from uuid import UUID
 
+import text_limits
 from agents.user_text_screen_agent import screen_user_message_async
-from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
@@ -32,6 +33,23 @@ from worker.task_dependencies import TaskDependencies
 
 class ResumePreparationError(ValueError):
     """Expected missing or rejected input, safe to show as a failed draft message."""
+
+
+def _library_text_length(library: CareerLibrary) -> int:
+    """Count each saved text field tailoring reads once, without labels or metadata."""
+    total = len(library.summary or "")
+    for rows, names in (
+        (library.experiences, ("company", "title", "location", "description")),
+        (library.projects, ("name", "role", "description")),
+        (library.educations, ("institution", "degree", "field_of_study", "description")),
+        (library.certifications, ("name", "issuer", "credential_id", "credential_url", "description")),
+        (library.skills, ("name", "category")),
+        (library.facts, ("requirement", "response")),
+    ):
+        total += sum(len(getattr(row, name) or "") for row in rows for name in names)
+    total += sum(len(highlight.content) for experience in library.experiences
+                 for highlight in experience.highlights)
+    return total
 
 
 async def _bounded[T](items: Sequence[T], operation: Callable[[T], Awaitable[None]], limit: int) -> None:
@@ -72,22 +90,29 @@ class PreparedResumeDraft:
     _session: object = field(default_factory=current_session, repr=False)
 
     async def _screen(self, texts: Sequence[str], records: dict[str, SourceRecord] | None = None) -> None:
-        async def classify(text):
+        async def classify(text, *, max_characters=MAX_SCREENED_TEXT):
             return await screen_user_text_async(
                 text, self._settings.user_text_screen_model,
                 remaining_timeout(self._settings.llm_run_timeout_seconds),
                 check_phrases=True, classify=screen_user_message_async,
+                max_characters=max_characters,
             )
 
         async def check(text):
             if text not in self._decisions:
                 source = (records or {}).get(text)
                 provenance = source.provenance if source else None
-                if len(text) > MAX_SCREENED_TEXT:
+                if len(text) > MAX_SCREENED_TEXT and not provenance:
                     outcome = ScreenOutcome(False, too_long=True)
                 elif provenance:
+                    # The saved plain text passed the aggregate cap before preparation.
+                    # Field names and JSON escaping may make its screening envelope longer.
+                    async def classify_library(payload):
+                        return await classify(payload, max_characters=max(MAX_SCREENED_TEXT, len(payload)))
+
                     outcome = await screen_library_fields_async(
-                        provenance.library, classify, used_fields=provenance.used_fields, approved_sources=[text])
+                        provenance.library, classify_library,
+                        used_fields=provenance.used_fields, approved_sources=[text])
                     if outcome is True:
                         outcome = ScreenOutcome(True)
                 else:
@@ -165,6 +190,8 @@ async def prepare_resume_draft(
             context = dependencies.read_gap_analysis_context(user_id, job_id)
             if context is None:
                 raise ResumePreparationError("This job no longer exists.")
+            if _library_text_length(context.career_library) > text_limits.MAX_SCREENED_TEXT:
+                raise ResumePreparationError(text_limits.TAILOR_LIBRARY_TOO_LONG_MESSAGE)
             prepared = PreparedResumeDraft(context, {}, settings, gap_responses or [],
                 gap_analysis, {}, usage, warnings, concurrency)
             # Rails snapshots this from the latest completed gap-analysis task. That

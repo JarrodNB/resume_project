@@ -127,6 +127,12 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   user wait repeatedly and repeated preparation. One queued execution now owns shared
   evidence and generation behind `tailoring.generate_resume_draft`. Rails snapshots profile
   contact, gap analysis, and gap responses; the worker reads the owned job and library once.
+  Before screening or writing, tailoring counts the plain text of every saved library field
+  it uses, once per field. At most 80,000 characters may proceed; a larger library fails the
+  task with a size message, even if its fields were screened before. Tailoring considers the
+  complete fitting library without search or trimming, subject to the existing safety screen.
+  The assembled prompt retains its separate 120,000-character cap for large combined job,
+  analysis, labels, and library text.
   Contact, every degree, and every certification are copied without a generative call,
   preserving descriptions and credential date precision. Experience, projects, and skill
   selection run concurrently, with at most three writers in flight. The summary follows
@@ -137,8 +143,11 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   analysis is worker-produced output and is validated instead of screened again. Saved
   user-written gap responses receive one grouped screening decision before entering prompts.
   The model selects, orders, and rewrites toward the job without inventing employers,
-  titles, tools, dates, metrics, or responsibilities. Each sentence cites evidence labels;
-  a local checker requests a retry for suspicious claims and keeps valid model wording.
+  titles, tools, dates, metrics, or responsibilities. The model is instructed to cite
+  evidence labels for its wording;
+  the output checker accepts usable section shape and known labels, with at most one
+  repair attempt. It does not judge whether prose claims match the sources. Empty
+  citation lists are accepted. The user reviews and edits the draft before saving.
   Empty sections skip generation. A successful optional writer may omit its section with
   an explanation when nothing fits. A failed writer or the shared task deadline cancels and
   awaits outstanding work; no successful fragments are published as a complete draft.

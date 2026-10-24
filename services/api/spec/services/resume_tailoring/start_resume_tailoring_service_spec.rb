@@ -45,7 +45,10 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
 
   it "returns the completed unsaved draft instead of starting another" do
     existing = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
-                      result: { "sections" => [ { "section_type" => "summary", "content" => { "text" => "Engineer." } } ] })
+                      result: { "sections" => [
+                        { "section_type" => "custom", "content" => {} },
+                        { "section_type" => "summary", "content" => { "text" => "Engineer." } }
+                      ] })
 
     result = described_class.call(user: user, job: job)
 
@@ -63,6 +66,25 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(result.value).to be_queued
     expect(result.value.id).not_to eq(old.id)
     expect(queue).to have_received(:send_message).once
+  end
+
+  {
+    "unsupported" => { "section_type" => "custom", "content" => {} },
+    "omitted" => { "section_type" => "summary", "content" => { "text" => "Old draft" }, "omitted" => true },
+    "malformed content" => { "section_type" => "summary", "content" => "Malformed draft" }
+  }.each do |shape, section|
+    it "starts a new task when the completed result has only #{shape} sections" do
+      old = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed",
+                   result: { "sections" => [ section ] })
+
+      result = described_class.call(user: user, job: job)
+
+      expect(result).to be_success
+      expect(result.value).to be_queued
+      expect(result.value.id).not_to eq(old.id)
+      expect(described_class.call(user: user, job: job).value).to eq(result.value)
+      expect(queue).to have_received(:send_message).once
+    end
   end
 
   it "returns an in-flight queued draft after reloading the page" do

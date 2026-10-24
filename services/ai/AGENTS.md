@@ -131,8 +131,8 @@ skip it. Export indexes are not required.
 - `screening/` — Jev yes/no screen for user-written text, plus a short phrase check for
   obvious instruction overrides. A string over the screen cap is rejected before the call
   (`too_long`)
-- `tailoring/` — section order, labeled sources, the section prompt, the
-  faithfulness check, and turning the agent's draft into resume section JSON
+- `tailoring/` — section order, labeled sources, the section prompt, output-shape
+  and label checks, and turning the agent's draft into resume section JSON
 - `documents/` — PDF/DOCX text extraction
 - `pii/` — local import contact detection, opaque task-local replacements, and restoration;
   bundled Presidio/spaCy assets, coverage limits, and licenses are documented in its README

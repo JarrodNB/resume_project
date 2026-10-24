@@ -94,8 +94,8 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_enforce_source_faithfulness.py` — runtime guard drops rewritten highlights and invented
   skills, warns on unmatched names, leaves faithful parses unchanged
 - `test_screen_user_text.py` — phrase block, missing key fails closed, yes-confidence threshold
-- `test_check_section_faithfulness.py` — unsupported claims are rejected; library text is not
-  substituted
+- `test_check_section_output.py` — usable section shape and supplied labels;
+  novel prose and empty citations are accepted
 - `test_labeled_sources.py` — a section's own rows stay labeled when retrieval returned other rows
 - `test_tailor_resume_handler.py` — copied contact/credentials, prompt failures, empty section
   skipping and completed output without section approval metadata

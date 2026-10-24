@@ -147,12 +147,16 @@ it('lets the user retry after starting the draft fails', async () => {
 
 it('shows omitted-section explanations alongside the completed draft', async () => {
   const result = {
-    sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } }],
+    sections: [
+      { section_type: 'custom', title: 'Old custom section', content: {} },
+      { section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } },
+    ],
     warnings: ['Projects omitted: no relevant evidence.'],
   }
   renderTailor([jobMock(task({ status: 'COMPLETED', result })), subscription({ status: 'COMPLETED', result })])
 
   expect(await screen.findByText('Projects omitted: no relevant evidence.')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Summary' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Save resume' })).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Write it from my library anyway' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
@@ -316,6 +320,27 @@ it('regenerates an unsaved result in the retired draft format instead of showing
   expect(start).toHaveBeenCalledOnce()
   expect(screen.queryByText('Your draft is ready to review')).not.toBeInTheDocument()
   expect(screen.queryByText('Include at least one section to preview or save your resume.')).not.toBeInTheDocument()
+})
+
+it.each([
+  ['unsupported', { section_type: 'custom', content: {} }],
+  ['omitted', { section_type: 'summary', content: { text: 'Old draft' }, omitted: true }],
+  ['malformed content', { section_type: 'summary', content: 'Malformed draft' }],
+])('starts and follows a new task when the completed result has only %s sections', async (_shape, section) => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
+  const nextResult = { sections: [{ section_type: 'summary', content: { text: 'New draft.' } }] }
+  const nextSubscription = subscription({ id: 'task-2', status: 'COMPLETED', result: nextResult })
+  nextSubscription.request.variables.id = 'task-2'
+  renderTailor([
+    jobMock(task({ status: 'COMPLETED', result: { sections: [section] } })),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
+    nextSubscription,
+  ])
+
+  expect(await screen.findByRole('button', { name: 'Summary' })).toBeInTheDocument()
+  expect(start).toHaveBeenCalledOnce()
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Summary' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('New draft.')
 })
 
 it('allows retry when starting after accepted history fails', async () => {

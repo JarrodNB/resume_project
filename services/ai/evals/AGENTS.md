@@ -91,15 +91,15 @@ score attached, so runs can be compared across prompt and model changes.
   a security-engineer resume). `block` is the decision at the 0.7 bar
 - `user_text_screen_evaluators.py` — `DecisionMatch` (the production bar) and `QuestionMatch`
   (each yes/no bool)
-- `run_user_text_screen_evals.py` — runner (the Jev call itself, not the phrase list):
+- `run_user_text_screen_evals.py` — pinned Jev prompt-injection runner (the Jev call itself, not the phrase list):
   `docker compose run --rm ai python -m evals.run_user_text_screen_evals`
-- `run_user_text_fallback_evals.py` — dedicated Nano boolean classifier quality run on the
+- `run_user_text_fallback_evals.py` — dedicated Nano prompt-injection classifier quality run on the
   shared synthetic screening cases. Uses production boolean policy, never JEV margins.
   Outages are errors and wrong decisions fail the runner. Run
   `docker compose run --rm ai python -m evals.run_user_text_fallback_evals`.
 - `check_local_llama_model.py` — gated-artifact smoke check for the local model's label mapping using one benign and one injection input. Run before enabling Llama mode.
 - `benchmark_screen_models.py` — repeated, order-alternating warm latency comparison on identical synthetic benign inputs of 160, 1,600, 5,000, and 12,000 characters, plus paired serial and four-chunk local controls at 5,000 and 12,000. Measures cold local model load separately, uses fresh screening sessions, and prints per-size sample timings, chunk counts, p50, and p90. Run `docker compose run --rm --no-deps ai python -m evals.benchmark_screen_models` with Jev credentials and the gated model cached or accessible. Provider network latency remains part of Jev time.
-- `run_screen_model_comparison.py` — separate Jev versus local Llama comparison on shared synthetic short and long cases. Uses production screening with fresh sessions, records allow/block/unavailable, attempted chunks (including prefetched local chunks) and timing, and keeps raw inputs out of its report and exported evaluation spans. Run `docker compose run --rm --no-deps ai python -m evals.run_screen_model_comparison --output /app/screen-model-comparison.json` when Jev credentials and the gated local model artifact are available. Harmful-only cases are scored against Jev only.
+- `run_screen_model_comparison.py` — separate Jev versus local Llama comparison on shared synthetic short and long cases. Uses production screening without fallback in fresh sessions, records allow/block/unavailable, attempted chunks (including prefetched local chunks) and timing, and keeps raw inputs out of its report and exported evaluation spans. Run `docker compose run --rm --no-deps ai python -m evals.run_screen_model_comparison --output /app/screen-model-comparison.json` when Jev credentials and the gated local model artifact are available. Harmful-only cases are non-injections for both models.
 - `run_screen_chunk_comparison.py` — 14 synthetic ordinary, long, and security-career
   resumes, including attacks at the beginning/middle/end and across both candidate chunk
   grids. Compares the production 2,000/4,000-character screens with 300-character overlap

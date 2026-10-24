@@ -102,6 +102,10 @@ def screen_user_text(
     """
     timeout_seconds = min(timeout_seconds, load_settings().user_text_screen_timeout_seconds)
     if model == local_llama.MODEL:
+        session = current_session()
+        key = _screen_key(text, model, check_phrases, max_characters)
+        if session is not None and key in session.decisions:
+            return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
         started = monotonic()
         result = _local_screen_sync(text, model, timeout_seconds, check_phrases, max_characters)
         fallback_model = load_settings().user_text_screen_fallback_model
@@ -111,9 +115,7 @@ def screen_user_text(
                 result = screen_user_text(text, fallback_model, remaining,
                                           check_phrases=check_phrases,
                                           max_characters=max_characters, _allow_fallback=False)
-                _remember_decision(current_session(), _screen_key(text, model, check_phrases,
-                                                                   max_characters),
-                                   mask_outbound(text), result)
+                _remember_decision(session, key, mask_outbound(text), result)
         return result
     screening = _screen_pass(text, model, timeout_seconds, check_phrases, max_characters,
                              allow_fallback=_allow_fallback)
@@ -183,7 +185,7 @@ async def _drive_async(
         masked = mask_outbound(text)
         key = _screen_key(masked, model, check_phrases, max_characters)
         if session is not None and key in session.decisions:
-            return session.decisions[key]
+            return session.decisions[key]._replace(usage=None, model=None, completed_usage=())
         if (preflight := _preflight(masked, check_phrases, max_characters)) is not None:
             _remember_decision(session, key, masked, preflight)
             return preflight

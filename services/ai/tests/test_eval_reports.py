@@ -178,6 +178,18 @@ def test_model_validation(suite, model):
         run_report.validate_model(suite, model)
 
 
+def test_jev_report_uses_jev_label_with_another_primary(monkeypatch):
+    """The Jev-only suite must not be mislabeled as the selected production model."""
+    monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "meta-llama/Llama-Prompt-Guard-2-22M")
+    monkeypatch.setattr(run_report.importlib, "import_module", lambda name: SimpleNamespace(
+        run_user_text_screen_evals=lambda model_override=None: None,
+    ))
+    run = run_report.run_suite("user_text_screen")
+    assert run["model"] == "typesafe:jev-1.13.0"
+    assert run["configuration"]["primary_model"] == "typesafe:jev-1.13.0"
+    assert run["configuration"]["screening_model"] == "typesafe:jev-1.13.0"
+
+
 def test_override_settings():
     """Keeps worker defaults unchanged and removes fallback contamination in comparisons."""
     original = load_settings()

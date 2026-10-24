@@ -12,6 +12,7 @@ import screening.screen_user_text as screening
 from schemas.user_text_fallback import UserTextFallbackScreen
 from schemas.user_text_screen import UserTextScreen
 from screening import local_llama
+from screening.session import screening_session
 from worker.settings import WorkerSettings
 
 JEV = "typesafe:jev-1.13.0"
@@ -120,6 +121,52 @@ def test_local_llama_recovers_with_jev(monkeypatch):
     result = screening.screen_user_text("career note", local_llama.MODEL, 1,
                                         check_phrases=False)
     assert result.allowed and calls == [JEV]
+
+
+@pytest.mark.parametrize("async_path", [False, True])
+def test_local_fallback_usage_is_not_repeated_from_cache(monkeypatch, async_path):
+    calls = []
+    monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", NANO)
+    monkeypatch.setattr(local_llama, "iter_chunks", lambda text: iter([(text, len(text))]))
+
+    def unavailable(*_args):
+        raise RuntimeError("Llama unavailable")
+
+    def nano(text, model, timeout_seconds):
+        calls.append(model)
+        return _run(model)
+
+    async def async_nano(text, model, timeout_seconds):
+        return nano(text, model, timeout_seconds)
+
+    monkeypatch.setattr(local_llama, "classify_chunk", unavailable)
+    monkeypatch.setattr(screening, "screen_fallback_message", nano)
+
+    async def check_async():
+        async def unused_jev(*_args):
+            raise AssertionError("Jev must not run")
+
+        first = await screening.screen_user_text_async(
+            "career note", local_llama.MODEL, 1, check_phrases=False,
+            classify=unused_jev, classify_fallback=async_nano,
+        )
+        second = await screening.screen_user_text_async(
+            "career note", local_llama.MODEL, 1, check_phrases=False,
+            classify=unused_jev, classify_fallback=async_nano,
+        )
+        return first, second
+
+    with screening_session():
+        if async_path:
+            first, second = asyncio.run(check_async())
+        else:
+            first = screening.screen_user_text("career note", local_llama.MODEL, 1,
+                                               check_phrases=False)
+            second = screening.screen_user_text("career note", local_llama.MODEL, 1,
+                                                check_phrases=False)
+    assert first.allowed and second.allowed
+    assert len(first.model_usages) == 1 and second.model_usages == []
+    assert calls == [NANO]
 
 
 def test_async_nano_primary_recovers_with_jev(monkeypatch):

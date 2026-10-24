@@ -29,6 +29,7 @@ SUITES = {
     "user_text_screen": "user_text_screen_model",
     "prompt_guardrail": "user_text_screen_model",
 }
+JEV_SCREEN_MODEL = "typesafe:jev-1.13.0"
 
 
 def validate_model(suite, model):
@@ -36,8 +37,8 @@ def validate_model(suite, model):
     if suite == "prompt_guardrail":
         raise ValueError("prompt_guardrail uses a fixed TestModel and configured Jev; no override")
     if suite == "user_text_screen":
-        valid = model.startswith("typesafe:jev-")
-        expected = "typesafe:jev-* decision model"
+        valid = model == JEV_SCREEN_MODEL
+        expected = f"{JEV_SCREEN_MODEL} decision model"
     elif suite == "library_retrieval":
         valid = model.startswith("openai:text-embedding-")
         expected = "openai:text-embedding-* embedding model"
@@ -51,11 +52,13 @@ def validate_model(suite, model):
 def run_suite(suite, model=None):
     """Runs the unchanged suite pipeline with isolated capture and optional model override."""
     settings = load_settings()
-    configured_model = model or getattr(settings, SUITES[suite])
+    configured_model = model or (JEV_SCREEN_MODEL if suite == "user_text_screen"
+                                 else getattr(settings, SUITES[suite]))
     configuration = {
         "primary_model": configured_model,
         "override": model is not None,
-        "screening_model": settings.user_text_screen_model,
+        "screening_model": (configured_model if suite == "user_text_screen"
+                            else settings.user_text_screen_model),
         "thinking": getattr(settings, SUITES[suite].replace("_model", "_thinking"), None),
     }
     if suite == "library_retrieval":

@@ -59,6 +59,11 @@ export function TailorResumePage() {
             <Button type="button" variant="outline" className="justify-self-start" onClick={retry}>
               Try again
             </Button>
+            {activeTargetPages === 2 && (
+              <Button type="button" variant="outline" className="justify-self-start" disabled={starting} onClick={() => void begin(1)}>
+                Try one page instead
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

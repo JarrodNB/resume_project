@@ -66,3 +66,14 @@ it('offers a fresh target for an incompatible legacy paused section task', async
   expect(await screen.findByRole('button', { name: 'Write my resume' })).toBeInTheDocument()
   expect(screen.queryByText('Writing your complete draft…')).not.toBeInTheDocument()
 })
+
+it('lets a failed two-page task restart as one page after its library becomes ineligible', async () => {
+  const user = userEvent.setup()
+  render([
+    jobMock(false, { __typename: 'AiTask', id: 'failed-task', status: 'FAILED', input: { target_pages: 2 }, result: null, acceptedAt: null, errorMessage: 'Your library needs more narrative for two pages.' }),
+    { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1', targetPages: 1 } }, result: queued },
+  ])
+  await user.click(await screen.findByRole('button', { name: 'Try one page instead' }))
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(screen.getByText('Target: one page')).toBeInTheDocument()
+})

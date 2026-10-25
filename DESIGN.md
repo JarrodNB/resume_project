@@ -161,9 +161,9 @@ Geist Variable with a sans-serif fallback serves every role. Page headings use t
 
 Above 899px, a fixed navigation spine is 238px wide, with a matching body offset. Its content can scroll vertically. The top bar is 76px tall. Workspace content is centered within 1440px, with 48px top, 44px horizontal, and 80px bottom padding. Standard narrow page wrappers expand to 1040px.
 
-Below 1200px, content padding becomes 36px 28px 64px; the library's 220px guide moves below the records. Below 900px, navigation becomes a sticky compact header with a horizontally scrollable row; route changes bring the active item into view. The body offset disappears, the top bar becomes 52px, and content padding is 32px 24px 64px. Below 600px, content padding is 28px 16px 48px and heading actions occupy their own row.
+Below 1200px, content padding becomes 36px 28px 64px. Below 900px, navigation becomes a sticky compact header with a horizontally scrollable row; route changes bring the active item into view. The body offset disappears, the top bar becomes 52px, and content padding is 32px 24px 64px. Below 600px, content padding is 28px 16px 48px and heading actions occupy their own row.
 
-Authentication uses equal columns, with a 360px-wide form. Below 600px it stacks; the workflow list and caption hide. The library uses 12px between sections and 32px between the records and guide. Record rows use 24px vertical padding, reducing to 20px on small screens.
+Authentication uses equal columns, with a 360px-wide form. Below 600px it stacks; the workflow list and caption hide. The library uses 12px between sections. Above 899px, saved records sit beside a sticky AI dock (300–354px wide), with a 28px gap. At 899px and below, records use one column and AI work opens in a full-screen modal dialog. Record rows use 24px vertical padding, reducing to 20px on small screens.
 
 ## Elevation & Depth
 
@@ -188,6 +188,17 @@ Account emails use the same paper, forest, and ruled separators in a fluid 520px
 Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Account actions wrap rather than overflow the navigation spine. Public password recovery retains the authentication layout.
 
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
+
+Career library narrative sections offer section-scoped review actions with progress and
+errors beside the original section. Saved details show
+compact named grades and line icons; the AI workspace adds the assessment explanation.
+Stale and unreviewed states remain neutral. The right dock edits one selected detail;
+when idle, it gives a short instruction to select a detail in the library. Selecting a
+detail opens its remembered section, highlights the saved source, and focuses the workspace
+heading without scrolling the page. Saved text stays beside the proposed revision on desktop; the mobile dialog
+opens only for a selected edit and offers saved text in a disclosure. Acceptance
+is the primary action; further revision is secondary. Closing preserves the server-owned
+draft and returns keyboard focus to its source opener.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.
 

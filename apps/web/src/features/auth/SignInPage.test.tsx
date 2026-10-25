@@ -57,7 +57,8 @@ it('does not flash private routes while bootstrap is pending', () => {
 it('offers a retry after bootstrap network failure', async () => {
   vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new TypeError('offline')).mockResolvedValueOnce(json(signedIn)))
   renderApp('/library')
-  expect(await screen.findByRole('alert')).toHaveTextContent('Could not check your session')
+  expect(await screen.findByRole('alert')).toHaveTextContent('We couldn’t load Careergrind')
+  expect(screen.getByText('Something went wrong on our side. Please try again in a moment.')).toBeInTheDocument()
   expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
   expect(await screen.findByText('Library page')).toBeInTheDocument()

@@ -12,3 +12,9 @@ export const emptyLibraryReviewMocks = ['experience', 'summary', 'projects', 'fa
   ...emptyExperienceReviewMock,
   request: { query: LIBRARY_REVIEW_QUERY, variables: { section } },
 }))
+
+/** Minimal Rails-shaped library for workspace integration tests. */
+export const emptyReviewLibrary = {
+  me: { id: 'user-1', name: 'Jane', contactEmail: null, phone: null, location: null, links: [], summary: null },
+  experiences: [], projects: [], educations: [], certifications: [], skills: [], libraryFacts: [],
+}

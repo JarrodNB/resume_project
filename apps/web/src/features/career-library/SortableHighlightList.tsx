@@ -4,8 +4,7 @@
  * Index:
  *   - SortableHighlightList: drop area with one draggable row per highlight
  */
-import { LibraryAssessment, type Assessment } from './LibraryAssessment'
-import type { ReactNode } from 'react'
+import { LibraryDetail } from './LibraryDetail'
 import { SortableGroup } from '@/components/dnd/SortableGroup'
 import { SortableItem } from '@/components/dnd/SortableItem'
 import { sortableGroupId, sortableId } from '@/components/dnd/moveItems'
@@ -14,12 +13,11 @@ import { HIGHLIGHT_TYPE } from './useLibraryDragHandlers'
 interface SortableHighlightListProps {
   experienceId: string
   highlights: { id: string; content: string }[]
-  assessmentFor?: (id: string) => Assessment | undefined
-  editControlFor?: (highlight: { id: string; content: string }) => ReactNode
+  movingHighlight?: boolean
 }
 
 /** Renders the highlights as draggable rows; an empty role shows a drop hint. */
-export function SortableHighlightList({ experienceId, highlights, assessmentFor, editControlFor }: SortableHighlightListProps) {
+export function SortableHighlightList({ experienceId, highlights, movingHighlight = false }: SortableHighlightListProps) {
   const group = sortableGroupId('highlights', experienceId)
 
   return (
@@ -35,15 +33,13 @@ export function SortableHighlightList({ experienceId, highlights, assessmentFor,
           type={HIGHLIGHT_TYPE}
           group={group}
           label={highlight.content}
-          className="flex items-start gap-1 rounded-md border bg-card px-1 py-1 text-sm"
+          className="flex items-start gap-1 border-t px-1 py-2 text-sm"
         >
           {(dragHandle) => (
             <>
               {dragHandle}
               <div className="min-w-0 flex-1 py-0.5">
-                <span>{highlight.content}</span>
-                {assessmentFor && <LibraryAssessment assessment={assessmentFor(highlight.id)} />}
-                {editControlFor?.(highlight)}
+                <LibraryDetail kind="experience_highlight" recordId={highlight.id} text={highlight.content} disabled={movingHighlight} />
               </div>
             </>
           )}

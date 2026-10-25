@@ -5,11 +5,8 @@
  *   - ProjectSection: projects with merge/delete and the project form
  */
 import { useState } from 'react'
-import { ErrorAlert } from '@/components/ErrorAlert'
-import { Button } from '@/components/ui/button'
-import { LibraryAssessment } from './LibraryAssessment'
-import { LibraryEditControl } from './LibraryEditControl'
-import { useLibraryReview } from './useLibraryReview'
+import { LibrarySectionReview } from './LibrarySectionReview'
+import { LibraryDetail } from './LibraryDetail'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 import { formatDateRange } from '@/lib/formatDateRange'
 import { LibraryEntry } from './LibraryEntry'
@@ -22,15 +19,14 @@ type Project = CareerLibraryQuery['projects'][number]
 
 /** Lists projects and opens the form to add one or edit one. */
 export function ProjectSection({ projects }: { projects: Project[] }) {
-  const review = useLibraryReview('projects', JSON.stringify(projects))
   const [editing, setEditing] = useState<Project | 'new' | null>(null)
   const candidates = projects.map((project) => ({ id: project.id, label: projectLabel(project) }))
 
   return (
     <>
       <LibrarySection sectionId="library.projects" tone="projects" title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
-        reviewActions={<Button variant="outline" size="sm" onClick={() => void review.start()} disabled={review.busy || !projects.some((entry) => entry.description)}>{review.busy ? 'Reviewing…' : 'Review Projects'}</Button>}>
-        <ErrorAlert title="Could not review Projects" messages={review.errors} />
+        reviewActions={<LibrarySectionReview section="projects" />}>
+
         {projects.map((project, index) => (
           <LibraryEntry
             key={project.id}
@@ -38,7 +34,6 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
             heading={project.name}
             subheading={[project.role, project.url].filter(Boolean).join(' · ')}
             dates={formatDateRange(project.startDate, project.endDate)}
-            description={project.description}
             actions={
               <LibraryEntryActions
                 kind="project"
@@ -49,10 +44,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
               />
             }
           >
-            {project.description && <>
-              <LibraryAssessment assessment={review.assessments.find((item) => item.kind === 'project' && item.recordId === project.id)} />
-              <LibraryEditControl kind="project" recordId={project.id} currentText={project.description} sourceRevision={JSON.stringify(project)} />
-            </>}
+            {project.description && <LibraryDetail kind="project" recordId={project.id} text={project.description} />}
           </LibraryEntry>
         ))}
       </LibrarySection>

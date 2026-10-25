@@ -20,6 +20,8 @@ module Types
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
     field :study_guide_out_of_date, Boolean,
           description: "Whether a saved study guide uses a different description; null for other or unavailable tasks."
+    field :study_guide_retry_after_seconds, Float,
+          description: "Server-calculated wait before a queued guide can be manually retried; zero when available, null for other tasks."
     field :job, Types::JobType,
           description: "The job a completed scrape_job or parse_job_posting task saved, or the job an analyze_gaps task compares."
 
@@ -32,6 +34,11 @@ module Types
       job = context[:current_user].jobs.find_by(id: object.subject_id)
       return unless job
       ::StudyGuides::DescriptionSnapshot.out_of_date?(source: object.input["description"], description: job.description)
+    end
+
+    def study_guide_retry_after_seconds
+      return if unavailable_study_guide?
+      ::StudyGuides::GenerationRecovery.retry_after_seconds(object)
     end
 
     def input

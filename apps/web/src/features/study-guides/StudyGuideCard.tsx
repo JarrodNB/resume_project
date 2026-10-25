@@ -40,12 +40,13 @@ function StudyGuideContent({ jobId, description }: { jobId: string; description:
     {state.contentError && <div className="grid gap-2"><ErrorAlert title="Couldn't load this guide" messages={[state.contentError.message]} />
       <Button className="justify-self-start" variant="outline" onClick={() => void state.retryContent().catch(() => {})}>Retry guide</Button></div>}
     {state.busy && <p role="status" className="text-sm text-muted-foreground">Generating your study guide… You can keep reading saved material.</p>}
+    {state.retryReady && !state.starting && <p role="status" className="max-w-prose text-sm text-muted-foreground">This study guide is taking longer than expected. You can retry without losing saved guides.</p>}
     {guide && state.guideOutOfDate && <p role="status" className="max-w-prose text-sm text-muted-foreground">This guide is out of date because the job description changed. Generate another guide when you’re ready.</p>}
     {guide && <StudyGuideView guide={guide} />}
     {state.guideTask && !guide && <p className="text-sm text-muted-foreground">This guide couldn't be displayed. Generate another guide.</p>}
     {!hasDescription && <p className="text-sm text-muted-foreground">Add a job description to generate a study guide.</p>}
     <Button className="justify-self-start" variant={guide ? 'outline' : 'default'} disabled={!hasDescription || state.busy || state.loading || Boolean(state.loadError)}
-      onClick={() => void state.start()}>{state.starting ? 'Starting…' : guide ? 'Generate another guide' : 'Generate study guide'}</Button>
+      onClick={() => void state.start()}>{state.starting ? 'Starting…' : state.retryReady ? 'Retry study guide' : guide ? 'Generate another guide' : 'Generate study guide'}</Button>
   </div>
 }
 

@@ -85,6 +85,11 @@ type AiTask {
   Whether a saved study guide uses a different description; null for other or unavailable tasks.
   """
   studyGuideOutOfDate: Boolean
+
+  """
+  Server-calculated wait before a queued guide can be manually retried; zero when available, null for other tasks.
+  """
+  studyGuideRetryAfterSeconds: Float
   taskType: AiTaskTypeEnum!
 }
 

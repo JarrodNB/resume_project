@@ -95,9 +95,9 @@ type Documents = {
     "\n  mutation DeleteResume($id: ID!) {\n    deleteResume(input: { id: $id }) {\n      resume {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.DeleteResumeDocument,
     "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": typeof types.ResumesDocument,
     "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": typeof types.ResumeDocument,
-    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt }\n    }\n  }\n": typeof types.StudyGuideForJobDocument,
+    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": typeof types.StudyGuideForJobDocument,
     "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": typeof types.StudyGuideContentDocument,
-    "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt }\n      errors\n    }\n  }\n": typeof types.GenerateStudyGuideDocument,
+    "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": typeof types.GenerateStudyGuideDocument,
 };
 const documents: Documents = {
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": types.AiTaskUpdatedDocument,
@@ -181,9 +181,9 @@ const documents: Documents = {
     "\n  mutation DeleteResume($id: ID!) {\n    deleteResume(input: { id: $id }) {\n      resume {\n        id\n      }\n      errors\n    }\n  }\n": types.DeleteResumeDocument,
     "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": types.ResumesDocument,
     "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": types.ResumeDocument,
-    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt }\n    }\n  }\n": types.StudyGuideForJobDocument,
+    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": types.StudyGuideForJobDocument,
     "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": types.StudyGuideContentDocument,
-    "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt }\n      errors\n    }\n  }\n": types.GenerateStudyGuideDocument,
+    "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": types.GenerateStudyGuideDocument,
 };
 
 /**
@@ -527,7 +527,7 @@ export function graphql(source: "\n  query Resume($id: ID!) {\n    resume(id: $i
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt }\n    }\n  }\n"): (typeof documents)["\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt }\n    }\n  }\n"];
+export function graphql(source: "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"): (typeof documents)["\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -535,7 +535,7 @@ export function graphql(source: "\n  query StudyGuideContent($jobId: ID!, $guide
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt }\n      errors\n    }\n  }\n"];
+export function graphql(source: "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

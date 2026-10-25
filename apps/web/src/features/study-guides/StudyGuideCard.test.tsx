@@ -11,7 +11,7 @@ import { GENERATE_STUDY_GUIDE_MUTATION, STUDY_GUIDE_QUERY, STUDY_GUIDE_CONTENT_Q
 
 beforeEach(() => localStorage.clear())
 const result = (title = 'Inventory study guide') => ({ study_guide: { title, topics: [{ title: 'Stock reconciliation', why_it_matters: 'The role reconciles stock.', explanation: 'Compare physical counts with the ledger.', exercises: ['Reconcile a sample ledger.'], self_check_questions: ['What causes discrepancies?'] }] } })
-const saved = { __typename: 'AiTask' as const, id: 'guide-1', status: 'COMPLETED', errorMessage: null as string | null, createdAt: '2026-10-25T12:00:00Z' }
+const saved = { __typename: 'AiTask' as const, id: 'guide-1', status: 'COMPLETED', errorMessage: null as string | null, createdAt: '2026-10-25T12:00:00Z', studyGuideRetryAfterSeconds: null as number | null }
 const summary = (id = saved.id, createdAt = saved.createdAt, sourceDescriptionFingerprint = 'original') => ({ __typename: 'StudyGuideSummary' as const, id, createdAt, sourceDescriptionFingerprint, outOfDate: sourceDescriptionFingerprint !== 'original' })
 function historyMock({ guides = [summary()], nextCursor = null as string | null, cursor = null as string | null, task = saved as typeof saved | null, jobId = 'job-1', errors = [] as string[], fingerprint = 'original' } = {}) {
   return { request: { query: STUDY_GUIDE_QUERY, variables: { jobId, cursor } }, result: { data: { job: { __typename: 'Job', id: jobId, studyGuideDescriptionFingerprint: fingerprint, studyGuides: { __typename: 'StudyGuideHistoryPage', guides, nextCursor, errors }, latestStudyGuideTask: task } } } }
@@ -20,6 +20,47 @@ function contentMock(id = saved.id, title = 'Inventory study guide', jobId = 'jo
   return { request: { query: STUDY_GUIDE_CONTENT_QUERY, variables: { jobId, guideId: id } }, result: { data: { job: { __typename: 'Job', id: jobId, studyGuide: { __typename: 'AiTask', id, result: result(title), createdAt: saved.createdAt, studyGuideOutOfDate: false } } } } }
 }
 async function open() { await userEvent.click(screen.getByRole('button', { name: /Study guides/ })) }
+
+function queuedSubscription(task: typeof saved) {
+  return { request: { query: AI_TASK_UPDATED_SUBSCRIPTION, variables: { id: task.id } }, result: { data: { aiTaskUpdated: {
+    ...task, result: null, taskType: 'GENERATE_STUDY_GUIDE', input: {}, pendingQuestions: [], acceptedAt: null,
+    job: { __typename: 'Job', id: 'job-1' },
+  } } } }
+}
+
+it('lets a reloaded expired generation retry manually without losing saved guides', async () => {
+  const expired = { ...saved, id: 'expired', status: 'QUEUED', studyGuideRetryAfterSeconds: 0 }
+  const retry = { ...saved, id: 'retry', status: 'QUEUED', studyGuideRetryAfterSeconds: 900 }
+  const generated = vi.fn(() => ({ data: { generateStudyGuide: { __typename: 'GenerateStudyGuidePayload', aiTask: retry, errors: [] } } }))
+  renderPage({ path: '/', url: '/', element: <StudyGuideCard jobId="job-1" description="Original description" />, mocks: [
+    historyMock({ task: expired }), contentMock(), queuedSubscription(expired),
+    { request: { query: GENERATE_STUDY_GUIDE_MUTATION, variables: { jobId: 'job-1' } }, result: generated }, queuedSubscription(retry),
+  ] })
+  await open()
+  expect(await screen.findByRole('heading', { name: 'Inventory study guide' })).toBeInTheDocument()
+  const recover = await screen.findByRole('button', { name: 'Retry study guide' })
+  expect(recover).toBeEnabled()
+  expect(generated).not.toHaveBeenCalled()
+  await userEvent.click(recover)
+  await waitFor(() => expect(generated).toHaveBeenCalledTimes(1))
+  expect(screen.getByRole('heading', { name: 'Inventory study guide' })).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Generate another guide' })).toBeDisabled())
+})
+
+it('offers manual recovery when the server wait expires while the reader stays open', async () => {
+  const pending = { ...saved, id: 'pending', status: 'QUEUED', studyGuideRetryAfterSeconds: 0.2 }
+  const generated = vi.fn(() => ({ data: { generateStudyGuide: { __typename: 'GenerateStudyGuidePayload', aiTask: saved, errors: [] } } }))
+  renderPage({ path: '/', url: '/', element: <StudyGuideCard jobId="job-1" description="Original description" />, mocks: [
+    historyMock({ task: pending }), contentMock(), queuedSubscription(pending),
+    { request: { query: GENERATE_STUDY_GUIDE_MUTATION, variables: { jobId: 'job-1' } }, result: generated },
+  ] })
+  await open()
+  expect(await screen.findByRole('heading', { name: 'Inventory study guide' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Generate another guide' })).toBeDisabled()
+  expect(await screen.findByRole('button', { name: 'Retry study guide' })).toBeEnabled()
+  expect(screen.getByRole('heading', { name: 'Inventory study guide' })).toBeInTheDocument()
+  expect(generated).not.toHaveBeenCalled()
+})
 
 it('updates every loaded guide after a description edit and restoration without automatically generating', async () => {
   const generated = vi.fn(() => ({ data: { generateStudyGuide: { __typename: 'GenerateStudyGuidePayload', aiTask: saved, errors: [] } } }))

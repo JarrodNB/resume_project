@@ -72,6 +72,20 @@ def test_malformed_urls_are_rejected(url: str) -> None:
     assert find_job_site_scraper(url) is None
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://linkedin.com@other.example/jobs/view/42",
+        "https://www.linkedin.com:password@other.example/jobs/view/42",
+    ],
+)
+def test_linkedin_in_url_credentials_does_not_select_the_scraper(url: str) -> None:
+    """A valid URL's username and password do not establish its destination host."""
+    assert not is_linkedin_url(url)
+    assert parse_linkedin_job_id(url) is None
+    assert find_job_site_scraper(url) is None
+
+
 def test_registry_finds_linkedin_by_host() -> None:
     """LinkedIn hosts map to the LinkedIn scraper; other sites to none."""
     scraper = find_job_site_scraper("https://www.linkedin.com/jobs/view/1")

@@ -79,7 +79,8 @@ def handle_library_review_task(task, dependencies):
     assessments = [
         {**target.model_dump(exclude={"label"}), "color": by_label[target.label].color,
          "reason": by_label[target.label].reason.strip(),
-         "question": by_label[target.label].question.strip() if by_label[target.label].question is not None else None}
+         "question": by_label[target.label].question,
+         "questions": by_label[target.label].questions}
         for target in snapshot.targets
     ]
     return AiResultMessage(

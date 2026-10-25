@@ -47,7 +47,7 @@ function WorkspaceContent({ mobile = false }: { mobile?: boolean }) {
       {workspace.selectedKey ? selected ? <>
         <div className="border-b pb-4"><h3 className="text-base font-semibold">{selected.title}</h3><p className="mt-1 text-sm text-muted-foreground">{selected.fieldLabel} · selected in your library</p></div>
         {mobile && <details className="border-b pb-4 text-sm"><summary className="cursor-pointer font-medium">View saved text</summary><p className="mt-3 whitespace-pre-wrap leading-relaxed">{selected.text}</p></details>}
-        <LibraryAssessment assessment={workspace.mode === 'review' && assessment ? { ...assessment, question: null } : assessment} />
+        <LibraryAssessment assessment={workspace.mode === 'review' && assessment ? { ...assessment, question: null, questions: [] } : assessment} />
         {disabled && <p role="status" className="text-sm text-muted-foreground">Wait for the highlight move to finish before editing.</p>}
         <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, question: assessment.question, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
       </> : <>

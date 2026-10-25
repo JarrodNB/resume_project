@@ -89,7 +89,7 @@ their category.
   there. The shared workspace is for individual editing; it has no overview list or section picker.
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
   live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral
-  stale/unreviewed state. Current enrichment questions appear beside the assessed detail
+  stale/unreviewed state. Up to three current enrichment questions appear together beside the assessed detail
   and in the selected workspace; stale questions are hidden.
 - Summary, Experience, Projects, and Facts each have independent explicit review actions.
   Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact

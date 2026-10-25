@@ -2,6 +2,23 @@
 # targets, but it cannot introduce target identities or write career facts.
 module CareerLibrary
   class ApplyReviewService < ApplicationService
+    # Normalize saved scalar reviews and new question sets at the same seam that
+    # validates queue results, so callers never reinterpret question identities.
+    def self.questions_for(item)
+      values = item.key?("questions") ? item["questions"] : item["question"].nil? ? [] : [ item["question"] ]
+      return unless values.is_a?(Array) && values.length <= 3
+      return unless values.all? { |value| value.is_a?(String) && value.strip.present? && value.length <= 500 }
+
+      values = values.map(&:strip)
+      keys = values.map { |value| value.squish.downcase(:fold) }
+      return unless keys.uniq.length == keys.length
+      if item.key?("questions") && item.key?("question")
+        legacy = item["question"]
+        return unless legacy.nil? ? values.empty? : legacy.is_a?(String) && legacy.length <= 500 && legacy.strip == values.first
+      end
+      values
+    end
+
     # A queued snapshot may outlive edits. Reuse only checks of the exact field
     # value still saved, holding its row lock until the ordinary recorder finishes.
     def self.record_screening(ai_task:, reports:)
@@ -47,9 +64,7 @@ module CareerLibrary
         target = expected[key]
         next false unless target && !seen.include?(key) && item["source_digest"] == target["source_digest"]
         seen << key
-        question = item["question"]
-        valid_question = question.nil? || (question.is_a?(String) && question.strip.present? && question.length <= 500)
-        valid_question && %w[red yellow green].include?(item["color"]) && item["reason"].is_a?(String) && item["reason"].strip.present? && item["reason"].length <= 240
+        !self.class.questions_for(item).nil? && %w[red yellow green].include?(item["color"]) && item["reason"].is_a?(String) && item["reason"].strip.present? && item["reason"].length <= 240
       end
       valid ? success(nil) : failure([ "The review returned invalid assessments. Please try again." ])
     end

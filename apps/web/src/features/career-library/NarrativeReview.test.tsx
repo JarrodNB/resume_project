@@ -33,7 +33,7 @@ for (const item of cases) {
       ...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== item.section),
       { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: item.section } },
         result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [
-          { __typename: 'LibraryAssessment', kind: item.kind, recordId: item.id, field: item.field, color: 'yellow', reason: 'Clarify your contribution.', question: 'What was your own contribution?', stale: false },
+          { __typename: 'LibraryAssessment', kind: item.kind, recordId: item.id, field: item.field, color: 'yellow', reason: 'Clarify your contribution.', question: 'What was your own contribution?', questions: ['What was your own contribution?'], stale: false },
         ] } } } },
       { request: { query: LIBRARY_EDIT_QUERY, variables: { kind: item.kind, recordId: item.id } },
         result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } } },

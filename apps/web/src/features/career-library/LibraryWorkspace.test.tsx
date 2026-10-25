@@ -101,7 +101,7 @@ it('opens review answering in the same selected-detail workspace while keeping I
   const reviewMocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'),
     { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } }, result: { data: { libraryReview: {
       __typename: 'LibraryReview', aiTask: { __typename: 'AiTask', id: 'review-newer-failed', status: 'FAILED', errorMessage: null }, assessments: [
-        { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add your contribution.', question: 'Which part did you build?', reviewTaskId: 'review-completed', stale: false },
+        { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add your contribution.', question: 'Which part did you build?', questions: ['Which part did you build?'], reviewTaskId: 'review-completed', stale: false },
       ],
     } } } },
     { request: { query: LIBRARY_EDIT_QUERY, variables: { kind: 'experience_highlight', recordId: 'h1' } }, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } }, maxUsageCount: Infinity },

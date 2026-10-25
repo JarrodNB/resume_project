@@ -242,11 +242,15 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
 Summary, Experience, Projects, and Facts each have an explicit section review action.
 They return individual red/yellow/green assessments with short reasons for the summary, role
 descriptions/highlights, project descriptions, or saved fact responses without changing career facts.
-Each may also include one focused question about an important missing contribution, context,
-method, or outcome. Complete evidence and wording-only improvements need no question, and
+Each may also include up to three focused, distinct questions about missing contribution, context,
+method, or outcome, in priority order. Complete evidence and wording-only improvements need no questions, and
 questions never require metrics. These independent questions are stored with the completed
 review rather than pausing the section for a deferred tool answer. Current questions appear
 beside their assessed details and in the selected AI workspace; stale questions are hidden.
+The canonical ordered `questions` list is empty when no question is useful. Legacy saved scalar
+questions become one-item lists; the scalar `question` remains the first question for older clients.
+Each question is bounded at 500 characters. Repeated questions, including casing/whitespace variants,
+are rejected rather than offered as separate gaps. Accepted/discarded answers retire the whole set.
 Contact details, credentials, skill names, and fact requirement labels stay outside AI edits.
 Snapshots and results live on the existing `review_library_section` AI task; there is no
 separate assessment table. Only the selected section reaches screening and generation.

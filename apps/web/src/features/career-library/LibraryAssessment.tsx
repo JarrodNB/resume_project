@@ -1,4 +1,4 @@
-/** Shows a review grade, explanation, and optional question about missing evidence.
+/** Shows a review grade, explanation, and up to three questions about missing evidence.
  * Outdated feedback loses its grade so it cannot look like current advice.
  */
 import { CircleCheck, CircleDashed, CircleAlert, CircleHelp, RotateCcw } from 'lucide-react'
@@ -10,6 +10,7 @@ export interface Assessment {
   color: string
   reason: string
   question?: string | null
+  questions?: readonly string[]
   reviewTaskId?: string | null
   stale: boolean
 }
@@ -22,6 +23,7 @@ const grades: Record<string, { label: string; className: string }> = {
 
 export function LibraryAssessment({ assessment, compact = false }: { assessment?: Assessment; compact?: boolean }) {
   const grade = assessment && !assessment.stale ? grades[assessment.color] : null
+  const questions = assessment?.questions ?? (assessment?.question ? [assessment.question] : [])
   const Icon = !grade ? (assessment?.stale ? RotateCcw : CircleDashed) : assessment?.color === 'green' ? CircleCheck : assessment?.color === 'red' ? CircleAlert : CircleHelp
   return (
     <div className="library-assessment grid gap-1 py-2 text-sm leading-relaxed">
@@ -30,7 +32,7 @@ export function LibraryAssessment({ assessment, compact = false }: { assessment?
         {grade?.label ?? (assessment?.stale ? 'Needs review' : 'Not reviewed')}
       </span>
       {!compact && grade && assessment?.reason && <p className="max-w-prose text-pretty text-muted-foreground">{assessment.reason}</p>}
-      {grade && assessment?.question && <p className="max-w-prose text-pretty font-medium">{assessment.question}</p>}
+      {grade && questions.map((question) => <p key={question} className="max-w-prose text-pretty font-medium">{question}</p>)}
     </div>
   )
 }

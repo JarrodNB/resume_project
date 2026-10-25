@@ -49,7 +49,7 @@ RSpec.describe "Career library review results" do
 
   def state(owner = user)
     execute_graphql(<<~GQL, user: owner).dig("data", "libraryReview")
-      query { libraryReview(section: "experience") { aiTask { id status errorMessage } assessments { recordId color reason question stale } } }
+      query { libraryReview(section: "experience") { aiTask { id status errorMessage } assessments { recordId color reason question questions stale } } }
     GQL
   end
 
@@ -60,8 +60,38 @@ RSpec.describe "Career library review results" do
 
     grades = state["assessments"].index_by { |item| item["recordId"] }
     expect(grades[highlight.id]["question"]).to eq("What did you personally do during the migration?")
+    expect(grades[highlight.id]["questions"]).to eq(["What did you personally do during the migration?"])
     expect(grades[role.id]["question"]).to be_nil
+    expect(grades[role.id]["questions"]).to eq([])
     expect(highlight.reload.content).to eq("Helped migrate services")
+  end
+
+  it "exposes three questions together and retains the first for scalar clients" do
+    questions = ["What did you personally do?", "How did you approach it?", "What changed afterward, if anything?"]
+    result = result_for(task)
+    result["assessments"].last["questions"] = questions
+    apply(task, result)
+
+    grade = state["assessments"].find { |item| item["recordId"] == highlight.id }
+    expect(grade["questions"]).to eq(questions)
+    expect(grade["question"]).to eq(questions.first)
+  end
+
+  [["One?", "Two?", "Three?", "Four?"], [""], ["  "], ["x" * 501], [123], "One?", ["What did you do?", " WHAT  did you do? "]].each do |questions|
+    it "rejects malformed or repeated question sets (#{questions.inspect[0, 40]})" do
+      result = result_for(task)
+      result["assessments"].last["questions"] = questions
+      apply(task, result)
+      expect(task.reload.status).to eq("failed")
+      expect(task.result).to be_nil
+    end
+  end
+
+  it "rejects scalar and array questions that disagree" do
+    result = result_for(task)
+    result["assessments"].last.merge!("questions" => ["What did you do?"], "question" => "A different question?")
+    apply(task, result)
+    expect(task.reload.status).to eq("failed")
   end
 
   ["", "   ", "x" * 501, 123, ["What did you do?"]].each do |question|

@@ -91,6 +91,7 @@ RSpec.describe "Career library review answers" do
   end
 
   it "accepts only the proposal and retires its question even when text is unchanged" do
+    review.update!(result: { "assessments" => review.result["assessments"].map { |item| item.merge("questions" => [item["question"], "How did you approach it?", "What changed afterward?"]) } })
     task = AiTask.find(answer_review.dig("aiTask", "id"))
     message = { "ai_task_id" => task.id, "status" => "completed", "message_history" => [],
       "result" => { "text" => highlight.content, "color" => "yellow", "reason" => "The answer is reflected in existing wording." } }
@@ -99,6 +100,7 @@ RSpec.describe "Career library review answers" do
     expect { CareerLibrary::FinishEditService.call(user: user, ai_task_id: task.id) }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).with(user.id)
     grade = CareerLibrary::ReviewStateService.call(user: user, section: "experience").value[:assessments].find { |item| item["record_id"] == highlight.id }
     expect(grade["question"]).to be_nil
+    expect(grade["questions"]).to eq([])
     expect(answer_review.dig("aiTask", "id")).to eq(task.id)
     AiTasks::ApplyAiResultService.call(message: message.merge("result" => message["result"].merge("text" => "Late result")))
     expect(task.reload.result["text"]).to eq(highlight.content)
@@ -106,10 +108,12 @@ RSpec.describe "Career library review answers" do
   end
 
   it "does not reopen discarded answers or enqueue new work" do
+    review.update!(result: { "assessments" => review.result["assessments"].map { |item| item.merge("questions" => [item["question"], "How did you approach it?", "What changed afterward?"]) } })
     task = AiTask.find(answer_review.dig("aiTask", "id"))
     CareerLibrary::FinishEditService.call(user: user, ai_task_id: task.id, discard: true)
     grade = CareerLibrary::ReviewStateService.call(user: user, section: "experience").value[:assessments].find { |item| item["record_id"] == highlight.id }
     expect(grade["question"]).to be_nil
+    expect(grade["questions"]).to eq([])
     expect(answer_review["errors"]).to include("This answer was discarded. Review this section again for a new question.")
     expect(queue).to have_received(:send_message).once
     expect(highlight.reload.content).to eq("Helped migrate services")

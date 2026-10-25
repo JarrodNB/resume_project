@@ -16,7 +16,7 @@ it('keeps grades neutral while a highlight save and assessment refetch are pendi
   const mocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'), {
     request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } },
     result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [
-      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'green', reason: 'Clear scope.', question: 'Which services did you build?', stale: false },
+      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'green', reason: 'Clear scope.', question: 'Which services did you build?', questions: ['Which services did you build?'], stale: false },
     ] } } },
   }]
   const view = (pending: boolean) => <MockedProvider mocks={mocks}><LibraryWorkspace library={{ ...emptyReviewLibrary, experiences }} movingHighlight={pending}><DragDropProvider>

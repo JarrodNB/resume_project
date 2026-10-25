@@ -154,9 +154,9 @@ Certifications are separate career-library entries (`Certification`, labels `C1`
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 
-- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — eight synthetic
+- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — ten synthetic
   section reviews through real production screening and grading. Hand labels check color
-  and question-presence calibration, and an input-aware judge checks question usefulness and
+  and question-presence/count calibration (including useful two-to-three-question sets), and an input-aware judge checks question usefulness and
   unsupported premises. Cases include qualitative results, vague assistance despite counts, and concrete
   observation without hands-on duties. This small set does not
   establish broad writing quality. Execution or judge errors fail the runner; low quality

@@ -33,7 +33,7 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Explain what the services did."},
         {"target_label": "T2", "color": "red", "reason": "Describe your contribution to the migration.",
-         "question": "What did you personally do during the migration?"},
+         "questions": ["What did you personally do during the migration?", "How did you approach that work?", "What changed afterward, if anything?"]},
     ]})):
         result = handle_ai_task(task, task_dependencies)
 
@@ -43,6 +43,9 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
     ]
     assert result.result["assessments"][1]["source_digest"] == "b" * 64
     assert result.result["assessments"][1]["question"] == "What did you personally do during the migration?"
+    assert result.result["assessments"][1]["questions"] == [
+        "What did you personally do during the migration?", "How did you approach that work?", "What changed afterward, if anything?",
+    ]
     assert result.result["assessments"][0].get("question") is None
     assert result.usage
 
@@ -104,6 +107,49 @@ def test_rejects_malformed_generated_questions(task_dependencies, question):
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": question},
+        {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
+    ]})), pytest.raises(UnexpectedModelBehavior):
+        handle_ai_task(task, task_dependencies)
+
+
+@pytest.mark.parametrize("questions", [
+    ["One?", "Two?", "Three?", "Four?"], [""], ["   "], ["x" * 501],
+    [123], "What did you do?", ["What did you do?", " WHAT  did you do? "],
+])
+def test_rejects_malformed_or_repeated_question_sets(task_dependencies, questions):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    from agents.library_review_agent import library_review_agent
+
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
+    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+        {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": questions},
+        {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
+    ]})), pytest.raises(UnexpectedModelBehavior):
+        handle_ai_task(task, task_dependencies)
+
+
+def test_legacy_single_question_remains_a_one_item_set(task_dependencies):
+    from agents.library_review_agent import library_review_agent
+
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
+    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+        {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": "Which services?"},
+        {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
+    ]})):
+        result = handle_ai_task(task, task_dependencies)
+    assert result.result["assessments"][0]["questions"] == ["Which services?"]
+    assert result.result["assessments"][1]["questions"] == []
+
+
+def test_rejects_disagreeing_scalar_and_array_questions(task_dependencies):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    from agents.library_review_agent import library_review_agent
+
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
+    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+        {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "questions": ["Which services?"], "question": "Another question?"},
         {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
     ]})), pytest.raises(UnexpectedModelBehavior):
         handle_ai_task(task, task_dependencies)

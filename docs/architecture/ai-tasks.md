@@ -274,9 +274,11 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 `review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
 section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
-It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, question}]}`.
-The optional `question` is null when no useful fact is missing, otherwise one focused question
-of at most 500 characters. Old results may omit it. The model emits only target labels, colors,
+It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, questions, question}]}`.
+The ordered `questions` list contains zero to three distinct, nonblank questions, each at most
+500 characters. `question` mirrors its first item or null for legacy scalar consumers; old results
+with only `question` normalize to a one-item list, and old questionless results normalize to an empty list.
+If both representations are present they must agree. The model emits only target labels, colors,
 reasons, and questions; code copies the identities from the snapshot. Questions are completed
 review output, not deferred calls: users can address each detail independently.
 `answerLibraryReview(reviewTaskId:, kind:, recordId:, answer:)` resolves an owned current

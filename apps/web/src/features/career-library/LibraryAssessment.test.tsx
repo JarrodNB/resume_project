@@ -23,3 +23,13 @@ it('shows a saved review question beside the detail and hides it when its assess
   rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} compact />)
   expect(screen.queryByText(assessment.question)).not.toBeInTheDocument()
 })
+
+it('shows all saved questions together without repeating the legacy first question', () => {
+  const questions = ['What did you personally do?', 'How did you approach it?', 'What changed afterward, if anything?']
+  const assessment = { kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add useful details.', stale: false,
+    questions, question: questions[0] }
+  const { rerender } = render(<LibraryAssessment assessment={assessment} compact />)
+  questions.forEach((question) => expect(screen.getAllByText(question)).toHaveLength(1))
+  rerender(<LibraryAssessment assessment={{ ...assessment, stale: true }} compact />)
+  questions.forEach((question) => expect(screen.queryByText(question)).not.toBeInTheDocument())
+})

@@ -84,5 +84,29 @@ cases:
     metadata:
       colors: [[green]]
       questions: [false]
+  - name: multiple-gaps-in-event-contribution
+    inputs:
+      projects:
+        - id: project-1
+          name: Community skills fair
+          role: Volunteer
+          description: Helped organize a community skills fair and supported volunteers.
+    metadata:
+      colors: [[yellow, red]]
+      questions: [true]
+      question_counts: [[2, 3]]
+  - name: multiple-gaps-in-training-and-handovers
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Support Centre
+          title: Service Agent
+          highlights:
+            - id: highlight-1
+              content: Helped launch staff training and supported better handovers between service teams.
+    metadata:
+      colors: [[yellow, red]]
+      questions: [true]
+      question_counts: [[2, 3]]
 evaluators:
   - ReviewCalibration

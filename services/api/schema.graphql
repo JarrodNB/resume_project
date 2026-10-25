@@ -1224,6 +1224,11 @@ type LibraryAssessment {
   field: String!
   kind: String!
   question: String
+
+  """
+  Up to three distinct questions in saved order; an empty list means no missing fact needs a question.
+  """
+  questions: [String!]!
   reason: String!
   recordId: ID!
 

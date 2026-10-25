@@ -31,7 +31,7 @@ it('starts one section and loads saved colors after the subscription completes',
       aiTaskUpdated: { ...completed, taskType: 'REVIEW_LIBRARY_SECTION', result: null, input: {}, pendingQuestions: [], acceptedAt: null, createdAt: '2026-10-25T00:00:00Z', job: null },
     } } },
     { request: query, result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: completed, assessments: [
-      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'yellow', reason: 'Explain the scope.', question: 'Which services did you build?', stale: false },
+      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'yellow', reason: 'Explain the scope.', question: 'Which services did you build?', questions: ['Which services did you build?'], stale: false },
     ] } } } },
   ] })
   await userEvent.click(await screen.findByRole('button', { name: 'Review' }))
@@ -53,7 +53,7 @@ it('explains failed assessment loading instead of silently showing current grade
 it('hides old green advice if a source change cannot refresh freshness', async () => {
   const mocks = [
     { request: query, result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: completed, assessments: [
-      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'green', reason: 'Clear scope.', question: 'How did you establish the scope?', stale: false },
+      { __typename: 'LibraryAssessment', kind: 'experience', recordId: 'e1', field: 'description', color: 'green', reason: 'Clear scope.', question: 'How did you establish the scope?', questions: ['How did you establish the scope?'], stale: false },
     ] } } } },
     { request: query, error: new Error('offline after edit') },
   ]

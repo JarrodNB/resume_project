@@ -58,8 +58,10 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `AnswerReviewService` resolves an owned current question into an individual proposal,
   deduplicating exact answers and rejecting unrelated draft conflicts under the owner lock.
   Assessment `review_task_id` names the completed origin, independently of latest task status.
-- `ApplyReviewService` validates exact target coverage and optional nonblank questions (at most 500 characters),
-  accepting old questionless results. It records screening approvals only
+- `ApplyReviewService` validates exact target coverage and ordered sets of up to three distinct nonblank
+  questions (at most 500 characters each), normalizing old scalar/questionless results and preserving
+  the scalar first question for older clients. `questions_for` is the shared validation/read seam.
+  It records screening approvals only
   while the source field still matches the queued snapshot under its record lock.
 
 ## Individual editing

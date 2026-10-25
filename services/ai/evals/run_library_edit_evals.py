@@ -31,6 +31,7 @@ class EditCase(BaseModel):
     feedback: str
     answer: str | None = None
     expects_question: bool = False
+    review_question: str | None = None
 
 
 @dataclass
@@ -56,7 +57,8 @@ class EditQuality(Evaluator):
     async def evaluate(self, ctx):
         source = render_review(ctx.inputs.library.model_dump_json(exclude_none=True))
         output = ctx.output
-        material = (source + "\n\nUser feedback:\n" + ctx.inputs.feedback +
+        review_context = "\nReview question already answered:\n" + ctx.inputs.review_question if ctx.inputs.review_question else ""
+        material = (source + review_context + "\n\nUser feedback or review answer:\n" + ctx.inputs.feedback +
             "\nUser follow-up answer:\n" + ((ctx.inputs.answer if output.get("question") else None) or "No additional answer") +
             "\nGenerated question:\n" + (output.get("question") or "No question") +
             "\nProposed replacement:\n" + output.get("text", "") +
@@ -97,6 +99,8 @@ def run_library_edit_evals(model_override: str | None = None):
             "target": {"kind": kind, "record_id": record_id, "field": field, "label": "T1",
                        "source_digest": hashlib.sha256(text.encode()).hexdigest()},
             "original_text": text, "feedback": case.feedback, "history": [], "turn": 1}
+        if case.review_question:
+            payload["review_question"] = {"review_task_id": str(uuid4()), "question": case.review_question}
         first = handle_library_edit_task(AiTaskMessage(ai_task_id=task_id, user_id=uuid4(), task_type="improve_library_entry", input=payload), dependencies)
         question = None
         result = first

@@ -14,11 +14,13 @@ export function LibraryWorkspace({ library, movingHighlight = false, children }:
   const projects = useLibraryReview('projects', JSON.stringify(library.projects))
   const facts = useLibraryReview('facts', JSON.stringify(library.libraryFacts))
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [mode, setMode] = useState<'improve' | 'review'>('improve')
   const opener = useRef<HTMLElement | null>(null)
   const targets = libraryReviewTargets(library)
-  function selectTarget(target: LibraryReviewTarget, trigger?: HTMLElement) {
+  function selectTarget(target: LibraryReviewTarget, trigger?: HTMLElement, mode: 'improve' | 'review' = 'improve') {
     if (trigger) opener.current = trigger
     setSelectedKey(targetKey(target))
+    setMode(mode)
     setSectionOpen(target.sectionId, true)
     requestAnimationFrame(() => {
       const source = document.getElementById(targetElementId(target))
@@ -31,5 +33,5 @@ export function LibraryWorkspace({ library, movingHighlight = false, children }:
     requestAnimationFrame(() => { if (opener.current?.isConnected) opener.current.focus({ preventScroll: true }) })
   }
   const reviews = { summary, experience: { ...experience, assessments: experience.assessments.map((item) => movingHighlight ? { ...item, stale: true } : item) }, projects, facts }
-  return <LibraryWorkspaceContext value={{ targets, reviews, selectedKey, mobileOpen: selectedKey !== null, movingHighlight, selectTarget, close }}>{children}</LibraryWorkspaceContext>
+  return <LibraryWorkspaceContext value={{ targets, reviews, selectedKey, mode, mobileOpen: selectedKey !== null, movingHighlight, selectTarget, close }}>{children}</LibraryWorkspaceContext>
 }

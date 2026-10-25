@@ -36,6 +36,7 @@ function WorkspaceContent({ mobile = false }: { mobile?: boolean }) {
   const workspace = useLibraryWorkspace()
   const selected = workspace.targets.find((target) => targetKey(target) === workspace.selectedKey)
   const review = selected && workspace.reviews[selected.section]
+  const assessment = review?.assessments.find((item) => item.kind === selected?.kind && item.recordId === selected?.recordId)
   const disabled = workspace.movingHighlight && selected?.section === 'experience'
   return <div id="library-ai-workspace">
     <div className="library-ai-heading">
@@ -46,9 +47,9 @@ function WorkspaceContent({ mobile = false }: { mobile?: boolean }) {
       {workspace.selectedKey ? selected ? <>
         <div className="border-b pb-4"><h3 className="text-base font-semibold">{selected.title}</h3><p className="mt-1 text-sm text-muted-foreground">{selected.fieldLabel} · selected in your library</p></div>
         {mobile && <details className="border-b pb-4 text-sm"><summary className="cursor-pointer font-medium">View saved text</summary><p className="mt-3 whitespace-pre-wrap leading-relaxed">{selected.text}</p></details>}
-        <LibraryAssessment assessment={review?.assessments.find((item) => item.kind === selected.kind && item.recordId === selected.recordId)} />
+        <LibraryAssessment assessment={workspace.mode === 'review' && assessment ? { ...assessment, question: null } : assessment} />
         {disabled && <p role="status" className="text-sm text-muted-foreground">Wait for the highlight move to finish before editing.</p>}
-        <LibraryEditPanel key={targetKey(selected)} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
+        <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, question: assessment.question, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
       </> : <>
         <p role="status">This detail is no longer in your library.</p>
         <Button variant="outline" onClick={workspace.close}>Back to library</Button>

@@ -55,6 +55,9 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades and optional enrichment questions with
   current/stale state. Results stay on `AiTask`.
+- `AnswerReviewService` resolves an owned current question into an individual proposal,
+  deduplicating exact answers and rejecting unrelated draft conflicts under the owner lock.
+  Assessment `review_task_id` names the completed origin, independently of latest task status.
 - `ApplyReviewService` validates exact target coverage and optional nonblank questions (at most 500 characters),
   accepting old questionless results. It records screening approvals only
   while the source field still matches the queued snapshot under its record lock.
@@ -65,6 +68,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
+  Accepted and discarded review-answer questions retire from saved review state; failed
+  generations retry as linked editing turns with their review provenance intact.
   Summary accepts change only `User.summary`; projects change only `description`; facts change
   only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed

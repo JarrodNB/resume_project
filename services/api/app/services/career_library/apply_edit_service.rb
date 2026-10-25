@@ -15,6 +15,9 @@ module CareerLibrary
     end
 
     def call
+      if @task.input["review_question"] && @message["status"] != "completed"
+        return failure([ "The review answer did not produce a proposal. Please try again." ])
+      end
       history = @message["message_history"]
       valid = history.is_a?(Array) && history.to_json.bytesize <= 100_000
       if @message["status"] == "completed"

@@ -144,4 +144,6 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
-  are not classified. Source/input/history/turn caps bound every exchange.
+  are not classified. A Rails-owned `review_question` adds generated guidance to a new
+  answer task and disables further deferred questions, including on linked retries.
+  Source/input/history/turn caps bound every exchange.

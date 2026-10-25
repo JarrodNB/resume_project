@@ -5,7 +5,7 @@ export const LIBRARY_REVIEW_QUERY = graphql(`
   query LibraryReview($section: String!) {
     libraryReview(section: $section) {
       aiTask { id status errorMessage }
-      assessments { kind recordId field color reason question stale }
+      assessments { kind recordId field color reason question reviewTaskId stale }
     }
   }
 `)

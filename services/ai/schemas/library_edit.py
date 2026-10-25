@@ -8,6 +8,13 @@ from schemas.gap_analysis_context import CareerLibrary
 from schemas.library_review import LibraryReviewTarget, validate_section_library
 
 
+class LibraryReviewQuestion(BaseModel):
+    """Exact generated question and review identity resolved by Rails, never browser text."""
+
+    review_task_id: str = Field(min_length=1)
+    question: str = Field(min_length=1, max_length=500)
+
+
 class LibraryEditInput(BaseModel):
     """Rails supplies owned snapshots/history; the browser supplies only the newest feedback."""
 
@@ -19,6 +26,7 @@ class LibraryEditInput(BaseModel):
     history: list[dict] = Field(default_factory=list)
     previous_task_id: str | None = None
     question_id: str | None = None
+    review_question: LibraryReviewQuestion | None = None
     skip: bool = False
     turn: int = Field(ge=1, le=8)
 

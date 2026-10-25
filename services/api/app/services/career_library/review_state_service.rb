@@ -16,7 +16,13 @@ module CareerLibrary
         target = current[ReviewSnapshot.target_key(item)]
         next unless target
 
-        item.merge("stale" => item["source_digest"] != target["source_digest"])
+        item.merge("review_task_id" => completed.id, "stale" => item["source_digest"] != target["source_digest"])
+      end
+      if completed
+        discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditSnapshot::DISCARD_MESSAGE)
+          .where("input -> 'review_question' ->> 'review_task_id' = ?", completed.id).pluck(:input)
+          .map { |input| ReviewSnapshot.target_key(input.fetch("target")) }
+        assessments.each { |item| item["question"] = nil if discarded.include?(ReviewSnapshot.target_key(item)) }
       end
       accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil)
         .where("input ->> 'section' = ?", @section).order(accepted_at: :asc, id: :asc)

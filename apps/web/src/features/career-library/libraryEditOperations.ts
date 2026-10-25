@@ -33,3 +33,12 @@ export const DISCARD_LIBRARY_EDIT_MUTATION = graphql(`
     discardLibraryEdit(input: {aiTaskId: $aiTaskId}) { aiTask { id status } errors }
   }
 `)
+
+export const ANSWER_LIBRARY_REVIEW_MUTATION = graphql(`
+  mutation AnswerLibraryReview($reviewTaskId: ID!, $kind: String!, $recordId: ID!, $answer: String!) {
+    answerLibraryReview(input: {reviewTaskId: $reviewTaskId, kind: $kind, recordId: $recordId, answer: $answer}) {
+      aiTask { id status result input pendingQuestions errorMessage acceptedAt }
+      errors
+    }
+  }
+`)

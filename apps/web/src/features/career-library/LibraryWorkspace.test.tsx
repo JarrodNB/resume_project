@@ -10,7 +10,7 @@ import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
 import { ExperienceSection } from './ExperienceSection'
 import { emptyLibraryReviewMocks, emptyReviewLibrary } from './libraryReviewTestFixtures'
-import { REVIEW_LIBRARY_SECTION_MUTATION } from './libraryReviewOperations'
+import { LIBRARY_REVIEW_QUERY, REVIEW_LIBRARY_SECTION_MUTATION } from './libraryReviewOperations'
 import { LIBRARY_EDIT_QUERY } from './libraryEditOperations'
 
 const experience = { id: 'e1', title: 'Engineer', company: 'Acme', location: null, startDate: null, endDate: null, description: null,
@@ -94,4 +94,25 @@ it('runs section review directly without opening an overview or duplicating libr
   expect(await screen.findByText('Review limit reached.')).toBeInTheDocument()
   expect(within(panel).queryByText('Built the billing service.')).not.toBeInTheDocument()
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+})
+
+it('opens review answering in the same selected-detail workspace while keeping Improve with AI', async () => {
+  setSectionOpen('library.experience', true)
+  const reviewMocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'),
+    { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } }, result: { data: { libraryReview: {
+      __typename: 'LibraryReview', aiTask: { __typename: 'AiTask', id: 'review-newer-failed', status: 'FAILED', errorMessage: null }, assessments: [
+        { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add your contribution.', question: 'Which part did you build?', reviewTaskId: 'review-completed', stale: false },
+      ],
+    } } } },
+    { request: { query: LIBRARY_EDIT_QUERY, variables: { kind: 'experience_highlight', recordId: 'h1' } }, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } }, maxUsageCount: Infinity },
+  ]
+  render(<MockedProvider mocks={reviewMocks}><LibraryWorkspace library={library}>
+    <DragDropProvider><ExperienceSection experiences={library.experiences} highlightsOf={() => experience.highlights} /></DragDropProvider><LibraryAiWorkspace />
+  </LibraryWorkspace></MockedProvider>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Answer review question' }))
+  const panel = screen.getByRole('complementary', { name: 'AI workspace' })
+  expect(await within(panel).findByLabelText('Your answer')).toBeEnabled()
+  expect(within(panel).getByText('Which part did you build?')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Improve with AI' })).toBeEnabled()
+  expect(document.getElementById('library-detail-experience_highlight:h1')).toHaveAttribute('data-selected', 'true')
 })

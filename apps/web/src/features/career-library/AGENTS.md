@@ -101,3 +101,10 @@ their category.
   turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
   Closing clears selection, keeps server-owned drafts, and returns focus to the source opener
   if it remains in the page; discarding closes the draft server-side. Accepted targets can start again.
+
+- Review questions expose an Answer review question action that selects the same workspace
+  in review mode. `LibraryEditPanel` submits through the explicit review-answer mutation;
+  `useLibraryEdit` never routes a new review answer through an unrelated previous edit.
+  Matching saved review-origin tasks restore queued/proposal state after reload; failed
+  generations offer Retry revision as a linked turn. The new answer remains editable on
+  mutation errors. Accept/discard refetch assessments; stale questions cannot submit.

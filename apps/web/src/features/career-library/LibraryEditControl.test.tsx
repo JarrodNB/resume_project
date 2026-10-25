@@ -6,7 +6,7 @@ import { expect, it } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { renderPage } from '@/test/renderPage'
 import { LibraryEditPanel } from './LibraryEditPanel'
-import { ACCEPT_LIBRARY_EDIT_MUTATION, LIBRARY_EDIT_QUERY, START_LIBRARY_EDIT_MUTATION } from './libraryEditOperations'
+import { ANSWER_LIBRARY_REVIEW_MUTATION, ACCEPT_LIBRARY_EDIT_MUTATION, LIBRARY_EDIT_QUERY, START_LIBRARY_EDIT_MUTATION } from './libraryEditOperations'
 
 const target = { kind: 'experience_highlight', recordId: 'h1' }
 const query = { query: LIBRARY_EDIT_QUERY, variables: target }
@@ -82,4 +82,77 @@ it('disables acceptance immediately when the visible source changes, even if ref
   expect(await screen.findByText('Could not refresh this edit. Reload to continue.')).toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: 'Generate new revision' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Accept revision' })).toBeEnabled())
+})
+
+it('offers a review answer without starting an ordinary edit', async () => {
+  renderPage({ path: '/', url: '/', element: <LibraryEditPanel onClose={() => {}} {...target} sourceRevision="same"
+    reviewQuestion={{ reviewTaskId: 'review-1', question: 'Which endpoints did you migrate?', stale: false }} />, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } } },
+  ] })
+  expect(await screen.findByText('Which endpoints did you migrate?')).toBeInTheDocument()
+  expect(screen.getByLabelText('Your answer')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Generate revision from answer' })).toBeDisabled()
+  expect(screen.queryByLabelText('What would you like to improve? (optional)')).not.toBeInTheDocument()
+})
+
+
+const reviewQuestion = { reviewTaskId: 'review-1', question: 'Which endpoints did you migrate?', stale: false }
+const reviewTask = { ...task, input: { review_question: { review_task_id: 'review-1', question: reviewQuestion.question }, feedback: 'I migrated billing.' } }
+const reviewElement = <LibraryEditPanel onClose={() => {}} {...target} sourceRevision="same" reviewQuestion={reviewQuestion} />
+
+it('submits an answer through the review mutation and follows the proposal without another question', async () => {
+  const queued = { ...reviewTask, status: 'QUEUED', result: null }
+  renderPage({ path: '/', url: '/', element: reviewElement, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } } },
+    { request: { query: ANSWER_LIBRARY_REVIEW_MUTATION, variables: { ...target, reviewTaskId: 'review-1', answer: 'I migrated billing.' } },
+      result: { data: { answerLibraryReview: { __typename: 'AnswerLibraryReviewPayload', aiTask: queued, errors: [] } } } },
+    subscription(reviewTask),
+    { request: { query: ACCEPT_LIBRARY_EDIT_MUTATION, variables: { aiTaskId: task.id } }, result: { data: {
+      acceptLibraryEdit: { __typename: 'AcceptLibraryEditPayload', errors: [], aiTask: { ...reviewTask, acceptedAt: '2026-10-25T00:00:01Z' } },
+    } } },
+  ] })
+  await userEvent.type(await screen.findByLabelText('Your answer'), 'I migrated billing.')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate revision from answer' }))
+  expect(await screen.findByText('Migrated the billing API with the platform team.')).toBeInTheDocument()
+  expect(screen.queryByText('Which endpoints did you migrate?')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Generate revision from answer' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Accept revision' }))
+  expect(await screen.findByText('Saved to your library.')).toBeInTheDocument()
+})
+
+it('keeps an answer editable when the server reports an unrelated draft conflict', async () => {
+  renderPage({ path: '/', url: '/', element: reviewElement, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: task } } } },
+    subscription(),
+    { request: { query: ANSWER_LIBRARY_REVIEW_MUTATION, variables: { ...target, reviewTaskId: 'review-1', answer: 'I migrated billing.' } },
+      result: { data: { answerLibraryReview: { __typename: 'AnswerLibraryReviewPayload', aiTask: null, errors: ['Finish or discard your existing draft.'] } } } },
+  ] })
+  await userEvent.type(await screen.findByLabelText('Your answer'), 'I migrated billing.')
+  await userEvent.click(screen.getByRole('button', { name: 'Generate revision from answer' }))
+  expect(await screen.findByText('Finish or discard your existing draft.')).toBeInTheDocument()
+  expect(screen.getByLabelText('Your answer')).toHaveValue('I migrated billing.')
+  expect(screen.getByText('Migrated the billing API with the platform team.')).toBeInTheDocument()
+})
+
+it('recovers a saved review proposal and retries a failed review answer as a linked edit', async () => {
+  const failed = { ...reviewTask, status: 'FAILED', result: null, errorMessage: 'Temporary provider failure' }
+  const next = { ...reviewTask, id: 'retry-edit' }
+  renderPage({ path: '/', url: '/', element: reviewElement, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: failed } } } },
+    subscription(failed),
+    { request: { query: START_LIBRARY_EDIT_MUTATION, variables: { ...target, feedback: 'I migrated billing.', skip: false, previousTaskId: task.id } },
+      result: { data: { startLibraryEdit: { __typename: 'StartLibraryEditPayload', aiTask: next, errors: [] } } } },
+    subscription(next),
+  ] })
+  await userEvent.click(await screen.findByRole('button', { name: 'Retry revision' }))
+  expect(await screen.findByText('Migrated the billing API with the platform team.')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Generate revision from answer' })).not.toBeInTheDocument()
+})
+
+it('disables a stale review question instead of submitting an answer against earlier text', async () => {
+  renderPage({ path: '/', url: '/', element: <LibraryEditPanel onClose={() => {}} {...target} sourceRevision="same" reviewQuestion={{ ...reviewQuestion, stale: true }} />, mocks: [
+    { request: query, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } } },
+  ] })
+  expect(await screen.findByLabelText('Your answer')).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Generate revision from answer' })).toBeDisabled()
 })

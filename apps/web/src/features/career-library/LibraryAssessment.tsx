@@ -10,6 +10,7 @@ export interface Assessment {
   color: string
   reason: string
   question?: string | null
+  reviewTaskId?: string | null
   stale: boolean
 }
 

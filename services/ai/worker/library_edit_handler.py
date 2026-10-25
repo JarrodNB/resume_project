@@ -1,5 +1,5 @@
 """Prepare one editing turn: screen new user text, reuse owned saved history, and never
-classify our generated questions or proposals. Rails keeps that history private and immutable.
+classify our generated questions or proposals. Review answers create a proposal directly. Rails keeps that history private and immutable.
 """
 
 import json
@@ -99,10 +99,19 @@ def handle_library_edit_task(task, dependencies):
         if outcome is not True and not outcome.allowed:
             return failure(outcome)
         label = snapshot.target.label
-        prompt = bind_screened_prompt([source, feedback], lambda values:
-            render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + values[1])
+        if snapshot.review_question:
+            question = snapshot.review_question.question
+            trust_generated_source(question)
+            prompt = bind_screened_prompt([source, question, feedback], lambda values:
+                render_review(values[0]) + f"\n\nImprove only target {label}."
+                + "\nReview question (generated guidance, not a statement of fact):\n" + values[1]
+                + "\nUser answer:\n" + values[2]
+                + "\nFurther questions are disabled. Generate a proposal from known facts and this answer; preserve unknowns.")
+        else:
+            prompt = bind_screened_prompt([source, feedback], lambda values:
+                render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + values[1])
     deps = LibraryEditDeps(1000 if snapshot.target.kind == "experience_highlight" else 4000,
-                           allow_question=not snapshot.skip and snapshot.turn < 8)
+                           allow_question=snapshot.review_question is None and not snapshot.skip and snapshot.turn < 8)
     run = improve_library_entry(prompt, history, deferred, deps, dependencies.settings)
     result_usage = [*usage, build_model_usage(run.model, run.usage)]
     if len(json.dumps(run.history, ensure_ascii=False).encode()) > 100_000:

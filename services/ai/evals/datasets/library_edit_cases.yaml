@@ -98,5 +98,27 @@ cases:
       feedback: Clarify the wording while keeping this observational. Do not imply that I provided care. No further facts are available; propose a revision now.
     metadata:
       allowed_colors: [green]
+  - name: review-answer-enriches-contribution-without-more-questions
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Logistics
+            title: Engineer
+            highlights:
+              - id: highlight-1
+                content: Helped migrate services.
+      review_question: Which part of the migration did you personally handle?
+      feedback: I migrated billing endpoints and updated integration tests with the platform team. I do not know the outcome yet.
+  - name: review-answer-preserves-unknown-project-outcome
+    inputs:
+      section: projects
+      library:
+        projects:
+          - id: project-1
+            name: Stock count sheet
+            description: Helped improve stock management.
+      review_question: What did you personally create or change?
+      feedback: I created a shared stock count sheet to identify items needing reordering. I do not know whether anyone used it.
 evaluators:
   - EditStructure

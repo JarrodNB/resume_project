@@ -268,3 +268,26 @@ already said the detail is unavailable or skipped it. Concrete observation/shado
 be strong evidence without implying hands-on duties.
 Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
 copies, so those operations do not send generated text back through the classifier.
+
+### Answering review questions
+
+A current review question can start a proposal directly through `answerLibraryReview`.
+The browser sends the completed review ID, target identity, and answer; Rails resolves
+question text and selected-record context itself. Each assessment exposes its own
+`reviewTaskId`, because the latest section task can be queued or failed while assessments
+still come from an earlier completed review. Changed, moved, merged, deleted, or superseded
+sources cannot start a proposal from an obsolete question.
+
+Answers use the existing individual editing task and selected-detail workspace. The new
+answer is screened; the exact generated question is trusted generated guidance, not evidence
+that its premise happened. Regeneration proposes wording from known facts without pausing
+for another question. It changes only the selected field when the user accepts. Independent
+Improve with AI keeps its existing feedback and deferred-question workflow.
+
+The owner lock serializes answer starts with other edits. Repeating the exact answer returns
+the latest linked turn without another enqueue; a different initial answer or unrelated live
+draft returns a conflict instead of replacing work. Failed generations show Retry revision,
+which creates an ordinary linked editing turn and preserves the saved review provenance.
+Accepted answers retire their question through the accepted assessment overlay, including
+when the accepted wording is unchanged. Discarded answers also hide that review question;
+a fresh explicit section review can offer a new question. Closing a workspace preserves work.

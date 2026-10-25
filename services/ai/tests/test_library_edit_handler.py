@@ -147,3 +147,52 @@ def test_registered_edit_agent_masks_known_contact_in_source_and_feedback(task_d
         result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
     assert result.status == "completed"
     assert screened == ["«name» wants clearer wording"]
+
+
+def test_review_answer_regenerates_without_pausing_or_screening_the_generated_question(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+
+    screened = []
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    async def unexpected(*_args, **_kwargs):
+        raise AssertionError("Prepared source, answer, and generated question must already be covered")
+    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    payload = edit_input()
+    payload["feedback"] = "I migrated the billing endpoints; the outcome is unknown."
+    payload["review_question"] = {"review_task_id": str(uuid4()), "question": "Which endpoints did you migrate?"}
+    def proposal(messages, info):
+        rendered = str(messages)
+        assert "Which endpoints did you migrate?" in rendered
+        assert payload["feedback"] in rendered
+        assert payload["review_question"]["review_task_id"] not in rendered
+        if "Further questions are disabled" not in rendered:
+            return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "What was the outcome?"}, tool_call_id="unneeded")])
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "text": "Migrated the billing endpoints as part of the service migration.", "color": "yellow", "reason": "The outcome remains unknown.",
+        })])
+    with library_edit_agent.override(model=FunctionModel(proposal)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert result.pending_questions == []
+    assert screened == [payload["feedback"]]
+
+
+def test_review_answer_tool_attempt_cannot_pause_the_regeneration(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    payload = edit_input()
+    payload["review_question"] = {"review_task_id": str(uuid4()), "question": "Which part did you handle?"}
+    calls = []
+    def proposal(messages, info):
+        calls.append(messages)
+        if len(calls) == 1:
+            return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "Can you add more?"}, tool_call_id="unneeded")])
+        assert "Further questions are disabled" in str(messages[-1])
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"text": "Contributed to migration.", "color": "yellow", "reason": "Unknown outcomes remain unknown."})])
+    with library_edit_agent.override(model=FunctionModel(proposal)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert result.pending_questions == []
+    assert len(calls) == 2

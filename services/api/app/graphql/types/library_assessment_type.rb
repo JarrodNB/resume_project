@@ -7,6 +7,7 @@ module Types
     field :color, String, null: false
     field :reason, String, null: false
     field :question, String, null: true
+    field :review_task_id, ID, null: true, description: "The completed review that produced this assessment and question."
     field :stale, Boolean, null: false
   end
 end

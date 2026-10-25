@@ -279,6 +279,20 @@ The optional `question` is null when no useful fact is missing, otherwise one fo
 of at most 500 characters. Old results may omit it. The model emits only target labels, colors,
 reasons, and questions; code copies the identities from the snapshot. Questions are completed
 review output, not deferred calls: users can address each detail independently.
+`answerLibraryReview(reviewTaskId:, kind:, recordId:, answer:)` resolves an owned current
+question and queues `improve_library_entry` using a single-record snapshot. Its input adds
+`review_question: {review_task_id, question}` to the existing edit contract; `feedback` carries
+the user's answer. The browser never supplies this generated question or history. The worker
+screens the answer, renders labeled source/question/answer text, and disables deferred
+questions for every linked turn in this mode. Rails rejects unexpected paused results.
+Identical answer submissions reuse the latest turn for that origin; different answers and
+unrelated active drafts conflict. Retry a failed proposal through the existing linked edit
+interface. Acceptance/discard retain the normal closed-task and late-result protections.
+
+`libraryReview` assessment `reviewTaskId` identifies the completed source review independently
+of the latest section task. Accepted or discarded review-answer questions are retired; old
+questionless assessments remain valid.
+
 `reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`
 returns its latest task and last completed grades with current freshness. No career text is
 saved by this task. Unsupported sections fail before enqueueing; oversized sections fail

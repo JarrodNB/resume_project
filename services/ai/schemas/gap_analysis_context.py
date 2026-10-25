@@ -1,7 +1,7 @@
 """
 Description: Shared saved-job and career-library context read from the database or eval cases.
-Gap-analysis preparation projects only requirements and nice-to-haves; tailoring may also
-use the saved responsibilities.
+Gap analysis and tailoring project only title, company, requirements and nice-to-haves.
+Saved field approvals are internal metadata and never enter model serialization.
 A saved job may have no company; career-library employers remain required.
 Index:
     - LibraryHighlight / LibraryExperience / LibraryProject / LibraryEducation / LibraryCertification / LibrarySkill /
@@ -122,6 +122,7 @@ class JobToAnalyze(BaseModel):
     """The saved job; each workflow chooses the fields it needs for its prompt."""
 
     id: str
+    screened_fields: list[str] = Field(default_factory=list, exclude=True)
     title: str
     company: str | None = None
     requirements: list[str] = Field(default_factory=list)

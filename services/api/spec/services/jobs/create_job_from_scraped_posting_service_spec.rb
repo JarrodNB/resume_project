@@ -19,6 +19,7 @@ RSpec.describe Jobs::CreateJobFromScrapedPostingService do
     result = described_class.call(ai_task: ai_task, scraped_job: scraped_job)
 
     expect(result).to be_success
+    expect(result.value.screened_fields).to be_empty
     expect(result.value).to have_attributes(
       user: user, url: url, title: "AI Engineer", company: "Acme", location: "Remote",
       description: "Build agents.", requirements: [ "Python" ], responsibilities: [ "Build agents" ],

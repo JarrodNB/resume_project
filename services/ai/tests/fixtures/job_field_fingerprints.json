@@ -1,0 +1,43 @@
+[
+  {
+    "value": "Plain",
+    "sha256": "9f0680b4bd9730265aff275c74ad03ea4ae06b53fdbc7de0c242cd5191eff32e"
+  },
+  {
+    "value": "Cr\u00e8me \u6771\u4eac \ud83d\ude80",
+    "sha256": "04a3732b57541ddd9ebe057425c8f45724277a391805483df39c0630c7a63b77"
+  },
+  {
+    "value": "<>&\u2028\u2029",
+    "sha256": "6ad37447eb2c6b6d891b44e49745fc72185b1b49e2874e8afcd27cd24f151c25"
+  },
+  {
+    "value": "quote \" slash / backslash \\\nline\ttab",
+    "sha256": "1f20fa3825b3081f5d8074b42561ba2d50957bec46895fde8ea1f4b2290e53db"
+  },
+  {
+    "value": [
+      "ab",
+      "c"
+    ],
+    "sha256": "825825018f58e795ae2d3d8df6a879567555c77654e9ca3071df2fe127aa9ebd"
+  },
+  {
+    "value": [
+      "a",
+      "bc"
+    ],
+    "sha256": "42a6f3f44be0aaf23c936b1547dd5e41d2d25ff25f36a31474eb1851639f6751"
+  },
+  {
+    "value": [
+      "c",
+      "ab"
+    ],
+    "sha256": "f40d1ca83e56dab2bfc7beb0f716eb9985df5b47720a238ca358ca9b281e0ae5"
+  },
+  {
+    "value": [],
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  }
+]

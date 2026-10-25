@@ -47,6 +47,13 @@ class LibraryScreening(BaseModel):
     fields: list[str]
 
 
+class JobScreening(BaseModel):
+    """Checked saved-job fields mapped to canonical typed-value SHA-256 fingerprints."""
+
+    job_id: str
+    fields: dict[str, str]
+
+
 class AiResultMessage(BaseModel):
     """An outcome or usage-only report. Attempt identity deduplicates accounting, not execution."""
 
@@ -61,3 +68,4 @@ class AiResultMessage(BaseModel):
     usage_incomplete: bool = False
     attempt_finished: bool = True
     library_screening: list[LibraryScreening] = Field(default_factory=list)
+    job_screening: list[JobScreening] = Field(default_factory=list)

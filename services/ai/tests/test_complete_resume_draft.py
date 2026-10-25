@@ -272,7 +272,7 @@ def test_rejected_native_entries_skip_their_writer(generation, monkeypatch):
     dependencies, _, seen, _ = generation
 
     async def classify(text, *_):
-        blocked = any(value in text for value in ("Now Co", "Deploy bot", "Python", "PostgreSQL")) and not text.startswith("# Job:")
+        blocked = any(value in text for value in ("Now Co", "Deploy bot", "Python", "PostgreSQL")) and not text.startswith("Job title:")
         return UserTextScreenRun(UserTextScreen(prompt_injection=blocked, harmful_request=False),
             "jev-1.13.0", {"prompt_injection": 1., "harmful_request": 1.}, RunUsage(input_tokens=7))
 

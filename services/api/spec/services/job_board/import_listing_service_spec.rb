@@ -9,6 +9,7 @@ RSpec.describe JobBoard::ImportListingService do
     expect { @result = described_class.call(user: user, listing: listing) }.to change(user.jobs, :count).by(1).and change(AiTask, :count).by(0)
     expect(@result).to be_success
     job = @result.value[:job]
+    expect(job.screened_fields).to be_empty
     expect(job.attributes).to include("title" => "Engineer", "company" => "Example", "location" => "US", "url" => "https://example.com/apply?id=1", "stage" => "unapplied", "requirements" => [ "Ruby & SQL" ])
     expect(job.description).to include("Requirements", "- Ruby & SQL")
     expect(job.description).not_to include("<")

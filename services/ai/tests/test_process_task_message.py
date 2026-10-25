@@ -227,3 +227,24 @@ def test_successful_library_checks_survive_generation_failure(monkeypatch, task_
     assert not started["library_screening"]
     assert final["library_screening"] == [{"record_type": "library_fact", "record_id": "fact",
                                            "fields": ["requirement", "response"]}]
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_successful_job_checks_survive_generation_failure(monkeypatch, task_dependencies, failure):
+    from schemas.gap_analysis_context import JobToAnalyze
+    from screening.job_fields import field_fingerprint, screen_job_fields
+
+    def handler(task, dependencies):
+        screen_job_fields(JobToAnalyze(id="job", title="Engineer", requirements=["Python"]),
+            lambda _: True, approved_sources=["source"])
+        if failure:
+            raise RuntimeError("generation failed")
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed")
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    queue = FakeResultQueue()
+    assert process_task_message(build_task_body(), 1, queue, task_dependencies)
+    started, final = map(json.loads, queue.sent_bodies)
+    assert not started["job_screening"]
+    assert final["job_screening"] == [{"job_id": "job", "fields": {
+        "title": field_fingerprint("Engineer"), "requirements": field_fingerprint(["Python"])}}]

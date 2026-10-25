@@ -27,6 +27,7 @@ class ScreeningSession:
     trusted_generated_sources: set[str] = field(default_factory=set)
     prompts: set[str] = field(default_factory=set)
     library_screening: list[Any] = field(default_factory=list)
+    job_screening: list[Any] = field(default_factory=list)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)

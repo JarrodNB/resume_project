@@ -30,10 +30,11 @@ def test_every_library_value_is_screened_and_preserved():
     context.career_library.facts = [LibraryFact(id="fact", requirement="On call", response="Weekly")]
     requests = []
     expected = build_gap_analysis_prompt(context, TODAY)
-    with screening_session(), user_text_screen_agent.override(model=jev_model(requests)):
+    with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):
         result = prepare(context)
         assert prompt_is_covered(result.prompt.text)
         assert not prompt_is_covered(result.prompt.text + " new untrusted text")
+        assert set(session.job_screening[0].fields) == {"title", "company", "requirements", "nice_to_haves"}
     assert len(requests) == 2
     assert "On call" in requests[1]
     assert "screened_fields" not in requests[1]
@@ -88,8 +89,11 @@ def test_later_library_chunk_failure_retains_completed_usage(monkeypatch, failur
 
 
 @pytest.mark.parametrize("boundary", ["library", "job", "prompt"])
-def test_oversize_sources_and_prompt_rejected_before_paid_calls(boundary):
+@pytest.mark.parametrize("approved_job", [False, True])
+def test_oversize_sources_and_prompt_rejected_before_paid_calls(boundary, approved_job):
     context = build_gap_analysis_context()
+    if approved_job:
+        context.job.screened_fields = ["title", "company", "requirements", "nice_to_haves"]
     if boundary == "library":
         context.career_library.summary = "x" * 80_000
     elif boundary == "job":
@@ -163,3 +167,18 @@ def test_later_analysis_reuses_saved_checks_but_still_screens_job():
         assert not session.library_screening
     assert second.prompt == first.prompt
     assert len(requests) == 1
+
+
+def test_saved_job_approvals_skip_job_classification_and_keep_exact_prompt_coverage():
+    from schemas.gap_analysis_context import JobToAnalyze
+
+    context = build_gap_analysis_context()
+    context.job = JobToAnalyze(**context.job.model_dump(),
+        screened_fields=["title", "company", "requirements", "nice_to_haves"])
+    requests = []
+    with screening_session(), user_text_screen_agent.override(model=jev_model(requests)):
+        result = prepare(context)
+        assert result.prompt is not None
+        assert prompt_is_covered(result.prompt.text)
+    assert len(requests) == 1
+    assert "screened_fields" not in result.prompt.text

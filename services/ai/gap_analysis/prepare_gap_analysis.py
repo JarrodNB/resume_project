@@ -16,10 +16,11 @@ from gap_analysis.build_gap_analysis_prompt import (
     gap_job_screening_text,
 )
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobToAnalyze
+from screening.job_fields import screen_job_fields
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
-from screening.session import approve_projected_source, bind_screened_prompt
+from screening.session import bind_screened_prompt
 from worker.queue_messages import ModelUsage
 
 
@@ -67,17 +68,12 @@ def prepare_gap_analysis(
         usage.extend(outcome.model_usages)
         return outcome
 
-    outcome = check(job_screening_text)
-    if not outcome.allowed:
+    outcome = screen_job_fields(context.job, check, approved_sources=[sources[0]])
+    if outcome is not True and not outcome.allowed:
         message = TOO_LONG_MESSAGE if outcome.too_long else (
             UNCHECKED_MESSAGE if outcome.unchecked else BLOCKED_MESSAGE
         )
         return PreparedGapAnalysis(None, usage, message)
-    approve_projected_source(
-        sources[0], job_screening_text,
-        lambda source: gap_job_screening_text(gap_job_input(JobToAnalyze.model_validate_json(source))),
-        outcome,
-    )
     outcome = screen_library_fields(context.career_library, check)
     if outcome is not True and not outcome.allowed:
         message = TOO_LONG_MESSAGE if outcome.too_long else (

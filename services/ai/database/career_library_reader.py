@@ -1,5 +1,5 @@
 """
-Description: Reads one saved job and the user's career library for gap analysis. Every query is
+Description: Reads one saved job, its field approvals and the user's career library for gap analysis. Every query is
 scoped by the task's user id, so a job id from another user reads nothing. All reads share one
 REPEATABLE READ transaction, so they see the same moment even if the user edits meanwhile.
 Ordering matches the Rails API (dated entries most recent first, highlights and skills by
@@ -42,7 +42,7 @@ MOST_RECENT_FIRST = """
 """
 
 JOB_QUERY = """
-    SELECT id::text, title, company, requirements, responsibilities, nice_to_haves
+    SELECT id::text, title, company, requirements, responsibilities, nice_to_haves, screened_fields
     FROM jobs WHERE id = %(job_id)s AND user_id = %(user_id)s
 """
 SUMMARY_QUERY = "SELECT id::text, summary, screened_fields FROM users WHERE id = %(user_id)s"

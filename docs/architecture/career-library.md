@@ -167,7 +167,8 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   its existing field coverage when a merge copies it or the highlight editor recreates
   an unchanged bullet; edited values never inherit that coverage. Rails applies successful check reports
   from completed or failed AI results to owner-scoped records; Python remains read-only.
-  Other input and prompt coverage remain execution-local. Checks have no expiry or policy
+  Saved Job field checks also persist with current-value fingerprints (see [AI tasks](ai-tasks.md)).
+  Other input and prompt coverage remain execution-local. Library checks have no expiry or policy
   version, and results carry no edit revision check.
   The result stays on the task as ordered section snapshots and warnings. There is no
   tailoring `needs_user_input`, generation counter, submit-section mutation, or reopening

@@ -1173,6 +1173,8 @@ type Job {
   """
   resume: Resume
   stage: JobStageEnum!
+  studyGuide(id: ID!): AiTask!
+  studyGuides(cursor: String): StudyGuideHistoryPage!
   title: String!
   url: String
 }
@@ -2522,6 +2524,17 @@ type StartResumeTailoringPayload {
   Validation or business-rule errors; empty on success.
   """
   errors: [String!]!
+}
+
+type StudyGuideHistoryPage {
+  errors: [String!]!
+  guides: [StudyGuideSummary!]!
+  nextCursor: String
+}
+
+type StudyGuideSummary {
+  createdAt: ISO8601DateTime!
+  id: ID!
 }
 
 """

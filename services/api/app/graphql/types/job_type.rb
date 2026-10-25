@@ -4,6 +4,7 @@
 # Index:
 #   - gap_responses: the user's answers to this job's requirements
 #   - latest_gap_analysis: the newest analyze_gaps task comparing this job with the career library
+#   - study_guides, study_guide: owned guide summaries and selected successful content
 #   - latest_tailoring: the newest tailor_resume task for this job
 #   - resume: the newest resume saved for this job
 module Types
@@ -29,6 +30,12 @@ module Types
           description: "The newest successful study guide, retained across later failed attempts."
     field :latest_study_guide_task, Types::AiTaskType,
           description: "The newest study-guide generation attempt, including pending or failed work."
+    field :study_guides, Types::StudyGuideHistoryPageType, null: false do
+      argument :cursor, String, required: false
+    end
+    field :study_guide, Types::AiTaskType, null: false do
+      argument :id, ID, required: true
+    end
     field :latest_tailoring, Types::AiTaskType,
           description: "The newest tailoring task for this job, if any."
     field :resume, Types::ResumeType,
@@ -50,6 +57,15 @@ module Types
 
     def latest_study_guide_task
       object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide").order(created_at: :desc, id: :desc).first
+    end
+
+    def study_guides(cursor: nil)
+      result = ::StudyGuides::ListGuidesService.call(job: object, user: context[:current_user], cursor: cursor)
+      result.value || { guides: [], next_cursor: nil, errors: result.errors }
+    end
+
+    def study_guide(id:)
+      object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide", status: "completed").find(id)
     end
 
     # Returns the job's newest tailor_resume task.

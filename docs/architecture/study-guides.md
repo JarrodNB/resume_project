@@ -33,6 +33,20 @@ It loads guide bodies only when opened, follows task subscriptions instead of po
 and shows generation errors beside retained successful material. It offers readable
 exercises and questions without answer persistence, grading, or progress tracking.
 
+`job.studyGuides(cursor)` returns five successful guide summaries at a time, newest first
+by request time and then task ID. The summaries contain only IDs and generation dates;
+`job.studyGuide(id)` loads selected content and requires that successful guide to belong
+to the same owned job. Signed cursors bind the job and the last row's exact timestamp/ID,
+so adding newer guides does not shift later pages. Failed and pending attempts never
+become successful history entries.
+
+The reader initially selects the newest guide. History buttons show local dates and times,
+including seconds, and older pages load on request. A new completion refreshes history once
+without discarding a selected older guide or already loaded entries. Page failures preserve
+readable material and allow retrying the same continuation. Switching jobs resets the
+history, selected guide, and in-flight UI state; reopening a section starts with the newest
+guide again. Long learning material uses the workspace's readable prose measure.
+
 Quality checks: `python -m evals.run_study_guide_evals` uses five synthetic descriptions
 covering inventory, backend engineering, a sparse bakery role, irrelevant text, and an
 injected instruction. Deterministic checks verify outcomes; a separate judge assesses

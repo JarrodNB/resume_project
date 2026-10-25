@@ -154,13 +154,19 @@ Certifications are separate career-library entries (`Certification`, labels `C1`
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 
-- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — eight synthetic
+- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — ten synthetic
   section reviews through real production screening and grading. Hand labels check color
-  calibration, including qualitative results, vague assistance despite counts, and concrete
+  and question-presence/count calibration (including useful two-to-three-question sets), and an input-aware judge checks question usefulness and
+  unsupported premises. Cases include qualitative results, vague assistance despite counts, and concrete
   observation without hands-on duties. This small set does not
-  establish broad writing quality. Run `python -m evals.run_library_review_evals`.
-- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — nine synthetic edits
-  through production screening and generation, including a real deferred question/answer and summary/project/fact narrative fields.
+  establish broad writing quality. Execution or judge errors fail the runner; low quality
+  scores remain review signals. Run `python -m evals.run_library_review_evals`.
+- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — fifteen synthetic edits
+  through production screening and generation, including a real deferred question/answer,
+  review-answer regeneration without another question, qualitative outcomes without unsupported
+  unknown-result disclaimers, explicit ongoing-work qualifications, partial Q2/Q3 and complete
+  three-answer batches, and summary/project/fact narrative fields. The batch judge receives every
+  provided pair and never treats omitted answers as unknown facts.
   Checks output shape, spontaneous questions for missing contribution facts, and traffic-light
   calibration when only wording improves. Allowed colors live in evaluation-only metadata.
   The independent faithfulness/usefulness judge sees follow-up facts only if a question was asked.

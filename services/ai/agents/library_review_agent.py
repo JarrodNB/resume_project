@@ -1,4 +1,4 @@
-"""Review a selected library section with a small, validated traffic-light rubric.
+"""Review a selected section with grades and focused questions for missing career evidence.
 
 Only short target labels reach the model. The handler maps them back to saved fields.
 """
@@ -39,6 +39,8 @@ def check_targets(ctx: RunContext[list[str]], output: LibraryReviewDraft) -> Lib
         raise ModelRetry("Assess every supplied target label exactly once. Do not add labels.")
     if any(not item.reason.strip() for item in output.assessments):
         raise ModelRetry("Give a nonblank reason for each assessment.")
+    if any(item.question is not None and not item.question.strip() for item in output.assessments):
+        raise ModelRetry("Use null when no question is needed; otherwise ask a nonblank question.")
     return output
 
 

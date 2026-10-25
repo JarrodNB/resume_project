@@ -274,8 +274,42 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 `review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
 section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
-It returns `{assessments: [{kind, record_id, field, source_digest, color, reason}]}`. The model
-emits only target labels, colors, and reasons; code copies the identities from the snapshot.
+It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, questions, question}]}`.
+The ordered `questions` list contains zero to three distinct, nonblank questions, each at most
+500 characters. `question` mirrors its first item or null for legacy scalar consumers; old results
+with only `question` normalize to a one-item list, and old questionless results normalize to an empty list.
+If both representations are present they must agree. The model emits only target labels, colors,
+reasons, and questions; code copies the identities from the snapshot. Questions are completed
+review output, not deferred calls: users can address each detail independently.
+`answerLibraryReview(reviewTaskId:, kind:, recordId:, answers:)` accepts up to three
+`{questionIndex, answer}` entries, keyed by zero-based index into the immutable saved questions.
+Each answer is optional, but at least one trimmed answer must be nonblank. Rails rejects repeated
+or out-of-range indices (even on blank entries), more than three entries, and answers over 4,000
+characters. It resolves every question from the owned current review and queues one individual
+edit. Blank fields are omitted; nonblank answers are stored in question order for idempotency.
+The scalar `answer:` argument remains supported for older clients and means question index zero;
+it cannot be combined with `answers:`.
+
+A batch input adds `review_question: {review_task_id, answers: [{question_index, question, answer}]}`
+to the existing edit contract. Each answer has its own prose cap; they are not flattened into the
+standalone `feedback` field. Its 4,000-character cap and the 180,000-byte task input cap remain.
+Legacy tasks with `review_question: {review_task_id, question}` and their answer in `feedback`
+still work. Browser input never supplies generated question text or model history. Without saved
+history, the worker screens each answered field and renders labeled question/answer pairs;
+with owned saved history, only new feedback needs screening. Generated questions are trusted
+context, not evidence that a premise happened. Omitted questions never become unknown-outcome
+claims. This mode disables deferred questions on every linked turn; Rails rejects paused results.
+
+Canonical equivalent batches reuse the latest turn for that origin; different answers and unrelated
+active drafts conflict. Failed batches can retry with empty new feedback using their owned saved
+pairs, without claiming that the user skipped a question. Ordinary continuations still need feedback
+or an explicit skip. Later editing feedback preserves the batch and uses existing private history.
+Acceptance/discard retain normal closed-task and late-result protections.
+
+`libraryReview` assessment `reviewTaskId` identifies the completed source review independently
+of the latest section task. Accepted or discarded review-answer questions are retired; old
+questionless assessments remain valid.
+
 `reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`
 returns its latest task and last completed grades with current freshness. No career text is
 saved by this task. Unsupported sections fail before enqueueing; oversized sections fail

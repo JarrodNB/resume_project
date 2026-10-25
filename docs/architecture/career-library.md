@@ -154,6 +154,10 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   Transient retries and provider accounting remain task-wide. Career-library records remember
   checked field names in `screened_fields`, including summary on the user and highlight content.
   All library consumers reuse these checks; each screens only unchecked fields it uses.
+  Tailoring and summary preparation retain every saved record's identity when several
+  sources render the same text. Classification can reuse an exact checked field payload,
+  but each record earns reports only for its own checked fields; equal display text alone
+  cannot approve a different field selection.
   Interviews exclude fact requirements. Edits remove only changed field names; reordering
   preserves checks. Text editors reload the locked record before assigning changes, so
   an approval earned after an editor loaded cannot remain attached to edited text.

@@ -24,7 +24,7 @@ const NAV_ITEMS = [
 ]
 
 export function AppLayout() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, taskOutcomeCursor } = useAuth()
   const [signOutError, setSignOutError] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   async function handleSignOut() {
@@ -48,7 +48,7 @@ export function AppLayout() {
 
   return (
     <div className="workspace">
-      {user && <TaskNotifications key={user.id} userId={user.id} />}
+      {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="workspace-sidebar">
         <Link to="/library" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>

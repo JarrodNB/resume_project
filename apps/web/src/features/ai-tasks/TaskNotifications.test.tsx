@@ -1,18 +1,15 @@
 /** Checks task outcome notices through the persistent signed-in layout and real subscription. */
 import { act, render, screen, waitFor, within } from '@testing-library/react'
-import { ApolloClient, InMemoryCache } from '@apollo/client'
+import { ApolloClient, ApolloLink, InMemoryCache, Observable } from '@apollo/client'
 import { ApolloProvider } from '@apollo/client/react'
-import { MockSubscriptionLink } from '@apollo/client/testing'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import userEvent from '@testing-library/user-event'
 import { expect, it, vi } from 'vitest'
 import { AuthContext, type AuthContextValue } from '@/features/auth/authContext'
 import { AppLayout } from '@/components/AppLayout'
-import { renderPage } from '@/test/renderPage'
-import { TASK_OUTCOME_SUBSCRIPTION } from './taskNotificationOperations'
 
 const auth: AuthContextValue = {
-  user: { id: 'user-1', email: 'test@example.com', name: 'Test' }, csrfToken: 'csrf',
+  user: { id: 'user-1', email: 'test@example.com', name: 'Test' }, csrfToken: 'csrf', taskOutcomeCursor: '0',
   signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), expireSession: vi.fn(),
 }
 
@@ -22,8 +19,20 @@ function outcome(overrides = {}) {
 }
 
 function renderNotices() {
-  const link = new MockSubscriptionLink()
-  const client = new ApolloClient({ cache: new InMemoryCache(), link })
+  const observers: Array<{ next: (value: ApolloLink.Result) => void }> = []
+  const outcomes = new Map<string, { cursor: string; value: ReturnType<typeof outcome> }>()
+  const transport = new ApolloLink((operation) => new Observable((observer) => {
+    if (operation.operationName === 'TaskOutcome') { observers.push(observer); return }
+    const rows = [...outcomes.values()].filter((item) => BigInt(item.cursor) > BigInt(operation.variables.after) && BigInt(item.cursor) <= BigInt(operation.variables.through))
+    observer.next({ data: { taskOutcomes: { __typename: 'AiTaskOutcomePage', cursor: operation.variables.through, hasMore: false, outcomes: rows.map((item) => item.value) } } })
+    observer.complete()
+  }))
+  const link = { simulateResult(payload: { result: { data: { aiTaskFinished: { cursor: string; outcome: ReturnType<typeof outcome> | null; __typename: string } } } }) {
+    const feed = payload.result.data.aiTaskFinished
+    if (feed.outcome) outcomes.set(feed.outcome.id, { cursor: feed.cursor, value: feed.outcome })
+    observers.forEach((observer) => observer.next(payload.result))
+  } }
+  const client = new ApolloClient({ cache: new InMemoryCache(), link: transport })
   const router = createMemoryRouter([{ element: <AppLayout />, children: [
     { path: '/jobs/:id', element: <p>Current job page</p> },
     { path: '/library', element: <p>Library page</p> },
@@ -34,12 +43,10 @@ function renderNotices() {
 }
 
 it('announces a successful task even on its current result page', async () => {
-  renderPage({ path: '/jobs/:id', url: '/jobs/job-1',
-    element: <AuthContext value={auth}><AppLayout /></AuthContext>,
-    mocks: [{ request: { query: TASK_OUTCOME_SUBSCRIPTION }, result: { data: { aiTaskFinished: {
-      __typename: 'AiTaskOutcomeFeed', cursor: '1', outcome: outcome(),
-    } } } }],
-  })
+  const { link } = renderNotices()
+  act(() => link.simulateResult({ result: { data: { aiTaskFinished: {
+    __typename: 'AiTaskOutcomeFeed', cursor: '1', outcome: outcome(),
+  } } } }))
   expect(await screen.findByText('Gap analysis completed')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'View result' })).toHaveAttribute('href', '/jobs/job-1')
 })
@@ -68,7 +75,7 @@ it('ignores baseline snapshots and duplicates but announces a new outcome after 
       __typename: 'AiTaskOutcomeFeed', cursor, outcome: value,
     } } } }))
   }
-  emit(null)
+  emit(null, '0')
   expect(screen.queryByLabelText('Task notifications')).not.toBeInTheDocument()
   emit(outcome())
   await screen.findByText('Gap analysis completed')

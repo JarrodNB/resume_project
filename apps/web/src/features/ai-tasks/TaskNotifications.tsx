@@ -6,8 +6,8 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from '@/components/u
 import { Button } from '@/components/ui/button'
 import { useTaskNotifications } from './useTaskNotifications'
 
-export function TaskNotifications({ userId }: { userId: string }) {
-  const { notices, dismiss } = useTaskNotifications(userId)
+export function TaskNotifications({ userId, initialCursor }: { userId: string; initialCursor?: string | null }) {
+  const { notices, dismiss } = useTaskNotifications(userId, initialCursor)
   if (notices.length === 0) return null
   return <aside aria-label="Task notifications" className="fixed right-4 bottom-4 z-50 grid max-h-[70svh] w-[min(24rem,calc(100vw-2rem))] gap-3 overflow-y-auto">
     {notices.map((notice) => {

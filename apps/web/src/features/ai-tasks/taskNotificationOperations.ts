@@ -16,3 +16,20 @@ export const TASK_OUTCOME_SUBSCRIPTION = graphql(`
     }
   }
 `)
+
+export const TASK_OUTCOMES_QUERY = graphql(`
+  query TaskOutcomes($after: String!, $through: String!) {
+    taskOutcomes(after: $after, through: $through) {
+      cursor
+      hasMore
+      outcomes {
+        id
+        taskId
+        status
+        title
+        destination
+        completedAt
+      }
+    }
+  }
+`)

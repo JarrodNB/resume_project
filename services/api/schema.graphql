@@ -97,6 +97,12 @@ type AiTaskOutcomeFeed {
   outcome: AiTaskOutcome
 }
 
+type AiTaskOutcomePage {
+  cursor: String!
+  hasMore: Boolean!
+  outcomes: [AiTaskOutcome!]!
+}
+
 enum AiTaskStatusEnum {
   COMPLETED
   FAILED
@@ -2032,6 +2038,7 @@ type Query {
   resume(id: ID!): Resume!
   resumes: [Resume!]!
   skills: [Skill!]!
+  taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
 }
 
 """

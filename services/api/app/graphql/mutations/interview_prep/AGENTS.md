@@ -6,6 +6,7 @@ User-owned interview practice operations. Follow parent service/GraphQL instruct
 
 ## Contents
 
+- `avoid_interview_question.rb` — saves a revision-bound shared preference using only owned persisted question text.
 - `generate_interview_question_set.rb` — queues a new owned question set.
 - `save_interview_answer.rb` — saves or clears an answer through an owned set.
 - `regenerate_interview_question.rb` — queues replacement, requiring confirmation for an answered question.

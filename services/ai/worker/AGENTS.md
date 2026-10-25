@@ -145,3 +145,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
   are not classified. Source/input/history/turn caps bound every exchange.
+
+- Written question tasks accept `avoided_questions` as immutable Rails-owned generated text. Reuse trusted-generated-source coverage for these exact values; never trust arbitrary browser text under this field. Retain full legacy replacement screening/provenance behavior and fail rather than drop exclusions at the prompt cap.

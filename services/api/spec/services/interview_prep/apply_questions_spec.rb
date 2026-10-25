@@ -67,6 +67,13 @@ RSpec.describe "Applying interview question generation" do
     expect(ApiSchema.subscriptions).to have_received(:trigger).once
   end
 
+  it "rejects an exact saved preference repeated by generation without persisting any slots" do
+    task.update!(input: task.input.merge("avoided_questions" => [ drafts.first["question_text"].upcase ]))
+    apply
+    expect(task.reload).to be_failed
+    expect(question_set.questions).to be_empty
+  end
+
   it "accepts a complete legacy category set from an in-flight older worker" do
     drafts.zip(%w[introduction strengths development goals behavioral]).each { |draft, category| draft["category"] = category }
     apply

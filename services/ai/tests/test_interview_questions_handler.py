@@ -496,3 +496,43 @@ def test_legacy_replacement_reports_target_only(task_dependencies):
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
         assert {report.question_id for report in session.interview_question_screening} == {request.input["question_id"]}
+
+
+@pytest.mark.parametrize("replacement", [False, True])
+def test_generated_saved_preferences_are_trusted_and_added_to_all_generation_prompts(task_dependencies, monkeypatch, replacement):
+    """Generated preferences supplement exclusions without redundant classification."""
+    task = _task(replacement)
+    task.input["avoided_questions"] = ["What did you learn about checking Python results?"]
+    deps = replace(task_dependencies, read_career_library=lambda user_id:
+                   CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
+    screened = []
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+                        lambda text, **kwargs: (screened.append(text) or ScreenOutcome(True)))
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect(prompt, **kwargs):
+        avoided = task.input["avoided_questions"][0]
+        assert avoided in prompt.text and avoided in prompt.excluded
+        assert avoided not in prompt.library_text
+        if replacement:
+            assert task.input["question_text"] in prompt.excluded
+            assert all(text in prompt.excluded for text in task.input["other_questions"])
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1 if replacement else 5))):
+        assert handle_ai_task(task, deps).status == "completed"
+    assert task.input["avoided_questions"][0] not in screened
+
+
+def test_saved_preferences_overflow_fails_without_dropping_any_question(task_dependencies, monkeypatch):
+    """Generation must not silently ignore saved preferences to make the prompt fit."""
+    request = _task()
+    request.input["avoided_questions"] = ["A saved question that must not be silently left out?"]
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
+    monkeypatch.setattr(text_limits, "MAX_PROMPT_TEXT", 100)
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions",
+                        lambda *args, **kwargs: pytest.fail("No model call for overflowing context"))
+    result = handle_ai_task(request, deps)
+    assert result.status == "failed"
+    assert "saved question preferences are too long" in result.error_message

@@ -100,6 +100,9 @@ module InterviewPrep
       return unless drafts.map { |draft| normalize(draft["question_text"]) }.uniq.length == count
       return if count == 5 && drafts.map { |draft| draft["category"] }.uniq.length != 5
 
+      avoided = Array(@task.input["avoided_questions"]).map { |text| normalize(text) }
+      return if drafts.any? { |draft| avoided.include?(normalize(draft["question_text"])) }
+
       drafts
     end
 

@@ -143,3 +143,5 @@ All business logic, as service objects grouped by domain folder.
   independently of general AI limits and the general public usage summary.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
+
+- `interview_preferences/` — shared avoided-question persistence, bounded idempotent saves, and owner-scoped immutable snapshots. Saved source text must come from authorized generated records, never arbitrary browser text.

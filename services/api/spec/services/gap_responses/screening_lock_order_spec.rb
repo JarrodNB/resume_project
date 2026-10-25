@@ -84,4 +84,61 @@ RSpec.describe "Gap answer screening lock order" do
       user&.destroy!
     end
   end
+
+  it "applies gap analysis and tailoring reports for the same job without a lock cycle" do
+    user = create(:user, summary: "Saved summary")
+    job = create(:job, user: user)
+    analysis = create(:ai_task, user: user, subject: job, task_type: "analyze_gaps")
+    tailoring = create(:ai_task, user: user, subject: job, task_type: "tailor_resume")
+    locked, release, backend_pids = Queue.new, Queue.new, Queue.new
+    allow_any_instance_of(Job).to receive(:lock!).and_wrap_original do |original, *args|
+      original.call(*args).tap do
+        if Thread.current[:pause_gap_analysis_job]
+          locked << true
+          release.pop
+        end
+      end
+    end
+    report = { "job_id" => job.id, "fields" => {
+      "title" => Jobs::RecordScreeningService.field_fingerprint(job.title)
+    } }
+    apply_report = lambda do |task|
+      AiTasks::ApplyAiResultService.call(message: {
+        "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+        "job_screening" => [ report ], "library_screening" => [ {
+          "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ]
+        } ]
+      })
+    end
+    first = concurrently do |connection|
+      Thread.current[:pause_gap_analysis_job] = true
+      backend_pids << connection.select_value("SELECT pg_backend_pid()")
+      apply_report.call(analysis)
+    end
+    analysis_pid = Timeout.timeout(5) { backend_pids.pop }
+    Timeout.timeout(5) { locked.pop }
+    second = concurrently do |connection|
+      backend_pids << connection.select_value("SELECT pg_backend_pid()")
+      apply_report.call(tailoring)
+    end
+    tailor_pid = Timeout.timeout(5) { backend_pids.pop }
+    Timeout.timeout(5) do
+      connection = ActiveRecord::Base.connection
+      until connection.select_value("SELECT #{analysis_pid.to_i} = ANY(pg_blocking_pids(#{tailor_pid.to_i}))")
+        Thread.pass
+      end
+    end
+    release << true
+    results = Timeout.timeout(10) { [ first.value, second.value ] }
+    expect(results).to all(be_a(ServiceResult))
+    expect(results).to all(be_success)
+    expect(analysis.reload).to be_failed
+    expect(tailoring.reload).to be_failed
+    expect(job.reload.screened_fields).to eq([ "title" ])
+    expect(user.reload.screened_fields).to eq([ "summary" ])
+  ensure
+    release << true if release
+    [ first, second ].compact.each { |thread| thread.join(6) }
+    user&.destroy!
+  end
 end

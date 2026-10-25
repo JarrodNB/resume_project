@@ -2,8 +2,8 @@
 # Idempotent: finished tasks keep their outcome; independently deduplicated usage can arrive late.
 # The row lock stops two copies of the same report from both adding token usage and cost.
 # Costs stored on the task count toward the user's monthly AI budget. A completed scrape_job
-# or parse_job_posting also saves its Job in the same locked transaction. Interview question
-# and tailoring results acquire the owner lock before task/answer/library locks and persist
+# or parse_job_posting also saves its Job in the same locked transaction. Gap-analysis,
+# tailoring and interview results acquire the owner lock before task/job/answer/library locks and persist
 # in that transaction.
 # Index:
 #   - call: updates the task from the message; returns the task, or errors for a bad message
@@ -59,8 +59,8 @@ module AiTasks
 
     private
 
-    # Interview and tailoring writes share the owner lock with enqueue/save/library clear;
-    # acquire it before task, answer and library row locks to avoid inverted lock order.
+    # Gap-analysis, tailoring and interview writes share the owner lock with enqueue/save/clear;
+    # acquire it before task, job, answer and library row locks to avoid inverted lock order.
     def with_result_lock(ai_task, &block)
       if ai_task.interview_clarification?
         ai_task.user.with_lock do
@@ -69,7 +69,7 @@ module AiTasks
           interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
           ai_task.with_lock(&block)
         end
-      elsif ai_task.tailor_resume? || ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+      elsif ai_task.analyze_gaps? || ai_task.tailor_resume? || ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
         ai_task.with_lock(&block)

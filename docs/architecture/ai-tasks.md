@@ -58,7 +58,9 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   field value encoded as UTF-8 JSON without extra whitespace or ASCII escaping (Python
   `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`, Ruby stdlib `JSON.generate`).
   Only title, company, requirements and nice-to-haves are used and approved. Lists are
-  ordered whole fields. Rails locks the task's owned Job and approves only matching current
+  ordered whole fields. Gap-analysis and tailoring results both acquire the owner lock
+  before task/job/library locks so concurrent reports cannot invert job/summary lock order.
+  Rails locks the task's owned Job and approves only matching current
   values; stale, foreign, unrelated and deleted sources cannot earn approval. Reports
   remain outside model prompts and do not contain raw Job text. Successful checks persist
   even when later generation fails; usage-only and finished-task redeliveries cannot restore checks.

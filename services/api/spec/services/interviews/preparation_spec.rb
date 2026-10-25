@@ -8,6 +8,16 @@ RSpec.describe "Spoken interview preparation" do
     allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
   end
 
+  it "snapshots shared avoided questions once for preparation and later claims" do
+    InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "Describe an old challenge.")
+    interview = Interviews::StartPreparationService.call(user: user).value
+    InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "A later preference?")
+    claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
+    expect(claim).to be_success
+    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq(["Describe an old challenge."])
+    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq(["Describe an old challenge."])
+  end
+
   it "starts durable preparation instead of a fixture question and never starts speech" do
     result = Interviews::StartDemoService.call(user: user)
     expect(result).to be_success

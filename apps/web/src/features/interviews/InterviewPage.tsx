@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
+import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
 import { InterviewClarification } from './InterviewClarification'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
@@ -278,6 +279,7 @@ function OwnedInterview({ id }: { id: string }) {
       <p className="interview-question whitespace-pre-wrap break-words">{reply.content}</p>
       <div className="interview-question-actions" role="group" aria-label="Question controls">
       {interview.status === 'active' && interview.executionMode === 'real' && <InterviewClarification key={`clarification:${reply.id}`} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
+      {interview.status === 'active' && interview.executionMode === 'real' && (reply.kind === 'opening' || reply.kind === 'follow_up') && <AvoidInterviewPromptButton key={`avoid:${reply.id}`} interviewId={id} messageId={reply.id} avoided={reply.avoided} disabled={turnActive || state.busy} />}
       {browserSpeech && <BrowserInterviewSpeech key={reply.id} messageId={reply.id} text={reply.spokenContent ?? reply.content} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       {!browserSpeech && speech?.status === 'accepted' && <InterviewAudio key={reply.id} interviewId={id} messageId={reply.id} automatic={newSpeech.messageId === reply.id} onAutomaticAttempt={newSpeech.consume} muted={muted} disabled={(recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'recording'} otherSpeechPlaying={speechPlaying && playingMessageId !== reply.id} onPlayingChange={playbackChanged} />}
       <Button variant="ghost" size="icon" className="size-11" aria-label={muted ? 'Unmute interviewer' : 'Mute interviewer'} title={muted ? 'Unmute interviewer' : 'Mute interviewer'} aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}</Button>

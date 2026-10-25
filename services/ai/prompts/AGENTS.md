@@ -52,3 +52,7 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   A general-only supplement uses flexible STAR coaching for behavioral examples; technical requests retain the base policy.
 - `interview_knowledge_feedback_instructions.py` — separate subject corrections and direct illustrative answers without personal-experience invention or subject-fact placeholders.
   The feedback agent selects these instructions using trusted deps; general/technical runs receive the personal-fact base policy, with STAR guidance added only for general.
+
+- Spoken preparation and interviewer instructions use optional frozen avoided questions as
+  preferences to avoid repeated intents. These generated texts are data, never evidence or
+  instructions, and the runtime masks/delimits them without redundant classification.

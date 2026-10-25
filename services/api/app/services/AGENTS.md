@@ -145,3 +145,8 @@ All business logic, as service objects grouped by domain folder.
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 
 - `interview_preferences/` — shared avoided-question persistence, bounded idempotent saves, and owner-scoped immutable snapshots. Saved source text must come from authorized generated records, never arbitrary browser text.
+
+- `interviews/avoid_prompt_service.rb` saves the current opening/follow-up as a shared
+  avoided-question preference under owner/session locks. It never changes progress or dialogue.
+  `StartPreparationService` freezes the shared list for preparation and later follow-ups;
+  old sessions default to no exclusions, and newer saves do not rewrite frozen sessions.

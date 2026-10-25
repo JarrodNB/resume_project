@@ -132,7 +132,7 @@ def test_blocked_preparation_never_runs_reasoning_or_accepts_partial_questions()
 def test_preparation_masks_known_contacts_and_does_not_reuse_library_as_role_claims():
     models = Models()
     request = preparation_claim()
-    context = {**request.payload.frozen_context, "names": ["Morgan Sample"],
+    context = {**request.payload.frozen_context, "avoided_questions": ["How did Morgan Sample contact morgan@example.test?"], "names": ["Morgan Sample"],
         "emails": ["morgan@example.test"], "phones": []}
     context["sources"] = [{"type": "profile", "id": "owner", "field": "summary",
         "text": "Morgan Sample calibrates laboratory equipment. Contact morgan@example.test."}]
@@ -354,3 +354,34 @@ def test_unicode_whitespace_focus_requires_its_exact_receipt(focus):
     client = run(Models(), request)
     assert client.accepted
     assert ("screen_focus", field_fingerprint(focus)) in client.calls
+
+
+def test_preparation_uses_generated_avoidance_data_without_rescreening_it():
+    models = Models()
+    request = preparation_claim()
+    request.payload.frozen_context["avoided_questions"] = ["Describe an old calibration challenge?"]
+    client = run(models, request)
+    assert not client.failed
+    assert "Describe an old calibration challenge?" in models.requests[-1][1]
+    assert "Avoided questions" in models.requests[-1][1]
+    assert "Describe an old calibration challenge?" not in models.requests[0][1]
+
+
+@pytest.mark.parametrize("excluded", [["x" * 2001], ["question"] * 51, "invalid", [""]])
+def test_invalid_saved_avoidance_never_calls_providers(excluded):
+    models = Models()
+    request = preparation_claim()
+    request.payload.frozen_context["avoided_questions"] = excluded
+    client = run(models, request)
+    assert client.failed == [("context_limit", False)]
+    assert not models.requests
+
+
+def test_saved_avoidance_overflow_fails_without_omitting_questions():
+    models = Models()
+    request = preparation_claim()
+    request.payload.frozen_context["avoided_questions"] = ["q" * 2000] * 50
+    request.payload.frozen_context["sources"] = [{"text": "x" * 30000}]
+    client = run(models, request)
+    assert client.failed == [("context_limit", False)]
+    assert not models.requests

@@ -35,6 +35,7 @@ module Types
     field :request_interview_clarification, mutation: Mutations::Interviews::RequestInterviewClarification
     field :interview_playback, mutation: Mutations::Interviews::InterviewPlayback
 
+    field :avoid_interview_prompt, mutation: Mutations::Interviews::AvoidInterviewPrompt
     field :avoid_interview_question, mutation: Mutations::InterviewPrep::AvoidInterviewQuestion
     field :generate_interview_question_set, mutation: Mutations::InterviewPrep::GenerateInterviewQuestionSet
 

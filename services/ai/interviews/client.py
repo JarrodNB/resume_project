@@ -335,13 +335,21 @@ class RailsInterviewClient:
     async def heartbeat(self, claim: Claim, checkpoint: str | None = None):
         return await self._callback(claim, "heartbeat", checkpoint=checkpoint)
 
-    async def screen_library(self, claim: Claim, source_indices: list[int]):
-        """Persist successful exact-source checks before dependent model work."""
-        result = await self._callback(claim, "screen_library", source_indices=source_indices)
+    async def screen_library(self, claim: Claim, source_indices: list[int], *, career_focus_sha256: str | None = None):
+        """Require durable receipts for checked source indices and optional exact focus.
+
+        Omit the focus argument for the unchanged legacy request/response contract.
+        """
+        values = {"source_indices": source_indices}
+        if career_focus_sha256 is not None:
+            values["career_focus_sha256"] = career_focus_sha256
+        result = await self._callback(claim, "screen_library", **values)
         indices = result.get("screened_source_indices")
         if (not isinstance(indices, list) or any(type(index) is not int or index < 0 for index in indices)
                 or not set(source_indices).issubset(indices)):
             raise RailsTransportError("Invalid library screening receipt")
+        if career_focus_sha256 is not None and result.get("screened_career_focus_sha256") != career_focus_sha256:
+            raise RailsTransportError("Invalid career focus screening receipt")
         return result
 
     async def recording(self, claim: Claim):

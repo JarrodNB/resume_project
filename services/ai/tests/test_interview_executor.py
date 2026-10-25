@@ -50,8 +50,11 @@ class Client:
     async def usage(self, claim, entries, **kwargs):
         self.calls.append(("usage", kwargs.get("observation_id"), entries))
 
-    async def screen_library(self, claim, source_indices):
+    async def screen_library(self, claim, source_indices, *, career_focus_sha256=None):
         self.calls.append(("screen_library", source_indices))
+        if career_focus_sha256 is not None:
+            self.calls.append(("screen_focus", career_focus_sha256))
+            return {"screened_source_indices": source_indices, "screened_career_focus_sha256": career_focus_sha256}
         return source_indices
 
     async def recording(self, claim):

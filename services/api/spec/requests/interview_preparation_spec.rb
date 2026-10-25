@@ -41,4 +41,16 @@ RSpec.describe "Internal interview preparation", type: :request do
     expect(interview.questions.count).to eq(8)
     expect(interview.messages).to be_empty
   end
+  it "persists a focus-only check before generation" do
+    focus = "Laboratory leadership"
+    interview.update!(frozen_context: interview.frozen_context.merge("career_focus" => focus))
+    path = "/internal/interviews/operations/#{operation.id}"
+    post "#{path}/claim", params: { execution_mode: "real" }, headers: headers, as: :json
+    identity = response.parsed_body.slice("attempt_id", "claim_generation")
+    digest = Digest::SHA256.hexdigest(JSON.generate(focus))
+    post "#{path}/screen_library", params: identity.merge(source_indices: [], career_focus_sha256: digest), headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body).to eq("screened_source_indices" => [], "screened_career_focus_sha256" => digest)
+    expect(interview.reload.frozen_context["screened_career_focus_sha256"]).to eq(digest)
+  end
 end

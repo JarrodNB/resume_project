@@ -344,7 +344,13 @@ For `/internal/interviews/operations/:id`:
   values before model generation and returns all `screened_source_indices`. Repeated calls
   while the claim is current are idempotent. Live library fields earn approval only under
   record locks when the owner and exact current value still match; edits or deletions cannot
-  accidentally approve new text. This callback does not change general AI-result screening.
+  accidentally approve new text. Preparation may also submit optional `career_focus_sha256`,
+  the SHA-256 of the exact frozen focus encoded as UTF-8 JSON without ASCII escaping or
+  extra whitespace (Python `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`,
+  Ruby stdlib `JSON.generate`). Rails validates it against the locked nonblank focus before
+  any source writes and stores/returns `screened_career_focus_sha256`. Focus-only requests
+  use `source_indices: []`; turn claims cannot grant focus checks. Source-only requests
+  retain their existing response shape. This callback does not change general AI-result screening.
 - `POST /heartbeat` takes `attempt_id`, integer `claim_generation`, and an optional
   checkpoint: `recording_validated`, `transcribed`, `screened`, `interviewer_finished`,
   or `speech_started`. It cannot save arbitrary provisional content or extend the deadline.
@@ -722,7 +728,14 @@ Frozen sources retain field-level `screened` metadata outside model prose. Appro
 incur no library classifier calls. Unchecked source text is screened together; its source
 indices are reported through the fenced Rails callback before dependent generation. Failed
 screening or a missing persistence receipt cannot grant usable approval. Preparation also
-screens an optional career focus; later turns reuse the prepared immutable context.
+screens an optional career focus only when its exact fingerprint lacks a matching
+`screened_career_focus_sha256` in the frozen context. A newly checked focus requires its
+matching callback receipt even when every library source was already approved; missing
+receipts prevent preparation. The approval survives later generation failure and claim
+retries, remains outside model prose, and is purged with frozen context at cleanup.
+Later turns reuse the prepared immutable context. Deploy the expanded Rails callback
+before the AI worker: a new worker fails closed if an older server omits the focus receipt;
+older workers continue source-only callbacks safely.
 
 The model sees readable career entries grouped by source record, with field/source labels
 and escaped data delimiters, plus a separately labeled fictional role. Known contacts are

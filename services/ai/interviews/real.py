@@ -6,6 +6,8 @@ of acceptance and progression.
 """
 
 import asyncio
+import hashlib
+import json
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
@@ -37,7 +39,7 @@ from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERS
 from screening.conversation import screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
 from screening.session import screening_session
-from text_limits import MAX_PROMPT_TEXT
+from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
 from worker.contact_mask import contact_scope, mask_outbound
 from worker.known_contact import KnownContact
 from worker.telemetry_privacy import telemetry_scope
@@ -144,11 +146,20 @@ class RealInterviewExecutor(InterviewExecutor):
                 raise ValueError("Invalid frozen career source")  # noqa: TRY004 - malformed claims fail as domain input
             texts.append(data_block("unchecked_library_field", text))
         focus = context.get("career_focus") if include_focus else None
+        focus_digest = None
         if isinstance(focus, str) and focus:
-            texts.append(data_block("career_focus", focus))
+            if len(focus) > MAX_SCREENED_TEXT:
+                raise ScreeningRejected("context_limit")
+            digest = hashlib.sha256(json.dumps(focus, ensure_ascii=False, separators=(",", ":")).encode()).hexdigest()
+            if context.get("screened_career_focus_sha256") != digest:
+                focus_digest = digest
+                texts.append(data_block("career_focus", focus))
         if texts:
             await self._screen(claim, mask_outbound("\n\n".join(texts)))
-        if pending:
+        if focus_digest is not None:
+            # Focus-only checks also need a durable receipt before preparation.
+            await self.client.screen_library(claim, pending, career_focus_sha256=focus_digest)
+        elif pending:
             # Durable approval must succeed before the library can reach generation.
             await self.client.screen_library(claim, pending)
 

@@ -395,3 +395,33 @@ def test_twelfth_question_can_restore_or_omit_all_eleven_earlier_questions(omitt
     }
     claim = Claim.model_validate(request)
     assert len(claim.payload.earlier_dialogue.omitted_question_positions if omitted else claim.payload.earlier_dialogue.groups) == 11
+
+
+@pytest.mark.parametrize("value", [None, True, "wrong", "A" * 64])
+def test_focus_screening_requires_exact_persisted_receipt(value):
+    async def check():
+        receipt = {"screened_source_indices": [], "screened_career_focus_sha256": value}
+        async with RailsInterviewClient("http://api:3000", "service-only",
+                transport=httpx.MockTransport(lambda request: httpx.Response(200, json=receipt))) as client:
+            with pytest.raises(RailsTransportError):
+                await client.screen_library(Claim.model_validate(CLAIM), [], career_focus_sha256="a" * 64)
+    run(check())
+
+
+
+def test_focus_only_callback_sends_exact_digest_and_replays_identically():
+    requests = []
+    digest = "a" * 64
+    def respond(request):
+        requests.append(request)
+        if len(requests) == 1:
+            raise httpx.ReadTimeout("receipt lost")
+        return httpx.Response(200, json={"screened_source_indices": [], "screened_career_focus_sha256": digest})
+    async def check():
+        async with RailsInterviewClient("http://api:3000", "service-only", transport=httpx.MockTransport(respond)) as client:
+            assert (await client.screen_library(Claim.model_validate(CLAIM), [], career_focus_sha256=digest))[
+                "screened_career_focus_sha256"] == digest
+    run(check())
+    assert requests[0].content == requests[1].content
+    assert json.loads(requests[0].content) == {"attempt_id": "attempt", "claim_generation": 2,
+        "source_indices": [], "career_focus_sha256": digest}

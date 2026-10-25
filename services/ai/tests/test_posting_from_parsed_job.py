@@ -129,3 +129,13 @@ def test_no_requirements_adds_a_warning() -> None:
     assert posting.requirements == []
     assert posting.requirements_sorted_by == "none"
     assert posting.warnings == [NO_REQUIREMENTS_WARNING]
+
+
+def test_duplicate_bullets_collapse_by_normalized_text_and_keep_first_spelling() -> None:
+    """Repeated case/spacing variants and blank lines don't duplicate saved evidence."""
+    posting = posting_from_parsed_job(
+        AD,
+        _parsed(requirements=["  Python experience ", "python   EXPERIENCE", "", "PostgreSQL"]),
+    )
+
+    assert posting.requirements == ["Python experience", "PostgreSQL"]

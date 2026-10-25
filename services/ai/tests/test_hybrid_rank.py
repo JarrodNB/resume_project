@@ -9,6 +9,8 @@ Index:
     - test_k_60_prefers_agreement_over_a_single_first_place
 """
 
+import pytest
+
 from memory.hybrid_rank import (
     RRF_K,
     RankedDocument,
@@ -42,6 +44,20 @@ def test_no_shared_term_keeps_cosine_order() -> None:
     )
 
     assert [item for item, _score in ordered] == ["semantic", "exact"]
+
+
+@pytest.mark.parametrize("query", ["go", "Go", "GO", "java", "Java", "JAVA"])
+def test_skill_keywords_match_whole_words_regardless_of_case(query: str) -> None:
+    """Django and JavaScript must not crowd out exact Go and Java experience."""
+    documents = [
+        RankedDocument("nearer", "Built Django and JavaScript services", 0.1),
+        RankedDocument("exact", "Built Go and Java services", 0.4),
+    ]
+
+    assert keyword_rank(query, [(doc.id, doc.content) for doc in documents]) == ["exact"]
+    ordered = hybrid_order(documents, query)
+    assert [item for item, _score in ordered] == ["exact", "nearer"]
+    assert ordered[0][1] > ordered[1][1]
 
 
 def test_stopwords_do_not_match() -> None:

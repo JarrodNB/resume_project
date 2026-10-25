@@ -31,7 +31,7 @@ module AiTasks
         "/import/#{@task.id}"
       when "scrape_job", "parse_job_posting"
         job = owned_subject("Job", @user.jobs)
-        return "/jobs/#{job.id}" if job && @outcome.status == "completed"
+        return job ? "/jobs/#{job.id}" : "/jobs" if @outcome.status == "completed"
         @outcome.task_type == "scrape_job" ? "/jobs/new/#{@task.id}" : "/jobs/paste/#{@task.id}"
       when "analyze_gaps", "tailor_resume"
         job = owned_subject("Job", @user.jobs)

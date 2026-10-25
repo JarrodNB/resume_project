@@ -37,4 +37,17 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     expect(describe_outcome(task)[:destination]).to eq("/jobs/#{job.id}")
     expect(describe_outcome(task, status: "failed")[:destination]).to eq("/jobs/paste/#{task.id}")
   end
+
+  it "opens the jobs overview for a completed import whose saved job was deleted" do
+    user = create(:user)
+    %w[scrape_job parse_job_posting].each do |type|
+      job = create(:job, user: user)
+      task = create(:ai_task, user: user, task_type: type, subject: job)
+      job.destroy!
+      expect(describe_outcome(task.reload)[:destination]).to eq("/jobs")
+      retry_path = type == "scrape_job" ? "/jobs/new/#{task.id}" : "/jobs/paste/#{task.id}"
+      expect(describe_outcome(task, status: "failed")[:destination]).to eq(retry_path)
+    end
+  end
+
 end

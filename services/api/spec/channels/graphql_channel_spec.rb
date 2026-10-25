@@ -36,6 +36,11 @@ RSpec.describe GraphqlChannel, type: :channel do
     other_task = create(:ai_task)
     AiTasks::UpdateTaskService.call(task: other_task, attributes: { status: "completed", completed_at: Time.current })
     stub_connection current_user: user, session_valid?: true, check_session: nil
+    pool = Object.new
+    def pool.async_invoke(receiver, method, *arguments, **_options)
+      receiver.send(method, *arguments)
+    end
+    connection.define_singleton_method(:worker_pool) { pool }
     subscribe
     query = "subscription { aiTaskFinished { cursor outcome { id taskId status title destination completedAt } } }"
     perform :execute, "query" => query

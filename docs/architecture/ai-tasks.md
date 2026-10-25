@@ -337,7 +337,9 @@ not undo accepted work: the saved occurrences support subsequent catch-up. Exist
 per-task subscriptions remain available to feature pages.
 
 The browser subscribes before querying missed outcomes. The initial subscription
-payload confirms readiness and supplies a committed cursor. Session bootstrap and
+payload waits for ActionCable pubsub confirmations, then reads a fresh committed
+cursor through the saved GraphQL operation. Resolver execution alone does not establish
+listener readiness. Session bootstrap and
 sign-in also supply an owner-scoped starting watermark, captured before workspace
 actions become available; this prevents fast completions before subscription readiness
 from being mistaken for historical work. On first use, older outcomes stay quiet.

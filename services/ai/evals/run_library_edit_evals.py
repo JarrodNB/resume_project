@@ -41,7 +41,9 @@ class EditStructure(Evaluator):
         output = ctx.output
         return {"edit_contract": float(bool(output.get("text")) and len(output["text"]) <= (1000 if ctx.inputs.section == "experience" else 4000) and
             output.get("color") in {"red", "yellow", "green"} and
-            bool(output.get("question")) == ctx.inputs.expects_question)}
+            bool(output.get("question")) == ctx.inputs.expects_question),
+            "assessment_calibration": float(not ctx.metadata or not ctx.metadata.get("allowed_colors") or
+                output.get("color") in ctx.metadata["allowed_colors"])}
 
 
 @dataclass
@@ -55,7 +57,7 @@ class EditQuality(Evaluator):
         source = render_review(ctx.inputs.library.model_dump_json(exclude_none=True))
         output = ctx.output
         material = (source + "\n\nUser feedback:\n" + ctx.inputs.feedback +
-            "\nUser follow-up answer:\n" + (ctx.inputs.answer or "No additional answer") +
+            "\nUser follow-up answer:\n" + ((ctx.inputs.answer if output.get("question") else None) or "No additional answer") +
             "\nGenerated question:\n" + (output.get("question") or "No question") +
             "\nProposed replacement:\n" + output.get("text", "") +
             "\nAssessment:\n" + output.get("color", "") + ": " + output.get("reason", ""))
@@ -70,7 +72,7 @@ class EditQuality(Evaluator):
 
 
 def load_library_edit_dataset():
-    return Dataset[EditCase, dict, None].from_file(
+    return Dataset[EditCase, dict, dict[str, list[str]]].from_file(
         Path(__file__).parent / "datasets/library_edit_cases.yaml", custom_evaluator_types=[EditStructure])
 
 

@@ -247,5 +247,10 @@ values still match the snapshot under a record lock. Live progress uses existing
 Individual edits use only the selected record context. Accepting a project or fact revision
 queues the existing embedding sync; the profile summary is read live and needs no embedding job.
 Exact accepted generated text reuses field coverage until a manual edit changes that text.
+Reviews and revisions grade the career evidence, not the polish added by the writer. A
+retained vague contribution claim stays yellow or red until the missing detail is resolved.
+The editor asks what the person actually did when that fact is missing, unless they have
+already said the detail is unavailable or skipped it. Concrete observation/shadowing can
+be strong evidence without implying hands-on duties.
 Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
 copies, so those operations do not send generated text back through the classifier.

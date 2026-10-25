@@ -59,5 +59,44 @@ cases:
             requirement: Inventory management experience
             response: I maintained the store stock count sheet so colleagues could see which items needed reordering.
       feedback: Make my answer easier to read without changing the requirement or claiming I led the team. No further facts are available; propose a revision now.
+  - name: vague-clinical-assistance-prompts-natural-question
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Community Health Centre
+            title: Clinical Observer
+            highlights:
+              - id: highlight-1
+                content: Observed three community physicians and supported care for 120 rural patients, learning about community medicine.
+      feedback: Improve clarity and specificity while preserving the facts.
+      answer: I observed consultations and directed patients to the right waiting area. I did not provide clinical care. No other details are available; propose the revision now.
+      expects_question: true
+  - name: wording-only-does-not-resolve-vague-assistance
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Community Health Centre
+            title: Clinical Observer
+            highlights:
+              - id: highlight-1
+                content: Observed three community physicians and supported care for 120 rural patients, learning about community medicine.
+      feedback: Keep both the observation and assisting parts. Improve the wording only; I cannot provide any further detail about what I did.
+    metadata:
+      allowed_colors: [red, yellow]
+  - name: concrete-observation-needs-no-hands-on-care
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Community Health Centre
+            title: Clinical Observer
+            highlights:
+              - id: highlight-1
+                content: Observed rural consultations to learn how family physicians take histories and decide when to refer patients to specialists.
+      feedback: Clarify the wording while keeping this observational. Do not imply that I provided care. No further facts are available; propose a revision now.
+    metadata:
+      allowed_colors: [green]
 evaluators:
   - EditStructure

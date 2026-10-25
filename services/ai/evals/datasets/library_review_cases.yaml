@@ -54,5 +54,27 @@ cases:
           response: I did it.
     metadata:
       - [red]
+  - name: counts-do-not-clarify-clinical-assistance
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Community Health Centre
+          title: Clinical Observer
+          highlights:
+            - id: highlight-1
+              content: Observed three community physicians and assisted with care for 120 rural patients, gaining experience in community medicine.
+    metadata:
+      - [yellow]
+  - name: clearly-described-observation-is-useful-evidence
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Community Health Centre
+          title: Clinical Observer
+          highlights:
+            - id: highlight-1
+              content: Observed rural consultations to learn how family physicians take histories and decide when to refer patients to specialists.
+    metadata:
+      - [green]
 evaluators:
   - ReviewCalibration

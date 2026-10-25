@@ -159,7 +159,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   and question-presence calibration, and an input-aware judge checks question usefulness and
   unsupported premises. Cases include qualitative results, vague assistance despite counts, and concrete
   observation without hands-on duties. This small set does not
-  establish broad writing quality. Run `python -m evals.run_library_review_evals`.
+  establish broad writing quality. Execution or judge errors fail the runner; low quality
+  scores remain review signals. Run `python -m evals.run_library_review_evals`.
 - `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — eleven synthetic edits
   through production screening and generation, including a real deferred question/answer,
   review-answer regeneration without another question, and summary/project/fact narrative fields.

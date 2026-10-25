@@ -105,12 +105,15 @@ def run_library_review_evals(model_override: str | None = None):
         result.evaluators.append(ReviewQuestionQuality(settings.eval_judge_model, settings.llm_run_timeout_seconds))
         return result
 
-    return evaluate_dataset(
+    report = evaluate_dataset(
         dataset, review, name="evals.library_review",
         metadata={"model": settings.library_review_model, "prompt_version": LIBRARY_REVIEW_PROMPT_VERSION},
         version=LIBRARY_REVIEW_PROMPT_VERSION, tags=["eval", "library_review"],
         max_concurrency=1,
     )
+    if report.failures or any(case.evaluator_failures for case in report.cases):
+        raise RuntimeError("Library review evaluation had execution or evaluator errors")
+    return report
 
 
 if __name__ == "__main__":

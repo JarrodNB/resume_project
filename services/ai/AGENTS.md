@@ -57,8 +57,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   from the user, it calls an external `ask_user` tool and the run ends with
   `DeferredToolRequests`. The worker publishes a `needs_user_input` result containing the
   question(s) and the serialized message history. When the user answers, the follow-up task
-  resumes with that history plus `DeferredToolResults`. Not built yet; reserved for
-  AI-assisted rewriting of career library entries. Gap analysis doesn't ask questions.
+  resumes with that history plus `DeferredToolResults`. Career-library editing implements
+  this with distinct linked tasks per turn; browser input never supplies saved agent history.
+  Its handler restores exact coverage for previous checked/generated messages and screens
+  only new feedback/answers. Gap analysis doesn't ask questions.
   Tailoring generates one complete draft per queued execution and does not use `ask_user`.
 - **User-written text is screened for prompt injection before it enters a prompt** (`screening/`), including
   an uploaded resume before it is parsed. Jev, local Llama Prompt Guard, and a configurable LLM are selectable

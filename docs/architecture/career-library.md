@@ -121,7 +121,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
   and rejected here: the comparison already lists every gap, so a plain form is simpler, needs
   no paused agent runs, and lets the user decide what's worth answering. `ask_user` stays
-  reserved for a later feature where the AI rewrites career library entries and must ask for facts.
+  used by individual library editing, where the AI rewrites one selected field and may ask for facts.
 
 - **Tailoring returns one complete draft for review.** Section-by-section approval made the
   user wait repeatedly and repeated preparation. One queued execution now owns shared
@@ -159,7 +159,9 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   an approval earned after an editor loaded cannot remain attached to edited text.
   Profile imports and clearing lock the owner first; merges then lock persisted rows
   in ID order. The edited text and its field-check invalidation save atomically.
-  New/imported rows start unchecked. Rails applies successful check reports
+  New or changed user text and imported rows start unchecked. Exact saved text retains
+  its existing field coverage when a merge copies it or the highlight editor recreates
+  an unchanged bullet; edited values never inherit that coverage. Rails applies successful check reports
   from completed or failed AI results to owner-scoped records; Python remains read-only.
   Other input and prompt coverage remain execution-local. Checks have no expiry or policy
   version, and results carry no edit revision check.
@@ -181,7 +183,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   not stated stays null, so evals can check faithfulness deterministically (every extracted
   highlight, skill, and company must appear in the source text). Ambiguities go into
   `parsing_warnings` instead of questions to the user; the human-in-the-loop flow is
-  planned for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
+  implemented for AI-assisted rewriting of career library entries. Partial dates ("2021") stay strings until import, where they
   become the first day of the month or year.
   The rule is also enforced at runtime: after every parse, `enforce_source_faithfulness`
   (`services/ai/documents/`) removes highlights and skills that don't appear in the source text
@@ -225,3 +227,30 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   showing any scraper warnings, e.g. "AI sorted the requirements"). This is the exception to
   "AI results are reviewed before they change user data". Creating the Job inside
   `ApplyAiResultService`'s row lock keeps redelivered results from creating it twice.
+
+## AI section review
+
+Summary, Experience, Projects, and Facts each have an explicit section review action.
+They return individual red/yellow/green assessments with short reasons for the summary, role
+descriptions/highlights, project descriptions, or saved fact responses without changing career facts.
+Contact details, credentials, skill names, and fact requirement labels stay outside AI edits.
+Snapshots and results live on the existing `review_library_section` AI task; there is no
+separate assessment table. Only the selected section reaches screening and generation.
+The snapshot includes existing field checks, and unchecked used fields are screened before
+plain labeled text reaches the model. Generated assessments are not screened.
+
+Per-record source/context digests mark old grades as needing review when text changes, highlights
+move, or entries merge. Deleted targets disappear from current assessments. Result application
+validates exact target coverage, and late screening reports can only approve fields whose saved
+values still match the snapshot under a record lock. Live progress uses existing task subscriptions.
+
+Individual edits use only the selected record context. Accepting a project or fact revision
+queues the existing embedding sync; the profile summary is read live and needs no embedding job.
+Exact accepted generated text reuses field coverage until a manual edit changes that text.
+Reviews and revisions grade the career evidence, not the polish added by the writer. A
+retained vague contribution claim stays yellow or red until the missing detail is resolved.
+The editor asks what the person actually did when that fact is missing, unless they have
+already said the detail is unavailable or skipped it. Concrete observation/shadowing can
+be strong evidence without implying hands-on duties.
+Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
+copies, so those operations do not send generated text back through the classifier.

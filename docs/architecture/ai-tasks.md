@@ -12,14 +12,23 @@ Task execution and the contracts between Rails and Python workers.
 4. The worker publishes to `ai_results` with one of:
    - `completed` + structured payload (the agent's Pydantic `output_type`)
    - `needs_user_input` + question(s) + serialized agent message history
-     (the agent called the deferred `ask_user` tool; planned for career library rewriting,
-     not used yet)
+     (the agent called the deferred `ask_user` tool; used by individual career-library editing)
    - `failed` + error
 5. Rails consumes the result, updates the `AiTask` and related records (storing the message
    history on the `AiTask`), and pushes the update to the client through a GraphQL
    subscription (e.g. `aiTaskUpdated(id)`).
-6. When the user answers, Rails publishes a follow-up task with the stored message history
-   and the answers. The worker resumes the agent with `DeferredToolResults`.
+6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
+   message history and newest answer. The worker resumes with `DeferredToolResults`.
+
+Individual library editing uses `improve_library_entry`. Input captures one owned summary, role description/highlight, project description, or fact-response target,
+its role context and digest, feedback, root/previous task IDs, turn, and private saved history.
+The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.
+Results are either one pending question plus history, or `{text, color, reason}` plus history.
+Rails validates bounded output; accepting updates only the exact target when source/context
+still match, marks `accepted_at`, and adds an assessment for the accepted content digest.
+Completed/paused editing tasks cannot be reopened or replaced by late results; follow-ups
+get their own IDs and normal usage accounting. Exchanges allow at most eight turns and
+180,000 input bytes; saved history is capped at 100,000 bytes. Other task contracts are unchanged.
 
 ## Queue Messages
 
@@ -218,3 +227,14 @@ The worker retries through SQS redelivery instead of in-process loops:
   key, read-only. Locally the bucket is Adobe S3Mock (MinIO's community edition is archived,
   LocalStack needs an account token). Text extraction (pypdf, python-docx) happens in Python,
   next to the agents. The upload's type is detected from its bytes, not the client's claim.
+
+### Career library review
+
+`review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
+section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
+It returns `{assessments: [{kind, record_id, field, source_digest, color, reason}]}`. The model
+emits only target labels, colors, and reasons; code copies the identities from the snapshot.
+`reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`
+returns its latest task and last completed grades with current freshness. No career text is
+saved by this task. Unsupported sections fail before enqueueing; oversized sections fail
+without truncation. Existing usage limits, retries, privacy, and subscriptions apply.

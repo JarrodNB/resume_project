@@ -73,3 +73,16 @@ their category.
 - `CertificationSection.tsx` and `CertificationFormDialog.tsx` provide certification display and CRUD; section id is `library.certifications`.
 
 - `certificationDateValues.ts` restores partial certification dates from API precision metadata and normalizes edits with year/month/day precision.
+
+## AI section review
+
+- `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
+  live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral stale/unreviewed state.
+- Summary, Experience, Projects, and Facts each have independent explicit review actions.
+  Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact
+  responses; other sections and profile contact fields are not sent as context. Highlight moves
+  refresh assessments after saving, because the optimistic
+  library change may be visible before persistence.
+- `LibraryEditControl` opens an inline individual edit; `useLibraryEdit` owns loading, queued
+  turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
+  Closing keeps saved work; discarding closes it server-side. Accepted targets can start again.

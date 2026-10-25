@@ -42,6 +42,12 @@ type Documents = {
     "\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateLibraryFactDocument,
     "\n  mutation CreateCertification($attributes: CertificationAttributesInput!) {\n    createCertification(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.CreateCertificationDocument,
     "\n  mutation UpdateCertification($id: ID!, $attributes: CertificationAttributesInput!) {\n    updateCertification(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateCertificationDocument,
+    "\n  query LibraryEdit($kind: String!, $recordId: ID!) {\n    libraryEdit(kind: $kind, recordId: $recordId) {\n      stale\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n    }\n  }\n": typeof types.LibraryEditDocument,
+    "\n  mutation StartLibraryEdit($kind: String, $recordId: ID, $feedback: String!, $previousTaskId: ID, $skip: Boolean!) {\n    startLibraryEdit(input: {kind: $kind, recordId: $recordId, feedback: $feedback, previousTaskId: $previousTaskId, skip: $skip}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.StartLibraryEditDocument,
+    "\n  mutation AcceptLibraryEdit($aiTaskId: ID!) {\n    acceptLibraryEdit(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.AcceptLibraryEditDocument,
+    "\n  mutation DiscardLibraryEdit($aiTaskId: ID!) {\n    discardLibraryEdit(input: {aiTaskId: $aiTaskId}) { aiTask { id status } errors }\n  }\n": typeof types.DiscardLibraryEditDocument,
+    "\n  query LibraryReview($section: String!) {\n    libraryReview(section: $section) {\n      aiTask { id status errorMessage }\n      assessments { kind recordId field color reason stale }\n    }\n  }\n": typeof types.LibraryReviewDocument,
+    "\n  mutation ReviewLibrarySection($section: String!) {\n    reviewLibrarySection(input: { section: $section }) {\n      aiTask { id status errorMessage }\n      errors\n    }\n  }\n": typeof types.ReviewLibrarySectionDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n": typeof types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": typeof types.SaveGapResponseDocument,
     "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": typeof types.InterviewSetsDocument,
@@ -67,6 +73,7 @@ type Documents = {
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": typeof types.RequestInterviewClarificationDocument,
     "\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.SkipInterviewQuestionDocument,
+    "fragment SavedInterviewRevision on InterviewSession { revision }": typeof types.SavedInterviewRevisionFragmentDoc,
     "\n  mutation AuthorizeInterviewTranscription($input: AuthorizeInterviewTranscriptionInput!) {\n    authorizeInterviewTranscription(input: $input) { captureId token errors }\n  }\n": typeof types.AuthorizeInterviewTranscriptionDocument,
     "\n  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String) {\n    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor) {\n      listings {\n        id\n        title\n        company\n        location\n        description\n        hasRemote\n        savedJob { id }\n      }\n      nextCursor\n      retrievedAt\n      stale\n      errors\n    }\n  }\n": typeof types.JobBoardSearchDocument,
     "\n  mutation ImportJobBoardListing($listingId: ID!) {\n    importJobBoardListing(input: { listingId: $listingId }) {\n      job { id }\n      warnings\n      errors\n    }\n  }\n": typeof types.ImportJobBoardListingDocument,
@@ -117,6 +124,12 @@ const documents: Documents = {
     "\n  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {\n    updateLibraryFact(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateLibraryFactDocument,
     "\n  mutation CreateCertification($attributes: CertificationAttributesInput!) {\n    createCertification(input: { attributes: $attributes }) {\n      errors\n    }\n  }\n": types.CreateCertificationDocument,
     "\n  mutation UpdateCertification($id: ID!, $attributes: CertificationAttributesInput!) {\n    updateCertification(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateCertificationDocument,
+    "\n  query LibraryEdit($kind: String!, $recordId: ID!) {\n    libraryEdit(kind: $kind, recordId: $recordId) {\n      stale\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n    }\n  }\n": types.LibraryEditDocument,
+    "\n  mutation StartLibraryEdit($kind: String, $recordId: ID, $feedback: String!, $previousTaskId: ID, $skip: Boolean!) {\n    startLibraryEdit(input: {kind: $kind, recordId: $recordId, feedback: $feedback, previousTaskId: $previousTaskId, skip: $skip}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.StartLibraryEditDocument,
+    "\n  mutation AcceptLibraryEdit($aiTaskId: ID!) {\n    acceptLibraryEdit(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.AcceptLibraryEditDocument,
+    "\n  mutation DiscardLibraryEdit($aiTaskId: ID!) {\n    discardLibraryEdit(input: {aiTaskId: $aiTaskId}) { aiTask { id status } errors }\n  }\n": types.DiscardLibraryEditDocument,
+    "\n  query LibraryReview($section: String!) {\n    libraryReview(section: $section) {\n      aiTask { id status errorMessage }\n      assessments { kind recordId field color reason stale }\n    }\n  }\n": types.LibraryReviewDocument,
+    "\n  mutation ReviewLibrarySection($section: String!) {\n    reviewLibrarySection(input: { section: $section }) {\n      aiTask { id status errorMessage }\n      errors\n    }\n  }\n": types.ReviewLibrarySectionDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n": types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": types.SaveGapResponseDocument,
     "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": types.InterviewSetsDocument,
@@ -142,6 +155,7 @@ const documents: Documents = {
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": types.RequestInterviewClarificationDocument,
     "\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.SkipInterviewQuestionDocument,
+    "fragment SavedInterviewRevision on InterviewSession { revision }": types.SavedInterviewRevisionFragmentDoc,
     "\n  mutation AuthorizeInterviewTranscription($input: AuthorizeInterviewTranscriptionInput!) {\n    authorizeInterviewTranscription(input: $input) { captureId token errors }\n  }\n": types.AuthorizeInterviewTranscriptionDocument,
     "\n  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String) {\n    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor) {\n      listings {\n        id\n        title\n        company\n        location\n        description\n        hasRemote\n        savedJob { id }\n      }\n      nextCursor\n      retrievedAt\n      stale\n      errors\n    }\n  }\n": types.JobBoardSearchDocument,
     "\n  mutation ImportJobBoardListing($listingId: ID!) {\n    importJobBoardListing(input: { listingId: $listingId }) {\n      job { id }\n      warnings\n      errors\n    }\n  }\n": types.ImportJobBoardListingDocument,
@@ -293,6 +307,30 @@ export function graphql(source: "\n  mutation UpdateCertification($id: ID!, $att
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  query LibraryEdit($kind: String!, $recordId: ID!) {\n    libraryEdit(kind: $kind, recordId: $recordId) {\n      stale\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n    }\n  }\n"): (typeof documents)["\n  query LibraryEdit($kind: String!, $recordId: ID!) {\n    libraryEdit(kind: $kind, recordId: $recordId) {\n      stale\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation StartLibraryEdit($kind: String, $recordId: ID, $feedback: String!, $previousTaskId: ID, $skip: Boolean!) {\n    startLibraryEdit(input: {kind: $kind, recordId: $recordId, feedback: $feedback, previousTaskId: $previousTaskId, skip: $skip}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation StartLibraryEdit($kind: String, $recordId: ID, $feedback: String!, $previousTaskId: ID, $skip: Boolean!) {\n    startLibraryEdit(input: {kind: $kind, recordId: $recordId, feedback: $feedback, previousTaskId: $previousTaskId, skip: $skip}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AcceptLibraryEdit($aiTaskId: ID!) {\n    acceptLibraryEdit(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation AcceptLibraryEdit($aiTaskId: ID!) {\n    acceptLibraryEdit(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result input pendingQuestions errorMessage acceptedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DiscardLibraryEdit($aiTaskId: ID!) {\n    discardLibraryEdit(input: {aiTaskId: $aiTaskId}) { aiTask { id status } errors }\n  }\n"): (typeof documents)["\n  mutation DiscardLibraryEdit($aiTaskId: ID!) {\n    discardLibraryEdit(input: {aiTaskId: $aiTaskId}) { aiTask { id status } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query LibraryReview($section: String!) {\n    libraryReview(section: $section) {\n      aiTask { id status errorMessage }\n      assessments { kind recordId field color reason stale }\n    }\n  }\n"): (typeof documents)["\n  query LibraryReview($section: String!) {\n    libraryReview(section: $section) {\n      aiTask { id status errorMessage }\n      assessments { kind recordId field color reason stale }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation ReviewLibrarySection($section: String!) {\n    reviewLibrarySection(input: { section: $section }) {\n      aiTask { id status errorMessage }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ReviewLibrarySection($section: String!) {\n    reviewLibrarySection(input: { section: $section }) {\n      aiTask { id status errorMessage }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -390,6 +428,10 @@ export function graphql(source: "\n  mutation RequestInterviewClarification($inp
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation SkipInterviewQuestion($input: SkipInterviewQuestionInput!) {\n    skipInterviewQuestion(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "fragment SavedInterviewRevision on InterviewSession { revision }"): (typeof documents)["fragment SavedInterviewRevision on InterviewSession { revision }"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

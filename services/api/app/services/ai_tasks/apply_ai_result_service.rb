@@ -31,13 +31,22 @@ module AiTasks
         if @message["attempt_id"].present?
           RecordAttemptUsageService.call(ai_task: ai_task, message: @message)
         end
-        next false if status == "usage" || ai_task.finished?
+        next false if status == "usage" || ai_task.finished? || (ai_task.improve_library_entry? && !ai_task.queued?)
 
-        CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
+        if ai_task.review_library_section? || ai_task.improve_library_entry?
+          CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: @message["library_screening"])
+        else
+          CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
+        end
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
-        attributes.merge!(domain_record_attributes(ai_task)) if status == "completed"
+        if ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
+          result = CareerLibrary::ApplyEditService.call(ai_task: ai_task, message: @message)
+          attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
+        elsif status == "completed"
+          attributes.merge!(domain_record_attributes(ai_task))
+        end
         ai_task.update!(attributes)
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if applied
@@ -55,7 +64,7 @@ module AiTasks
           interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
           ai_task.with_lock(&block)
         end
-      elsif ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+      elsif ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
         ai_task.with_lock(&block)
@@ -80,6 +89,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.review_library_section?
+        result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.interview_clarification?
         result = Interviews::ApplyClarificationService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }

@@ -39,8 +39,32 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 ## Local Rules
 
 - Merging never overwrites a value the target already has.
+- Exact copied fields/highlights from saved sources keep their existing coverage; unsaved
+  imported text remains unchecked. Normal highlight editing keeps coverage only for exact
+  unchanged content, even when its rows are recreated.
 - An experience's blank `end_date` means "current role", so it is never filled from a merge.
 - Add a model's identifying fields to `MATCH_FIELDS` and fillable fields to `FILLABLE_FIELDS`
   together when another entry type becomes mergeable.
 
 - Certifications match normalized name + issuer and compatible issued dates; merges fill optional credential facts. Clear and embedding synchronization include certifications.
+
+## Section review
+
+- `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Facts section
+  with per-record context digests. Only narrative fields become targets.
+- `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
+  returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
+- `ApplyReviewService` validates exact target coverage and records screening approvals only
+  while the source field still matches the queued snapshot under its record lock.
+
+## Individual editing
+
+- `EditSnapshot`, `StartEditService`, and `EditStateService` select one owned field and keep
+  resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
+- `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
+  proposal once, preserving highlight identity, or discards without changing career facts.
+  Summary accepts change only `User.summary`; projects change only `description`; facts change
+  only `response`. The owned-record allowlist never resolves classes from browser strings.
+- Acceptance requires unchanged source/context, queues embeddings, and stores the proposed
+  assessment for the new digest. Exact generated text receives reusable field coverage without
+  a classifier call; existing manual editors revoke coverage when user text changes.

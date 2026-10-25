@@ -153,3 +153,16 @@ score attached, so runs can be compared across prompt and model changes.
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
+
+- `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — eight synthetic
+  section reviews through real production screening and grading. Hand labels check color
+  calibration, including qualitative results, vague assistance despite counts, and concrete
+  observation without hands-on duties. This small set does not
+  establish broad writing quality. Run `python -m evals.run_library_review_evals`.
+- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — nine synthetic edits
+  through production screening and generation, including a real deferred question/answer and summary/project/fact narrative fields.
+  Checks output shape, spontaneous questions for missing contribution facts, and traffic-light
+  calibration when only wording improves. Allowed colors live in evaluation-only metadata.
+  The independent faithfulness/usefulness judge sees follow-up facts only if a question was asked.
+  `tests/test_library_edit_evaluators.py` checks those evaluation failure paths offline.
+  This bounded sample does not establish broad editing quality. Run `python -m evals.run_library_edit_evals`.

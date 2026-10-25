@@ -26,7 +26,8 @@ module Types
     end
 
     def input
-      unavailable_clarification? ? {} : object.input
+      return {} if unavailable_clarification?
+      object.improve_library_entry? ? object.input.except("history") : object.input
     end
 
     def unavailable_clarification?

@@ -57,6 +57,12 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
     Build new surfaces directly in code by default; see `.impeccable/config.json`.
 13. DO NOT JSON DUMP INTO PROMPTS
 
+## Things we've learned to do
+Format text before it goes into a prompt
+Do not screen text that we generated or has already been screened and recorded
+Make sure traces are proper and include cost
+
+
 ## Human-friendly file headers
 
 Use a few sentences rather than a function inventory. Explain the job in everyday language;

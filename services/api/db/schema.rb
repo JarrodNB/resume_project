@@ -532,8 +532,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_070000) do
     t.string "title", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "markdown"
+    t.integer "target_pages"
     t.index ["job_id"], name: "index_resumes_on_job_id"
     t.index ["user_id"], name: "index_resumes_on_user_id"
+    t.check_constraint "target_pages = ANY (ARRAY[1, 2])", name: "resumes_target_pages_valid"
   end
 
   create_table "sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

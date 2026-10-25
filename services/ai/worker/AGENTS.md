@@ -151,4 +151,3 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Source/input/history/turn caps bound every exchange.
 
 - Written question tasks accept `avoided_questions` as immutable Rails-owned generated text. Reuse trusted-generated-source coverage for these exact values; never trust arbitrary browser text under this field. Retain full legacy replacement screening/provenance behavior and fail rather than drop exclusions at the prompt cap.
-

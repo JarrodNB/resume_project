@@ -55,7 +55,9 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades and optional enrichment questions with
   current/stale state. Results stay on `AiTask`.
-- `AnswerReviewService` resolves an owned current question into an individual proposal,
+- `AnswerReviewService` resolves an owned current question set and up to three optional indexed
+  answers into one proposal. At least one trimmed nonblank answer is required; canonical ordering
+  and blank omission deduplicate equivalent batches. Legacy scalar answers remain supported,
   deduplicating exact answers and rejecting unrelated draft conflicts under the owner lock.
   Assessment `review_task_id` names the completed origin, independently of latest task status.
 - `ApplyReviewService` validates exact target coverage and ordered sets of up to three distinct nonblank
@@ -71,7 +73,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
   Accepted and discarded review-answer questions retire from saved review state; failed
-  generations retry as linked editing turns with their review provenance intact.
+  generations retry as linked editing turns with every paired answer intact. Failed batches
+  may replay without new feedback; ordinary continuations still need feedback or an explicit skip.
   Summary accepts change only `User.summary`; projects change only `description`; facts change
   only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed

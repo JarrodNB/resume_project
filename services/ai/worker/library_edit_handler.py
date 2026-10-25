@@ -99,7 +99,30 @@ def handle_library_edit_task(task, dependencies):
         if outcome is not True and not outcome.allowed:
             return failure(outcome)
         label = snapshot.target.label
-        if snapshot.review_question:
+        if snapshot.review_question and snapshot.review_question.answers:
+            sources = [source, feedback]
+            indices = []
+            for item in snapshot.review_question.answers:
+                outcome = check(item.answer)
+                if not outcome.allowed:
+                    return failure(outcome)
+                current_session().allowed_sources.add(mask_outbound(item.answer))
+                trust_generated_source(item.question)
+                sources.extend([item.question, item.answer])
+                indices.append(item.question_index + 1)
+
+            def render_batch(values):
+                rows = [render_review(values[0]), f"Improve only target {label}."]
+                for position, number in enumerate(indices):
+                    rows.extend([f"Review question {number} (generated guidance, not a statement of fact):\n" + values[2 + position * 2],
+                                 f"User answer {number}:\n" + values[3 + position * 2]])
+                rows.extend(["Additional editing guidance:\n" + values[1],
+                             ("Further questions are disabled. Use all answered facts to generate one proposal. "
+                              "Unanswered questions supply no facts; do not invent answers or append disclaimers about absent details. Preserve explicitly supplied qualifications.")])
+                return "\n\n".join(rows)
+
+            prompt = bind_screened_prompt(sources, render_batch)
+        elif snapshot.review_question:
             question = snapshot.review_question.question
             trust_generated_source(question)
             prompt = bind_screened_prompt([source, question, feedback], lambda values:

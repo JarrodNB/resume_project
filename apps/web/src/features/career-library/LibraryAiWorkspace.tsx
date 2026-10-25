@@ -49,7 +49,7 @@ function WorkspaceContent({ mobile = false }: { mobile?: boolean }) {
         {mobile && <details className="border-b pb-4 text-sm"><summary className="cursor-pointer font-medium">View saved text</summary><p className="mt-3 whitespace-pre-wrap leading-relaxed">{selected.text}</p></details>}
         <LibraryAssessment assessment={workspace.mode === 'review' && assessment ? { ...assessment, question: null, questions: [] } : assessment} />
         {disabled && <p role="status" className="text-sm text-muted-foreground">Wait for the highlight move to finish before editing.</p>}
-        <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, question: assessment.question, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
+        <LibraryEditPanel key={`${targetKey(selected)}:${workspace.mode}`} reviewQuestion={workspace.mode === 'review' && assessment?.question && assessment.reviewTaskId ? { reviewTaskId: assessment.reviewTaskId, questions: assessment.questions, stale: assessment.stale } : undefined} kind={selected.kind} recordId={selected.recordId} sourceRevision={selected.sourceRevision} disabled={disabled} onClose={workspace.close} />
       </> : <>
         <p role="status">This detail is no longer in your library.</p>
         <Button variant="outline" onClick={workspace.close}>Back to library</Button>

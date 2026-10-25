@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import type { LibraryEditQuery } from '@/graphql/generated/graphql'
+import type { LibraryEditQuery, LibraryReviewAnswerInput } from '@/graphql/generated/graphql'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { ANSWER_LIBRARY_REVIEW_MUTATION, ACCEPT_LIBRARY_EDIT_MUTATION, DISCARD_LIBRARY_EDIT_MUTATION, LIBRARY_EDIT_QUERY, START_LIBRARY_EDIT_MUTATION } from './libraryEditOperations'
 import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
@@ -61,12 +61,12 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     } finally { pending.current = false }
   }
 
-  async function answerReview(reviewTaskId: string, answer: string) {
+  async function answerReview(reviewTaskId: string, answers: LibraryReviewAnswerInput[]) {
     if (busy || pending.current) return false
     pending.current = true
     setErrors([])
     try {
-      const result = await answerRequest({ variables: { reviewTaskId, kind, recordId, answer } })
+      const result = await answerRequest({ variables: { reviewTaskId, kind, recordId, answers } })
       const payload = result.data?.answerLibraryReview
       setErrors(payload?.errors ?? ['Could not submit your answer.'])
       if (payload?.aiTask && payload.errors.length === 0) {

@@ -102,9 +102,11 @@ their category.
   Closing clears selection, keeps server-owned drafts, and returns focus to the source opener
   if it remains in the page; discarding closes the draft server-side. Accepted targets can start again.
 
-- Review questions expose an Answer review question action that selects the same workspace
-  in review mode. `LibraryEditPanel` submits through the explicit review-answer mutation;
+- Review questions expose an Answer review question(s) action that selects the same workspace
+  in review mode. `ReviewAnswerForm` shows every question with an optional field and one submit
+  action; at least one trimmed answer is required. Original zero-based indices are preserved when
+  blank fields are omitted. `LibraryEditPanel` submits through the explicit review-answer mutation;
   `useLibraryEdit` never routes a new review answer through an unrelated previous edit.
   Matching saved review-origin tasks restore queued/proposal state after reload; failed
-  generations offer Retry revision as a linked turn. The new answer remains editable on
-  mutation errors. Accept/discard refetch assessments; stale questions cannot submit.
+  generations offer Retry revision as a linked turn. All answers remain editable on
+  mutation errors. Failed batch retries reuse their saved pairs without inventing new feedback. Accept/discard refetch assessments; stale questions cannot submit.

@@ -15,7 +15,7 @@ export function LibraryDetail({ kind, recordId, text, disabled = false }: { kind
     <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <LibraryAssessment assessment={assessment} compact />
       <div className="flex flex-wrap gap-1">
-        {assessment?.question && assessment.reviewTaskId && !assessment.stale && target && <Button size="sm" variant="outline" disabled={disabled} onClick={(event) => workspace.selectTarget(target, event.currentTarget, 'review')}>Answer review question</Button>}
+        {assessment?.question && assessment.reviewTaskId && !assessment.stale && target && <Button size="sm" variant="outline" disabled={disabled} onClick={(event) => workspace.selectTarget(target, event.currentTarget, 'review')}>{(assessment.questions?.length ?? 0) > 1 ? 'Answer review questions' : 'Answer review question'}</Button>}
         <LibraryEditControl kind={kind} recordId={recordId} disabled={disabled} />
       </div>
     </div>

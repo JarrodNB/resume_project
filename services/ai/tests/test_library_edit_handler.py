@@ -196,3 +196,91 @@ def test_review_answer_tool_attempt_cannot_pause_the_regeneration(task_dependenc
     assert result.status == "completed"
     assert result.pending_questions == []
     assert len(calls) == 2
+
+
+def test_partial_review_batch_preserves_question_indices_and_screens_only_answered_facts(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+
+    screened = []
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    async def unexpected(*_args, **_kwargs):
+        raise AssertionError("Saved questions and screened answer fields must already have coverage")
+    monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", unexpected)
+    payload = edit_input()
+    payload["feedback"] = ""
+    payload["review_question"] = {"review_task_id": str(uuid4()), "answers": [
+        {"question_index": 1, "question": "How did you check it?", "answer": "I updated integration tests."},
+        {"question_index": 2, "question": "What changed afterward?", "answer": "Colleagues could find billing records."},
+    ]}
+    def proposal(messages, info):
+        rendered = str(messages)
+        assert "Review question 2" in rendered and "User answer 2" in rendered
+        assert "Review question 3" in rendered and "User answer 3" in rendered
+        assert "How did you check it?" in rendered and "I updated integration tests." in rendered
+        assert "What changed afterward?" in rendered and "Colleagues could find billing records." in rendered
+        assert "Review question 1" not in rendered
+        assert payload["review_question"]["review_task_id"] not in rendered
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "text": "Updated integration tests so colleagues could find billing records.", "color": "green", "reason": "Specific work and result.",
+        })])
+    with library_edit_agent.override(model=FunctionModel(proposal)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert result.pending_questions == []
+    assert screened == [item["answer"] for item in payload["review_question"]["answers"]]
+
+
+def test_review_batch_followup_reuses_checked_history_and_screens_only_new_feedback(task_dependencies, monkeypatch):
+    from agents.library_edit_agent import library_edit_agent
+    from screening.screen_user_text import ScreenOutcome
+    screened = []
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))
+    payload = edit_input()
+    payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": [
+        {"question_index": 0, "question": "What did you change?", "answer": "I migrated billing endpoints."},
+        {"question_index": 2, "question": "What changed afterward?", "answer": "Reconciliation became easier."},
+    ]})
+    first_id = uuid4()
+    with library_edit_agent.override(model=TestModel(call_tools=[], custom_output_args={"text": "Migrated billing endpoints for easier reconciliation.", "color": "green", "reason": "Concrete action and result."})):
+        first = handle_ai_task(AiTaskMessage(ai_task_id=first_id, user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert first.status == "completed"
+    payload.update(previous_task_id=str(first_id), history=first.message_history, turn=2, feedback="Keep both facts concise.")
+    def revised(messages, info):
+        assert "I migrated billing endpoints." in str(messages)
+        assert "Reconciliation became easier." in str(messages)
+        assert "Keep both facts concise." in str(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"text": "Migrated billing endpoints, simplifying reconciliation.", "color": "green", "reason": "Preserves both facts."})])
+    with library_edit_agent.override(model=FunctionModel(revised)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert screened == ["I migrated billing endpoints.", "Reconciliation became easier.", "Keep both facts concise."]
+
+
+def test_blocked_batch_answer_stops_before_generation(task_dependencies, monkeypatch):
+    from screening.screen_user_text import ScreenOutcome
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(False))
+    payload = edit_input()
+    payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": [
+        {"question_index": 1, "question": "How did you check it?", "answer": "Blocked user input."},
+    ]})
+    monkeypatch.setattr("worker.library_edit_handler.improve_library_entry", lambda *_args: pytest.fail("Blocked answers must not reach the writer"))
+    result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="improve_library_entry", input=payload), task_dependencies)
+    assert result.status == "failed"
+    assert result.result is None
+
+
+@pytest.mark.parametrize("answers", [[], [
+    {"question_index": 1, "question": "Which part?", "answer": "A"},
+    {"question_index": 1, "question": "Which part?", "answer": "B"},
+], [{"question_index": 3, "question": "Which part?", "answer": "A"}],
+    [{"question_index": 0, "question": "Which part?", "answer": " "}],
+    [{"question_index": 0, "question": "Which part?", "answer": "x" * 4001}]])
+def test_malformed_saved_review_batches_are_rejected(answers):
+    from pydantic import ValidationError
+
+    from schemas.library_edit import LibraryEditInput
+    payload = edit_input()
+    payload.update(feedback="", review_question={"review_task_id": str(uuid4()), "answers": answers})
+    with pytest.raises(ValidationError):
+        LibraryEditInput.model_validate(payload)

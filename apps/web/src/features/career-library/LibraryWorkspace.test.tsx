@@ -101,7 +101,7 @@ it('opens review answering in the same selected-detail workspace while keeping I
   const reviewMocks = [...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== 'experience'),
     { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: 'experience' } }, result: { data: { libraryReview: {
       __typename: 'LibraryReview', aiTask: { __typename: 'AiTask', id: 'review-newer-failed', status: 'FAILED', errorMessage: null }, assessments: [
-        { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add your contribution.', question: 'Which part did you build?', questions: ['Which part did you build?'], reviewTaskId: 'review-completed', stale: false },
+        { __typename: 'LibraryAssessment', kind: 'experience_highlight', recordId: 'h1', field: 'content', color: 'yellow', reason: 'Add your contribution.', question: 'Which part did you build?', questions: ['Which part did you build?', 'How did you check it?', 'What changed afterward?'], reviewTaskId: 'review-completed', stale: false },
       ],
     } } } },
     { request: { query: LIBRARY_EDIT_QUERY, variables: { kind: 'experience_highlight', recordId: 'h1' } }, result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } }, maxUsageCount: Infinity },
@@ -109,9 +109,10 @@ it('opens review answering in the same selected-detail workspace while keeping I
   render(<MockedProvider mocks={reviewMocks}><LibraryWorkspace library={library}>
     <DragDropProvider><ExperienceSection experiences={library.experiences} highlightsOf={() => experience.highlights} /></DragDropProvider><LibraryAiWorkspace />
   </LibraryWorkspace></MockedProvider>)
-  await userEvent.click(await screen.findByRole('button', { name: 'Answer review question' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Answer review questions' }))
   const panel = screen.getByRole('complementary', { name: 'AI workspace' })
-  expect(await within(panel).findByLabelText('Your answer')).toBeEnabled()
+  expect(await within(panel).findByLabelText('Your answer to question 1 (optional)')).toBeEnabled()
+  expect(within(panel).getAllByRole('textbox')).toHaveLength(3)
   expect(within(panel).getByText('Which part did you build?')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Improve with AI' })).toBeEnabled()
   expect(document.getElementById('library-detail-experience_highlight:h1')).toHaveAttribute('data-selected', 'true')

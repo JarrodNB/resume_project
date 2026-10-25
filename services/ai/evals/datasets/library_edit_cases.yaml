@@ -142,5 +142,42 @@ cases:
             description: Piloted a shared reagent log with two laboratory groups. The pilot is ongoing, so its effect on stockouts has not yet been evaluated.
       review_question: What did you personally create or change for the pilot?
       feedback: I created the spreadsheet and showed both groups how to record deliveries. The pilot has not finished.
+  - name: partial-review-batch-preserves-second-and-third-answer-pairing
+    inputs:
+      section: projects
+      library:
+        projects:
+          - id: project-1
+            name: Workshop sign-in guide
+            description: Helped make workshop registration easier.
+      feedback: ""
+      review_answers:
+        - question_index: 1
+          question: What method did you use to organize registration?
+          answer: I used a shared paper register with separate columns for participant names and session choices.
+        - question_index: 2
+          question: What difference did you observe for workshop staff?
+          answer: Staff could find each participant's session without checking several loose lists.
+  - name: complete-review-batch-combines-three-supported-facts
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Museum
+            title: Visitor Assistant
+            highlights:
+              - id: highlight-1
+                content: Helped improve exhibition visits.
+      feedback: ""
+      review_answers:
+        - question_index: 0
+          question: What did you personally create or change?
+          answer: I rewrote the entry desk's directions to the temporary exhibition.
+        - question_index: 1
+          question: How did you decide what to clarify?
+          answer: I used the route questions visitors repeatedly asked at the desk.
+        - question_index: 2
+          question: What outcome did you observe?
+          answer: Visitors could follow the directions without returning to the entry desk.
 evaluators:
   - EditStructure

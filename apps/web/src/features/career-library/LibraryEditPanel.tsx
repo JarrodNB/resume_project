@@ -12,13 +12,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { PROSE_TEXT } from '@/lib/textLimits'
 import { LibraryAssessment } from './LibraryAssessment'
 import { useLibraryEdit } from './useLibraryEdit'
+import { ReviewAnswerForm } from './ReviewAnswerForm'
 
 interface Props {
   kind: string
   recordId: string
   sourceRevision: string
   disabled?: boolean
-  reviewQuestion?: { reviewTaskId: string; question: string; stale: boolean }
+  reviewQuestion?: { reviewTaskId: string; question?: string; questions?: string[]; stale: boolean }
   onClose: () => void
 }
 
@@ -40,7 +41,8 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
   const accepted = !!task?.acceptedAt
   const hasProposal = task?.status === 'COMPLETED' && typeof proposal.text === 'string'
   const origin = object(object(task?.input).review_question)
-  const showAnswerForm = !!reviewQuestion && origin.review_task_id !== reviewQuestion.reviewTaskId
+  const reviewQuestions = reviewQuestion?.questions ?? (reviewQuestion?.question ? [reviewQuestion.question] : [])
+  const showAnswerForm = !!reviewQuestion && reviewQuestions.length > 0 && origin.review_task_id !== reviewQuestion.reviewTaskId
   const label = typeof question === 'string' ? 'Your answer' : task ? 'What should change?' : 'What would you like to improve? (optional)'
 
   async function submit(skip = false, fresh = false) {
@@ -52,7 +54,7 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
 
   return <section aria-label="Improve this career detail" className="library-edit-panel grid gap-5 text-sm">
     <ErrorAlert title="Could not complete this edit" messages={edit.errors} />
-    {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} question={reviewQuestion.question} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answer) => edit.answerReview(reviewQuestion.reviewTaskId, answer)} />}
+    {!edit.loading && showAnswerForm && reviewQuestion && <ReviewAnswerForm key={reviewQuestion.reviewTaskId} questions={reviewQuestions} stale={reviewQuestion.stale} disabled={edit.busy || disabled} onSubmit={(answers) => edit.answerReview(reviewQuestion.reviewTaskId, answers)} />}
     {edit.loading ? <p className="text-muted-foreground" role="status">Loading saved edit…</p> : showAnswerForm && !task ? null : accepted ?
       <><p role="status" className="flex items-center gap-2 font-medium text-primary"><CheckCheck aria-hidden="true" className="size-4" />Saved to your library.</p><Button size="sm" variant="outline" className="justify-self-start" onClick={() => setStartingAnother(true)}>Start another edit</Button></> : <>
       {stale && <p role="status" className="border-y py-3 font-medium">This draft is based on an earlier version of your entry. Generate a new revision using your latest changes.</p>}
@@ -79,19 +81,4 @@ export function LibraryEditPanel({ kind, recordId, sourceRevision, disabled = fa
     </>}
     <p className="border-t pt-3 text-xs text-muted-foreground">Closing keeps your draft so you can return to it later.</p>
   </section>
-}
-
-
-function ReviewAnswerForm({ question, stale, disabled, onSubmit }: { question: string; stale: boolean; disabled: boolean; onSubmit: (answer: string) => Promise<boolean> }) {
-  const [answer, setAnswer] = useState('')
-  const answerId = useId()
-  return <form className="grid gap-3 border-t pt-4" onSubmit={(event) => { event.preventDefault(); if (!stale) void onSubmit(answer) }}>
-    <h4 className="font-medium">A little more context</h4>
-    <p className="leading-relaxed">{question}</p>
-    {stale && <p role="status">This question is based on earlier text. Review this section again.</p>}
-    <Label htmlFor={answerId}>Your answer</Label>
-    <Textarea id={answerId} value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={PROSE_TEXT} disabled={disabled || stale} rows={3} />
-    <p className="text-xs text-muted-foreground">Use your own words. Your answer generates a draft for you to accept.</p>
-    <Button size="sm" type="submit" className="justify-self-start" disabled={disabled || stale || !answer.trim()}>Generate revision from answer</Button>
-  </form>
 }

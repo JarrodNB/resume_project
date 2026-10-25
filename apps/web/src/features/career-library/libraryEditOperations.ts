@@ -35,8 +35,8 @@ export const DISCARD_LIBRARY_EDIT_MUTATION = graphql(`
 `)
 
 export const ANSWER_LIBRARY_REVIEW_MUTATION = graphql(`
-  mutation AnswerLibraryReview($reviewTaskId: ID!, $kind: String!, $recordId: ID!, $answer: String!) {
-    answerLibraryReview(input: {reviewTaskId: $reviewTaskId, kind: $kind, recordId: $recordId, answer: $answer}) {
+  mutation AnswerLibraryReview($reviewTaskId: ID!, $kind: String!, $recordId: ID!, $answers: [LibraryReviewAnswerInput!]!) {
+    answerLibraryReview(input: {reviewTaskId: $reviewTaskId, kind: $kind, recordId: $recordId, answers: $answers}) {
       aiTask { id status result input pendingQuestions errorMessage acceptedAt }
       errors
     }

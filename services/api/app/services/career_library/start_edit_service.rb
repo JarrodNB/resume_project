@@ -9,7 +9,6 @@ module CareerLibrary
 
     def call
       return failure([ "Keep feedback within #{TextLimits::PROSE} characters." ]) if @feedback.length > TextLimits::PROSE
-      return failure([ "Answer the question, or choose Skip." ]) if @previous_id && @feedback.blank? && !@skip
 
       AiTasks::EnqueueAiTaskService.call(user: @user, task_type: "improve_library_entry",
         resolve_existing: -> { resolve_existing }, prepare_task: ->(task) { prepare(task) })
@@ -22,6 +21,10 @@ module CareerLibrary
     def resolve_existing
       if @previous_id
         @previous = @user.ai_tasks.improve_library_entry.find(@previous_id)
+        # A failed review batch can replay its owned saved answers without inventing
+        # new feedback. Ordinary edits still need feedback or an explicit skip.
+        replay_batch = @previous.failed? && @previous.input.dig("review_question", "answers").is_a?(Array) && @previous.input.dig("review_question", "answers").any?
+        return failure([ "Answer the question, or choose Skip." ]) if @feedback.blank? && !@skip && !replay_batch
         child = @user.ai_tasks.improve_library_entry.where("input ->> 'previous_task_id' = ?", @previous.id).first
         return child.input["feedback"] == @feedback && child.input["skip"] == @skip ? success(child) : failure([ "A newer turn already exists. Reload to continue." ]) if child
         return failure([ "Wait for the current turn to finish." ]) if @previous.queued?

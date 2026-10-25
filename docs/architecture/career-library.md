@@ -275,15 +275,20 @@ copies, so those operations do not send generated text back through the classifi
 
 ### Answering review questions
 
-A current review question can start a proposal directly through `answerLibraryReview`.
-The browser sends the completed review ID, target identity, and answer; Rails resolves
-question text and selected-record context itself. Each assessment exposes its own
+The current review question set starts one proposal through `answerLibraryReview`.
+All questions appear together, with optional answer fields and one submit action. At least one
+trimmed answer is required in both the UI and Rails. The browser sends the completed review ID,
+target identity, and answered zero-based question indices; Rails resolves question text and
+selected-record context itself. Blank fields are omitted without reindexing later answers.
+Repeated/out-of-range indices, oversized answers, and entirely blank batches cannot queue work.
+Each answer may use up to 4,000 characters, within the existing whole-task input limit.
+Older scalar-answer clients still answer the first question. Each assessment exposes its own
 `reviewTaskId`, because the latest section task can be queued or failed while assessments
 still come from an earlier completed review. Changed, moved, merged, deleted, or superseded
 sources cannot start a proposal from an obsolete question.
 
-Answers use the existing individual editing task and selected-detail workspace. The new
-answer is screened; the exact generated question is trusted generated guidance, not evidence
+Answers use the existing individual editing task and selected-detail workspace. Every
+answered field is screened; each exact generated question is trusted guidance, not evidence
 that its premise happened. Regeneration proposes wording from known facts without pausing
 for another question. It changes only the selected field when the user accepts. Independent
 Improve with AI keeps its existing feedback and deferred-question workflow.
@@ -294,10 +299,12 @@ not in the career text. Explicit source/user qualifications, such as an ongoing 
 effect has not yet been evaluated, still constrain the revision. Prior generated drafts are
 not new factual evidence for unsupported caveats.
 
-The owner lock serializes answer starts with other edits. Repeating the exact answer returns
-the latest linked turn without another enqueue; a different initial answer or unrelated live
+The owner lock serializes answer starts with other edits. Equivalent trimmed answer batches
+return the same task regardless of submission order; changing any answered field conflicts.
+Repeating an existing scalar answer returns the latest linked turn without another enqueue; a different initial answer or unrelated live
 draft returns a conflict instead of replacing work. Failed generations show Retry revision,
-which creates an ordinary linked editing turn and preserves the saved review provenance.
+which creates a linked editing turn and preserves every saved question/answer pair. A failed
+batch can replay with no new feedback; completed ordinary edits still require feedback to continue.
 Accepted answers retire their question through the accepted assessment overlay, including
 when the accepted wording is unchanged. Discarded answers also hide that review question;
 a fresh explicit section review can offer a new question. Closing a workspace preserves work.

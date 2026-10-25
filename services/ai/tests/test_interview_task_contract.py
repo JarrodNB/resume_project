@@ -40,3 +40,15 @@ def test_feedback_snapshot_limits(answer):
         InterviewFeedbackInput.model_validate({"question_set_id": "00000000-0000-0000-0000-000000000001",
             "question_id": "00000000-0000-0000-0000-000000000002", "question_text": "Question?",
             "answer_text": answer, "question_revision": 1, "answer_revision": 1})
+
+
+def test_feedback_snapshot_at_answer_limit_is_accepted():
+    """The documented maximum remains usable; only longer answers are rejected."""
+    snapshot = InterviewFeedbackInput.model_validate({
+        "question_set_id": "00000000-0000-0000-0000-000000000001",
+        "question_id": "00000000-0000-0000-0000-000000000002",
+        "question_text": "Question?", "answer_text": "x" * MAX_INTERVIEW_ANSWER,
+        "question_revision": 1, "answer_revision": 1,
+    })
+
+    assert len(snapshot.answer_text) == MAX_INTERVIEW_ANSWER

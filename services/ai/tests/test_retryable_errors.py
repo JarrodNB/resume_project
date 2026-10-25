@@ -77,6 +77,22 @@ def test_aws_throttling_and_server_errors_are_retryable() -> None:
     assert is_retryable_error(build_client_error("InternalError", 500))
 
 
+@pytest.mark.parametrize(
+    "code",
+    ["Throttling", "ThrottlingException", "SlowDown", "RequestTimeout", "RequestLimitExceeded"],
+)
+@pytest.mark.parametrize("status", [400, 429])
+def test_aws_retryable_codes_do_not_require_a_server_error(code: str, status: int) -> None:
+    """AWS throttling and timeout codes warrant redelivery even on a 4xx response."""
+    assert is_retryable_error(build_client_error(code, status))
+
+
+@pytest.mark.parametrize("code", ["AccessDenied", "InvalidAccessKeyId", "SignatureDoesNotMatch"])
+def test_aws_authorization_errors_are_permanent(code: str) -> None:
+    """Bad credentials or missing access must not spend every SQS attempt retrying."""
+    assert not is_retryable_error(build_client_error(code, 403))
+
+
 def test_missing_s3_object_is_permanent() -> None:
     """A missing upload will still be missing next time."""
     assert not is_retryable_error(build_client_error("NoSuchKey", 404))

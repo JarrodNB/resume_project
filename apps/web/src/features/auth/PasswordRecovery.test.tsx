@@ -6,13 +6,14 @@ import { RouterProvider } from 'react-router/dom'
 import { afterEach, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
 import { appRoutes } from '@/appRoutes'
+import { SessionApolloProvider } from '@/graphql/SessionApolloProvider'
 
 afterEach(() => { vi.unstubAllGlobals(); history.replaceState(null, '', '/') })
 it('requests reset mail with CSRF and shows the generic next step', async () => {
   const fetcher = vi.fn(async (url: string) => new Response(JSON.stringify(url.endsWith('/auth/session')
     ? { user: null, csrfToken: 'csrf' } : { message: 'If this address belongs to a verified account, check your email.' })))
   vi.stubGlobal('fetch', fetcher)
-  render(<AuthProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/forgot-password'] })} /></AuthProvider>)
+  render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/forgot-password'] })} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
   await user.type(await screen.findByLabelText('Email'), 'user@example.com')
   await user.click(screen.getByRole('button', { name: 'Send reset email' }))
@@ -29,7 +30,7 @@ it('clears reset fragments before bootstrap and preserves retry after an invalid
   const fetcher = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify({ user: null, csrfToken: 'csrf' })))
     .mockResolvedValueOnce(new Response(JSON.stringify({ errors: ['This reset link is invalid or expired.'] }), { status: 422 }))
   vi.stubGlobal('fetch', fetcher)
-  render(<AuthProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/reset-password'] })} /></AuthProvider>)
+  render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/reset-password'] })} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
   await user.type(await screen.findByLabelText('New password'), 'a quiet orchard after rain')
   await user.type(screen.getByLabelText('Confirm new password'), 'a quiet orchard after rain')
@@ -50,7 +51,6 @@ it('keeps password-change success visible after auth and Apollo are refreshed, a
     .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Password changed.' })))
     .mockResolvedValueOnce(new Response(JSON.stringify({ user: null, csrfToken: 'fresh-csrf' })))
   vi.stubGlobal('fetch', fetcher)
-  const { SessionApolloProvider } = await import('@/graphql/SessionApolloProvider')
   const router = createMemoryRouter(appRoutes, { initialEntries: ['/account/security'] })
   render(<AuthProvider><SessionApolloProvider><RouterProvider router={router} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
@@ -80,7 +80,7 @@ it('shows current-password and policy errors, blocks duplicate submits and allow
     .mockRejectedValueOnce(new TypeError('offline'))
     .mockResolvedValueOnce(new Response(JSON.stringify({ errors: ['Current password is invalid', 'Password confirmation must match'] }), { status: 422 }))
   vi.stubGlobal('fetch', fetcher)
-  render(<AuthProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/account/security'] })} /></AuthProvider>)
+  render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/account/security'] })} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
   await user.type(await screen.findByLabelText('Current password'), 'wrong')
   await user.type(screen.getByLabelText('New password'), 'a quiet orchard after rain')
@@ -110,7 +110,7 @@ it('refreshes successful public recovery without switching an unrelated signed-i
     .mockResolvedValueOnce(new Response(JSON.stringify({ message: 'Password reset.' })))
     .mockResolvedValueOnce(new Response(JSON.stringify(signedIn)))
   vi.stubGlobal('fetch', fetcher)
-  render(<AuthProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/reset-password'] })} /></AuthProvider>)
+  render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/reset-password'] })} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
   await user.type(await screen.findByLabelText('New password'), 'a quiet orchard after rain')
   await user.type(screen.getByLabelText('Confirm new password'), 'a quiet orchard after rain')
@@ -124,7 +124,7 @@ it('clears an expired account session and shows a sign-in notice after change re
     .mockResolvedValueOnce(new Response(JSON.stringify({ errors: ['Sign in again'] }), { status: 401 }))
     .mockResolvedValueOnce(new Response(JSON.stringify({ user: null, csrfToken: 'fresh-csrf' })))
   vi.stubGlobal('fetch', fetcher)
-  render(<AuthProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/account/security'] })} /></AuthProvider>)
+  render(<AuthProvider><SessionApolloProvider><RouterProvider router={createMemoryRouter(appRoutes, { initialEntries: ['/account/security'] })} /></SessionApolloProvider></AuthProvider>)
   const user = userEvent.setup()
   await user.type(await screen.findByLabelText('Current password'), 'old password')
   await user.type(screen.getByLabelText('New password'), 'a quiet orchard after rain')

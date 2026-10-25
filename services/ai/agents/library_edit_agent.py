@@ -46,7 +46,7 @@ library_edit_agent = Agent(
 def ask_user(ctx: RunContext[LibraryEditDeps], question: Annotated[str, Field(min_length=1, max_length=500)]) -> str:
     """Ask one focused question about a missing career fact and wait for the user's answer."""
     if not ctx.deps.allow_question:
-        return "The user skipped further questions or reached the turn limit. Propose faithful wording using only known facts."
+        return "Further questions are disabled. Propose faithful wording using only known facts."
     raise CallDeferred()
 
 

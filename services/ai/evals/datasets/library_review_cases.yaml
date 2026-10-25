@@ -9,7 +9,8 @@ cases:
             - id: highlight-1
               content: Helped with stuff.
     metadata:
-      - [red]
+      colors: [[red]]
+      questions: [true]
   - name: concrete-qualitative-result
     inputs:
       experiences:
@@ -20,7 +21,8 @@ cases:
             - id: highlight-1
               content: Rewrote the patient check-in guide to clarify required paperwork and reduce repeat questions at reception.
     metadata:
-      - [green]
+      colors: [[green]]
+      questions: [false]
   - name: useful-but-vague-contribution
     inputs:
       experiences:
@@ -31,12 +33,14 @@ cases:
             - id: highlight-1
               content: Maintained stock records and helped improve ordering.
     metadata:
-      - [yellow, red]
+      colors: [[yellow, red]]
+      questions: [true]
   - name: vague-professional-summary
     inputs:
       summary: Hard worker and team player.
     metadata:
-      - [red, yellow]
+      colors: [[red, yellow]]
+      questions: [true]
   - name: specific-project-description
     inputs:
       projects:
@@ -45,7 +49,8 @@ cases:
           role: Store assistant
           description: Created a shared stock count sheet so staff could identify items needing reordering without reconciling separate paper lists.
     metadata:
-      - [green]
+      colors: [[green]]
+      questions: [false]
   - name: vague-fact-response
     inputs:
       facts:
@@ -53,7 +58,8 @@ cases:
           requirement: Inventory management experience
           response: I did it.
     metadata:
-      - [red]
+      colors: [[red]]
+      questions: [true]
   - name: counts-do-not-clarify-clinical-assistance
     inputs:
       experiences:
@@ -64,7 +70,8 @@ cases:
             - id: highlight-1
               content: Observed three community physicians and assisted with care for 120 rural patients, gaining experience in community medicine.
     metadata:
-      - [yellow]
+      colors: [[yellow]]
+      questions: [true]
   - name: clearly-described-observation-is-useful-evidence
     inputs:
       experiences:
@@ -75,6 +82,31 @@ cases:
             - id: highlight-1
               content: Observed rural consultations to learn how family physicians take histories and decide when to refer patients to specialists.
     metadata:
-      - [green]
+      colors: [[green]]
+      questions: [false]
+  - name: multiple-gaps-in-event-contribution
+    inputs:
+      projects:
+        - id: project-1
+          name: Community skills fair
+          role: Volunteer
+          description: Helped organize a community skills fair and supported volunteers.
+    metadata:
+      colors: [[yellow, red]]
+      questions: [true]
+      question_counts: [[2, 3]]
+  - name: multiple-gaps-in-training-and-handovers
+    inputs:
+      experiences:
+        - id: role-1
+          company: Example Support Centre
+          title: Service Agent
+          highlights:
+            - id: highlight-1
+              content: Helped launch staff training and supported better handovers between service teams.
+    metadata:
+      colors: [[yellow, red]]
+      questions: [true]
+      question_counts: [[2, 3]]
 evaluators:
   - ReviewCalibration

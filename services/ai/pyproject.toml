@@ -34,6 +34,7 @@ dev = [
     "pydantic-evals==2.53.0",
     "pytest",
     "ruff",
+    "watchfiles>=1,<2",
 ]
 
 [tool.uv]

@@ -89,4 +89,5 @@ in answer-quality scoring. Skipping a follow-up moves directly to the next core 
 
 **Library assessment**:
 A red, yellow, or green indication of how clearly a saved piece captures useful career evidence,
-with a short reason. It evaluates the description, not the person's employability.
+with a short reason and an optional question about useful missing detail. It evaluates the
+description, not the person's employability.

@@ -154,6 +154,11 @@ Evaluations call external model APIs and incur usage charges; unit tests use tes
 Run commands from the repository root. Commands using `exec` require the relevant
 container to be running; `run --rm` creates a temporary container.
 
+The local AI queue worker restarts automatically when Python files change, including
+prompts and schemas. Reloading interrupts active work; unfinished queue messages remain
+available for retry. Dependency changes still require an image rebuild. The Rails results
+worker needs `docker compose restart api-results-worker` after Ruby code changes.
+
 | Task | Command |
 | --- | --- |
 | Start in the background | `docker compose up -d` |

@@ -88,7 +88,9 @@ their category.
 - `LibrarySectionReview` runs review from the original section and shows progress and errors
   there. The shared workspace is for individual editing; it has no overview list or section picker.
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
-  live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral stale/unreviewed state.
+  live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral
+  stale/unreviewed state. Up to three current enrichment questions appear together beside the assessed detail
+  and in the selected workspace; stale questions are hidden.
 - Summary, Experience, Projects, and Facts each have independent explicit review actions.
   Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact
   responses; other sections and profile contact fields are not sent as context. Highlight moves
@@ -99,3 +101,12 @@ their category.
   turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
   Closing clears selection, keeps server-owned drafts, and returns focus to the source opener
   if it remains in the page; discarding closes the draft server-side. Accepted targets can start again.
+
+- Review questions expose an Answer review question(s) action that selects the same workspace
+  in review mode. `ReviewAnswerForm` shows every question with an optional field and one submit
+  action; at least one trimmed answer is required. Original zero-based indices are preserved when
+  blank fields are omitted. `LibraryEditPanel` submits through the explicit review-answer mutation;
+  `useLibraryEdit` never routes a new review answer through an unrelated previous edit.
+  Matching saved review-origin tasks restore queued/proposal state after reload; failed
+  generations offer Retry revision as a linked turn. All answers remain editable on
+  mutation errors. Failed batch retries reuse their saved pairs without inventing new feedback. Accept/discard refetch assessments; stale questions cannot submit.

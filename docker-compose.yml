@@ -119,6 +119,19 @@ services:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
+    # Bind-mounted Python changes need a fresh process to replace imported modules.
+    # Allow the worker to unwind traces and leave interrupted SQS tasks for retry.
+    command:
+      - watchfiles
+      - --filter
+      - python
+      - --ignore-paths
+      - /app/.cache,/app/.venv
+      - --sigint-timeout
+      - "25"
+      - python -m worker.main
+      - /app
+    init: true
     # Match the host user so bind-mounted logs and eval reports can be edited or deleted.
     user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
     # Leave time to unwind task spans and complete bounded telemetry flushes on SIGTERM.

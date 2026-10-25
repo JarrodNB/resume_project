@@ -53,8 +53,17 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Facts section
   with per-record context digests. Only narrative fields become targets.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
-  returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
-- `ApplyReviewService` validates exact target coverage and records screening approvals only
+  returns its last completed individual grades and optional enrichment questions with
+  current/stale state. Results stay on `AiTask`.
+- `AnswerReviewService` resolves an owned current question set and up to three optional indexed
+  answers into one proposal. At least one trimmed nonblank answer is required; canonical ordering
+  and blank omission deduplicate equivalent batches. Legacy scalar answers remain supported,
+  deduplicating exact answers and rejecting unrelated draft conflicts under the owner lock.
+  Assessment `review_task_id` names the completed origin, independently of latest task status.
+- `ApplyReviewService` validates exact target coverage and ordered sets of up to three distinct nonblank
+  questions (at most 500 characters each), normalizing old scalar/questionless results and preserving
+  the scalar first question for older clients. `questions_for` is the shared validation/read seam.
+  It records screening approvals only
   while the source field still matches the queued snapshot under its record lock.
 
 ## Individual editing
@@ -63,6 +72,11 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   resumable editing turns on linked `improve_library_entry` tasks; no separate conversation table.
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
+  Accepted and discarded review-answer questions retire from saved review state; failed
+  generations retry as linked editing turns with every paired answer intact. Failed batches
+  may replay without new feedback; ordinary continuations still need feedback or an explicit skip.
+  New continuation turns require the latest edit for that target, so an older failed draft
+  cannot displace a newer draft through a stale tab. Exact existing-child retries remain idempotent.
   Summary accepts change only `User.summary`; projects change only `description`; facts change
   only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed

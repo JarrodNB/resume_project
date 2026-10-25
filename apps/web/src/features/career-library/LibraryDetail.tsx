@@ -1,4 +1,5 @@
 /** Keeps saved career evidence readable and marks the detail open in the AI workspace. */
+import { Button } from '@/components/ui/button'
 import { LibraryAssessment } from './LibraryAssessment'
 import { LibraryEditControl } from './LibraryEditControl'
 import { useLibraryWorkspace } from './LibraryWorkspaceContext'
@@ -13,7 +14,10 @@ export function LibraryDetail({ kind, recordId, text, disabled = false }: { kind
     <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>
     <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
       <LibraryAssessment assessment={assessment} compact />
-      <LibraryEditControl kind={kind} recordId={recordId} disabled={disabled} />
+      <div className="flex flex-wrap gap-1">
+        {assessment?.question && assessment.reviewTaskId && !assessment.stale && target && <Button size="sm" variant="outline" disabled={disabled} onClick={(event) => workspace.selectTarget(target, event.currentTarget, 'review')}>{(assessment.questions?.length ?? 0) > 1 ? 'Answer review questions' : 'Answer review question'}</Button>}
+        <LibraryEditControl kind={kind} recordId={recordId} disabled={disabled} />
+      </div>
     </div>
   </div>
 }

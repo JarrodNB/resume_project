@@ -86,10 +86,12 @@ RSpec.describe "Interview execution recovery" do
         expect(Interviews::FailOperationService.call(**identity, code: "dependency_unavailable", retryable: true)).to be_success
         if index < 2
           expect(operation.reload.retry_at).to eq(Time.current + [ 2, 5 ][index].seconds)
+          expect(operation.ai_task.ai_task_outcomes.count).to eq(cycle)
           travel [ 2, 5 ][index].seconds
         end
       end
       expect(operation.reload).to be_failed
+      expect(operation.ai_task.ai_task_outcomes.order(:sequence).pluck(:status)).to eq([ "failed" ] * (cycle + 1))
       retry_result = Interviews::RetryOperationService.call(operation: operation)
       expect(retry_result.success?).to eq(cycle.zero?)
     end

@@ -1,4 +1,5 @@
 # Reserve a short-lived owned capture, without contacting or charging a provider.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -22,7 +23,7 @@ module Interviews
         captures.where(status: "authorized").update_all(status: "failed", updated_at: Time.current)
         captures.where(status: %w[authorized streaming]).where("expires_at <= ?", Time.current).find_each do |capture|
           capture.update!(status: "failed", transcript: nil)
-          capture.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "capture_expired")
+          AiTasks::UpdateTaskService.call(task: capture.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: "capture_expired" }) if capture.ai_task
         end
         next failure("A transcription is already active") if captures.where(status: %w[authorized streaming]).exists?
         active = InterviewTranscriptionCapture.joins(:interview_session)

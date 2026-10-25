@@ -1,5 +1,6 @@
 # Saves a complete fictional role and question plan once. A stale executor cannot replace
 # prepared content, and lost acceptance replies resolve to the original durable receipt.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -29,7 +30,7 @@ module Interviews
         interview.update!(status: "ready", prepared_role: @role, revision: interview.revision + 1)
         receipt = { "interview_id" => interview.id, "status" => "ready", "revision" => interview.revision }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
-        @operation.ai_task&.update!(status: "completed", completed_at: Time.current)
+        AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "completed", completed_at: Time.current }) if @operation.ai_task
         success(receipt)
       end
     rescue ActiveRecord::RecordInvalid => error

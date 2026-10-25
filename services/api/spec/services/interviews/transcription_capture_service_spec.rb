@@ -37,6 +37,7 @@ RSpec.describe "Live capture recovery and accounting" do
     expect(Interviews::TranscriptionCaptureService.call(**args)).to be_success
     expect(Interviews::TranscriptionCaptureService.call(**args)).to be_success
     expect(capture.reload.transcript).to eq("My answer")
+    expect(capture.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
     expect(capture.ai_task.reload.cost_microdollars).to eq(284)
     expect(Interviews::TranscriptionCaptureService.call(**args.merge(transcript: "Changed"))).not_to be_success
   end
@@ -47,6 +48,7 @@ RSpec.describe "Live capture recovery and accounting" do
     expect(capture.ai_task.ai_usage_attempts.find_by!(attempt_id: capture.observation_id)).to be_incomplete
     expect(Interviews::TranscriptionCaptureService.call(**args.merge(usage: { "audio_milliseconds" => 1000, "cost_microdollars" => 284 }))).to be_success
     expect(capture.ai_task.reload.cost_microdollars).to eq(284)
+    expect(capture.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end
 
   it "rejects stale and abandoned completions while preserving their reported cost" do
@@ -72,6 +74,7 @@ RSpec.describe "Live capture recovery and accounting" do
     expect(Interviews::CleanupService.call).to be_success
     expect(capture.reload.status).to eq("failed")
     expect(capture.ai_task.reload.status).to eq("failed")
+    expect(capture.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
     expect(capture.ai_task.ai_usage_attempts.find_by!(attempt_id: capture.observation_id)).to be_incomplete
   end
 end
@@ -96,6 +99,24 @@ RSpec.describe "Live capture authorization fences" do
     expect(Interviews::TranscriptionCaptureService.call(action: "redeem", token: first[:token])).to be_success
     expect(Interviews::TranscriptionCaptureService.call(action: "redeem", token: second[:token])).not_to be_success
     expect(InterviewVerificationReservation.count).to eq(1)
+  end
+
+  it "records a failure even when provider admission fails before the task attaches to its capture" do
+    grant = Interviews::AuthorizeTranscriptionService.call(**input).value
+    allow(Interviews::VerificationBudget).to receive(:reserve).and_return(false)
+    expect(Interviews::TranscriptionCaptureService.call(action: "redeem", token: grant[:token])).not_to be_success
+    task = interview.user.ai_tasks.interview_transcription.sole
+    expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
+    expect(InterviewTranscriptionCapture.find(grant[:capture_id]).ai_task_id).to be_nil
+  end
+
+  it "announces an expired admitted capture when a fresh authorization releases its slot" do
+    first = Interviews::AuthorizeTranscriptionService.call(**input).value
+    expect(Interviews::TranscriptionCaptureService.call(action: "redeem", token: first[:token])).to be_success
+    capture = InterviewTranscriptionCapture.find(first[:capture_id])
+    capture.update!(expires_at: 1.second.ago)
+    expect(Interviews::AuthorizeTranscriptionService.call(**input)).to be_success
+    expect(capture.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end
 
   it "caps cancelled attempts per question without charging unredeemed capabilities" do

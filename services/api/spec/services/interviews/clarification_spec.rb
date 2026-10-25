@@ -61,6 +61,7 @@ RSpec.describe "Interview question clarification" do
     travel 4.minutes do
       same = Interviews::RequestClarificationService.call(interview: interview, message_id: prompt.id).value
       expect(same.ai_task).to be_failed
+      expect(old_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
       retry_result = Interviews::RequestClarificationService.call(interview: interview, message_id: prompt.id, retry_failed: true)
       expect(retry_result).to be_success
       expect(retry_result.value.attempt_count).to eq(2)
@@ -81,6 +82,7 @@ RSpec.describe "Interview question clarification" do
       expect(Interviews::ClaimClarificationService.call(ai_task: task).value).to eq({ allowed: false })
       AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "explanation" => "Unavailable" } })
       expect(clarification.reload.explanation).to be_nil
+      expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
     end
   end
 
@@ -128,6 +130,14 @@ RSpec.describe "Interview question clarification" do
     Interviews::CleanupService.call(storage: instance_double(Interviews::MediaStorage, delete: nil))
     expect(clarification.reload.explanation).to be_nil
     expect(task.reload).to have_attributes(input: {}, result: nil, cost_microdollars: 19)
+  end
+
+  it "records a queue publication failure without leaking the transport error" do
+    allow(queue).to receive(:send_message).and_raise(Seahorse::Client::NetworkingError.new(IOError.new("private transport error")))
+    expect(Interviews::RequestClarificationService.call(interview: interview, message_id: prompt.id)).not_to be_success
+    task = interview.clarifications.sole.ai_task
+    expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
+    expect(AiTasks::DescribeTaskOutcomeService.call(outcome: task.ai_task_outcomes.sole).value[:title]).to eq("Question clarification failed")
   end
 
   it "does not overwrite an accepted result if queue publication reports an ambiguous failure" do

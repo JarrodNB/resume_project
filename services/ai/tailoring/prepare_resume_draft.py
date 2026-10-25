@@ -13,6 +13,8 @@ from uuid import UUID
 import text_limits
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
+from schemas.gap_response import GapResponseSnapshot
+from screening.gap_response_fields import screen_gap_response_fields
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.job_fields import screen_job_fields_async
 from screening.library_fields import screen_library_fields_async
@@ -27,7 +29,6 @@ from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, 
 from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import SourceRecord, label_sources
 from text_limits import MAX_SCREENED_TEXT
-from worker.contact_mask import mask_outbound
 from worker.queue_messages import ModelUsage
 from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
@@ -83,7 +84,7 @@ class PreparedResumeDraft:
     context: GapAnalysisContext
     prompts: dict[str, SectionPrompt]
     _settings: WorkerSettings = field(repr=False)
-    _gap_responses: list[dict[str, str]] = field(repr=False)
+    _gap_responses: list[GapResponseSnapshot | dict] = field(repr=False)
     _gap_analysis: dict[str, object] | None = field(repr=False)
     _decisions: dict[str, ScreenOutcome] = field(repr=False)
     _usage: list[ModelUsage] = field(repr=False)
@@ -132,18 +133,12 @@ class PreparedResumeDraft:
         # chunks before a later block or cancellation. Cached decisions add no charge.
         with collect_guardrail_usage(self._usage):
             unique = list(dict.fromkeys(texts))
-            gap_responses = [text for text in unique if text not in self._decisions
-                             and any(source.kind == "gap_response"
-                                     for source in sources_by_text.get(text, []))]
-            if gap_responses:
-                grouped = "\n\n".join(f"Saved gap response {number}:\n{text}"
-                                      for number, text in enumerate(gap_responses, start=1))
-                outcome = (ScreenOutcome(False, too_long=True) if len(grouped) > MAX_SCREENED_TEXT
-                           else await classify(grouped))
-                for text in gap_responses:
+            gap_sources = [(source.gap_response, source.text) for source in records
+                           if source.gap_response is not None]
+            gap_outcomes = await screen_gap_response_fields(gap_sources, classify)
+            for text, outcome in gap_outcomes.items():
+                if text not in self._decisions or self._decisions[text].allowed:
                     self._decisions[text] = outcome
-                    if outcome.allowed and (session := current_session()) is not None:
-                        session.allowed_sources.add(mask_outbound(text))
             # Highlights also contain their role's identity. Finish role checks first
             # so highlights reuse those fields rather than paying to check them twice.
             highlights = [text for text in unique
@@ -183,7 +178,7 @@ class PreparedResumeDraft:
 async def prepare_resume_draft(
     user_id: UUID, job_id: UUID, dependencies: TaskDependencies, *,
     usage: list[ModelUsage], warnings: list[str],
-    gap_responses: list[dict[str, str]] | None = None,
+    gap_responses: list[GapResponseSnapshot | dict] | None = None,
     gap_analysis: dict[str, object] | None = None, concurrency: int = 3,
 ) -> PreparedResumeDraft:
     """Read once and prepare per-section evidence with bounded provider overlap.

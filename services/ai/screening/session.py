@@ -28,6 +28,7 @@ class ScreeningSession:
     prompts: set[str] = field(default_factory=set)
     library_screening: list[Any] = field(default_factory=list)
     job_screening: list[Any] = field(default_factory=list)
+    gap_response_screening: list[Any] = field(default_factory=list)
 
 
 _current: ContextVar[ScreeningSession | None] = ContextVar("screening_session", default=None)

@@ -1,4 +1,6 @@
-# Reloads persisted facts under their row lock before editing and invalidating screening checks.
+# Locks the owner before answers and facts, matching career-library clear and result writes.
+# Reloads saved answers before editing and invalidating checks. Savepoints roll back
+# handled failures inside the owner transaction, including earlier answer/fact writes.
 # Description: Saves the user's answer to one requirement of a job. A blank answer removes it.
 # "Add to career library" upserts a library fact (requirement plus answer) and links it; leaving
 # it unchecked keeps the answer on the job only. Embedding sync runs only when a fact is
@@ -18,10 +20,14 @@ module GapResponses
     def call
       return failure([ "Requirement can't be blank" ]) if @requirement.blank?
 
-      response = @job.gap_responses.find_by(requirement: @requirement)
-      return clear(response) if @body.blank?
-
-      save(response || @job.gap_responses.build(requirement: @requirement))
+      @job.user.with_lock do
+        response = @job.gap_responses.find_by(requirement: @requirement)
+        if @body.blank?
+          clear(response)
+        else
+          save(response || @job.gap_responses.build(requirement: @requirement))
+        end
+      end
     end
 
     private
@@ -30,9 +36,10 @@ module GapResponses
     def clear(response)
       return success(nil) if response.nil?
 
-      fact = response.library_fact
       cleared = false
-      ApplicationRecord.transaction do
+      ApplicationRecord.transaction(requires_new: true) do
+        response.lock!
+        fact = response.library_fact
         raise ActiveRecord::Rollback unless response.destroy
 
         unlink_fact(fact)
@@ -48,9 +55,11 @@ module GapResponses
       fact_changed = false
       errors = nil
       saved = false
-      ApplicationRecord.transaction do
+      ApplicationRecord.transaction(requires_new: true) do
+        response.lock! if response.persisted?
         previous_fact = response.library_fact
         response.body = @body
+        RecordScreeningService.discard_changed_fields(response: response)
         if @add_to_library
           fact, fact_changed = upsert_fact
           unless fact.persisted?

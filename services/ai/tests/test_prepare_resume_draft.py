@@ -693,3 +693,101 @@ def test_approved_job_still_obeys_complete_source_limit(preparation):
         assert not calls
 
     asyncio.run(run())
+
+
+def test_saved_gap_response_fields_reused_without_screening(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, calls, _, user, job = preparation
+    responses = [{"id": str(uuid4()), "requirement": "Unique requirement",
+                  "body": "Unique saved answer", "screened_fields": ["requirement", "body"]}]
+
+    async def run():
+        with screening_session():
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_responses=responses)
+            assert "Unique saved answer" in prepared.prompts["experience"].text
+            assert prompt_is_covered(prepared.prompts["experience"].text)
+        assert not any("Unique saved answer" in text or "Unique requirement" in text for text in calls)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("approved_first", [False, True])
+def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, approved_first):
+    from screening.job_fields import field_fingerprint
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, calls, _, user, job = preparation
+    ids = [str(uuid4()) for _ in range(3)]
+    responses = [
+        {"id": ids[0], "requirement": "A: B", "body": "C"},
+        {"id": ids[1], "requirement": "A", "body": "B: C"},
+        {"id": ids[2], "requirement": "A: B", "body": "C",
+         "screened_fields": ["requirement", "body"]},
+    ]
+    if approved_first:
+        responses.reverse()
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_responses=responses)
+            reports = {report.response_id: report.fields for report in session.gap_response_screening}
+            assert reports == {ids[0]: {"requirement": field_fingerprint("A: B"), "body": field_fingerprint("C")},
+                               ids[1]: {"requirement": field_fingerprint("A"), "body": field_fingerprint("B: C")}}
+            assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
+            assert "screened_fields" not in prepared.prompts["experience"].text
+            assert not any(id in prepared.prompts["experience"].text for id in ids)
+            count = len(calls)
+            await prepared.summary_prompt([], selected_labels={"GR1", "GR2", "GR3"})
+            assert len(calls) == count
+        assert len([text for text in calls if "Saved gap response" in text]) == 1
+    asyncio.run(run())
+
+
+def test_gap_partial_approval_and_legacy_summary_subset_reuse(preparation):
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, _, _, calls, _, user, job = preparation
+    response_id = str(uuid4())
+    responses = [
+        {"id": response_id, "requirement": "Already approved", "body": "Fresh answer",
+         "screened_fields": ["requirement"]},
+        {"requirement": "Legacy requirement", "body": "Legacy answer", "screened_fields": ["requirement", "body"]},
+    ]
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_responses=responses)
+            assert [set(report.fields) for report in session.gap_response_screening] == [{"body"}]
+            count = len(calls)
+            await prepared.summary_prompt([], selected_labels={"GR2"})
+            assert len(calls) == count
+        grouped = [text for text in calls if "Saved gap response" in text]
+        assert len(grouped) == 1
+        assert "Already approved" not in grouped[0]
+        assert "Fresh answer" in grouped[0] and "Legacy answer" in grouped[0]
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+def test_gap_library_text_collision_preserves_each_provenance(preparation, blocked):
+    from schemas.gap_analysis_context import LibraryFact
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    context.career_library.facts = [LibraryFact(id="fact-collision", requirement="Equal requirement",
+        response="attack" if blocked else "Equal answer", screened_fields=["requirement", "response"])]
+    responses = [{"id": str(uuid4()), "requirement": "Equal requirement",
+                  "body": "attack" if blocked else "Equal answer"}]
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies,
+                usage=[], warnings=[], gap_responses=responses)
+            assert bool(session.gap_response_screening) is not blocked
+            prompt = prepared.prompts["experience"].text
+            assert ("[GR1]" in prompt) is not blocked
+            assert prompt_is_covered(prompt)
+        assert len([text for text in calls if "Saved gap response" in text]) == 1
+    asyncio.run(run())

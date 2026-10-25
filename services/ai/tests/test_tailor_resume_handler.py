@@ -267,3 +267,31 @@ def test_certification_copy_preserves_identity_and_precision(precision, expected
     assert certifications["content"]["items"][0]["name"] == "AWS Solutions Architect"
     assert certifications["content"]["items"][0]["issued_date"] == expected
     assert "certifications" not in [section for section, _ in seen]
+
+
+def test_queued_gap_snapshot_keeps_identity_and_approvals(generation, monkeypatch):
+    from pydantic_ai.usage import RunUsage
+
+    from agents.user_text_screen_agent import UserTextScreenRun
+    from schemas.user_text_screen import UserTextScreen
+    from screening.session import screening_session
+
+    dependencies, _, seen, model = generation
+    calls = []
+    async def classify(text, *_):
+        calls.append(text)
+        return UserTextScreenRun(UserTextScreen(prompt_injection=False, harmful_request=False),
+            "jev-1.13.0", {"prompt_injection": 1., "harmful_request": 1.}, RunUsage())
+    monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
+    response_id = str(uuid4())
+    with screening_session() as session, resume_tailoring_agent.override(model=model):
+        result = handle_ai_task(_task(_base_input(gap_responses=[{
+            "id": response_id, "requirement": "Unique queued requirement", "body": "Unique queued answer",
+            "screened_fields": ["requirement"]}])), dependencies)
+        assert result.status == "completed"
+        assert [(report.response_id, set(report.fields)) for report in session.gap_response_screening] == [
+            (response_id, {"body"})]
+    assert any("Unique queued answer" in text for text in calls)
+    assert not any("Unique queued requirement" in text for text in calls)
+    assert any("Unique queued answer" in prompt for _, prompt in seen)
+    assert all(response_id not in prompt and "screened_fields" not in prompt for _, prompt in seen)

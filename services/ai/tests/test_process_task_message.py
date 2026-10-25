@@ -248,3 +248,30 @@ def test_successful_job_checks_survive_generation_failure(monkeypatch, task_depe
     assert not started["job_screening"]
     assert final["job_screening"] == [{"job_id": "job", "fields": {
         "title": field_fingerprint("Engineer"), "requirements": field_fingerprint(["Python"])}}]
+
+
+@pytest.mark.parametrize("failure", [False, True])
+def test_successful_gap_answer_checks_survive_generation_failure(monkeypatch, task_dependencies, failure):
+    import asyncio
+
+    from schemas.gap_response import GapResponseSnapshot
+    from screening.gap_response_fields import screen_gap_response_fields
+    from screening.job_fields import field_fingerprint
+    from screening.screen_user_text import ScreenOutcome
+
+    def handler(task, dependencies):
+        async def classify(_):
+            return ScreenOutcome(True)
+        asyncio.run(screen_gap_response_fields([
+            (GapResponseSnapshot(id="answer", requirement="On call", body="Weekly"), "On call: Weekly")], classify))
+        if failure:
+            raise RuntimeError("generation failed")
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="completed")
+
+    monkeypatch.setattr(main, "handle_ai_task", handler)
+    queue = FakeResultQueue()
+    assert process_task_message(build_task_body(), 1, queue, task_dependencies)
+    started, final = map(json.loads, queue.sent_bodies)
+    assert not started["gap_response_screening"]
+    assert final["gap_response_screening"] == [{"response_id": "answer", "fields": {
+        "requirement": field_fingerprint("On call"), "body": field_fingerprint("Weekly")}}]

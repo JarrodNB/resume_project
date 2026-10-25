@@ -37,6 +37,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Local Rules
 
+- `gap_response_fields.py` — groups pending requirement/body fields from queued answer
+  snapshots, preserving every saved ID through text deduplication. Full group limits apply
+  even to reused approvals; legacy no-ID snapshots cannot reuse persisted checks. Exact
+  field payload decisions are execution-local; only Rails persists fingerprinted reports.
+
 - `job_fields.py` — sync/async saved Job checks shared by gap analysis and tailoring.
   Only title, company, requirements and nice-to-haves can earn approvals; lists are ordered
   whole fields. Canonical UTF-8 JSON fingerprints match Ruby stdlib JSON.generate, not
@@ -62,7 +67,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
 
 - Do not send the text when the screen cannot run.
-- Screen each input once per execution. Saved Job and career-library fields reuse database
+- Screen each input once per execution. Saved Job, gap-response and career-library fields reuse persisted
   checks across tasks; unchecked fields and other input screen again on later deliveries.
   Required inputs fail closed; optional entries can be omitted.
 - Never grant coverage by substring matching or a caller-controlled boolean.

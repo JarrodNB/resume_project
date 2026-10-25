@@ -14,6 +14,8 @@ Shared AI enqueue, result application, and attempt accounting.
 ## Local Rules
 
 Enqueue preparation runs under the owner lock after allowance checks; publish after commit.
-Interview results acquire the owner lock before the task lock. Finished tasks keep their
+Interview, gap-analysis and tailoring results acquire the owner lock before the task lock.
+Gap-analysis/tailoring then lock job, answer and library rows as needed, sharing owner-first
+ordering with saved-answer writes and bulk library clearing. Finished tasks keep their
 outcome, but new usage attempts are still recorded. Usage-only messages never change task
 status or trigger task-state subscriptions.

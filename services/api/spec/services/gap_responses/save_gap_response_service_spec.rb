@@ -103,4 +103,21 @@ RSpec.describe GapResponses::SaveGapResponseService do
     expect(result.errors).to eq([ "Requirement can't be blank" ])
     expect(job.gap_responses).to be_empty
   end
+
+  [ "", "Edited answer" ].each do |new_body|
+    it "rolls back answer changes when fact removal fails (body: #{new_body.inspect})" do
+      save(body: "Original answer", add_to_library: true)
+      response = job.gap_responses.sole
+      response.update!(screened_fields: %w[requirement body])
+      fact = response.library_fact
+      # Exercise the handled deletion-failure seam after real answer writes occurred.
+      allow(Records::DestroyRecordService).to receive(:call).with(record: fact)
+        .and_return(ServiceResult.new(success: false, value: nil, errors: [ "Couldn't remove fact" ]))
+
+      expect(save(body: new_body, add_to_library: false)).not_to be_success
+      expect(response.reload).to have_attributes(body: "Original answer", library_fact_id: fact.id)
+      expect(response.screened_fields).to match_array(%w[requirement body])
+      expect(fact.reload.response).to eq("Original answer")
+    end
+  end
 end

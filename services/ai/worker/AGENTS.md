@@ -145,3 +145,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
   are not classified. Source/input/history/turn caps bound every exchange.
+
+- `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.

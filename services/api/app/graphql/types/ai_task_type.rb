@@ -22,12 +22,16 @@ module Types
           description: "The job a completed scrape_job or parse_job_posting task saved, or the job an analyze_gaps task compares."
 
     def result
-      object.result unless unavailable_clarification?
+      object.result unless unavailable_clarification? || unavailable_study_guide?
     end
 
     def input
-      return {} if unavailable_clarification?
+      return {} if unavailable_clarification? || unavailable_study_guide?
       object.improve_library_entry? ? object.input.except("history") : object.input
+    end
+
+    def unavailable_study_guide?
+      object.generate_study_guide? && (object.subject_type != "Job" || !context[:current_user].jobs.exists?(id: object.subject_id))
     end
 
     def unavailable_clarification?

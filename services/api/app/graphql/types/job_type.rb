@@ -25,6 +25,10 @@ module Types
           description: "The user's answers to this job's requirements, keyed by requirement text."
     field :latest_gap_analysis, Types::AiTaskType,
           description: "The newest gap analysis of this job (its result holds gap_analysis), if any."
+    field :latest_study_guide, Types::AiTaskType,
+          description: "The newest successful study guide, retained across later failed attempts."
+    field :latest_study_guide_task, Types::AiTaskType,
+          description: "The newest study-guide generation attempt, including pending or failed work."
     field :latest_tailoring, Types::AiTaskType,
           description: "The newest tailoring task for this job, if any."
     field :resume, Types::ResumeType,
@@ -38,6 +42,14 @@ module Types
     # Returns the job's newest analyze_gaps task.
     def latest_gap_analysis
       object.latest_gap_analysis
+    end
+
+    def latest_study_guide
+      object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide", status: "completed").order(created_at: :desc, id: :desc).first
+    end
+
+    def latest_study_guide_task
+      object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide").order(created_at: :desc, id: :desc).first
     end
 
     # Returns the job's newest tailor_resume task.

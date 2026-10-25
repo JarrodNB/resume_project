@@ -166,3 +166,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   The independent faithfulness/usefulness judge sees follow-up facts only if a question was asked.
   `tests/test_library_edit_evaluators.py` checks those evaluation failure paths offline.
   This bounded sample does not establish broad editing quality. Run `python -m evals.run_library_edit_evals`.
+
+- `run_study_guide_evals.py` / `datasets/study_guide_cases.yaml` — synthetic description-only learning material across occupations, sparse/non-job text, and injected instructions; screen outages are errors rather than successful rejection.

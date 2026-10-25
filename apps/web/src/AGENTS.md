@@ -18,6 +18,7 @@ Source of the web app, organized by feature.
 - `features/job-board/` — shared US listing search, paginated results, and explicit import into private Jobs (`/job-board`); Rails owns provider access, caching, and duplicate matching
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   detail, edit, stage, and delete
+- `features/study-guides/` — description-only study guides on saved jobs, lazy reading and live generation status
 - `features/gap-analysis/` — compare a job with the career library (shown on the job page)
 - `features/resumes/` — saved resumes list and one resume's editor (`/resumes`, `/resumes/:id`)
 - `features/resume-tailoring/` — generate and review a complete resume draft for a job, then edit the

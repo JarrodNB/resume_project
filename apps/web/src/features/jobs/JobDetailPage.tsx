@@ -13,6 +13,7 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { useGapAnalysis } from '@/features/gap-analysis/useGapAnalysis'
+import { StudyGuideCard } from '@/features/study-guides/StudyGuideCard'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JobBoardImportNotice } from './JobBoardImportNotice'
@@ -115,6 +116,7 @@ function JobDetails({ id }: { id: string }) {
             busy={busy}
             errors={errors}
           />
+          <StudyGuideCard jobId={job.id} hasDescription={Boolean(job.description?.trim())} />
           <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
           <BulletCard
             sectionId={`job.${job.id}.requirements`}

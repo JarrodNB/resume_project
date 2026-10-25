@@ -70,7 +70,7 @@ module AiTasks
           interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
           ai_task.with_lock(&block)
         end
-      elsif ai_task.analyze_gaps? || ai_task.tailor_resume? || ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
+      elsif ai_task.generate_study_guide? || ai_task.analyze_gaps? || ai_task.tailor_resume? || ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
         ai_task.with_lock(&block)
@@ -95,6 +95,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.generate_study_guide?
+        result = StudyGuides::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.review_library_section?
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }

@@ -38,7 +38,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening, interview_question_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
@@ -80,6 +80,20 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   stale results and finished-task duplicates cannot restore checks. Successful checks survive
   later generation failure. Legacy snapshots without IDs are screened but cannot earn or
   reuse persisted approvals. New answers start unchecked; no new AI-reader grant is needed.
+
+  Final written-practice feedback/replacement results may contain `interview_question_screening`
+  entries `{question_id, question_revision, answer_revision, fields: {field_name: sha256}}`.
+  The fingerprints use the canonical encoding above. Only `question_text`/`answer_text`
+  are eligible; question checks require the same question revision, answer checks both
+  revisions. Rails verifies task kind, owned target/set, exact queued source, current field
+  values and revisions under existing owner-first/result locks. Replacement can report only
+  the target and aligned sibling question text; it never approves unused answers.
+  Usage-only/finished-task results cannot grant checks. Successful source checks survive
+  later source/generation failure; actual answer edits clear answer approval, successful
+  replacement clears both, and generated questions start unchecked. Legacy target snapshots
+  already have identity/revisions and can earn checks; legacy sibling strings screen normally
+  without persisted reports. New optional metadata stays outside prompts and preserves the
+  original queue source strings. No AI-reader grants are added.
 
 Per task type:
 

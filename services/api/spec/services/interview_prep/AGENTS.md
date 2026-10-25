@@ -23,3 +23,6 @@ Test interview practice service behavior without external AI or queue calls.
 
 - Follow parent spec instructions; stub SQS and retain real database persistence.
 
+
+- `screening_spec.rb` — persisted checks, source ownership/alignment, revision/fingerprint
+  staleness, edits/replacements, duplicates, legacy snapshots and metadata serialization.

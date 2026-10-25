@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_25_060000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_25_070000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -220,6 +220,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_060000) do
     t.integer "feedback_answer_revision"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "screened_fields", default: [], null: false, array: true
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"

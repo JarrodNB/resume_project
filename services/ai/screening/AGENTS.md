@@ -37,6 +37,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Local Rules
 
+- `interview_question_fields.py` — written practice field checks shared by feedback and
+  regeneration. Exact field decisions may share work, but every saved ID/revision is reported.
+  Aligned sibling metadata must match legacy source strings and set identity before reuse;
+  unidentified legacy siblings still screen normally. Complete-source caps apply to approvals.
+
 - `gap_response_fields.py` — groups pending requirement/body fields from queued answer
   snapshots, preserving every saved ID through text deduplication. Full group limits apply
   even to reused approvals; legacy no-ID snapshots cannot reuse persisted checks. Exact
@@ -67,7 +72,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
 
 - Do not send the text when the screen cannot run.
-- Screen each input once per execution. Saved Job, gap-response and career-library fields reuse persisted
+- Screen each input once per execution. Saved Job, gap-response, written practice and career-library fields reuse persisted
   checks across tasks; unchecked fields and other input screen again on later deliveries.
   Required inputs fail closed; optional entries can be omitted.
 - Never grant coverage by substring matching or a caller-controlled boolean.

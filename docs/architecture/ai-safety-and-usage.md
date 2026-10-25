@@ -122,7 +122,7 @@ requests get a JSON 429 with `Retry-After`.
   A short phrase check blocks obvious instruction-override wording without a model call. The
   screening unit is a cohesive untrusted source item: document, job context, library entry,
   gap response, submitted answer, selected section snapshot, or reused interview question. Each is
-  checked once per execution, except saved Job, gap-response and career-library fields whose successful checks
+  checked once per execution, except saved Job, gap-response, written-practice and career-library fields whose successful checks
   persist in Rails. Features screen only unchecked fields they use; edits clear the changed
   field names. Existing/imported rows start unchecked. A blocked or unchecked optional entry
   is left out with a warning; a required input prevents generation. Imported, manually edited, retrieved, and

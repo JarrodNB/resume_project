@@ -38,7 +38,7 @@ module InterviewPrep
 
         record.update!(question_text: drafts.first["question_text"],
                        question_revision: record.question_revision + 1,
-                       answer_text: "", answer_revision: record.answer_revision + 1,
+                       screened_fields: [], answer_text: "", answer_revision: record.answer_revision + 1,
                        feedback: {}, feedback_question_revision: nil, feedback_answer_revision: nil)
         record.embedding&.destroy!
       end

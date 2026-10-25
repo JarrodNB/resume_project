@@ -124,6 +124,7 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     result.library_screening = session.library_screening
     result.job_screening = session.job_screening
     result.gap_response_screening = session.gap_response_screening
+    result.interview_question_screening = session.interview_question_screening
     result.usage = task_usage.entries or [*result.usage, *guardrail_usage]
     result.attempt_id = task_usage.attempt_id
     result.usage_incomplete = task_usage.incomplete

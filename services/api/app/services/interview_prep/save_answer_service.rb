@@ -1,4 +1,5 @@
-# Description: Explicitly saves a typed practice answer, incrementing its revision only on changes.
+# Explicitly saves a typed practice answer, incrementing its revision only on changes.
+# Actual edits clear only answer screening coverage; the unchanged question keeps its checks.
 # Index:
 #   - call: validates and saves without changing feedback or career-library content
 module InterviewPrep
@@ -19,6 +20,7 @@ module InterviewPrep
         changed = @question.answer_text != @answer_text
         @question.answer_revision += 1 if changed
         @question.answer_text = @answer_text
+        @question.screened_fields -= [ "answer_text" ] if changed
         if @question.save
           @question.embedding&.destroy! if changed
           SyncQuestionEmbeddingJob.perform_later(@question.interview_question_set.user_id, @question.id) if @question.answer_text.present?

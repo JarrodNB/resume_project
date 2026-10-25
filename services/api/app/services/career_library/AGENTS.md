@@ -75,6 +75,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   Accepted and discarded review-answer questions retire from saved review state; failed
   generations retry as linked editing turns with every paired answer intact. Failed batches
   may replay without new feedback; ordinary continuations still need feedback or an explicit skip.
+  New continuation turns require the latest edit for that target, so an older failed draft
+  cannot displace a newer draft through a stale tab. Exact existing-child retries remain idempotent.
   Summary accepts change only `User.summary`; projects change only `description`; facts change
   only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed

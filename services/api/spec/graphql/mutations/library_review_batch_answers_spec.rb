@@ -129,4 +129,19 @@ RSpec.describe "Career library review answer batches" do
     expect(queue).to have_received(:send_message).once
   end
 
+  it "does not let a stale tab replay an older failed batch over a newer draft" do
+    older = AiTask.find(answer_batch([{ questionIndex: 0, answer: "Updated the old ledger" }]).dig("aiTask", "id"))
+    older.update!(status: "failed", error_message: "Temporary provider failure")
+    newer_review = create(:ai_task, user: user, task_type: "review_library_section", status: "completed",
+      input: review.input, result: review.result)
+    newer = AiTask.find(answer_batch([{ questionIndex: 0, answer: "Built a shared stock sheet" }], review_id: newer_review.id).dig("aiTask", "id"))
+
+    replay = CareerLibrary::StartEditService.call(user: user, previous_task_id: older.id)
+
+    expect(replay).not_to be_success
+    expect(replay.errors).to include("A newer edit exists. Reload to continue.")
+    expect(CareerLibrary::EditSnapshot.latest(user: user, kind: "experience_highlight", record_id: highlight.id).id).to eq(newer.id)
+    expect(queue).to have_received(:send_message).twice
+  end
+
 end

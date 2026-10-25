@@ -29,6 +29,9 @@ module CareerLibrary
         return child.input["feedback"] == @feedback && child.input["skip"] == @skip ? success(child) : failure([ "A newer turn already exists. Reload to continue." ]) if child
         return failure([ "Wait for the current turn to finish." ]) if @previous.queued?
         return failure([ "This draft is already closed. Start a new edit." ]) if @previous.accepted? || EditSnapshot.discarded?(@previous)
+        target = @previous.input.fetch("target")
+        latest = EditSnapshot.latest(user: @user, kind: target["kind"], record_id: target["record_id"])
+        return failure([ "A newer edit exists. Reload to continue." ]) unless latest&.id == @previous.id
         return failure([ "This entry changed. Start a new edit from its current text." ]) if EditSnapshot.stale?(user: @user, task: @previous)
       else
         @snapshot = EditSnapshot.capture(user: @user, kind: @kind, record_id: @record_id)

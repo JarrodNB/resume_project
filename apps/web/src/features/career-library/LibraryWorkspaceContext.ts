@@ -7,9 +7,10 @@ export interface LibraryWorkspaceState {
   targets: LibraryReviewTarget[]
   reviews: Record<ReviewSection, ReturnType<typeof useLibraryReview>>
   selectedKey: string | null
+  mode: 'improve' | 'review'
   mobileOpen: boolean
   movingHighlight: boolean
-  selectTarget: (target: LibraryReviewTarget, trigger?: HTMLElement) => void
+  selectTarget: (target: LibraryReviewTarget, trigger?: HTMLElement, mode?: 'improve' | 'review') => void
   close: () => void
 }
 export const LibraryWorkspaceContext = createContext<LibraryWorkspaceState | null>(null)

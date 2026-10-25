@@ -242,6 +242,15 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
 Summary, Experience, Projects, and Facts each have an explicit section review action.
 They return individual red/yellow/green assessments with short reasons for the summary, role
 descriptions/highlights, project descriptions, or saved fact responses without changing career facts.
+Each may also include up to three focused, distinct questions about missing contribution, context,
+method, or outcome, in priority order. Complete evidence and wording-only improvements need no questions, and
+questions never require metrics. These independent questions are stored with the completed
+review rather than pausing the section for a deferred tool answer. Current questions appear
+beside their assessed details and in the selected AI workspace; stale questions are hidden.
+The canonical ordered `questions` list is empty when no question is useful. Legacy saved scalar
+questions become one-item lists; the scalar `question` remains the first question for older clients.
+Each question is bounded at 500 characters. Repeated questions, including casing/whitespace variants,
+are rejected rather than offered as separate gaps. Accepted/discarded answers retire the whole set.
 Contact details, credentials, skill names, and fact requirement labels stay outside AI edits.
 Snapshots and results live on the existing `review_library_section` AI task; there is no
 separate assessment table. Only the selected section reaches screening and generation.
@@ -263,3 +272,39 @@ already said the detail is unavailable or skipped it. Concrete observation/shado
 be strong evidence without implying hands-on duties.
 Merging a saved entry or editing a neighboring bullet preserves coverage for exact unchanged
 copies, so those operations do not send generated text back through the classifier.
+
+### Answering review questions
+
+The current review question set starts one proposal through `answerLibraryReview`.
+All questions appear together, with optional answer fields and one submit action. At least one
+trimmed answer is required in both the UI and Rails. The browser sends the completed review ID,
+target identity, and answered zero-based question indices; Rails resolves question text and
+selected-record context itself. Blank fields are omitted without reindexing later answers.
+Repeated/out-of-range indices, oversized answers, and entirely blank batches cannot queue work.
+Each answer may use up to 4,000 characters, within the existing whole-task input limit.
+Older scalar-answer clients still answer the first question. Each assessment exposes its own
+`reviewTaskId`, because the latest section task can be queued or failed while assessments
+still come from an earlier completed review. Changed, moved, merged, deleted, or superseded
+sources cannot start a proposal from an obsolete question.
+
+Answers use the existing individual editing task and selected-detail workspace. Every
+answered field is screened; each exact generated question is trusted guidance, not evidence
+that its premise happened. Regeneration proposes wording from known facts without pausing
+for another question. It changes only the selected field when the user accepts. Independent
+Improve with AI keeps its existing feedback and deferred-question workflow.
+
+Revisions use supplied qualitative outcomes without appending claims that missing metrics or
+other unsupplied results are unknown. Remaining evidence gaps belong in the assessment reason,
+not in the career text. Explicit source/user qualifications, such as an ongoing pilot whose
+effect has not yet been evaluated, still constrain the revision. Prior generated drafts are
+not new factual evidence for unsupported caveats.
+
+The owner lock serializes answer starts with other edits. Equivalent trimmed answer batches
+return the same task regardless of submission order; changing any answered field conflicts.
+Repeating an existing scalar answer returns the latest linked turn without another enqueue; a different initial answer or unrelated live
+draft returns a conflict instead of replacing work. Failed generations show Retry revision,
+which creates a linked editing turn and preserves every saved question/answer pair. A failed
+batch can replay with no new feedback; completed ordinary edits still require feedback to continue.
+Accepted answers retire their question through the accepted assessment overlay, including
+when the accepted wording is unchanged. Discarded answers also hide that review question;
+a fresh explicit section review can offer a new question. Closing a workspace preserves work.

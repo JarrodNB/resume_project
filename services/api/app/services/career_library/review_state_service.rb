@@ -16,7 +16,17 @@ module CareerLibrary
         target = current[ReviewSnapshot.target_key(item)]
         next unless target
 
-        item.merge("stale" => item["source_digest"] != target["source_digest"])
+        questions = ApplyReviewService.questions_for(item) || []
+        item.merge("questions" => questions, "question" => questions.first,
+          "review_task_id" => completed.id, "stale" => item["source_digest"] != target["source_digest"])
+      end
+      if completed
+        discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditSnapshot::DISCARD_MESSAGE)
+          .where("input -> 'review_question' ->> 'review_task_id' = ?", completed.id).pluck(:input)
+          .map { |input| ReviewSnapshot.target_key(input.fetch("target")) }
+        assessments.each do |item|
+          item.merge!("questions" => [], "question" => nil) if discarded.include?(ReviewSnapshot.target_key(item))
+        end
       end
       accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil)
         .where("input ->> 'section' = ?", @section).order(accepted_at: :asc, id: :asc)
@@ -28,7 +38,7 @@ module CareerLibrary
         target = current[key]
         next unless target
         assessments.reject! { |old| ReviewSnapshot.target_key(old) == key }
-        assessments << item.merge("stale" => item["source_digest"] != target["source_digest"])
+        assessments << item.merge("questions" => [], "question" => nil, "stale" => item["source_digest"] != target["source_digest"])
       end
       success({ ai_task: tasks.first, assessments: assessments })
     end

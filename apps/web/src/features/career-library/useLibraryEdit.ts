@@ -1,11 +1,11 @@
-/** Loads one target's saved editing turn and follows its task through the existing subscription. */
+/** Starts owned edits or review-answer proposals and follows saved turns through task subscriptions. */
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import type { LibraryEditQuery } from '@/graphql/generated/graphql'
+import type { LibraryEditQuery, LibraryReviewAnswerInput } from '@/graphql/generated/graphql'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
-import { ACCEPT_LIBRARY_EDIT_MUTATION, DISCARD_LIBRARY_EDIT_MUTATION, LIBRARY_EDIT_QUERY, START_LIBRARY_EDIT_MUTATION } from './libraryEditOperations'
+import { ANSWER_LIBRARY_REVIEW_MUTATION, ACCEPT_LIBRARY_EDIT_MUTATION, DISCARD_LIBRARY_EDIT_MUTATION, LIBRARY_EDIT_QUERY, START_LIBRARY_EDIT_MUTATION } from './libraryEditOperations'
 import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 
 type EditTask = NonNullable<LibraryEditQuery['libraryEdit']['aiTask']>
@@ -15,6 +15,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
   const [submitted, setSubmitted] = useState<EditTask | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [request, requestState] = useMutation(START_LIBRARY_EDIT_MUTATION)
+  const [answerRequest, answerState] = useMutation(ANSWER_LIBRARY_REVIEW_MUTATION)
   const [accept, acceptState] = useMutation(ACCEPT_LIBRARY_EDIT_MUTATION)
   const [discard, discardState] = useMutation(DISCARD_LIBRARY_EDIT_MUTATION)
   const saved = data?.libraryEdit.aiTask
@@ -23,7 +24,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
   // Subscription values are event snapshots, so a prior completion event must not
   // hide the explicit acceptance response for the same task.
   const task = submitted?.acceptedAt ? submitted : updated?.id === base?.id ? updated : base
-  const busy = loading || requestState.loading || acceptState.loading || discardState.loading || task?.status === 'QUEUED'
+  const busy = loading || requestState.loading || answerState.loading || acceptState.loading || discardState.loading || task?.status === 'QUEUED'
   const pending = useRef(false)
   const lastSource = useRef(sourceRevision)
   const [checkedSource, setCheckedSource] = useState(sourceRevision)
@@ -60,6 +61,26 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     } finally { pending.current = false }
   }
 
+  async function answerReview(reviewTaskId: string, answers: LibraryReviewAnswerInput[]) {
+    if (busy || pending.current) return false
+    pending.current = true
+    setErrors([])
+    try {
+      const result = await answerRequest({ variables: { reviewTaskId, kind, recordId, answers } })
+      const payload = result.data?.answerLibraryReview
+      setErrors(payload?.errors ?? ['Could not submit your answer.'])
+      if (payload?.aiTask && payload.errors.length === 0) {
+        setSubmitted(payload.aiTask)
+        setCheckedSource(sourceRevision)
+        return true
+      }
+      return false
+    } catch (failure) {
+      setErrors([requestErrorMessage(failure, 'Could not submit your answer. Please try again.')])
+      return false
+    } finally { pending.current = false }
+  }
+
   async function save() {
     if (!task || pending.current || busy || stale) return
     pending.current = true
@@ -81,7 +102,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     pending.current = true
     setErrors([])
     try {
-      const result = await discard({ variables: { aiTaskId: task.id } })
+      const result = await discard({ variables: { aiTaskId: task.id }, refetchQueries: [LIBRARY_REVIEW_QUERY], awaitRefetchQueries: true })
       const messages = result.data?.discardLibraryEdit?.errors ?? ['Could not discard this draft.']
       setErrors(messages)
       return messages.length === 0
@@ -91,7 +112,7 @@ export function useLibraryEdit(kind: string, recordId: string, sourceRevision: s
     } finally { pending.current = false }
   }
 
-  return { task, busy, loading, stale, submit, save, closeDraft,
+  return { task, busy, loading, stale, submit, answerReview, save, closeDraft,
     errors: [...errors, ...(error && !submitted ? ['Could not load this edit. Close and reopen to try again.'] : []),
       ...(subscriptionError ? ['Live updates disconnected. Close and reopen to check the edit.'] : []),
       ...(task?.status === 'FAILED' && task.errorMessage ? [task.errorMessage] : [])] }

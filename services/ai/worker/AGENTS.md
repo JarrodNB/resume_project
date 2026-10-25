@@ -107,7 +107,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   with exact bound prompts. Career-library fields reuse saved checks and report newly checked
   field names on final results. Saved Job fields similarly reuse checks and report typed-value
   fingerprints through `job_screening`. Saved gap-response requirement/body checks report
-  through `gap_response_screening`, including after generation failure; other inputs are
+  through `gap_response_screening`. Written practice fields use `interview_question_screening`
+  with exact fingerprints and question/answer revisions. Both survive later generation failure; other inputs are
   screened again in later tasks. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
@@ -129,8 +130,12 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Fact responses are used; job-derived requirement fields are excluded from screening, prompts, and grounding evidence.
   Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
+  Replacement retains legacy question strings plus aligned sibling identity/check snapshots;
+  only matching metadata can reuse checks or emit saved reports, never text-based identity.
 
-- `interview_feedback_handler.py` — screens saved answers before model use, screens library notes, excludes job requirements, and reports coaching plus usage without writes.
+- `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
+  fields before model use, screens library notes, excludes job requirements, and reports coaching
+  plus usage without writes.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 

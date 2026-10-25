@@ -1,4 +1,5 @@
-# Description: Starts replacement or feedback tasks with snapshots of the question and revisions.
+# Starts replacement or feedback tasks with exact text, revision and saved-check snapshots.
+# Replacement keeps legacy sibling strings alongside aligned saved identities for safe reuse.
 # Index:
 #   - call: validates the request and queues an operation without replacing existing content
 module InterviewPrep
@@ -51,11 +52,17 @@ module InterviewPrep
         "set_type" => @question.interview_question_set.set_type,
         "question_id" => @question.id, "question_set_id" => @question.interview_question_set_id,
         "question_text" => @question.question_text, "answer_text" => @question.answer_text,
-        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision
+        "question_revision" => @question.question_revision, "answer_revision" => @question.answer_revision,
+        "screened_fields" => @question.screened_fields
       }
       if @task_type == "regenerate_interview_question"
-        task.input["other_questions"] = @question.interview_question_set.questions
-                                                .where.not(id: @question.id).pluck(:question_text)
+        peers = @question.interview_question_set.questions.where.not(id: @question.id).to_a
+        task.input["other_questions"] = peers.map(&:question_text)
+        task.input["other_question_snapshots"] = peers.map do |peer|
+          { "question_id" => peer.id, "question_set_id" => peer.interview_question_set_id,
+            "question_text" => peer.question_text, "question_revision" => peer.question_revision,
+            "screened_fields" => peer.screened_fields }
+        end
       end
       success(task)
     end

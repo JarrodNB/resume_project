@@ -367,3 +367,66 @@ def test_feedback_agent_masks_contact_and_restores_evidence(dependencies, monkey
     assert all("Jane Doe" not in text for text in seen)
     assert any("«name»" in text for text in seen)
     assert result.result["interview_feedback"]["evidence_quotes"] == ["I am Jane Doe."]
+
+
+def test_saved_practice_fields_reuse_checks_without_classifier_work(dependencies, monkeypatch):
+    from screening.session import prompt_is_covered, screening_session
+    from worker import interview_feedback_handler
+
+    request = task()
+    request.input["screened_fields"] = ["question_text", "answer_text"]
+    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
+        lambda *a, **kw: pytest.fail("approved practice fields must not be screened again"))
+    def generate(context, **kwargs):
+        assert prompt_is_covered(context.text)
+        assert "screened_fields" not in context.text
+        return InterviewFeedbackRun(InterviewFeedback.model_validate(output()), RunUsage())
+    monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback", generate)
+    with screening_session():
+        assert handle_ai_task(request, dependencies).status == "completed"
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+def test_practice_reports_keep_success_before_later_source_failure(dependencies, monkeypatch, blocked):
+    from screening.session import screening_session
+    from worker import interview_feedback_handler
+
+    request = task()
+    calls = []
+    def classify(text, **kwargs):
+        calls.append(text)
+        return ScreenOutcome(text != request.input["question_text"] or not blocked, unchecked=blocked)
+    monkeypatch.setattr(interview_feedback_handler, "screen_user_text", classify)
+    with screening_session() as session, interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+        result = handle_ai_task(request, dependencies)
+        assert result.status == ("failed" if blocked else "completed")
+        assert [set(report.fields) for report in session.interview_question_screening] == (
+            [{"answer_text"}] if blocked else [{"answer_text"}, {"question_text"}])
+        assert all(report.question_id == request.input["question_id"] for report in session.interview_question_screening)
+    assert calls == [request.input["answer_text"], request.input["question_text"]]
+
+
+def test_partial_practice_approval_checks_only_answer(dependencies, monkeypatch):
+    from screening.session import screening_session
+    from worker import interview_feedback_handler
+    request = task()
+    request.input["screened_fields"] = ["question_text"]
+    calls = []
+    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
+        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
+    with screening_session() as session, interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
+        assert handle_ai_task(request, dependencies).status == "completed"
+        assert [set(report.fields) for report in session.interview_question_screening] == [{"answer_text"}]
+    assert calls == [request.input["answer_text"]]
+
+
+def test_approved_practice_fields_keep_aggregate_prompt_cap(dependencies, monkeypatch):
+    from worker import interview_feedback_handler
+    request = task()
+    request.input["screened_fields"] = ["question_text", "answer_text"]
+    monkeypatch.setattr(text_limits, "MAX_PROMPT_TEXT", 10)
+    monkeypatch.setattr(interview_feedback_handler, "screen_user_text",
+        lambda *a, **kw: pytest.fail("saved fields should reuse checks"))
+    monkeypatch.setattr(interview_feedback_handler, "generate_interview_feedback",
+        lambda *a, **kw: pytest.fail("oversized prompt reached generation"))
+    assert handle_ai_task(request, dependencies).status == "failed"

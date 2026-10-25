@@ -450,3 +450,49 @@ def test_quote_sources_exclude_hidden_and_formatted_fields() -> None:
     assert "2022-01-01" not in quotes
     assert "Jan 2022" not in quotes
     assert "private-id" not in quotes
+
+
+@pytest.mark.parametrize("malformed", [False, True])
+def test_replacement_preserves_sibling_identities_and_reuses_checks(task_dependencies, monkeypatch, malformed):
+    from screening.session import prompt_is_covered, screening_session
+    request = _task(True)
+    # Equal source text must not collapse two different saved question identities.
+    request.input["other_questions"][1] = request.input["other_questions"][0]
+    peers = [{"question_id": str(uuid4()), "question_set_id": request.input["question_set_id"],
+              "question_text": text, "question_revision": 2, "screened_fields": []}
+             for text in request.input["other_questions"]]
+    peers[2]["screened_fields"] = ["question_text"]
+    request.input["other_question_snapshots"] = peers
+    request.input["screened_fields"] = ["question_text"]
+    if malformed:
+        peers[2]["question_text"] = "Metadata differs from prompt source"
+    calls = []
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
+    library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])])
+    deps = replace(task_dependencies, read_career_library=lambda _: library)
+    generate = interview_questions_handler.generate_interview_questions
+    def inspect(prompt, **kwargs):
+        assert prompt_is_covered(prompt.text)
+        assert "screened_fields" not in prompt.text and "question_revision" not in prompt.text
+        assert all(peer["question_id"] not in prompt.text for peer in peers)
+        return generate(prompt, **kwargs)
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
+    with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
+        assert handle_ai_task(request, deps).status == "completed"
+        assert {report.question_id for report in session.interview_question_screening} == {
+            peers[index]["question_id"] for index in (0, 1, 3)}
+        assert all(set(report.fields) == {"question_text"} for report in session.interview_question_screening)
+        count = len(calls)
+        assert handle_ai_task(request, deps).status == "completed"
+        assert len(calls) == count
+    assert len(calls) == (3 if malformed else 2)
+
+
+def test_legacy_replacement_reports_target_only(task_dependencies):
+    from screening.session import screening_session
+    request = _task(True)
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
+    with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
+        assert handle_ai_task(request, deps).status == "completed"
+        assert {report.question_id for report in session.interview_question_screening} == {request.input["question_id"]}

@@ -18,6 +18,7 @@ from agents.interview_questions_agent import generate_interview_questions
 from model_inputs.interview import format_interview_question_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
+from screening.interview_question_fields import screen_interview_field, sibling_snapshots
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
@@ -36,6 +37,8 @@ class InterviewQuestionsInput(BaseModel):
     other_questions: list[str] = Field(default_factory=list)
     question_revision: int | None = None
     answer_revision: int | None = None
+    screened_fields: list[str] = Field(default_factory=list, exclude=True)
+    other_question_snapshots: list[dict] = Field(default_factory=list, exclude=True)
 
 
 @within_screening_session
@@ -81,8 +84,13 @@ def handle_interview_questions_task(
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="Add usable career details to your library before generating interview questions.")
     excluded = (snapshot.question_text, *snapshot.other_questions) if replacement else ()
-    for question in excluded:
-        if not screen_note(question).allowed:
+    primary = None
+    if replacement and snapshot.question_revision is not None and snapshot.question_revision > 0:
+        primary = snapshot.model_dump(mode="json")
+        primary["screened_fields"] = snapshot.screened_fields
+    sources = [primary, *sibling_snapshots(snapshot)] if replacement else []
+    for question, source in zip(excluded, sources, strict=True):
+        if not screen_interview_field(source, "question_text", question, screen_note).allowed:
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="We couldn't check these questions. Reload the set and try again.")
     count = 1 if replacement else 5

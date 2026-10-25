@@ -7,6 +7,8 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 ## Contents
 
 - `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks.
+- `record_screening_service.rb` — accepts exact owned target/sibling snapshot reports and
+  records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.
 - `start_question_task_service.rb` — saves feedback answers, checks replacement confirmation, and queues revision snapshots.
 - `delete_question_set_service.rb` — deletes an owned set and its questions while retaining AI usage records.
@@ -31,3 +33,10 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - Result application acquires the owner lock before the task lock, matching enqueue/save/delete. Check replacement distinctness against the current set as well as the old question. Obsolete or invalid completions become failed tasks without modifying domain content; retain billed usage once.
 
 - Delayed feedback after answer edits is outdated; changed questions and superseded tasks are rejected. Feedback never changes the saved answer.
+
+- Saved `screened_fields` covers only `question_text`/`answer_text`. Question checks depend on
+  question revision; answer checks depend on both revisions. Actual answer edits clear only
+  answer checks. Successful replacement clears both; generated slots start unchecked.
+- Queue snapshots keep legacy source strings and add primary checks/aligned sibling snapshots.
+  Sibling provenance must match exact text, set and identity; old unidentified strings never
+  earn persisted reports. Failed final generation still records successful source checks.

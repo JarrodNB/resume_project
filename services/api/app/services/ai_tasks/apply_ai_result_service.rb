@@ -34,6 +34,7 @@ module AiTasks
         end
         next false if status == "usage" || ai_task.finished? || (ai_task.improve_library_entry? && !ai_task.queued?)
 
+        InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
         Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
         GapResponses::RecordScreeningService.call(ai_task: ai_task, reports: @message["gap_response_screening"])
 

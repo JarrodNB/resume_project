@@ -1,5 +1,5 @@
 """
-Description: Screens a saved answer and generates revision-bound interview feedback.
+Description: Reuses saved field checks or screens a saved answer before revision-bound feedback.
 Index:
     - InterviewFeedbackInput: immutable Rails snapshot
     - handle_interview_feedback_task: read-only coaching and usage reporting
@@ -18,6 +18,7 @@ from model_inputs.interview import format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
+from screening.interview_question_fields import screen_interview_field
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
@@ -36,6 +37,7 @@ class InterviewFeedbackInput(BaseModel):
     answer_text: str = Field(min_length=1, max_length=text_limits.MAX_INTERVIEW_ANSWER)
     question_revision: int = Field(ge=1)
     answer_revision: int = Field(ge=0)
+    screened_fields: list[str] = Field(default_factory=list, exclude=True)
 
 
 @within_screening_session
@@ -58,12 +60,14 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
 
     if not snapshot.answer_text.strip():
         return fail("Write an answer before asking for feedback.")
-    outcome = screen(snapshot.answer_text)
+    source = snapshot.model_dump(mode="json")
+    source["screened_fields"] = snapshot.screened_fields
+    outcome = screen_interview_field(source, "answer_text", snapshot.answer_text, screen)
     if not outcome.allowed:
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    if not screen(snapshot.question_text).allowed:
+    if not screen_interview_field(source, "question_text", snapshot.question_text, screen).allowed:
         return fail("Your answer is saved. We couldn't check this question. Try requesting feedback again.")
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")

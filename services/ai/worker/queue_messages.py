@@ -61,6 +61,15 @@ class GapResponseScreening(BaseModel):
     fields: dict[str, str]
 
 
+class InterviewQuestionScreening(BaseModel):
+    """Exact practice fields checked at their queued question/answer revisions."""
+
+    question_id: str
+    question_revision: int
+    answer_revision: int | None = None
+    fields: dict[str, str]
+
+
 class AiResultMessage(BaseModel):
     """An outcome or usage-only report. Attempt identity deduplicates accounting, not execution."""
 
@@ -77,3 +86,4 @@ class AiResultMessage(BaseModel):
     library_screening: list[LibraryScreening] = Field(default_factory=list)
     job_screening: list[JobScreening] = Field(default_factory=list)
     gap_response_screening: list[GapResponseScreening] = Field(default_factory=list)
+    interview_question_screening: list[InterviewQuestionScreening] = Field(default_factory=list)

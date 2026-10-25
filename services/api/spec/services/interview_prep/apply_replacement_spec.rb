@@ -157,4 +157,19 @@ RSpec.describe "Applying an interview question replacement" do
     expect(task.reload).to be_failed
     expect(question.reload.attributes).to eq(original)
   end
+  it "clears old field approvals only for the successfully replaced slot" do
+    questions.each { |record| record.update!(screened_fields: %w[question_text answer_text]) }
+    apply
+    expect(task.reload).to be_completed
+    expect(question.reload.screened_fields).to be_empty
+    questions.drop(1).each { |record| expect(record.reload.screened_fields).to match_array(%w[question_text answer_text]) }
+  end
+
+  it "preserves old approvals when replacement fails" do
+    question.update!(screened_fields: %w[question_text answer_text])
+    message["result"] = nil
+    apply
+    expect(task.reload).to be_failed
+    expect(question.reload.screened_fields).to match_array(%w[question_text answer_text])
+  end
 end

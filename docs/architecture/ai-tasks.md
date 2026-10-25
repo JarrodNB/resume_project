@@ -70,7 +70,10 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{response_id, fields: {field_name: sha256}}` for saved requirement/body checks, using
   the same canonical fingerprint encoding. Rails approves only the owned task-associated
   job's response IDs present in the queued snapshot, with fingerprints matching both that
-  snapshot and current saved fields under row locks. Changed fields lose approval on save;
+  snapshot and current saved fields under row locks. Answer saves/deletes and final
+  tailoring results acquire the owner lock first, before task/answer/fact locks, matching
+  bulk library clearing and preventing response/fact foreign-key lock cycles.
+  Changed fields lose approval on save;
   unchanged answers and library-link toggles retain checks. Deleted/recreated answers,
   stale results and finished-task duplicates cannot restore checks. Successful checks survive
   later generation failure. Legacy snapshots without IDs are screened but cannot earn or

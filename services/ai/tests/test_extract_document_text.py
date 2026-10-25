@@ -254,6 +254,40 @@ def test_pdf_over_the_page_cap_is_too_long() -> None:
         extract_document_text(buffer.getvalue(), "application/pdf")
 
 
+@pytest.mark.parametrize("extra_characters", [0, 1])
+def test_pdf_text_cap_applies_across_pages(extra_characters: int) -> None:
+    """The import cap includes all pages and separators, with the exact limit allowed."""
+    from pypdf import PdfWriter
+    from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
+
+    page_texts = [
+        "a" * (MAX_RESUME_TEXT // 2 - 1),
+        "b" * (MAX_RESUME_TEXT // 2 - 1 + extra_characters),
+    ]
+    writer = PdfWriter()
+    for text in page_texts:
+        page = writer.add_blank_page(width=300, height=300)
+        font = DictionaryObject({
+            NameObject("/Type"): NameObject("/Font"),
+            NameObject("/Subtype"): NameObject("/Type1"),
+            NameObject("/BaseFont"): NameObject("/Helvetica"),
+        })
+        page[NameObject("/Resources")] = DictionaryObject({
+            NameObject("/Font"): DictionaryObject({NameObject("/F1"): font}),
+        })
+        stream = DecodedStreamObject()
+        stream.set_data(f"BT /F1 12 Tf 10 20 Td ({text}) Tj ET".encode("ascii"))
+        page[NameObject("/Contents")] = writer._add_object(stream)
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    if extra_characters:
+        with pytest.raises(DocumentTooLongError):
+            extract_document_text(buffer.getvalue(), "application/pdf")
+    else:
+        assert extract_document_text(buffer.getvalue(), "application/pdf") == "\n\n".join(page_texts)
+
+
 def test_unsupported_content_type_raises() -> None:
     """Only PDF and DOCX are supported."""
     with pytest.raises(UnsupportedDocumentError):

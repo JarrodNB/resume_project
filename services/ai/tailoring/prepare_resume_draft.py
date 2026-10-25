@@ -1,7 +1,8 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job, then the union of section sources. Saved library
-fields reuse their checks; temporary inputs stay within one enclosing execution.
+Screen the job, then the union of section sources. Saved library fields reuse
+their checks without losing record identities when rendered text is shared.
+Temporary inputs stay within one enclosing execution.
 """
 
 import asyncio
@@ -89,7 +90,11 @@ class PreparedResumeDraft:
     _concurrency: int = field(repr=False)
     _session: object = field(default_factory=current_session, repr=False)
 
-    async def _screen(self, texts: Sequence[str], records: dict[str, SourceRecord] | None = None) -> None:
+    async def _screen(self, texts: Sequence[str], records: Sequence[SourceRecord] = ()) -> None:
+        sources_by_text: dict[str, list[SourceRecord]] = {}
+        for source in records:
+            sources_by_text.setdefault(source.text, []).append(source)
+
         async def classify(text, *, max_characters=MAX_SCREENED_TEXT):
             return await screen_user_text_async(
                 text, self._settings.user_text_screen_model,
@@ -99,12 +104,13 @@ class PreparedResumeDraft:
             )
 
         async def check(text):
-            if text not in self._decisions:
-                source = (records or {}).get(text)
-                provenance = source.provenance if source else None
-                if len(text) > MAX_SCREENED_TEXT and not provenance:
-                    outcome = ScreenOutcome(False, too_long=True)
-                elif provenance:
+            saved = [source for source in sources_by_text.get(text, []) if source.provenance]
+            if saved:
+                # Rendered equality does not prove that every saved field was checked.
+                # Visit all provenance even for cached text; field screening reuses
+                # exact payload decisions while recording each covered row's identity.
+                for source in saved:
+                    provenance = source.provenance
                     # The saved plain text passed the aggregate cap before preparation.
                     # Field names and JSON escaping may make its screening envelope longer.
                     async def classify_library(payload):
@@ -115,16 +121,19 @@ class PreparedResumeDraft:
                         used_fields=provenance.used_fields, approved_sources=[text])
                     if outcome is True:
                         outcome = ScreenOutcome(True)
-                else:
-                    outcome = await classify(text)
-                self._decisions[text] = outcome
+                    if text not in self._decisions or self._decisions[text].allowed:
+                        self._decisions[text] = outcome
+            elif text not in self._decisions:
+                self._decisions[text] = (ScreenOutcome(False, too_long=True)
+                                         if len(text) > MAX_SCREENED_TEXT else await classify(text))
 
         # Shared screening records both classifiers immediately, including completed
         # chunks before a later block or cancellation. Cached decisions add no charge.
         with collect_guardrail_usage(self._usage):
             unique = list(dict.fromkeys(texts))
             gap_responses = [text for text in unique if text not in self._decisions
-                             and (records or {}).get(text) and records[text].kind == "gap_response"]
+                             and any(source.kind == "gap_response"
+                                     for source in sources_by_text.get(text, []))]
             if gap_responses:
                 grouped = "\n\n".join(f"Saved gap response {number}:\n{text}"
                                       for number, text in enumerate(gap_responses, start=1))
@@ -136,9 +145,9 @@ class PreparedResumeDraft:
                         session.allowed_sources.add(mask_outbound(text))
             # Highlights also contain their role's identity. Finish role checks first
             # so highlights reuse those fields rather than paying to check them twice.
-            highlights = [text for text in unique if (records or {}).get(text)
-                          and records[text].kind == "highlight"]
-            await _bounded([text for text in unique if text not in highlights and text not in gap_responses],
+            highlights = [text for text in unique
+                          if any(source.kind == "highlight" for source in sources_by_text.get(text, []))]
+            await _bounded([text for text in unique if text not in highlights],
                            check, self._concurrency)
             await _bounded(highlights, check, self._concurrency)
 
@@ -164,9 +173,9 @@ class PreparedResumeDraft:
             raise RuntimeError("Prepare evidence again inside the current screening session")
         sources = label_sources(self.context, self._gap_responses, selected_sections,
             None, "summary")
-        records = {record.text: record for label, record in sources.records.items()
-                   if selected_labels is None or label in selected_labels or record.kind == "selected_section"}
-        await self._screen(list(records), records)
+        records = [record for label, record in sources.records.items()
+                   if selected_labels is None or label in selected_labels or record.kind == "selected_section"]
+        await self._screen([record.text for record in records], records)
         return self._prompt("summary", selected_sections, selected_labels)
 
 
@@ -208,11 +217,11 @@ async def prepare_resume_draft(
                 if rows:
                     sections.append(section)
             texts = [job_text]
-            records = {}
+            records = []
             for section in sections:
                 sources = label_sources(context, prepared._gap_responses, [], None, section)
                 texts.extend(record.text for record in sources.records.values())
-                records.update({record.text: record for record in sources.records.values()})
+                records.extend(sources.records.values())
             await prepared._screen(texts, records)
             prepared.prompts = {section: prepared._prompt(section, []) for section in sections}
             return prepared

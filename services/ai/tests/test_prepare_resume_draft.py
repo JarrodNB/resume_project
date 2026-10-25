@@ -515,3 +515,134 @@ def test_highlights_reuse_partial_saved_parent_checks(preparation):
         assert f"title:\n{role.title}" not in pending
         assert pending.count(f"company:\n{role.company}") == 1
     asyncio.run(run())
+
+
+def test_identical_saved_skills_keep_each_identity_and_reuse_field_checks(preparation):
+    """Sharing classification must not drop one saved row or approve its hidden fields."""
+    from schemas.gap_analysis_context import LibrarySkill
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    skills = [LibrarySkill(id=str(uuid4()), name="Shared skill", category="Unused category")
+              for _ in range(2)]
+    context.career_library.skills = skills
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            reports = [report for report in session.library_screening if report.record_type == "skill"]
+            assert {(str(report.record_id), tuple(report.fields)) for report in reports} == {
+                (skill.id, ("name",)) for skill in skills}
+            assert {"S1", "S2"} <= prepared.prompts["skills"].sources.records.keys()
+            assert prompt_is_covered(prepared.prompts["skills"].text)
+        assert sum("name:\nShared skill" in text for text in calls) == 1
+        assert all("Unused category" not in text for text in calls)
+
+        for skill in skills:
+            skill.screened_fields = ["name"]
+        calls.clear()
+        with screening_session() as session:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert not [report for report in session.library_screening if report.record_type == "skill"]
+        assert all("Shared skill" not in text for text in calls)
+
+    asyncio.run(run())
+
+
+def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation):
+    """One checked rendered value cannot approve another record's different field split."""
+    from schemas.gap_analysis_context import (
+        CareerLibrary,
+        LibraryFact,
+        LibraryProject,
+        LibrarySkill,
+    )
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    shared = "Shared: detail"
+    context.career_library = CareerLibrary(
+        summary=shared, summary_record_id=str(user),
+        projects=[
+            LibraryProject(id="approved-project", name=shared, screened_fields=["name"]),
+            LibraryProject(id="split-project", name="Shared", description="detail", role="Unused role"),
+        ],
+        skills=[LibrarySkill(id="skill", name=shared, screened_fields=["name"], category="Unused category")],
+        facts=[LibraryFact(id="fact", requirement="Shared", response="detail")],
+    )
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert {(report.record_type, str(report.record_id), tuple(report.fields))
+                    for report in session.library_screening} == {
+                        ("user", str(user), ("summary",)),
+                        ("project", "split-project", ("name", "description")),
+                        ("library_fact", "fact", ("requirement", "response")),
+                    }
+            summary = await prepared.summary_prompt([])
+            assert {"SUMMARY", "P1", "P2", "S1", "F1"} == summary.sources.records.keys()
+            assert prompt_is_covered(summary.text)
+        assert sum(f"summary:\n{shared}" in text for text in calls) == 1
+        assert sum("name:\nShared\n\ndescription:\ndetail" in text for text in calls) == 1
+        assert sum("requirement:\nShared\n\nresponse:\ndetail" in text for text in calls) == 1
+        assert all("Unused" not in text for text in calls)
+
+    asyncio.run(run())
+
+
+def test_summary_records_new_saved_id_even_when_its_text_was_already_screened(preparation):
+    """A later summary snapshot must retain all provenance behind an earlier decision."""
+    from schemas.gap_analysis_context import LibrarySkill
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    context.career_library.skills = [LibrarySkill(id="first-skill", name="Shared skill")]
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            first_call_count = len(calls)
+            context.career_library.skills.append(LibrarySkill(id="later-skill", name="Shared skill"))
+            summary = await prepared.summary_prompt([], selected_labels={"S1", "S2"})
+            assert set(summary.sources.records) == {"S1", "S2"}
+            assert prompt_is_covered(summary.text)
+            assert {(str(report.record_id), tuple(report.fields)) for report in session.library_screening
+                    if report.record_type == "skill"} == {
+                        ("first-skill", ("name",)), ("later-skill", ("name",))}
+            assert len(calls) == first_call_count
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("approved_first", [True, False])
+@pytest.mark.parametrize("failure", ["blocked", "unavailable"])
+def test_checked_text_collision_cannot_hide_rejected_saved_fields(preparation, monkeypatch, approved_first, failure):
+    """Previously checked generated text never substitutes for checking a new field."""
+    from schemas.gap_analysis_context import CareerLibrary, LibrarySkill
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    approved = LibrarySkill(id="approved-skill", name="attack", screened_fields=["name"])
+    unchecked = LibrarySkill(id="unchecked-skill", name="attack")
+    context.career_library = CareerLibrary(skills=[approved, unchecked] if approved_first else [unchecked, approved])
+    if failure == "unavailable":
+        monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", dependencies.settings.user_text_screen_model)
+
+        async def unavailable_for_skill(text, model, timeout):
+            calls.append(text)
+            if "name:\nattack" in text:
+                raise RuntimeError("Synthetic screening outage")
+            return allowed_run(text)
+
+        monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", unavailable_for_skill)
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert not session.library_screening
+            assert "S1" not in prepared.prompts["skills"].sources.records
+            assert "S2" not in prepared.prompts["skills"].sources.records
+        assert sum("name:\nattack" in text for text in calls) == 1
+
+    asyncio.run(run())

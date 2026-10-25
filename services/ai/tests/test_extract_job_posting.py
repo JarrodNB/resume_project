@@ -138,6 +138,18 @@ def test_heading_extraction_over_the_save_caps_still_returns_a_posting() -> None
     assert extraction.sorting_usage is None
 
 
+@pytest.mark.parametrize("extra_characters", [0, 1])
+def test_heading_extraction_checks_each_bullet_at_its_save_limit(extra_characters: int) -> None:
+    """The exact saved bullet limit is retained; one extra character is omitted."""
+    bullet = "x" * (MAX_BULLET_TEXT + extra_characters)
+    extraction = extract_job_posting(
+        build_page(f"<h3>Requirements</h3><ul><li>{bullet}</li></ul>"), never_called
+    )
+
+    assert extraction.posting.requirements == ([bullet] if not extra_characters else [])
+    assert (POSTING_LEFT_OUT_WARNING in extraction.posting.warnings) is bool(extra_characters)
+
+
 def test_posting_without_bullets_warns_and_skips_the_agent() -> None:
     """Prose-only postings get empty lists and a warning."""
     extraction = extract_job_posting(build_page("<p>We need a great engineer.</p>"), never_called)

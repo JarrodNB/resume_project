@@ -42,8 +42,8 @@ class LibraryEditInput(BaseModel):
 
 
 class LibraryEditDraft(BaseModel):
-    """Rewrite only the selected field, preserving what is known and what remains unknown."""
+    """Rewrite the selected field using supplied facts and material qualifications."""
 
-    text: str = Field(min_length=1, max_length=4000, description="Proposed replacement text only. Never invent personal facts or metrics.")
+    text: str = Field(min_length=1, max_length=4000, description="Proposed career text using supplied facts and material qualifications. Never invent facts or metrics, or append disclaimers about information the user has not supplied.")
     color: Literal["red", "yellow", "green"] = Field(description="Assess the proposed text; do not automatically assign green.")
     reason: str = Field(min_length=1, max_length=240, description="One short explanation of the proposed text's assessment.")

@@ -120,5 +120,27 @@ cases:
             description: Helped improve stock management.
       review_question: What did you personally create or change?
       feedback: I created a shared stock count sheet to identify items needing reordering. I do not know whether anyone used it.
+  - name: qualitative-study-outcome-does-not-imply-unknown-grades
+    inputs:
+      library:
+        experiences:
+          - id: role-1
+            company: Example Learning Centre
+            title: Science Tutor
+            highlights:
+              - id: highlight-1
+                content: Tutored 16 students each semester in chemistry and biology, helping many improve quiz results and course performance.
+      review_question: What specific change did you observe in their quiz performance?
+      feedback: They became more comfortable explaining scientific concepts and organizing their laboratory notes.
+  - name: explicitly-ongoing-pilot-remains-qualified
+    inputs:
+      section: projects
+      library:
+        projects:
+          - id: project-1
+            name: Reagent log pilot
+            description: Piloted a shared reagent log with two laboratory groups. The pilot is ongoing, so its effect on stockouts has not yet been evaluated.
+      review_question: What did you personally create or change for the pilot?
+      feedback: I created the spreadsheet and showed both groups how to record deliveries. The pilot has not finished.
 evaluators:
   - EditStructure

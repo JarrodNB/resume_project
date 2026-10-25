@@ -161,9 +161,10 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   observation without hands-on duties. This small set does not
   establish broad writing quality. Execution or judge errors fail the runner; low quality
   scores remain review signals. Run `python -m evals.run_library_review_evals`.
-- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — eleven synthetic edits
+- `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — thirteen synthetic edits
   through production screening and generation, including a real deferred question/answer,
-  review-answer regeneration without another question, and summary/project/fact narrative fields.
+  review-answer regeneration without another question, qualitative outcomes without unsupported
+  unknown-result disclaimers, explicit ongoing-work qualifications, and summary/project/fact narrative fields.
   Checks output shape, spontaneous questions for missing contribution facts, and traffic-light
   calibration when only wording improves. Allowed colors live in evaluation-only metadata.
   The independent faithfulness/usefulness judge sees follow-up facts only if a question was asked.

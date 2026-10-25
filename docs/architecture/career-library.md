@@ -284,6 +284,12 @@ that its premise happened. Regeneration proposes wording from known facts withou
 for another question. It changes only the selected field when the user accepts. Independent
 Improve with AI keeps its existing feedback and deferred-question workflow.
 
+Revisions use supplied qualitative outcomes without appending claims that missing metrics or
+other unsupplied results are unknown. Remaining evidence gaps belong in the assessment reason,
+not in the career text. Explicit source/user qualifications, such as an ongoing pilot whose
+effect has not yet been evaluated, still constrain the revision. Prior generated drafts are
+not new factual evidence for unsupported caveats.
+
 The owner lock serializes answer starts with other edits. Repeating the exact answer returns
 the latest linked turn without another enqueue; a different initial answer or unrelated live
 draft returns a conflict instead of replacing work. Failed generations show Retry revision,

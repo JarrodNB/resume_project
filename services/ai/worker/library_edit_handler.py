@@ -106,7 +106,8 @@ def handle_library_edit_task(task, dependencies):
                 render_review(values[0]) + f"\n\nImprove only target {label}."
                 + "\nReview question (generated guidance, not a statement of fact):\n" + values[1]
                 + "\nUser answer:\n" + values[2]
-                + "\nFurther questions are disabled. Generate a proposal from known facts and this answer; preserve unknowns.")
+                + "\nFurther questions are disabled. Generate a proposal from known facts and this answer."
+                + " Preserve explicitly supplied qualifications; do not add disclaimers about absent details.")
         else:
             prompt = bind_screened_prompt([source, feedback], lambda values:
                 render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + values[1])

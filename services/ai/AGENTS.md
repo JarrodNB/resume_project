@@ -82,7 +82,9 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   dialogue from authenticated Rails-owned public utterances and screens only the newest
   candidate message with `screening/conversation.py`. Frozen library field approvals are
   carried in the private claim and newly checked fields are persisted through its fenced
-  Rails callback before generation. Existing queued features retain their current guard.
+  Rails callback before generation. Preparation also persists an exact frozen career-focus
+  fingerprint through that callback and requires its receipt before generation, including
+  focus-only checks; retries reuse only matching fingerprints. Existing queued features retain their current guard.
   Job and career-library field approvals persist across ordinary tasks through final queue results.
   Job checks cover title, company, requirements and nice-to-haves only; fingerprinted reports
   can approve only matching current fields on the task's owned job. All new jobs start unchecked.

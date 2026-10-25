@@ -35,7 +35,7 @@ module Internal
 
     def screen_library
       respond Interviews::RecordLibraryScreeningService.call(operation: @operation, **claim_identity,
-        source_indices: params[:source_indices])
+        source_indices: params[:source_indices], career_focus_sha256: params[:career_focus_sha256])
     end
 
     def recording

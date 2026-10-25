@@ -343,3 +343,14 @@ def test_focus_fingerprints_match_shared_unicode_vectors():
         models = Models()
         client = run(models, request)
         assert ("screen_focus", vector["sha256"]) in client.calls
+
+
+@pytest.mark.parametrize("focus", ["\u00a0", "\u202f", "\u2003"])
+def test_unicode_whitespace_focus_requires_its_exact_receipt(focus):
+    from screening.job_fields import field_fingerprint
+    request = preparation_claim()
+    request.payload.frozen_context["sources"][0]["screened"] = True
+    request.payload.frozen_context["career_focus"] = focus
+    client = run(Models(), request)
+    assert client.accepted
+    assert ("screen_focus", field_fingerprint(focus)) in client.calls

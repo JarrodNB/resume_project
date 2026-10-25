@@ -347,7 +347,7 @@ For `/internal/interviews/operations/:id`:
   accidentally approve new text. Preparation may also submit optional `career_focus_sha256`,
   the SHA-256 of the exact frozen focus encoded as UTF-8 JSON without ASCII escaping or
   extra whitespace (Python `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`,
-  Ruby stdlib `JSON.generate`). Rails validates it against the locked nonblank focus before
+  Ruby stdlib `JSON.generate`). Rails validates it against the locked nonempty focus before
   any source writes and stores/returns `screened_career_focus_sha256`. Focus-only requests
   use `source_indices: []`; turn claims cannot grant focus checks. Source-only requests
   retain their existing response shape. This callback does not change general AI-result screening.

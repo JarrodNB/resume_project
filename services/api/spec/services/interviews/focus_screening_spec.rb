@@ -55,13 +55,21 @@ RSpec.describe "Interview career-focus screening" do
     expect(user.reload.screened_fields).to be_empty
   end
 
-  [ "", "  ", nil, {} ].each do |focus|
+  [ "", nil, {} ].each do |focus|
     it "cannot approve an absent or invalid focus #{focus.inspect}" do
       identity
       interview.update!(frozen_context: interview.frozen_context.merge("career_focus" => focus))
       expect(approve(indices: [ 0 ])).not_to be_success
       expect(user.reload.screened_fields).to be_empty
     end
+  end
+
+  it "checks a nonempty whitespace snapshot exactly without normalizing its value" do
+    identity
+    interview.update!(frozen_context: interview.frozen_context.merge("career_focus" => "  "))
+    expect(approve).to be_success
+    expect(interview.reload.frozen_context["career_focus"]).to eq("  ")
+    expect(interview.frozen_context["screened_career_focus_sha256"]).to eq(digest)
   end
 
   %i[attempt generation lease deadline expired abandoned ready].each do |problem|

@@ -53,4 +53,23 @@ RSpec.describe "Internal interview preparation", type: :request do
     expect(response.parsed_body).to eq("screened_source_indices" => [], "screened_career_focus_sha256" => digest)
     expect(interview.reload.frozen_context["screened_career_focus_sha256"]).to eq(digest)
   end
+
+  [ "\u00a0", "\u202f", "\u2003" ].each do |focus|
+    it "persists an accepted Unicode whitespace focus #{focus.codepoints.inspect} exactly" do
+      started = Interviews::StartPreparationService.call(user: owner, career_focus: focus)
+      expect(started).to be_success
+      session = started.value
+      expect(session.frozen_context["career_focus"]).to eq(focus)
+      path = "/internal/interviews/operations/#{session.operations.first.id}"
+      post "#{path}/claim", params: { execution_mode: "real" }, headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+      identity = response.parsed_body.slice("attempt_id", "claim_generation")
+      digest = Digest::SHA256.hexdigest(JSON.generate(focus))
+      post "#{path}/screen_library", params: identity.merge(source_indices: [], career_focus_sha256: digest), headers: headers, as: :json
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["screened_career_focus_sha256"]).to eq(digest)
+      expect(session.reload.frozen_context["career_focus"]).to eq(focus)
+      expect(session.frozen_context["screened_career_focus_sha256"]).to eq(digest)
+    end
+  end
 end

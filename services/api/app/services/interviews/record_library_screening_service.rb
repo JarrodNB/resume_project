@@ -29,7 +29,8 @@ module Interviews
 
         unless @focus_digest.nil?
           focus = context["career_focus"]
-          valid_focus = @operation.preparation? && interview.preparing? && focus.is_a?(String) && focus.present? &&
+          # Admission and Python preserve nonempty Unicode whitespace strings exactly.
+          valid_focus = @operation.preparation? && interview.preparing? && focus.is_a?(String) && !focus.empty? &&
             @focus_digest.is_a?(String) && @focus_digest.match?(/\A[0-9a-f]{64}\z/) &&
             @focus_digest == Digest::SHA256.hexdigest(JSON.generate(focus))
           next failure("Invalid career focus check") unless valid_focus

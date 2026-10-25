@@ -32,6 +32,18 @@ RSpec.describe GraphqlChannel, type: :channel do
     expect(transmission["result"]["data"]).to be_nil
   end
 
+  it "opens an owner-scoped outcome feed with a baseline and no historical task payload" do
+    other_task = create(:ai_task)
+    AiTasks::UpdateTaskService.call(task: other_task, attributes: { status: "completed", completed_at: Time.current })
+    stub_connection current_user: user, session_valid?: true, check_session: nil
+    subscribe
+    query = "subscription { aiTaskFinished { cursor outcome { id taskId status title destination completedAt } } }"
+    perform :execute, "query" => query
+    expect(transmissions.last["result"]["errors"]).to be_nil
+    expect(transmissions.last["more"]).to be(true)
+    expect(transmissions.last["result"]["data"]["aiTaskFinished"]).to eq("cursor" => "0", "outcome" => nil)
+  end
+
   it "blocks private delivery and new operations when an open session is revoked" do
     session_id = Rack::Session::SessionId.new(SecureRandom.hex(32))
     record = ActiveRecord::SessionStore::Session.create!(session_id: session_id.private_id,

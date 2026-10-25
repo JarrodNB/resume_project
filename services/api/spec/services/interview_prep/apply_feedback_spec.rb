@@ -64,7 +64,7 @@ RSpec.describe "Applying interview answer feedback" do
       expect(question.reload).to have_attributes(answer_text: original_answer, answer_revision: 1,
         feedback: feedback, feedback_answer_revision: 1, feedback_question_revision: 1)
       expect(user.library_facts).to be_empty
-      expect(ApiSchema.subscriptions).to have_received(:trigger).once
+      expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
     end
   end
 
@@ -87,7 +87,7 @@ RSpec.describe "Applying interview answer feedback" do
       feedback: feedback, feedback_question_revision: 1, feedback_answer_revision: 2)
     expect(task.reload).to be_completed
     expect(task.cost_microdollars).to eq(30)
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
   end
 
   it "stores delayed feedback against the old answer revision after an edit" do

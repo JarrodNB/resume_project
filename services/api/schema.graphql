@@ -83,6 +83,20 @@ type AiTask {
   taskType: AiTaskTypeEnum!
 }
 
+type AiTaskOutcome {
+  completedAt: ISO8601DateTime!
+  destination: String!
+  id: ID!
+  status: AiTaskStatusEnum!
+  taskId: ID!
+  title: String!
+}
+
+type AiTaskOutcomeFeed {
+  cursor: String!
+  outcome: AiTaskOutcome
+}
+
 enum AiTaskStatusEnum {
   COMPLETED
   FAILED
@@ -2577,6 +2591,7 @@ type SubmitInterviewTurnPayload {
 }
 
 type Subscription {
+  aiTaskFinished: AiTaskOutcomeFeed!
   aiTaskUpdated(id: ID!): AiTask!
   interviewSessionUpdated(id: ID!): InterviewSession!
 }

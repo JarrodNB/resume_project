@@ -15,6 +15,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  */
 type Documents = {
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": typeof types.AiTaskUpdatedDocument,
+    "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": typeof types.TaskOutcomeDocument,
     "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteExperienceDocument,
     "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteProjectDocument,
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteEducationDocument,
@@ -98,6 +99,7 @@ type Documents = {
 };
 const documents: Documents = {
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": types.AiTaskUpdatedDocument,
+    "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n": types.TaskOutcomeDocument,
     "\n  mutation DeleteExperience($id: ID!) {\n    deleteExperience(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteExperienceDocument,
     "\n  mutation DeleteProject($id: ID!) {\n    deleteProject(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteProjectDocument,
     "\n  mutation DeleteEducation($id: ID!) {\n    deleteEducation(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteEducationDocument,
@@ -198,6 +200,10 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n"): (typeof documents)["\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n"): (typeof documents)["\n  subscription TaskOutcome {\n    aiTaskFinished {\n      cursor\n      outcome {\n        id\n        taskId\n        status\n        title\n        destination\n        completedAt\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

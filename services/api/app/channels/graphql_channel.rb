@@ -17,7 +17,7 @@ class GraphqlChannel < ApplicationCable::Channel
       data["query"],
       variables: data["variables"] || {},
       operation_name: data["operationName"],
-      context: { current_user: current_user, channel: self }
+      context: { current_user: current_user, current_user_id: current_user.id, channel: self }
     )
     @subscription_ids << result.context[:subscription_id] if result.context[:subscription_id]
     transmit({ result: result.to_h, more: result.subscription? })

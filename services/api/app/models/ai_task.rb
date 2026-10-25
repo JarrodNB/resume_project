@@ -12,6 +12,7 @@
 #   - accepted?: true once the user has accepted the result into their data
 #   - Historical generation columns are unused; per-attempt reports deduplicate billing.
 #   - ai_usage_attempts: execution reports, including retry charges and unknown costs
+#   - ai_task_outcomes: separate durable success/failure occurrences, including explicit retries
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
                   generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification].freeze
@@ -22,6 +23,7 @@ class AiTask < ApplicationRecord
   belongs_to :subject, polymorphic: true, optional: true
   has_one_attached :source_file
   has_many :ai_usage_attempts, dependent: :destroy
+  has_many :ai_task_outcomes, dependent: :delete_all
   belongs_to :hourly_admission_task, class_name: "AiTask", optional: true
   attr_readonly :hourly_admission_task_id
   scope :hourly_admissions, -> { where(hourly_admission_task_id: nil) }

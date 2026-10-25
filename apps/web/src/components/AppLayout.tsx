@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
+import { TaskNotifications } from '@/features/ai-tasks/TaskNotifications'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
 ]
 
 export function AppLayout() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const [signOutError, setSignOutError] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   async function handleSignOut() {
@@ -47,6 +48,7 @@ export function AppLayout() {
 
   return (
     <div className="workspace">
+      {user && <TaskNotifications key={user.id} userId={user.id} />}
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="workspace-sidebar">
         <Link to="/library" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>

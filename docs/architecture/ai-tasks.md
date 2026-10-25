@@ -314,3 +314,24 @@ questionless assessments remain valid.
 returns its latest task and last completed grades with current freshness. No career text is
 saved by this task. Unsupported sections fail before enqueueing; oversized sections fail
 without truncation. Existing usage limits, retries, privacy, and subscriptions apply.
+
+## Task outcome notifications
+
+The signed-in workspace shows an in-app notice when any AI task completes or fails,
+including when the user is already on its page. This covers queued work and durable
+interview work; no task-type allowlist or current-page suppression applies. A pause
+for user input, usage accounting, or an automatic execution retry is not a terminal
+outcome. Existing pages continue to show their detailed task state and errors.
+
+Rails records terminal occurrences separately from the current task state. This is
+necessary because an explicit interview retry can reuse a failed task and overwrite
+its previous outcome. The occurrence contains task identity, type, status and completion
+time; notice payloads contain a safe label and owned app destination rather than raw
+model results, prompt input, provider errors, or recording URLs. Deleted destinations
+fall back to an appropriate overview where possible.
+
+Task changes and outcome insertion commit together. Writers acquire the owner lock
+before task locks, which also orders occurrence cursors through commit for that owner.
+Live delivery happens after all enclosing transactions commit. Transport failure does
+not undo accepted work: the saved occurrences support subsequent catch-up. Existing
+per-task subscriptions remain available to feature pages.

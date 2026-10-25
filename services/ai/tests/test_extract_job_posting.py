@@ -108,6 +108,16 @@ def test_too_many_bullets_skip_the_sorter_and_warn() -> None:
     assert POSTING_TOO_LONG_TO_SORT_WARNING in extraction.posting.warnings
 
 
+def test_heading_extraction_accepts_exactly_the_saved_item_limit() -> None:
+    """Exactly 80 required items fit Rails' saved posting contract without warnings."""
+    items = "".join(f"<li>Requirement {index}</li>" for index in range(MAX_REQUIREMENT_ITEMS))
+
+    posting = extract_job_posting(build_page(f"<h3>Requirements</h3><ul>{items}</ul>"), never_called).posting
+
+    assert len(posting.requirements) == MAX_REQUIREMENT_ITEMS
+    assert POSTING_LEFT_OUT_WARNING not in posting.warnings
+
+
 def test_heading_extraction_over_the_save_caps_still_returns_a_posting() -> None:
     """Rails would refuse more than 80 requirements, a long bullet, or a long description.
     Those are left out and the posting is still returned, with a warning."""

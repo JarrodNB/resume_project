@@ -1,4 +1,4 @@
-# Validates grades against the exact owned task snapshot. Model output may describe
+# Validates grades and optional questions against the exact owned task snapshot. Output may describe
 # targets, but it cannot introduce target identities or write career facts.
 module CareerLibrary
   class ApplyReviewService < ApplicationService
@@ -47,7 +47,9 @@ module CareerLibrary
         target = expected[key]
         next false unless target && !seen.include?(key) && item["source_digest"] == target["source_digest"]
         seen << key
-        %w[red yellow green].include?(item["color"]) && item["reason"].is_a?(String) && item["reason"].strip.present? && item["reason"].length <= 240
+        question = item["question"]
+        valid_question = question.nil? || (question.is_a?(String) && question.strip.present? && question.length <= 500)
+        valid_question && %w[red yellow green].include?(item["color"]) && item["reason"].is_a?(String) && item["reason"].strip.present? && item["reason"].length <= 240
       end
       valid ? success(nil) : failure([ "The review returned invalid assessments. Please try again." ])
     end

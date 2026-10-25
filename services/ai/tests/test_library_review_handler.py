@@ -32,7 +32,8 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
 
     with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
         {"target_label": "T1", "color": "yellow", "reason": "Explain what the services did."},
-        {"target_label": "T2", "color": "red", "reason": "Describe your contribution to the migration."},
+        {"target_label": "T2", "color": "red", "reason": "Describe your contribution to the migration.",
+         "question": "What did you personally do during the migration?"},
     ]})):
         result = handle_ai_task(task, task_dependencies)
 
@@ -41,6 +42,8 @@ def test_reviews_only_selected_targets_with_traffic_lights(task_dependencies):
         ("role-1", "yellow"), ("bullet-1", "red"),
     ]
     assert result.result["assessments"][1]["source_digest"] == "b" * 64
+    assert result.result["assessments"][1]["question"] == "What did you personally do during the migration?"
+    assert result.result["assessments"][0].get("question") is None
     assert result.usage
 
 
@@ -90,6 +93,20 @@ def test_blocked_source_stops_before_generation(task_dependencies, monkeypatch):
     assert result.status == "failed"
     assert "safety check" in result.error_message
     assert result.result is None
+
+
+@pytest.mark.parametrize("question", ["", "   ", "x" * 501, 123, ["What did you do?"]])
+def test_rejects_malformed_generated_questions(task_dependencies, question):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+
+    from agents.library_review_agent import library_review_agent
+
+    task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="review_library_section", input=review_input())
+    with library_review_agent.override(model=TestModel(custom_output_args={"assessments": [
+        {"target_label": "T1", "color": "yellow", "reason": "Clarify scope.", "question": question},
+        {"target_label": "T2", "color": "red", "reason": "Clarify contribution."},
+    ]})), pytest.raises(UnexpectedModelBehavior):
+        handle_ai_task(task, task_dependencies)
 
 
 def test_oversized_section_fails_without_model_or_screen_calls(task_dependencies, monkeypatch):

@@ -274,8 +274,11 @@ The worker retries through SQS redelivery instead of in-process loops:
 
 `review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
 section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
-It returns `{assessments: [{kind, record_id, field, source_digest, color, reason}]}`. The model
-emits only target labels, colors, and reasons; code copies the identities from the snapshot.
+It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, question}]}`.
+The optional `question` is null when no useful fact is missing, otherwise one focused question
+of at most 500 characters. Old results may omit it. The model emits only target labels, colors,
+reasons, and questions; code copies the identities from the snapshot. Questions are completed
+review output, not deferred calls: users can address each detail independently.
 `reviewLibrarySection` starts or reuses an active section task; `libraryReview(section:)`
 returns its latest task and last completed grades with current freshness. No career text is
 saved by this task. Unsupported sections fail before enqueueing; oversized sections fail

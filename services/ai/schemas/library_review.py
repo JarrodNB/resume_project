@@ -1,4 +1,4 @@
-"""Small traffic-light assessments and the exact saved targets a section review covers."""
+"""Traffic-light assessments and optional questions for the exact saved review targets."""
 
 from typing import Literal
 
@@ -40,11 +40,15 @@ def validate_section_library(section: str, library: CareerLibrary) -> None:
 
 
 class LibraryAssessmentDraft(BaseModel):
-    """One useful nudge, not a numerical rating of someone's career."""
+    """A short reason and, when facts are missing, one focused enrichment question."""
 
     target_label: str = Field(description="Copy the supplied target label, such as T1.")
     color: Literal["red", "yellow", "green"]
     reason: str = Field(min_length=1, max_length=240, description="One short, specific reason for this color; no invented facts.")
+    question: str | None = Field(
+        default=None, min_length=1, max_length=500,
+        description="One focused question about a useful missing fact, or null when no additional fact is needed. Never require metrics or invent a premise.",
+    )
 
 
 class LibraryReviewDraft(BaseModel):

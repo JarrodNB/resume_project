@@ -60,7 +60,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   resumes with that history plus `DeferredToolResults`. Career-library editing implements
   this with distinct linked tasks per turn; browser input never supplies saved agent history.
   Its handler restores exact coverage for previous checked/generated messages and screens
-  only new feedback/answers. Gap analysis doesn't ask questions.
+  only new feedback/answers. Completed career-library section reviews are a scoped
+  exception: they return independent optional enrichment questions with their assessments,
+  without pausing a section-wide agent. Answers start separate individual regeneration
+  tasks, rather than resuming review history. Gap analysis doesn't ask questions.
   Tailoring generates one complete draft per queued execution and does not use `ask_user`.
 - **User-written text is screened for prompt injection before it enters a prompt** (`screening/`), including
   an uploaded resume before it is parsed. Jev, local Llama Prompt Guard, and a configurable LLM are selectable

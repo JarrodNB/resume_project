@@ -88,7 +88,9 @@ their category.
 - `LibrarySectionReview` runs review from the original section and shows progress and errors
   there. The shared workspace is for individual editing; it has no overview list or section picker.
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
-  live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral stale/unreviewed state.
+  live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral
+  stale/unreviewed state. Current enrichment questions appear beside the assessed detail
+  and in the selected workspace; stale questions are hidden.
 - Summary, Experience, Projects, and Facts each have independent explicit review actions.
   Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact
   responses; other sections and profile contact fields are not sent as context. Highlight moves

@@ -33,15 +33,17 @@ for (const item of cases) {
       ...emptyLibraryReviewMocks.filter((mock) => mock.request.variables.section !== item.section),
       { request: { query: LIBRARY_REVIEW_QUERY, variables: { section: item.section } },
         result: { data: { libraryReview: { __typename: 'LibraryReview', aiTask: null, assessments: [
-          { __typename: 'LibraryAssessment', kind: item.kind, recordId: item.id, field: item.field, color: 'yellow', reason: 'Clarify your contribution.', stale: false },
+          { __typename: 'LibraryAssessment', kind: item.kind, recordId: item.id, field: item.field, color: 'yellow', reason: 'Clarify your contribution.', question: 'What was your own contribution?', stale: false },
         ] } } } },
       { request: { query: LIBRARY_EDIT_QUERY, variables: { kind: item.kind, recordId: item.id } },
         result: { data: { libraryEdit: { __typename: 'LibraryEdit', stale: false, aiTask: null } } } },
     ] })
     expect(screen.getByRole('button', { name: `Review ${item.title}` })).toBeEnabled()
     expect((await screen.findAllByText('Could improve')).length).toBeGreaterThan(0)
+    expect(screen.getByText('What was your own contribution?')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Improve with AI' }))
     expect(await screen.findByLabelText('What would you like to improve? (optional)')).toBeEnabled()
+    expect(screen.getAllByText('What was your own contribution?')).toHaveLength(2)
     expect(screen.getByRole('button', { name: 'Generate revision' })).toBeEnabled()
   })
 }

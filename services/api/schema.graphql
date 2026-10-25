@@ -1191,6 +1191,7 @@ type LibraryAssessment {
   color: String!
   field: String!
   kind: String!
+  question: String
   reason: String!
   recordId: ID!
   stale: Boolean!

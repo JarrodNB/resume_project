@@ -49,8 +49,29 @@ RSpec.describe "Career library review results" do
 
   def state(owner = user)
     execute_graphql(<<~GQL, user: owner).dig("data", "libraryReview")
-      query { libraryReview(section: "experience") { aiTask { id status errorMessage } assessments { recordId color reason stale } } }
+      query { libraryReview(section: "experience") { aiTask { id status errorMessage } assessments { recordId color reason question stale } } }
     GQL
+  end
+
+  it "exposes saved questions with their assessed targets while old questionless results remain readable" do
+    result = result_for(task)
+    result["assessments"].last["question"] = "What did you personally do during the migration?"
+    apply(task, result)
+
+    grades = state["assessments"].index_by { |item| item["recordId"] }
+    expect(grades[highlight.id]["question"]).to eq("What did you personally do during the migration?")
+    expect(grades[role.id]["question"]).to be_nil
+    expect(highlight.reload.content).to eq("Helped migrate services")
+  end
+
+  ["", "   ", "x" * 501, 123, ["What did you do?"]].each do |question|
+    it "rejects malformed review questions (#{question.class}, length #{question.to_s.length})" do
+      result = result_for(task)
+      result["assessments"].last["question"] = question
+      apply(task, result)
+      expect(task.reload.status).to eq("failed")
+      expect(task.result).to be_nil
+    end
   end
 
   it "persists current grades and marks only changed role context stale" do

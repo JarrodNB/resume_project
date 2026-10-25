@@ -1,4 +1,4 @@
-/** Makes review feedback easy to scan, with a named grade and its explanation.
+/** Shows a review grade, explanation, and optional question about missing evidence.
  * Outdated feedback loses its grade so it cannot look like current advice.
  */
 import { CircleCheck, CircleDashed, CircleAlert, CircleHelp, RotateCcw } from 'lucide-react'
@@ -9,6 +9,7 @@ export interface Assessment {
   field: string
   color: string
   reason: string
+  question?: string | null
   stale: boolean
 }
 
@@ -28,6 +29,7 @@ export function LibraryAssessment({ assessment, compact = false }: { assessment?
         {grade?.label ?? (assessment?.stale ? 'Needs review' : 'Not reviewed')}
       </span>
       {!compact && grade && assessment?.reason && <p className="max-w-prose text-pretty text-muted-foreground">{assessment.reason}</p>}
+      {grade && assessment?.question && <p className="max-w-prose text-pretty font-medium">{assessment.question}</p>}
     </div>
   )
 }

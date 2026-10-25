@@ -53,8 +53,10 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Facts section
   with per-record context digests. Only narrative fields become targets.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
-  returns its last completed individual grades with current/stale state. Results stay on `AiTask`.
-- `ApplyReviewService` validates exact target coverage and records screening approvals only
+  returns its last completed individual grades and optional enrichment questions with
+  current/stale state. Results stay on `AiTask`.
+- `ApplyReviewService` validates exact target coverage and optional nonblank questions (at most 500 characters),
+  accepting old questionless results. It records screening approvals only
   while the source field still matches the queued snapshot under its record lock.
 
 ## Individual editing

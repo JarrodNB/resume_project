@@ -156,7 +156,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 
 - `run_library_review_evals.py` / `datasets/library_review_cases.yaml` — eight synthetic
   section reviews through real production screening and grading. Hand labels check color
-  calibration, including qualitative results, vague assistance despite counts, and concrete
+  and question-presence calibration, and an input-aware judge checks question usefulness and
+  unsupported premises. Cases include qualitative results, vague assistance despite counts, and concrete
   observation without hands-on duties. This small set does not
   establish broad writing quality. Run `python -m evals.run_library_review_evals`.
 - `run_library_edit_evals.py` / `datasets/library_edit_cases.yaml` — nine synthetic edits

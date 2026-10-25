@@ -1,4 +1,4 @@
-"""Screen one saved section and return individual grades without changing career facts."""
+"""Screen one saved section and return grades and optional questions without changing facts."""
 
 from agents.library_review_agent import review_library_section
 from schemas.library_review import LibraryReviewInput
@@ -78,7 +78,8 @@ def handle_library_review_task(task, dependencies):
     by_label = {item.target_label: item for item in run.draft.assessments}
     assessments = [
         {**target.model_dump(exclude={"label"}), "color": by_label[target.label].color,
-         "reason": by_label[target.label].reason.strip()}
+         "reason": by_label[target.label].reason.strip(),
+         "question": by_label[target.label].question.strip() if by_label[target.label].question is not None else None}
         for target in snapshot.targets
     ]
     return AiResultMessage(

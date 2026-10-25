@@ -1,11 +1,11 @@
-/** Section-scoped review requests and saved traffic-light assessments. */
+/** Section-scoped review requests and saved assessments with optional enrichment questions. */
 import { graphql } from '@/graphql/generated'
 
 export const LIBRARY_REVIEW_QUERY = graphql(`
   query LibraryReview($section: String!) {
     libraryReview(section: $section) {
       aiTask { id status errorMessage }
-      assessments { kind recordId field color reason stale }
+      assessments { kind recordId field color reason question stale }
     }
   }
 `)

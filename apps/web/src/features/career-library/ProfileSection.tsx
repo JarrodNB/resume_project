@@ -6,10 +6,8 @@
  *   - ProfileSection: profile card with an empty state and an edit button
  */
 import { useState } from 'react'
-import { ErrorAlert } from '@/components/ErrorAlert'
-import { LibraryAssessment } from './LibraryAssessment'
-import { LibraryEditControl } from './LibraryEditControl'
-import { useLibraryReview } from './useLibraryReview'
+import { LibrarySectionReview } from './LibrarySectionReview'
+import { LibraryDetail } from './LibraryDetail'
 import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
@@ -19,7 +17,6 @@ type Profile = CareerLibraryQuery['me']
 
 /** Shows the profile and opens the form that edits it. */
 export function ProfileSection({ profile }: { profile: Profile }) {
-  const review = useLibraryReview('summary', profile.summary ?? '')
   const [editing, setEditing] = useState(false)
   const contactLine = [profile.contactEmail, profile.phone, profile.location].filter(Boolean).join(' · ')
   const isEmpty = !profile.name && !contactLine && profile.links.length === 0 && !profile.summary
@@ -45,15 +42,11 @@ export function ProfileSection({ profile }: { profile: Profile }) {
             </ul>
           )}
           <div className="mt-2 grid gap-2 border-t pt-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="text-sm font-medium">Summary</h3>
-              <Button variant="outline" size="sm" disabled={review.busy || !profile.summary} onClick={() => void review.start()}>{review.busy ? 'Reviewing…' : 'Review Summary'}</Button>
-            </div>
-            <ErrorAlert title="Could not review Summary" messages={review.errors} />
+            <h3 className="text-sm font-medium">Summary</h3>
+            <LibrarySectionReview section="summary" />
+
             {profile.summary ? <>
-              <p className="text-sm">{profile.summary}</p>
-              <LibraryAssessment assessment={review.assessments.find((item) => item.kind === 'user' && item.recordId === profile.id)} />
-              <LibraryEditControl kind="user" recordId={profile.id} currentText={profile.summary} sourceRevision={profile.summary} />
+              <LibraryDetail kind="user" recordId={profile.id} text={profile.summary} />
             </> : <p className="text-sm text-muted-foreground">Add a summary to review or improve it with AI.</p>}
           </div>
         </>

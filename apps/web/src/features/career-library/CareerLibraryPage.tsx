@@ -8,12 +8,14 @@
  *   - CareerLibraryPage: page component
  */
 import { DragDropProvider } from '@dnd-kit/react'
-import { ArrowUpRight, FileUp } from 'lucide-react'
+import { FileUp } from 'lucide-react'
 import { Link } from 'react-router'
 import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import { LibraryWorkspace } from './LibraryWorkspace'
+import { LibraryAiWorkspace } from './LibraryAiWorkspace'
 import { ClearLibraryButton } from './ClearLibraryButton'
 import { CertificationSection } from './CertificationSection'
 import { EducationSection } from './EducationSection'
@@ -34,7 +36,7 @@ export function CareerLibraryPage() {
   const { handlers, highlightsOf } = useLibraryDragHandlers(library, reordering)
 
   return (
-    <div className="mx-auto grid max-w-3xl gap-6">
+    <div className="library-page mx-auto grid gap-6">
       <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." actions={
         <Button asChild><Link to="/import"><FileUp /> Import a resume</Link></Button>
       } />
@@ -43,7 +45,8 @@ export function CareerLibraryPage() {
       <ErrorAlert title="Couldn't save that change" messages={reordering.errors} />
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
       {library && (
-        <div className="library-layout">
+        <LibraryWorkspace library={library} movingHighlight={reordering.movingHighlight}>
+        <div className="library-workspace-layout">
           <div className="library-sections">
             <DragDropProvider {...handlers}>
               <ProfileSection profile={library.me} />
@@ -56,13 +59,9 @@ export function CareerLibraryPage() {
             </DragDropProvider>
             <div className="mt-4 flex justify-end border-t pt-4"><ClearLibraryButton /></div>
           </div>
-          <aside className="library-guide" aria-label="How to use your career library">
-              <p><strong>Good applications start here.</strong><br />Keep your roles, projects, and achievements together. Add details as you remember them.</p>
-              <p>When a role catches your eye, compare it with your library and shape a resume around your relevant experience.</p>
-              <Link to="/jobs">Explore your saved jobs <ArrowUpRight size={16} aria-hidden /></Link>
-              <Link to="/resumes">Review your resumes <ArrowUpRight size={16} aria-hidden /></Link>
-          </aside>
+          <LibraryAiWorkspace />
         </div>
+        </LibraryWorkspace>
       )}
     </div>
   )

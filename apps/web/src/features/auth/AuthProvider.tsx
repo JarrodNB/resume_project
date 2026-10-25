@@ -1,9 +1,11 @@
 /** Loads the browser session before rendering routes and isolates session transitions.
- * Cookies remain private to the browser. Failed bootstrap requests offer an explicit retry. */
+ * Cookies remain private to the browser. Failed bootstrap requests show an app availability
+ * message and offer a retry without changing the requested route or clearing credentials. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { onInvalidCsrf, sessionRequest, signInRequest, signOutRequest, signUpRequest, type AuthCredentials, type BrowserSession } from './authApi'
 import { AuthContext, type AuthContextValue } from './authContext'
-import { productStorageKey } from '@/lib/productName'
+import { PRODUCT_NAME, productStorageKey } from '@/lib/productName'
+import { Button } from '@/components/ui/button'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<BrowserSession | null>(null)
@@ -61,7 +63,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     broadcasts.current?.postMessage('changed')
     expireSession()
   }, [session, expireSession])
-  if (error) return <div role="alert">Could not check your session. <button onClick={() => { setError(false); setAttempt((value) => value + 1) }}>Try again</button></div>
+  if (error) return <main className="flex min-h-svh items-center justify-center px-6 py-12">
+    <div className="grid w-full max-w-md justify-items-start gap-6">
+      <div role="alert" className="grid gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">We couldn’t load {PRODUCT_NAME}</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">Something went wrong on our side. Please try again in a moment.</p>
+      </div>
+      <Button type="button" className="min-h-11" onClick={() => { setError(false); setAttempt((value) => value + 1) }}>Try again</Button>
+    </div>
+  </main>
   if (!session) return <p role="status">Checking your session…</p>
   const value: AuthContextValue = { ...session, signIn, signUp, signOut, expireSession }
   return <AuthContext value={value}>{children}</AuthContext>

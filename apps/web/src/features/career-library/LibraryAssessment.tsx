@@ -1,4 +1,8 @@
-/** A small text-labeled traffic light; outdated colors never look like current advice. */
+/** Makes review feedback easy to scan, with a named grade and its explanation.
+ * Outdated feedback loses its grade so it cannot look like current advice.
+ */
+import { CircleCheck, CircleDashed, CircleAlert, CircleHelp, RotateCcw } from 'lucide-react'
+
 export interface Assessment {
   kind: string
   recordId: string
@@ -14,15 +18,16 @@ const grades: Record<string, { label: string; className: string }> = {
   green: { label: 'Looks good', className: 'text-green-800 dark:text-green-300' },
 }
 
-export function LibraryAssessment({ assessment }: { assessment?: Assessment }) {
+export function LibraryAssessment({ assessment, compact = false }: { assessment?: Assessment; compact?: boolean }) {
   const grade = assessment && !assessment.stale ? grades[assessment.color] : null
+  const Icon = !grade ? (assessment?.stale ? RotateCcw : CircleDashed) : assessment?.color === 'green' ? CircleCheck : assessment?.color === 'red' ? CircleAlert : CircleHelp
   return (
-    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-xs">
-      <span className={`inline-flex items-center gap-1.5 ${grade?.className ?? 'text-muted-foreground'}`}>
-        {grade && <span aria-hidden="true" className="size-2 rounded-full bg-current" />}
+    <div className="library-assessment grid gap-1 py-2 text-sm leading-relaxed">
+      <span className={`inline-flex items-center gap-2 font-medium ${grade?.className ?? 'text-muted-foreground'}`}>
+        <Icon aria-hidden="true" className="size-4 shrink-0" />
         {grade?.label ?? (assessment?.stale ? 'Needs review' : 'Not reviewed')}
       </span>
-      {grade && <span className="text-muted-foreground">{assessment?.reason}</span>}
+      {!compact && grade && assessment?.reason && <p className="max-w-prose text-pretty text-muted-foreground">{assessment.reason}</p>}
     </div>
   )
 }

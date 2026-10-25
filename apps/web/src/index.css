@@ -223,12 +223,10 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .page-heading h1 { font-size: 2rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
 .page-heading p { margin-top: 10px; max-width: 65ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
 .page-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.library-layout { display: grid; grid-template-columns: minmax(0, 1fr) 220px; align-items: start; gap: 32px; }
 .library-sections { display: grid; gap: 12px; min-width: 0; }
-.library-guide { padding: 20px 0 20px 24px; border-left: 1px solid var(--border); font-size: 13px; line-height: 1.7; }
-.library-guide p { color: var(--muted-foreground); margin-bottom: 18px; }
-.library-guide a { display: flex; justify-content: space-between; align-items: center; padding: 13px 0; border-top: 1px solid var(--border); font-weight: 500; color: var(--primary); gap: 10px; }
-.library-guide strong { color: var(--foreground); font-weight: 500; }
+
+/* Keep long career details within their review workspace. */
+.library-assessment, .library-edit-panel { overflow-wrap: anywhere; }
 .record-list { display: grid; }
 .record-list > li + li { border-top: 1px solid var(--border); }
 .record-link { display: flex; align-items: center; gap: 20px; padding: 24px 16px; border-radius: 8px; transition: background-color 160ms; }
@@ -303,8 +301,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .workspace-content { padding: 36px 28px 64px; }
   .workspace-topbar { padding: 0 28px; }
   .workspace-principle { display: none; }
-  .library-layout { grid-template-columns: minmax(0, 1fr); }
-  .library-guide { border-left: 0; border-top: 1px solid var(--border); padding: 24px 0 0; }
   .auth-introduction { padding: 40px 32px; }
   .auth-message h1 { font-size: 2.5rem; }
 }
@@ -350,4 +346,28 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 899px) {
   .workspace-nav { position: relative; }
   .workspace-content [data-slot=button] { min-height: 44px; }
+}
+
+/* Career library AI work stays beside the records; mobile gives it a focused screen. */
+.library-page { max-width: 1440px; }
+.library-workspace-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 354px); align-items: start; gap: 28px; }
+.library-ai-dock { position: sticky; top: 24px; min-width: 0; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; scrollbar-color: var(--input) transparent; }
+.library-ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.library-ai-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
+.library-ai-heading h2 > svg { width: 17px; height: 17px; color: var(--primary); }
+.library-ai-heading h2:focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.library-ai-body { display: grid; gap: 18px; padding: 20px; overflow-wrap: anywhere; }
+.library-ai-body .library-assessment { padding: 0; }
+.library-ai-body .library-assessment p { font-size: 13px; line-height: 1.7; }
+.library-detail { min-width: 0; padding: 10px; border-radius: 7px; scroll-margin-block: 24px; overflow-wrap: anywhere; }
+.library-detail[data-selected] { background: var(--secondary); outline: 1px solid var(--primary); outline-offset: -1px; }
+.library-detail .library-assessment { padding: 0; font-size: 12px; }
+.library-detail .library-assessment svg { width: 14px; height: 14px; }
+[data-slot=dialog-content].library-ai-mobile { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; transform: none; translate: none; border-radius: 0; padding: 0; display: block; overflow-y: auto; box-shadow: none; animation: none; }
+.library-ai-mobile .library-ai-heading { padding-top: max(18px, env(safe-area-inset-top)); }
+.library-ai-mobile .library-ai-body { padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.library-ai-mobile [data-slot=button] { min-height: 44px; }
+.library-ai-mobile textarea, .library-ai-mobile select { font-size: 16px; }
+@media (max-width: 899px) {
+  .library-workspace-layout { grid-template-columns: minmax(0, 1fr); }
 }

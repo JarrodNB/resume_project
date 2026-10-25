@@ -76,6 +76,17 @@ their category.
 
 ## AI section review
 
+- `LibraryWorkspace` shares review state and panel selection across the page. Selection
+  stores target identity; `libraryReviewTargets` derives current source text and revisions
+  from the latest library data. `LibraryAiWorkspace` edits one selected detail in a right
+  dock above 899px; its idle state gives a short selection instruction. At 899px and below,
+  selecting a detail opens a full-screen modal dialog.
+- `LibraryDetail` keeps saved text and compact grades in the record and highlights the
+  selected source. Selecting a detail opens its remembered section and focuses the workspace
+  heading without scrolling the page. Closing also restores focus without scrolling.
+  Mobile exposes saved text in a disclosure.
+- `LibrarySectionReview` runs review from the original section and shows progress and errors
+  there. The shared workspace is for individual editing; it has no overview list or section picker.
 - `useLibraryReview` owns explicit section review, saved assessments, freshness refetches, and
   live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral stale/unreviewed state.
 - Summary, Experience, Projects, and Facts each have independent explicit review actions.
@@ -83,6 +94,8 @@ their category.
   responses; other sections and profile contact fields are not sent as context. Highlight moves
   refresh assessments after saving, because the optimistic
   library change may be visible before persistence.
-- `LibraryEditControl` opens an inline individual edit; `useLibraryEdit` owns loading, queued
+- `LibraryEditControl` selects an individual edit in the shared AI workspace;
+  `LibraryEditPanel` renders it there. `useLibraryEdit` owns loading, queued
   turns, questions/skip, revision feedback, acceptance/discard and subscription recovery.
-  Closing keeps saved work; discarding closes it server-side. Accepted targets can start again.
+  Closing clears selection, keeps server-owned drafts, and returns focus to the source opener
+  if it remains in the page; discarding closes the draft server-side. Accepted targets can start again.

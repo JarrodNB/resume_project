@@ -42,6 +42,8 @@ All business logic, as service objects grouped by domain folder.
   `listing_description.rb` reads HTML as plain text and copies bullets only under known
   headings; neither helper calls the provider or AI.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
+  `record_screening_service.rb` persists successful used-field checks only for the task's
+  owned Job and matching fingerprints; edits lock/reload and clear changed field checks atomically;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
   `scrape_job`);   `create_job_from_scraped_posting_service.rb` (saves the Job from a

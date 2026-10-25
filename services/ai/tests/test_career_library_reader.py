@@ -74,6 +74,7 @@ def test_reads_the_job_and_library_in_rails_order(
         requirements=Jsonb(["5 years of Python"]),
         responsibilities=Jsonb(["Ship models"]),
         nice_to_haves=Jsonb(["Kubernetes"]),
+        screened_fields=["title", "requirements"],
     )
     old_role = _insert(
         admin_connection,
@@ -139,6 +140,8 @@ def test_reads_the_job_and_library_in_rails_order(
 
     assert context is not None
     assert context.job.requirements == ["5 years of Python"]
+    assert context.job.screened_fields == ["title", "requirements"]
+    assert "screened_fields" not in context.job.model_dump_json()
     assert context.job.responsibilities == ["Ship models"]
     assert context.job.nice_to_haves == ["Kubernetes"]
     library = context.career_library

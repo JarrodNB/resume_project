@@ -38,7 +38,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
@@ -52,6 +52,19 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   Rails merges allowlisted field names into the owning records, including when generation
   failed. Duplicate reports are harmless; unknown kinds/fields and other owners are ignored.
   Usage-only retry reports do not carry saved field checks.
+
+  Final completed/failed gap-analysis and tailoring results may also contain `job_screening`
+  entries `{job_id, fields: {field_name: sha256}}`. Each fingerprint covers the exact typed
+  field value encoded as UTF-8 JSON without extra whitespace or ASCII escaping (Python
+  `json.dumps(..., ensure_ascii=False, separators=(',', ':'))`, Ruby stdlib `JSON.generate`).
+  Only title, company, requirements and nice-to-haves are used and approved. Lists are
+  ordered whole fields. Rails locks the task's owned Job and approves only matching current
+  values; stale, foreign, unrelated and deleted sources cannot earn approval. Reports
+  remain outside model prompts and do not contain raw Job text. Successful checks persist
+  even when later generation fails; usage-only and finished-task redeliveries cannot restore checks.
+  Job edits reload under the row lock, remove only changed field approvals and save atomically.
+  Manual, pasted, scraped and catalogue-imported jobs all start unchecked; first actual
+  model use earns reusable checks. Full-source limits still apply to approved jobs.
 
 Per task type:
 

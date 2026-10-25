@@ -105,7 +105,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   `InputBlocked` publishes a failed task with the safe error message.
 - Every execution starts a fresh screening session. Source-selection calls share decisions
   with exact bound prompts. Career-library fields reuse saved checks and report newly checked
-  field names on final results; other inputs are screened again in later tasks. Standalone handlers
+  field names on final results. Saved Job fields similarly reuse checks and report typed-value
+  fingerprints through `job_screening`; other inputs are screened again in later tasks. Standalone handlers
   and agent wrappers establish a local session when no worker execution exists.
 - Keep this package about queue plumbing and dispatch. Agent logic goes in `agents/`,
   tools in `tools/`, prompts in `prompts/` (sibling folders).

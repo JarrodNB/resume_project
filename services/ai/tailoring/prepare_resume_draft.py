@@ -1,6 +1,6 @@
 """Prepare a user's shared evidence for a complete resume, without writing it.
 
-Screen the job, then the union of section sources. Saved library fields reuse
+Screen the job, then the union of section sources. Saved job and library fields reuse
 their checks without losing record identities when rendered text is shared.
 Temporary inputs stay within one enclosing execution.
 """
@@ -14,6 +14,7 @@ import text_limits
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from screening.guardrail_usage import collect_guardrail_usage
+from screening.job_fields import screen_job_fields_async
 from screening.library_fields import screen_library_fields_async
 from screening.screen_user_text import ScreenOutcome, screen_user_text_async
 from screening.session import (
@@ -207,7 +208,17 @@ async def prepare_resume_draft(
             # worker already screened its job and library inputs before writing it.
             trust_generated_source(format_gap_analysis(gap_analysis))
             job_text = job_context_text(context)
-            await prepared._screen([job_text])
+            if len(job_text) > MAX_SCREENED_TEXT:
+                raise ResumePreparationError("The job context could not be screened. Please try again.")
+
+            async def classify_job(text):
+                return await screen_user_text_async(text, settings.user_text_screen_model,
+                    remaining_timeout(settings.llm_run_timeout_seconds), check_phrases=True,
+                    classify=screen_user_message_async)
+
+            with collect_guardrail_usage(usage):
+                outcome = await screen_job_fields_async(context.job, classify_job, approved_sources=[job_text])
+            prepared._decisions[job_text] = ScreenOutcome(True) if outcome is True else outcome
             if not prepared._decisions[job_text].allowed:
                 raise ResumePreparationError("The job context could not be screened. Please try again.")
             sections = ["summary"]

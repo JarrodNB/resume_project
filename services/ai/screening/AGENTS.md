@@ -37,6 +37,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Local Rules
 
+- `job_fields.py` — sync/async saved Job checks shared by gap analysis and tailoring.
+  Only title, company, requirements and nice-to-haves can earn approvals; lists are ordered
+  whole fields. Canonical UTF-8 JSON fingerprints match Ruby stdlib JSON.generate, not
+  Rails HTML escaping. Callers retain complete-source limits and bind only these used fields.
+
 - `library_inputs.py` — cohesive optional library entry selection and reconstruction from
   checked source values for interviews, reusing saved field checks through `library_fields.py`.
 - `library_fields.py` — reuse database field approvals and report new successful checks over
@@ -57,7 +62,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   Migrated wrappers bound generation with `remaining_timeout` to share the task deadline.
 
 - Do not send the text when the screen cannot run.
-- Screen each input once per execution. Saved career-library fields reuse database
+- Screen each input once per execution. Saved Job and career-library fields reuse database
   checks across tasks; unchecked fields and other input screen again on later deliveries.
   Required inputs fail closed; optional entries can be omitted.
 - Never grant coverage by substring matching or a caller-controlled boolean.

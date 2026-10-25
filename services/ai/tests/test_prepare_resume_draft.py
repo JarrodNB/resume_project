@@ -9,9 +9,9 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from agents.user_text_screen_agent import UserTextScreenRun
+from gap_analysis.build_gap_analysis_prompt import gap_job_input, gap_job_screening_text
 from schemas.user_text_screen import UserTextScreen
 from screening.session import prompt_is_covered, screening_session
-from tailoring.build_section_prompt import job_context_text
 from tests.fakes import build_gap_analysis_context
 
 
@@ -164,7 +164,7 @@ def test_bounded_overlap_and_awaited_cancellation(preparation, monkeypatch):
 
         async def classify(text, model, timeout):
             nonlocal active, peak
-            if text.startswith("# Job:"):
+            if text.startswith("Job title:"):
                 return allowed_run(text)
             active += 1
             peak = max(peak, active)
@@ -314,7 +314,7 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
         async def classify(messages, info):
             nonlocal active
             text = messages[-1].parts[-1].content
-            if not text.startswith("# Job:"):
+            if not text.startswith("Job title:"):
                 active += 1
                 if active == 2:
                     started.set()
@@ -382,7 +382,7 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
             assert not session.library_screening
             assert all(prompt_is_covered(prompt.text) for prompt in second.prompts.values())
             assert all("screened_fields" not in prompt.text for prompt in second.prompts.values())
-        assert calls == [job_context_text(context)]
+        assert calls == [gap_job_screening_text(gap_job_input(context.job))]
         library.projects[0].screened_fields.remove("description")
         calls.clear()
         with screening_session() as session:
@@ -644,5 +644,52 @@ def test_checked_text_collision_cannot_hide_rejected_saved_fields(preparation, m
             assert "S1" not in prepared.prompts["skills"].sources.records
             assert "S2" not in prepared.prompts["skills"].sources.records
         assert sum("name:\nattack" in text for text in calls) == 1
+
+    asyncio.run(run())
+
+
+def test_tailoring_reuses_job_checks_from_gap_analysis_and_checks_only_edited_list(preparation):
+    from datetime import date
+
+    from agents.user_text_screen_agent import user_text_screen_agent
+    from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
+    from tailoring.prepare_resume_draft import prepare_resume_draft
+    from tests.test_gap_context_screening import jev_model
+
+    dependencies, context, _, calls, _, user, job = preparation
+    with screening_session() as session, user_text_screen_agent.override(model=jev_model([])):
+        assert prepare_gap_analysis(context, today=date(2026, 10, 25),
+            screen_model="typesafe:jev-1.13.0", timeout_seconds=5).prompt is not None
+        context.job.screened_fields = list(session.job_screening[0].fields)
+
+    async def run():
+        with screening_session() as session:
+            prepared = await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert all(prompt_is_covered(prompt.text) for prompt in prepared.prompts.values())
+            assert not session.job_screening
+            assert all("Job title:" not in text for text in calls)
+        context.job.requirements = ["Changed requirement"]
+        context.job.screened_fields.remove("requirements")
+        calls.clear()
+        with screening_session() as session:
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+            assert set(session.job_screening[0].fields) == {"requirements"}
+        assert calls[0] == "Requirements:\nChanged requirement"
+
+    asyncio.run(run())
+
+
+def test_approved_job_still_obeys_complete_source_limit(preparation):
+    from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
+
+    dependencies, context, _, calls, _, user, job = preparation
+    context.job.title = "x" * 80_001
+    context.job.screened_fields = ["title", "company", "requirements", "nice_to_haves"]
+
+    async def run():
+        with screening_session() as session, pytest.raises(ResumePreparationError):
+            await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
+        assert not session.job_screening
+        assert not calls
 
     asyncio.run(run())

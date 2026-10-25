@@ -36,7 +36,8 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
 - The checker gives one repair chance for unusable structure or unknown labels.
   It accepts empty citation lists and does not inspect prose claims. The user
   reviews and edits generated wording before saving.
-- Screen each labeled library source and the job context once per execution. Group
+- Reuse saved field checks for each labeled library source and the job context; screen
+  unchecked used fields once per execution and report successful approvals. Group
   the user's saved gap responses for one screening decision; omit the whole group if
   blocked. The completed worker-produced gap analysis is validated, included in full,
   and trusted for this execution without another classifier call. The job must pass

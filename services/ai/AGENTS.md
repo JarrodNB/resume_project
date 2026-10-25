@@ -68,7 +68,7 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   primary failure uses the configured fallback within the screening deadline
   (three seconds maximum for each JEV run). If both fail, omit the text; a blocked resume
   fails the import. Screen each cohesive untrusted input once
-  per task execution for job text, answers, and reused questions. Saved career-library fields
+  per task execution for answers and reused questions. Saved job and career-library fields
   reuse database approvals; unchecked fields screen on first use, and edits clear their checks.
   Large inputs use overlapping chunks. Optional rejected inputs are omitted with warnings;
   required rejected inputs prevent generation. Every generative agent declares an official
@@ -82,7 +82,9 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   candidate message with `screening/conversation.py`. Frozen library field approvals are
   carried in the private claim and newly checked fields are persisted through its fenced
   Rails callback before generation. Existing queued features retain their current guard.
-  Only career-library field approvals persist across ordinary tasks, through final queue results.
+  Job and career-library field approvals persist across ordinary tasks through final queue results.
+  Job checks cover title, company, requirements and nice-to-haves only; fingerprinted reports
+  can approve only matching current fields on the task's owned job. All new jobs start unchecked.
   Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:

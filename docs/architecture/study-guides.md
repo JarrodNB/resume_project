@@ -7,7 +7,22 @@ from career-library interview practice and fictional-role interview preparation.
 `generate_study_guide`. Enqueueing serializes on the owner and locks/reloads the job before
 capturing `{job_id, description}`. The Python worker uses that exact description; it never
 loads the career library, gaps, or separate job requirement fields. An empty description
-cannot start generation. One queued generation per job prevents overlapping requests.
+cannot start generation. One recently queued generation per job prevents overlapping requests.
+
+Manual recovery uses the same `IN_FLIGHT_WINDOW` as shared allowance checks (currently
+15 minutes from task creation). A queued task older than that window no longer prevents
+a retry. Only an explicit new request retires expired queued tasks as failed, under the
+owner/job locks, after allowance and description validation. It preserves source snapshots,
+earlier guides, and usage; state changes are broadcast after the enqueue transaction. Late
+output cannot revive a retired task, while late per-attempt usage is still counted once.
+Recent queued work remains protected, and retry requests still consume normal allowances.
+
+`studyGuideRetryAfterSeconds` supplies server-calculated remaining time for queued guides.
+The reader uses a one-shot timer to offer manual retry if it stays open, and recognizes
+already-expired work after reload. It keeps the subscription and old material readable;
+the timer never polls, starts generation, or changes persisted task state. The server
+rechecks eligibility when the user clicks retry. This also recovers lost emulator queue
+messages after a restart without leaving a saved job permanently blocked.
 
 The worker screens the frozen description afresh. Existing saved-job approvals cover other
 fields and are not reused. Unavailable screening and rejected input both fail closed, with

@@ -7,7 +7,7 @@ export const STUDY_GUIDE_QUERY = graphql(`
       id
       studyGuideDescriptionFingerprint
       studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }
-      latestStudyGuideTask { id status errorMessage createdAt }
+      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }
     }
   }
 `)
@@ -24,7 +24,7 @@ export const STUDY_GUIDE_CONTENT_QUERY = graphql(`
 export const GENERATE_STUDY_GUIDE_MUTATION = graphql(`
   mutation GenerateStudyGuide($jobId: ID!) {
     generateStudyGuide(input: {jobId: $jobId}) {
-      aiTask { id status errorMessage createdAt }
+      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }
       errors
     }
   }

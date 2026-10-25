@@ -27,6 +27,7 @@ export function useStudyGuide(jobId: string, description: string | null) {
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined)
   const [loadingMore, setLoadingMore] = useState(false)
   const [historyError, setHistoryError] = useState<string | null>(null)
+  const [retryReadyId, setRetryReadyId] = useState<string | null>(null)
   const requesting = useRef(false)
   const requestingPage = useRef(false)
   const mounted = useRef(true)
@@ -46,7 +47,10 @@ export function useStudyGuide(jobId: string, description: string | null) {
   const active = latest && latest.status !== 'COMPLETED' && latest.status !== 'FAILED'
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(active ? latest.id : '')
   const task = aiTask?.id === latest?.id ? aiTask : latest
-  const busy = starting || Boolean(task && task.status !== 'COMPLETED' && task.status !== 'FAILED')
+  const retryTaskId = latest?.status === 'QUEUED' ? latest.id : null
+  const retryAfterSeconds = latest?.studyGuideRetryAfterSeconds
+  const retryReady = task?.status === 'QUEUED' && (retryAfterSeconds === 0 || task.id === retryReadyId)
+  const busy = starting || Boolean(task && task.status !== 'COMPLETED' && task.status !== 'FAILED' && !retryReady)
   const selectedId = selected ?? history[0]?.id ?? null
   const content = useQuery(STUDY_GUIDE_CONTENT_QUERY, { variables: { jobId, guideId: selectedId ?? '' }, skip: !selectedId })
   const { refetch } = query
@@ -71,6 +75,13 @@ export function useStudyGuide(jobId: string, description: string | null) {
   }, [refetch])
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+
+  useEffect(() => {
+    if (!retryTaskId || retryAfterSeconds == null || retryAfterSeconds <= 0) return
+    // This only reveals a manual action. The server remains authoritative on admission.
+    const timer = setTimeout(() => setRetryReadyId(retryTaskId), Math.ceil(retryAfterSeconds * 1000))
+    return () => clearTimeout(timer)
+  }, [retryTaskId, retryAfterSeconds])
 
   useEffect(() => {
     if (previousDescription.current === description) return
@@ -131,7 +142,7 @@ export function useStudyGuide(jobId: string, description: string | null) {
   }
 
   const guideTask = content.data?.job?.studyGuide
-  return { guideTask: guideTask?.id === selectedId ? guideTask : null, task, busy, starting, start,
+  return { guideTask: guideTask?.id === selectedId ? guideTask : null, task, busy, retryReady, starting, start,
     guideOutOfDate: history.find((entry) => entry.id === selectedId)?.outOfDate ?? guideTask?.studyGuideOutOfDate ?? false,
     history, selectedId, select: setSelected, nextCursor, loadMore, loadingMore, historyError: historyError ?? firstPage?.errors.join(' '),
     contentLoading: content.loading, contentError: content.error, retryContent: content.refetch,

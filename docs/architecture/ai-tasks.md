@@ -38,7 +38,7 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   `{ai_task_id, user_id, task_type, input}`
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
-  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening}`.
+  message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
   `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
@@ -65,6 +65,16 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   Job edits reload under the row lock, remove only changed field approvals and save atomically.
   Manual, pasted, scraped and catalogue-imported jobs all start unchecked; first actual
   model use earns reusable checks. Full-source limits still apply to approved jobs.
+
+  Final tailoring results may contain `gap_response_screening` entries
+  `{response_id, fields: {field_name: sha256}}` for saved requirement/body checks, using
+  the same canonical fingerprint encoding. Rails approves only the owned task-associated
+  job's response IDs present in the queued snapshot, with fingerprints matching both that
+  snapshot and current saved fields under row locks. Changed fields lose approval on save;
+  unchanged answers and library-link toggles retain checks. Deleted/recreated answers,
+  stale results and finished-task duplicates cannot restore checks. Successful checks survive
+  later generation failure. Legacy snapshots without IDs are screened but cannot earn or
+  reuse persisted approvals. New answers start unchecked; no new AI-reader grant is needed.
 
 Per task type:
 

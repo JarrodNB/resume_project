@@ -13,7 +13,14 @@ Adding it to the career library creates a `LibraryFact`; only that fact is embed
   response still points at it. Queues an embedding sync only when a fact is created, its text
   changes, or it is deleted.
 
+- `record_screening_service.rb` — accepts final tailoring field fingerprints for owned
+  task-snapshot answer IDs, matching both snapshot and locked current text. Successful
+  checks survive generation failure; edits clear only changed field approvals atomically.
+  LibraryFact approvals remain independent.
+
 ## Local Rules
 
 - The job is already scoped to the user by the caller.
 - A response that stays on the job is never embedded and is not career-library content.
+
+- Lock/reload existing responses before assigning edits, invalidating checks or unlinking facts.

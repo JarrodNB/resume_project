@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from schemas.gap_response import GapResponseSnapshot
+
 
 class TailorResumeInput(BaseModel):
     """Read-only job, profile, and gap snapshots for one complete generation."""
@@ -12,4 +14,4 @@ class TailorResumeInput(BaseModel):
     job_id: UUID
     contact: dict[str, Any] = Field(default_factory=dict)
     gap_analysis: dict[str, Any] | None = None
-    gap_responses: list[dict[str, str]] = Field(default_factory=list)
+    gap_responses: list[GapResponseSnapshot] = Field(default_factory=list)

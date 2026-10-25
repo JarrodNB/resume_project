@@ -65,7 +65,7 @@ module ResumeTailoring
           "links" => @user.links
         },
         "gap_analysis" => analysis&.result&.dig("gap_analysis"),
-        "gap_responses" => @job.gap_responses.map { |response| { "requirement" => response.requirement, "body" => response.body } }
+        "gap_responses" => @job.gap_responses.map { |response| response.attributes.slice("id", "requirement", "body", "screened_fields") }
       }
     end
   end

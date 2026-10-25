@@ -1,4 +1,4 @@
-# Reloads persisted facts under their row lock before editing and invalidating screening checks.
+# Reloads saved answers and facts under row locks before editing and invalidating checks.
 # Description: Saves the user's answer to one requirement of a job. A blank answer removes it.
 # "Add to career library" upserts a library fact (requirement plus answer) and links it; leaving
 # it unchecked keeps the answer on the job only. Embedding sync runs only when a fact is
@@ -30,9 +30,10 @@ module GapResponses
     def clear(response)
       return success(nil) if response.nil?
 
-      fact = response.library_fact
       cleared = false
       ApplicationRecord.transaction do
+        response.lock!
+        fact = response.library_fact
         raise ActiveRecord::Rollback unless response.destroy
 
         unlink_fact(fact)
@@ -49,8 +50,10 @@ module GapResponses
       errors = nil
       saved = false
       ApplicationRecord.transaction do
+        response.lock! if response.persisted?
         previous_fact = response.library_fact
         response.body = @body
+        RecordScreeningService.discard_changed_fields(response: response)
         if @add_to_library
           fact, fact_changed = upsert_fact
           unless fact.persisted?

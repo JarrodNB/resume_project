@@ -141,7 +141,11 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   second safety check before the summary. Every saved gap-analysis assessment, including
   verdict, explanation, and cited evidence, is included as writing guidance. The completed
   analysis is worker-produced output and is validated instead of screened again. Saved
-  user-written gap responses receive one grouped screening decision before entering prompts.
+  user-written gap responses reuse saved requirement/body checks and receive one grouped
+  decision for pending fields before entering prompts. Queued snapshots retain every
+  record identity even when rendered text is identical. Metadata never enters prompts;
+  job-only answer approvals remain independent of linked LibraryFact approvals.
+  Complete-source limits still apply to already-approved answers.
   The model selects, orders, and rewrites toward the job without inventing employers,
   titles, tools, dates, metrics, or responsibilities. The model is instructed to cite
   evidence labels for its wording;

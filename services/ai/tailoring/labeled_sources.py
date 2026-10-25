@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, LibraryRecord
+from schemas.gap_response import GapResponseSnapshot
 
 
 @dataclass
@@ -41,6 +42,7 @@ class SourceRecord:
     record_id: str | None = None
     source_type: str | None = None
     provenance: SourceProvenance | None = field(default=None, repr=False, compare=False)
+    gap_response: GapResponseSnapshot | None = field(default=None, repr=False, compare=False)
 
 
 @dataclass
@@ -66,7 +68,7 @@ _NATIVE_TYPES = {
 
 def label_sources(
     context: GapAnalysisContext,
-    gap_responses: list[dict[str, str]],
+    gap_responses: list[GapResponseSnapshot | dict],
     selected_sections: list[dict[str, object]],
     retrieved: set[tuple[str, str]] | None,
     section_type: str = "",
@@ -78,8 +80,10 @@ def label_sources(
     native = _NATIVE_TYPES.get(section_type, frozenset())
     _add_library(sources, context.career_library, retrieved, native)
     for number, response in enumerate(gap_responses, start=1):
-        text = f"{response.get('requirement', '')}: {response.get('body', '')}"
-        sources.records[f"GR{number}"] = SourceRecord(f"GR{number}", "gap_response", text)
+        response = GapResponseSnapshot.model_validate(response)
+        text = f"{response.requirement}: {response.body}"
+        sources.records[f"GR{number}"] = SourceRecord(
+            f"GR{number}", "gap_response", text, record_id=response.id, gap_response=response)
     for number, section in enumerate(selected_sections, start=1):
         if section.get("omitted"):
             continue

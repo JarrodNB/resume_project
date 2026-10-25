@@ -32,6 +32,9 @@ the `result` sent to Rails, so changes must be mirrored there.
 - `user_text_fallback.py` — strict boolean prompt-injection answer; `blocked` owns the fallback
   decision policy without JEV confidence metadata.
 
+- `gap_response.py` — queued saved-answer snapshot with optional identity for legacy tasks;
+  identity and screening metadata stay outside prompt serialization.
+
 ## Local Rules
 
 - Give fields `description`s when the model needs guidance; they are sent to the LLM.

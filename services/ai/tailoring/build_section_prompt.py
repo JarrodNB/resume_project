@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime
 from model_inputs.tailoring import TailoringSectionInput, format_tailoring_section_input
 from schemas.certification_dates import certification_expiry_status
 from schemas.gap_analysis_context import GapAnalysisContext
+from schemas.gap_response import GapResponseSnapshot
 from screening.session import bind_screened_prompt
 from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import LabeledSources, label_sources
@@ -29,7 +30,7 @@ class SectionPrompt:
 def build_section_prompt(
     section_type: str,
     context: GapAnalysisContext,
-    gap_responses: list[dict[str, str]],
+    gap_responses: list[GapResponseSnapshot | dict],
     selected_sections: list[dict[str, object]],
     retrieved: set[tuple[str, str]] | None,
     *,

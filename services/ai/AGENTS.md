@@ -76,7 +76,8 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   prompts to approved sources so the guard does not screen them again; new direct input
   and unknown user/tool history still receive screening before the provider request.
   A validated completed gap-analysis result can be trusted as generated output within
-  one tailoring execution; user-written gap responses are screened together once.
+  one tailoring execution; saved gap-response requirement/body approvals are reused, with pending fields screened
+  together once and fingerprinted reports retained for every saved answer ID.
   The spoken-interview runtime is a scoped conversational exception: it reconstructs prior
   dialogue from authenticated Rails-owned public utterances and screens only the newest
   candidate message with `screening/conversation.py`. Frozen library field approvals are

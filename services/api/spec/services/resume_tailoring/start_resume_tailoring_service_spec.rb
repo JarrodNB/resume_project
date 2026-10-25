@@ -18,7 +18,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
   end
 
   it "queues a tailor task with the profile, the comparison, and gap responses" do
-    create(:job_gap_response, job: job, requirement: "Python", body: "Five years.")
+    response = create(:job_gap_response, job: job, requirement: "Python", body: "Five years.", screened_fields: [ "requirement" ])
 
     result = described_class.call(user: user, job: job)
 
@@ -29,7 +29,7 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq(gap_analysis)
-    expect(task.input["gap_responses"]).to eq([ { "requirement" => "Python", "body" => "Five years." } ])
+    expect(task.input["gap_responses"]).to eq([ { "id" => response.id, "requirement" => "Python", "body" => "Five years.", "screened_fields" => [ "requirement" ] } ])
     expect(queue).to have_received(:send_message)
   end
 

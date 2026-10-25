@@ -5,7 +5,8 @@ export const STUDY_GUIDE_QUERY = graphql(`
   query StudyGuideForJob($jobId: ID!, $cursor: String) {
     job(id: $jobId) {
       id
-      studyGuides(cursor: $cursor) { guides { id createdAt } nextCursor errors }
+      studyGuideDescriptionFingerprint
+      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }
       latestStudyGuideTask { id status errorMessage createdAt }
     }
   }
@@ -15,7 +16,7 @@ export const STUDY_GUIDE_CONTENT_QUERY = graphql(`
   query StudyGuideContent($jobId: ID!, $guideId: ID!) {
     job(id: $jobId) {
       id
-      studyGuide(id: $guideId) { id result createdAt }
+      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }
     }
   }
 `)

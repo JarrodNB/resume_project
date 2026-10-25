@@ -5,15 +5,16 @@ import { Button } from '@/components/ui/button'
 import { parseStudyGuide, type StudyGuide } from './parseStudyGuide'
 import { useStudyGuide } from './useStudyGuide'
 
-export function StudyGuideCard({ jobId, hasDescription }: { jobId: string; hasDescription: boolean }) {
+export function StudyGuideCard({ jobId, description }: { jobId: string; description: string | null }) {
   return <SectionCard sectionId={`job.${jobId}.study-guides`} tone="education" title="Study guides"
     description="Learn and practice topics from this job's description.">
-    <StudyGuideContent key={jobId} jobId={jobId} hasDescription={hasDescription} />
+    <StudyGuideContent key={jobId} jobId={jobId} description={description} />
   </SectionCard>
 }
 
-function StudyGuideContent({ jobId, hasDescription }: { jobId: string; hasDescription: boolean }) {
-  const state = useStudyGuide(jobId)
+function StudyGuideContent({ jobId, description }: { jobId: string; description: string | null }) {
+  const state = useStudyGuide(jobId, description)
+  const hasDescription = Boolean(description?.trim())
   const guide = parseStudyGuide(state.guideTask?.result)
   return <div className="grid gap-5">
     <ErrorAlert messages={state.errors} title="Couldn't start the study guide" />
@@ -27,8 +28,9 @@ function StudyGuideContent({ jobId, hasDescription }: { jobId: string; hasDescri
       <div className="flex flex-wrap gap-2" role="group" aria-label="Saved study guides">
         {state.history.map((entry) => <Button key={entry.id} variant={state.selectedId === entry.id ? 'secondary' : 'outline'}
           className="h-auto min-h-8 whitespace-normal text-left" aria-pressed={state.selectedId === entry.id}
-          aria-label={`Read guide from ${formatGuideDate(entry.createdAt)}`} onClick={() => state.select(entry.id)}>
+          aria-label={`Read guide from ${formatGuideDate(entry.createdAt)}${entry.outOfDate ? ' — Out of date' : ''}`} onClick={() => state.select(entry.id)}>
           <time dateTime={entry.createdAt}>{formatGuideDate(entry.createdAt)}</time>
+          {entry.outOfDate && <span className="text-muted-foreground">Out of date</span>}
         </Button>)}
       </div>
       {state.nextCursor && <Button className="justify-self-start" variant="ghost" disabled={state.loadingMore}
@@ -38,6 +40,7 @@ function StudyGuideContent({ jobId, hasDescription }: { jobId: string; hasDescri
     {state.contentError && <div className="grid gap-2"><ErrorAlert title="Couldn't load this guide" messages={[state.contentError.message]} />
       <Button className="justify-self-start" variant="outline" onClick={() => void state.retryContent().catch(() => {})}>Retry guide</Button></div>}
     {state.busy && <p role="status" className="text-sm text-muted-foreground">Generating your study guide… You can keep reading saved material.</p>}
+    {guide && state.guideOutOfDate && <p role="status" className="max-w-prose text-sm text-muted-foreground">This guide is out of date because the job description changed. Generate another guide when you’re ready.</p>}
     {guide && <StudyGuideView guide={guide} />}
     {state.guideTask && !guide && <p className="text-sm text-muted-foreground">This guide couldn't be displayed. Generate another guide.</p>}
     {!hasDescription && <p className="text-sm text-muted-foreground">Add a job description to generate a study guide.</p>}

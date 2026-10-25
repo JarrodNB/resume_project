@@ -15,6 +15,8 @@ module Types
     field :location, String
     field :url, String
     field :description, String
+    field :study_guide_description_fingerprint, String, null: false,
+          description: "Opaque identity of the current description for comparing saved study guides."
     field :requirements, [ String ], null: false
     field :responsibilities, [ String ], null: false
     field :nice_to_haves, [ String ], null: false
@@ -53,6 +55,10 @@ module Types
 
     def latest_study_guide
       object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide", status: "completed").order(created_at: :desc, id: :desc).first
+    end
+
+    def study_guide_description_fingerprint
+      ::StudyGuides::DescriptionSnapshot.fingerprint(object.description)
     end
 
     def latest_study_guide_task

@@ -37,4 +37,24 @@ RSpec.describe "Study guide results" do
     expect(task.reload).to be_failed
     expect(task.result).to be_nil
   end
+
+  it "accepts a frozen-source guide as out of date when the description changes during generation" do
+    task
+    Jobs::UpdateJobService.call(job: job, attributes: { description: "Plan warehouse replenishment." })
+    expect(job.ai_tasks.count).to eq(1)
+    apply("study_guide" => guide)
+    expect(task.reload).to be_completed
+    expect(task.input["description"]).to eq("Reconcile inventory.")
+    response = execute_graphql('query($id: ID!) { job(id: $id) { latestStudyGuide { id studyGuideOutOfDate result } } }', user: user, variables: { id: job.id })
+    expect(response.dig("data", "job", "latestStudyGuide", "studyGuideOutOfDate")).to be(true)
+    expect(response.dig("data", "job", "latestStudyGuide", "result")).to eq("study_guide" => guide)
+
+    queue = double(send_message: true)
+    allow(Shoryuken::Client).to receive(:queues).and_return(queue)
+    requested = StudyGuides::StartGuideService.call(user: user, job: job)
+    expect(requested).to be_success
+    expect(requested.value.input["description"]).to eq("Plan warehouse replenishment.")
+    expect(job.ai_tasks.count).to eq(2)
+    expect(task.reload.result).to eq("study_guide" => guide)
+  end
 end

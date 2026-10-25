@@ -116,7 +116,7 @@ function JobDetails({ id }: { id: string }) {
             busy={busy}
             errors={errors}
           />
-          <StudyGuideCard jobId={job.id} hasDescription={Boolean(job.description?.trim())} />
+          <StudyGuideCard jobId={job.id} description={job.description} />
           <GapAnalysisCard jobId={job.id} comparison={comparison} gapResponses={job.gapResponses} />
           <BulletCard
             sectionId={`job.${job.id}.requirements`}

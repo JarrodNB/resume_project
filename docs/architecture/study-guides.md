@@ -34,7 +34,8 @@ and shows generation errors beside retained successful material. It offers reada
 exercises and questions without answer persistence, grading, or progress tracking.
 
 `job.studyGuides(cursor)` returns five successful guide summaries at a time, newest first
-by request time and then task ID. The summaries contain only IDs and generation dates;
+by request time and then task ID. The summaries contain IDs, generation dates, and source
+fingerprints/freshness, without generated bodies or source descriptions;
 `job.studyGuide(id)` loads selected content and requires that successful guide to belong
 to the same owned job. Signed cursors bind the job and the last row's exact timestamp/ID,
 so adding newer guides does not shift later pages. Failed and pending attempts never
@@ -46,6 +47,28 @@ without discarding a selected older guide or already loaded entries. Page failur
 readable material and allow retrying the same continuation. Switching jobs resets the
 history, selected guide, and in-flight UI state; reopening a section starts with the newest
 guide again. Long learning material uses the workspace's readable prose measure.
+
+Each guide's freshness compares the exact enqueue snapshot with the current description,
+including case and whitespace. `studyGuideOutOfDate` reports selected-task freshness;
+history entries expose `outOfDate` and an immutable `sourceDescriptionFingerprint`. Job's
+`studyGuideDescriptionFingerprint` identifies its current text. These SHA-256 fingerprints
+let the reader update every loaded history entry after one small refresh, including older
+pages, without sending source text or loading guide bodies again. A description cleared
+to blank makes valid earlier guides stale and prevents another generation request.
+
+Saved description edits refresh freshness, not generation. Overlapping edits and generation
+completions queue a final read after an in-flight refresh, avoiding stale Apollo-deduplicated
+responses. Reopening the section also checks the server. Old material stays readable;
+description changes during generation can produce an immediately out-of-date completed
+guide. Restoring exactly the original description makes matching guides current again.
+Manual regeneration appends a new guide from the description captured for that request.
+
+For human QA, load more than one history page and select an older guide; edit and restore
+the description while keeping the section open. Check the reader and all loaded history
+notices without losing the selected material or starting AI work. Generate again, edit
+while it runs, then check that the finished guide reflects its original request and is
+marked out of date. Clear the description and verify older guides remain readable while
+generation is disabled; reload to verify saved history and freshness.
 
 Quality checks: `python -m evals.run_study_guide_evals` uses five synthetic descriptions
 covering inventory, backend engineering, a sparse bakery role, irrelevant text, and an

@@ -1,5 +1,5 @@
 /** Owns paginated guide history, selected content, and live generation without discarding saved material. */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
@@ -7,12 +7,19 @@ import type { StudyGuideForJobQuery } from '@/graphql/generated/graphql'
 import { GENERATE_STUDY_GUIDE_MUTATION, STUDY_GUIDE_QUERY, STUDY_GUIDE_CONTENT_QUERY } from './studyGuideOperations'
 
 type Summary = StudyGuideForJobQuery['job']['studyGuides']['guides'][number]
-const unique = (guides: Summary[]) => [...new Map(guides.map((guide) => [guide.id, guide])).values()]
+function unique(guides: Summary[]) {
+  const seen = new Set<string>()
+  return guides.filter((guide) => {
+    if (seen.has(guide.id)) return false
+    seen.add(guide.id)
+    return true
+  })
+}
 
 /** The caller keys this hook's content by job identity so no selection or request state crosses jobs. */
-export function useStudyGuide(jobId: string) {
+export function useStudyGuide(jobId: string, description: string | null) {
   const client = useApolloClient()
-  const query = useQuery(STUDY_GUIDE_QUERY, { variables: { jobId, cursor: null } })
+  const query = useQuery(STUDY_GUIDE_QUERY, { variables: { jobId, cursor: null }, fetchPolicy: 'cache-and-network' })
   const [mutate, { loading: starting }] = useMutation(GENERATE_STUDY_GUIDE_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
   const [retainedGuides, setRetainedGuides] = useState<Summary[]>([])
@@ -24,8 +31,16 @@ export function useStudyGuide(jobId: string) {
   const requestingPage = useRef(false)
   const mounted = useRef(true)
   const refreshed = useRef('')
+  const previousDescription = useRef(description)
+  const refreshRevision = useRef(0)
+  const refreshInFlight = useRef<Promise<void> | null>(null)
   const firstPage = query.data?.job?.studyGuides
-  const history = useMemo(() => unique([...(firstPage?.guides ?? []), ...retainedGuides]), [firstPage, retainedGuides])
+  const currentFingerprint = query.data?.job?.studyGuideDescriptionFingerprint
+  // Source fingerprints are immutable, so a single current-description refresh updates every loaded page.
+  const history = useMemo(() => unique([...(firstPage?.guides ?? []), ...retainedGuides]).map((guide) => ({
+    ...guide,
+    outOfDate: currentFingerprint ? guide.sourceDescriptionFingerprint !== currentFingerprint : guide.outOfDate,
+  })), [firstPage, retainedGuides, currentFingerprint])
   const nextCursor = olderCursor === undefined ? firstPage?.nextCursor ?? null : olderCursor
   const latest = query.data?.job?.latestStudyGuideTask ?? null
   const active = latest && latest.status !== 'COMPLETED' && latest.status !== 'FAILED'
@@ -36,17 +51,45 @@ export function useStudyGuide(jobId: string) {
   const content = useQuery(STUDY_GUIDE_CONTENT_QUERY, { variables: { jobId, guideId: selectedId ?? '' }, skip: !selectedId })
   const { refetch } = query
 
+  // Apollo can deduplicate identical overlapping queries. Queue one more read when a saved edit
+  // or completion lands during a read, so an earlier response cannot become the final state.
+  const refresh = useCallback(() => {
+    refreshRevision.current += 1
+    if (refreshInFlight.current) return refreshInFlight.current
+    async function readLatest() {
+      let revision: number
+      let failure: unknown
+      do {
+        revision = refreshRevision.current
+        try { await refetch(); failure = undefined } catch (error) { failure = error }
+      } while (mounted.current && revision !== refreshRevision.current)
+      if (failure) throw failure
+    }
+    const pending = readLatest().finally(() => { refreshInFlight.current = null })
+    refreshInFlight.current = pending
+    return pending
+  }, [refetch])
+
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+
+  useEffect(() => {
+    if (previousDescription.current === description) return
+    previousDescription.current = description
+    setHistoryError(null)
+    void refresh().catch(() => {
+      if (mounted.current) setHistoryError("Couldn't refresh guide freshness. Reload to try again.")
+    })
+  }, [description, refresh])
 
   useEffect(() => {
     if (task?.status === 'COMPLETED' && !query.data?.job?.studyGuides.guides.some((guide) => guide.id === task.id) && !history.some((guide) => guide.id === task.id) && task.id !== refreshed.current) {
       refreshed.current = task.id
       const previousGuides = firstPage?.guides ?? []
-      void refetch().then(() => {
+      void refresh().then(() => {
         if (mounted.current) setRetainedGuides((existing) => unique([...previousGuides, ...existing]))
       }).catch(() => { if (mounted.current) setHistoryError("Couldn't refresh saved guides. Reload to try again.") })
     }
-  }, [task, history, firstPage, query.data, refetch])
+  }, [task, history, firstPage, query.data, refresh])
 
   async function loadMore() {
     if (!nextCursor || requestingPage.current) return
@@ -89,6 +132,7 @@ export function useStudyGuide(jobId: string) {
 
   const guideTask = content.data?.job?.studyGuide
   return { guideTask: guideTask?.id === selectedId ? guideTask : null, task, busy, starting, start,
+    guideOutOfDate: history.find((entry) => entry.id === selectedId)?.outOfDate ?? guideTask?.studyGuideOutOfDate ?? false,
     history, selectedId, select: setSelected, nextCursor, loadMore, loadingMore, historyError: historyError ?? firstPage?.errors.join(' '),
     contentLoading: content.loading, contentError: content.error, retryContent: content.refetch,
     loading: query.loading, loadError: query.error, errors, subscriptionError }

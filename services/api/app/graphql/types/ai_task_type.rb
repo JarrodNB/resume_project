@@ -18,11 +18,20 @@ module Types
     field :accepted_at, GraphQL::Types::ISO8601DateTime,
           description: "When the user accepted the result into their data (e.g. imported a parsed resume)."
     field :created_at, GraphQL::Types::ISO8601DateTime, null: false
+    field :study_guide_out_of_date, Boolean,
+          description: "Whether a saved study guide uses a different description; null for other or unavailable tasks."
     field :job, Types::JobType,
           description: "The job a completed scrape_job or parse_job_posting task saved, or the job an analyze_gaps task compares."
 
     def result
       object.result unless unavailable_clarification? || unavailable_study_guide?
+    end
+
+    def study_guide_out_of_date
+      return unless object.generate_study_guide? && object.subject_type == "Job"
+      job = context[:current_user].jobs.find_by(id: object.subject_id)
+      return unless job
+      ::StudyGuides::DescriptionSnapshot.out_of_date?(source: object.input["description"], description: job.description)
     end
 
     def input

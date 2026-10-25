@@ -80,6 +80,11 @@ type AiTask {
   pendingQuestions: JSON!
   result: JSON
   status: AiTaskStatusEnum!
+
+  """
+  Whether a saved study guide uses a different description; null for other or unavailable tasks.
+  """
+  studyGuideOutOfDate: Boolean
   taskType: AiTaskTypeEnum!
 }
 
@@ -1174,6 +1179,11 @@ type Job {
   resume: Resume
   stage: JobStageEnum!
   studyGuide(id: ID!): AiTask!
+
+  """
+  Opaque identity of the current description for comparing saved study guides.
+  """
+  studyGuideDescriptionFingerprint: String!
   studyGuides(cursor: String): StudyGuideHistoryPage!
   title: String!
   url: String
@@ -2535,6 +2545,16 @@ type StudyGuideHistoryPage {
 type StudyGuideSummary {
   createdAt: ISO8601DateTime!
   id: ID!
+
+  """
+  Whether the guide's exact source differs from the current description.
+  """
+  outOfDate: Boolean!
+
+  """
+  Opaque identity of the exact description used for this guide.
+  """
+  sourceDescriptionFingerprint: String
 }
 
 """

@@ -26,8 +26,10 @@ def test_download_closes_each_body(
             return super().read(*args, **kwargs)
 
     bodies: list[Body] = []
+    requests: list[dict[str, object]] = []
 
-    def get_object(**_kwargs: object) -> dict[str, Body]:
+    def get_object(**kwargs: object) -> dict[str, Body]:
+        requests.append(kwargs)
         body = Body(b"synthetic resume")
         bodies.append(body)
         return {"Body": body}
@@ -43,4 +45,8 @@ def test_download_closes_each_body(
             assert caught.value is error
         else:
             assert storage.download_file("upload-key") == b"synthetic resume"
+        assert requests[-1] == {
+            "Bucket": task_dependencies.settings.s3_uploads_bucket,
+            "Key": "upload-key",
+        }
         assert bodies[-1].closed

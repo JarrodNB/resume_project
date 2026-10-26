@@ -27,7 +27,7 @@ module Interviews
           next failure("Interview admission is invalid") unless root && root.user_id == @interview.user_id && root.subject == @interview &&
             root.interview_preparation? && root.hourly_admission_task_id.nil? && root.input["operation_id"] == preparation.id
         end
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @interview.user, existing_task: root, interview: true)
+        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @interview.user, existing_task: root, interview: true, reference_work: true)
         next allowance unless allowance.success?
         references_record.save! unless references_record.persisted?
         query_input = message.follow_up? ? { query_text: ReferenceQuery.for(@interview, message) } : {}

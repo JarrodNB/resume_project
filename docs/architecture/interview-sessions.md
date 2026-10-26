@@ -859,7 +859,11 @@ native start hook reuses healthy processes and does not reload their environment
 active real-mode interview's latest opening/follow-up. Rails saves one
 `InterviewCareerReferences` record per prompt, with at most two explicitly requested
 queue task attempts. `interview_references` tasks reuse preparation's hourly admission
-but retain their own spend/concurrency accounting. A private authenticated claim rechecks
+but retain their own spend accounting. Reference in-flight work has its own per-user pool,
+using the same configured operation cap, so queued guidance cannot exhaust slots needed
+for answer execution. The critical-operation pool excludes reference tasks; reference
+request and claim admission count only reference tasks. Monthly spend and hourly
+admission remain shared with the interview. A private authenticated claim rechecks
 availability and returns canonical owner, prompt, reference identity and query text.
 Duplicate claims do no paid work. SQS results preserve late or duplicate usage while
 rejecting stale content after follow-up changes, skip, advancement, abandonment or expiry.
@@ -871,10 +875,12 @@ transcripts and acknowledgement text are excluded. Query embeddings use existing
 masking and accounted/traced Pydantic AI embedding helpers; there is no dialogue-model call.
 The AI worker reads owned library records and the existing hybrid vector/keyword index.
 
-Selection policy `interview-references-v2` keeps at most three distinct source groups,
+Selection policy `interview-references-v3` keeps at most three distinct source groups,
 prefers narrative evidence to bare skills, and rejects distant vector candidates. Its
-initial cosine-distance cutoff is 0.35, not calibrated confidence. Bounded keyword matching
-supports unindexed sources. Fact requirement labels can help ranking; only saved fact
+initial cosine-distance cutoff is 0.35, not calibrated confidence. Keyword matching covers the complete supported saved corpus, including unindexed sources.
+At selection time, vector candidates must match the current normalized index text; stale
+index wording is not reused to rank newly edited evidence. This is a one-time source
+compatibility check rather than ongoing library monitoring. Fact requirement labels can help ranking; only saved fact
 responses are displayed as evidence. Written practice Q&A vectors, job-only gap answers,
 profile summary and historical spoken answers are not additional indexed sources.
 
@@ -906,8 +912,8 @@ exercise cutoff/grouping contracts, and real keyword matching exercises fallback
 report establishes fixture agreement, not semantic relevance or real embedding calibration.
 
 `--paid` explicitly runs real embeddings against synthetic source text and reports label
-agreement and accounted usage; no dialogue model or database is required. It tests the
-selection seam, not Postgres latency or the exact Rails index formatter. `--output PATH`
+agreement and accounted usage; no dialogue model or database is required. It uses the production source-text projection and selection seam, not a Postgres
+query/latency benchmark. `--output PATH`
 saves the report only when requested. Errors and mismatched labels fail visibly. Neither
 mode enables the feature gate. No paid semantic run or human relevance assessment was
 performed during the initial implementation; automatic rollout remains disabled by default.

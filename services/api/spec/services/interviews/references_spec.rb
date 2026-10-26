@@ -266,4 +266,50 @@ RSpec.describe "Interview question references" do
     expect(interview.messages.answer.count).to eq(0)
   end
 
+  it "keeps a full reference queue from blocking accepted-answer execution" do
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 3)
+    current = Interviews::CreateFixtureService.call(user: interview.user, question_count: 2, execution_mode: "real").value
+    current.questions.create!(content: "Tell me about collaborating with a colleague.", position: 2)
+    preparation = current.operations.create!(kind: "preparation")
+    root = current.user.ai_tasks.create!(task_type: "interview_preparation", subject: current, status: "completed", input: { operation_id: preparation.id })
+    preparation.update!(ai_task: root)
+    3.times do |index|
+      message = current.messages.order(:position).last
+      expect(Interviews::RequestReferencesService.call(interview: current, message_id: message.id)).to be_success
+      if index < 2
+        expect(Interviews::SkipQuestionService.call(interview: current, question_id: message.question_id,
+          expected_revision: current.revision, submission_key: "reference-cap-skip-#{index}")).to be_success
+      end
+    end
+    message = current.messages.order(:position).last
+    submitted = Interviews::SubmitTurnService.call(interview: current, question_id: message.question_id,
+      expected_revision: current.revision, submission_key: "reference-cap-answer", transcription_mode: "typed", candidate_transcript: "My answer.")
+    expect(submitted).to be_success
+    expect(current.user.ai_tasks.interview_references.queued.count).to eq(3)
+    expect(Interviews::ClaimOperationService.call(operation: submitted.value, execution_mode: "real")).to be_success
+  end
+
+  it "bounds reference requests separately and permits a reference to claim its own slot" do
+    stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 1)
+    create(:ai_task, user: interview.user, task_type: "interview_turn")
+    reference = request_references
+    expect(reference).to be_persisted
+    other = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
+    denied = Interviews::RequestReferencesService.call(interview: other, message_id: other.messages.first.id)
+    expect(denied.errors.join).to include("career references running")
+    expect(other.career_references.reload).to be_empty
+    expect(Interviews::ClaimReferencesService.call(ai_task: reference.ai_task).value[:allowed]).to be(true)
+    expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("interview operations running")
+  end
+
+  it "still charges reference spend to the shared interview budget" do
+    reference = request_references
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
+    create(:ai_task, user: interview.user, task_type: "interview_references", status: "completed", cost_microdollars: 20)
+    expect(Interviews::ClaimReferencesService.call(ai_task: reference.ai_task).value).to eq(allowed: false)
+    expect(reference.ai_task.reload).to be_failed
+    expect(reference.ai_task.error_message).to include("month's interview usage limit")
+    expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("month's interview usage limit")
+  end
+
 end

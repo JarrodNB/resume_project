@@ -1,5 +1,6 @@
 # Checks monthly spend, hourly starts and in-flight work within one independent allowance.
 # Spoken interview work never consumes general AI allowances, or the other way around.
+# Optional references have their own bounded in-flight pool so they never block answering.
 # Development-only unmetered interview testing skips spend/start gates; concurrency still bounds work.
 # Index:
 #   - call: succeeds when the user may start a task; fails with a user-facing reason otherwise
@@ -10,8 +11,9 @@ module AiUsage
 
     # An already-owned logical HTTP task rechecks spend/concurrency without counting
     # itself as another hourly task or blocking its own retry as in-flight work.
-    def initialize(user:, existing_task: nil, interview: false)
+    def initialize(user:, existing_task: nil, interview: false, reference_work: false)
       @user, @existing_task, @interview = user, existing_task, interview
+      @reference_work = interview && reference_work
       @tasks = interview ? user.ai_tasks.spoken_interview : user.ai_tasks.general_ai
     end
 
@@ -22,7 +24,7 @@ module AiUsage
         return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
       end
-      return failure([ "You already have #{@interview ? 'interview operations' : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?
+      return failure([ "You already have #{@interview ? (@reference_work ? 'career references' : 'interview operations') : 'AI tasks'} running. Wait for them to finish, then try again." ]) if in_flight_limit_reached?
 
       success
     end
@@ -40,7 +42,14 @@ module AiUsage
     # the user's answer (needs_user_input) aren't running, so they don't count.
     def in_flight_limit_reached?
       limit = @interview ? DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS : (@user.max_in_flight_ai_tasks || DEFAULT_MAX_IN_FLIGHT_AI_TASKS)
-      tasks = @tasks.queued.where(created_at: IN_FLIGHT_WINDOW.ago..)
+      # Spend and hourly admission still use all spoken-interview tasks. Only resource
+      # admission splits optional retrieval from operations required to continue an interview.
+      pool = if @interview
+        @reference_work ? @tasks.where(task_type: "interview_references") : @tasks.where.not(task_type: "interview_references")
+      else
+        @tasks
+      end
+      tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..)
       tasks = tasks.where.not(id: @existing_task.id) if @existing_task
       tasks.count >= limit
     end

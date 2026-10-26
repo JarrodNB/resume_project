@@ -32,7 +32,7 @@ module Interviews
           AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: "Interview admission is invalid", completed_at: Time.current })
           next success({ allowed: false })
         end
-        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @task.user, existing_task: @task, interview: true)
+        allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @task.user, existing_task: @task, interview: true, reference_work: true)
         unless allowance.success?
           AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: allowance.errors.join(", "), completed_at: Time.current })
           next success({ allowed: false })

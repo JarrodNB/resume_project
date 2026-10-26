@@ -15,7 +15,7 @@
 #   - ai_task_outcomes: separate durable success/failure occurrences, including explicit retries
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification].freeze
+                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
   SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification].freeze
 

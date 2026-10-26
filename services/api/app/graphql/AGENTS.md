@@ -63,3 +63,5 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
 Job Board search/import intentionally read shared provider catalogue records after HTTP authentication.
 All saved Job lookup remains scoped to the current user, including listing/URL matches via
 JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.
+
+- Study guides: `generateStudyGuide(jobId)` queues description-only learning material; Job exposes separate `latestStudyGuide` (successful content) and `latestStudyGuideTask` (newest attempt). See `docs/architecture/study-guides.md` at the repository root.

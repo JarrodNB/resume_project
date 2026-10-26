@@ -149,3 +149,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   linked retries. All answered fields are screened before a first/rebuilt batch prompt; generated
   questions are not. Saved history restores coverage so later feedback does not rescreen old pairs.
   Source/input/history/turn caps bound every exchange.
+
+- `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.

@@ -36,6 +36,7 @@ GraphQL output/input types, enums, and root operation fields.
 - `job_gap_response_type.rb`
 - `job_stage_enum.rb`
 - `job_type.rb`
+- `study_guide_history_page_type.rb`, `study_guide_summary_type.rb` — bounded successful-guide history without generated bodies.
 - `library_fact_attributes_input.rb`
 - `library_fact_type.rb`
 - `mutation_type.rb`

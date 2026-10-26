@@ -13,7 +13,15 @@ module Records
 
     # Destroys the record.
     def call
-      return failure(@record.errors) unless @record.destroy
+      destroyed = if @record.is_a?(Job)
+        @record.user.with_lock do
+          @record.lock!
+          @record.destroy
+        end
+      else
+        @record.destroy
+      end
+      return failure(@record.errors) unless destroyed
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@record.user_id) if LIBRARY_MODELS.include?(@record.class)
       success(@record)

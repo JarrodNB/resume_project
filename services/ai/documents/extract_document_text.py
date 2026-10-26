@@ -5,6 +5,7 @@ hyperlink labels and targets so the resume parser can use their context. Include
 headers before the body and footers after it, reading inherited parts only once.
 Malformed link destinations remain source text without aborting extraction.
 PDF annotation arrays may be indirect references or explicitly absent via null.
+Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container read errors become the caller's unreadable-file error.
 """
@@ -209,7 +210,8 @@ def _docx_block_lines(container: Any) -> list[str]:
 
 def _docx_paragraph_text(paragraph: Any) -> str:
     """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
-    style_name = paragraph.style.name.casefold()
+    style = paragraph.style
+    style_name = style.name.casefold() if style is not None else ""
     if _docx_paragraph_is_numbered(paragraph):
         marker = "1." if style_name.startswith("list number") else "•"
         text = f"{marker} {paragraph.text}"

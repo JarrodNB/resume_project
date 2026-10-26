@@ -356,6 +356,20 @@ def test_pdf_null_annotations_are_treated_as_absent(indirect: bool) -> None:
     assert extract_document_text(buffer.getvalue(), "application/pdf") == "Software Engineer"
 
 
+@pytest.mark.parametrize("explicit_style", [None, "MissingStyle"])
+def test_docx_without_a_default_style_keeps_plain_text(explicit_style: str | None) -> None:
+    """Optional or unresolved style metadata must not prevent reading a paragraph."""
+    document = Document()
+    paragraph = document.add_paragraph("Software Engineer")
+    document.styles["Normal"].delete()
+    if explicit_style is not None:
+        paragraph._p.get_or_add_pPr().get_or_add_pStyle().val = explicit_style
+    buffer = BytesIO()
+    document.save(buffer)
+
+    assert extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE) == "Software Engineer"
+
+
 def test_docx_keeps_header_and_footer_resume_content() -> None:
     """Contact details and portfolio labels in margins remain available to the parser."""
     document = Document()

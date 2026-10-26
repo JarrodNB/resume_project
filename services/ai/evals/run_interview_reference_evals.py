@@ -11,6 +11,7 @@ from pathlib import Path
 
 from interviews.references import (
     SELECTION_POLICY_VERSION,
+    reference_index_texts,
     saved_reference_sources,
     select_references,
 )
@@ -34,7 +35,7 @@ def evaluate_case(case, *, matches=None):
 def paid_matches(case, settings):
     """Supply real distances in production hybrid order without requiring a database.
 
-    Synthetic documents use readable source heading/body plus fact requirement labels.
+    Synthetic documents reuse the production index compatibility projection for every source.
     This tests selection at its input seam; it does not benchmark Postgres query latency.
     """
     from evals.run_library_retrieval_evals import _cosine_similarity
@@ -45,14 +46,12 @@ def paid_matches(case, settings):
     sources = saved_reference_sources(library)
     if not sources:
         return []
-    facts = {fact.id: fact.requirement for fact in library.facts}
+    index_text = reference_index_texts(library)
     documents = []
     lookup = {}
     query = embed_search_query(case["query"], settings.embedding_model, settings.embedding_dimensions)
-    for index, ((kind, source_id), reference) in enumerate(sources.items()):
-        text = f"{reference.title}: {reference.body}"
-        if kind == "LibraryFact":
-            text = f"Fact: {facts[source_id]}: {reference.body}"
+    for index, (kind, source_id) in enumerate(sources):
+        text = index_text[(kind, source_id)]
         embedded = embed_search_query(text, settings.embedding_model, settings.embedding_dimensions)
         distance = 1 - _cosine_similarity(query.vector, embedded.vector)
         key = str(index)
@@ -89,7 +88,7 @@ def run_evaluation(*, paid=False):
             "usage_incomplete": usage.incomplete if usage else False,
             "usage": [entry.model_dump(mode="json") for entry in usage.entries] if usage else [],
             "semantic_relevance": {"exact_label_agreement": sum(case["passed"] for case in results) / len(results)} if paid else None,
-            "limitation": "Small synthetic fixture set; no judge or human relevance measurement. Offline distances are supplied, not measured. Paid corpus heading/body text approximates Rails indexing; this is selection-seam evidence, not exact production indexing or latency evidence.",
+            "limitation": "Small synthetic fixture set; no judge or human relevance measurement. Offline distances are supplied, not measured. Paid corpus uses the production index compatibility projection; this is selection-seam evidence, not Postgres indexing or latency evidence.",
             "cases": results}
 
 

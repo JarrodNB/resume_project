@@ -51,4 +51,23 @@ def test_paid_mode_reports_embedding_usage_and_label_metrics_at_fake_provider_se
     assert len(report["usage"]) == report["provider_requests"]
     assert all(entry["cost_microdollars"] > 0 for entry in report["usage"])
     assert 0 <= report["semantic_relevance"]["exact_label_agreement"] <= 1
-    assert "approximates Rails" in report["limitation"]
+    assert "production index compatibility projection" in report["limitation"]
+
+
+def test_paid_corpus_uses_current_production_index_prose(monkeypatch):
+    from types import SimpleNamespace
+
+    from pydantic_ai.usage import RequestUsage
+
+    from evals.run_interview_reference_evals import evaluate_case, paid_matches
+    from memory.embed_search_query import QueryEmbedding
+
+    monkeypatch.setattr("memory.embed_search_query.embed_search_query", lambda *args:
+                        QueryEmbedding([1.0, 0.0], RequestUsage(input_tokens=8)))
+    source_id = "00000000-0000-0000-0000-000000000009"
+    case = {"name": "semantic project", "query": "Shipping velocity", "expected_ids": [source_id],
+            "library": {"projects": [{"id": source_id, "name": "Release tooling", "role": "Maintainer",
+                                       "description": "Built release checks."}]}}
+    matches = paid_matches(case, SimpleNamespace(embedding_model="synthetic", embedding_dimensions=2))
+    assert matches[0].content == "Project: Release tooling (Maintainer): Built release checks."
+    assert evaluate_case(case, matches=matches)["passed"]

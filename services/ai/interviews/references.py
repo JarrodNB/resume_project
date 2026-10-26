@@ -14,8 +14,7 @@ from database.open_read_only_connection import open_read_only_connection
 from memory.embed_search_query import embed_search_query_async
 from memory.hybrid_rank import keyword_rank
 
-SELECTION_POLICY_VERSION = "interview-references-v2"
-MAX_SOURCES = 500
+SELECTION_POLICY_VERSION = "interview-references-v3"
 MAX_VECTOR_DISTANCE = 0.35  # Conservative initial policy; semantic calibration is release-gated.
 _QUERY_BOILERPLATE = frozenset(["a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "describe", "did", "do", "experience", "explain", "for", "from", "had", "have", "how", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "please", "role", "tell", "that", "the", "their", "them", "there", "these", "they", "this", "to", "was", "were", "what", "when", "where", "which", "who", "why", "will", "with", "work", "would", "you", "your", "about", "example", "time", "situation"])
 
@@ -35,7 +34,7 @@ def saved_reference_sources(library):
     sources = {}
 
     def add(kind, record, title, body):
-        if len(sources) < MAX_SOURCES and body and body.strip() and len(body) <= 4000:
+        if body and body.strip() and len(body) <= 4000:
             sources[(kind, record.id)] = CareerReference(source_type=kind, source_id=record.id,
                 title=title[:280], body=body)
 
@@ -56,6 +55,54 @@ def saved_reference_sources(library):
     for fact in library.facts:
         add("LibraryFact", fact, "Saved career fact", fact.response)
     return sources
+
+
+def reference_index_texts(library):
+    """Rebuild Rails' saved embedding prose for one-time vector compatibility.
+
+    Keep this projection aligned with CareerLibrary::BuildEmbeddingTextsService.
+    Whitespace is normalized for comparison only; display bodies stay untouched.
+    A stale vector is ignored and current source text can still match keywords.
+    """
+    texts = {}
+
+    def add(kind, record, text):
+        texts[(kind, record.id)] = " ".join(text.split())
+
+    def details(heading, body):
+        return f"{heading}: {body}" if body and body.strip() else heading
+
+    for role in library.experiences:
+        title = f"{role.title} at {role.company}"
+        heading = f"{title} ({role.location})" if role.location and role.location.strip() else title
+        add("Experience", role, details(heading, role.description))
+        for highlight in role.highlights:
+            add("ExperienceHighlight", highlight, f"{title}: {highlight.content}")
+    for project in library.projects:
+        heading = f"Project: {project.name}"
+        if project.role and project.role.strip():
+            heading += f" ({project.role})"
+        add("Project", project, details(heading, project.description))
+    for education in library.educations:
+        degree = " in ".join(part for part in (education.degree, education.field_of_study) if part and part.strip())
+        heading = ", ".join(part for part in (degree, education.institution) if part and part.strip())
+        add("Education", education, details(heading, education.description))
+    for certification in library.certifications:
+        fields = [f"Certification: {certification.name}"]
+        for field in ("issuer", "issued_date", "expiry_date", "credential_id", "credential_url"):
+            value = getattr(certification, field)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                continue
+            if field in ("issued_date", "expiry_date"):
+                value = value.strftime({"year": "%Y", "month": "%Y-%m", "day": "%Y-%m-%d"}[
+                    getattr(certification, f"{field}_precision")])
+            fields.append(f"{field.replace('_', ' ').capitalize()}: {value}")
+        add("Certification", certification, details(", ".join(fields), certification.description))
+    for skill in library.skills:
+        add("Skill", skill, f"{skill.category}: {skill.name}" if skill.category and skill.category.strip() else skill.name)
+    for fact in library.facts:
+        add("LibraryFact", fact, f"Fact: {fact.requirement}: {fact.response}")
+    return texts
 
 
 def retrieve_references(user_id, question_text, settings, library):
@@ -80,9 +127,11 @@ def retrieve_references(user_id, question_text, settings, library):
 
 
 def select_references(library, query_text, matches):
-    """Rank bounded current saved evidence; return distinct groups or no match.
+    """Rank the supported owned corpus; bound the final distinct cards, not its prefix.
 
-    Vectors must meet a conservative cosine cutoff. Keyword fallback uses substantive
+    Vectors must match current source text and meet a conservative cosine cutoff.
+    This one-time compatibility check does not monitor later library changes.
+    Keyword fallback uses substantive
     query terms, including saved fact requirement labels for ranking only. This initial
     heuristic is versioned, not a calibrated confidence measure.
     """
@@ -101,8 +150,10 @@ def select_references(library, query_text, matches):
     ids = {str(index): key for index, key in enumerate(sources)}
     keyword_keys = [ids[index] for index in keyword_rank(meaningful_query,
                     [(index, text[key]) for index, key in ids.items()])]
+    current_index_text = reference_index_texts(library)
     vector_keys = [(match.source_type, match.source_id) for match in matches
-                   if match.distance <= MAX_VECTOR_DISTANCE and (match.source_type, match.source_id) in sources]
+                   if match.distance <= MAX_VECTOR_DISTANCE and (match.source_type, match.source_id) in sources
+                   and " ".join(match.content.split()) == current_index_text[(match.source_type, match.source_id)]]
     ordered = list(dict.fromkeys(vector_keys + keyword_keys))
     # Keep search rank within each class, but concrete highlights/narratives precede
     # role descriptions and bare skills; a role plus its bullets consumes one card.

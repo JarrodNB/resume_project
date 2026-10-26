@@ -56,7 +56,7 @@ def test_claimed_search_returns_exact_saved_fact_without_requirement(task_depend
     task = reference_task()
     result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert result.result == {"selection_policy_version": "interview-references-v2", "references": [{"source_type": "LibraryFact", "source_id": source_id,
+    assert result.result == {"selection_policy_version": "interview-references-v3", "references": [{"source_type": "LibraryFact", "source_id": source_id,
         "title": "Saved career fact", "body": library.facts[0].response}]}
     assert result.usage[0].input_tokens == 8
     assert search.call_args.args[1] == task.user_id
@@ -84,7 +84,7 @@ def test_empty_library_does_not_embed(task_dependencies):
     from schemas.gap_analysis_context import CareerLibrary
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
     result = handle_ai_task(reference_task(), deps)
-    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v2", "references": []}
+    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v3", "references": []}
     assert result.usage == []
 
 

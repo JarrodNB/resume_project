@@ -63,3 +63,68 @@ def test_all_question_formats_can_retrieve_unindexed_saved_facts():
         fact = LibraryFact(id=str(uuid4()), requirement=case['requirement'], response=case['response'])
         references = select_references(CareerLibrary(facts=[fact]), case['question'], [])
         assert [r.body for r in references] == [case['response']], case['format']
+
+
+def test_matching_fact_after_large_role_corpus_is_still_available():
+    from interviews.references import select_references
+    roles = [LibraryExperience(id=str(uuid4()), title='Coordinator', company='Example',
+        highlights=[LibraryHighlight(id=str(uuid4()), content='Scheduled weekly meetings') for _ in range(40)])
+        for _ in range(13)]
+    fact = LibraryFact(id=str(uuid4()), requirement='Kubernetes', response='Maintained a production cluster.')
+    refs = select_references(CareerLibrary(experiences=roles, facts=[fact]), 'Kubernetes', [])
+    assert [ref.body for ref in refs] == [fact.response]
+
+
+def test_old_kubernetes_vector_cannot_select_current_finance_fact():
+    from interviews.references import select_references
+    fact = LibraryFact(id=str(uuid4()), requirement='Finance', response='Managed financial forecasts.')
+    old = LibrarySearchMatch(source_type='LibraryFact', source_id=fact.id,
+        content='Fact: Kubernetes: Maintained Kubernetes clusters.', distance=.1, score=.03)
+    library = CareerLibrary(facts=[fact])
+    assert select_references(library, 'Describe Kubernetes deployments', [old]) == []
+    # Current text remains available through lexical fallback even while its index lags.
+    assert [ref.body for ref in select_references(library, 'Financial forecasts', [old])] == [fact.response]
+
+
+def test_matching_current_index_can_supply_a_semantic_only_reference():
+    from interviews.references import select_references
+    fact = LibraryFact(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
+    current = LibrarySearchMatch(source_type='LibraryFact', source_id=fact.id,
+        content='Fact: Operations: Reduced deployment delays.', distance=.1, score=.03)
+    refs = select_references(CareerLibrary(facts=[fact]), 'Release throughput', [current])
+    assert [ref.body for ref in refs] == [fact.response]
+
+
+def test_fresh_rails_index_prose_matches_every_supported_source_without_changing_bodies():
+    from datetime import date
+
+    from interviews.references import select_references
+    from schemas.gap_analysis_context import LibraryCertification, LibraryEducation, LibraryProject
+
+    role = LibraryExperience(id=str(uuid4()), title='Engineer', company='Example', location='London',
+        description='  Maintained\nreliable releases.  ', highlights=[
+            LibraryHighlight(id=str(uuid4()), content='Improved rollout checks.')])
+    project = LibraryProject(id=str(uuid4()), name='Release tooling', role='Maintainer', description='Built release checks.')
+    education = LibraryEducation(id=str(uuid4()), institution='Example University', degree='BSc',
+        field_of_study='Computing', description='Studied reliability.')
+    certification = LibraryCertification(id=str(uuid4()), name='Operations', issuer='Example Institute',
+        issued_date=date(2024, 1, 1), issued_date_precision='year', expiry_date=date(2027, 5, 1),
+        expiry_date_precision='month', credential_id='ABC', credential_url='https://example.test/ABC',
+        description='Deployment qualification.')
+    skill = LibrarySkill(id=str(uuid4()), name='Kubernetes', category='Infrastructure')
+    fact = LibraryFact(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
+    library = CareerLibrary(experiences=[role], projects=[project], educations=[education],
+        certifications=[certification], skills=[skill], facts=[fact])
+    cases = [
+        ('Experience', role.id, 'Engineer at Example (London): Maintained reliable releases.', role.description),
+        ('ExperienceHighlight', role.highlights[0].id, 'Engineer at Example: Improved rollout checks.', role.highlights[0].content),
+        ('Project', project.id, 'Project: Release tooling (Maintainer): Built release checks.', project.description),
+        ('Education', education.id, 'BSc in Computing, Example University: Studied reliability.', education.description),
+        ('Certification', certification.id, 'Certification: Operations, Issuer: Example Institute, Issued date: 2024, Expiry date: 2027-05, Credential id: ABC, Credential url: https://example.test/ABC: Deployment qualification.', certification.description),
+        ('Skill', skill.id, 'Infrastructure: Kubernetes', skill.name),
+        ('LibraryFact', fact.id, 'Fact: Operations: Reduced deployment delays.', fact.response),
+    ]
+    for kind, source_id, index_text, body in cases:
+        current = LibrarySearchMatch(source_type=kind, source_id=source_id, content=index_text, distance=.1, score=.03)
+        refs = select_references(library, 'Shipping velocity', [current])
+        assert [ref.body for ref in refs] == [body], kind

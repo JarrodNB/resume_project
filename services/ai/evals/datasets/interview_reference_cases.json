@@ -150,7 +150,7 @@
       {
         "source_type": "LibraryFact",
         "source_id": "00000000-0000-0000-0000-000000000001",
-        "content": "synthetic indexed text",
+        "content": "Fact: Kubernetes incident recovery: I restored Kubernetes workloads after a failed migration.",
         "distance": 0.9,
         "score": 0.01
       }
@@ -173,7 +173,7 @@
       {
         "source_type": "LibraryFact",
         "source_id": "00000000-0000-0000-0000-000000000001",
-        "content": "synthetic indexed text",
+        "content": "Fact: Kubernetes incident recovery: I restored Kubernetes workloads after a failed migration.",
         "distance": 0.2,
         "score": 0.01
       }
@@ -233,5 +233,28 @@
     "expected_ids": [
       "00000000-0000-0000-0000-000000000008"
     ]
+  },
+  {
+    "name": "stale Kubernetes vector cannot select current finance fact",
+    "query": "Describe Kubernetes deployments",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Finance",
+          "response": "Managed financial forecasts."
+        }
+      ]
+    },
+    "matches": [
+      {
+        "source_type": "LibraryFact",
+        "source_id": "00000000-0000-0000-0000-000000000001",
+        "content": "Fact: Kubernetes: Maintained clusters.",
+        "distance": 0.1,
+        "score": 0.03
+      }
+    ],
+    "expected_ids": []
   }
 ]

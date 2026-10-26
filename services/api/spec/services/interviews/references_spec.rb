@@ -312,4 +312,43 @@ RSpec.describe "Interview question references" do
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: interview.user, interview: true).errors.join).to include("month's interview usage limit")
   end
 
+  [false, true].each do |redelivered|
+    it "releases expired earlier-prompt capacity #{redelivered ? 'with' : 'without'} queue redelivery" do
+      stub_const("DEFAULT_MAX_IN_FLIGHT_INTERVIEW_OPERATIONS", 3)
+      current = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real", question_count: 2).value
+      [2, 3].each { |position| current.questions.create!(content: "Describe a project.", position: position) }
+      references = 3.times.map do |index|
+        message = current.messages.order(:position).last
+        requested = Interviews::RequestReferencesService.call(interview: current, message_id: message.id)
+        expect(requested).to be_success
+        reference = requested.value
+        expect(Interviews::ClaimReferencesService.call(ai_task: reference.ai_task).value[:allowed]).to be(true)
+        expect(Interviews::SkipQuestionService.call(interview: current, question_id: message.question_id,
+          expected_revision: current.revision, submission_key: "reference-timeout-skip-#{index}")).to be_success
+        reference
+      end
+      travel 4.minutes do
+        if redelivered
+          references.each do |reference|
+            expect(Interviews::ClaimReferencesService.call(ai_task: reference.ai_task).value).to eq(allowed: false)
+            expect(reference.ai_task.reload).to be_failed
+          end
+        end
+        message = current.messages.order(:position).last
+        next_request = Interviews::RequestReferencesService.call(interview: current, message_id: message.id)
+        expect(next_request).to be_success
+        expect(Interviews::ClaimReferencesService.call(ai_task: next_request.value.ai_task).value[:allowed]).to be(true)
+        task = references.first.ai_task
+        2.times do
+          AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [] },
+            "attempt_id" => "5e0dfcec-0000-4000-8000-000000000001", "usage" => [ { "model" => "test", "cost_microdollars" => 17 } ] })
+        end
+        expect(task.reload).to be_failed
+        expect(task.cost_microdollars).to eq(17)
+        expect(references.first.reload.references).to eq([])
+        expect(Interviews::ClaimReferencesService.call(ai_task: task).value).to eq(allowed: false)
+      end
+    end
+  end
+
 end

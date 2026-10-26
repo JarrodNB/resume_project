@@ -868,7 +868,12 @@ but retain their own spend accounting. Reference in-flight work has its own per-
 using the same configured operation cap, so queued guidance cannot exhaust slots needed
 for answer execution. The critical-operation pool excludes reference tasks; reference
 request and claim admission count only reference tasks. Monthly spend and hourly
-admission remain shared with the interview. A private authenticated claim rechecks
+admission remain shared with the interview.
+Reference capacity counts only the latest prompt-linked attempts whose three-minute
+deadline is still live. An earlier prompt's expired attempt does not occupy a slot,
+even without worker redelivery. Redelivery checks expiry and prompt availability before
+the once-only claim guard, failing obsolete work while retaining late usage. This adds
+no polling, automatic regeneration or background sweeper. A private authenticated claim rechecks
 availability and returns canonical owner, prompt, reference identity and query text.
 Duplicate claims do no paid work. SQS results preserve late or duplicate usage while
 rejecting stale content after follow-up changes, skip, advancement, abandonment or expiry.

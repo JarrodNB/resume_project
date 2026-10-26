@@ -49,6 +49,14 @@ module AiUsage
       else
         @tasks
       end
+      if @reference_work
+        # Reference deadlines are shorter than the generic stuck-task window. Count
+        # only each owned prompt's latest live attempt; an earlier prompt's dead
+        # worker must not consume capacity while awaiting redelivery or manual retry.
+        live_attempts = InterviewCareerReferences.where(interview_session_id: @user.interview_sessions.select(:id))
+          .where("deadline > ?", Time.current).select(:ai_task_id)
+        pool = pool.where(id: live_attempts)
+      end
       tasks = pool.queued.where(created_at: IN_FLIGHT_WINDOW.ago..)
       tasks = tasks.where.not(id: @existing_task.id) if @existing_task
       tasks.count >= limit

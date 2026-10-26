@@ -17,13 +17,16 @@ module Interviews
         next success({ allowed: false }) unless references_record
         references_record.lock!
         @task.lock!
-        next success({ allowed: false }) if @task.finished? || references_record.claimed_at
+        next success({ allowed: false }) if @task.finished?
         unless references_record.deadline > Time.current && ClarificationPrompt.current?(interview, references_record.message) &&
             @task.input["question_text"] == references_record.message.content &&
             (@task.input["query_text"] || @task.input["question_text"]) == ReferenceQuery.for(interview, references_record.message)
           AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: "Question is no longer available", completed_at: Time.current })
           next success({ allowed: false })
         end
+        # A duplicate live claim cannot dispatch twice, but an expired/stale claim
+        # must first finalize its logical task so worker death is recoverable.
+        next success({ allowed: false }) if references_record.claimed_at
         preparation = interview.operations.preparation.first
         root = preparation&.ai_task
         valid_root = root && root.user_id == interview.user_id && root.subject == interview && root.interview_preparation? &&

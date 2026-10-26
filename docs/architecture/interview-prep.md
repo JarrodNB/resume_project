@@ -49,9 +49,12 @@ prevents duplicate result persistence and usage accounting; failed application s
 reported usage once.
 
 Question generation requires usable library content; feedback can use an empty library. Both
-handlers screen saved library-fact responses and omit job-derived requirement fields from
-prompts and grounding evidence. Feedback also screens the submitted answer and fails closed
-on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
+handlers include screened library-fact responses with separately labeled requirement context.
+Context resolves a response's topic or pronouns, but never establishes the candidate's years,
+leadership, qualifications, or other personal claims. Only responses receive temporary evidence
+IDs or qualify as evidence quotes. Saved field approvals are reused; unchecked context is
+screened before use, and a rejected fact entry is omitted. Feedback also screens the submitted
+answer and fails closed on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
 Pydantic AI runs, versioned prompts, and Logfire tracing apply. Question evidence requires
 exact library excerpts; optional feedback excerpts are normalized to exact source text and
 invalid excerpts discarded. Feedback validates nonblank prose and at most two placeholders;

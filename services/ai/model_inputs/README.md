@@ -25,3 +25,7 @@ Gap analysis already has a domain-specific builder at
 screening and returns text together with the label maps needed for validation. Parsing and job extraction use simple fenced source text;
 their existing agents own that one-line wrapper. JSON used for queue transport,
 screening reconstruction, reports, and structured model outputs is outside this layer.
+
+Interview fact requirements are separately labeled context for interpreting the response.
+They receive no evidence IDs or quote coverage; only the candidate's response supplies personal
+evidence. Callers screen both fields or reuse their saved approvals before rendering them.

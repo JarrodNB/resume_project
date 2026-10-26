@@ -356,6 +356,29 @@ def test_pdf_null_annotations_are_treated_as_absent(indirect: bool) -> None:
     assert extract_document_text(buffer.getvalue(), "application/pdf") == "Software Engineer"
 
 
+@pytest.mark.parametrize("indirect", [False, True])
+def test_pdf_null_link_action_does_not_discard_other_links(indirect: bool) -> None:
+    """An absent action on one annotation does not abort the rest of the page."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import NameObject, NullObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=300, height=300)
+    writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url="https://unused.example"))
+    null = NullObject()
+    page["/Annots"][0].get_object()[NameObject("/A")] = (
+        writer._add_object(null) if indirect else null
+    )
+    writer.add_annotation(0, Link(rect=(10, 40, 100, 60), url="https://github.com/example"))
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert text == '[hyperlink label="GitHub" url="https://github.com/example"]'
+
+
 @pytest.mark.parametrize("explicit_style", [None, "MissingStyle"])
 def test_docx_without_a_default_style_keeps_plain_text(explicit_style: str | None) -> None:
     """Optional or unresolved style metadata must not prevent reading a paragraph."""

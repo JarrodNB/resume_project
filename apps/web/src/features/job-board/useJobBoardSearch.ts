@@ -22,6 +22,7 @@ export function useJobBoardSearch() {
   const [errors, setErrors] = useState<string[]>([])
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
+  const [resultVersion, setResultVersion] = useState(0)
 
   async function request(search: Search, cursor: string | null, current: number) {
     pending.current = true
@@ -38,6 +39,7 @@ export function useJobBoardSearch() {
         return
       }
       const replacement: LoadedPage = { ...page, retrievedAt: page.retrievedAt, cursor }
+      setResultVersion((value) => value + 1)
       setPages((existing) => {
         const index = existing.findIndex((item) => item.cursor === cursor)
         if (index < 0) return [...existing, replacement]
@@ -84,5 +86,5 @@ export function useJobBoardSearch() {
     return true
   })
 
-  return { listings, pages, loading, errors, hasSearched, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
+  return { listings, resultVersion, pages, loading, errors, hasSearched, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
 }

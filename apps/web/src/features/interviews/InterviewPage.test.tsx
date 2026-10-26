@@ -8,7 +8,7 @@ import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
-import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
+import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
@@ -1151,12 +1151,32 @@ it('restores a saved prompt preference without changing the current question', (
   expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
 })
 
-it('shows the manual reference control only when the owned interview enables it', () => {
+it('automatically retrieves references only when the owned interview enables them, without blocking the draft', async () => {
   const view = renderInterview()
-  expect(screen.queryByRole('button', { name: 'Show career examples' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('region', { name: 'Relevant career examples' })).not.toBeInTheDocument()
   state.interview = { ...snapshot, referencesEnabled: true }
   view.unmount()
+  renderInterview('/interviews/session', [{ request: { query: REQUEST_INTERVIEW_REFERENCES,
+    variables: { input: { interviewId: 'session', messageId: 'opening', retryFailed: false } } }, delay: 30,
+    result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: {
+      __typename: 'InterviewCareerReferences', id: 'references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [],
+    } } } } }])
+  const answer = screen.getByRole('textbox', { name: 'Your answer' })
+  expect(answer).toBeEnabled()
+  fireEvent.change(answer, { target: { value: 'I kept my draft while examples loaded.' } })
+  expect(await screen.findByText('No relevant saved examples found for this question.')).toBeVisible()
+  expect(answer).toHaveValue('I kept my draft while examples loaded.')
+  expect(screen.getByRole('checkbox', { name: 'Blur reference text' })).toBeChecked()
+})
+
+it('shows saved reference headings and blur controls on the current follow-up', () => {
+  state.interview = { ...snapshot, referencesEnabled: true, messages: [...snapshot.messages, {
+    ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'What changed afterward?',
+    careerReferences: { id: 'references', status: 'completed', attemptCount: 1, aiTaskId: null, deadline: null,
+      references: [{ sourceType: 'Project', sourceId: 'project', title: 'Scheduling project', body: 'I reduced appointment waiting time.' }] },
+  }] }
   renderInterview()
-  expect(screen.getByRole('button', { name: 'Show career examples' })).toBeEnabled()
+  expect(screen.getByText('Scheduling project')).toBeVisible()
+  expect(screen.getByText('I reduced appointment waiting time.')).toHaveAttribute('aria-hidden', 'true')
   expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
 })

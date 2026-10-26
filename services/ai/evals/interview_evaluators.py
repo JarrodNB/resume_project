@@ -25,12 +25,13 @@ from schemas.interview_questions import (
 
 
 class QuestionEvalInput(BaseModel):
-    """Synthetic usable library and replacement exclusions."""
+    """Synthetic library, hard exclusions, and optional soft recent-practice context."""
 
     library: str
     set_type: InterviewSetType = "general"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
+    recent_questions: list[str] = Field(default_factory=list)
 
 
 class FeedbackEvalInput(BaseModel):
@@ -51,7 +52,8 @@ class FeedbackEvalLabels(BaseModel):
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
     library = CareerLibrary(summary=case.library)
-    text, evidence_by_id = format_interview_question_input(library, case.excluded, case.count, case.set_type)
+    text, evidence_by_id = format_interview_question_input(library, case.excluded, case.count, case.set_type,
+                                                         recent_questions=case.recent_questions)
     return InterviewQuestionContext(text, interview_career_evidence(library)[1], case.count,
                                     tuple(case.excluded), case.set_type, evidence_by_id)
 

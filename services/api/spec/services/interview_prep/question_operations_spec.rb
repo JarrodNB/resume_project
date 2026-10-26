@@ -37,6 +37,33 @@ RSpec.describe "Interview practice services" do
     expect(queue).not_to have_received(:send_message)
   end
 
+  it "snapshots only the 20 most recent owned same-type questions in stable set and slot order" do
+    sets = 5.times.map do |index|
+      saved_set = user.interview_question_sets.create!(number: index + 1, created_at: index.days.ago)
+      5.times do |slot|
+        saved_set.questions.create!(position: slot + 1, question_text: "Set #{index} question #{slot}?",
+          answer_text: "Private answer", feedback: { "strengths" => [ "Private feedback" ] })
+      end
+      saved_set
+    end
+    other_type = user.interview_question_sets.create!(number: 6, set_type: "technical")
+    other_type.questions.create!(position: 1, question_text: "Unrelated technical question?")
+    other_user_set = create(:user).interview_question_sets.create!(number: 1)
+    other_user_set.questions.create!(position: 1, question_text: "Someone else's question?")
+
+    result = InterviewPrep::StartQuestionSetService.call(user: user)
+
+    expect(result).to be_success
+    expect(result.value.input["recent_questions"]).to eq(sets.first(4).flat_map { |set| set.questions.pluck(:question_text) })
+    expect(result.value.input.to_json).not_to include("Private answer", "Private feedback", "Unrelated", "Someone else")
+  end
+
+  it "snapshots an empty recent history for a first set" do
+    result = InterviewPrep::StartQuestionSetService.call(user: user)
+    expect(result).to be_success
+    expect(result.value.input["recent_questions"]).to eq([])
+  end
+
   # Starts one authorized operation using the real shared task enqueue service.
   def start_operation(task_type, **options)
     InterviewPrep::StartQuestionTaskService.call(user: user, question: question, task_type: task_type, **options)

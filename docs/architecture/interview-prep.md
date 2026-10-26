@@ -14,6 +14,17 @@ a set does not reuse its number. Sets can be empty while generation is pending o
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
 text is persisted on the slots; categories and evidence remain in the AI task result.
 
+Full-set generation snapshots up to 20 saved question texts from the user's most recent
+sets of the requested type, ordered by set creation time and ID descending, then slot
+position and question ID ascending. This bounded history is prompt-only guidance to
+prefer fresh focuses. Familiar themes may recur as practice, and general sets retain
+their required introduction. Historical overlap never adds a rejection or retry.
+The history is separate from hard avoidance preferences and replacement exclusions;
+it is neither career evidence nor proof of personal facts. Only Rails-owned generated
+slots supply history, never browser text, answers, or feedback, so the worker reuses
+trusted-generated-source coverage without screening those questions again. Legacy tasks
+without history continue with empty context.
+
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
 an empty answer and increment the answer revision only when text changes. The answer limit is

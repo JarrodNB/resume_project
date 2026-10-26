@@ -114,13 +114,15 @@ score attached, so runs can be compared across prompt and model changes.
 ## Local Rules
 
 - `datasets/interview_questions_cases.yaml` / `datasets/interview_feedback_cases.yaml` —
-  fifteen question cases and seventeen feedback cases for general/technical/knowledge full sets and replacements,
+  twenty-two question cases and seventeen feedback cases for general/technical/knowledge full sets and replacements,
   software and nonsoftware practical work, sparse education, complete/incomplete stories, no matching example,
   uncertain/negative outcomes, introductions, and legacy goals/development questions.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.
   The knowledge accuracy judge checks corrections; scope-aware example grounding permits subject facts while forbidding invented experience.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
+  Recent-practice cases cover full sets across all three types, including sparse context.
+  The recent-practice variety rubric is a quality signal, never a production acceptance gate.
 - `interview_eval_reporting.py` — input-aware Pydantic Evals judging and Logfire scores;
   `interview_judge.py` submits all applicable rubrics in one attempt with independent
   `EVAL_JUDGE_MODEL` configuration. Output and HTTP retries are disabled; case errors

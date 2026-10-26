@@ -15,14 +15,14 @@ from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
 from prompts.interview_question_instructions import (
-    INTERVIEW_QUESTIONS_PROMPT_VERSION,
     INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS,
+    INTERVIEW_QUESTIONS_PROMPT_VERSION,
     interview_question_scope_instructions,
 )
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
-    InterviewQuestionDraft,
     InterviewQuestionContext,
+    InterviewQuestionDraft,
     InterviewQuestionModelOutput,
     InterviewQuestions,
     normalize_question,

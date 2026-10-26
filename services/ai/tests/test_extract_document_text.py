@@ -354,3 +354,19 @@ def test_pdf_null_annotations_are_treated_as_absent(indirect: bool) -> None:
     writer.write(buffer)
 
     assert extract_document_text(buffer.getvalue(), "application/pdf") == "Software Engineer"
+
+
+def test_malformed_docx_xml_is_an_unreadable_document() -> None:
+    """A corrupt XML part uses the import handler's ordinary unreadable-file path."""
+    from zipfile import ZipFile
+
+    original = build_docx_bytes(["Software Engineer"])
+    buffer = BytesIO()
+    with ZipFile(BytesIO(original)) as source, ZipFile(buffer, "w") as destination:
+        for entry in source.infolist():
+            destination.writestr(
+                entry, b"<broken" if entry.filename == "word/document.xml" else source.read(entry)
+            )
+
+    with pytest.raises(UnsupportedDocumentError, match="could not be read"):
+        extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)

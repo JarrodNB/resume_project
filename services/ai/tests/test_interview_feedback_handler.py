@@ -185,7 +185,7 @@ def test_knowledge_correction_need_not_copy_incorrect_answer(dependencies):
     assert result.status == "completed"
     assert result.result["interview_feedback"] == draft
     assert request.model_dump() == original
-    assert len(result.usage) == 3
+    assert len(result.usage) == 2
 
 
 def test_example_can_paraphrase_without_source_vocabulary(dependencies):
@@ -266,7 +266,7 @@ def test_prompt_limit_prevents_generation(dependencies, monkeypatch):
     result = handle_ai_task(task(), dependencies)
     assert result.status == "failed"
     assert "Shorten" in result.error_message
-    assert len(result.usage) == 2
+    assert len(result.usage) == 1
 
 
 def test_excessive_placeholders_fail_with_billed_usage(dependencies):
@@ -337,8 +337,46 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert result.result["interview_feedback"]["evidence_quotes"] == []
     assert screened[0] == task().input["answer_text"]
     assert task().input["question_text"] not in screened
-    assert "Private note" in screened[1] and "Managed 20 people" not in screened[1]
+    assert "Private note" in screened[1] and "Managed 20 people" in screened[1]
     assert library.facts[0].requirement == "Managed 20 people"
+
+
+@pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
+def test_fact_context_reaches_feedback_but_cannot_support_evidence_quotes(dependencies, monkeypatch, set_type):
+    """The provider sees checked context while quote validation accepts only the saved response."""
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from screening.session import prompt_is_covered
+
+    requirement = "Five years of Kubernetes experience and team leadership"
+    response = "I used it for two years."
+    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response=response,
+                                              screened_fields=["response"])])
+    screened = []
+    monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",
+                        lambda text, **kwargs: screened.append(text) or ScreenOutcome(allowed=True))
+    request = task()
+    request.input.update(set_type=set_type, screened_fields=["answer_text"])
+    seen = []
+
+    def respond(messages, info):
+        prompt = messages[-1].parts[0].content
+        seen.append(prompt)
+        assert prompt_is_covered(prompt)
+        assert f"Requirement context (not personal evidence): {requirement}" in prompt
+        assert response in prompt
+        assert "Only the response supplies personal evidence" in info.instructions
+        draft = output()
+        draft["evidence_quotes"] = [requirement, response]
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, draft)])
+
+    with interview_feedback_agent.override(model=FunctionModel(respond)):
+        result = handle_ai_task(request, replace(dependencies, read_career_library=lambda user: library))
+    assert result.status == "completed"
+    assert seen
+    assert result.result["interview_feedback"]["evidence_quotes"] == [response]
+    assert len(screened) == 1 and requirement in screened[0] and response not in screened[0]
 
 
 def test_feedback_agent_masks_contact_and_restores_evidence(dependencies, monkeypatch):

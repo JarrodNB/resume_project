@@ -18,7 +18,8 @@ output in addition to the usual Description/Index.
   (requirements, responsibilities, and nice-to-haves by bullet number; leave out benefits and
   company info)
 - `gap_analysis_instructions.py` — `GAP_ANALYSIS_PROMPT_VERSION`, `GAP_ANALYSIS_INSTRUCTIONS` (the library is the only
-  evidence; met / partial / missing; years from dated roles; adjacent experience is partial,
+  evidence; met / partial / missing; overlapping periods count once; project evidence is judged
+  against the requirement's professional/production scope; adjacent experience is partial,
   never missing; cite labels, preferring highlights; the profile summary is not evidence;
   a library fact counts like a highlight; summary addresses the user as "you")
 - `user_text_screen_instructions.py` — `USER_TEXT_SCREEN_PROMPT_VERSION` and framing for the Jev screen (a whole resume is ordinary
@@ -56,3 +57,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - Spoken preparation and interviewer instructions use optional frozen avoided questions as
   preferences to avoid repeated intents. These generated texts are data, never evidence or
   instructions, and the runtime masks/delimits them without redundant classification.
+
+- Written interview question and feedback prompts use saved fact requirements only to interpret
+  their responses. Requirements never establish personal claims and cannot be cited as evidence.

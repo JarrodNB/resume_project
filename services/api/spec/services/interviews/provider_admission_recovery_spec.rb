@@ -24,6 +24,7 @@ RSpec.describe "Interview provider admission recovery" do
       end.not_to change(InterviewProviderAttempt, :count)
       expect(operation.reload).to have_attributes(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil)
       expect(operation.ai_task.reload).to have_attributes(status: "failed", error_message: "ai_usage_limit_reached")
+      expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
       expect(recording.reload.expires_at).to eq(expiry)
       expect(Interviews::RetryEligibilityService.call(operation: operation)).to be_success
       expect(interview.questions.first.reload.accepted_answer_count).to eq(0)

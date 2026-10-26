@@ -150,3 +150,5 @@ All business logic, as service objects grouped by domain folder.
   avoided-question preference under owner/session locks. It never changes progress or dialogue.
   `StartPreparationService` freezes the shared list for preparation and later follow-ups;
   old sessions default to no exclusions, and newer saves do not rewrite frozen sessions.
+
+- `study_guides/` — snapshots an owned job description under owner/job locks, queues guide generation, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.

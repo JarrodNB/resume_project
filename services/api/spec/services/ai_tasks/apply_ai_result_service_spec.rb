@@ -70,6 +70,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ai_task.reload).to be_completed
     expect(ai_task.result).to eq("echo" => "hi")
     expect(ai_task.completed_at).to be_present
+    expect(ai_task.ai_task_outcomes.sole.status).to eq("completed")
     expect(ApiSchema.subscriptions).to have_received(:trigger)
       .with(:ai_task_updated, { id: ai_task.id }, ai_task)
   end
@@ -80,7 +81,8 @@ RSpec.describe AiTasks::ApplyAiResultService do
 
     expect(result).to be_success
     expect(ai_task.reload.result).to eq("attempt" => 1)
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(ai_task.ai_task_outcomes.count).to eq(1)
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: ai_task.id }, ai_task).once
   end
 
   it "ignores a late result for a failed task" do
@@ -115,7 +117,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
 
     expect(ai_task.reload.cost_microdollars).to eq(15)
     expect(ai_task.input.keys).to eq([ "job_id" ])
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: ai_task.id }, ai_task).once
   end
 
   it "keeps the tailoring snapshots when generation fails without a partial draft" do

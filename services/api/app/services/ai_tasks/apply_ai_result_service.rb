@@ -52,7 +52,7 @@ module AiTasks
         elsif status == "completed"
           attributes.merge!(domain_record_attributes(ai_task))
         end
-        ai_task.update!(attributes)
+        UpdateTaskService.call(task: ai_task, attributes: attributes)
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if applied
       success(ai_task)
@@ -60,8 +60,8 @@ module AiTasks
 
     private
 
-    # Gap-analysis, tailoring and interview writes share the owner lock with enqueue/save/clear;
-    # acquire it before task, job, answer and library row locks to avoid inverted lock order.
+    # All result writes acquire the owner first. This preserves domain lock ordering and
+    # serializes the outcome cursor through commit for reconnect recovery.
     def with_result_lock(ai_task, &block)
       if ai_task.interview_clarification?
         ai_task.user.with_lock do
@@ -70,10 +70,8 @@ module AiTasks
           interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
           ai_task.with_lock(&block)
         end
-      elsif ai_task.analyze_gaps? || ai_task.tailor_resume? || ai_task.improve_library_entry? || ai_task.review_library_section? || ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
-        ai_task.user.with_lock { ai_task.with_lock(&block) }
       else
-        ai_task.with_lock(&block)
+        ai_task.user.with_lock { ai_task.with_lock(&block) }
       end
     end
 
@@ -95,6 +93,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.generate_study_guide?
+        result = StudyGuides::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.review_library_section?
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }

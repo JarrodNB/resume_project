@@ -26,6 +26,6 @@ export function ReviewAnswerForm({ questions, stale, disabled, onSubmit }: Props
       <Label htmlFor={`${answerId}-${index}`}>{questions.length === 1 ? 'Your answer' : `Your answer to question ${index + 1} (optional)`}</Label>
       <Textarea id={`${answerId}-${index}`} aria-describedby={`${answerId}-${index}-question ${answerId}-help`} value={answers[index]} onChange={(event) => setAnswers((current) => current.map((answer, position) => position === index ? event.target.value : answer))} maxLength={PROSE_TEXT} disabled={disabled || stale} rows={3} />
     </div>)}
-    <Button size="sm" type="submit" className="justify-self-start" disabled={disabled || stale || entered.length === 0}>Generate revision from {questions.length === 1 ? 'answer' : 'answers'}</Button>
+    <Button size="sm" type="submit" className="w-full" disabled={disabled || stale || entered.length === 0}>Generate revision from {questions.length === 1 ? 'answer' : 'answers'}</Button>
   </form>
 }

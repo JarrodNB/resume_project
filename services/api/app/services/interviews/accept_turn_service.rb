@@ -1,5 +1,6 @@
 # Commits a claimed turn as one durable outcome. Only Rails chooses message positions,
 # answer counts, and progress; a replay returns the saved result without writing again.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -56,7 +57,7 @@ module Interviews
         receipt = { "revision" => interview.revision, "status" => interview.status,
           "message_ids" => [ answer.id, response.id ], "question_id" => question.id }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
-        @operation.ai_task&.update!(status: "completed", completed_at: Time.current)
+        AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "completed", completed_at: Time.current }) if @operation.ai_task
         InterviewSessionMedia.where(id: @operation.recording_id, interview_session: interview, kind: "recording")
           .update_all(expires_at: Time.current)
         success(receipt)

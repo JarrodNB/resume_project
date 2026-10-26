@@ -24,6 +24,7 @@ RSpec.describe "Typed interview answers" do
     expect(interview.reload.revision).to eq(1)
     expect(interview.messages.where(kind: "answer").pluck(:content)).to eq([ text ])
     expect(interview.questions.first.reload.accepted_answer_count).to eq(1)
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
     expect(Interviews::SubmitTurnService.call(**input).value.id).to eq(operation.id)
   end
 
@@ -83,5 +84,6 @@ RSpec.describe "Typed interview answers" do
     travel 1.hour
     expect(Interviews::DiscoverOperationsService.call.value).not_to include(operation.id)
     expect(operation.reload).to be_expired
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end
 end

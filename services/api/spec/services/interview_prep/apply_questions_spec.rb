@@ -64,7 +64,7 @@ RSpec.describe "Applying interview question generation" do
     expect(question_set.questions.pluck(:question_text)).to eq(drafts.pluck("question_text"))
     expect(task.reload).to have_attributes(status: "completed", input_tokens: 20,
                                           output_tokens: 10, cost_microdollars: 30)
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
   end
 
   it "rejects an exact saved preference repeated by generation without persisting any slots" do

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_25_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_26_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -41,6 +41,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_170000) do
     t.uuid "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "ai_task_outcomes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "ai_task_id", null: false
+    t.bigserial "sequence", null: false
+    t.string "task_type", null: false
+    t.string "status", null: false
+    t.datetime "completed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_ai_task_outcomes_on_ai_task_id"
+    t.index ["sequence"], name: "index_ai_task_outcomes_on_sequence", unique: true
+    t.index ["user_id", "sequence"], name: "index_ai_task_outcomes_on_user_id_and_sequence", unique: true
+    t.index ["user_id"], name: "index_ai_task_outcomes_on_user_id"
+    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying::text, 'failed'::character varying::text])", name: "ai_task_outcomes_terminal_status"
   end
 
   create_table "ai_tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -600,6 +616,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_25_170000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "ai_task_outcomes", "ai_tasks"
+  add_foreign_key "ai_task_outcomes", "users"
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"

@@ -4,7 +4,7 @@ import { API_URL } from '@/lib/apiConfig'
 
 export interface AuthCredentials { email: string; password: string; name?: string }
 export interface SessionUser { id: string; email: string; name: string | null }
-export interface BrowserSession { user: SessionUser | null; csrfToken: string }
+export interface BrowserSession { user: SessionUser | null; csrfToken: string; taskOutcomeCursor?: string | null }
 
 export class AuthRequestError extends Error {
   readonly messages: string[]

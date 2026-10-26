@@ -1,5 +1,6 @@
 # Accepts exactly the server-owned proposal, or closes an exchange without changing
 # the library. Single-highlight saves retain IDs and do not replace sibling bullets.
+# Discarding unfinished work records its terminal outcome for the owner's notices.
 module CareerLibrary
   class FinishEditService < ApplicationService
     def initialize(user:, ai_task_id:, discard: false)
@@ -15,7 +16,7 @@ module CareerLibrary
         latest = EditSnapshot.latest(user: @user, kind: target["kind"], record_id: target["record_id"])
         next failure([ "A newer edit exists. Reload to continue." ]) unless latest&.id == task.id
         if @discard
-          task.with_lock { task.update!(status: "failed", error_message: EditSnapshot::DISCARD_MESSAGE, pending_questions: [], completed_at: Time.current) }
+          AiTasks::UpdateTaskService.call(task: task, attributes: { status: "failed", error_message: EditSnapshot::DISCARD_MESSAGE, pending_questions: [], completed_at: Time.current })
           next success(task)
         end
         next failure([ "Wait for a completed proposal before accepting." ]) unless task.completed? && ApplyEditService.valid_proposal?(task.result, target)

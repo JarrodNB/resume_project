@@ -51,6 +51,8 @@ module Types
 
     field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
 
+    field :generate_study_guide, mutation: Mutations::StudyGuides::GenerateStudyGuide
+
     field :create_job, mutation: Mutations::Jobs::CreateJob
     field :update_job, mutation: Mutations::Jobs::UpdateJob
     field :move_job_to_stage, mutation: Mutations::Jobs::MoveJobToStage

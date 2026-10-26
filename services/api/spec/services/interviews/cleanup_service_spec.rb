@@ -116,6 +116,7 @@ RSpec.describe Interviews::CleanupService do
     expect(interview.questions.first).to have_attributes(content: "[expired]", model_history: [])
     expect(operation.reload).to have_attributes(status: "expired", accepted_result: {})
     expect(task.reload).to have_attributes(status: "failed", input: {}, result: {})
+    expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
     expect(task.ai_usage_attempts.count).to eq(1)
     expect(operation.execution_attempts.count).to eq(1)
     expect(described_class.call(storage: storage).value[:purged_sessions]).to eq(0)

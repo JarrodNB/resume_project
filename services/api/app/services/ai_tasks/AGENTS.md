@@ -6,6 +6,9 @@ Shared AI enqueue, result application, and attempt accounting.
 
 ## Contents
 
+- `list_task_outcomes_service.rb` — bounded owner-scoped cursor recovery and validation; callers provide an authorized relation.
+- `update_task_service.rb` — owner-first task writes and durable outcome insertion; transport runs after all enclosing transactions commit. Callers must acquire the owner before task locks.
+- `publish_task_outcome_service.rb` / `describe_task_outcome_service.rb` — owner-scoped notice delivery and safe labels/destinations, with no raw generated content or errors.
 - `apply_ai_result_service.rb`
 - `enqueue_ai_task_service.rb`
 - `record_attempt_usage_service.rb` — resolves unfinished accounting markers and adds each

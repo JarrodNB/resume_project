@@ -51,6 +51,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     ai_task = user.ai_tasks.last
     expect(ai_task).to be_failed
     expect(ai_task.completed_at).to be_present
+    expect(ai_task.ai_task_outcomes.sole.status).to eq("failed")
   end
 
   it "returns resolved work before limits without saving or publishing another task" do

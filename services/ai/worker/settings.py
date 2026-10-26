@@ -51,6 +51,8 @@ class WorkerSettings(BaseSettings):
     job_posting_parse_thinking: ThinkingLevel = False
     interview_feedback_model: str = "openai:gpt-6-luna"
     interview_feedback_thinking: ThinkingLevel = False
+    study_guide_model: str = "openai:gpt-6-luna"
+    study_guide_thinking: ThinkingLevel = False
     interview_questions_model: str = "openai:gpt-6-luna"
     interview_questions_thinking: ThinkingLevel = False
     # Interview eval judging stays independent of production and comparison models.

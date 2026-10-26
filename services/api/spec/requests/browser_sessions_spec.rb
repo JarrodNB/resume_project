@@ -34,6 +34,17 @@ RSpec.describe "Browser sessions", type: :request do
     expect(response.headers["Cache-Control"]).to include("no-store")
   end
 
+  it "captures an owner-only outcome watermark before the signed-in workspace becomes usable" do
+    user = login
+    expect(response.parsed_body["taskOutcomeCursor"]).to eq("0")
+    task = create(:ai_task, user: user)
+    AiTasks::UpdateTaskService.call(task: task, attributes: { status: "completed", completed_at: Time.current })
+    other = create(:ai_task)
+    AiTasks::UpdateTaskService.call(task: other, attributes: { status: "completed", completed_at: Time.current })
+    bootstrap
+    expect(response.parsed_body["taskOutcomeCursor"]).to eq(task.ai_task_outcomes.sole.sequence.to_s)
+  end
+
   it "requires CSRF even on login" do
     post "/auth/sign_in", params: { user: { email: "missing@example.com", password: "a quiet orchard after rain" } }.to_json, headers: headers
     expect(response).to have_http_status(:unprocessable_content)

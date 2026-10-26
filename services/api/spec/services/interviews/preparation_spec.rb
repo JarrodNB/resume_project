@@ -72,6 +72,7 @@ RSpec.describe "Atomic preparation acceptance" do
     expect(interview.messages).to be_empty
     expect(interview.operations.count).to eq(1)
     expect(operation.reload.ai_task).to be_completed
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
     expect(accept(role: role.merge("title" => "Different role"))).not_to be_success
   end
   it "rejects incomplete or duplicate question sets without exposing partial preparation" do

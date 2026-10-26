@@ -344,6 +344,68 @@ cases:
         - requirement: AWS Solutions Architect certification
           verdict: met
           key_evidence_ids: [cert-1]
+  - name: overlapping_roles_count_calendar_time_once
+    inputs:
+      job:
+        id: job-overlap
+        title: Python Engineer
+        requirements:
+          - Five years of professional Python development
+          - Three years of professional Python development
+      career_library:
+        experiences:
+          - id: role-a
+            company: Example Labs
+            title: Part-time Python Developer
+            start_date: 2020-01-01
+            end_date: 2023-01-01
+            description: Developed Python services throughout this role.
+          - id: role-b
+            company: Sample Systems
+            title: Part-time Python Developer
+            start_date: 2020-01-01
+            end_date: 2023-01-01
+            description: Developed Python services throughout this concurrent role.
+    metadata:
+      assessments:
+        - requirement: Five years of professional Python development
+          verdict: partial
+          key_evidence_ids: [role-a, role-b]
+        - requirement: Three years of professional Python development
+          verdict: met
+          key_evidence_ids: [role-a, role-b]
+
+  - name: project_meets_unqualified_skill_but_not_professional_experience
+    inputs:
+      job:
+        id: job-project-scope
+        title: Python Engineer
+        requirements:
+          - Experience writing Python
+          - Professional experience writing Python
+          - Production experience with Python
+        nice_to_haves: [Open source contributions]
+      career_library:
+        projects:
+          - id: project-python
+            name: Neighborhood book catalog
+            role: Creator
+            description: Built and published an open-source Python catalog as a personal learning project. It has never been used in production or paid work.
+    metadata:
+      assessments:
+        - requirement: Experience writing Python
+          verdict: met
+          key_evidence_ids: [project-python]
+        - requirement: Professional experience writing Python
+          verdict: partial
+          key_evidence_ids: [project-python]
+        - requirement: Production experience with Python
+          verdict: partial
+          key_evidence_ids: [project-python]
+        - requirement: Open source contributions
+          verdict: met
+          key_evidence_ids: [project-python]
+
 evaluators:
   - Coverage
   - EvidenceValidity

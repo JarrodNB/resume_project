@@ -1,6 +1,7 @@
 """
 Description: Turns a validated ParsedJobPosting into the ScrapedJobPosting Rails saves.
 The description is the paste itself. Location and URL that are not in the paste are dropped.
+URLs retain exact source spelling because paths and query values can be case-sensitive.
 Index:
     - NO_REQUIREMENTS_WARNING / DROPPED_LOCATION_WARNING / DROPPED_URL_WARNING: user-facing notes
     - posting_from_parsed_job: builds the posting and fits Rails' length limits
@@ -55,11 +56,11 @@ def _kept_optional(value: str | None, source_text: str, warning: str, warnings: 
 
 
 def _kept_url(value: str | None, source_text: str, warnings: list[str]) -> str | None:
-    """Keeps one http(s) link that appears in the ad."""
-    kept = _kept_optional(value, source_text, DROPPED_URL_WARNING, warnings)
-    if kept is None:
+    """Keep an exactly copied http(s) link without applying prose normalization."""
+    if value is None or not value.strip():
         return None
-    if kept.startswith(("http://", "https://")):
+    kept = value.strip()
+    if kept.startswith(("http://", "https://")) and kept in source_text:
         return kept
     warnings.append(DROPPED_URL_WARNING)
     return None

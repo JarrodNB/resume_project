@@ -143,3 +143,25 @@ def test_bullet_rendered_breaks_separate_words(bullet_html: str, expected: str) 
     assert sections.requirements[0] == expected
     if "<ul>" in bullet_html:
         assert sections.requirements == [expected, "AWS"]
+
+
+@pytest.mark.parametrize("heading", [
+    "<b><strong>Requirements</strong></b>",
+    "<strong>Required <b>Skills</b></strong>",
+    "<b>Required</b> <strong><b>Skills</b></strong>",
+])
+def test_nested_bold_headings_keep_requirement_bullets(heading: str) -> None:
+    """Nested emphasis does not count the same heading words twice."""
+    sections = split_description_sections(f"<p>{heading}</p><ul><li>Python</li></ul>")
+
+    assert sections.requirements == ["Python"]
+
+
+def test_partially_bold_prose_is_not_a_heading() -> None:
+    """Recognizing nested emphasis must still require the whole paragraph to be bold."""
+    sections = split_description_sections(
+        "<p>We value <b><strong>Skills</strong></b></p><ul><li>Python</li></ul>"
+    )
+
+    assert sections.requirements == []
+    assert sections.all_bullets == ["Python"]

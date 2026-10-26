@@ -72,6 +72,60 @@ def _output(count=5, set_type="general"):
             categories)]}
 
 
+@pytest.mark.parametrize("avoided", [[], ["What are your career goals?"]])
+def test_recent_history_is_soft_prompt_context_not_evidence_or_exclusions(task_dependencies, monkeypatch, avoided):
+    """Owned generated history is not rescreened and overlap is accepted on the first request."""
+    task = _task()
+    recent = _output()["questions"][0]["question_text"]
+    task.input["recent_questions"] = [recent]
+    task.input["avoided_questions"] = avoided
+    deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
+    checked = []
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+                        lambda text, **kwargs: checked.append(text) or ScreenOutcome(allowed=True))
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect_context(prompt, **kwargs):
+        assert "Recent practice questions" in prompt.text
+        assert recent in prompt.text
+        assert recent not in prompt.library_text
+        assert prompt.excluded == tuple(avoided)
+        from screening.session import prompt_is_covered
+        assert prompt_is_covered(prompt.text)
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
+    calls = []
+
+    def respond(messages, info):
+        calls.append(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, json.dumps(_output()))])
+
+    with interview_questions_agent.override(model=FunctionModel(respond)):
+        result = handle_ai_task(task, deps)
+    assert result.status == "completed"
+    assert recent not in checked
+    assert len(calls) == 1
+
+
+def test_replacement_ignores_recent_full_set_context(task_dependencies, monkeypatch):
+    """Replacement uses its original hard exclusions without full-set variety context."""
+    task = _task(True)
+    recent = "Older question outside the current set?"
+    task.input["recent_questions"] = [recent]
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect_context(prompt, **kwargs):
+        assert recent not in prompt.text
+        assert set(prompt.excluded) == {task.input["question_text"], *task.input["other_questions"]}
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
+    with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
+        assert handle_ai_task(task, deps).status == "completed"
+
+
 @pytest.mark.parametrize("replacement", [False, True])
 @pytest.mark.parametrize("set_type", [None, "general", "technical", "knowledge"])
 def test_sparse_library_generates_questions(task_dependencies, replacement, set_type, monkeypatch):
@@ -312,7 +366,8 @@ def test_source_cannot_close_its_own_evidence_block(task_dependencies, monkeypat
         assert handle_ai_task(_task(), deps).status == "completed"
 
 
-def test_question_boundary_retries_marker_found_in_source(monkeypatch):
+@pytest.mark.parametrize("history", [False, True])
+def test_question_boundary_retries_marker_found_in_source(monkeypatch, history):
     """Even a generated marker already present in evidence cannot become its closing line."""
     from model_inputs import interview_evidence
 
@@ -320,7 +375,8 @@ def test_question_boundary_retries_marker_found_in_source(monkeypatch):
     monkeypatch.setattr(interview_evidence, "sha256",
                         lambda *_: SimpleNamespace(hexdigest=lambda: next(candidates)))
     prompt = interview_questions_handler.format_interview_question_prompt(
-        CareerLibrary(summary="--deadbeef"), [], 5, "general")
+        CareerLibrary(summary="Python" if history else "--deadbeef"), [], 5, "general",
+        recent_questions=["A question with --deadbeef inside?"] if history else [])
     assert "--01234567" in prompt
     assert prompt.endswith("--01234567")
 

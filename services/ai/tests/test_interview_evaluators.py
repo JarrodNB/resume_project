@@ -15,6 +15,7 @@ from evals.interview_evaluators import (
     FeedbackEvalInput,
     FeedbackStructure,
     QuestionStructure,
+    QuestionEvalInput,
     feedback_context,
     question_context,
 )
@@ -44,7 +45,7 @@ def test_feedback_eval_uses_readable_production_prompt() -> None:
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 20
+    assert len(dataset.cases) == 23
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
@@ -87,6 +88,15 @@ def test_question_eval_context_uses_readable_production_prompt() -> None:
     assert "Career evidence:\n--" in prompt.text and "[E1] Summary: " in prompt.text
     assert case.library in prompt.text
     assert "Library JSON data" not in prompt.text
+
+
+def test_recent_question_eval_context_is_soft_history():
+    recent = "What have you learned about comparing historical sources?"
+    case = QuestionEvalInput(library="History graduate.", recent_questions=[recent])
+    prompt = question_context(case)
+    assert recent in prompt.text
+    assert recent not in prompt.library_text
+    assert prompt.excluded == ()
 
 
 def test_feedback_structure() -> None:

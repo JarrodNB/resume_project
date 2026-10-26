@@ -152,5 +152,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Source/input/history/turn caps bound every exchange.
 
 - Written question tasks accept `avoided_questions` and replacement questions as Rails-owned generated text. Reuse trusted-generated-source coverage for these exact task snapshot values, including legacy sibling strings without identity metadata; never screen our own generated questions or drop exclusions at the prompt cap.
+  Full-set tasks also accept optional Rails-owned `recent_questions` as prompt-only variety
+  guidance. Trust that generated text, keep it separate from exclusions/evidence, and never
+  add overlap validation or retries.
 
 - `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.

@@ -6,7 +6,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 ## Contents
 
-- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks.
+- `start_question_set_service.rb` — allocates a per-user set number and queues generation after allowance checks, snapshotting up to 20 recent same-type generated question texts as soft variety guidance.
 - `record_screening_service.rb` — accepts exact owned target/sibling snapshot reports and
   records only current fingerprint/revision matches inside owner-first result application.
 - `save_answer_service.rb` — explicitly saves or clears bounded answers and advances revisions only when text changes.

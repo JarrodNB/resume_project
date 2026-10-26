@@ -26,6 +26,8 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
 - `review-correctness/` — Blind correctness, security, and reliability review.
 - `review-design/` — Blind architecture, maintainability, and test-quality review.
 - `tdd/` — Red-green-refactor implementation for approved work.
+- `change-ai-behavior/` — Grounded AI behavior changes with screening, privacy, tracing, and accounting preserved.
+- `evaluate-ai-quality/` — Synthetic quality investigations and controlled prompt/model comparisons using existing evals.
 - `to-spec/` — Upstream Matt Pocock skill for turning conversations into specifications.
 - `to-tickets/` — Upstream Matt Pocock skill for splitting plans into tickets with dependencies.
 - Skill directory names must match their `name` frontmatter.

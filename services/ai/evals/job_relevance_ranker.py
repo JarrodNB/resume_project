@@ -7,8 +7,8 @@ sparse). This score orders only the evaluation candidates; it is not a fit or
 qualification measure and is never returned to the product UI.
 """
 
+from collections.abc import Sequence
 from math import sqrt
-from typing import Sequence
 
 
 def rank_listings(

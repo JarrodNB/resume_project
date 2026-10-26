@@ -196,8 +196,12 @@ Stale and unreviewed states remain neutral. The right dock edits one selected de
 when idle, it gives a short instruction to select a detail in the library. Selecting a
 detail opens its remembered section, highlights the saved source, and focuses the workspace
 heading without scrolling the page. Saved text stays beside the proposed revision on desktop; the mobile dialog
-opens only for a selected edit and offers saved text in a disclosure. Acceptance
-is the primary action; further revision is secondary. Closing preserves the server-owned
+opens only for a selected edit and offers saved text in a disclosure. Each open section places manual Add at the start of its toolbar and a quiet AI Review
+at the end. Summary review aligns with the Summary heading. A detail's grade shares a
+row with its muted pencil action; questions use a readable list and their answer action
+sits immediately below. Selected actions show the workspace mode. Acceptance
+is the primary action; further revision is secondary. Generation and acceptance buttons
+span the AI panel width, with skip and discard actions below. Closing preserves the server-owned
 draft and returns keyboard focus to its source opener.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.

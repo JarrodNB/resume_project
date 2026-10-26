@@ -41,7 +41,7 @@ function WorkspaceContent({ mobile = false }: { mobile?: boolean }) {
   return <div id="library-ai-workspace">
     <div className="library-ai-heading">
       <h2 id="library-ai-heading" tabIndex={-1}><PencilLine aria-hidden="true" />Improve with AI</h2>
-      {(mobile || workspace.selectedKey) && <Button size="icon-sm" variant="ghost" aria-label="Close AI workspace" onClick={workspace.close}><X aria-hidden="true" /></Button>}
+      {(mobile || workspace.selectedKey) && <Button size="icon" variant="ghost" className="-mr-2 size-11" aria-label="Close AI workspace" onClick={workspace.close}><X aria-hidden="true" /></Button>}
     </div>
     <div className="library-ai-body">
       {workspace.selectedKey ? selected ? <>

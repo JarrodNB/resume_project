@@ -190,4 +190,15 @@ RSpec.describe "Interview question references" do
     expect(interview.reload).to be_active
   end
 
+  it "accepts an exact saved education degree when no narrative description exists" do
+    reference = request_references
+    task = reference.ai_task
+    Interviews::ClaimReferencesService.call(ai_task: task)
+    education = create(:education, user: interview.user, description: nil, degree: "Bachelor of Science")
+    entry = { "source_type" => "Education", "source_id" => education.id, "title" => education.institution, "body" => education.degree }
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [entry] } })
+    expect(task.reload).to be_completed
+    expect(reference.reload.references).to eq([entry])
+  end
+
 end

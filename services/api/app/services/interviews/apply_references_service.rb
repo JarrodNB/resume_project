@@ -34,7 +34,7 @@ module Interviews
       end
       return false unless source
       # This is an ownership/provenance check at acceptance, not ongoing library monitoring.
-      fields = entry["source_type"] == "LibraryFact" ? %w[response] : %w[content description name]
+      fields = entry["source_type"] == "LibraryFact" ? %w[response] : %w[content description name degree field_of_study]
       fields.any? { |field| source.has_attribute?(field) && source[field] == entry["body"] }
     end
   end

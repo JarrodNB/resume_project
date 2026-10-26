@@ -1,7 +1,7 @@
 """Render screened career-library facts for interview question and feedback prompts.
 
-Both model inputs need the same saved evidence. This keeps their field selection in one
-place while the interview input builders own question, answer, and boundary framing.
+Both model inputs need the same saved evidence. Question prompts add temporary IDs so the
+model can select sources without copying; feedback still receives readable evidence text.
 """
 
 from hashlib import sha256
@@ -17,21 +17,43 @@ def interview_career_evidence(library: CareerLibrary) -> tuple[str, str]:
     Each displayed source field is registered where it is rendered. Formatted dates
     provide chronology but are not saved text and cannot validate evidence quotes.
     """
+    evidence, quotes, _ = _render_interview_career_evidence(library, with_ids=False)
+    return ("\n\n".join(evidence) if evidence else "None provided.", "\n".join(quotes))
+
+
+def interview_question_evidence(library: CareerLibrary) -> tuple[str, dict[str, str]]:
+    """Return readable evidence annotated with temporary IDs and their saved source text."""
+    evidence, _, evidence_by_id = _render_interview_career_evidence(library, with_ids=True)
+    return ("\n\n".join(evidence) if evidence else "None provided.", evidence_by_id)
+
+
+def _render_interview_career_evidence(library: CareerLibrary, with_ids: bool):
     evidence: list[str] = []
     quotes: list[str] = []
+    evidence_by_id: dict[str, str] = {}
 
     def show(lines: list[str], label: str, value: str) -> None:
-        lines.append(f"{label}: {value}")
         if value.strip():
+            evidence_id = f"E{len(evidence_by_id) + 1}"
+            prefix = f"[{evidence_id}] " if with_ids else ""
+            lines.append(f"{prefix}{label}: {value}")
             quotes.append(value)
+            evidence_by_id[evidence_id] = value
+        else:
+            lines.append(f"{label}: {value}")
 
     if library.summary and library.summary.strip():
         lines: list[str] = []
         show(lines, "Summary", library.summary)
         evidence.append("\n".join(lines))
     for role in library.experiences:
-        lines = [f"Experience: {role.title} at {role.company}"]
-        quotes.extend(value for value in (role.title, role.company) if value.strip())
+        if with_ids:
+            lines = []
+            show(lines, "Experience title", role.title)
+            show(lines, "Experience company", role.company)
+        else:
+            lines = [f"Experience: {role.title} at {role.company}"]
+            quotes.extend(value for value in (role.title, role.company) if value.strip())
         if role.location and role.location.strip():
             show(lines, "Location", role.location)
         if dates := format_date_range(role.start_date, role.end_date):
@@ -78,17 +100,24 @@ def interview_career_evidence(library: CareerLibrary) -> tuple[str, str]:
                 show(lines, label, value)
         evidence.append("\n".join(lines))
     for skill in library.skills:
-        text = f"Skill: {skill.name}" + (f" ({skill.category})" if skill.category and skill.category.strip() else "")
-        evidence.append(text)
-        quotes.append(skill.name)
-        if skill.category and skill.category.strip():
-            quotes.append(skill.category)
+        if with_ids:
+            lines = []
+            show(lines, "Skill", skill.name)
+            if skill.category and skill.category.strip():
+                show(lines, "Skill category", skill.category)
+        else:
+            text = f"Skill: {skill.name}" + (f" ({skill.category})" if skill.category and skill.category.strip() else "")
+            lines = [text]
+            quotes.append(skill.name)
+            if skill.category and skill.category.strip():
+                quotes.append(skill.category)
+        evidence.append("\n".join(lines))
     for fact in library.facts:
         if fact.response.strip():
             lines = []
             show(lines, "Career fact", fact.response)
             evidence.append("\n".join(lines))
-    return ("\n\n".join(evidence) if evidence else "None provided.", "\n".join(quotes))
+    return evidence, quotes, evidence_by_id
 
 
 def format_interview_career_evidence(library: CareerLibrary) -> str:

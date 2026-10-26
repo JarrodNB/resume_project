@@ -1,5 +1,5 @@
 """
-Description: Generates scope-specific distinct questions with excerpt and category-label checks.
+Description: Generates scope-specific distinct questions with temporary evidence-ID checks.
 Index:
     - interview_questions_agent / check_labels: agent and output validation
     - InterviewQuestionsRun / generate_interview_questions: bounded run and billed usage
@@ -15,12 +15,15 @@ from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
 from prompts.interview_question_instructions import (
-    INTERVIEW_QUESTIONS_INSTRUCTIONS,
     INTERVIEW_QUESTIONS_PROMPT_VERSION,
+    INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS,
+    interview_question_scope_instructions,
 )
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
+    InterviewQuestionDraft,
     InterviewQuestionContext,
+    InterviewQuestionModelOutput,
     InterviewQuestions,
     normalize_question,
 )
@@ -35,17 +38,23 @@ from worker.tracing import record_prompt_version
 interview_questions_agent = Agent(
     name="interview_questions_agent",
     deps_type=InterviewQuestionContext,
-    output_type=InterviewQuestions,
-    instructions=INTERVIEW_QUESTIONS_INSTRUCTIONS,
+    output_type=InterviewQuestionModelOutput,
+    instructions=INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS,
     retries=2,
     defer_model_check=True,
     capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)],
 )
 
 
+@interview_questions_agent.instructions
+def scope_instructions(context: RunContext[InterviewQuestionContext]) -> str:
+    """Attach only the rules for the trusted scope selected by Rails."""
+    return interview_question_scope_instructions(context.deps.set_type)
+
+
 @interview_questions_agent.output_validator
-def check_labels(context: RunContext[InterviewQuestionContext], analysis: InterviewQuestions) -> InterviewQuestions:
-    """Retries incorrect scope/count, exposed category labels, duplicates, or unsupported excerpts."""
+def check_labels(context: RunContext[InterviewQuestionContext], analysis: InterviewQuestionModelOutput) -> InterviewQuestionModelOutput:
+    """Retries incorrect scope/count, category leakage, duplicates, or unknown evidence IDs."""
     problems = []
     categories = QUESTION_CATEGORIES[context.deps.set_type]
     if any(q.category not in categories for q in analysis.questions):
@@ -67,22 +76,23 @@ def check_labels(context: RunContext[InterviewQuestionContext], analysis: Interv
         if key in seen:
             problems.append("Questions must be distinct from one another and excluded questions.")
         seen.add(key)
-        normalized_quotes = []
-        for quote in question.evidence_quotes:
-            if quote.strip() and quote in context.deps.library_text:
-                normalized_quotes.append(quote)
-                continue
-            # The readable prompt may cause the model to copy a field label.
-            # Save only the source excerpt after that label, if it is exact.
-            excerpt = quote.split(":", 1)[1].strip() if ":" in quote else ""
-            if excerpt and excerpt in context.deps.library_text:
-                normalized_quotes.append(excerpt)
-            else:
-                problems.append("Evidence quotes must be exact nonblank excerpts of the library.")
-        question.evidence_quotes = normalized_quotes
+        if any(evidence_id not in context.deps.evidence_by_id for evidence_id in question.evidence_ids):
+            problems.append("Use only evidence IDs shown in career evidence.")
     if problems:
         raise ModelRetry("Fix these problems and answer again:\n- " + "\n- ".join(problems))
     return analysis
+
+
+def _resolve_evidence(output: InterviewQuestionModelOutput, evidence_by_id: dict[str, str]) -> InterviewQuestions:
+    """Replace temporary IDs with exact saved strings for the stable Rails result shape."""
+    return InterviewQuestions(questions=[
+        InterviewQuestionDraft(
+            question_text=question.question_text,
+            category=question.category,
+            evidence_quotes=list(dict.fromkeys(evidence_by_id[item] for item in question.evidence_ids)),
+        )
+        for question in output.questions
+    ])
 
 
 class InterviewQuestionsRun(NamedTuple):
@@ -125,7 +135,7 @@ async def _run_with_deadline(
                 usage_limits=agent_usage_limits(load_settings()),
             )
     return InterviewQuestionsRun(
-        questions=result.output,
+        questions=_resolve_evidence(result.output, prompt.evidence_by_id),
         usage=result.usage,
         model=reported_model_name(result.response.model_name or model, model),
     )

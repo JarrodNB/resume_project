@@ -3,6 +3,8 @@ Description: Exercises production task tracing and real synthetic Pydantic Evals
 Index:
     - test_production_task_and_synthetic_dataset: task identity, instrumentation and failure flush
 """
+from types import SimpleNamespace
+
 import logfire
 import pytest
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -48,7 +50,13 @@ def test_production_task_and_synthetic_dataset(monkeypatch):
         task_type="parse_resume",
         input={"text": "synthetic"},
     )
-    with tracing.trace_ai_task(task), eval_run("synthetic-dataset", metadata={"model": "test"}):
+    task_usage = SimpleNamespace(
+        entries=[],
+        incomplete=False,
+    )
+    with tracing.trace_ai_task(task, task_usage=task_usage), eval_run(
+        "synthetic-dataset", metadata={"model": "test"}
+    ):
         dataset = Dataset(
             name="synthetic",
             cases=[Case(name="synthetic", inputs="hello", expected_output="hello")],
@@ -65,6 +73,8 @@ def test_production_task_and_synthetic_dataset(monkeypatch):
     assert any(
         span.name == "ai_task.parse_resume" and "input" in span.attributes for span in finished
     )
+    task_span = next(span for span in finished if span.name == "ai_task.parse_resume")
+    assert task_span.attributes["cost_incomplete"] is False
     assert any("embed" in span.name for span in finished)
     assert any(span.attributes.get("score_value") == 1.0 for span in finished)
     calls = []

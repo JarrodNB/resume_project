@@ -74,7 +74,7 @@ def test_empty_library_uses_answer_and_reports_usage(dependencies, set_type, mon
         result = handle_ai_task(request, dependencies)
     assert result.status == "completed"
     assert result.result["interview_feedback"] == output()
-    assert len(result.usage) == 3
+    assert len(result.usage) == 2
     assert request.model_dump() == original
 
 
@@ -326,7 +326,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     def screen(text, **kwargs):
         """Allows the answer while rejecting career notes."""
         screened.append(text)
-        return ScreenOutcome(allowed=text in (task().input["answer_text"], task().input["question_text"]))
+        return ScreenOutcome(allowed=text == task().input["answer_text"])
     monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text", screen)
     library = CareerLibrary(facts=[LibraryFact(id="f", requirement="Managed 20 people", response="Private note")])
     draft = output()
@@ -335,8 +335,9 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
         result = handle_ai_task(task(), replace(dependencies, read_career_library=lambda user: library))
     assert result.status == "completed"
     assert result.result["interview_feedback"]["evidence_quotes"] == []
-    assert screened[:2] == [task().input["answer_text"], task().input["question_text"]]
-    assert "Private note" in screened[2] and "Managed 20 people" not in screened[2]
+    assert screened[0] == task().input["answer_text"]
+    assert task().input["question_text"] not in screened
+    assert "Private note" in screened[1] and "Managed 20 people" not in screened[1]
     assert library.facts[0].requirement == "Managed 20 people"
 
 
@@ -395,15 +396,15 @@ def test_practice_reports_keep_success_before_later_source_failure(dependencies,
     calls = []
     def classify(text, **kwargs):
         calls.append(text)
-        return ScreenOutcome(text != request.input["question_text"] or not blocked, unchecked=blocked)
+        return ScreenOutcome(not blocked, unchecked=blocked)
     monkeypatch.setattr(interview_feedback_handler, "screen_user_text", classify)
     with screening_session() as session, interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, dependencies)
         assert result.status == ("failed" if blocked else "completed")
         assert [set(report.fields) for report in session.interview_question_screening] == (
-            [{"answer_text"}] if blocked else [{"answer_text"}, {"question_text"}])
+            [] if blocked else [{"answer_text"}])
         assert all(report.question_id == request.input["question_id"] for report in session.interview_question_screening)
-    assert calls == [request.input["answer_text"], request.input["question_text"]]
+    assert calls == [request.input["answer_text"]]
 
 
 def test_partial_practice_approval_checks_only_answer(dependencies, monkeypatch):

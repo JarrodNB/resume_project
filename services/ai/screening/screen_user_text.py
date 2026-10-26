@@ -404,11 +404,13 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
             def trace_in_flight():
                 # A known block can return before other prefetched calls finish. Record
                 # their unresolved state before the task trace is flushed.
-                for future, (index, character_count, token_count) in pending.items():
+                for future, (index, character_count, token_count, chunk) in pending.items():
                     if not future.done():
-                        with logfire.span("local_prompt_screen_in_flight", model=model,
+                        with logfire.span("screening.llama_prompt_guard.chunk_in_flight",
+                                          classifier="llama_prompt_guard",
+                                          screening_purpose="prompt_injection",
                                           chunk_index=index, character_count=character_count,
-                                          token_count=token_count):
+                                          token_count=token_count, screened_text=chunk):
                             pass
 
             def fill_window():
@@ -446,19 +448,43 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                     def classify(chunk=chunk, remaining=remaining, completed=completed,
                                  index=index, token_count=token_count, context=context):
                         try:
-                            run = context.run(local_llama.classify_chunk, chunk, model, remaining)
-                            def trace_success():
-                                with logfire.span("local_prompt_screen", model=model, chunk_index=index,
+                            def trace_classification():
+                                """Keep the span open for actual local inference time."""
+                                with logfire.span("screening.llama_prompt_guard.chunk",
+                                                  classifier="llama_prompt_guard",
+                                                  screening_purpose="prompt_injection",
+                                                  model=model, chunk_index=index,
                                                   character_count=len(chunk), token_count=token_count,
-                                                  blocked=run.blocked, duration_seconds=run.duration):
-                                    pass
-                            context.run(trace_success)
-                            completed.set_result(run)
+                                                  screened_text=chunk) as span:
+                                    try:
+                                        run = local_llama.classify_chunk(chunk, model, remaining)
+                                    except Exception as error:  # noqa: BLE001 — fail closed
+                                        span.set_attribute("error_category", type(error).__name__)
+                                        return None, error
+                                    span.set_attribute("blocked", run.blocked)
+                                    span.set_attribute("duration_seconds", run.duration)
+                                    return run, None
+                            run, error = context.run(trace_classification)
+                            if error is None:
+                                completed.set_result(run)
+                            else:
+                                def trace_error():
+                                    with logfire.span("screening.llama_prompt_guard.chunk_error",
+                                                      classifier="llama_prompt_guard",
+                                                      screening_purpose="prompt_injection", model=model,
+                                                      chunk_index=index, screened_text=chunk,
+                                                      error_category=type(error).__name__):
+                                        pass
+                                context.run(trace_error)
+                                completed.set_exception(error)
                         except Exception as error:  # noqa: BLE001 — worker failure fails closed
                             error_category = type(error).__name__
                             def trace_error():
-                                with logfire.span("local_prompt_screen_error", model=model,
-                                                  chunk_index=index, error_category=error_category):
+                                with logfire.span("screening.llama_prompt_guard.chunk_error",
+                                                  classifier="llama_prompt_guard",
+                                                  screening_purpose="prompt_injection", model=model,
+                                                  chunk_index=index, screened_text=chunk,
+                                                  error_category=error_category):
                                     pass
                             context.run(trace_error)
                             completed.set_exception(error)
@@ -473,7 +499,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                     except RuntimeError:
                         _local_chunk_slots.release()
                         raise
-                    pending[completed] = (index, len(chunk), token_count)
+                    pending[completed] = (index, len(chunk), token_count, chunk)
 
             try:
                 fill_window()
@@ -509,12 +535,16 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                     trace_in_flight()
                     decision_returned.set()
                     report_decision(result)
-                with logfire.span("local_prompt_screen_error", model=model,
+                with logfire.span("screening.llama_prompt_guard.error",
+                                  classifier="llama_prompt_guard",
+                                  screening_purpose="prompt_injection", model=model,
                                   error_category=type(error).__name__):
                     pass
                 logger.warning("Local prompt screening unavailable: %s", type(error).__name__)
         except Exception as error:  # noqa: BLE001 — unavailable local inference fails closed
-            with logfire.span("local_prompt_screen_error", model=model,
+            with logfire.span("screening.llama_prompt_guard.error",
+                              classifier="llama_prompt_guard",
+                              screening_purpose="prompt_injection", model=model,
                               error_category=type(error).__name__):
                 pass
             logger.warning("Local prompt screening unavailable: %s", type(error).__name__)

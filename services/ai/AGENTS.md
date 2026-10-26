@@ -70,8 +70,9 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   primary and fallback models. A missing `TYPESAFE_API_KEY` prevents a Jev call. An attempted
   primary failure uses the configured fallback within the screening deadline
   (three seconds maximum for each JEV run). If both fail, omit the text; a blocked resume
-  fails the import. Screen each cohesive untrusted input once
-  per task execution for answers and reused questions. Saved job and career-library fields
+  fails the import. Screen each cohesive untrusted input once per task execution. User-written
+  interview answers remain screened; exact Rails-owned AI-generated interview questions are
+  trusted by provenance when reused. Saved job and career-library fields
   reuse database approvals; unchecked fields screen on first use, and edits clear their checks.
   Large inputs use overlapping chunks. Optional rejected inputs are omitted with warnings;
   required rejected inputs prevent generation. Every generative agent declares an official

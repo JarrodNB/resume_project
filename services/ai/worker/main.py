@@ -94,7 +94,8 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
     try:
         privacy_stack.enter_context(using_known_contact(task))
         with (
-            collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage), trace_ai_task(task),
+            collect_task_usage(task_usage), collect_guardrail_usage(guardrail_usage),
+            trace_ai_task(task, task_usage=task_usage, guardrail_usage=guardrail_usage),
         ):
             result = handle_ai_task(task, dependencies)
     except InputBlocked as error:

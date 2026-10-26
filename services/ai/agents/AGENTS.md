@@ -70,7 +70,8 @@ instructions from `prompts/`.
 - Every agent has an eval dataset and runner in `evals/`.
 
 - `interview_questions_agent.py` — bounded general/technical/knowledge generation/replacement with category scope,
-  count, label-leakage, duplicate, and exact excerpt validation; quality checks run in `evals/run_interview_questions_evals.py`.
+  count, label-leakage, duplicate, and temporary evidence-ID validation; IDs resolve to exact saved excerpts after generation.
+  Quality checks run in `evals/run_interview_questions_evals.py`.
 
 - `interview_feedback_agent.py` — bounded structured coaching and illustrative examples.
   Runtime validation checks nonblank output and at most two placeholders, then normalizes exact evidence excerpts, dropping

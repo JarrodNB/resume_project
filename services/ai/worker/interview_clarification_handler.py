@@ -1,4 +1,4 @@
-"""Claim a question-only queue task from Rails before screening or generating.
+"""Claim an AI-generated question from Rails before explaining it.
 
 A duplicate delivery produces accounting only. Provider failures become visible failures;
 an explicit request creates the bounded next attempt instead of silently regenerating.
@@ -8,8 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from agents.interview_clarification_agent import generate_interview_clarification
-from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, screening_session
+from screening.session import bind_screened_prompt, screening_session, trust_generated_source
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage
 
@@ -36,17 +35,12 @@ def handle_interview_clarification_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="usage")
     if grant.get("question_text") != snapshot.question_text:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message="Question changed")
-    usage = []
     with screening_session(min(settings.llm_run_timeout_seconds, 30)):
-        screen = screen_user_text(snapshot.question_text, model=settings.user_text_screen_model,
-            timeout_seconds=min(settings.llm_run_timeout_seconds, 30))
-        usage.extend(screen.model_usages)
-        if not screen.allowed:
-            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-                error_message="We couldn't check this question. Try clarification again.")
+        # Rails confirms this is the current AI-generated interview question.
+        trust_generated_source(snapshot.question_text)
         prompt = bind_screened_prompt([snapshot.question_text], lambda values: values[0])
         run = generate_interview_clarification(prompt, settings)
-        usage.append(build_model_usage(reported_model_name(run.response.model_name or settings.interview_questions_model,
-            settings.interview_questions_model), run.usage))
         return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-            result=run.output.model_dump(), usage=usage)
+            result=run.output.model_dump(), usage=[build_model_usage(
+                reported_model_name(run.response.model_name or settings.interview_questions_model,
+                                    settings.interview_questions_model), run.usage)])

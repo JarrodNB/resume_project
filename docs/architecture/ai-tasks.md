@@ -86,14 +86,15 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   The fingerprints use the canonical encoding above. Only `question_text`/`answer_text`
   are eligible; question checks require the same question revision, answer checks both
   revisions. Rails verifies task kind, owned target/set, exact queued source, current field
-  values and revisions under existing owner-first/result locks. Replacement can report only
-  the target and aligned sibling question text; it never approves unused answers.
+  values and revisions under existing owner-first/result locks. The worker screens saved
+  answers and trusts Rails-owned generated question text when reused in feedback or replacement;
+  replacement does not rescreen the target or sibling questions. It never approves unused answers.
   Usage-only/finished-task results cannot grant checks. Successful source checks survive
   later source/generation failure; actual answer edits clear answer approval, successful
-  replacement clears both, and generated questions start unchecked. Legacy target snapshots
-  already have identity/revisions and can earn checks; legacy sibling strings screen normally
-  without persisted reports. New optional metadata stays outside prompts and preserves the
-  original queue source strings. No AI-reader grants are added.
+  replacement clears both, and generated questions start unchecked. Historical question-text
+  reports remain accepted for compatibility, but current workers do not screen generated
+  questions or emit new question-text checks. New optional metadata stays outside prompts and
+  preserves the original queue source strings. No AI-reader grants are added.
 
 Per task type:
 

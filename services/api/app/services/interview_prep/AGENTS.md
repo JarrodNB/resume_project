@@ -34,11 +34,13 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 - Delayed feedback after answer edits is outdated; changed questions and superseded tasks are rejected. Feedback never changes the saved answer.
 
-- Saved `screened_fields` covers only `question_text`/`answer_text`. Question checks depend on
-  question revision; answer checks depend on both revisions. Actual answer edits clear only
-  answer checks. Successful replacement clears both; generated slots start unchecked.
+- Saved `screened_fields` can contain checks for `question_text`/`answer_text`. The worker
+  screens user-written answers and trusts Rails-owned generated question text when reused,
+  including during feedback and regeneration. Answer checks depend on both revisions; actual
+  answer edits clear them. Successful replacement clears checks for both fields.
 - Queue snapshots keep legacy source strings and add primary checks/aligned sibling snapshots.
-  Sibling provenance must match exact text, set and identity; old unidentified strings never
-  earn persisted reports. Failed final generation still records successful source checks.
+  These are Rails-owned generated questions; the worker trusts them as generated context even
+  when old sibling metadata is absent. Failed final generation still records successful answer
+  and library source checks.
 
 - `avoid_question_service.rb` saves the selected question revision as a shared account preference without changing answers. Generation/replacement snapshot all avoided questions under the owner lock; result application rejects exact repeats against that snapshot.

@@ -23,7 +23,7 @@ vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved i
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', referencesEnabled: false, revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
@@ -1149,4 +1149,14 @@ it('restores a saved prompt preference without changing the current question', (
   renderInterview()
   expect(screen.getByRole('button', { name: 'Question avoided' })).toBeDisabled()
   expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
+})
+
+it('shows the manual reference control only when the owned interview enables it', () => {
+  const view = renderInterview()
+  expect(screen.queryByRole('button', { name: 'Show career examples' })).not.toBeInTheDocument()
+  state.interview = { ...snapshot, referencesEnabled: true }
+  view.unmount()
+  renderInterview()
+  expect(screen.getByRole('button', { name: 'Show career examples' })).toBeEnabled()
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
 })

@@ -68,9 +68,9 @@ def handle_interview_questions_task(
         usage.extend(outcome.model_usages)
         return outcome
 
-    # A fact's requirement came from a job posting; only the saved response is career evidence.
+    # Screen requirement context too; only the saved response receives an evidence ID.
     with logfire.span("interview_questions.screen_career_library"):
-        selected = screen_library_inputs(library, screen_note, include_fact_requirements=False)
+        selected = screen_library_inputs(library, screen_note)
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.

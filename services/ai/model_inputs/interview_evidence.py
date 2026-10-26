@@ -2,6 +2,7 @@
 
 Both model inputs need the same saved evidence. Question prompts add temporary IDs so the
 model can select sources without copying; feedback still receives readable evidence text.
+Saved fact requirements explain their responses but never receive evidence IDs or quote coverage.
 """
 
 from hashlib import sha256
@@ -115,6 +116,8 @@ def _render_interview_career_evidence(library: CareerLibrary, with_ids: bool):
     for fact in library.facts:
         if fact.response.strip():
             lines = []
+            if fact.requirement.strip():
+                lines.append(f"Requirement context (not personal evidence): {fact.requirement}")
             show(lines, "Career fact", fact.response)
             evidence.append("\n".join(lines))
     return evidence, quotes, evidence_by_id

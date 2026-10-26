@@ -43,6 +43,10 @@ Job deletion takes the same owner/job locking order, nullifies task subjects, an
 usage records. Late completions fail. Direct task reads and subscriptions hide a deleted
 job's guide result and source snapshot; historical usage remains available.
 
+Terminal outcomes use the shared notification feed, including expired attempts retired by
+manual retry. Notices say "Study guide completed" or "Study guide failed" and link to the
+owned job; deleted or unavailable jobs fall back to the jobs list.
+
 The job page's Study guides section starts collapsed and remembers disclosure per job.
 It loads guide bodies only when opened, follows task subscriptions instead of polling,
 and shows generation errors beside retained successful material. It offers readable

@@ -27,7 +27,8 @@ RSpec.describe "Study guide results" do
     expect(task.reload).to be_completed
     expect(task.result).to eq("study_guide" => guide)
     expect(task.input["description"]).to eq("Reconcile inventory.")
-    expect(ApiSchema.subscriptions).to have_received(:trigger).once
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
+    expect(task.ai_task_outcomes.count).to eq(1)
   end
 
   it "rejects a late completion after job deletion" do

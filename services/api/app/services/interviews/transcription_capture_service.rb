@@ -1,5 +1,6 @@
 # Admit exactly one live provider connection and durably finish its text and usage.
 # Network work is performed by the AI process after these owner-first locks release.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -37,7 +38,7 @@ module Interviews
           task = interview.user.ai_tasks.create!(task_type: "interview_transcription", subject: interview,
             hourly_admission_task: root, input: { capture_id: capture.id })
           unless VerificationBudget.reserve(observation_id: capture.observation_id, stage: "transcription", provider: "openai", model: MODEL)
-            task.update!(status: "failed", completed_at: Time.current, error_message: "capture_admission_failed")
+            AiTasks::UpdateTaskService.call(task: task, attributes: { status: "failed", completed_at: Time.current, error_message: "capture_admission_failed" })
             next failure("Transcription allowance unavailable")
           end
           AiTasks::RecordAttemptUsageService.call(ai_task: task,
@@ -55,8 +56,8 @@ module Interviews
         next failure("Capture unavailable") unless capture.status == "streaming"
         usable = @action == "finish" && current?(capture, interview) && @transcript.is_a?(String) && @transcript.strip.present? && @transcript.length <= 4000
         capture.update!(status: usable ? "completed" : "failed", transcript: usable ? @transcript : nil)
-        capture.ai_task.update!(status: usable ? "completed" : "failed", completed_at: Time.current,
-          error_message: usable ? nil : "transcription_unavailable")
+        AiTasks::UpdateTaskService.call(task: capture.ai_task, attributes: { status: usable ? "completed" : "failed", completed_at: Time.current,
+          error_message: usable ? nil : "transcription_unavailable" })
         usable || @action == "fail" ? success({ capture_id: capture.id }) : failure("Capture transcript unavailable")
       end
     end

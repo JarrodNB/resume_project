@@ -29,8 +29,8 @@ module StudyGuides
       @job.lock!
       return failure([ "Add a job description before generating a study guide." ]) if @job.description.blank?
       queued_guides.where("created_at < ?", @cutoff).lock.each do |expired|
-        expired.update!(status: "failed", completed_at: Time.current,
-          error_message: "This study guide took too long. A new generation was requested.")
+        AiTasks::UpdateTaskService.call(task: expired, attributes: { status: "failed", completed_at: Time.current,
+          error_message: "This study guide took too long. A new generation was requested." })
         @expired_tasks << expired
       end
       task.subject = @job

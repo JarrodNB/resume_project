@@ -42,8 +42,10 @@ export function ProfileSection({ profile }: { profile: Profile }) {
             </ul>
           )}
           <div className="mt-2 grid gap-2 border-t pt-3">
-            <h3 className="text-sm font-medium">Summary</h3>
-            <LibrarySectionReview section="summary" />
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="pt-1 text-sm font-medium">Summary</h3>
+              <LibrarySectionReview section="summary" />
+            </div>
 
             {profile.summary ? <>
               <LibraryDetail kind="user" recordId={profile.id} text={profile.summary} />

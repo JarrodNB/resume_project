@@ -1,5 +1,6 @@
 # Stops an unfinished interview without deleting its accounting evidence. Audio becomes
 # unavailable in the transaction; bounded cleanup deletes objects later and reaps late writes.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   class AbandonService < ApplicationService
     def initialize(interview:)
@@ -24,7 +25,7 @@ module Interviews
             claim_generation: operation.claim_generation + 1, failure_code: "interview_abandoned")
           # Do not finalize execution/provider usage markers: an in-flight provider
           # can still report its real charge, and unknown spend must remain unknown.
-          operation.ai_task&.update!(status: "failed", error_message: "interview_abandoned", completed_at: Time.current)
+          AiTasks::UpdateTaskService.call(task: operation.ai_task, attributes: { status: "failed", error_message: "interview_abandoned", completed_at: Time.current }) if operation.ai_task
         end
         InterviewSessionMedia.where(interview_session: @interview).order(:id).lock.each do |media|
           media.update!(status: media.deleted? ? "deleted" : "delete_pending", expires_at: Time.current,
@@ -33,13 +34,13 @@ module Interviews
         InterviewTranscriptionCapture.where(interview_session: @interview).order(:id).lock.each do |capture|
           capture.ai_task&.lock!
           capture.update!(transcript: nil, status: capture.status == "completed" ? "completed" : "failed")
-          capture.ai_task&.update!(status: "failed", error_message: "interview_abandoned", completed_at: Time.current) unless capture.status == "completed"
+          AiTasks::UpdateTaskService.call(task: capture.ai_task, attributes: { status: "failed", error_message: "interview_abandoned", completed_at: Time.current }) if capture.ai_task && capture.status != "completed"
         end
         @interview.clarifications.update_all(explanation: nil)
         @interview.user.ai_tasks.where(subject: @interview, task_type: "interview_clarification").find_each do |task|
           task.with_lock do
-            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
-              error_message: "interview_abandoned", completed_at: task.completed_at || Time.current)
+            AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_abandoned", completed_at: task.completed_at || Time.current })
           end
         end
         @interview.update!(status: "abandoned", revision: @interview.revision + 1)

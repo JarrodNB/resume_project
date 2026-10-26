@@ -35,7 +35,7 @@ module AiTasks
       success(ai_task)
     rescue *QUEUE_ERRORS => error
       Rails.logger.error("Could not publish AiTask #{ai_task.id}: #{error.message}")
-      ai_task.update!(status: "failed", error_message: "Could not queue the task", completed_at: Time.current)
+      UpdateTaskService.call(task: ai_task, attributes: { status: "failed", error_message: "Could not queue the task", completed_at: Time.current })
       failure([ "Could not queue the AI task, please try again" ])
     end
 

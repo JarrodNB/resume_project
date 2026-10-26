@@ -1,5 +1,6 @@
 # Grants one queued clarification execution without giving the AI database write access.
 # Lost claims expire; only an explicit bounded request can replace their logical attempt.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   class ClaimClarificationService < ApplicationService
     def initialize(ai_task:)
@@ -19,7 +20,7 @@ module Interviews
         next success({ allowed: false }) if @task.finished? || clarification.claimed_at
         unless clarification.deadline > Time.current && ClarificationPrompt.current?(interview, clarification.message) &&
             @task.input["question_text"] == clarification.message.content
-          @task.update!(status: "failed", error_message: "Question is no longer available", completed_at: Time.current)
+          AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: "Question is no longer available", completed_at: Time.current })
           next success({ allowed: false })
         end
         preparation = interview.operations.preparation.first
@@ -27,12 +28,12 @@ module Interviews
         valid_root = root && root.user_id == interview.user_id && root.subject == interview && root.interview_preparation? &&
           root.hourly_admission_task_id.nil? && root.input["operation_id"] == preparation.id && @task.hourly_admission_task_id == root.id
         if (preparation || interview.frozen_context.present? || @task.hourly_admission_task_id) && !valid_root
-          @task.update!(status: "failed", error_message: "Interview admission is invalid", completed_at: Time.current)
+          AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: "Interview admission is invalid", completed_at: Time.current })
           next success({ allowed: false })
         end
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @task.user, existing_task: @task, interview: true)
         unless allowance.success?
-          @task.update!(status: "failed", error_message: allowance.errors.join(", "), completed_at: Time.current)
+          AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: allowance.errors.join(", "), completed_at: Time.current })
           next success({ allowed: false })
         end
         clarification.update!(claimed_at: Time.current)

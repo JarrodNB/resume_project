@@ -1,5 +1,6 @@
 # Shares the owner-first lock and lease rules across interview execution services.
 # No provider or storage I/O is allowed while these database locks are held.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   module ExecutionPolicy
     LEASE = 30.seconds
@@ -44,7 +45,7 @@ module Interviews
       return false unless expired
 
       @operation.update!(status: "expired", retry_at: nil, failure_code: "media_expired")
-      @operation.ai_task&.update!(status: "failed", error_message: "media_expired", completed_at: Time.current)
+      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", error_message: "media_expired", completed_at: Time.current }) if @operation.ai_task
       true
     end
 
@@ -53,7 +54,7 @@ module Interviews
       # releasing the task slot and preventing lease-based automatic rediscovery.
       @operation.update!(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil,
         retry_expires_at: @operation.retry_expires_at || expiry)
-      @operation.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached")
+      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached" }) if @operation.ai_task
     end
 
     def fail_execution(code, retryable:)
@@ -61,8 +62,8 @@ module Interviews
         @operation.retry_expires_at > Time.current
       @operation.update!(status: automatic ? "pending" : "failed", failure_code: code,
         retry_at: automatic ? Time.current + BACKOFF.fetch(@operation.cycle_execution_count - 1).seconds : nil)
-      @operation.ai_task&.update!(status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
-        error_message: code)
+      AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
+        error_message: code }) if @operation.ai_task
       if (@operation.turn? || @operation.transcription?) && (!retryable || @operation.execution_count >= 6)
         InterviewSessionMedia.where(id: @operation.recording_id, interview_session_id: @operation.interview_session_id, kind: "recording")
           .update_all(expires_at: Time.current)

@@ -130,6 +130,7 @@ RSpec.describe "Interview private media" do
     media, identity = speech_media
     2.times { expect(Interviews::CompleteSpeechService.call(media: media, **identity)).to be_success }
     expect(media.operation.reload).to be_accepted
+    expect(media.operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
     expect(interview.messages.count).to eq(1)
     replay = Interviews::ReadMediaService.call(interview: interview, message_id: media.message_id, storage: storage)
     expect(replay).to be_success

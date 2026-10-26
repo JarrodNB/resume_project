@@ -10,6 +10,11 @@ and never stores one in localStorage.
 `csrfToken`. It is also the startup check when the browser refreshes. A network
 failure is retryable and does not establish an authenticated session.
 
+Authenticated bootstrap and sign-in also return `taskOutcomeCursor`, a non-secret
+owner-scoped task-outcome watermark captured before the workspace becomes usable.
+Notifications use it to recover fast completions before their first subscription
+handshake without replaying historical outcomes on first use.
+
 Auth calls and GraphQL requests include browser credentials. Unsafe requests send
 `X-CSRF-Token`, including login, signup, logout, and multipart uploads. Sign-in
 returns safe account state and a fresh CSRF token; signup requests verification

@@ -314,3 +314,46 @@ questionless assessments remain valid.
 returns its latest task and last completed grades with current freshness. No career text is
 saved by this task. Unsupported sections fail before enqueueing; oversized sections fail
 without truncation. Existing usage limits, retries, privacy, and subscriptions apply.
+
+## Task outcome notifications
+
+The signed-in workspace shows an in-app notice when any AI task completes or fails,
+including when the user is already on its page. This covers queued work and durable
+interview work; no task-type allowlist or current-page suppression applies. A pause
+for user input, usage accounting, or an automatic execution retry is not a terminal
+outcome. Existing pages continue to show their detailed task state and errors.
+
+Rails records terminal occurrences separately from the current task state. This is
+necessary because an explicit interview retry can reuse a failed task and overwrite
+its previous outcome. The occurrence contains task identity, type, status and completion
+time; notice payloads contain a safe label and owned app destination rather than raw
+model results, prompt input, provider errors, or recording URLs. Deleted destinations
+fall back to an appropriate overview where possible.
+
+Task changes and outcome insertion commit together. Writers acquire the owner lock
+before task locks, which also orders occurrence cursors through commit for that owner.
+Live delivery happens after all enclosing transactions commit. Transport failure does
+not undo accepted work: the saved occurrences support subsequent catch-up. Existing
+per-task subscriptions remain available to feature pages.
+
+The browser subscribes before querying missed outcomes. The initial subscription
+payload waits for ActionCable pubsub confirmations, then reads a fresh committed
+cursor through the saved GraphQL operation. Resolver execution alone does not establish
+listener readiness. Session bootstrap and
+sign-in also supply an owner-scoped starting watermark, captured before workspace
+actions become available; this prevents fast completions before subscription readiness
+from being mistaken for historical work. On first use, older outcomes stay quiet.
+On subsequent visits, a saved checkpoint takes precedence so missed work can recover.
+
+Recovery reads bounded, ordered pages through the confirmed cursor. Live broadcasts
+can arrive out of order, so the browser recovers the complete range before advancing
+its checkpoint rather than trusting broadcast arrival order. Each occurrence has its
+own identity, including a new outcome after an explicit retry of the same task.
+
+A browser Web Lock coordinates delivery and checkpoint writes across tabs for the
+same owner. Hidden tabs leave unseen work available for recovery until visible;
+notices remain until dismissed or opened. Browser storage contains only an owner-scoped
+cursor, not task contents. Without usable storage or Web Locks, live notices continue,
+but reload recovery or cross-tab duplicate prevention depends on the facilities still
+available. Online and visibility events retry recovery without polling. Signing out
+or replacing the account stops its feed and discards its mounted notice state.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-23T03:26:20.821779+00:00",
+  "generatedAt": "2026-10-26T04:57:52.778310+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
     "shadows": [
@@ -24,7 +24,7 @@
     ],
     "breakpoints": [
       {
-        "name": "guide-stack",
+        "name": "compact-content",
         "value": "1199px"
       },
       {
@@ -878,19 +878,18 @@
       "css": ".ds-card{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;border-radius:calc(var(--radius)*1.4);background:var(--card);color:var(--card-foreground);box-shadow:none;overflow:hidden}.ds-card h2{font-size:16px;font-weight:500;margin:0;padding:20px;border-bottom:1px solid var(--border)}.ds-card div{padding:20px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
     },
     {
-      "name": "Ruled record",
+      "name": "Library review toolbar",
       "kind": "custom",
-      "description": "Ruled record as implemented in the web workspace.",
-      "html": "<a class=\"ds-record\" href=\"#record\"><strong>Saved resume</strong><span>Updated recently</span></a>",
-      "css": ".ds-record{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:grid;gap:5px;padding:24px 16px;border-top:1px solid var(--border);border-radius:8px;color:var(--foreground);text-decoration:none;transition:background-color 160ms}.ds-record strong{font-weight:550}.ds-record span{font-size:13px;color:var(--muted-foreground)}.ds-record:hover{background:var(--accent)}.ds-record:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+      "description": "Manual add stays at the start of each open section; a quiet AI review action sits at the end. Detail improvement uses the same pencil as the AI workspace.",
+      "html": "<div class=\"ds-library-toolbar\"><button class=\"ds-library-add\">Add role</button><button class=\"ds-library-review\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" aria-hidden=\"true\"><rect x=\"8\" y=\"2\" width=\"8\" height=\"4\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2m1 10 2 2 4-4\"/></svg>Review Experience</button></div>",
+      "css": ".ds-library-toolbar{display:flex;flex-wrap:wrap;align-items:start;justify-content:space-between;gap:12px;background:var(--card);padding:20px}.ds-library-add,.ds-library-review{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:13px;font-weight:500;border:1px solid transparent;border-radius:var(--radius);padding:0 10px;min-height:28px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:background-color 160ms,color 160ms;}.ds-library-add{background:var(--background);border-color:var(--border);color:var(--foreground)}.ds-library-review{background:transparent;color:var(--primary)}.ds-library-add:hover,.ds-library-review:hover{background:var(--muted)}.ds-library-add:focus-visible,.ds-library-review:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-library-add:disabled,.ds-library-review:disabled{opacity:0.5;pointer-events:none}@media(max-width:899px){.ds-library-add,.ds-library-review{min-height:44px}}"
     },
     {
-      "name": "Authentication input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Authentication field with a card background, 44px minimum height, and 16px mobile text.",
-      "html": "<input class=\"ds-auth-input\" aria-label=\"Email\" type=\"email\" autocomplete=\"email\" placeholder=\"you@example.com\">",
-      "css": ".ds-auth-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:44px;min-height:44px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:var(--card);caret-color:var(--primary);color:var(--foreground);transition:border-color 150ms}.ds-auth-input::placeholder{color:var(--muted-foreground)}.ds-auth-input:hover{border-color:var(--input)}.ds-auth-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}@media(max-width:599px){.ds-auth-input{font-size:16px}}"
+      "name": "Task notification inbox",
+      "kind": "custom",
+      "description": "A bell in the workspace top bar opens a right-aligned inbox. New outcomes update its unread count; ruled rows hold result and dismissal actions.",
+      "html": "<section class=\"ds-inbox\"><header><strong>Notifications</strong><span>1 update</span></header><a href=\"#task\"><strong>Gap analysis completed</strong><span>View result</span></a></section>",
+      "css": ".ds-inbox{font-family:var(--font-sans,\"Geist Variable\",sans-serif);max-width:384px;background:var(--popover,var(--card));color:var(--popover-foreground,var(--foreground));border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1),0 2px 4px -2px rgb(0 0 0 / 0.1)}.ds-inbox header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border)}.ds-inbox header strong{font-size:16px;font-weight:600}.ds-inbox span{font-size:12px;color:var(--muted-foreground)}.ds-inbox a{display:grid;gap:6px;padding:16px 20px;color:var(--foreground);text-decoration:none;font-size:14px;transition:color 160ms}.ds-inbox a strong{font-weight:500}.ds-inbox a:hover{color:var(--primary)}.ds-inbox a:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
     }
   ],
   "narrative": {

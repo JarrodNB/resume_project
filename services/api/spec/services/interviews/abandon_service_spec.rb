@@ -21,6 +21,7 @@ RSpec.describe "Interview abandonment" do
     expect(operation.ai_task.ai_usage_attempts.find_by!(attempt_id: observation_id)).to be_incomplete
     expect(Interviews::AbandonService.call(interview: interview)).to be_success
     expect(interview.reload.revision).to eq(revision + 1)
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
     expect(Interviews::RenewClaimService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation))).not_to be_success
     expect(Interviews::ClaimOperationService.call(operation: operation)).not_to be_success
     expect(Interviews::StartProviderAttemptService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),

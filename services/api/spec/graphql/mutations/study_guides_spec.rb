@@ -42,6 +42,7 @@ RSpec.describe "Study guide generation" do
     new_id = response.dig("data", "generateStudyGuide", "aiTask", "id")
     expect(new_id).not_to eq(expired.id)
     expect(expired.reload).to be_failed
+    expect(expired.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
     expect(expired.cost_microdollars).to eq(11)
     expect(saved.reload.result).to eq("study_guide" => { "title" => "Saved material" })
     expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: expired.id }, expired).once

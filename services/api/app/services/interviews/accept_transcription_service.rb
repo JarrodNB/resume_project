@@ -1,4 +1,5 @@
 # Saves an exact transcription once for private review; it creates no dialogue or progress.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -24,7 +25,7 @@ module Interviews
         next failure("Claim is stale or expired") unless current_claim?
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint,
           accepted_result: { transcript: @transcript })
-        @operation.ai_task&.update!(status: "completed", completed_at: Time.current)
+        AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "completed", completed_at: Time.current }) if @operation.ai_task
         success({ operation_id: @operation.id })
       end
     end

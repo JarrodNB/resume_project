@@ -93,6 +93,26 @@ type AiTask {
   taskType: AiTaskTypeEnum!
 }
 
+type AiTaskOutcome {
+  completedAt: ISO8601DateTime!
+  destination: String!
+  id: ID!
+  status: AiTaskStatusEnum!
+  taskId: ID!
+  title: String!
+}
+
+type AiTaskOutcomeFeed {
+  cursor: String!
+  outcome: AiTaskOutcome
+}
+
+type AiTaskOutcomePage {
+  cursor: String!
+  hasMore: Boolean!
+  outcomes: [AiTaskOutcome!]!
+}
+
 enum AiTaskStatusEnum {
   COMPLETED
   FAILED
@@ -2080,6 +2100,7 @@ type Query {
   resume(id: ID!): Resume!
   resumes: [Resume!]!
   skills: [Skill!]!
+  taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
 }
 
 """
@@ -2660,6 +2681,7 @@ type SubmitInterviewTurnPayload {
 }
 
 type Subscription {
+  aiTaskFinished: AiTaskOutcomeFeed!
   aiTaskUpdated(id: ID!): AiTask!
   interviewSessionUpdated(id: ID!): InterviewSession!
 }

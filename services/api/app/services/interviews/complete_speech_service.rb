@@ -1,5 +1,6 @@
 # Attaches one sealed speech artifact to exactly the saved message and current claim.
 # Duplicate completion returns the persisted receipt without regenerating dialogue.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
 
 module Interviews
@@ -24,7 +25,7 @@ module Interviews
           operation.interview_session_id == @media.interview_session_id && operation.question_id == @media.question_id
         operation.update!(status: "accepted", accepted_at: Time.current, accepted_result: identity,
           result_fingerprint: Digest::SHA256.hexdigest(JSON.generate(identity)))
-        operation.ai_task&.update!(status: "completed", completed_at: Time.current)
+        AiTasks::UpdateTaskService.call(task: operation.ai_task, attributes: { status: "completed", completed_at: Time.current }) if operation.ai_task
         interview = @media.interview_session
         @media.update!(expires_at: [ interview.expires_at, (interview.completed_at + 1.hour if interview.completed_at) ].compact.min)
         success(identity)

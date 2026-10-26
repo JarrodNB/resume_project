@@ -1,5 +1,6 @@
 # Queues a small question-only task and reuses one explanation per prompt.
 # Owner/interview locks serialize clicks; explicit retry is limited to two total tasks.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   class RequestClarificationService < ApplicationService
     def initialize(interview:, message_id:, retry_failed: false)
@@ -15,7 +16,7 @@ module Interviews
         next success(clarification) if clarification.explanation.present?
         task = clarification.ai_task
         if task && !task.finished? && clarification.deadline && clarification.deadline <= Time.current
-          task.update!(status: "failed", error_message: "Clarification timed out. Retry explicitly.", completed_at: Time.current)
+          AiTasks::UpdateTaskService.call(task: task, attributes: { status: "failed", error_message: "Clarification timed out. Retry explicitly.", completed_at: Time.current })
         end
         next success(clarification) if task && (!task.failed? || !@retry_failed)
         next failure("Clarification retry limit reached") if clarification.attempt_count >= 2
@@ -45,7 +46,7 @@ module Interviews
           @interview.lock!
           @interview.clarifications.find_by(ai_task_id: @publish.id)&.lock!
           @publish.with_lock do
-            @publish.update!(status: "failed", error_message: "Could not queue clarification", completed_at: Time.current) unless @publish.finished?
+            AiTasks::UpdateTaskService.call(task: @publish, attributes: { status: "failed", error_message: "Could not queue clarification", completed_at: Time.current }) unless @publish.finished?
           end
         end
       end

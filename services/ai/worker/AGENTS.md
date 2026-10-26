@@ -128,14 +128,15 @@ name, issuer, issued/expiry dates, credential ID/URL, and description. Older par
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 
 
-- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Fact responses are used; job-derived requirement fields are excluded from screening, prompts, and grounding evidence.
+- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Saved facts include screened requirement context to clarify responses. Only responses receive evidence IDs or quote coverage; requirements cannot establish personal qualifications.
   Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
   Replacement exclusions come from the Rails-owned question-set snapshot; legacy sibling
   metadata is retained for compatibility but is not needed to trust generated question text.
 
 - `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
   answer checks before model use, trusts the Rails-owned generated question, screens library
-  notes, excludes job requirements, and reports coaching plus usage without writes.
+  notes and fact requirement context, and reports coaching plus usage without writes.
+  Requirement context clarifies a response but cannot support personal claims or evidence quotes.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
@@ -151,6 +152,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   Source/input/history/turn caps bound every exchange.
 
 - Written question tasks accept `avoided_questions` and replacement questions as Rails-owned generated text. Reuse trusted-generated-source coverage for these exact task snapshot values, including legacy sibling strings without identity metadata; never screen our own generated questions or drop exclusions at the prompt cap.
+  Full-set tasks also accept optional Rails-owned `recent_questions` as prompt-only variety
+  guidance. Trust that generated text, keep it separate from exclusions/evidence, and never
+  add overlap validation or retries.
 
 - `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.
 

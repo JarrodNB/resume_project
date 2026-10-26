@@ -1344,6 +1344,16 @@ input JobAttributesInput {
   url: String
 }
 
+"""
+Experience levels accepted by the job provider.
+"""
+enum JobBoardExperienceLevel {
+  EN
+  EX
+  MI
+  SE
+}
+
 type JobBoardListing {
   applicationUrl: String
   company: String
@@ -2185,7 +2195,7 @@ type Query {
   interviewQuestionSets: [InterviewQuestionSet!]!
   interviewSession(id: ID!): InterviewSession!
   job(id: ID!): Job!
-  jobBoardSearch(cursor: String, keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!
+  jobBoardSearch(cursor: String, experienceLevels: [JobBoardExperienceLevel!] = [], keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!
   jobs(stage: JobStageEnum): [Job!]!
   libraryEdit(kind: String!, recordId: ID!): LibraryEdit!
   libraryFacts: [LibraryFact!]!

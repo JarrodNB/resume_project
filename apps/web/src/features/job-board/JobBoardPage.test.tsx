@@ -33,14 +33,58 @@ it('searches a submitted keyword and displays a retrieved listing', async () => 
   expect(result).toHaveBeenCalledTimes(1)
 })
 
+it('submits multiple experience levels and preserves them on pagination despite unsent changes', async () => {
+  const user = userEvent.setup()
+  const first = vi.fn(() => ({ data: { jobBoardSearch: page([listing('one', 'First role')], { nextCursor: 'next' }) } }))
+  renderBoard([
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, null, ['EN', 'SE']) }, result: first },
+    queryMock(searchVariables('engineer', false, 'next', ['EN', 'SE']), page([listing('two', 'Second role')])),
+  ])
+  await user.click(screen.getByRole('checkbox', { name: 'Entry level' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
+  expect(first).not.toHaveBeenCalled()
+  await search(user)
+  await screen.findByRole('heading', { name: 'First role' })
+  expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Entry level, Senior')
+  await user.click(screen.getByRole('checkbox', { name: 'Mid level' }))
+  expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Mid level')
+  await user.click(screen.getByRole('button', { name: 'Load more' }))
+  await screen.findByRole('heading', { name: 'Second role' })
+})
+
+it('retries selected experience levels after the draft selection changes', async () => {
+  const user = userEvent.setup()
+  renderBoard([
+    queryMock(searchVariables('engineer', false, null, ['EX']), page([], { retrievedAt: null, errors: ['Try later.'] })),
+    queryMock(searchVariables('engineer', false, null, ['EX']), page([listing()])),
+  ])
+  await user.click(screen.getByRole('checkbox', { name: 'Executive' }))
+  await search(user)
+  await screen.findByText('Try later.')
+  await user.click(screen.getByRole('checkbox', { name: 'Executive' }))
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Executive')
+})
+
+it('clears selected levels back to an unrestricted search', async () => {
+  const user = userEvent.setup()
+  renderBoard([queryMock()])
+  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByText(/For “engineer”/)).toHaveTextContent('All experience levels')
+})
+
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
   return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', hasRemote: true, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }
 }
-function searchVariables(keyword = 'engineer', remoteOnly = false, cursor: string | null = null) {
-  return { keyword, remoteOnly, cursor }
+function searchVariables(keyword = 'engineer', remoteOnly = false, cursor: string | null = null, experienceLevels: string[] = []) {
+  return { keyword, remoteOnly, cursor, experienceLevels }
 }
 function renderBoard(mocks: MockLink.MockedResponse[] = []) {
   return renderPage({ path: '/job-board', url: '/job-board', element: <JobBoardPage />, mocks, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
@@ -97,7 +141,7 @@ it('retries a total failure using the submitted search even if the form has chan
   expect(await screen.findByText('Search unavailable.')).toBeInTheDocument()
   await user.type(screen.getByRole('textbox'), ' changed')
   await user.click(screen.getByRole('button', { name: 'Try again' }))
-  expect(await screen.findByText('No matches. Try another keyword or turn off Remote only.')).toBeInTheDocument()
+  expect(await screen.findByText('No matches. Try another keyword or broaden your filters.')).toBeInTheDocument()
   expect(screen.queryByText('Search unavailable.')).not.toBeInTheDocument()
 })
 

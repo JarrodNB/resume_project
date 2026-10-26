@@ -14,6 +14,17 @@ a set does not reuse its number. Sets can be empty while generation is pending o
 Successful generation validates all drafts and creates positions 1–5 atomically. Only question
 text is persisted on the slots; categories and evidence remain in the AI task result.
 
+Full-set generation snapshots up to 20 saved question texts from the user's most recent
+sets of the requested type, ordered by set creation time and ID descending, then slot
+position and question ID ascending. This bounded history is prompt-only guidance to
+prefer fresh focuses. Familiar themes may recur as practice, and general sets retain
+their required introduction. Historical overlap never adds a rejection or retry.
+The history is separate from hard avoidance preferences and replacement exclusions;
+it is neither career evidence nor proof of personal facts. Only Rails-owned generated
+slots supply history, never browser text, answers, or feedback, so the worker reuses
+trusted-generated-source coverage without screening those questions again. Legacy tasks
+without history continue with empty context.
+
 Questions store the user-written `answer_text`, `question_revision`, `answer_revision`, latest
 feedback JSON, and the question/answer revisions that feedback reviewed. Explicit saves allow
 an empty answer and increment the answer revision only when text changes. The answer limit is
@@ -49,9 +60,12 @@ prevents duplicate result persistence and usage accounting; failed application s
 reported usage once.
 
 Question generation requires usable library content; feedback can use an empty library. Both
-handlers screen saved library-fact responses and omit job-derived requirement fields from
-prompts and grounding evidence. Feedback also screens the submitted answer and fails closed
-on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
+handlers include screened library-fact responses with separately labeled requirement context.
+Context resolves a response's topic or pronouns, but never establishes the candidate's years,
+leadership, qualifications, or other personal claims. Only responses receive temporary evidence
+IDs or qualify as evidence quotes. Saved field approvals are reused; unchecked context is
+screened before use, and a rejected fact entry is omitted. Feedback also screens the submitted
+answer and fails closed on rejection or screening unavailability. Existing contact masking, prompt limits, bounded
 Pydantic AI runs, versioned prompts, and Logfire tracing apply. Question evidence requires
 exact library excerpts; optional feedback excerpts are normalized to exact source text and
 invalid excerpts discarded. Feedback validates nonblank prose and at most two placeholders;

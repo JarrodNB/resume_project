@@ -37,6 +37,7 @@ class InterviewQuestionsInput(BaseModel):
     question_id: UUID | None = None
     question_text: str = ""
     other_questions: list[str] = Field(default_factory=list)
+    recent_questions: list[str] = Field(default_factory=list)
     question_revision: int | None = None
     answer_revision: int | None = None
     screened_fields: list[str] = Field(default_factory=list, exclude=True)
@@ -68,9 +69,9 @@ def handle_interview_questions_task(
         usage.extend(outcome.model_usages)
         return outcome
 
-    # A fact's requirement came from a job posting; only the saved response is career evidence.
+    # Screen requirement context too; only the saved response receives an evidence ID.
     with logfire.span("interview_questions.screen_career_library"):
-        selected = screen_library_inputs(library, screen_note, include_fact_requirements=False)
+        selected = screen_library_inputs(library, screen_note)
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.
@@ -99,10 +100,15 @@ def handle_interview_questions_task(
         trust_generated_source(question)
     excluded = tuple(dict.fromkeys((*excluded, *snapshot.avoided_questions)))
     count = 1 if replacement else 5
+    # Like exclusions, these are Rails-owned generated slots with no user-edit path.
+    # Recent practice is soft guidance and never joins the hard exclusion list.
+    recent = [] if replacement else snapshot.recent_questions
+    for question in recent:
+        trust_generated_source(question)
     with logfire.span("interview_questions.build_prompt"):
         text = bind_screened_prompt(
-            [*selected.sources, *excluded],
-            lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type),
+            [*selected.sources, *excluded, *recent],
+            lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type, len(excluded)),
         )
         if text_limits.prompt_is_too_long(text):
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
@@ -132,7 +138,9 @@ def handle_interview_questions_task(
         usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
 
 
-def _question_prompt_text(values, fields, count, set_type):
-    """Render only checked library and excluded-question values with trusted scope."""
+def _question_prompt_text(values, fields, count, set_type, excluded_count):
+    """Render checked evidence and generated history separately from hard exclusions."""
     library = rebuild_library(values[:len(fields)], fields)
-    return format_interview_question_prompt(library, values[len(fields):], count, set_type)
+    end = len(fields) + excluded_count
+    return format_interview_question_prompt(library, values[len(fields):end], count, set_type,
+                                            recent_questions=values[end:])

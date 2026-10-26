@@ -25,7 +25,7 @@ are passed in or live in `agents/`.
   refuse (more than 80 items in each of requirements, responsibilities, and nice-to-haves, a
   bullet over 1,000 characters, a description over 20,000, a short field over 200) is left out
   and the posting is still
-  returned with a warning;
+  returned with a warning. URLs over the short-field cap are omitted rather than truncated;
   `pick_sorted_bullets` maps the agent's 1-based numbers back to bullets. When the sorter ran,
   `sorting_model` is the name to bill
 

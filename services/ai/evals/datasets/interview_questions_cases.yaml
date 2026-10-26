@@ -2,6 +2,29 @@
 evaluators:
   - QuestionStructure
 cases:
+  - name: general-recent-practice-soft-variety
+    inputs:
+      library: "Retail assistant. Helped customers find products and restocked shelves."
+      recent_questions:
+        - "Tell me about your retail background."
+        - "Tell me about a time you worked with a colleague to help a customer."
+        - "Describe a difficult customer problem and how you approached it."
+        - "Tell me about a time you had to learn a new process."
+        - "Describe a time you decided which task to prioritize."
+  - name: technical-recent-practice-soft-variety
+    inputs:
+      set_type: technical
+      library: "Bakery assistant. Weighed ingredients, followed recipe cards, checked oven temperature, and labeled stored ingredients."
+      recent_questions:
+        - "Walk me through weighing ingredients."
+        - "How do you use recipe cards in your work?"
+  - name: knowledge-sparse-recent-practice-soft-variety
+    inputs:
+      set_type: knowledge
+      library: "Skills: historical source comparison."
+      recent_questions:
+        - "What is the difference between a primary and a secondary historical source?"
+        - "How can bias affect the reliability of a historical source?"
   - name: experienced-collaborator
     inputs:
       library: "Customer support specialist for four years. Created a shared onboarding checklist with two colleagues. Enjoys explaining confusing processes. Wants to move into training."
@@ -108,3 +131,10 @@ cases:
       library: "Customer support specialist for four years. Previously volunteered at a community book exchange. Created a shared onboarding checklist with two colleagues. Wants to move into training."
       excluded:
         - "What first interested you in customer support?"
+  - name: technical-fact-response-keeps-topic-without-inheriting-requirements
+    inputs:
+      set_type: technical
+      facts:
+        - id: fact-kubernetes
+          requirement: Five years of Kubernetes experience and team leadership
+          response: I used it for two years.

@@ -170,9 +170,14 @@ Per task type:
   resume blocks new generation; after deletion, an explicit start creates a fresh task. See
   [tailoring decisions](career-library.md#decisions) for preparation and failure behavior.
 
-- `generate_interview_questions`: input `{question_set_id, set_number, set_type}`; the subject is an
+- `generate_interview_questions`: input `{question_set_id, set_number, set_type, avoided_questions, recent_questions}`; the subject is an
   empty `InterviewQuestionSet`. The worker reads the current owned career library and returns
   `{interview_questions: {questions: [...]}, warnings: [...]}` with exactly five drafts.
+  Rails snapshots at most 20 recent owned same-type question texts, newest set first and
+  then slot order, as `recent_questions`. This optional field defaults to empty for older
+  tasks. The worker renders it as soft variety guidance, separate from hard exclusions
+  (`avoided_questions` and replacement siblings) and career evidence. History overlap adds
+  no validation or retries. Answers and feedback never enter this snapshot.
   Each draft has `question_text`, `category`, and `evidence_quotes`; categories are
   `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and
   `initiative_judgment` for general sets,

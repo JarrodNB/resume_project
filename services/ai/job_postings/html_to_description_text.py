@@ -1,6 +1,7 @@
 """Turn job HTML into readable paragraphs and bullet lines for saved descriptions.
 
-Keep spaces between blocks inside a bullet without changing inline punctuation.
+Keep spaces between blocks inside a bullet and between table cells without
+changing inline punctuation.
 """
 
 import re
@@ -25,6 +26,9 @@ def html_to_description_text(description_html: str) -> str:
     for item in soup.find_all("li"):
         item.insert(0, "- ")
         item.append("\n")
+    for cell in soup.find_all(["td", "th"]):
+        cell.insert_before(" ")
+        cell.insert_after(" ")
     for block in soup.find_all(BLOCK_TAGS):
         separator = " " if block.find_parent("li") is not None else "\n\n"
         block.insert_before(separator)

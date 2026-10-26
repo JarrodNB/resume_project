@@ -223,6 +223,22 @@ def test_pdf_text_uses_only_the_link_label_from_a_broad_contact_fragment() -> No
     assert 'hyperlink label="Atlanta, Georgia' not in text
 
 
+def test_malformed_docx_xml_is_an_unreadable_document() -> None:
+    """A corrupt XML part uses the import handler's ordinary unreadable-file path."""
+    from zipfile import ZipFile
+
+    original = build_docx_bytes(["Software Engineer"])
+    buffer = BytesIO()
+    with ZipFile(BytesIO(original)) as source, ZipFile(buffer, "w") as destination:
+        for entry in source.infolist():
+            destination.writestr(
+                entry, b"<broken" if entry.filename == "word/document.xml" else source.read(entry)
+            )
+
+    with pytest.raises(UnsupportedDocumentError, match="could not be read"):
+        extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+
 def test_empty_docx_raises() -> None:
     """A document with no text can't be parsed."""
     with pytest.raises(UnsupportedDocumentError):
@@ -354,3 +370,143 @@ def test_pdf_null_annotations_are_treated_as_absent(indirect: bool) -> None:
     writer.write(buffer)
 
     assert extract_document_text(buffer.getvalue(), "application/pdf") == "Software Engineer"
+
+
+@pytest.mark.parametrize("indirect", [False, True])
+def test_pdf_null_link_action_does_not_discard_other_links(indirect: bool) -> None:
+    """An absent action on one annotation does not abort the rest of the page."""
+    from pypdf import PdfWriter
+    from pypdf.annotations import Link
+    from pypdf.generic import NameObject, NullObject
+
+    writer = PdfWriter()
+    page = writer.add_blank_page(width=300, height=300)
+    writer.add_annotation(0, Link(rect=(10, 10, 100, 30), url="https://unused.example"))
+    null = NullObject()
+    page["/Annots"][0].get_object()[NameObject("/A")] = (
+        writer._add_object(null) if indirect else null
+    )
+    writer.add_annotation(0, Link(rect=(10, 40, 100, 60), url="https://github.com/example"))
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    text = extract_document_text(buffer.getvalue(), "application/pdf")
+
+    assert text == '[hyperlink label="GitHub" url="https://github.com/example"]'
+
+
+@pytest.mark.parametrize("explicit_style", [None, "MissingStyle"])
+def test_docx_without_a_default_style_keeps_plain_text(explicit_style: str | None) -> None:
+    """Optional or unresolved style metadata must not prevent reading a paragraph."""
+    document = Document()
+    paragraph = document.add_paragraph("Software Engineer")
+    document.styles["Normal"].delete()
+    if explicit_style is not None:
+        paragraph._p.get_or_add_pPr().get_or_add_pStyle().val = explicit_style
+    buffer = BytesIO()
+    document.save(buffer)
+
+    assert extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE) == "Software Engineer"
+
+
+def test_docx_keeps_header_and_footer_resume_content() -> None:
+    """Contact details and portfolio labels in margins remain available to the parser."""
+    document = Document()
+    document.sections[0].header.paragraphs[0].text = "Jane Doe jane@example.com"
+    document.add_paragraph("Software Engineer")
+    document.sections[0].footer.paragraphs[0].text = "Portfolio: https://example.com"
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert text.splitlines() == [
+        "Jane Doe jane@example.com", "Software Engineer", "Portfolio: https://example.com",
+    ]
+
+
+def test_docx_inherited_headers_and_footers_are_read_once() -> None:
+    """Shared margin parts must not duplicate evidence across document sections."""
+    from docx.enum.section import WD_SECTION
+
+    document = Document()
+    document.sections[0].header.paragraphs[0].text = "Jane Doe"
+    document.sections[0].footer.paragraphs[0].text = "Portfolio"
+    document.add_paragraph("Engineer")
+    document.add_section(WD_SECTION.NEW_PAGE)
+    document.add_paragraph("Education")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert [line for line in text.splitlines() if line] == [
+        "Jane Doe", "Engineer", "Education", "Portfolio",
+    ]
+
+
+@pytest.mark.parametrize("variant", ["first_page", "even_page"])
+@pytest.mark.parametrize("enabled", [False, True])
+def test_docx_margin_variants_follow_document_settings(variant: str, enabled: bool) -> None:
+    """Unused margin variants are not source evidence merely because their parts exist."""
+    document = Document()
+    section = document.sections[0]
+    section.different_first_page_header_footer = enabled
+    document.settings.odd_and_even_pages_header_footer = enabled
+    getattr(section, f"{variant}_header").paragraphs[0].text = "Variant contact"
+    getattr(section, f"{variant}_footer").paragraphs[0].text = "Variant portfolio"
+    document.add_paragraph("Engineer")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert ("Variant contact" in text) == enabled
+    assert ("Variant portfolio" in text) == enabled
+    assert "Engineer" in text
+
+
+def test_docx_header_tables_preserve_hyperlink_labels_and_targets() -> None:
+    """Contact layouts in header tables use the same text/link extraction as body tables."""
+    from docx.shared import Inches
+
+    document = Document()
+    paragraph = document.sections[0].header.add_table(1, 1, Inches(6)).cell(0, 0).paragraphs[0]
+    relationship_id = paragraph.part.relate_to(
+        "https://github.com/example",
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True,
+    )
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), relationship_id)
+    run = OxmlElement("w:r")
+    node = OxmlElement("w:t")
+    node.text = "GitHub"
+    run.append(node)
+    hyperlink.append(run)
+    paragraph._p.append(hyperlink)
+    document.add_paragraph("Engineer")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text = extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+
+    assert [line for line in text.splitlines() if line] == [
+        "GitHub", '[hyperlink label="GitHub" url="https://github.com/example"]', "Engineer",
+    ]
+
+
+@pytest.mark.parametrize("extra_characters", [0, 1])
+def test_docx_text_cap_includes_margin_content(extra_characters: int) -> None:
+    """The same import cap applies to combined margin and body text."""
+    document = Document()
+    document.sections[0].header.paragraphs[0].text = "h"
+    document.add_paragraph("b" * (MAX_RESUME_TEXT - 2 + extra_characters))
+    buffer = BytesIO()
+    document.save(buffer)
+
+    if extra_characters:
+        with pytest.raises(DocumentTooLongError):
+            extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)
+    else:
+        assert len(extract_document_text(buffer.getvalue(), DOCX_CONTENT_TYPE)) == MAX_RESUME_TEXT

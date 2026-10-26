@@ -9,7 +9,7 @@ module AiTasks
       "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
       "improve_library_entry" => "Library improvement", "interview_preparation" => "Interview preparation",
       "interview_turn" => "Interview response", "interview_speech" => "Interview audio",
-      "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification"
+      "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification", "interview_references" => "Career references"
     }.freeze
 
     def initialize(outcome:)

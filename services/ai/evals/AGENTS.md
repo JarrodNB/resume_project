@@ -43,10 +43,10 @@ score attached, so runs can be compared across prompt and model changes.
   contact masking before screening/parsing and restores raw structured outputs before
   evaluator scoring, without applying the source-faithfulness guard. Cases run sequentially by
   default so latency comparisons do not compete across resumes; parser groups still overlap
-- `datasets/job_posting_extraction_cases.yaml` — 8 synthetic LinkedIn postings written in
+- `datasets/job_posting_extraction_cases.yaml` — 9 synthetic LinkedIn postings written in
   LinkedIn's description markup (bold and colon headings; curly apostrophes; plain-text
   sub-headings; minimum vs preferred; "what you should have" / "bonus points"; nested lists; no
-  headings; unrecognized headings; prose only), hand-labelled requirements and nice-to-haves
+  headings; unrecognized headings; prose only; nested bold headings), hand-labelled requirements and nice-to-haves
 - The runner's `linkedin_case_to_page` builds each case's JobPage the way the scraper does
 - `job_posting_extraction_evaluators.py` — `RequirementMatch` (precision/recall),
   `VerbatimBullets`, `SortedByExpectedPath` (the LLM only runs when headings don't match),

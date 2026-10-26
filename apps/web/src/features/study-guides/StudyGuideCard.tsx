@@ -1,4 +1,5 @@
-/** Offers description-based learning beside a saved job, with remembered disclosure and readable topics. */
+/** Offers saved, description-based reference guides beside a job, with links between their topics. */
+import { useId } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
@@ -51,17 +52,31 @@ function StudyGuideContent({ jobId, description }: { jobId: string; description:
 }
 
 export function StudyGuideView({ guide }: { guide: StudyGuide }) {
-  return <article className="grid min-w-0 max-w-prose gap-5 break-words">
-    <header className="grid gap-1"><h3 className="text-lg font-semibold">{guide.title}</h3>
-      <p className="text-sm text-muted-foreground">Start with the first topic, then work through the exercises and self-checks.</p></header>
-    {guide.topics.map((topic, index) => <section key={index} className="grid gap-3 border-t pt-5 text-sm leading-relaxed">
-      <h4 className="font-semibold">{index + 1}. {topic.title}</h4>
+  const guideId = useId()
+  const contentsId = `${guideId}-topics`
+  const topicId = (index: number) => `${guideId}-topic-${index}`
+  const linkStyle = 'rounded-sm text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring'
+
+  return <article className="grid min-w-0 max-w-prose gap-8 break-words">
+    <header className="grid gap-3"><h3 className="text-xl font-semibold leading-snug">{guide.title}</h3>
+      <p className="text-sm leading-relaxed text-muted-foreground">Jump to a topic, or read from start to finish. Use your own notes for the practice exercises and self-checks.</p></header>
+    <nav aria-labelledby={contentsId} className="grid gap-2">
+      <h4 id={contentsId} tabIndex={-1} className="scroll-mt-40 min-[900px]:scroll-mt-24 text-base font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">Topics in this guide</h4>
+      <ol className="list-decimal pl-5 text-sm marker:text-muted-foreground">
+        {guide.topics.map((topic, index) => <li key={index} className="pl-1">
+          <a href={`#${topicId(index)}`} className={`${linkStyle} flex min-h-11 items-center py-2 leading-relaxed`}>{topic.title}</a>
+        </li>)}
+      </ol>
+    </nav>
+    {guide.topics.map((topic, index) => <section key={index} aria-labelledby={topicId(index)} className="grid gap-3 border-t pt-8 text-sm leading-relaxed">
+      <h4 id={topicId(index)} tabIndex={-1} className="scroll-mt-40 min-[900px]:scroll-mt-24 text-lg font-semibold leading-snug focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">{index + 1}. {topic.title}</h4>
       <p className="text-muted-foreground">{topic.why_it_matters}</p>
       <p className="whitespace-pre-line">{topic.explanation}</p>
       <h5 className="font-medium">Practice</h5>
       <ul className="grid list-disc gap-2 pl-5">{topic.exercises.map((exercise, i) => <li key={i}>{exercise}</li>)}</ul>
       <h5 className="font-medium">Check your understanding</h5>
       <ul className="grid list-disc gap-2 pl-5">{topic.self_check_questions.map((question, i) => <li key={i}>{question}</li>)}</ul>
+      <a href={`#${contentsId}`} className={`${linkStyle} mt-2 flex min-h-11 items-center justify-self-start py-2`}>Back to topics</a>
     </section>)}
   </article>
 }

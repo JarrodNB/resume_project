@@ -224,3 +224,11 @@ switch sits beside document actions in a ruled toolbar, with save status above i
 Editing uses one paper surface with divided, remembered disclosures. Deletion sits
 below the saved document. The PDF pages fit the available width on desktop and mobile;
 the preview uses the same document as export, with page captions and accessible text.
+
+### Study guide reference
+
+Saved study guides keep a single readable column. A numbered topic index links to
+the full sections, and each section ends with a return link to the index. Anchor
+targets receive keyboard focus and leave space for the mobile workspace navigation.
+Topic headings are larger than body text; fine rules separate topics. Practice and
+self-check instructions direct readers to use their own notes.

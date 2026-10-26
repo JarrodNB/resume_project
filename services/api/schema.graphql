@@ -1215,7 +1215,6 @@ type InterviewSession {
   operations: [InterviewSessionOperation!]!
   preparedRole: JSON!
   questions: [InterviewSessionQuestion!]!
-  referencesEnabled: Boolean!
   revision: Int!
   setup: InterviewSetup!
   speechPlaybackMode: String!

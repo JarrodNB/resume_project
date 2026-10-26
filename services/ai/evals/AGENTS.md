@@ -182,4 +182,4 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   reference selection through production `select_references`. Default offline policy fixtures
   supply vector distances; they do not measure semantic similarity. Explicit `--paid` uses
   real synthetic-data embeddings and records usage/label agreement, with no dialogue judge.
-  Prints JSON; only `--output PATH` saves a report. The feature gate is never changed.
+  Prints JSON; only `--output PATH` saves a report. Evaluation does not change interview behavior.

@@ -6,7 +6,7 @@ RSpec.describe "Interview question references" do
   let(:prompt) { interview.messages.first }
   let(:queue) { double(send_message: true) }
 
-  before { allow(ENV).to receive(:[]).and_call_original; allow(ENV).to receive(:[]).with("INTERVIEW_REFERENCES_ENABLED").and_return("true"); allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
+  before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
 
   it "queues only the exact question and reuses its logical work without changing progress" do
     prompt.update!(acknowledgement: "You repaired a scheduler.")
@@ -214,10 +214,10 @@ RSpec.describe "Interview question references" do
     expect(interview.messages.answer.count).to eq(0)
   end
 
-  it "disables new work through the server switch while leaving dialogue intact" do
-    allow(ENV).to receive(:[]).with("INTERVIEW_REFERENCES_ENABLED").and_return("false")
-    expect(Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id)).not_to be_success
-    expect(interview.career_references).to be_empty
+  it "requests and claims references by default without an enablement setting" do
+    result = Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id)
+    expect(result).to be_success
+    expect(Interviews::ClaimReferencesService.call(ai_task: result.value.ai_task).value[:allowed]).to be(true)
     expect(interview.reload).to be_active
   end
 
@@ -232,7 +232,7 @@ RSpec.describe "Interview question references" do
     expect(reference.reload.references).to eq([entry])
   end
 
-  it "keeps answer claims independent of references when new reference admission is disabled" do
+  it "keeps answer claims independent of saved career references" do
     reference = request_references
     task = reference.ai_task
     Interviews::ClaimReferencesService.call(ai_task: task)
@@ -240,10 +240,8 @@ RSpec.describe "Interview question references" do
     entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved fact", "body" => fact.response }
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [entry] },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 29 } ] })
-    allow(ENV).to receive(:[]).with("INTERVIEW_REFERENCES_ENABLED").and_return("false")
-    expect(Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id)).not_to be_success
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: prompt.question_id, expected_revision: interview.revision,
-      submission_key: "references-disabled-answer", transcription_mode: "typed", candidate_transcript: "My reviewed answer")
+      submission_key: "references-independent-answer", transcription_mode: "typed", candidate_transcript: "My reviewed answer")
     expect(turn).to be_success
     claim = Interviews::ClaimOperationService.call(operation: turn.value, execution_mode: "real")
     expect(claim).to be_success

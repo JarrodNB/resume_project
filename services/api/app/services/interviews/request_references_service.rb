@@ -8,7 +8,6 @@ module Interviews
     end
 
     def call
-      return failure("Career references are unavailable") unless ReferencesPolicy.enabled?
       result = @interview.user.with_lock do
         @interview.lock!
         message = @interview.messages.find_by(id: @message_id, kind: %w[opening follow_up])

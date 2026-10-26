@@ -15,7 +15,7 @@ from memory.embed_search_query import embed_search_query_async
 from memory.hybrid_rank import keyword_rank
 
 SELECTION_POLICY_VERSION = "interview-references-v3"
-MAX_VECTOR_DISTANCE = 0.35  # Conservative initial policy; semantic calibration is release-gated.
+MAX_VECTOR_DISTANCE = 0.35  # Conservative initial policy; semantic calibration remains unmeasured.
 _QUERY_BOILERPLATE = frozenset(["a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "describe", "did", "do", "experience", "explain", "for", "from", "had", "have", "how", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "please", "role", "tell", "that", "the", "their", "them", "there", "these", "they", "this", "to", "was", "were", "what", "when", "where", "which", "who", "why", "will", "with", "work", "would", "you", "your", "about", "example", "time", "situation"])
 
 SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "LibraryFact"})

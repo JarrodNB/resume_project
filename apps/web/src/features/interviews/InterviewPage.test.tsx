@@ -23,9 +23,9 @@ vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved i
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', referencesEnabled: false, revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
-  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
+  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
 }
 function renderInterview(url = '/interviews/session', mocks: MockLink.MockedResponse[] = []) { return renderPage({ path: '/interviews/:id?', url, mocks, element: <InterviewPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
@@ -1151,11 +1151,8 @@ it('restores a saved prompt preference without changing the current question', (
   expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
 })
 
-it('automatically retrieves references only when the owned interview enables them, without blocking the draft', async () => {
-  const view = renderInterview()
-  expect(screen.queryByRole('region', { name: 'Relevant career examples' })).not.toBeInTheDocument()
-  state.interview = { ...snapshot, referencesEnabled: true }
-  view.unmount()
+it('automatically retrieves references by default without blocking the draft', async () => {
+  state.interview = { ...snapshot, messages: [{ ...snapshot.messages[0], careerReferences: null }] }
   renderInterview('/interviews/session', [{ request: { query: REQUEST_INTERVIEW_REFERENCES,
     variables: { input: { interviewId: 'session', messageId: 'opening', retryFailed: false } } }, delay: 30,
     result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: {
@@ -1170,7 +1167,7 @@ it('automatically retrieves references only when the owned interview enables the
 })
 
 it('shows saved reference headings and blur controls on the current follow-up', () => {
-  state.interview = { ...snapshot, referencesEnabled: true, messages: [...snapshot.messages, {
+  state.interview = { ...snapshot, messages: [...snapshot.messages, {
     ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'What changed afterward?',
     careerReferences: { id: 'references', status: 'completed', attemptCount: 1, aiTaskId: null, deadline: null,
       references: [{ sourceType: 'Project', sourceId: 'project', title: 'Scheduling project', body: 'I reduced appointment waiting time.' }] },

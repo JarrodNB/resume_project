@@ -32,8 +32,6 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
   it "requests owned career references and hides expired task content" do
-    allow(ENV).to receive(:[]).and_call_original
-    allow(ENV).to receive(:[]).with("INTERVIEW_REFERENCES_ENABLED").and_return("true")
     current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
     allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
     mutation = 'mutation($input: RequestInterviewReferencesInput!) { requestInterviewReferences(input: $input) { careerReferences { id status references { sourceType sourceId title body } attemptCount aiTaskId deadline } errors } }'
@@ -43,7 +41,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(result["errors"]).to be_nil
     record = current.career_references.first!
     expect(result.dig("data", "requestInterviewReferences", "careerReferences", "aiTaskId")).to eq(record.ai_task_id)
-    query = "{ interviewSession(id: \"#{current.id}\") { referencesEnabled messages { careerReferences { id status } } } }"
+    query = "{ interviewSession(id: \"#{current.id}\") { messages { careerReferences { id status } } } }"
     expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "careerReferences", "id")).to eq(record.id)
     Interviews::ClaimReferencesService.call(ai_task: record.ai_task)
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "references" => [] } })

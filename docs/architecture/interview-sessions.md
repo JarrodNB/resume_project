@@ -848,17 +848,12 @@ They display exact saved wording rather than a generated answer. They are indepe
 of interviewer context, speech, answer drafts, question progression and answer allowances.
 The interviewer still receives its existing frozen preparation context.
 
-`INTERVIEW_REFERENCES_ENABLED=true` on Rails admits new reference requests and worker
-claims; the default is false. Public snapshots expose `referencesEnabled`. Turning the
-flag off removes automatic requests from the room and denies unclaimed reference work,
-without changing answer submission, saved results or usage ledgers. A compatible runtime
-can finish already-claimed work. Restart the API after changing its environment; the
-native start hook reuses healthy processes and does not reload their environment.
+Career references appear automatically for the current opening or follow-up in active
+real-mode interviews. No feature enablement environment setting is required.
 
-Operational rollback uses the flag-off path and preserves the schema and usage ledger.
 The migration can reverse before any reference child tasks have been created. Once
 reference usage exists, restoring the old child-task constraint can reject those retained
-rows; do not delete accounting records or roll back the populated schema to disable guidance.
+rows; preserve the populated schema and accounting records during application rollback.
 
 `requestInterviewReferences(interviewId, messageId, retryFailed)` authorizes an owned,
 active real-mode interview's latest opening/follow-up. Rails saves one
@@ -911,7 +906,7 @@ Reference content is not a browser-storage preference or a security-protected se
 Public reference metadata is current-prompt-only. Expiry and abandonment scrub copied
 bodies and task inputs/results while retaining billing records. Completed review does not
 show historical references. See the offline evaluation command below and the manual QA
-steps in the real interview guide before admitting automatic references.
+steps in the real interview guide.
 
 ### Retrieval evaluation evidence
 
@@ -924,6 +919,5 @@ report establishes fixture agreement, not semantic relevance or real embedding c
 `--paid` explicitly runs real embeddings against synthetic source text and reports label
 agreement and accounted usage; no dialogue model or database is required. It uses the production source-text projection and selection seam, not a Postgres
 query/latency benchmark. `--output PATH`
-saves the report only when requested. Errors and mismatched labels fail visibly. Neither
-mode enables the feature gate. No paid semantic run or human relevance assessment was
-performed during the initial implementation; automatic rollout remains disabled by default.
+saves the report only when requested. Errors and mismatched labels fail visibly. Evaluation does not change interview behavior. No paid semantic run or human relevance
+assessment was performed during the initial implementation.

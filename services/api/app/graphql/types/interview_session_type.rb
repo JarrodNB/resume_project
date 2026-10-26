@@ -1,7 +1,6 @@
 # Public interview output intentionally excludes execution claims, storage keys, and model history.
 module Types
   class InterviewSessionType < Types::BaseObject
-    field :references_enabled, Boolean, null: false
     field :id, ID, null: false
     field :status, String, null: false
     field :execution_mode, String, null: false
@@ -17,10 +16,6 @@ module Types
     field :questions, [ Types::InterviewSessionQuestionType ], null: false
     field :messages, [ Types::InterviewSessionMessageType ], null: false
     field :operations, [ Types::InterviewSessionOperationType ], null: false
-
-    def references_enabled
-      ::Interviews::ReferencesPolicy.enabled?
-    end
 
     def speech_playback_mode
       Interviews::SpeechPlayback.mode(object)

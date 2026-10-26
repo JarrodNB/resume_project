@@ -3,7 +3,7 @@ import { graphql } from '@/graphql/generated'
 
 export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
-    id status interviewType executionMode speechPlaybackMode referencesEnabled preparedRole revision answerCap currentQuestionPosition expiresAt
+    id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     questions { id content questionType position acceptedAnswerCount skipped }
     messages { id questionId kind position content avoided acknowledgement spokenContent careerReferences { id status attemptCount aiTaskId deadline references { sourceType sourceId title body } } clarification { id status explanation attemptCount aiTaskId deadline } }

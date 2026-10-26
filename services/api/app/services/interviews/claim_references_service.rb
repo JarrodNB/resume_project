@@ -8,7 +8,7 @@ module Interviews
     end
 
     def call
-      return success({ allowed: false }) unless @task.interview_references? && ReferencesPolicy.enabled?
+      return success({ allowed: false }) unless @task.interview_references?
       interview = @task.user.interview_sessions.find_by(id: @task.subject_id)
       return success({ allowed: false }) unless interview
       result = @task.user.with_lock do

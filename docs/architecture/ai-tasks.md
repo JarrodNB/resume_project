@@ -98,6 +98,14 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
 
 Per task type:
 
+- `rerank_job_listings`: input `{keyword, listings: [{id, text}]}` is a Rails-owned snapshot
+  of 1–100 shared catalogue listings, bounded to 200,000 UTF-8 JSON bytes. The worker embeds
+  listing excerpts and uses only this owner's model-matched career-library embeddings for
+  semantic order, fused equally with submitted-keyword BM25 (RRF k=60). The completed
+  result is `{ranked_listing_ids: [...]}`; Rails rejects anything except an exact permutation
+  of the snapshot IDs. Existing task budgets, attempt costs, subscriptions and duplicate
+  completion handling apply. No catalogue-table grant or generative model is introduced.
+
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
   Active Storage blob key in the S3 uploads bucket. The completed result is
   `{parsed_resume: ParsedResume}` (`services/ai/schemas/parsed_resume.py`). The user reviews and

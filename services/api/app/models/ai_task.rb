@@ -4,7 +4,7 @@
 # or concurrency slot. Spoken tasks use an independent allowance; general AI tasks
 # keep their own hourly admissions, budget and concurrency.
 # Index:
-#   - TASK_TYPES / task_type enum: improve_library_entry, review_library_section, parse_resume, scrape_job, parse_job_posting, analyze_gaps,
+#   - TASK_TYPES / task_type enum: rerank_job_listings, improve_library_entry, review_library_section, parse_resume, scrape_job, parse_job_posting, analyze_gaps,
 #     tailor_resume, generate_interview_questions, regenerate_interview_question, review_interview_answer
 #   - STATUSES / status enum: queued, needs_user_input, completed, failed
 #   - source_file: the uploaded file a task reads (e.g. the resume for parse_resume)
@@ -14,7 +14,7 @@
 #   - ai_usage_attempts: execution reports, including retry charges and unknown costs
 #   - ai_task_outcomes: separate durable success/failure occurrences, including explicit retries
 class AiTask < ApplicationRecord
-  TASK_TYPES = %w[improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
+  TASK_TYPES = %w[rerank_job_listings improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
                   generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
   SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification].freeze

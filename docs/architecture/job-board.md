@@ -62,6 +62,35 @@ concurrent save clicks, invalidates a cached private Jobs list after success, an
 opens the returned Job. Warnings travel with that navigation and remain visible
 on the matching saved Job page. Import errors keep the search results for retry.
 
+## Optional hybrid reranking
+
+The default-off browser toggle requests an asynchronous rerank of currently loaded
+candidates. It does not change the search provider's keyword, remote, or selected
+experience-level filters and does not infer a user's seniority. Turning it off restores
+provider order. New searches and loaded pages have their own candidate snapshot; an old
+ranking cannot reorder a newer set. Ranking is limited to 100 loaded candidates.
+
+`rerankJobBoardListings(input: {keyword:, listingIds:})` reads only those shared catalogue
+IDs, captures their title/plain-description excerpts, and queues `rerank_job_listings`.
+The user cannot submit arbitrary descriptions. Excerpts use a 140,000-byte combined text
+budget, at most 6,000 UTF-8 bytes per listing; complete input must fit 200,000 UTF-8 bytes.
+Normal AI admission and cost accounting apply. Identical recent queued work is reused.
+A missing current-model career-library index returns a clear error instead of queueing.
+
+The worker receives `{keyword, listings: [{id, text}]}`, embeds listing text in a batch,
+and compares it with the task owner's existing career-library embeddings. Equal-weight
+reciprocal rank fusion (k=60) combines mean top-three cosine similarity order with BM25
+on the submitted keyword. Only the existing user/model-scoped library index is read;
+the AI role still has no access to catalogue tables. There is no generative LLM call or
+qualification percentage. Empty/unavailable evidence or provider failure preserves the
+browser's provider-order fallback with a retryable error.
+
+The worker returns `{ranked_listing_ids: [...]}`. Rails accepts only an exact permutation
+of the queued IDs, applies ordinary task completion/duplicate-result rules, and updates
+subscribers. Task input and results remain private to the task owner; reranking never
+saves private Jobs or changes the shared search-page order. This is an optional discovery
+experiment, not a validated prediction of qualification or hiring outcomes.
+
 ## Private imports
 
 Imports lock the owner and reuse their Job first by catalogue reference, then by

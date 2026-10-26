@@ -45,11 +45,11 @@ def test_feedback_eval_uses_readable_production_prompt() -> None:
 def test_question_structure() -> None:
     """Good cases pass while wrong counts, categories, repeats and evidence fail."""
     dataset = load_interview_questions_dataset()
-    assert len(dataset.cases) == 22
+    assert len(dataset.cases) == 23
     for case in dataset.cases:
         output = InterviewQuestions(questions=[InterviewQuestionDraft(
             question_text=f"What can you share about career theme number {index}?",
-            category=category, evidence_quotes=[case.inputs.library],
+            category=category, evidence_quotes=[question_context(case.inputs).library_text],
         ) for index, category in enumerate(
             QUESTION_CATEGORIES["general"][1:2] if case.inputs.set_type == "general" and case.inputs.count == 1
             else QUESTION_CATEGORIES[case.inputs.set_type][:case.inputs.count])])
@@ -82,9 +82,10 @@ def test_question_structure() -> None:
 
 def test_question_eval_context_uses_readable_production_prompt() -> None:
     """Question quality evals submit the same readable evidence shape as the worker."""
-    case = load_interview_questions_dataset().cases[0].inputs
+    case = next(case.inputs for case in load_interview_questions_dataset().cases
+                if case.name == "experienced-collaborator")
     prompt = question_context(case)
-    assert "Career evidence:\n--" in prompt.text and "\nSummary: " in prompt.text
+    assert "Career evidence:\n--" in prompt.text and "[E1] Summary: " in prompt.text
     assert case.library in prompt.text
     assert "Library JSON data" not in prompt.text
 
@@ -101,7 +102,7 @@ def test_recent_question_eval_context_is_soft_history():
 def test_feedback_structure() -> None:
     """Required placeholders and exact evidence cannot pass on invented or blank data."""
     dataset = load_interview_feedback_dataset()
-    assert len(dataset.cases) == 17
+    assert len(dataset.cases) == 18
     for case in dataset.cases:
         output = InterviewFeedback(strengths=["You identified a theme."],
                                    improvements=["Explain your own actions."],
@@ -118,6 +119,31 @@ def test_feedback_structure() -> None:
             assert not FeedbackStructure().evaluate(context)["missing_fact_placeholder"]
 
 
+def test_fact_context_clarifies_eval_inputs_but_cannot_validate_quotes() -> None:
+    """Both real eval inputs preserve context while evidence checks reject context-only quotes."""
+    question_case = next(case.inputs for case in load_interview_questions_dataset().cases
+                         if case.name == "technical-fact-response-keeps-topic-without-inheriting-requirements")
+    feedback_case = next(case.inputs for case in load_interview_feedback_dataset().cases
+                         if case.name == "fact-context-is-not-personal-evidence")
+    requirement = question_case.facts[0].requirement
+    question_prompt = question_context(question_case)
+    feedback_prompt = feedback_context(feedback_case)
+    for prompt, source in ((question_prompt.text, question_prompt.library_text),
+                           (feedback_prompt.text, feedback_prompt.source_text)):
+        assert f"Requirement context (not personal evidence): {requirement}" in prompt
+        assert requirement not in source
+        assert "I used it for two years." in source
+    assert question_prompt.evidence_by_id == {"E1": "I used it for two years."}
+    questions = InterviewQuestions(questions=[InterviewQuestionDraft(
+        question_text="How did you use Kubernetes?", category="tools_methods", evidence_quotes=[requirement])])
+    context = SimpleNamespace(inputs=question_case, output=questions)
+    assert QuestionStructure().evaluate(context)["question_evidence"] == 0
+    feedback = InterviewFeedback(strengths=["You state the duration."], improvements=["Describe its use."],
+                                 example_answer="I used Kubernetes for two years.", evidence_quotes=[requirement])
+    context = SimpleNamespace(inputs=feedback_case, output=feedback, metadata=None)
+    assert FeedbackStructure().evaluate(context)["feedback_evidence"] == 0
+
+
 @pytest.mark.parametrize("field, value, score", [
     ("strengths", ["Clear"] * 4, "focused_coaching"),
     ("example_answer", "word " * 121, "concise_example"),
@@ -128,7 +154,7 @@ def test_feedback_focus_limits(field, value, score) -> None:
     output = InterviewFeedback(strengths=["Clear action"], improvements=["Add context"],
                                example_answer="I made a checklist.")
     setattr(output, field, value)
-    context = SimpleNamespace(inputs=SimpleNamespace(answer="I made a checklist.", library=""),
+    context = SimpleNamespace(inputs=FeedbackEvalInput(question="What did you do?", answer="I made a checklist."),
                               output=output, metadata=None)
     assert not FeedbackStructure().evaluate(context)[score]
 

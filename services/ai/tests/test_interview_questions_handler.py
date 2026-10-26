@@ -311,8 +311,9 @@ def test_question_prompt_uses_readable_checked_evidence(task_dependencies, monke
         assert "Experience title: Coordinator" in prompt.text
         assert "Experience company: Example Co" in prompt.text
         assert quote in prompt.text and quote in prompt.library_text
-        assert "[E1] Experience title: Coordinator" in prompt.text
-        assert "[E2] Experience company: Example Co" in prompt.text
+        assert "[E1] Summary: Careful operations work" in prompt.text
+        assert "[E2] Experience title: Coordinator" in prompt.text
+        assert "[E3] Experience company: Example Co" in prompt.text
         assert "Python" in prompt.text
         assert all(value not in prompt.text for value in (
             "private-role-id", "private-highlight-id", "private-skill-id",
@@ -452,8 +453,8 @@ def test_question_prompt_retains_relevant_career_context():
 
 @pytest.mark.parametrize("replacement", [False, True])
 @pytest.mark.parametrize("cite_requirement", [False, True])
-def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement, cite_requirement):
-    """Saved responses reach screening and generation; job requirements cannot ground output."""
+def test_job_requirement_is_context_only(task_dependencies, monkeypatch, replacement, cite_requirement):
+    """Screened requirements clarify responses without becoming citable personal evidence."""
     requirement = "Experience managing large teams"
     library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response="Python")])
     deps = replace(task_dependencies, read_career_library=lambda user_id: library)
@@ -469,9 +470,10 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
 
     def inspect_prompt(prompt, **kwargs):
         """Checks the actual prompt and grounding context before running the test model."""
-        assert requirement not in prompt.text
+        assert f"Requirement context (not personal evidence): {requirement}" in prompt.text
         assert '"requirement"' not in prompt.text
         assert requirement not in prompt.library_text
+        assert requirement not in prompt.evidence_by_id.values()
         assert "Python" in prompt.text and "Python" in prompt.library_text
         return generate(prompt, **kwargs)
 
@@ -482,11 +484,60 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
-    assert screened and all(requirement not in text for text in screened)
+    assert any(f"requirement:\n{requirement}" in text for text in screened)
     assert any("response:\nPython" in text for text in screened)
     if replacement:
         assert _task(True).input["question_text"] not in screened
     assert library.facts[0].requirement == requirement
+
+
+@pytest.mark.parametrize("checked_context", [False, True])
+def test_fact_context_reuses_saved_checks_without_rescreening_response(task_dependencies, monkeypatch, checked_context):
+    """Context enters a covered prompt only after its own check; approved answers are reused."""
+    from screening.session import prompt_is_covered, screening_session
+
+    requirement = "Five years of Kubernetes experience"
+    response = "I used it for two years."
+    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response=response,
+        screened_fields=["response", "requirement"] if checked_context else ["response"])])
+    screened = []
+
+    def screen(text, **kwargs):
+        screened.append(text)
+        return ScreenOutcome(allowed=True)
+
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text", screen)
+    generate = interview_questions_handler.generate_interview_questions
+
+    def inspect_prompt(prompt, **kwargs):
+        assert prompt_is_covered(prompt.text)
+        assert requirement in prompt.text and response in prompt.text
+        assert prompt.evidence_by_id == {"E1": response}
+        return generate(prompt, **kwargs)
+
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_prompt)
+    deps = replace(task_dependencies, read_career_library=lambda user: library)
+    with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
+        result = handle_ai_task(_task(), deps)
+        assert result.status == "completed"
+        assert [report.fields for report in session.library_screening] == ([] if checked_context else [["requirement"]])
+    assert all(response not in text for text in screened)
+    assert len(screened) == (0 if checked_context else 1)
+    if screened:
+        assert requirement in screened[0]
+
+
+@pytest.mark.parametrize("unchecked", [False, True])
+def test_rejected_fact_context_cannot_reach_generation(task_dependencies, monkeypatch, unchecked):
+    """A previously approved response cannot bring blocked or unavailable context into a prompt."""
+    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="Kubernetes experience",
+        response="I used it for two years.", screened_fields=["response"])])
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+                        lambda *args, **kwargs: ScreenOutcome(allowed=False, unchecked=unchecked))
+    monkeypatch.setattr(interview_questions_handler, "generate_interview_questions",
+                        lambda *args, **kwargs: pytest.fail("rejected context must not reach generation"))
+    deps = replace(task_dependencies, read_career_library=lambda user: library)
+    assert handle_ai_task(_task(), deps).status == "failed"
 
 
 def test_quote_sources_exclude_hidden_and_formatted_fields() -> None:
@@ -547,7 +598,8 @@ def test_legacy_replacement_trusts_target_and_unidentified_siblings(task_depende
     monkeypatch.setattr(interview_questions_handler, "screen_user_text",
         lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
     request = _task(True)
-    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(
+        skills=[LibrarySkill(id="skill", name="Python", screened_fields=["name"])]))
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
         assert session.interview_question_screening == []

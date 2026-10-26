@@ -104,3 +104,14 @@ cases:
       question: "How does a database transaction support atomicity, and what does atomicity not guarantee?"
       answer: "Atomicity means a transaction's changes either all commit or all roll back."
       library: "Python engineer. Skills: PostgreSQL."
+  - name: fact-context-is-not-personal-evidence
+    inputs:
+      set_type: technical
+      question: What experience do you have with Kubernetes?
+      answer: I used it for two years.
+      facts:
+        - id: fact-kubernetes
+          requirement: Five years of Kubernetes experience and team leadership
+          response: I used it for two years.
+    metadata:
+      needs_placeholder: true

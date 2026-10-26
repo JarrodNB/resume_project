@@ -131,3 +131,10 @@ cases:
       library: "Customer support specialist for four years. Previously volunteered at a community book exchange. Created a shared onboarding checklist with two colleagues. Wants to move into training."
       excluded:
         - "What first interested you in customer support?"
+  - name: technical-fact-response-keeps-topic-without-inheriting-requirements
+    inputs:
+      set_type: technical
+      facts:
+        - id: fact-kubernetes
+          requirement: Five years of Kubernetes experience and team leadership
+          response: I used it for two years.

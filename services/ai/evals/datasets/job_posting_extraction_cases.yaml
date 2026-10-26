@@ -214,6 +214,29 @@ cases:
       requirements: []
       nice_to_haves: []
       requirements_sorted_by: none
+  - name: nested_bold_section_headings
+    inputs:
+      job_id: "1009"
+      title: Backend Engineer
+      company: Example Systems
+      location: null
+      description_html: |
+        <p><b><strong>Requirements</strong></b></p><ul><li>Python</li></ul>
+        <p><strong>Preferred <b>Qualifications</b></strong></p><ul><li>Go</li></ul>
+        <p><b><strong>Responsibilities</strong></b></p><ul><li>Build APIs</li></ul>
+    expected_output:
+      source: linkedin
+      source_url: https://www.linkedin.com/jobs/view/1009/
+      title: Backend Engineer
+      company: Example Systems
+      location: null
+      requirements:
+        - Python
+      responsibilities:
+        - Build APIs
+      nice_to_haves:
+        - Go
+      requirements_sorted_by: headings
 evaluators:
   - RequirementMatch
   - VerbatimBullets

@@ -1,7 +1,7 @@
 /**
  * Description: Card for one part of the career library, with a count, an add button, and an
  * empty state. The card starts collapsed; opening it is remembered in this browser.
- * Narrative sections can put a review action before the manual add control.
+ * Manual add and AI review actions share one toolbar above the saved records.
  * Index:
  *   - LibrarySection: tone-colored titled card; shows `emptyText` when `count` is 0
  */
@@ -30,10 +30,10 @@ export function LibrarySection({ sectionId, tone, title, count, emptyText, addLa
     <SectionCard sectionId={sectionId} tone={tone} title={title} badge={<Badge variant="secondary">{count}</Badge>}>
       <div className="grid gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          {reviewActions}
-          <Button type="button" variant="outline" size="sm" className="justify-self-start" onClick={onAdd}>
+          <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={onAdd}>
             <Plus /> {addLabel}
           </Button>
+          {reviewActions}
         </div>
         {count === 0 ? <p className="text-sm text-muted-foreground">{emptyText}</p> : children}
       </div>

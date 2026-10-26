@@ -1,22 +1,14 @@
 """Rank synthetic job listings against a career library for an offline evaluation.
 
+This is one unvalidated experimental method, not a selected product algorithm.
 Each listing is compared with every career-library entry. Its score is the mean
 cosine similarity to its three closest entries (or fewer when the library is
 sparse). This score orders only the evaluation candidates; it is not a fit or
 qualification measure and is never returned to the product UI.
 """
 
-from dataclasses import dataclass
 from math import sqrt
 from typing import Sequence
-
-
-@dataclass(frozen=True)
-class RankingRecommendation:
-    """A cautious recommendation about testing a relevance sort with people."""
-
-    proceed: bool
-    reasons: tuple[str, ...]
 
 
 def rank_listings(
@@ -25,9 +17,9 @@ def rank_listings(
     library_vectors: Sequence[Sequence[float]],
     evidence_limit: int = 3,
 ) -> list[str]:
-    """Orders provider listings by their average similarity to their closest library entries.
+    """Orders fixture listings by their average similarity to their closest library entries.
 
-    The input order is the provider order and breaks ties. An empty library has
+    The input order is the synthetic input order and breaks ties. An empty library has
     no evidence for reordering, so that order is returned unchanged.
     """
     if len(listing_ids) != len(listing_vectors):
@@ -44,7 +36,7 @@ def rank_listings(
         raise ValueError("All vectors must have the same number of dimensions")
 
     ranked = []
-    for provider_position, (listing_id, listing_vector) in enumerate(
+    for fixture_position, (listing_id, listing_vector) in enumerate(
         zip(listing_ids, listing_vectors, strict=True)
     ):
         similarities = sorted(
@@ -53,7 +45,7 @@ def rank_listings(
             reverse=True,
         )
         score = sum(similarities[:evidence_limit]) / min(evidence_limit, len(similarities))
-        ranked.append((listing_id, score, provider_position))
+        ranked.append((listing_id, score, fixture_position))
     ranked.sort(key=lambda item: (-item[1], item[2]))
     return [listing_id for listing_id, _score, _position in ranked]
 
@@ -85,54 +77,18 @@ def ranking_scores(
 
 
 def compare_rankings(
-    provider_ids: Sequence[str],
+    fixture_ids: Sequence[str],
     relevance_ids: Sequence[str],
     relevant_ids: Sequence[str],
     hard_negative_ids: Sequence[str],
 ) -> dict[str, float]:
-    """Returns aligned provider-order and relevance-order scores for one profile."""
-    provider_scores = ranking_scores(provider_ids, relevant_ids, hard_negative_ids)
+    """Returns aligned synthetic-input-order and relevance-order scores for one profile."""
+    fixture_scores = ranking_scores(fixture_ids, relevant_ids, hard_negative_ids)
     relevance_scores = ranking_scores(relevance_ids, relevant_ids, hard_negative_ids)
     return {
-        **{f"provider_{name}": value for name, value in provider_scores.items()},
+        **{f"fixture_{name}": value for name, value in fixture_scores.items()},
         **{f"relevance_{name}": value for name, value in relevance_scores.items()},
     }
-
-
-def ranking_recommendation(case_scores: Sequence[dict[str, float]]) -> RankingRecommendation:
-    """Recommend a small user-facing pilot only when the ranking improves without regressions.
-
-    Every labeled profile must be non-inferior on MRR and precision@3, and the
-    mean of at least one metric must improve. The rate of hard negatives ranked
-    first must not increase for any profile. Small synthetic fixtures are only
-    a gate for formative testing, not evidence of broad product value.
-    """
-    if not case_scores:
-        return RankingRecommendation(False, ("No labeled cases were evaluated.",))
-
-    reasons: list[str] = []
-    for name in ("mrr", "precision_at_3"):
-        if any(
-            case[f"relevance_{name}"] < case[f"provider_{name}"]
-            for case in case_scores
-        ):
-            reasons.append(f"Relevance ordering regressed on at least one case for {name}.")
-    if any(
-        case["relevance_hard_negative_at_1"] > case["provider_hard_negative_at_1"]
-        for case in case_scores
-    ):
-        reasons.append("A hard negative moved into first place on at least one case.")
-
-    improved = any(
-        sum(case[f"relevance_{name}"] for case in case_scores)
-        > sum(case[f"provider_{name}"] for case in case_scores)
-        for name in ("mrr", "precision_at_3")
-    )
-    if not improved:
-        reasons.append("Neither MRR nor precision@3 improved over provider order.")
-    return RankingRecommendation(not reasons, tuple(reasons or [
-        "Ranking improved without a measured regression; proceed only to formative testing.",
-    ]))
 
 
 def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:

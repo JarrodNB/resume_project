@@ -27,7 +27,7 @@ class JobListingText(BaseModel):
 
 
 class JobRelevanceInputs(BaseModel):
-    """A synthetic career library and the provider-ordered candidate listings."""
+    """A synthetic career library and the synthetic-input-ordered candidate listings."""
 
     profile_id: str
     career_library: list[CareerLibraryEntry]
@@ -57,15 +57,15 @@ JobRelevanceContext = EvaluatorContext[
 
 @dataclass
 class JobRelevanceMetrics(Evaluator[JobRelevanceInputs, RankedJobs, JobRelevanceLabels]):
-    """Compares relevance ordering with the provider's existing result order."""
+    """Compares relevance ordering with the manually arranged synthetic input order."""
 
     def evaluate(self, ctx: JobRelevanceContext) -> dict[str, float]:
         """Scores top-one hit, top-three precision, MRR, and hard-negative top one."""
         labels = ctx.metadata
         assert labels is not None
-        provider_ids = [listing.id for listing in ctx.inputs.listings]
+        fixture_ids = [listing.id for listing in ctx.inputs.listings]
         return compare_rankings(
-            provider_ids,
+            fixture_ids,
             ctx.output.relevance_order,
             labels.relevant_listing_ids,
             labels.hard_negative_listing_ids,

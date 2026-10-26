@@ -1,4 +1,4 @@
-# Synthetic career libraries and listings. Labels describe role relevance for
+# Synthetic career libraries and manually ordered listings; no provider responses were captured. Labels describe role relevance for
 # the fixture profile; they do not make claims about the person's qualifications.
 cases:
   - name: backend_engineer_with_keyword_false_positive

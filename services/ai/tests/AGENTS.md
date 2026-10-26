@@ -104,7 +104,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
   request-level accounting, privacy, and transcript contexts
 - `test_tailoring_evaluators.py` — hand labels score as expected
 - `test_library_retrieval_evaluators.py` — retrieval eval labels score 1.0
-- `test_job_relevance_ranker.py` — relevance ordering, ranking metrics, hard-negative guard,
+- `test_job_relevance_ranker.py` — relevance ordering, ranking metrics, hard-negative reporting,
   and empty-library fallback use fixed vectors without provider calls
 - `test_user_text_screen_evaluators.py` — screen eval labels score 1.0; a yes under the 0.7
   bar does not count as a block

@@ -1,4 +1,4 @@
-"""Compare library-based job ordering with the provider order on synthetic roles.
+"""Compare library-based job ordering with the synthetic input order on synthetic roles.
 
 The runner embeds only synthetic fixture text and calls the configured embedding
 provider, so an explicit run can cost money. Ordinary tests use deterministic
@@ -20,7 +20,7 @@ from evals.job_relevance_evaluators import (
     JobRelevanceLabels,
     RankedJobs,
 )
-from evals.job_relevance_ranker import compare_rankings, rank_listings, ranking_recommendation
+from evals.job_relevance_ranker import compare_rankings, rank_listings
 from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
 from worker.model_prices import MODEL_PRICES, estimate_cost_microdollars
@@ -57,8 +57,8 @@ def rank_job_listings(
     elapsed = perf_counter() - started
     library_vectors = [list(vector) for vector in library_embeddings.embeddings]
     listing_vectors = [list(vector) for vector in listing_embeddings.embeddings]
-    provider_ids = [listing.id for listing in inputs.listings]
-    relevance_order = rank_listings(provider_ids, listing_vectors, library_vectors, EVIDENCE_LIMIT)
+    fixture_ids = [listing.id for listing in inputs.listings]
+    relevance_order = rank_listings(fixture_ids, listing_vectors, library_vectors, EVIDENCE_LIMIT)
 
     input_tokens = library_embeddings.usage.input_tokens + listing_embeddings.usage.input_tokens
     estimated_cost = None
@@ -73,7 +73,7 @@ def rank_job_listings(
 
 
 def run_job_relevance_evals(model_override: str | None = None) -> EvaluationReport:
-    """Evaluates each profile, compares both orders, and states a cautious recommendation."""
+    """Evaluates each profile, compares both orders, without making a product recommendation."""
     settings = override_settings(load_settings(), "embedding_model", model_override)
     model = settings.embedding_model
     dimensions = settings.embedding_dimensions
@@ -81,7 +81,7 @@ def run_job_relevance_evals(model_override: str | None = None) -> EvaluationRepo
     outputs: dict[str, RankedJobs] = {}
 
     def rank_case(inputs: JobRelevanceInputs) -> RankedJobs:
-        """One provider-ordered job set against one synthetic career library."""
+        """One synthetic-input-ordered job set against one synthetic career library."""
         result = rank_job_listings(inputs, model, dimensions)
         outputs[inputs.profile_id] = result
         return result
@@ -101,27 +101,21 @@ def run_job_relevance_evals(model_override: str | None = None) -> EvaluationRepo
         max_concurrency=1,
     )
 
-    case_scores = []
-    print("\nEmbedding usage by synthetic profile (provider order is the baseline):")
+    print("\nEmbedding usage by synthetic profile (synthetic input order is the baseline):")
     for case in dataset.cases:
         labels = case.metadata
         assert labels is not None
-        provider_ids = [listing.id for listing in case.inputs.listings]
+        fixture_ids = [listing.id for listing in case.inputs.listings]
         result = outputs.get(case.inputs.profile_id)
-        relevance_order = result.relevance_order if result else []
+        if result is None:
+            print(f"- {case.inputs.profile_id}: ranking failed; comparison is unavailable.")
+            continue
         scores = compare_rankings(
-            provider_ids,
-            relevance_order,
+            fixture_ids,
+            result.relevance_order,
             labels.relevant_listing_ids,
             labels.hard_negative_listing_ids,
         )
-        case_scores.append(scores)
-        if result is None:
-            print(f"- {case.inputs.profile_id}: ranking failed; profile is a no-go.")
-            print(f"  Provider order: {provider_ids}")
-            print("  Library relevance order: unavailable")
-            print(f"  Comparison: {scores}")
-            continue
         cost = (
             f"${result.estimated_cost_microdollars / 1_000_000:.6f}"
             if result.estimated_cost_microdollars is not None else "unknown"
@@ -131,15 +125,13 @@ def run_job_relevance_evals(model_override: str | None = None) -> EvaluationRepo
             f"estimated embedding cost={cost}, "
             f"embedding latency={result.embedding_seconds:.3f}s"
         )
-        print(f"  Provider order: {provider_ids}")
+        print(f"  Synthetic input order: {fixture_ids}")
         print(f"  Library relevance order: {result.relevance_order}")
         print(f"  Comparison: {scores}")
 
-    recommendation = ranking_recommendation(case_scores)
-    print(f"\nRecommendation: {'GO to formative testing' if recommendation.proceed else 'NO-GO'}")
-    for reason in recommendation.reasons:
-        print(f"- {reason}")
-    print("This small synthetic evaluation does not establish qualification or broad user value.")
+    print("\nProduct decision: NOT EVALUATED.")
+    print("These manually ordered synthetic fixtures are algorithm checks, not a captured job-provider baseline.")
+    print("Real search results, independent labels, and alternative methods are needed before choosing a product algorithm.")
     return report
 
 

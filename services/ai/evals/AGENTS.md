@@ -86,14 +86,15 @@ score attached, so runs can be compared across prompt and model changes.
 - `run_library_retrieval_evals.py` — embeds the corpus with `Embedder.embed_documents` and the
   query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`
-- `datasets/job_relevance_cases.yaml` — labeled synthetic career libraries and provider-ordered
+- `datasets/job_relevance_cases.yaml` — labeled synthetic career libraries and manually ordered synthetic
   job listings, including sparse evidence and adjacent or keyword-overlap hard negatives
 - `job_relevance_ranker.py` / `job_relevance_evaluators.py` — cosine ordering against each
-  profile's closest career-library entries, with provider order as the baseline and no
+  profile's closest career-library entries, with synthetic input order as a control and no
   qualification score
 - `run_job_relevance_evals.py` — embeds synthetic fixture text, reports Hit@1, Precision@3,
-  MRR, hard-negative top-one rate, latency, and estimated embedding cost, then gives a cautious
-  formative-testing recommendation. Cost is for uncached fixture embeddings in that run; it
+  MRR, hard-negative top-one rate, latency, and estimated embedding cost, without issuing
+  a product recommendation. Synthetic input order is not evidence of provider performance.
+  Cost is for uncached fixture embeddings in that run; it
   does not include the job source request or predict ongoing cost with shared listing caches.
   An explicit run calls the configured embedding provider; ordinary tests use fixed vectors.
   Run `python -m evals.run_job_relevance_evals`.

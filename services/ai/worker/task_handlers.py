@@ -11,6 +11,7 @@ from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.interview_clarification_handler import handle_interview_clarification_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_questions_handler import handle_interview_questions_task
+from worker.interview_references_handler import handle_interview_references_task
 from worker.library_edit_handler import handle_library_edit_task
 from worker.library_review_handler import handle_library_review_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
@@ -28,6 +29,7 @@ TASK_HANDLERS: dict[TaskType, TaskHandler] = {
     "improve_library_entry": handle_library_edit_task,
     "review_library_section": handle_library_review_task,
     "interview_clarification": handle_interview_clarification_task,
+    "interview_references": handle_interview_references_task,
     "review_interview_answer": handle_interview_feedback_task,
     "generate_interview_questions": handle_interview_questions_task,
     "regenerate_interview_question": handle_interview_questions_task,

@@ -1,0 +1,159 @@
+"""Career references are claimed once and return only saved user evidence."""
+from dataclasses import replace
+from uuid import uuid4
+
+import httpx
+
+from worker.queue_messages import AiTaskMessage
+from worker.task_handlers import handle_ai_task
+
+
+def reference_task():
+    return AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="interview_references",
+        input={"reference_id": str(uuid4()), "question_text": "Describe your Kubernetes work."})
+
+
+def claimed_dependencies(task_dependencies, allowed=True):
+    return replace(task_dependencies,
+        settings=task_dependencies.settings.model_copy(update={"interview_service_secret": "test"}),
+        http_client=httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200,
+            json={"allowed": allowed, "question_text": "Describe your Kubernetes work."}))))
+
+
+def test_denied_reference_claim_does_no_search(task_dependencies):
+    result = handle_ai_task(reference_task(), claimed_dependencies(task_dependencies, False))
+    assert result.status == "usage"
+    assert result.result is None and not result.usage
+
+
+def test_claimed_search_returns_exact_saved_fact_without_requirement(task_dependencies, monkeypatch):
+    from contextlib import nullcontext
+    from unittest.mock import Mock
+
+    from pydantic_ai.usage import RequestUsage
+
+    from memory.embed_search_query import QueryEmbedding
+    from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+    from schemas.library_search_match import LibrarySearchMatch
+
+    source_id = str(uuid4())
+    library = CareerLibrary(facts=[LibraryFact(id=source_id, requirement="REQUIREMENT NOT EVIDENCE",
+        response="I maintained Kubernetes clusters.\nExact saved detail.")])
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
+    # These are true external seams: embeddings and database I/O. Saved evidence projection is real.
+    async def embed(*args):
+        return QueryEmbedding([1.0], RequestUsage(input_tokens=8))
+    monkeypatch.setattr("interviews.references.embed_search_query_async", embed)
+    monkeypatch.setattr("interviews.references.open_read_only_connection", lambda _: nullcontext(object()))
+    search = Mock(return_value=[LibrarySearchMatch(source_type="LibraryFact", source_id=source_id,
+        content="Stale index text must not be displayed", distance=0.2, score=0.03)])
+    monkeypatch.setattr("interviews.references.search_career_library", search)
+    task = reference_task()
+    result = handle_ai_task(task, deps)
+    assert result.status == "completed"
+    assert result.result == {"references": [{"source_type": "LibraryFact", "source_id": source_id,
+        "title": "Saved career fact", "body": library.facts[0].response}]}
+    assert result.usage[0].input_tokens == 8
+    assert search.call_args.args[1] == task.user_id
+    assert "LibraryFact" in search.call_args.kwargs["source_types"]
+
+
+def test_mismatched_prompt_never_searches(task_dependencies):
+    task = reference_task()
+    task.input["question_text"] = "Changed question"
+    result = handle_ai_task(task, claimed_dependencies(task_dependencies))
+    assert result.status == "failed"
+    assert result.result is None and not result.usage
+
+
+def test_extra_context_is_rejected_before_claim(task_dependencies):
+    import pytest
+    from pydantic import ValidationError
+    task = reference_task()
+    task.input["draft_answer"] = "PRIVATE"
+    with pytest.raises(ValidationError):
+        handle_ai_task(task, task_dependencies)
+
+
+def test_empty_library_does_not_embed(task_dependencies):
+    from schemas.gap_analysis_context import CareerLibrary
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
+    result = handle_ai_task(reference_task(), deps)
+    assert result.status == "completed" and result.result == {"references": []}
+    assert result.usage == []
+
+
+def test_sources_project_exact_bodies_and_exclude_summary():
+    from interviews.references import saved_reference_sources
+    from schemas.gap_analysis_context import (
+        CareerLibrary,
+        LibraryExperience,
+        LibraryHighlight,
+        LibraryProject,
+    )
+    role_id, highlight_id, project_id = [str(uuid4()) for _ in range(3)]
+    library = CareerLibrary(summary="Summary is not indexed", experiences=[LibraryExperience(id=role_id,
+        company="Acme", title="Engineer", description="Built systems", highlights=[LibraryHighlight(id=highlight_id,
+        content="  Exact saved bullet\nwith whitespace  ")])], projects=[LibraryProject(id=project_id,
+        name="Search", description="X" * 4001)])
+    sources = saved_reference_sources(library)
+    assert len(sources) == 2
+    assert sources[("ExperienceHighlight", highlight_id)].body == "  Exact saved bullet\nwith whitespace  "
+    assert sources[("Experience", role_id)].title == "Engineer at Acme"
+
+
+def test_denied_delivery_finalizes_zero_cost(task_dependencies):
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+    from worker.queue_messages import AiResultMessage
+    queue = FakeResultQueue()
+    assert process_task_message(reference_task().model_dump_json(), 2, queue, claimed_dependencies(task_dependencies, False))
+    marker, final = [AiResultMessage.model_validate_json(body) for body in queue.sent_bodies]
+    assert marker.attempt_id == final.attempt_id
+    assert marker.attempt_finished is False and final.attempt_finished is True
+    assert final.status == "usage" and not final.usage_incomplete and final.usage == []
+
+
+def test_claimed_failure_requires_explicit_retry(task_dependencies, monkeypatch):
+    from schemas.gap_analysis_context import CareerLibrary
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+    from worker.queue_messages import AiResultMessage
+    def fail(*args):
+        raise TimeoutError("private provider error")
+    monkeypatch.setattr("worker.interview_references_handler.retrieve_references", fail)
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
+    queue = FakeResultQueue()
+    assert process_task_message(reference_task().model_dump_json(), 1, queue, deps)
+    final = AiResultMessage.model_validate_json(queue.sent_bodies[-1])
+    assert final.status == "failed" and final.attempt_finished is True
+    assert final.error_message == "The AI task failed"
+
+
+def test_embedding_charge_survives_later_search_failure(task_dependencies, monkeypatch):
+    from contextlib import nullcontext
+
+    from pydantic_ai.embeddings import TestEmbeddingModel
+
+    from memory.embed_search_query import embed_search_query_async
+    from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+    from tests.test_process_task_message import FakeResultQueue
+    from worker.main import process_task_message
+    from worker.queue_messages import AiResultMessage
+
+    async def embed(text, _model, dimensions):
+        return await embed_search_query_async(text, TestEmbeddingModel(
+            model_name="text-embedding-3-small", provider_name="openai"), dimensions)
+    monkeypatch.setattr("interviews.references.embed_search_query_async", embed)
+    monkeypatch.setattr("interviews.references.open_read_only_connection", lambda _: nullcontext(object()))
+    def search(*args, **kwargs):
+        raise TimeoutError("database search timeout")
+    monkeypatch.setattr("interviews.references.search_career_library", search)
+    library = CareerLibrary(facts=[LibraryFact(id=str(uuid4()), requirement="Kubernetes", response="Maintained clusters")])
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
+    queue = FakeResultQueue()
+    assert process_task_message(reference_task().model_dump_json(), 1, queue, deps)
+    final = AiResultMessage.model_validate_json(queue.sent_bodies[-1])
+    assert final.status == "failed" and len(final.usage) == 1
+    assert final.usage[0].model == "openai:text-embedding-3-small"
+    assert final.usage[0].input_tokens > 0 and not final.usage_incomplete

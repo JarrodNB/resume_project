@@ -85,6 +85,21 @@ module Types
       argument :id, ID, required: true
     end
 
+    field :task_outcomes, Types::AiTaskOutcomePageType, null: false do
+      argument :after, String, required: true
+      argument :through, String, required: true
+      argument :limit, Integer, required: false, default_value: 100
+    end
+
+    # Recovers only the authenticated owner's committed terminal occurrences.
+    def task_outcomes(after:, through:, limit: 100)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      result = AiTasks::ListTaskOutcomesService.call(outcomes: current_user.ai_task_outcomes,
+        after: after, through: through, limit: limit)
+      raise GraphQL::ExecutionError, result.errors.join(", ") unless result.success?
+      result.value
+    end
+
     field :ai_task, Types::AiTaskType, null: false do
       argument :id, ID, required: true
     end

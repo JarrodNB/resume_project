@@ -188,6 +188,9 @@ RSpec.describe "Career library AI editing" do
   it "discards without library changes and rejects malformed proposals" do
     task = AiTask.find(start_edit.dig("aiTask", "id"))
     expect(discard_edit(task)["errors"]).to eq([])
+    expect(task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
+    expect(discard_edit(task)["errors"]).to eq([])
+    expect(task.ai_task_outcomes.count).to eq(1)
     complete_edit(task)
     expect(task.reload.status).to eq("failed")
     expect(highlight.reload.content).to eq("Helped migrate services")

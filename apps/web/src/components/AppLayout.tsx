@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/features/auth/useAuth'
+import { TaskNotifications } from '@/features/ai-tasks/TaskNotifications'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from './ThemeToggle'
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
 ]
 
 export function AppLayout() {
-  const { signOut } = useAuth()
+  const { user, signOut, taskOutcomeCursor } = useAuth()
   const [signOutError, setSignOutError] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
   async function handleSignOut() {
@@ -78,7 +79,10 @@ export function AppLayout() {
       <div className="workspace-body">
         <header className="workspace-topbar">
           <span>Your workspace <span className="breadcrumb-divider" aria-hidden>/</span> <span className="text-foreground">{currentPage}</span></span>
-          <span className="workspace-principle">Your experience. Your next chapter.</span>
+          <div className="flex shrink-0 items-center gap-5">
+            <span className="workspace-principle">Your experience. Your next chapter.</span>
+            {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
+          </div>
         </header>
         <main id="main-content" tabIndex={-1} className="workspace-content"><Outlet /></main>
       </div>

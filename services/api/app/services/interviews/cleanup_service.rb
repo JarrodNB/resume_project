@@ -1,5 +1,6 @@
 # Removes expired interview content and private audio in bounded batches. Failed object
 # deletion stays durable for retry; billing identities survive after dialogue is scrubbed.
+# Terminal task changes record owner-visible outcomes in the same transaction.
 module Interviews
   class CleanupService < ApplicationService
     def initialize(limit: 10, storage: MediaStorage.new)
@@ -46,7 +47,7 @@ module Interviews
           next unless expired
           if %w[authorized streaming].include?(capture.status)
             capture.update!(status: "failed", transcript: nil)
-            capture.ai_task&.update!(status: "failed", completed_at: Time.current, error_message: "capture_expired")
+            AiTasks::UpdateTaskService.call(task: capture.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: "capture_expired" }) if capture.ai_task
           elsif interview.expires_at <= Time.current || interview.abandoned?
             capture.update!(transcript: nil)
           end
@@ -66,7 +67,7 @@ module Interviews
             if operation.pending? || operation.running?
               attributes.merge!(status: "failed", error_message: "interview_expired", completed_at: Time.current)
             end
-            operation.ai_task.update!(attributes)
+            AiTasks::UpdateTaskService.call(task: operation.ai_task, attributes: attributes)
           end
           state = operation.pending? || operation.running? ? "expired" : operation.status
           operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
@@ -74,8 +75,8 @@ module Interviews
         interview.clarifications.update_all(explanation: nil)
         interview.user.ai_tasks.where(subject: interview, task_type: "interview_clarification").find_each do |task|
           task.with_lock do
-            task.update!(input: {}, result: nil, status: task.finished? ? task.status : "failed",
-              error_message: "interview_expired", completed_at: task.completed_at || Time.current)
+            AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil, status: task.finished? ? task.status : "failed",
+              error_message: "interview_expired", completed_at: task.completed_at || Time.current })
           end
         end
         interview.questions.update_all(content: "[expired]", model_history: [])

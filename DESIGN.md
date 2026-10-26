@@ -202,6 +202,13 @@ draft and returns keyboard focus to its source opener.
 
 Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.
 
+Task notifications live in a bell at the right of the workspace top bar. Its forest count
+shows unread outcomes and clears when the inbox opens. A right-aligned popover uses one
+surface with ruled rows, newest first, quiet success/failure icons, a result link, and a
+44px dismiss target. Notices remain until opened or dismissed. The empty inbox explains
+where completed AI tasks appear. New outcomes announce without taking focus or opening
+the panel. On mobile the popover fits within 16px viewport gutters and scrolls internally.
+
 ## Do's and Don'ts
 
 ### Do:

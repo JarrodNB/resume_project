@@ -16,6 +16,7 @@ RSpec.describe "Recorded transcript review" do
     expect(Interviews::AcceptTranscriptionService.call(**args)).to be_success
     expect(Interviews::AcceptTranscriptionService.call(**args)).to be_success
     expect(operation.reload.accepted_result).to eq({ "transcript" => "I maintained the service." })
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
     expect(interview.reload.revision).to eq(0)
     expect(interview.questions.first.accepted_answer_count).to eq(0)
     expect(interview.messages.where(kind: "answer")).to be_empty
@@ -50,6 +51,7 @@ RSpec.describe "Recorded transcript review" do
     expect(Interviews::CancelRecordedTranscriptionService.call(operation: operation)).to be_success
     expect(Interviews::AcceptTranscriptionService.call(operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: "late")).not_to be_success
     expect(operation.reload.accepted_result).to eq({})
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end
   it "discovers durable work, fences stale revisions and expires its private text" do
     operation = Interviews::StartRecordedTranscriptionService.call(**input).value
@@ -63,6 +65,7 @@ RSpec.describe "Recorded transcript review" do
     recording.update!(expires_at: 1.second.ago)
     Interviews::CleanupService.call(storage: instance_double(Interviews::MediaStorage, delete: true))
     expect(operation.reload.accepted_result).to eq({})
+    expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
   end
 
   it "uses bounded retries and charges delayed provider usage after cancellation once" do

@@ -48,7 +48,6 @@ export function AppLayout() {
 
   return (
     <div className="workspace">
-      {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="workspace-sidebar">
         <Link to="/library" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>
@@ -80,7 +79,10 @@ export function AppLayout() {
       <div className="workspace-body">
         <header className="workspace-topbar">
           <span>Your workspace <span className="breadcrumb-divider" aria-hidden>/</span> <span className="text-foreground">{currentPage}</span></span>
-          <span className="workspace-principle">Your experience. Your next chapter.</span>
+          <div className="flex shrink-0 items-center gap-5">
+            <span className="workspace-principle">Your experience. Your next chapter.</span>
+            {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
+          </div>
         </header>
         <main id="main-content" tabIndex={-1} className="workspace-content"><Outlet /></main>
       </div>

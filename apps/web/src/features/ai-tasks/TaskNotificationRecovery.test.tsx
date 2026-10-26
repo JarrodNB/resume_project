@@ -1,5 +1,5 @@
 /** Exercises recovery and tab coordination through rendered notices and GraphQL transport. */
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { ApolloClient, ApolloLink, InMemoryCache, Observable } from '@apollo/client'
 import { ApolloProvider } from '@apollo/client/react'
 import { createMemoryRouter, RouterProvider } from 'react-router'
@@ -40,7 +40,9 @@ function server(events = [event(1)], pageSize = 100) {
 
 function mount(source: ReturnType<typeof server>, initialCursor = '0', owner = 'owner-1') {
   const router = createMemoryRouter([{ path: '*', element: <TaskNotifications userId={owner} initialCursor={initialCursor} /> }])
-  return render(<ApolloProvider client={source.client}><RouterProvider router={router} /></ApolloProvider>)
+  const view = render(<ApolloProvider client={source.client}><RouterProvider router={router} /></ApolloProvider>)
+  fireEvent.click(within(view.container).getByRole('button', { name: 'Notifications' }))
+  return view
 }
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
@@ -110,7 +112,7 @@ it('delivers an occurrence once across two visible tabs using the shared owner l
   first.emit('1')
   second.emit('1')
   await waitFor(() => expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('1'))
-  expect(screen.getAllByText('Task 1 completed')).toHaveLength(1)
+  expect(screen.getAllByText('New notification: Task 1 completed')).toHaveLength(1)
   expect(request).toHaveBeenCalled()
 })
 
@@ -133,7 +135,7 @@ it('keeps live delivery and duplicate prevention working when storage throws', a
   expect(await screen.findByText('Task 1 completed')).toBeInTheDocument()
   source.emit('1', event(1))
   await act(async () => { await Promise.resolve() })
-  expect(screen.getAllByText('Task 1 completed')).toHaveLength(1)
+  expect(screen.getAllByText('New notification: Task 1 completed')).toHaveLength(1)
 })
 
 
@@ -208,7 +210,7 @@ it('preserves a valid sibling-tab checkpoint newer than a stale handshake', asyn
   source.emit('1')
   await waitFor(() => expect(source.queries).toHaveBeenCalledWith({ after: '2', through: '2' }))
   expect(localStorage.getItem('careergrind.taskOutcomes.owner-1')).toBe('2')
-  expect(screen.queryByLabelText('Task notifications')).not.toBeInTheDocument()
+  expect(screen.getByText('You’re all caught up')).toBeInTheDocument()
 })
 
 it('leaves an in-flight hidden outcome recoverable instead of acknowledging it', async () => {

@@ -15,7 +15,7 @@ class CreateInterviewCareerReferences < ActiveRecord::Migration[8.1]
     add_check_constraint :interview_career_references, "attempt_count BETWEEN 0 AND 2 AND jsonb_typeof(\"references\") = 'array' AND jsonb_array_length(\"references\") <= 3", name: "interview_career_reference_bounds"
     add_index :interview_session_messages, [:interview_session_id, :id], unique: true, name: "interview_message_session_identity"
     add_foreign_key :interview_career_references, :interview_session_messages, column: [:interview_session_id, :message_id], primary_key: [:interview_session_id, :id]
-    remove_check_constraint :ai_tasks, name: "ai_task_hourly_interview_child"
+    remove_check_constraint :ai_tasks, "hourly_admission_task_id IS NULL OR (hourly_admission_task_id <> id AND task_type IN ('interview_turn', 'interview_speech', 'interview_transcription', 'interview_clarification') AND subject_type = 'InterviewSession' AND subject_id IS NOT NULL)", name: "ai_task_hourly_interview_child"
     add_check_constraint :ai_tasks, "hourly_admission_task_id IS NULL OR (hourly_admission_task_id <> id AND task_type IN ('interview_turn', 'interview_speech', 'interview_transcription', 'interview_clarification', 'interview_references') AND subject_type = 'InterviewSession' AND subject_id IS NOT NULL)", name: "ai_task_hourly_interview_child"
   end
 end

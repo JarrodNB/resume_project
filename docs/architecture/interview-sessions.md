@@ -855,6 +855,11 @@ without changing answer submission, saved results or usage ledgers. A compatible
 can finish already-claimed work. Restart the API after changing its environment; the
 native start hook reuses healthy processes and does not reload their environment.
 
+Operational rollback uses the flag-off path and preserves the schema and usage ledger.
+The migration can reverse before any reference child tasks have been created. Once
+reference usage exists, restoring the old child-task constraint can reject those retained
+rows; do not delete accounting records or roll back the populated schema to disable guidance.
+
 `requestInterviewReferences(interviewId, messageId, retryFailed)` authorizes an owned,
 active real-mode interview's latest opening/follow-up. Rails saves one
 `InterviewCareerReferences` record per prompt, with at most two explicitly requested

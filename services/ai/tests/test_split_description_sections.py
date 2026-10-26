@@ -143,3 +143,13 @@ def test_bullet_rendered_breaks_separate_words(bullet_html: str, expected: str) 
     assert sections.requirements[0] == expected
     if "<ul>" in bullet_html:
         assert sections.requirements == [expected, "AWS"]
+
+
+def test_description_preserves_table_cell_word_boundaries() -> None:
+    """Tabular job details stay readable without changing inline punctuation."""
+    text = html_to_description_text(
+        "<table><tr><th>Skill</th><th>Level</th></tr>"
+        "<tr><td><b>Python</b>, SQL</td><td>Advanced</td></tr></table>"
+    )
+
+    assert text == "Skill Level\n\nPython, SQL Advanced"

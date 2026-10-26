@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from model_inputs.interview import format_feedback_prompt, format_interview_question_input
-from model_inputs.interview_evidence import interview_career_evidence, interview_question_evidence
+from model_inputs.interview_evidence import interview_career_evidence
 from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (

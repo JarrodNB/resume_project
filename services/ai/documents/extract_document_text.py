@@ -3,7 +3,7 @@
 Keep DOCX paragraphs and distinct table cells in document order, retaining list markers and
 hyperlink labels and targets so the resume parser can use their context.
 Malformed link destinations remain source text without aborting extraction.
-PDF annotation arrays may be indirect references or explicitly absent via null.
+PDF annotation arrays and link actions may be indirect or explicitly absent via null.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container read errors become the caller's unreadable-file error.
 """
@@ -100,6 +100,8 @@ def _pdf_hyperlink_markers(
         annotation = reference.get_object()
         action_reference = annotation.get("/A") or {}
         action = action_reference.get_object() if hasattr(action_reference, "get_object") else action_reference
+        if isinstance(action, NullObject):
+            continue
         uri = str(action.get("/URI") or "").strip()
         rectangle = annotation.get("/Rect")
         if not uri or uri in seen_urls or not rectangle or len(rectangle) != 4:

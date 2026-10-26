@@ -3,7 +3,7 @@ Description: Offline report persistence, comparison alignment, failures and mode
 Index:
     - test_comparison: aligns case identities and retains native scores/reasons/raw outputs
     - test_aligned_outputs_and_reasons: compares raw outputs and evaluator explanations
-    - test_every_existing_runner_captures_native_report: covers all ten runner integrations
+    - test_every_existing_runner_captures_native_report: covers every runner integration
     - test_failure_artifacts: writes failure reports and returns a nonzero CLI status
     - test_model_validation: rejects incompatible families before any provider call
     - test_override_settings: isolates explicit model comparisons from fallback/defaults
@@ -89,9 +89,12 @@ def test_every_existing_runner_captures_native_report(monkeypatch, suite):
     assert run["error"] is None
     assert run["configuration"]["eval_name"] == f"evals.{suite}"
     if suite != "prompt_guardrail":
-        model = ("typesafe:jev-1.13.0" if suite == "user_text_screen"
-                 else "openai:text-embedding-3-large" if suite == "library_retrieval"
-                 else "openai:gpt-5")
+        model = (
+            "typesafe:jev-1.13.0" if suite == "user_text_screen"
+            else "openai:text-embedding-3-large"
+            if suite in {"library_retrieval", "job_relevance"}
+            else "openai:gpt-5"
+        )
         run = run_report.run_suite(suite, model)
         assert run["report"] is native and run["error"] is None
         assert run["configuration"]["model"] == model
@@ -167,6 +170,7 @@ def test_failure_artifacts(monkeypatch, tmp_path):
 
 @pytest.mark.parametrize("suite,model", [
     ("library_retrieval", "openai:gpt-5-mini"),
+    ("job_relevance", "openai:gpt-5-mini"),
     ("resume_parsing", "typesafe:jev-1.13.0"),
     ("tailoring", "openai:text-embedding-3-small"),
     ("user_text_screen", "openai:gpt-5-mini"),

@@ -1,5 +1,5 @@
 """
-Description: Optional Markdown reporting CLI for all existing eval suites and comparisons.
+Description: Optional Markdown reporting CLI for eval suites and comparisons.
 Index:
     - SUITES: existing suites and their configured model fields
     - validate_model: rejects incompatible provider/model families before any paid run
@@ -26,6 +26,7 @@ SUITES = {
     "interview_questions": "interview_questions_model",
     "interview_feedback": "interview_feedback_model",
     "library_retrieval": "embedding_model",
+    "job_relevance": "embedding_model",
     "user_text_screen": "user_text_screen_model",
     "prompt_guardrail": "user_text_screen_model",
 }
@@ -39,7 +40,7 @@ def validate_model(suite, model):
     if suite == "user_text_screen":
         valid = model == JEV_SCREEN_MODEL
         expected = f"{JEV_SCREEN_MODEL} decision model"
-    elif suite == "library_retrieval":
+    elif suite in {"library_retrieval", "job_relevance"}:
         valid = model.startswith("openai:text-embedding-")
         expected = "openai:text-embedding-* embedding model"
     else:
@@ -68,7 +69,7 @@ def run_suite(suite, model=None):
                             else screen_model),
         "thinking": getattr(settings, SUITES[suite].replace("_model", "_thinking"), None),
     }
-    if suite == "library_retrieval":
+    if suite in {"library_retrieval", "job_relevance"}:
         configuration["embedding_dimensions"] = settings.embedding_dimensions
     elif suite == "prompt_guardrail":
         configuration["generator"] = "TestModel (fixed fake generator)"

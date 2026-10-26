@@ -1,0 +1,106 @@
+# Synthetic career libraries and listings. Labels describe role relevance for
+# the fixture profile; they do not make claims about the person's qualifications.
+cases:
+  - name: backend_engineer_with_keyword_false_positive
+    inputs:
+      profile_id: backend-engineer
+      career_library:
+        - id: backend-highlight
+          content: "Backend Engineer at Cedar: Built Ruby services and PostgreSQL APIs for payment processing"
+        - id: platform-project
+          content: "Project: Payment reliability: Added event retries and monitoring for distributed services"
+        - id: backend-skill
+          content: "Skills: Ruby, PostgreSQL, REST APIs, distributed systems"
+      listings:
+        - id: visual-designer
+          content: "Visual Designer: Create brand campaigns and illustrations. Figma experience is helpful."
+        - id: backend-role
+          content: "Backend Software Engineer: Build payment APIs in Ruby, PostgreSQL and distributed systems."
+        - id: data-engineer
+          content: "Data Engineer: Own SQL analytics pipelines and reporting. Some backend collaboration."
+        - id: platform-support
+          content: "IT Support Specialist: Troubleshoot employee devices, accounts and office software."
+        - id: payments-engineer
+          content: "Software Engineer, Payments: Maintain transaction services, API reliability and on-call systems."
+    metadata:
+      relevant_listing_ids: [backend-role, payments-engineer]
+      hard_negative_listing_ids: [data-engineer, platform-support]
+    evaluators:
+      - JobRelevanceMetrics
+
+  - name: event_operations_with_project_word_false_positive
+    inputs:
+      profile_id: event-operations
+      career_library:
+        - id: events-highlight
+          content: "Event Operations Coordinator at Harbor Hall: Managed vendors, schedules and guest logistics for conferences"
+        - id: festival-project
+          content: "Project: Community festival: Coordinated permits, budgets and volunteer shifts for a weekend event"
+        - id: operations-skill
+          content: "Skills: Vendor coordination, event logistics, scheduling, budget tracking"
+      listings:
+        - id: software-project-manager
+          content: "Technical Project Manager: Lead software delivery projects, engineering roadmaps and sprint planning."
+        - id: event-coordinator
+          content: "Event Coordinator: Organize conferences, coordinate venue vendors and manage attendee schedules."
+        - id: theater-operations
+          content: "Venue Operations Manager: Coordinate live-event staffing, guest logistics, vendor setup and safety."
+        - id: product-manager
+          content: "Product Manager: Own software project roadmaps, stakeholder plans and product release schedules."
+        - id: office-administrator
+          content: "Office Administrator: Manage calendars, invoices, supplies and front desk operations."
+    metadata:
+      relevant_listing_ids: [event-coordinator, theater-operations]
+      hard_negative_listing_ids: [software-project-manager, product-manager]
+    evaluators:
+      - JobRelevanceMetrics
+
+  - name: sparse_nursing_library_with_healthcare_sales_false_positive
+    inputs:
+      profile_id: sparse-nursing-library
+      career_library:
+        - id: nursing-highlight
+          content: "Registered Nurse at North Clinic: Completed patient intake, triage and medication documentation in an outpatient setting"
+      listings:
+        - id: healthcare-account-executive
+          content: "Healthcare Account Executive: Sell software to hospitals and discuss patient-care workflows with buyers."
+        - id: outpatient-nurse
+          content: "Registered Nurse: Provide outpatient triage, patient intake, medication documentation and care coordination."
+        - id: clinic-coordinator
+          content: "Clinic Coordinator: Schedule visits, greet patients and update electronic health records."
+        - id: school-nurse
+          content: "School Nurse: Assess student health concerns, document care and coordinate with families."
+        - id: medical-researcher
+          content: "Clinical Research Associate: Coordinate study visits and maintain trial records at medical sites."
+    metadata:
+      relevant_listing_ids: [outpatient-nurse, school-nurse]
+      hard_negative_listing_ids: [healthcare-account-executive, clinic-coordinator]
+    evaluators:
+      - JobRelevanceMetrics
+
+  - name: product_designer_with_adjacent_role_false_positive
+    inputs:
+      profile_id: product-designer
+      career_library:
+        - id: design-highlight
+          content: "Product Designer at Elm: Ran usability interviews and designed web product flows in Figma"
+        - id: onboarding-project
+          content: "Project: Signup redesign: Prototyped onboarding and improved form completion after user testing"
+        - id: design-skills
+          content: "Skills: Interaction design, Figma, usability testing, wireframing, accessibility"
+      listings:
+        - id: brand-designer
+          content: "Brand Designer: Create visual identity, campaign art and marketing assets using Figma and Adobe tools."
+        - id: product-designer
+          content: "Product Designer: Research user needs, prototype accessible web flows and collaborate with engineers."
+        - id: product-manager
+          content: "Product Manager: Define product strategy, prioritize roadmaps and coordinate discovery with design teams."
+        - id: ux-researcher
+          content: "UX Researcher: Plan usability studies, interview customers and turn findings into product recommendations."
+        - id: frontend-engineer
+          content: "Frontend Engineer: Build accessible interfaces from Figma designs and collaborate with product designers."
+    metadata:
+      relevant_listing_ids: [product-designer, ux-researcher]
+      hard_negative_listing_ids: [brand-designer, product-manager]
+    evaluators:
+      - JobRelevanceMetrics

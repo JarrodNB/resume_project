@@ -41,6 +41,7 @@ or agent behavior changes, for example:
 
 ```bash
 docker compose run --rm ai python -m evals.run_library_retrieval_evals
+docker compose run --rm ai python -m evals.run_job_relevance_evals
 docker compose run --rm ai python -m evals.run_interview_questions_evals
 ```
 

@@ -145,7 +145,7 @@ def test_async_shared_screen_selects_local_classifier(monkeypatch):
     assert outcome.model_usages == []
 
 
-def test_local_trace_has_chunk_metadata_without_text(monkeypatch):
+def test_local_trace_shows_the_exact_screened_chunk(monkeypatch):
     monkeypatch.setattr(local_llama, "_model_pair", lambda: (lambda text, **kwargs: {"input_ids": text}, None))
     monkeypatch.setattr(local_llama, "classify_chunk", lambda *_: SimpleNamespace(
         blocked=False, tokens=4, duration=0.01,
@@ -161,7 +161,7 @@ def test_local_trace_has_chunk_metadata_without_text(monkeypatch):
     assert outcome.allowed
     assert spans[0][1]["model"] == local_llama.MODEL
     assert spans[0][1]["chunk_index"] == 0
-    assert "secret resume sentence" not in str(spans)
+    assert spans[0][1]["screened_text"] == "secret resume sentence"
 
 
 def test_async_local_load_timeout_cannot_approve_in_background(monkeypatch):
@@ -291,7 +291,9 @@ def test_later_chunk_block_returns_before_slow_earlier_chunk(monkeypatch):
         assert first_started.is_set()
         assert not result.allowed and not result.unchecked
         assert monotonic() - started < 0.15
-        assert any(name == "local_prompt_screen_in_flight" and attrs["chunk_index"] == 0
+        assert any(name == "screening.llama_prompt_guard.chunk_in_flight"
+                   and attrs["screening_purpose"] == "prompt_injection"
+                   and attrs["chunk_index"] == 0
                    for name, attrs in spans)
         assert screen_user_text("next input", local_llama.MODEL, 0.5,
                                 check_phrases=False).allowed
@@ -377,13 +379,16 @@ def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
     try:
         result = screen_user_text("synthetic", local_llama.MODEL, 1, check_phrases=False)
         assert not result.allowed and not result.unchecked
-        assert any(name == "local_prompt_screen_in_flight" and attrs["chunk_index"] == 1
+        assert any(name == "screening.llama_prompt_guard.chunk_in_flight"
+                   and attrs["screening_purpose"] == "prompt_injection"
+                   and attrs["chunk_index"] == 1
                    for name, attrs in spans)
     finally:
         release.set()
     assert finished.wait(1)
     assert flushed.wait(1)
-    assert {attrs["chunk_index"] for name, attrs in spans if name == "local_prompt_screen"} == {0, 1}
+    assert {attrs["chunk_index"] for name, attrs in spans
+            if name == "screening.llama_prompt_guard.chunk"} == {0, 1}
 
 
 def test_stalled_local_model_does_not_queue_screening_threads(monkeypatch):

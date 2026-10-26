@@ -21,7 +21,7 @@ from schemas.interview_questions import InterviewSetType
 from screening.interview_question_fields import screen_interview_field
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, within_screening_session
+from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -67,8 +67,8 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
         return fail("Your answer is saved. " + (
             "We couldn't check it right now. Try requesting feedback again." if outcome.unchecked else
             "We couldn't use it for AI feedback. Revise it and try again."))
-    if not screen_interview_field(source, "question_text", snapshot.question_text, screen).allowed:
-        return fail("Your answer is saved. We couldn't check this question. Try requesting feedback again.")
+    # Rails supplies the immutable question generated for this owned question record.
+    trust_generated_source(snapshot.question_text)
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)

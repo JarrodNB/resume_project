@@ -11,9 +11,11 @@ import atexit
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
+from threading import Lock
 
 import logfire
 from opentelemetry import trace
+from opentelemetry.sdk.trace import SpanProcessor
 from pydantic_ai import Agent, Embedder, InstrumentationSettings, prices
 
 from worker.contact_mask import install_contact_hooks, using_known_contact
@@ -23,6 +25,45 @@ from worker.telemetry_privacy import ContactLogProcessor, ContactSpanProcessor, 
 
 _flush = BoundedTelemetryFlush(lambda: logfire.force_flush(timeout_millis=5000))
 _price_updater = None
+
+
+class OperationCostSpanProcessor(SpanProcessor):
+    """Copies the sum of priced model-call spans onto each trace root."""
+
+    def __init__(self):
+        self._cost_by_trace: dict[int, float] = {}
+        self._lock = Lock()
+
+    def on_start(self, span, parent_context=None):
+        """Starts a fresh total for each root trace."""
+        if span.parent is None:
+            with self._lock:
+                self._cost_by_trace[span.context.trace_id] = 0.0
+
+    def on_end(self, span):
+        """Accumulates model-call costs and writes the total before export."""
+        attributes = dict(span.attributes or {})
+        trace_id = span.context.trace_id
+        if span.parent is not None:
+            cost = attributes.get("operation.cost")
+            if attributes.get("gen_ai.operation.name") and isinstance(cost, (int, float)):
+                with self._lock:
+                    self._cost_by_trace[trace_id] = self._cost_by_trace.get(trace_id, 0.0) + cost
+            return
+
+        with self._lock:
+            total = self._cost_by_trace.pop(trace_id, 0.0)
+        attributes["operation.cost"] = total
+        span._attributes = attributes
+
+    def shutdown(self):
+        """Drops any trace totals left behind by interrupted work."""
+        with self._lock:
+            self._cost_by_trace.clear()
+
+    def force_flush(self, timeout_millis=30000):
+        """No buffered telemetry is retained."""
+        return True
 
 
 def configure_tracing(additional_span_processors=()) -> None:
@@ -36,9 +77,10 @@ def configure_tracing(additional_span_processors=()) -> None:
         send_to_logfire=export_enabled,
         service_name="careergrind-ai",
         console=False,
-        metrics=logfire.MetricsOptions(),
+        metrics=logfire.MetricsOptions(collect_in_spans=True),
         inspect_arguments=False,
-        additional_span_processors=[ContactSpanProcessor(), *additional_span_processors],
+        additional_span_processors=[ContactSpanProcessor(), OperationCostSpanProcessor(),
+                                    *additional_span_processors],
         advanced=logfire.AdvancedOptions(log_record_processors=[ContactLogProcessor()]),
     )
     instrumentation = InstrumentationSettings(tracer_provider=trace.get_tracer_provider())
@@ -53,7 +95,7 @@ def flush_tracing() -> None:
 
 
 @contextmanager
-def trace_ai_task(task: AiTaskMessage) -> Iterator[None]:
+def trace_ai_task(task: AiTaskMessage, *, task_usage=None, guardrail_usage=None) -> Iterator[None]:
     """Groups task identity and contact-safe input, flushing on success or failure."""
     try:
         with (
@@ -66,9 +108,21 @@ def trace_ai_task(task: AiTaskMessage) -> Iterator[None]:
             # Import filenames can themselves contain undiscovered contact. Pending
             # spans may export before extraction; only record the task's type here.
             logfire.span(f"ai_task.{task.task_type}",
-                         input={} if task.task_type == "parse_resume" else task.input),
+                         input={} if task.task_type == "parse_resume" else task.input) as task_span,
         ):
-            yield
+            try:
+                yield
+            finally:
+                task_entries = list(getattr(task_usage, "entries", ()) or ())
+                # The task-wide request observer is authoritative when it saw calls;
+                # otherwise retain the separately collected guardrail usage.
+                usages = task_entries or list(guardrail_usage or ())
+                if task_usage is not None or guardrail_usage is not None:
+                    task_span.set_attribute(
+                        "cost_incomplete",
+                        any(usage.cost_microdollars is None for usage in usages)
+                        or bool(getattr(task_usage, "incomplete", False)),
+                    )
     finally:
         flush_tracing()
 

@@ -37,10 +37,11 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 ## Local Rules
 
-- `interview_question_fields.py` — written practice field checks shared by feedback and
-  regeneration. Exact field decisions may share work, but every saved ID/revision is reported.
-  Aligned sibling metadata must match legacy source strings and set identity before reuse;
-  unidentified legacy siblings still screen normally. Complete-source caps apply to approvals.
+- `interview_question_fields.py` — written answer checks shared by feedback and regeneration.
+  Exact field decisions may share work, but every saved ID/revision is reported. Regeneration
+  trusts question text supplied in its Rails-owned task snapshot, including legacy siblings
+  without aligned metadata. Generated questions are never screened again. Complete-source
+  caps apply to answer approvals.
 
 - `gap_response_fields.py` — groups pending requirement/body fields from queued answer
   snapshots, preserving every saved ID through text deduplication. Full group limits apply

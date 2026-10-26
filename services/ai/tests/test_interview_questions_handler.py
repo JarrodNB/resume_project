@@ -67,7 +67,7 @@ def _output(count=5, set_type="general"):
     if count == 1 and set_type == "general":
         questions, categories = questions[3:4], categories[3:4]
     return {"questions": [{"question_text": text, "category": category,
-                            "evidence_quotes": ["Python"]}
+                            "evidence_ids": ["E1"]}
         for text, category in zip(questions[:count],
             categories)]}
 
@@ -128,7 +128,7 @@ def test_nonsoftware_skill_suffices(task_dependencies, replacement, set_type):
     draft = _output(1 if replacement else 5, set_type)
     for question in draft["questions"]:
         question["question_text"] = question["question_text"].replace("Python", "stock checking")
-        question["evidence_quotes"] = ["Stock checking"]
+        question["evidence_ids"] = ["E1"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
         assert handle_ai_task(_task(replacement, set_type), deps).status == "completed"
 
@@ -161,7 +161,7 @@ def test_general_replacement_keeps_all_saved_intents_excluded(task_dependencies,
 
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_context)
     draft = {"questions": [{"question_text": "Tell me about a time you changed your approach after a setback.",
-                            "category": "learning_adaptation", "evidence_quotes": ["Python"]}]}
+                            "category": "learning_adaptation", "evidence_ids": ["E1"]}]}
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
         result = handle_ai_task(task, deps)
     assert result.status == "completed"
@@ -172,7 +172,7 @@ def test_general_replacement_rejects_another_introduction(task_dependencies):
     """Every saved set already has an excluded introduction; replacement must explore a behavioral theme."""
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(summary="Python"))
     draft = {"questions": [{"question_text": "What draws you to a career using Python?",
-                            "category": "introduction", "evidence_quotes": ["Python"]}]}
+                            "category": "introduction", "evidence_ids": ["E1"]}]}
     with interview_questions_agent.override(model=TestModel(custom_output_args=draft)):
         result = handle_ai_task(_task(True, "general"), deps)
     assert result.status == "failed"
@@ -188,7 +188,7 @@ def test_general_replacement_retries_introduction_then_accepts_story(task_depend
         calls.append(messages)
         draft = (_output(1) if len(calls) > 1 else {"questions": [{
             "question_text": "What draws you to work using Python?", "category": "introduction",
-            "evidence_quotes": ["Python"]}]})
+            "evidence_ids": ["E1"]}]})
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, json.dumps(draft))])
 
     with interview_questions_agent.override(model=FunctionModel(respond)):
@@ -198,7 +198,7 @@ def test_general_replacement_retries_introduction_then_accepts_story(task_depend
     assert result.result["interview_questions"]["questions"][0]["category"] == "learning_adaptation"
 
 
-@pytest.mark.parametrize("problem", ["duplicate", "unsupported_quote", "wrong_count", "old_question", "other_question"])
+@pytest.mark.parametrize("problem", ["duplicate", "unknown_evidence_id", "wrong_count", "old_question", "other_question"])
 @pytest.mark.parametrize("set_type", ["general", "knowledge"])
 def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     """Exhausted validation retries produce an actionable failure."""
@@ -208,8 +208,8 @@ def test_invalid_output_fails_cleanly(task_dependencies, problem, set_type):
     replacement = problem in {"old_question", "other_question"}
     if problem == "duplicate":
         output["questions"][1] = output["questions"][0]
-    elif problem == "unsupported_quote":
-        output["questions"][0]["evidence_quotes"] = ["Led a team"]
+    elif problem == "unknown_evidence_id":
+        output["questions"][0]["evidence_ids"] = ["E99"]
     elif problem == "wrong_count":
         output["questions"].pop()
     else:
@@ -254,9 +254,11 @@ def test_question_prompt_uses_readable_checked_evidence(task_dependencies, monke
 
     def inspect(prompt, **kwargs):
         assert "Career evidence:\n--" in prompt.text
-        assert "Experience: Coordinator at Example Co" in prompt.text
+        assert "Experience title: Coordinator" in prompt.text
+        assert "Experience company: Example Co" in prompt.text
         assert quote in prompt.text and quote in prompt.library_text
-        assert "Example Co" in prompt.text and "Coordinator" in prompt.text
+        assert "[E1] Experience title: Coordinator" in prompt.text
+        assert "[E2] Experience company: Example Co" in prompt.text
         assert "Python" in prompt.text
         assert all(value not in prompt.text for value in (
             "private-role-id", "private-highlight-id", "private-skill-id",
@@ -338,43 +340,39 @@ def test_same_question_sources_produce_same_prompt():
     assert first == second
 
 
-def test_question_quotes_may_copy_visible_evidence_label(task_dependencies):
-    """A model can cite the readable evidence line without exhausting retries."""
+def test_question_evidence_ids_resolve_to_saved_quotes(task_dependencies):
+    """Temporary evidence IDs resolve to exact saved text after generation."""
     library = CareerLibrary(summary="Python")
     deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
     output = _output()
     for question in output["questions"]:
-        question["evidence_quotes"] = ["Summary: Python"]
+        question["evidence_ids"] = ["E1"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(), deps)
     assert result.status == "completed"
     assert all(question["evidence_quotes"] == ["Python"] for question in result.result["interview_questions"]["questions"])
 
 
-def test_question_presentation_label_alone_is_not_evidence(task_dependencies):
-    """An application heading cannot pass as a saved career excerpt."""
+def test_unknown_question_evidence_id_is_rejected(task_dependencies):
+    """Output validation accepts only temporary IDs present in the prompt evidence."""
     library = CareerLibrary(experiences=[LibraryExperience(id="e", title="Engineer", company="Acme")])
     deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
     output = _output()
     for question in output["questions"]:
-        question["evidence_quotes"] = ["Experience:"]
+        question["evidence_ids"] = ["E99"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(), deps)
     assert result.status == "failed"
 
 
-def test_formatted_date_is_context_not_verbatim_quote(task_dependencies):
-    """A date display derived from saved fields does not become a source excerpt."""
+def test_formatted_date_is_not_assigned_an_evidence_id():
+    """A display date is context, not a saved source string."""
     library = CareerLibrary(experiences=[LibraryExperience(
         id="e", title="Engineer", company="Acme", start_date=date(2022, 1, 1),
     )])
-    deps = replace(task_dependencies, read_career_library=lambda _user_id: library)
-    output = _output()
-    for question in output["questions"]:
-        question["evidence_quotes"] = ["Jan 2022 – present"]
-    with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
-        result = handle_ai_task(_task(), deps)
-    assert result.status == "failed"
+    from model_inputs.interview_evidence import interview_question_evidence
+    _, evidence_by_id = interview_question_evidence(library)
+    assert "Jan 2022 – present" not in evidence_by_id.values()
 
 
 def test_question_prompt_retains_relevant_career_context():
@@ -424,14 +422,14 @@ def test_job_requirement_is_excluded(task_dependencies, monkeypatch, replacement
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect_prompt)
     output = _output(1 if replacement else 5)
     if cite_requirement:
-        output["questions"][0]["evidence_quotes"] = [requirement]
+        output["questions"][0]["evidence_ids"] = ["E99"]
     with interview_questions_agent.override(model=TestModel(custom_output_args=output)):
         result = handle_ai_task(_task(replacement), deps)
     assert result.status == ("failed" if cite_requirement else "completed")
     assert screened and all(requirement not in text for text in screened)
     assert any("response:\nPython" in text for text in screened)
     if replacement:
-        assert _task(True).input["question_text"] in screened
+        assert _task(True).input["question_text"] not in screened
     assert library.facts[0].requirement == requirement
 
 
@@ -453,7 +451,7 @@ def test_quote_sources_exclude_hidden_and_formatted_fields() -> None:
 
 
 @pytest.mark.parametrize("malformed", [False, True])
-def test_replacement_preserves_sibling_identities_and_reuses_checks(task_dependencies, monkeypatch, malformed):
+def test_replacement_trusts_generated_sibling_questions(task_dependencies, monkeypatch, malformed):
     from screening.session import prompt_is_covered, screening_session
     request = _task(True)
     # Equal source text must not collapse two different saved question identities.
@@ -480,22 +478,24 @@ def test_replacement_preserves_sibling_identities_and_reuses_checks(task_depende
     monkeypatch.setattr(interview_questions_handler, "generate_interview_questions", inspect)
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert {report.question_id for report in session.interview_question_screening} == {
-            peers[index]["question_id"] for index in (0, 1, 3)}
-        assert all(set(report.fields) == {"question_text"} for report in session.interview_question_screening)
+        assert session.interview_question_screening == []
         count = len(calls)
         assert handle_ai_task(request, deps).status == "completed"
         assert len(calls) == count
-    assert len(calls) == (3 if malformed else 2)
+    assert calls == []
 
 
-def test_legacy_replacement_reports_target_only(task_dependencies):
+def test_legacy_replacement_trusts_target_and_unidentified_siblings(task_dependencies, monkeypatch):
     from screening.session import screening_session
+    calls = []
+    monkeypatch.setattr(interview_questions_handler, "screen_user_text",
+        lambda text, **kwargs: calls.append(text) or ScreenOutcome(True))
     request = _task(True)
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(skills=[LibrarySkill(id="skill", name="Python")]))
     with screening_session() as session, interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         assert handle_ai_task(request, deps).status == "completed"
-        assert {report.question_id for report in session.interview_question_screening} == {request.input["question_id"]}
+        assert session.interview_question_screening == []
+    assert calls == []
 
 
 @pytest.mark.parametrize("replacement", [False, True])

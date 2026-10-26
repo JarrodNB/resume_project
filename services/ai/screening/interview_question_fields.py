@@ -1,7 +1,7 @@
-"""Reuse exact saved practice-field checks while retaining every source identity.
+"""Reuse exact saved answer checks while retaining every source identity.
 
 Rails snapshots supply field approvals and revisions; only Rails persists reports.
-Legacy sibling strings still receive screening without claiming a saved identity.
+Generated question text is trusted by its task-specific Rails-owned caller.
 """
 
 from collections.abc import Callable
@@ -46,26 +46,3 @@ def screen_interview_field(snapshot: dict | None, field: str, text: str,
     if outcome.allowed and session is not None:
         session.allowed_sources.add(mask_outbound(text))
     return outcome
-
-
-def sibling_snapshots(snapshot) -> list[dict | None]:
-    """Require aligned, distinct identities and exact text before trusting sibling metadata."""
-    peers = snapshot.other_question_snapshots
-    if len(peers) != len(snapshot.other_questions):
-        return [None] * len(snapshot.other_questions)
-    ids = [peer.get("question_id") for peer in peers if isinstance(peer, dict)]
-    if (len(ids) != len(peers) or not all(isinstance(id, str) and id for id in ids)
-        or len(set(ids)) != len(ids) or str(snapshot.question_id) in ids):
-        return [None] * len(snapshot.other_questions)
-    sources = []
-    for text, peer in zip(snapshot.other_questions, peers, strict=True):
-        if (not isinstance(peer.get("question_id"), str) or not peer["question_id"]
-            or peer.get("question_set_id") != str(snapshot.question_set_id)
-            or peer.get("question_text") != text
-            or type(peer.get("question_revision")) is not int or peer["question_revision"] < 1
-            or not isinstance(peer.get("screened_fields", []), list)
-            or not all(isinstance(name, str) for name in peer.get("screened_fields", []))):
-            sources.append(None)
-        else:
-            sources.append(peer)
-    return sources

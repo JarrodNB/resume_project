@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from model_inputs.interview import format_feedback_prompt, format_interview_question_prompt
+from model_inputs.interview import format_feedback_prompt, format_interview_question_input
+from model_inputs.interview_evidence import interview_career_evidence, interview_question_evidence
 from schemas.gap_analysis_context import CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
@@ -50,8 +51,9 @@ class FeedbackEvalLabels(BaseModel):
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
     library = CareerLibrary(summary=case.library)
-    text = format_interview_question_prompt(library, case.excluded, case.count, case.set_type)
-    return InterviewQuestionContext(text, case.library, case.count, tuple(case.excluded), case.set_type)
+    text, evidence_by_id = format_interview_question_input(library, case.excluded, case.count, case.set_type)
+    return InterviewQuestionContext(text, interview_career_evidence(library)[1], case.count,
+                                    tuple(case.excluded), case.set_type, evidence_by_id)
 
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:

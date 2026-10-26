@@ -26,6 +26,7 @@ def test_production_tracing_records_model_and_parent_costs(monkeypatch):
     model = next(s for s in finished if "gen_ai.usage.input_tokens" in s.attributes)
     assert model.attributes["operation.cost"] == pytest.approx(0.000056)
     parent = next(s for s in finished if s.name == "cost test")
+    assert parent.attributes["operation.cost"] == pytest.approx(model.attributes["operation.cost"])
     metrics = json.loads(parent.attributes["logfire.metrics"])
     assert metrics["operation.cost"]["total"] == pytest.approx(0.000056)
     update.assert_not_called()

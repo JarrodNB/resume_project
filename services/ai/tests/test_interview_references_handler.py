@@ -1,6 +1,6 @@
 """Career references are claimed once and return only saved user evidence."""
 from dataclasses import replace
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 
@@ -9,15 +9,20 @@ from worker.task_handlers import handle_ai_task
 
 
 def reference_task():
-    return AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="interview_references",
-        input={"reference_id": str(uuid4()), "question_text": "Describe your Kubernetes work."})
+    return AiTaskMessage(ai_task_id=UUID(int=1), user_id=UUID(int=2), task_type="interview_references",
+        input={"reference_id": str(UUID(int=3)), "question_text": "Describe your Kubernetes work."})
 
 
-def claimed_dependencies(task_dependencies, allowed=True):
+def claimed_dependencies(task_dependencies, allowed=True, canonical_task=None):
+    def grant(request):
+        task = canonical_task or reference_task()
+        return httpx.Response(200, json={"allowed": allowed,
+            "question_text": "Describe your Kubernetes work.",
+            "query_text": task.input.get("query_text", task.input["question_text"]),
+            "user_id": str(task.user_id), "reference_id": task.input["reference_id"]})
     return replace(task_dependencies,
         settings=task_dependencies.settings.model_copy(update={"interview_service_secret": "test"}),
-        http_client=httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200,
-            json={"allowed": allowed, "question_text": "Describe your Kubernetes work."}))))
+        http_client=httpx.Client(transport=httpx.MockTransport(grant)))
 
 
 def test_denied_reference_claim_does_no_search(task_dependencies):
@@ -51,7 +56,7 @@ def test_claimed_search_returns_exact_saved_fact_without_requirement(task_depend
     task = reference_task()
     result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert result.result == {"references": [{"source_type": "LibraryFact", "source_id": source_id,
+    assert result.result == {"selection_policy_version": "interview-references-v2", "references": [{"source_type": "LibraryFact", "source_id": source_id,
         "title": "Saved career fact", "body": library.facts[0].response}]}
     assert result.usage[0].input_tokens == 8
     assert search.call_args.args[1] == task.user_id
@@ -79,7 +84,7 @@ def test_empty_library_does_not_embed(task_dependencies):
     from schemas.gap_analysis_context import CareerLibrary
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: CareerLibrary())
     result = handle_ai_task(reference_task(), deps)
-    assert result.status == "completed" and result.result == {"references": []}
+    assert result.status == "completed" and result.result == {"selection_policy_version": "interview-references-v2", "references": []}
     assert result.usage == []
 
 
@@ -157,3 +162,38 @@ def test_embedding_charge_survives_later_search_failure(task_dependencies, monke
     assert final.status == "failed" and len(final.usage) == 1
     assert final.usage[0].model == "openai:text-embedding-3-small"
     assert final.usage[0].input_tokens > 0 and not final.usage_incomplete
+
+
+def test_claim_identity_mismatch_cannot_read_another_users_library(task_dependencies):
+    from unittest.mock import Mock
+    task = reference_task()
+    task.user_id = uuid4()
+    reader = Mock(side_effect=AssertionError('must not read'))
+    deps = replace(claimed_dependencies(task_dependencies), read_career_library=reader)
+    result = handle_ai_task(task, deps)
+    assert result.status == 'failed'
+    reader.assert_not_called()
+
+
+def test_reference_identity_mismatch_cannot_start_embedding(task_dependencies):
+    from unittest.mock import Mock
+    task = reference_task()
+    task.input['reference_id'] = str(uuid4())
+    reader = Mock(side_effect=AssertionError('must not read'))
+    result = handle_ai_task(task, replace(claimed_dependencies(task_dependencies), read_career_library=reader))
+    assert result.status == 'failed'
+    reader.assert_not_called()
+
+
+def test_follow_up_uses_exact_rails_granted_query(task_dependencies, monkeypatch):
+    from unittest.mock import Mock
+
+    from schemas.gap_analysis_context import CareerLibrary
+    task = reference_task()
+    task.input["query_text"] = "Main question\n\nI migrated Kubernetes\n\nWhat changed afterward?"
+    retrieve = Mock(return_value=([], None))
+    monkeypatch.setattr("worker.interview_references_handler.retrieve_references", retrieve)
+    deps = replace(claimed_dependencies(task_dependencies, canonical_task=task),
+                   read_career_library=lambda _: CareerLibrary())
+    assert handle_ai_task(task, deps).status == "completed"
+    assert retrieve.call_args.args[1] == task.input["query_text"]

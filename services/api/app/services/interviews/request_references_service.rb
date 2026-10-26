@@ -30,8 +30,9 @@ module Interviews
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @interview.user, existing_task: root, interview: true)
         next allowance unless allowance.success?
         references_record.save! unless references_record.persisted?
+        query_input = message.follow_up? ? { query_text: ReferenceQuery.for(@interview, message) } : {}
         task = @interview.user.ai_tasks.create!(task_type: "interview_references", subject: @interview,
-          hourly_admission_task: root, input: { reference_id: references_record.id, question_text: message.content })
+          hourly_admission_task: root, input: { reference_id: references_record.id, question_text: message.content }.merge(query_input))
         references_record.update!(ai_task: task, attempt_count: references_record.attempt_count + 1, claimed_at: nil, deadline: 3.minutes.from_now)
         @publish = task
         success(references_record)

@@ -23,6 +23,37 @@ RSpec.describe "Interview question references" do
     expect(interview.messages.answer.count).to eq(0)
   end
 
+  it "freezes complete accepted context for a follow-up and grants its canonical identity" do
+    interview.messages.create!(question: prompt.question, kind: "answer", position: 1,
+      semantic_key: "reference-answer", content: "I migrated Kubernetes clusters.")
+    follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 2,
+      semantic_key: "reference-follow-up", content: "What changed afterward?")
+    references = Interviews::RequestReferencesService.call(interview: interview, message_id: follow_up.id).value
+    expect(references.ai_task.input["query_text"]).to include(prompt.question.content, follow_up.content, "I migrated Kubernetes clusters.")
+    grant = Interviews::ClaimReferencesService.call(ai_task: references.ai_task).value
+    expect(grant).to include(allowed: true, user_id: interview.user_id, reference_id: references.id,
+      query_text: references.ai_task.input["query_text"])
+    expect(Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id)).not_to be_success
+  end
+
+  it "rejects a changed queued follow-up query before granting execution" do
+    follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 1,
+      semantic_key: "reference-tamper", content: "What changed afterward?")
+    references = Interviews::RequestReferencesService.call(interview: interview, message_id: follow_up.id).value
+    task = references.ai_task
+    task.update!(input: task.input.merge("query_text" => "Arbitrary private search"))
+    expect(Interviews::ClaimReferencesService.call(ai_task: task).value).to eq({ allowed: false })
+    expect(task.reload).to be_failed
+  end
+
+  it "omits oversized context whole and never includes acknowledgements" do
+    prompt.question.update!(content: "x" * 12_004)
+    follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 1,
+      semantic_key: "reference-bound", content: "What changed afterward?", acknowledgement: "PRIVATE ACK")
+    references = Interviews::RequestReferencesService.call(interview: interview, message_id: follow_up.id).value
+    expect(references.ai_task.input["query_text"]).to eq(follow_up.content)
+  end
+
   def request_references
     Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id).value
   end

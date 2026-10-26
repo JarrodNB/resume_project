@@ -19,7 +19,8 @@ module Interviews
         @task.lock!
         next success({ allowed: false }) if @task.finished? || references_record.claimed_at
         unless references_record.deadline > Time.current && ClarificationPrompt.current?(interview, references_record.message) &&
-            @task.input["question_text"] == references_record.message.content
+            @task.input["question_text"] == references_record.message.content &&
+            (@task.input["query_text"] || @task.input["question_text"]) == ReferenceQuery.for(interview, references_record.message)
           AiTasks::UpdateTaskService.call(task: @task, attributes: { status: "failed", error_message: "Question is no longer available", completed_at: Time.current })
           next success({ allowed: false })
         end
@@ -37,7 +38,9 @@ module Interviews
           next success({ allowed: false })
         end
         references_record.update!(claimed_at: Time.current)
-        success({ allowed: true, question_text: references_record.message.content })
+        success({ allowed: true, question_text: references_record.message.content,
+          query_text: ReferenceQuery.for(interview, references_record.message),
+          user_id: interview.user_id, reference_id: references_record.id })
       end
       ApiSchema.subscriptions.trigger(:ai_task_updated, { id: @task.id }, @task) if @task.failed?
       result

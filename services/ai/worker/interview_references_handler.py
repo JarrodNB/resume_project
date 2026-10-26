@@ -8,7 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from database.career_library_reader import build_database_library_reader
-from interviews.references import retrieve_references
+from interviews.references import SELECTION_POLICY_VERSION, retrieve_references
 from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage
 
@@ -17,6 +17,7 @@ class ReferenceInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reference_id: UUID
     question_text: str = Field(min_length=1, max_length=4000)
+    query_text: str | None = Field(default=None, min_length=1, max_length=12004)
 
 
 def handle_interview_references_task(task, dependencies):
@@ -34,10 +35,14 @@ def handle_interview_references_task(task, dependencies):
     grant = response.json()
     if not grant.get("allowed"):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="usage")
-    if grant.get("question_text") != snapshot.question_text:
+    if (grant.get("question_text") != snapshot.question_text
+        or grant.get("query_text") != (snapshot.query_text or snapshot.question_text)
+        or grant.get("user_id") != str(task.user_id)
+        or grant.get("reference_id") != str(snapshot.reference_id)):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", error_message="Question changed")
     reader = dependencies.read_career_library or build_database_library_reader(settings)
-    references, usage = retrieve_references(task.user_id, snapshot.question_text, settings, reader(task.user_id))
+    references, usage = retrieve_references(task.user_id, grant["query_text"], settings, reader(task.user_id))
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
-        result={"references": [reference.model_dump(mode="json") for reference in references]},
+        result={"references": [reference.model_dump(mode="json") for reference in references],
+                "selection_policy_version": SELECTION_POLICY_VERSION},
         usage=[build_model_usage(settings.embedding_model, usage)] if usage is not None else [])

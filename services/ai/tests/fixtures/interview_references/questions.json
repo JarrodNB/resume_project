@@ -1,0 +1,6 @@
+[
+  {"format":"behavioral","question":"Describe a time you resolved a customer conflict.","requirement":"Customer conflict","response":"I negotiated a shared resolution with a customer."},
+  {"format":"technical","question":"Explain your PostgreSQL backup experience.","requirement":"PostgreSQL backups","response":"I restored database snapshots during recovery drills."},
+  {"format":"knowledge","question":"How have you applied transaction isolation?","requirement":"Transaction isolation","response":"I used serializable transactions to protect inventory."},
+  {"format":"screening","question":"Why are you interested in climate research?","requirement":"Climate research","response":"I volunteered on a climate data project."}
+]

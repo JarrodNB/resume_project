@@ -21,6 +21,11 @@ it('starts with a keyword invitation without requesting listings', async () => {
   expect(fetched).not.toHaveBeenCalled()
 })
 
+it('starts with optional career-library reranking switched off', () => {
+  renderBoard()
+  expect(screen.getByRole('checkbox', { name: 'Rerank using my career library' })).not.toBeChecked()
+})
+
 it('searches a submitted keyword and displays a retrieved listing', async () => {
   const user = userEvent.setup()
   const result = vi.fn(() => ({ data: { jobBoardSearch: page([listing('one', 'Platform Engineer')]) } }))

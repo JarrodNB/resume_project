@@ -28,6 +28,9 @@ Follow [cloud-runtime.md](cloud-runtime.md) for native cloud and local Docker ex
 - `tdd/` — Red-green-refactor implementation for approved work.
 - `change-ai-behavior/` — Grounded AI behavior changes with screening, privacy, tracing, and accounting preserved.
 - `evaluate-ai-quality/` — Synthetic quality investigations and controlled prompt/model comparisons using existing evals.
+- `diagnose-ai-task/` — Evidence-based diagnosis of queued tasks and interview operations, including delivery and cost uncertainty.
+- `add-ai-workflow/` — New queued AI capabilities through Rails, Python, GraphQL, and React with replay-safe lifecycle checks.
+- `verify-spoken-interview/` — Routing spoken interview checks across offline harnesses, real QA, and conservative paid diagnostics.
 - `to-spec/` — Upstream Matt Pocock skill for turning conversations into specifications.
 - `to-tickets/` — Upstream Matt Pocock skill for splitting plans into tickets with dependencies.
 - Skill directory names must match their `name` frontmatter.

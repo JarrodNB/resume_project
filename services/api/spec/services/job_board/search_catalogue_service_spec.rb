@@ -10,7 +10,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
   end
 
   it "persists and reuses the ordered page across equivalent whitespace searches" do
-    expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, cursor: nil)
+    expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, experience_levels: [], cursor: nil)
       .once.and_return(ServiceResult.new(success: true, value: { listings: [ listing ], next_cursor: "opaque" }, errors: []))
     first = search
     second = described_class.call(keyword: "Software Engineer", provider: provider)
@@ -98,14 +98,14 @@ RSpec.describe JobBoard::SearchCatalogueService do
     search(cursor: "Token")
     search(cursor: "token")
     expect(JobBoardSearchPage.count).to eq(4)
-    expect(provider).to have_received(:call).with(keyword: "software engineer", remote_only: false, cursor: "Token")
+    expect(provider).to have_received(:call).with(keyword: "software engineer", remote_only: false, experience_levels: [], cursor: "Token")
     expect(provider).to have_received(:call).exactly(4).times
   end
 
   it "shares ordered first and continuation pages across keyword casing while preserving punctuation" do
     phrase = '"software engineer" or rails+c++'
     [ nil, "NextToken" ].each do |cursor|
-      expect(provider).to receive(:call).with(keyword: phrase, remote_only: false, cursor: cursor)
+      expect(provider).to receive(:call).with(keyword: phrase, remote_only: false, experience_levels: [], cursor: cursor)
         .once.and_return(successful_page([ listing.merge("id" => 72), listing ], next_cursor: "NextToken"))
       results = [ '  "Software   Engineer" OR Rails+C++ ', phrase, phrase.upcase ].map do |keyword|
         described_class.call(keyword: keyword, cursor: cursor, provider: provider).value
@@ -122,7 +122,7 @@ RSpec.describe JobBoard::SearchCatalogueService do
       digest = Digest::SHA256.hexdigest(JSON.generate([ 1, "software engineer", false, cursor ]))
       JobBoardSearchPage.create!(query_digest: digest, keyword: "software engineer", remote_only: false,
         cursor: cursor, listing_ids: [ old_listing.id ], next_cursor: "OldToken", retrieved_at: Time.current)
-      expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, cursor: cursor)
+      expect(provider).to receive(:call).with(keyword: "software engineer", remote_only: false, experience_levels: [], cursor: cursor)
         .and_return(successful_page([ listing.merge("id" => 72) ], next_cursor: "NewToken"))
       result = described_class.call(keyword: "software engineer", cursor: cursor, provider: provider).value
       expect(result[:listings].map(&:provider_id)).to eq([ 72 ])
@@ -150,6 +150,30 @@ RSpec.describe JobBoard::SearchCatalogueService do
     end
     expect(search(remote_only: "true")).not_to be_success
     expect(search(cursor: "")).not_to be_success
+    expect(JobBoardSearchPage.count).to eq(0)
+  end
+
+  it "canonicalizes selected levels for cache identity and keeps distinct selections separate" do
+    allow(provider).to receive(:call).and_return(successful_page)
+    first = search(experience_levels: [ "SE", "EN", "SE" ])
+    equivalent = search(experience_levels: [ "EN", "SE" ])
+    expect(first.value).to eq(equivalent.value)
+    search(experience_levels: [ "MI" ])
+    search(experience_levels: [])
+    search(experience_levels: [ "EN", "MI", "SE", "EX" ])
+    search(experience_levels: [ "SE", "EN" ], cursor: "next")
+    expect(JobBoardSearchPage.count).to eq(5)
+    expect(provider).to have_received(:call).with(keyword: "software engineer", remote_only: false,
+      experience_levels: [ "EN", "SE" ], cursor: nil).once
+    expect(provider).to have_received(:call).with(keyword: "software engineer", remote_only: false,
+      experience_levels: [ "EN", "SE" ], cursor: "next").once
+  end
+
+  it "rejects malformed selected levels before provider calls or caching" do
+    expect(provider).not_to receive(:call)
+    [ nil, "EN", [ "unknown" ], [ nil ] ].each do |levels|
+      expect(search(experience_levels: levels)).not_to be_success
+    end
     expect(JobBoardSearchPage.count).to eq(0)
   end
 

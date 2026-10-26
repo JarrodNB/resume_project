@@ -15,7 +15,7 @@ Source of the web app, organized by feature.
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
-- `features/job-board/` — shared US listing search, paginated results, and explicit import into private Jobs (`/job-board`); Rails owns provider access, caching, and duplicate matching
+- `features/job-board/` — shared US listing search with optional remote and multi-select experience filters, paginated results, and explicit import into private Jobs (`/job-board`); Rails owns provider access, caching, and duplicate matching
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   detail, edit, stage, and delete
 - `features/study-guides/` — description-only study guides on saved jobs, paginated history, selected-guide reading, per-guide freshness and live generation status

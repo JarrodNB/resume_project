@@ -4,6 +4,7 @@ require "net/http"
 require "json"
 require "timeout"
 require_relative "listing_location"
+require_relative "experience_levels"
 
 module JobBoard
   class SearchCleanJobDataService < ApplicationService
@@ -15,19 +16,21 @@ module JobBoard
 
     # @param keyword [String] nonblank title/keyword search, at most 200 characters
     # @param remote_only [Boolean] require the provider's remote filter
+    # @param experience_levels [Array<String>] provider codes; empty means all levels
     # @param cursor [String, nil] opaque token from the same search's previous page
     # @return [ServiceResult] {listings: Array<Hash>, next_cursor: String | nil}
     #   Listings keep provider field names, with only confirmed US locations and a
     #   display location preferring those rows, with original-text fallback.
     #   Optional fields remain missing/null.
     #   Failure messages are safe to show and never contain raw provider responses.
-    def initialize(keyword:, api_key: ENV["CLEANJOBDATA_API_KEY"], remote_only: false, cursor: nil)
+    def initialize(keyword:, api_key: ENV["CLEANJOBDATA_API_KEY"], remote_only: false, cursor: nil, experience_levels: [])
       @keyword, @api_key, @remote_only, @cursor = keyword, api_key, remote_only, cursor
+      @experience_levels = ExperienceLevels.normalize(experience_levels)
     end
 
     def call
       return failure("Enter a keyword of 1 to 200 characters.") unless valid_text?(@keyword, 200)
-      return failure("Invalid search filters.") unless [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
+      return failure("Invalid search filters.") unless @experience_levels && [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
       return failure("CleanJobData is not configured.") unless valid_text?(@api_key, 4096)
 
       # The total deadline also bounds slow streaming reads across both attempts.
@@ -68,6 +71,7 @@ module JobBoard
       uri = URI(ENDPOINT)
       parameters = { title: @keyword.strip, country_id: "233", extra_fields: "description" }
       parameters[:remote] = "true" if @remote_only
+      parameters[:experience_level] = @experience_levels.join(",") if @experience_levels.any?
       parameters[:cursor] = @cursor if @cursor
       uri.query = URI.encode_www_form(parameters)
       # Ignore proxy environment variables; the host and HTTPS transport are fixed.

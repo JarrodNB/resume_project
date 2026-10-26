@@ -2,6 +2,7 @@
  * Search and import hooks own requests; this page keeps draft filters separate from submitted results.
  */
 import { useRef, useState } from 'react'
+import type { JobBoardExperienceLevel } from '@/graphql/generated/graphql'
 import { Link, useNavigate } from 'react-router'
 import { ArrowRight, ArrowUpRight, Globe2, Search } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -15,12 +16,20 @@ import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
 import './jobBoard.css'
 
+const experienceLevelOptions: { value: JobBoardExperienceLevel; label: string }[] = [
+  { value: 'EN', label: 'Entry level' },
+  { value: 'MI', label: 'Mid level' },
+  { value: 'SE', label: 'Senior' },
+  { value: 'EX', label: 'Executive' },
+]
+
 const searchIdeas = ['Software engineer', 'Product designer', 'Data analyst']
 
 export function JobBoardPage() {
   const [keyword, setKeyword] = useState('')
-  const [submittedSearch, setSubmittedSearch] = useState({ keyword: '', remoteOnly: false })
+  const [submittedSearch, setSubmittedSearch] = useState({ keyword: '', remoteOnly: false, experienceLevels: [] as JobBoardExperienceLevel[] })
   const [remoteOnly, setRemoteOnly] = useState(false)
+  const [experienceLevels, setExperienceLevels] = useState<JobBoardExperienceLevel[]>([])
   const keywordInput = useRef<HTMLInputElement>(null)
   const board = useJobBoardSearch()
   const importer = useImportJobBoardListing()
@@ -39,8 +48,8 @@ export function JobBoardPage() {
       <form aria-label="Find jobs" className="board-search" onSubmit={(event) => {
         event.preventDefault()
         if (!keyword.trim()) return
-        setSubmittedSearch({ keyword: keyword.trim(), remoteOnly })
-        board.search(keyword, remoteOnly)
+        setSubmittedSearch({ keyword: keyword.trim(), remoteOnly, experienceLevels: [...experienceLevels] })
+        board.search(keyword, remoteOnly, experienceLevels)
       }}>
         <Label htmlFor="job-board-keyword">Keyword or job title</Label>
         <div className="board-search-field">
@@ -56,6 +65,16 @@ export function JobBoardPage() {
           </Label>
           <span className="board-region"><Globe2 size={15} aria-hidden />US-based opportunities</span>
         </div>
+        <fieldset className="board-experience-levels" aria-describedby="experience-level-help">
+          <legend>Experience level</legend>
+          <p id="experience-level-help">Select any levels, or leave blank to include all.</p>
+          <div className="board-level-options">
+            {experienceLevelOptions.map(({ value, label }) => <Label key={value} className="board-remote" data-checked={experienceLevels.includes(value)}>
+              <Checkbox checked={experienceLevels.includes(value)} onCheckedChange={(checked) => setExperienceLevels((current) =>
+                experienceLevelOptions.filter((option) => option.value === value ? checked === true : current.includes(option.value)).map((option) => option.value))} />{label}
+            </Label>)}
+          </div>
+        </fieldset>
       </form>
 
       {!board.hasSearched && <div className="board-introduction">
@@ -68,7 +87,7 @@ export function JobBoardPage() {
       </div>}
 
       {board.hasSearched && <div className="board-results-heading">
-        <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">For “{submittedSearch.keyword}”{submittedSearch.remoteOnly && ' · Remote only'}</p></div>
+        <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">For “{submittedSearch.keyword}”{submittedSearch.remoteOnly && ' · Remote only'} · {submittedSearch.experienceLevels.length ? experienceLevelOptions.filter((option) => submittedSearch.experienceLevels.includes(option.value)).map((option) => option.label).join(', ') : 'All experience levels'}</p></div>
         {board.listings.length > 0 && <span className="board-results-count">{board.listings.length} {board.listings.length === 1 ? 'role' : 'roles'} loaded</span>}
       </div>}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
@@ -79,7 +98,7 @@ export function JobBoardPage() {
         <Button variant="outline" className="justify-self-start" onClick={() => board.retry()} disabled={board.loading}>Try again</Button>
       </div>}
       <ErrorAlert title="Couldn't create this job" messages={importer.errors} />
-      {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><Search size={26} strokeWidth={1.4} aria-hidden /><h2>No matching roles this time.</h2><p>No matches. Try another keyword or turn off Remote only.</p></div>}
+      {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><Search size={26} strokeWidth={1.4} aria-hidden /><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {board.listings.length > 0 && <ul aria-label="Job listings" className="board-listings">
         {board.listings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
       </ul>}

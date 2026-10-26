@@ -5,8 +5,8 @@ RSpec.describe "Job Board search" do
   let(:user) { create(:user) }
   let(:query) do
     <<~GQL
-      query($keyword: String!, $remote: Boolean = false, $cursor: String) {
-        jobBoardSearch(keyword: $keyword, remoteOnly: $remote, cursor: $cursor) {
+      query($keyword: String!, $remote: Boolean = false, $cursor: String, $levels: [JobBoardExperienceLevel!]) {
+        jobBoardSearch(keyword: $keyword, remoteOnly: $remote, cursor: $cursor, experienceLevels: $levels) {
           listings { id title company location description applicationUrl remoteType hasRemote published isActive savedJob { id } }
           nextCursor retrievedAt stale errors
         }
@@ -63,6 +63,14 @@ RSpec.describe "Job Board search" do
     expect(search(remote: true, cursor: "opaque").dig("data", "jobBoardSearch", "listings")).to eq([])
     expect(http).to have_received(:request).with(have_attributes(path: include("remote=true", "cursor=opaque")))
     expect(Job.count).to eq(0)
+  end
+
+  it "passes multiple experience levels to the provider and rejects unknown levels" do
+    provider_page(data: [])
+    expect(search(levels: [ "SE", "EN" ]).dig("data", "jobBoardSearch", "errors")).to eq([])
+    expect(http).to have_received(:request).with(have_attributes(path: include("experience_level=EN%2CSE")))
+    expect(search(levels: [ "UNKNOWN" ])["errors"]).to be_present
+    expect(http).to have_received(:request).once
   end
 
   it "returns safe total failure and stale fallback with the original retrieval time" do

@@ -2,8 +2,8 @@
 import { graphql } from '@/graphql/generated'
 
 export const JOB_BOARD_SEARCH_QUERY = graphql(`
-  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String) {
-    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor) {
+  query JobBoardSearch($keyword: String!, $remoteOnly: Boolean!, $cursor: String, $experienceLevels: [JobBoardExperienceLevel!]!) {
+    jobBoardSearch(keyword: $keyword, remoteOnly: $remoteOnly, cursor: $cursor, experienceLevels: $experienceLevels) {
       listings {
         id
         title

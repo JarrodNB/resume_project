@@ -5,6 +5,8 @@ Index:
     - test_*: one behavior per test
 """
 
+import pytest
+
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from job_postings.posting_from_parsed_job import (
     DROPPED_LOCATION_WARNING,
@@ -139,3 +141,29 @@ def test_duplicate_bullets_collapse_by_normalized_text_and_keep_first_spelling()
     )
 
     assert posting.requirements == ["Python experience", "PostgreSQL"]
+
+
+@pytest.mark.parametrize("altered_url", [
+    "https://example.com/jobs/abc123?token=Secret",
+    "https://example.com/jobs/AbC123?token=secret",
+])
+def test_pasted_url_must_preserve_source_path_and_query_case(altered_url: str) -> None:
+    """Prose normalization must not turn an altered link into accepted source evidence."""
+    source_url = "https://example.com/jobs/AbC123?token=Secret"
+    source = AD.replace("https://example.com/jobs/1", source_url)
+
+    posting = posting_from_parsed_job(source, _parsed(url=altered_url))
+
+    assert posting.source_url == ""
+    assert posting.warnings == [DROPPED_URL_WARNING]
+
+
+def test_exactly_copied_mixed_case_url_is_preserved() -> None:
+    """Optional link checking leaves a valid source destination unchanged."""
+    url = "https://example.com/jobs/AbC123?token=Secret"
+    source = AD.replace("https://example.com/jobs/1", url)
+
+    posting = posting_from_parsed_job(source, _parsed(url=url))
+
+    assert posting.source_url == url
+    assert posting.warnings == []

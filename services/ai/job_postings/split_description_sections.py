@@ -91,9 +91,10 @@ def _heading_text(element: Tag) -> str | None:
         return text
     if element.name not in BLOCK_HEADING_CANDIDATES or element.find(NESTED_BLOCK_TAGS):
         return None
+    bold_elements = element.find_all(["strong", "b"])
     bold_text = _clean(" ".join(
-        bold.get_text(" ") for bold in element.find_all(["strong", "b"])
-        if bold.find_parent(["strong", "b"]) is None
+        bold.get_text(" ") for bold in bold_elements
+        if bold.find_parent(["strong", "b"]) not in bold_elements
     ))
     if bold_text and bold_text.rstrip(":") == text.rstrip(":"):
         return text

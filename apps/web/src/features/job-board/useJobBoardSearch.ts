@@ -1,16 +1,16 @@
 /** Owns one submitted search and its ordered pages. Rails owns freshness and listing identity.
- * Request generations keep slow, superseded searches from changing the current screen.
+ * Submitted filters are snapshots reused by pagination and retry. Request generations keep slow, superseded searches from changing the current screen.
  */
 import { useRef, useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
-import type { JobBoardSearchQuery } from '@/graphql/generated/graphql'
+import type { JobBoardExperienceLevel, JobBoardSearchQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_BOARD_SEARCH_QUERY } from './jobBoardOperations'
 
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
 export type BoardListing = SearchPage['listings'][number]
 type LoadedPage = Omit<SearchPage, 'retrievedAt'> & { retrievedAt: string; cursor: string | null }
-type Search = { keyword: string; remoteOnly: boolean }
+type Search = { keyword: string; remoteOnly: boolean; experienceLevels: JobBoardExperienceLevel[] }
 
 export function useJobBoardSearch() {
   const client = useApolloClient()
@@ -57,9 +57,9 @@ export function useJobBoardSearch() {
     }
   }
 
-  function search(keyword: string, remoteOnly: boolean) {
+  function search(keyword: string, remoteOnly: boolean, experienceLevels: JobBoardExperienceLevel[] = []) {
     if (!keyword.trim()) return
-    submitted.current = { keyword: keyword.trim(), remoteOnly }
+    submitted.current = { keyword: keyword.trim(), remoteOnly, experienceLevels: [...experienceLevels] }
     generation.current += 1
     setPages([])
     setErrors([])

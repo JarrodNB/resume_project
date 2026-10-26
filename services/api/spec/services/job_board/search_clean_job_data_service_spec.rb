@@ -40,6 +40,20 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
       expect(URI.decode_www_form(URI(request.path).query).to_h).to eq("title" => "engineer", "country_id" => "233", "extra_fields" => "description", "remote" => "true", "cursor" => "previous+/=")
     end
   end
+  it "sends a canonical multi-level filter and omits it when no levels are selected" do
+    expect(search(experience_levels: [ "SE", "EN", "SE" ])).to be_success
+    expect(http).to have_received(:request).with(have_attributes(path: include("experience_level=EN%2CSE")))
+    expect(search(experience_levels: [])).to be_success
+    expect(http).to have_received(:request).with(have_attributes(path: satisfy { |path| !path.include?("experience_level") }))
+  end
+
+  it "rejects unknown or malformed experience filters before HTTP" do
+    [ nil, "EN", [ "UNKNOWN" ], [ nil ], [ "en" ] ].each do |levels|
+      expect(search(experience_levels: levels)).not_to be_success
+    end
+    expect(http).not_to have_received(:request)
+  end
+
   it "keeps only valid US-confirmed listings in provider order without inventing optional fields" do
     us = { "country_code" => "US", "display_label" => "Austin, TX, US" }
     other = { "country_code" => "CA", "display_label" => "Toronto" }

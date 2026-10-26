@@ -25,11 +25,13 @@ All business logic, as service objects grouped by domain folder.
   Contract references: https://cleanjobdata.com/docs/api/jobs and https://cleanjobdata.com/docs/api/errors.
 - `job_board/search_catalogue_service.rb` — shared catalogue search and 24-hour page cache.
   Cache identity includes a normalization revision to bypass older normalized pages.
-  Accepts keyword, remote-only, exact cursor; returns ordered `JobBoardListing` records,
+  Accepts keyword, remote-only, explicit experience-level selections, and exact cursor; returns ordered `JobBoardListing` records,
   retrieval time, next cursor, and stale/errors metadata. Keyword normalization collapses
   spaces, trims outer whitespace, and lowercases letters while preserving punctuation
   and quote characters. Case variants share provider requests, cache pages, and locks;
-  cursors stay exact and remote filters stay distinct.
+  cursors stay exact and remote filters stay distinct. `experience_levels.rb` validates
+  EN/MI/SE/EX and deduplicates in provider-code order for HTTP, cache identity and locks.
+  Empty selections omit the HTTP filter; an explicit all-four selection stays distinct.
   The bounded provider call runs under a transaction advisory lock for the exact page;
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids

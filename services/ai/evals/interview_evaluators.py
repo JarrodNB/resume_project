@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from model_inputs.interview import format_feedback_prompt, format_interview_question_input
-from model_inputs.interview_evidence import interview_career_evidence, interview_question_evidence
-from schemas.gap_analysis_context import CareerLibrary
+from model_inputs.interview_evidence import interview_career_evidence
+from schemas.gap_analysis_context import CareerLibrary, LibraryFact
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
@@ -27,7 +27,8 @@ from schemas.interview_questions import (
 class QuestionEvalInput(BaseModel):
     """Synthetic usable library and replacement exclusions."""
 
-    library: str
+    library: str = ""
+    facts: list[LibraryFact] = Field(default_factory=list)
     set_type: InterviewSetType = "general"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
@@ -40,6 +41,7 @@ class FeedbackEvalInput(BaseModel):
     set_type: InterviewSetType = "general"
     answer: str
     library: str = ""
+    facts: list[LibraryFact] = Field(default_factory=list)
 
 
 class FeedbackEvalLabels(BaseModel):
@@ -50,7 +52,7 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    library = CareerLibrary(summary=case.library)
+    library = CareerLibrary(summary=case.library, facts=case.facts)
     text, evidence_by_id = format_interview_question_input(library, case.excluded, case.count, case.set_type)
     return InterviewQuestionContext(text, interview_career_evidence(library)[1], case.count,
                                     tuple(case.excluded), case.set_type, evidence_by_id)
@@ -58,9 +60,9 @@ def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
-    text = format_feedback_prompt(case.set_type, case.question, case.answer,
-                                  CareerLibrary(summary=case.library or None))
-    return InterviewFeedbackContext(text, case.answer + "\n" + case.library, case.set_type)
+    library = CareerLibrary(summary=case.library or None, facts=case.facts)
+    text = format_feedback_prompt(case.set_type, case.question, case.answer, library)
+    return InterviewFeedbackContext(text, case.answer + "\n" + interview_career_evidence(library)[1], case.set_type)
 
 
 @dataclass
@@ -70,6 +72,7 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
     def evaluate(self, ctx: EvaluatorContext[QuestionEvalInput, InterviewQuestions, None]) -> dict[str, float]:
         """Returns separate scores so structural failures remain visible."""
         questions = ctx.output.questions
+        source = question_context(ctx.inputs).library_text
         keys = [normalize_question(q.question_text) for q in questions]
         excluded = {normalize_question(text) for text in ctx.inputs.excluded}
         checks = {
@@ -80,7 +83,7 @@ class QuestionStructure(Evaluator[QuestionEvalInput, InterviewQuestions, None]):
                      and any(q.category == "introduction" for q in questions)),
             "distinct_wording": len(set(keys)) == len(keys) and not excluded.intersection(keys),
             "question_evidence": all(q.evidence_quotes and all(
-                quote.strip() and quote in ctx.inputs.library for quote in q.evidence_quotes
+                quote.strip() and quote in source for quote in q.evidence_quotes
             ) for q in questions),
         }
         return {name: float(passed) for name, passed in checks.items()}
@@ -95,7 +98,7 @@ class FeedbackStructure(Evaluator[FeedbackEvalInput, InterviewFeedback, Feedback
         import re
 
         output = ctx.output
-        source = ctx.inputs.answer + "\n" + ctx.inputs.library
+        source = feedback_context(ctx.inputs).source_text
         checks = {
             "nonblank_feedback": all(text.strip() for text in [
                 *output.strengths, *output.improvements, output.example_answer]),

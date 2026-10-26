@@ -1,9 +1,11 @@
 """Extract resume text from PDF and DOCX uploads within the import limits.
 
 Keep DOCX paragraphs and distinct table cells in document order, retaining list markers and
-hyperlink labels and targets so the resume parser can use their context.
+hyperlink labels and targets so the resume parser can use their context. Include active
+headers before the body and footers after it, reading inherited parts only once.
 Malformed link destinations remain source text without aborting extraction.
 PDF annotation arrays may be indirect references or explicitly absent via null.
+Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
 Known PDF and DOCX container or XML read errors become the caller's unreadable-file error.
 """
@@ -159,9 +161,34 @@ def _text_inside_rectangle(
 
 
 def _extract_docx_text(file_bytes: bytes) -> str:
-    """Joins paragraphs and table cells in order, retaining hyperlink destinations."""
+    """Keep body text and active margin stories, including their hyperlink destinations."""
     document = Document(BytesIO(file_bytes))
-    return "\n".join(_docx_block_lines(document))
+    return "\n".join([
+        *_docx_margin_lines(document, "header"),
+        *_docx_block_lines(document),
+        *_docx_margin_lines(document, "footer"),
+    ])
+
+
+def _docx_margin_lines(document: Any, kind: str) -> list[str]:
+    """Read enabled header/footer variants once, even when sections share a part."""
+    lines: list[str] = []
+    seen_parts = set()
+    for section in document.sections:
+        names = [kind]
+        if section.different_first_page_header_footer:
+            names.append(f"first_page_{kind}")
+        if document.settings.odd_and_even_pages_header_footer:
+            names.append(f"even_page_{kind}")
+        for name in names:
+            story = getattr(section, name)
+            if story.part in seen_parts:
+                continue
+            seen_parts.add(story.part)
+            story_lines = _docx_block_lines(story)
+            if any(line.strip() for line in story_lines):
+                lines.extend(story_lines)
+    return lines
 
 
 def _docx_block_lines(container: Any) -> list[str]:
@@ -184,7 +211,8 @@ def _docx_block_lines(container: Any) -> list[str]:
 
 def _docx_paragraph_text(paragraph: Any) -> str:
     """Returns paragraph text plus list and hyperlink markers needed by resume parsing."""
-    style_name = paragraph.style.name.casefold()
+    style = paragraph.style
+    style_name = style.name.casefold() if style is not None else ""
     if _docx_paragraph_is_numbered(paragraph):
         marker = "1." if style_name.startswith("list number") else "•"
         text = f"{marker} {paragraph.text}"

@@ -72,7 +72,7 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
-    selected = screen_library_inputs(library, screen, include_fact_requirements=False)
+    selected = screen_library_inputs(library, screen)
     library = selected.library
     warnings = list(selected.warnings)
     text = bind_screened_prompt(

@@ -93,6 +93,28 @@ Cards preserve local drafts, show outdated feedback for substantive unsaved chan
 navigation with unsaved answers, and keep replacement controls locked until the new question
 revision is fetched. Set deletion is confirmed; feedback/examples remain beside the answer.
 
+## Avoided questions
+
+“Don't see this again” saves an account-owned question preference independently of the
+source set. It does not regenerate, skip, delete, clear drafts, or modify feedback. The
+written mutation authorizes the set and question, then checks the selected question revision
+under the owner lock. The saved text comes from that persisted question, never browser text.
+Duplicate wording (case, spacing, punctuation) saves once, including retries at capacity.
+The store allows 50 questions of at most 2,000 characters each and returns explicit errors
+at either limit rather than clipping or dropping choices. `avoided` restores saved UI state.
+
+New written generation and replacement tasks snapshot the owner's complete saved list as
+`input.avoided_questions`; old tasks without that field use an empty list. Existing tasks
+keep their original snapshots. Replacements also retain their old target/sibling exclusions.
+These saved sources are immutable generated question text, so the AI handler uses its
+existing trusted-generated-source coverage rather than classifying them again. It renders
+readable delimited exclusions separately from career evidence, preserves contact masking,
+and fails explicitly if the combined library/preferences exceed the prompt limit. No
+AI-reader table grant is needed: Rails supplies the snapshot. Both the model validator and
+Rails result consumer reject exact excluded wording; avoiding semantic rewordings is a
+prompt instruction measured by synthetic quality evaluations. Full sets keep their required
+categories while choosing different concrete focuses within them.
+
 ## Decisions
 
 - **Interview sets have an immutable general, technical, or knowledge scope.** Existing sets and older

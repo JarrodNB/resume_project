@@ -31,7 +31,8 @@ module InterviewPrep
       number = [ previous, @user.interview_question_sets.maximum(:number).to_i ].max + 1
       question_set = @user.interview_question_sets.create!(number: number, set_type: @set_type)
       task.subject = question_set
-      task.input = { "question_set_id" => question_set.id, "set_number" => number, "set_type" => @set_type }
+      task.input = { "question_set_id" => question_set.id, "set_number" => number, "set_type" => @set_type,
+                     "avoided_questions" => InterviewPreferences::AvoidedQuestions.snapshot(@user) }
       success(task)
     end
   end

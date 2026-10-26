@@ -5,6 +5,7 @@ Index:
     - interview_career_evidence: displayed fields and exact quote sources
     - handle_interview_questions_task: screens source inputs once, then generates questions
 """
+from typing import Annotated
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -21,7 +22,7 @@ from schemas.interview_questions import InterviewQuestionContext, InterviewSetTy
 from screening.interview_question_fields import screen_interview_field, sibling_snapshots
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, within_screening_session
+from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -30,6 +31,7 @@ from worker.task_dependencies import TaskDependencies
 class InterviewQuestionsInput(BaseModel):
     """Generation metadata or the immutable replacement snapshot from Rails."""
 
+    avoided_questions: list[Annotated[str, Field(min_length=1, max_length=2000)]] = Field(default_factory=list, max_length=50)
     question_set_id: UUID
     set_type: InterviewSetType = "general"
     question_id: UUID | None = None
@@ -93,6 +95,11 @@ def handle_interview_questions_task(
         if not screen_interview_field(source, "question_text", question, screen_note).allowed:
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="We couldn't check these questions. Reload the set and try again.")
+    # This immutable Rails field comes only from preferences saved using owned, generated
+    # question/message records. It never accepts arbitrary browser text or user edits.
+    for question in snapshot.avoided_questions:
+        trust_generated_source(question)
+    excluded = tuple(dict.fromkeys((*excluded, *snapshot.avoided_questions)))
     count = 1 if replacement else 5
     text = bind_screened_prompt(
         [*selected.sources, *excluded],
@@ -100,7 +107,7 @@ def handle_interview_questions_task(
     )
     if text_limits.prompt_is_too_long(text):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
-            error_message="Your career library is too long for interview questions. Shorten its entries and try again.")
+            error_message="Your career library and saved question preferences are too long for interview questions. Shorten your library entries and try again.")
     prompt = InterviewQuestionContext(text, interview_career_evidence(library)[1], count, tuple(excluded), snapshot.set_type)
     try:
         with capture_run_messages() as messages:

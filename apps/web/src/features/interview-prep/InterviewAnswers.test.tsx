@@ -7,11 +7,11 @@ import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { InterviewSetPage } from './InterviewSetPage'
-import { INTERVIEW_SET_QUERY, REQUEST_INTERVIEW_FEEDBACK, SAVE_INTERVIEW_ANSWER, REGENERATE_INTERVIEW_QUESTION } from './interviewPrepOperations'
+import { INTERVIEW_SET_QUERY, REQUEST_INTERVIEW_FEEDBACK, SAVE_INTERVIEW_ANSWER, REGENERATE_INTERVIEW_QUESTION, AVOID_INTERVIEW_QUESTION } from './interviewPrepOperations'
 
 /** Builds a saved question with grounded feedback. */
 function question(answerText = 'Saved answer', latestTask: unknown = null) {
-  return { __typename: 'InterviewQuestion', id: 'q1', position: 1, questionText: 'Tell me about yourself', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, latestTask }
+  return { __typename: 'InterviewQuestion', id: 'q1', position: 1, avoided: false, questionText: 'Tell me about yourself', answerText, answerRevision: 1, questionRevision: 1, feedbackQuestionRevision: 1, feedbackAnswerRevision: 0, feedback: { strengths: ['Clear opening'], improvements: ['Add a result'], example_answer: 'I helped [add your result].' }, feedbackOutdated: false, latestTask }
 }
 /** Provides a complete set-query response. */
 function detail(answerText = 'Saved answer', latestTask: unknown = null) {
@@ -183,4 +183,34 @@ it('requires a changed saved version after feedback, including after reload', as
   expect(screen.getByRole('button', { name: 'Get feedback' })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: 'Save answer' }))
   await waitFor(() => expect(screen.getByRole('button', { name: 'Get feedback' })).toBeEnabled())
+})
+
+it('saves avoidance after a retry while preserving the current question and unsaved answer', async () => {
+  const request = { query: AVOID_INTERVIEW_QUESTION, variables: { questionSetId: 's1', questionId: 'q1', expectedRevision: 1 } }
+  const refreshed = detail()
+  refreshed.result.data.interviewQuestionSet.questions[0].avoided = true
+  renderPage({ path: '/interview-prep/:id', url: '/interview-prep/s1', element: <InterviewSetPage />, mocks: [detail(),
+    { request, error: new Error('Connection lost') },
+    { request, delay: 100, result: { data: { avoidInterviewQuestion: { __typename: 'AvoidInterviewQuestionPayload', saved: true, errors: [] } } } }, refreshed,
+  ] })
+  const textarea = await openAnswer()
+  fireEvent.change(textarea, { target: { value: 'My unsaved answer' } })
+  fireEvent.click(screen.getByRole('button', { name: "Don't see this again" }))
+  expect(await screen.findByText(/Could not save this preference/)).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: "Don't see this again" }))
+  expect(await screen.findByRole('button', { name: 'Saving preference…' })).toBeDisabled()
+  expect(await screen.findByText('Saved — future interviews will avoid this question.')).toBeVisible()
+  expect(screen.getByText('Tell me about yourself')).toBeVisible()
+  expect(textarea).toHaveValue('My unsaved answer')
+  expect(screen.getByText(/Unsaved changes/)).toBeVisible()
+  expect(screen.getByText('Clear opening')).toBeVisible()
+})
+
+it('restores saved avoidance when opening a question set', async () => {
+  const saved = detail()
+  saved.result.data.interviewQuestionSet.questions[0].avoided = true
+  renderPage({ path: '/interview-prep/:id', url: '/interview-prep/s1', element: <InterviewSetPage />, mocks: [saved] })
+  await openAnswer()
+  expect(screen.getByText('Saved — future interviews will avoid this question.')).toBeVisible()
+  expect(screen.getByRole('button', { name: 'Question avoided' })).toBeDisabled()
 })

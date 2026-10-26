@@ -144,4 +144,11 @@ All business logic, as service objects grouped by domain folder.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 
+- `interview_preferences/` — shared avoided-question persistence, bounded idempotent saves, and owner-scoped immutable snapshots. Saved source text must come from authorized generated records, never arbitrary browser text.
+
+- `interviews/avoid_prompt_service.rb` saves the current opening/follow-up as a shared
+  avoided-question preference under owner/session locks. It never changes progress or dialogue.
+  `StartPreparationService` freezes the shared list for preparation and later follow-ups;
+  old sessions default to no exclusions, and newer saves do not rewrite frozen sessions.
+
 - `study_guides/` — snapshots an owned job description under owner/job locks, queues guide generation, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.

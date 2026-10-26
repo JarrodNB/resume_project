@@ -195,3 +195,15 @@ def test_aggregate_dialogue_budget_has_specific_failure_without_model_calls(monk
     run(client, models, request)
     assert client.failed == [('context_limit', False)]
     assert not client.accepted and not models.prompts
+
+
+def test_saved_avoidance_reaches_followups_without_new_classification(monkeypatch):
+    monkeypatch.setenv('TYPESAFE_API_KEY', 'synthetic')
+    client, models = Client(), Models()
+    request = prepared_claim()
+    request.payload.interview_context.personal_evidence['avoided_questions'] = ['Describe an old calibration challenge?']
+    run(client, models, request)
+    assert not client.failed
+    assert 'Describe an old calibration challenge?' in models.prompts[-1][1]
+    assert all('Describe an old calibration challenge?' not in text
+               for name, text in models.prompts if name == 'jev-1.13.0')

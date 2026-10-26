@@ -150,4 +150,6 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   questions are not. Saved history restores coverage so later feedback does not rescreen old pairs.
   Source/input/history/turn caps bound every exchange.
 
+- Written question tasks accept `avoided_questions` as immutable Rails-owned generated text. Reuse trusted-generated-source coverage for these exact values; never trust arbitrary browser text under this field. Retain full legacy replacement screening/provenance behavior and fail rather than drop exclusions at the prompt cap.
+
 - `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.

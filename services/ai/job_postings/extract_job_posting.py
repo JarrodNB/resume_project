@@ -106,8 +106,8 @@ def extract_job_posting(page: JobPage, sort_bullets: BulletSorter) -> JobPosting
 
 
 def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting:
-    """Shortens fields and drops bullets Rails would refuse, and warns that text was left out.
-    A kept bullet is still copied verbatim."""
+    """Fit fields to Rails limits, dropping oversized links instead of changing their targets.
+    A kept bullet is still copied verbatim; omitted content adds a warning."""
     left_out = False
 
     def shorten(value: str | None, limit: int) -> str | None:
@@ -132,6 +132,10 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
             kept.append(item)
         return kept
 
+    source_url = posting.source_url
+    if len(source_url) > text_limits.MAX_SHORT_TEXT:
+        source_url = ""
+        left_out = True
     title = shorten(posting.title, text_limits.MAX_SHORT_TEXT) or ""
     company = shorten(posting.company, text_limits.MAX_SHORT_TEXT)
     location = shorten(posting.location, text_limits.MAX_SHORT_TEXT)
@@ -144,6 +148,7 @@ def fit_posting_to_saved_limits(posting: ScrapedJobPosting) -> ScrapedJobPosting
         warnings.append(text_limits.POSTING_LEFT_OUT_WARNING)
     return posting.model_copy(
         update={
+            "source_url": source_url,
             "title": title,
             "company": company,
             "location": location,

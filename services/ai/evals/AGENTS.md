@@ -174,3 +174,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   This bounded sample does not establish broad editing quality. Run `python -m evals.run_library_edit_evals`.
 
 - `run_study_guide_evals.py` / `datasets/study_guide_cases.yaml` — synthetic description-only learning material across occupations, sparse/non-job text, and injected instructions; screen outages are errors rather than successful rejection.
+
+- `run_interview_reference_evals.py` / `datasets/interview_reference_cases.json` — candidate
+  reference selection through production `select_references`. Default offline policy fixtures
+  supply vector distances; they do not measure semantic similarity. Explicit `--paid` uses
+  real synthetic-data embeddings and records usage/label agreement, with no dialogue judge.
+  Prints JSON; only `--output PATH` saves a report. The feature gate is never changed.

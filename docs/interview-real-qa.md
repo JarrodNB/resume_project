@@ -167,3 +167,35 @@ History immediately, once, alongside earlier saved dialogue.
 After entry, check the interviewer identity and settings, playback-before-capture,
 thinking countdown, tapping the microphone early, and editable live dictation.
 Priya probes after submission; live interruptions are outside this setup.
+
+## Optional saved career references
+
+The feature defaults off. Before enabling it, review the synthetic offline policy report
+(`python -m evals.run_interview_reference_evals` from `services/ai`) and its limits. Offline
+fixture distances do not establish semantic usefulness. A separately authorized `--paid`
+run can measure embedding-based label agreement; it incurs provider charges.
+
+For human QA, set `INTERVIEW_REFERENCES_ENABLED=true` in the API environment and restart
+the API process using the environment's normal workflow. Simply rerunning the native
+start hook reuses a healthy API and will not apply changed environment variables. Keep
+provider workers and their spending controls under the existing real-QA procedure; do not
+start an extra paid stack just for references. Turn the flag back off and restart the API
+to stop admitting new reference requests. Turning it off is separate from stopping already
+claimed work and never removes recorded charges.
+
+Use a library containing a role with several highlights, a project, and a saved fact.
+Check that openings and context-dependent follow-ups show relevant, distinct saved pieces,
+with fact responses presented without their requirement labels. Check a question with no
+useful saved evidence as well. Verify the displayed text against the library.
+
+Try global blur off/on and individual Reveal/Hide with keyboard and screen-reader controls.
+Reopen the interview to verify saved results and preference restoration. Repeat on a narrow
+screen, ensuring recording and Submit remain reachable. Reveal must not speak, move focus,
+start recording or overwrite a draft. While retrieval is slow or failed, keep dictating,
+editing and submitting; references should not change these controls. Skip during retrieval
+and confirm late results never appear beside the next prompt. Confirm abandonment and
+expiry hide reference content while usage history remains.
+
+Listen and speak through a complete session: references should help recall without changing
+the interviewer's frozen context or being read aloud. Human checks establish device behavior,
+distraction and subjective relevance; automated component tests do not establish those.

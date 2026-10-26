@@ -1,0 +1,237 @@
+[
+  {
+    "name": "technical fact with response-only display",
+    "query": "Describe your Kubernetes incident recovery.",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000001"
+    ]
+  },
+  {
+    "name": "knowledge application project",
+    "query": "How did you apply food safety monitoring?",
+    "library": {
+      "projects": [
+        {
+          "id": "00000000-0000-0000-0000-000000000002",
+          "name": "Food safety pilot",
+          "description": "I designed temperature monitoring for food storage."
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000002"
+    ]
+  },
+  {
+    "name": "behavioral role deduplication",
+    "query": "Describe recovering a failed migration.",
+    "library": {
+      "experiences": [
+        {
+          "id": "00000000-0000-0000-0000-000000000003",
+          "title": "Engineer",
+          "company": "Synthetic Labs",
+          "description": "I maintained Kubernetes clusters.",
+          "highlights": [
+            {
+              "id": "00000000-0000-0000-0000-000000000004",
+              "content": "I restored Kubernetes workloads after a failed migration."
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000005",
+              "content": "I trained colleagues on Kubernetes incident recovery."
+            }
+          ]
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000004"
+    ]
+  },
+  {
+    "name": "HR motivation no evidence",
+    "query": "Why do you want to join this company?",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": []
+  },
+  {
+    "name": "sparse empty library",
+    "query": "Tell me about teamwork.",
+    "library": {},
+    "matches": [],
+    "expected_ids": []
+  },
+  {
+    "name": "bare skill when no narrative",
+    "query": "Explain Kubernetes.",
+    "library": {
+      "skills": [
+        {
+          "id": "00000000-0000-0000-0000-000000000006",
+          "name": "Kubernetes",
+          "category": "Tools"
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000006"
+    ]
+  },
+  {
+    "name": "education evidence",
+    "query": "Describe statistics coursework.",
+    "library": {
+      "educations": [
+        {
+          "id": "00000000-0000-0000-0000-000000000007",
+          "institution": "Synthetic College",
+          "degree": "Statistics"
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000007"
+    ]
+  },
+  {
+    "name": "follow-up with accepted context",
+    "query": "Core question: Describe Kubernetes migrations.\nAccepted answer: I restored Kubernetes workloads.\nFollow-up: What changed afterward?",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000001"
+    ]
+  },
+  {
+    "name": "weak vector without keywords rejected",
+    "query": "How did you mentor trainees?",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ]
+    },
+    "matches": [
+      {
+        "source_type": "LibraryFact",
+        "source_id": "00000000-0000-0000-0000-000000000001",
+        "content": "synthetic indexed text",
+        "distance": 0.9,
+        "score": 0.01
+      }
+    ],
+    "expected_ids": []
+  },
+  {
+    "name": "strong vector supports paraphrase",
+    "query": "Describe a time you recovered a service.",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ]
+    },
+    "matches": [
+      {
+        "source_type": "LibraryFact",
+        "source_id": "00000000-0000-0000-0000-000000000001",
+        "content": "synthetic indexed text",
+        "distance": 0.2,
+        "score": 0.01
+      }
+    ],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000001"
+    ]
+  },
+  {
+    "name": "duplicate saved text grouped",
+    "query": "Describe recovering a failed migration.",
+    "library": {
+      "facts": [
+        {
+          "id": "00000000-0000-0000-0000-000000000001",
+          "requirement": "Kubernetes incident recovery",
+          "response": "I restored Kubernetes workloads after a failed migration."
+        }
+      ],
+      "experiences": [
+        {
+          "id": "00000000-0000-0000-0000-000000000003",
+          "title": "Engineer",
+          "company": "Synthetic Labs",
+          "description": "I maintained Kubernetes clusters.",
+          "highlights": [
+            {
+              "id": "00000000-0000-0000-0000-000000000004",
+              "content": "I restored Kubernetes workloads after a failed migration."
+            },
+            {
+              "id": "00000000-0000-0000-0000-000000000005",
+              "content": "I trained colleagues on Kubernetes incident recovery."
+            }
+          ]
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000004"
+    ]
+  },
+  {
+    "name": "certification facts",
+    "query": "Describe food handling certification.",
+    "library": {
+      "certifications": [
+        {
+          "id": "00000000-0000-0000-0000-000000000008",
+          "name": "Food handling certification",
+          "description": "Completed assessed food handling training."
+        }
+      ]
+    },
+    "matches": [],
+    "expected_ids": [
+      "00000000-0000-0000-0000-000000000008"
+    ]
+  }
+]

@@ -232,4 +232,38 @@ RSpec.describe "Interview question references" do
     expect(reference.reload.references).to eq([entry])
   end
 
+  it "keeps answer claims independent of references when new reference admission is disabled" do
+    reference = request_references
+    task = reference.ai_task
+    Interviews::ClaimReferencesService.call(ai_task: task)
+    fact = create(:library_fact, user: interview.user, response: "Unique reference-only career detail")
+    entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved fact", "body" => fact.response }
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [entry] },
+      "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 29 } ] })
+    allow(ENV).to receive(:[]).with("INTERVIEW_REFERENCES_ENABLED").and_return("false")
+    expect(Interviews::RequestReferencesService.call(interview: interview, message_id: prompt.id)).not_to be_success
+    turn = Interviews::SubmitTurnService.call(interview: interview, question_id: prompt.question_id, expected_revision: interview.revision,
+      submission_key: "references-disabled-answer", transcription_mode: "typed", candidate_transcript: "My reviewed answer")
+    expect(turn).to be_success
+    claim = Interviews::ClaimOperationService.call(operation: turn.value, execution_mode: "real")
+    expect(claim).to be_success
+    expect(JSON.generate(claim.value)).not_to include(fact.response, reference.id)
+    expect(task.reload.cost_microdollars).to eq(29)
+    expect(reference.reload.references).to eq([entry])
+  end
+
+  it "allows skipping during retrieval and fences its late result while retaining usage" do
+    reference = request_references
+    task = reference.ai_task
+    Interviews::ClaimReferencesService.call(ai_task: task)
+    expect(Interviews::SkipQuestionService.call(interview: interview, question_id: prompt.question_id,
+      expected_revision: interview.revision, submission_key: "skip-with-references")).to be_success
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [] },
+      "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 7 } ] })
+    expect(task.reload).to be_failed
+    expect(task.cost_microdollars).to eq(7)
+    expect(reference.reload.references).to eq([])
+    expect(interview.messages.answer.count).to eq(0)
+  end
+
 end

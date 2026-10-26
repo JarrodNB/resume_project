@@ -840,3 +840,74 @@ model to avoid the same intent and close rewordings; spoken semantic avoidance i
 instruction, not a deterministic output guarantee. Invalid or oversized preference context
 fails before provider dispatch rather than silently dropping choices. Existing per-account
 save bounds and preparation context limits still apply.
+
+## Candidate-facing career references
+
+Optional career references help the candidate recall saved experience while answering.
+They display exact saved wording rather than a generated answer. They are independent
+of interviewer context, speech, answer drafts, question progression and answer allowances.
+The interviewer still receives its existing frozen preparation context.
+
+`INTERVIEW_REFERENCES_ENABLED=true` on Rails admits new reference requests and worker
+claims; the default is false. Public snapshots expose `referencesEnabled`. Turning the
+flag off removes automatic requests from the room and denies unclaimed reference work,
+without changing answer submission, saved results or usage ledgers. A compatible runtime
+can finish already-claimed work. Restart the API after changing its environment; the
+native start hook reuses healthy processes and does not reload their environment.
+
+`requestInterviewReferences(interviewId, messageId, retryFailed)` authorizes an owned,
+active real-mode interview's latest opening/follow-up. Rails saves one
+`InterviewCareerReferences` record per prompt, with at most two explicitly requested
+queue task attempts. `interview_references` tasks reuse preparation's hourly admission
+but retain their own spend/concurrency accounting. A private authenticated claim rechecks
+availability and returns canonical owner, prompt, reference identity and query text.
+Duplicate claims do no paid work. SQS results preserve late or duplicate usage while
+rejecting stale content after follow-up changes, skip, advancement, abandonment or expiry.
+
+For openings the query is the saved prompt. Follow-ups include the core question and
+immediately preceding accepted answer, using complete messages within the 12,004-character
+bound; oversized combinations fall back to the current prompt. Drafts, provisional
+transcripts and acknowledgement text are excluded. Query embeddings use existing contact
+masking and accounted/traced Pydantic AI embedding helpers; there is no dialogue-model call.
+The AI worker reads owned library records and the existing hybrid vector/keyword index.
+
+Selection policy `interview-references-v2` keeps at most three distinct source groups,
+prefers narrative evidence to bare skills, and rejects distant vector candidates. Its
+initial cosine-distance cutoff is 0.35, not calibrated confidence. Bounded keyword matching
+supports unindexed sources. Fact requirement labels can help ranking; only saved fact
+responses are displayed as evidence. Written practice Q&A vectors, job-only gap answers,
+profile summary and historical spoken answers are not additional indexed sources.
+
+References use the library at retrieval time and are saved for the exact prompt. There
+is no continuous freshness check or in-room library editing. Ordinary owner/source checks
+at result acceptance reject foreign or invented evidence. Bodies are bounded at 4,000
+characters; oversized source bodies are omitted. Per-role grouping prevents a role and
+its highlights filling several cards. No-match results remain empty rather than forcing
+three suggestions.
+
+The room requests automatically once per saved prompt and restores durable results on
+reload. Task/session subscriptions update independent reference state; no polling is added.
+Failures permit explicit bounded retry and never disable recording, speech or submission.
+Blur defaults on, with an owner-scoped device preference storing only a boolean; individual
+reveal state resets per prompt. Concealed bodies are also hidden from assistive reading.
+Reference content is not a browser-storage preference or a security-protected secret.
+
+Public reference metadata is current-prompt-only. Expiry and abandonment scrub copied
+bodies and task inputs/results while retaining billing records. Completed review does not
+show historical references. See the offline evaluation command below and the manual QA
+steps in the real interview guide before admitting automatic references.
+
+### Retrieval evaluation evidence
+
+From `services/ai`, run `python -m evals.run_interview_reference_evals` with its installed
+runtime. It prints a JSON report from synthetic fixtures through the production
+`select_references` interface. Default execution is offline: supplied vector distances
+exercise cutoff/grouping contracts, and real keyword matching exercises fallback. A green
+report establishes fixture agreement, not semantic relevance or real embedding calibration.
+
+`--paid` explicitly runs real embeddings against synthetic source text and reports label
+agreement and accounted usage; no dialogue model or database is required. It tests the
+selection seam, not Postgres latency or the exact Rails index formatter. `--output PATH`
+saves the report only when requested. Errors and mismatched labels fail visibly. Neither
+mode enables the feature gate. No paid semantic run or human relevance assessment was
+performed during the initial implementation; automatic rollout remains disabled by default.

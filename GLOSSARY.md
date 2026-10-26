@@ -95,3 +95,8 @@ description, not the person's employability.
 **Study guide**:
 Saved learning material derived from a job description, with prioritized topics, explanations,
 practice exercises, and self-check questions. It describes what to study, not the job seeker's experience.
+
+**Career reference**:
+A saved career-library piece shown during interview practice to help the candidate recall
+relevant experience. It is optional guidance, separate from a generated answer, question
+clarification, assessment, or accepted answer.

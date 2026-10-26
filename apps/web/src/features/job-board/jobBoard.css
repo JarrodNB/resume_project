@@ -61,3 +61,9 @@
   .board-listing { padding-block: 22px; }
   .board-results-heading { align-items: flex-start; }
 }
+
+.board-experience-levels { margin-top: 20px; min-width: 0; }
+.board-experience-levels legend { font-size: 14px; font-weight: 500; }
+.board-experience-levels > p { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
+.board-level-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.board-level-options .board-remote { min-height: 44px; }

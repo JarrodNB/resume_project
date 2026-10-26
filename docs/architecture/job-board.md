@@ -1,7 +1,11 @@
 # Job Board
 
 Job Board (`/job-board`) lets signed-in users search US-confirmed opportunities by
-keyword and an optional remote filter. It starts without a search. Jobs (`/jobs`)
+keyword, an optional remote filter, and optional experience levels (Entry, Mid,
+Senior, Executive). People may select multiple levels; leaving them all blank omits
+the provider filter, including jobs with unspecified experience. Selecting all four
+is an explicit filter and remains distinct from leaving the selection blank.
+It starts without a search. Jobs (`/jobs`)
 remains the current user's private saved list. Only **Create job** saves a listing;
 **Open saved job** opens a match already owned by that user.
 
@@ -18,7 +22,12 @@ responses update its payload without changing personal saved Job snapshots.
 letters before provider requests and page locking; punctuation and quote characters
 are preserved. The browser keeps the entered text. `JobBoardSearchPage` caches this
 canonical keyword/filter/cursor page for 24 hours. Case variants share first and
-continuation pages; opaque cursor case and remote-only filters remain distinct.
+continuation pages; opaque cursor case, remote-only filters, and different
+experience-level selections
+remain distinct. Selected experience levels are validated provider codes (`EN`, `MI`,
+`SE`, `EX`) and canonicalized as a deduplicated set before provider calls, cache keys,
+and advisory locks. The provider receives a comma-separated `experience_level` filter;
+no level is inferred from a career library and reranking does not set it.
 Remote-only off omits the provider remote filter, allowing both remote and non-remote jobs.
 Its identity includes a normalization revision, so older normalized pages cannot hide
 changed provider handling; old pages are bypassed rather than used as stale fallback.
@@ -34,9 +43,12 @@ not receive access to the catalogue tables.
 
 ## Browser contract
 
-`jobBoardSearch(keyword:, remoteOnly:, cursor:)` returns ordered listings, an opaque
+`jobBoardSearch(keyword:, remoteOnly:, experienceLevels:, cursor:)` returns ordered listings, an opaque
 continuation cursor, retrieval time, stale status, and errors. The browser requests
-only on submit, load more, or retry. Apollo's search cache is bypassed so Rails
+only on submit, load more, or retry. Multi-select experience controls are draft
+filters until submit; displayed result context and all continuation/retry requests use
+the submitted snapshot even if the form changes. Apollo's search cache is bypassed
+so Rails
 controls freshness. Loaded pages retain individual timestamps and stale warnings.
 Displayed IDs are deduplicated in first-seen order. A failed page retry preserves
 successful pages. A successful earlier-page refresh preserves descendants when its

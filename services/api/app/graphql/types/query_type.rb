@@ -39,12 +39,13 @@ module Types
 
     field :job_board_search, Types::JobBoardSearchPageType, null: false do
       argument :keyword, String, required: true
+      argument :experience_levels, [ Types::JobBoardExperienceLevelEnum ], required: false, default_value: []
       argument :remote_only, Boolean, required: false, default_value: false
       argument :cursor, String, required: false
     end
 
-    def job_board_search(keyword:, remote_only: false, cursor: nil)
-      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, cursor: cursor)
+    def job_board_search(keyword:, remote_only: false, cursor: nil, experience_levels: [])
+      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, experience_levels: experience_levels, cursor: cursor)
       result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
     end
 

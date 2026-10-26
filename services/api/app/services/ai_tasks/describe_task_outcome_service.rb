@@ -4,7 +4,7 @@ module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
       "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
-      "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft",
+      "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
       "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
       "improve_library_entry" => "Library improvement", "interview_preparation" => "Interview preparation",
@@ -33,7 +33,7 @@ module AiTasks
         job = owned_subject("Job", @user.jobs)
         return job ? "/jobs/#{job.id}" : "/jobs" if @outcome.status == "completed"
         @outcome.task_type == "scrape_job" ? "/jobs/new/#{@task.id}" : "/jobs/paste/#{@task.id}"
-      when "analyze_gaps", "tailor_resume"
+      when "analyze_gaps", "tailor_resume", "generate_study_guide"
         job = owned_subject("Job", @user.jobs)
         job ? "/jobs/#{job.id}#{'/tailor' if @outcome.task_type == 'tailor_resume'}" : "/jobs"
       when "generate_interview_questions", "regenerate_interview_question", "review_interview_answer"

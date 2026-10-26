@@ -56,6 +56,7 @@ module InterviewPrep
         "screened_fields" => @question.screened_fields
       }
       if @task_type == "regenerate_interview_question"
+        task.input["avoided_questions"] = InterviewPreferences::AvoidedQuestions.snapshot(@user)
         peers = @question.interview_question_set.questions.where.not(id: @question.id).to_a
         task.input["other_questions"] = peers.map(&:question_text)
         task.input["other_question_snapshots"] = peers.map do |peer|

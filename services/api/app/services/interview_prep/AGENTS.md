@@ -40,3 +40,5 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 - Queue snapshots keep legacy source strings and add primary checks/aligned sibling snapshots.
   Sibling provenance must match exact text, set and identity; old unidentified strings never
   earn persisted reports. Failed final generation still records successful source checks.
+
+- `avoid_question_service.rb` saves the selected question revision as a shared account preference without changing answers. Generation/replacement snapshot all avoided questions under the owner lock; result application rejects exact repeats against that snapshot.

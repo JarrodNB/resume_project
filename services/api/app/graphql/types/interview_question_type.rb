@@ -3,6 +3,7 @@
 #   - InterviewQuestionType: persisted practice fields and latest task
 module Types
   class InterviewQuestionType < Types::BaseObject
+    field :avoided, Boolean, null: false
     field :id, ID, null: false
     field :position, Integer, null: false
     field :question_text, String, null: false
@@ -14,6 +15,10 @@ module Types
     field :feedback_answer_revision, Integer
     field :feedback_outdated, Boolean, null: false
     field :latest_task, Types::AiTaskType
+
+    def avoided
+      ::InterviewPreferences::AvoidedQuestions.saved?(context[:current_user], object.question_text)
+    end
 
     # Returns the latest question operation, including failures.
     def latest_task

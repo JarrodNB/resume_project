@@ -36,8 +36,9 @@ module Interviews
         end
         return failure("Your career library is empty. Add career details before preparing an interview.") if sources.empty?
         context = { version: 1, sources: sources, career_focus: @career_focus,
+          avoided_questions: InterviewPreferences::AvoidedQuestions.snapshot(@user),
           names: [ @user.name ].compact, emails: [ @user.contact_email ].compact, phones: [ @user.phone ].compact }
-        return failure("Your career library is too long for interview preparation. Shorten its entries and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
+        return failure("Your career library and saved question preferences are too long for interview preparation. Shorten your library entries and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
         if @user.interview_sessions.where(status: %w[preparing ready active]).where("expires_at > ?", Time.current)
             .where.not(frozen_context: {}).exists?
           next failure("Resume or abandon your unfinished interview before preparing another.")

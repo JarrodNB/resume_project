@@ -35,6 +35,8 @@ module Types
     field :request_interview_clarification, mutation: Mutations::Interviews::RequestInterviewClarification
     field :interview_playback, mutation: Mutations::Interviews::InterviewPlayback
 
+    field :avoid_interview_prompt, mutation: Mutations::Interviews::AvoidInterviewPrompt
+    field :avoid_interview_question, mutation: Mutations::InterviewPrep::AvoidInterviewQuestion
     field :generate_interview_question_set, mutation: Mutations::InterviewPrep::GenerateInterviewQuestionSet
 
     field :save_interview_answer, mutation: Mutations::InterviewPrep::SaveInterviewAnswer
@@ -48,6 +50,8 @@ module Types
     field :update_profile, mutation: Mutations::Users::UpdateProfile
 
     field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
+
+    field :generate_study_guide, mutation: Mutations::StudyGuides::GenerateStudyGuide
 
     field :create_job, mutation: Mutations::Jobs::CreateJob
     field :update_job, mutation: Mutations::Jobs::UpdateJob

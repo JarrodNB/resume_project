@@ -77,6 +77,15 @@ def system_context(context: dict, role: dict | None = None) -> str:
     text = format_library(context)
     if role is not None:
         text += '\n\n' + format_role(role)
+    excluded = context.get('avoided_questions', [])
+    if not isinstance(excluded, list) or len(excluded) > 50 or any(
+        not isinstance(item, str) or not item.strip() or len(item) > 2000 for item in excluded
+    ):
+        raise ContextLimitExceeded('Invalid avoided question context')
+    if excluded:
+        text += '\n\n# Avoided questions\n' + '\n'.join(
+            data_block('avoided_question', item) for item in excluded
+        )
     focus = context.get('career_focus')
     if isinstance(focus, str) and focus:
         text += '\n\n# Career focus\n' + data_block('career_focus', focus)

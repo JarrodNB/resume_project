@@ -1,0 +1,32 @@
+"""Generate bounded study material with the shared screening guard and execution budgets."""
+import asyncio
+
+from pydantic_ai import Agent
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai_harness import InputGuardrail
+
+from conversation_logging import ConversationLogging
+from prompts.study_guide_instructions import STUDY_GUIDE_INSTRUCTIONS, STUDY_GUIDE_PROMPT_VERSION
+from schemas.study_guide import StudyGuide
+from screening.prompt_guardrail import screen_prompt
+from screening.session import remaining_timeout, within_screening_session
+from worker.generative_model import generative_model
+from worker.run_limits import agent_usage_limits
+from worker.tracing import record_prompt_version
+
+study_guide_agent = Agent(name="study_guide_agent", output_type=StudyGuide,
+    instructions=STUDY_GUIDE_INSTRUCTIONS, retries=2, defer_model_check=True,
+    capabilities=[ConversationLogging(), InputGuardrail(guard=screen_prompt)])
+
+
+@within_screening_session
+def generate_study_guide(prompt, settings):
+    """Return validated output and usage; provider failures use the shared fallback policy."""
+    async def run():
+        async with asyncio.timeout(remaining_timeout(settings.llm_run_timeout_seconds)):
+            with record_prompt_version(STUDY_GUIDE_PROMPT_VERSION):
+                return await study_guide_agent.run(prompt,
+                    model=generative_model(settings.study_guide_model, settings.generative_fallback_model),
+                    model_settings=ModelSettings(thinking=settings.study_guide_thinking),
+                    usage_limits=agent_usage_limits(settings))
+    return asyncio.run(run())

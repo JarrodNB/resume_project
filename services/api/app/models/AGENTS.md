@@ -58,6 +58,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - Certification date precision metadata distinguishes stated years/months from exact dates.
 
+- `avoided_interview_question.rb` — account-owned immutable generated question text and normalized digest; independent of source deletion.
 - `interview_question_set.rb` + `interview_question.rb` — user-owned practice sets, ordered question slots, typed answers, and revision-bound feedback; separate from the career library. AI task subjects are nulled on deletion to preserve usage accounting.
 - Practice set scopes are immutable `general`, `technical`, or `knowledge`; legacy data defaults to general.
 

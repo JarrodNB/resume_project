@@ -10,6 +10,10 @@ A suggested replacement for one career-library narrative detail, such as a summa
 project description, or saved fact response. It changes the saved detail only
 when the user accepts it; feedback and follow-up answers can refine it first.
 
+**Avoided question**:
+A question the candidate has asked future interview practice to avoid, including close rewordings.
+Saving this preference leaves the current question and answer in place.
+
 **Interview Q&A vector**:
 A derived embedding of one saved interview question and its current nonblank user-written answer.
 It excludes feedback and example answers, stays separate from career-library evidence, and is not searched yet.
@@ -87,3 +91,7 @@ in answer-quality scoring. Skipping a follow-up moves directly to the next core 
 A red, yellow, or green indication of how clearly a saved piece captures useful career evidence,
 with a short reason and an optional question about useful missing detail. It evaluates the
 description, not the person's employability.
+
+**Study guide**:
+Saved learning material derived from a job description, with prioritized topics, explanations,
+practice exercises, and self-check questions. It describes what to study, not the job seeker's experience.

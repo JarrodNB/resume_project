@@ -38,6 +38,20 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     expect(describe_outcome(task, status: "failed")[:destination]).to eq("/jobs/paste/#{task.id}")
   end
 
+  it "labels study guides and links both outcomes to the owned job with a safe fallback" do
+    user = create(:user)
+    job = create(:job, user: user)
+    task = create(:ai_task, user: user, task_type: "generate_study_guide", subject: job)
+    %w[completed failed].each do |status|
+      expect(describe_outcome(task, status: status)).to eq(
+        title: "Study guide #{status}", destination: "/jobs/#{job.id}")
+    end
+    job.destroy!
+    expect(describe_outcome(task.reload)[:destination]).to eq("/jobs")
+    task.update!(subject: create(:job))
+    expect(describe_outcome(task)[:destination]).to eq("/jobs")
+  end
+
   it "opens the jobs overview for a completed import whose saved job was deleted" do
     user = create(:user)
     %w[scrape_job parse_job_posting].each do |type|

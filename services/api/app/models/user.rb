@@ -18,6 +18,7 @@ class User < ApplicationRecord
   has_many :library_facts, -> { order(:created_at) }, dependent: :destroy
   has_many :jobs, dependent: :destroy
   has_many :resumes, dependent: :destroy
+  has_many :avoided_interview_questions, dependent: :destroy
   has_many :interview_question_sets, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :interview_sessions, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_task_outcomes, dependent: :delete_all

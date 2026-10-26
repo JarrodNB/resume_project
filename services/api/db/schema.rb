@@ -56,7 +56,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_26_010000) do
     t.index ["sequence"], name: "index_ai_task_outcomes_on_sequence", unique: true
     t.index ["user_id", "sequence"], name: "index_ai_task_outcomes_on_user_id_and_sequence", unique: true
     t.index ["user_id"], name: "index_ai_task_outcomes_on_user_id"
-    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying, 'failed'::character varying]::text[])", name: "ai_task_outcomes_terminal_status"
+    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying::text, 'failed'::character varying::text])", name: "ai_task_outcomes_terminal_status"
   end
 
   create_table "ai_tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -99,6 +99,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_26_010000) do
     t.boolean "finalized", default: true, null: false
     t.index ["ai_task_id"], name: "index_ai_usage_attempts_on_ai_task_id"
     t.index ["attempt_id"], name: "index_ai_usage_attempts_on_attempt_id", unique: true
+  end
+
+  create_table "avoided_interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.text "question_text", null: false
+    t.string "text_digest", limit: 64, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "text_digest"], name: "index_avoided_interview_questions_on_user_id_and_text_digest", unique: true
+    t.index ["user_id"], name: "index_avoided_interview_questions_on_user_id"
+    t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
   end
 
   create_table "certifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -610,6 +621,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_26_010000) do
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
+  add_foreign_key "avoided_interview_questions", "users"
   add_foreign_key "certifications", "users"
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade

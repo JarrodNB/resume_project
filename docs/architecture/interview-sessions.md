@@ -819,3 +819,24 @@ The room confirms loss of unsent text/audio and clears it only after a saved ski
 After a lost response it retains the original skip identity and blocks answer submission
 until an explicit retry reconciles that identity. Saved dialogue retains an unanswered
 follow-up; earlier AI context omits that trailing prompt to keep complete accepted groups.
+
+### Shared avoided questions
+
+During an active real interview, “Don't see this again” saves the current opening or
+follow-up message's exact question text to the owner's shared avoided-question preferences.
+It does not skip, submit an answer, discard recording/text, or change session progress.
+The mutation scopes the session to the signed-in user and rechecks the latest answerable
+message under owner/session locks. Old prompt identities fail instead of capturing a new
+question. Saved state is exposed on the message and duplicate saves are safe to retry.
+
+New preparations snapshot the shared preference list in frozen context. The same list is
+used for preparation and later follow-ups, so preferences added after a session starts
+apply to future sessions rather than rewriting the prepared conversation. Written practice
+and spoken interviews both save to this list. Legacy contexts without it use an empty list.
+
+The AI renders preferences as escaped, masked question data. These exact server-generated
+texts are not screened again or treated as career evidence. Trusted instructions ask the
+model to avoid the same intent and close rewordings; spoken semantic avoidance is an
+instruction, not a deterministic output guarantee. Invalid or oversized preference context
+fails before provider dispatch rather than silently dropping choices. Existing per-account
+save bounds and preparation context limits still apply.

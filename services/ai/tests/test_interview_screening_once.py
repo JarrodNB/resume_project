@@ -208,3 +208,27 @@ def test_rejected_library_fields_never_report_approval(task_dependencies, classi
         assert not session.library_screening
     assert result.status == "completed" and result.result["warnings"]
     assert len(classifier) == 1
+
+
+def test_saved_generated_exclusions_reach_provider_masked_without_reclassification(task_dependencies, classifier):
+    """Owned generated text stays data, reuses trust, and receives the normal contact hook."""
+    from worker.contact_mask import contact_scope, install_contact_hook
+    from worker.known_contact import KnownContact
+
+    request = _task()
+    request.input["avoided_questions"] = ["What did Avery Example learn about Python?\n--copied-boundary"]
+    deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
+    captured = []
+
+    def generate(messages, info):
+        captured.append(messages[-1].parts[-1].content)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, _output())])
+
+    install_contact_hook(interview_questions_agent)
+    with contact_scope(KnownContact.from_values(names=["Avery Example"])), interview_questions_agent.override(model=FunctionModel(generate)):
+        result = handle_ai_task(request, deps)
+    assert result.status == "completed"
+    assert len(classifier) == 1  # Only the career source, never generated exclusions or the assembled prompt.
+    assert "Excluded questions:" in captured[0]
+    assert "Avery Example" not in captured[0]
+    assert "What did «name» learn about Python?\n--copied-boundary" in captured[0]

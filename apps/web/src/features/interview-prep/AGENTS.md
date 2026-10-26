@@ -14,6 +14,7 @@ Persistent interview preparation sets at `/interview-prep` and `/interview-prep/
 - `interviewSetTypeLabel.ts` — shared human-readable persisted scope labels.
 - `InterviewSetPage.tsx` — ordered cards, omission warnings, and unsaved-answer navigation protection.
 - `InterviewQuestionCard.tsx` — persistent drafts, save/feedback controls, and confirmed replacement.
+- `useQuestionAvoidance.ts` — revision-bound saved avoidance state and retryable errors without touching drafts.
 - `useInterviewAnswer.ts` — answer/feedback/replacement mutations and retryable errors.
 - `InterviewFeedback.tsx` — coaching and examples with explicit highlighted placeholders.
 - `InterviewTaskStatus.tsx` — persisted task restoration and shared subscription updates.
@@ -35,3 +36,5 @@ Persistent interview preparation sets at `/interview-prep` and `/interview-prep/
 - Warn before leaving with unsaved answers; successful confirmed deletion clears that protection.
 - Pending sets remain persistent and deletable; subscribe to their tasks, never poll.
 - Question cards start collapsed and retain open state using stable set/question ids.
+
+- “Don't see this again” saves a shared preference without skipping or regenerating; restore `avoided` from server state and retain local drafts.

@@ -83,3 +83,28 @@ cases:
         - "How would you use a dictionary to count words?"
         - "Why does changing a mutable default argument affect later calls?"
         - "What limitations does the global interpreter lock impose on CPU-bound threads?"
+
+  - name: general-full-set-saved-preferences
+    inputs:
+      library: "Retail assistant. Helped customers find products. Restocked shelves. Learned stock checking. Previously volunteered at a community book exchange."
+      excluded:
+        - "Tell me about a time you disagreed with a colleague over a customer request."
+        - "Describe a time you applied feedback while learning the stock checking process."
+  - name: technical-full-set-saved-voice-question
+    inputs:
+      set_type: technical
+      library: "Bakery assistant. Weighed ingredients using a digital scale. Followed recipe cards. Checked oven temperature and product appearance. Recorded batch details. Helped label stored ingredients."
+      excluded:
+        - "Walk me through weighing ingredients using a digital scale."
+  - name: knowledge-full-set-saved-preferences
+    inputs:
+      set_type: knowledge
+      library: "Skills: Python and PostgreSQL."
+      excluded:
+        - "What is the difference between a Python list and a tuple?"
+        - "How does Python's name binding relate to mutable objects?"
+  - name: general-full-set-specific-background-angle
+    inputs:
+      library: "Customer support specialist for four years. Previously volunteered at a community book exchange. Created a shared onboarding checklist with two colleagues. Wants to move into training."
+      excluded:
+        - "What first interested you in customer support?"

@@ -21,7 +21,8 @@ application stages, and deleted.
   "Try another ad"
 - `JobBoardImportNotice.tsx` — displays import warnings from navigation state only for the matching saved Job
 - `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
-  card (`features/gap-analysis/`, including gap responses), and `WriteResumeAction.tsx`.
+  card (`features/gap-analysis/`, including gap responses), remembered Study guides section
+  (`features/study-guides/`), and `WriteResumeAction.tsx`.
   "Write resume" is disabled while a comparison is starting or active. Otherwise it goes
   to `/jobs/:id/tailor`. A finished comparison goes
   straight there. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first, and

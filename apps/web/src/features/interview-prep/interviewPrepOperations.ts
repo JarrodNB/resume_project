@@ -17,7 +17,7 @@ export const INTERVIEW_SET_QUERY = graphql(`
     interviewQuestionSet(id: $id) {
       id number setType createdAt
       latestTask { id status errorMessage result }
-      questions { id position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
+      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }
     }
   }
 `)
@@ -53,6 +53,14 @@ export const REGENERATE_INTERVIEW_QUESTION = graphql(`
   mutation RegenerateInterviewQuestion($questionSetId: ID!, $questionId: ID!, $confirmed: Boolean!) {
     regenerateInterviewQuestion(input: { questionSetId: $questionSetId, questionId: $questionId, confirmed: $confirmed }) {
       errors aiTask { id status taskType errorMessage }
+    }
+  }
+`)
+
+export const AVOID_INTERVIEW_QUESTION = graphql(`
+  mutation AvoidInterviewQuestion($questionSetId: ID!, $questionId: ID!, $expectedRevision: Int!) {
+    avoidInterviewQuestion(input: {questionSetId: $questionSetId, questionId: $questionId, expectedRevision: $expectedRevision}) {
+      saved errors
     }
   }
 `)

@@ -8,7 +8,7 @@ import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
-import { REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
+import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
@@ -1121,4 +1121,32 @@ it('uses supported defaults when repeating a legacy setup', async () => {
   expect(screen.getByRole('radio', { name: /Daniel/ })).toBeChecked()
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: ['leadership'] })
+})
+
+it('saves the visible follow-up after retry while preserving text and recording', async () => {
+  state.interview = { ...snapshot, messages: [...snapshot.messages, { ...snapshot.messages[0], id: 'follow-up', position: 2, kind: 'follow_up', content: 'What changed afterward?', avoided: false }] }
+  recorder.recording = new Blob(['saved audio'])
+  recorder.status = 'ready'
+  const request = { query: AVOID_INTERVIEW_PROMPT, variables: { interviewId: 'session', messageId: 'follow-up' } }
+  renderInterview('/interviews/session', [
+    { request, result: { data: { avoidInterviewPrompt: { __typename: 'AvoidInterviewPromptPayload', saved: false, errors: ['Try saving again.'] } } } },
+    { request, result: { data: { avoidInterviewPrompt: { __typename: 'AvoidInterviewPromptPayload', saved: true, errors: [] } } } },
+  ])
+  const editor = screen.getByRole('textbox', { name: /answer/i })
+  fireEvent.change(editor, { target: { value: 'My unsaved answer.' } })
+  await userEvent.click(screen.getByRole('button', { name: "Don't see this again" }))
+  expect(await screen.findByText('Try saving again.')).toBeVisible()
+  await userEvent.click(screen.getByRole('button', { name: "Don't see this again" }))
+  expect(await screen.findByRole('button', { name: 'Question avoided' })).toBeDisabled()
+  expect(editor).toHaveValue('My unsaved answer.')
+  expect(recorder.recording).not.toBeNull()
+  expect(state.skipQuestion).not.toHaveBeenCalled()
+  expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('What changed afterward?')).toBeVisible()
+})
+
+it('restores a saved prompt preference without changing the current question', () => {
+  state.interview = { ...snapshot, messages: [{ ...snapshot.messages[0], avoided: true }] }
+  renderInterview()
+  expect(screen.getByRole('button', { name: 'Question avoided' })).toBeDisabled()
+  expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
 })

@@ -1,5 +1,5 @@
 /**
- * Description: Persistent typed answer draft, explicit saving, feedback, and confirmed replacement.
+ * Description: Persistent answers, feedback, replacement, and saved question avoidance.
  * Index: InterviewQuestionCard
  */
 import { useEffect, useState } from 'react'
@@ -15,9 +15,12 @@ import { InterviewFeedback } from './InterviewFeedback'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { useInterviewAnswer } from './useInterviewAnswer'
 
+import { useQuestionAvoidance } from './useQuestionAvoidance'
+
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
 /** Keeps drafts and subscriptions alive even when a question's section is collapsed. */
 export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
+  const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
   const [submittedEdits, setSubmittedEdits] = useState<number | null>(null)
   const [answer, setAnswer] = useState(question.answerText)
@@ -69,6 +72,13 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { q
     {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
     <SectionCard tone="facts" title={`Question ${question.position}`} sectionId={`interview.${setId}.${question.id}`}>
       <p className="mb-4 whitespace-pre-wrap">{question.questionText}</p>
+      <div className="mb-4 grid justify-items-start gap-2">
+        <Button variant="outline" disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onClick={() => void avoidance.save()}>
+          {avoidance.saved ? 'Question avoided' : avoidance.saving ? 'Saving preference…' : "Don't see this again"}
+        </Button>
+        {avoidance.saved && <p role="status" className="text-sm text-muted-foreground">Saved — future interviews will avoid this question.</p>}
+        <ErrorAlert title="Couldn't save preference" messages={avoidance.errors} />
+      </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="grid min-w-0 content-start gap-3">
           <label htmlFor={`answer-${question.id}`} className="font-medium">Your answer</label>

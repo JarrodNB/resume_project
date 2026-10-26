@@ -41,7 +41,7 @@ class RerankListingsInput(BaseModel):
         if len(ids) != len(set(ids)):
             raise ValueError("Listing IDs must be unique")
         if (
-            len(json.dumps(self.model_dump(mode="json"), ensure_ascii=False).encode("utf-8"))
+            len(json.dumps(self.model_dump(mode="json"), ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
             > 200000
         ):
             raise ValueError("Reranking snapshot is too large")

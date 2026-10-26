@@ -241,3 +241,20 @@ def test_post_embedding_token_cap_retains_known_cost(monkeypatch, task_dependenc
         )
     assert len(usage.entries) == 1 and usage.entries[0].input_tokens > 1
     assert not usage.incomplete
+
+
+def test_input_byte_limit_matches_compact_rails_queue_encoding():
+    """Whitespace added by Python serialization must not reject a valid Rails snapshot."""
+    import json
+
+    payload = {
+        "keyword": "engineer",
+        "listings": [
+            {"id": str(uuid4()), "text": "x" * 836 + "\n" * 554}
+            for _ in range(100)
+        ],
+    }
+    payload["listings"][-1]["text"] = payload["listings"][-1]["text"][36:]
+    assert len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode()) == 199999
+    assert len(json.dumps(payload, ensure_ascii=False).encode()) > 200000
+    assert len(RerankListingsInput.model_validate(payload).listings) == 100

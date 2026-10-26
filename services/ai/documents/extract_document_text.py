@@ -7,7 +7,7 @@ Malformed link destinations remain source text without aborting extraction.
 PDF annotation arrays and link actions may be indirect or explicitly absent via null.
 Missing DOCX styles still allow plain-text extraction.
 Explicitly removed DOCX numbering does not create a list marker.
-Known PDF and DOCX container read errors become the caller's unreadable-file error.
+Known PDF and DOCX container or XML read errors become the caller's unreadable-file error.
 """
 
 from io import BytesIO
@@ -19,6 +19,7 @@ from zipfile import BadZipFile
 from docx import Document
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
+from lxml.etree import XMLSyntaxError
 from pypdf import PdfReader
 from pypdf.errors import PdfReadError
 from pypdf.generic import NullObject
@@ -47,7 +48,7 @@ def extract_document_text(file_bytes: bytes, content_type: str) -> str:
             text = _extract_docx_text(file_bytes)
         else:
             raise UnsupportedDocumentError(f"Unsupported file type: {content_type}")
-    except (PdfReadError, BadZipFile):
+    except (PdfReadError, BadZipFile, XMLSyntaxError):
         raise UnsupportedDocumentError("The file's document container could not be read") from None
 
     if len(text) > MAX_RESUME_TEXT:

@@ -157,3 +157,9 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   add overlap validation or retries.
 
 - `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.
+
+- `rerank_job_listings_handler.py` — optional loaded-listing reranking. Embeds the bounded
+  Rails-owned excerpt batch once through Pydantic AI, reuses the owner/model-scoped
+  stored library vectors through an injected scorer, and returns ranked IDs. No generative
+  prompts or seniority inference. Embedding requests have deadline/request/token limits,
+  known charges and incomplete-usage accounting; missing indexed evidence fails clearly.

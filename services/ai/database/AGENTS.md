@@ -45,3 +45,7 @@ definitely expired. `schemas/certification_dates.py` centralizes
 formatting and expiry boundaries; tailoring prompts accept an injectable `today`.
 
 - `career_library_reader.py` also exposes `read_career_library` / `build_database_library_reader` for job-independent, user-scoped snapshots; gap analysis shares the same row reader.
+
+- `job_listing_similarity.py` — one read-only lateral query averages each listing vector’s
+  three nearest library similarities, scoped by task user and configured model. Its
+  production builder bounds connection/statement deadlines; it never reads the catalogue.

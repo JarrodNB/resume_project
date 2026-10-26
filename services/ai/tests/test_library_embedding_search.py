@@ -211,3 +211,45 @@ def test_returns_empty_for_a_type_without_entries(
         )
         == []
     )
+
+
+def test_listing_similarity_uses_only_task_owner_and_model(admin_connection):
+    """Ranking jobs never uses another account's vectors or a mismatched embedding model."""
+    from database.job_listing_similarity import score_job_listing_vectors
+
+    user_id = _insert_user(admin_connection)
+    other_id = _insert_user(admin_connection)
+    _insert_embedding(admin_connection, user_id, "Mine", _axis_vector(2))
+    _insert_embedding(admin_connection, other_id, "Theirs", _axis_vector(1))
+    _insert_embedding(admin_connection, user_id, "Wrong model", _axis_vector(1), model="another-model")
+    candidates = [("first", _axis_vector(1)), ("second", _axis_vector(2))]
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+
+    scores = dict(score_job_listing_vectors(admin_connection, user_id, candidates, f"openai:{MODEL}"))
+    assert set(scores) == {"first", "second"}
+    assert scores["second"] > .99
+    assert scores["first"] < .1
+
+
+def test_listing_similarity_averages_three_nearest_entries(admin_connection):
+    """A fourth distant library entry does not dilute the top-three score."""
+    from database.job_listing_similarity import score_job_listing_vectors
+
+    user_id = _insert_user(admin_connection)
+    for axis in [1, 1, 1, 2]:
+        _insert_embedding(admin_connection, user_id, "Synthetic skill", _axis_vector(axis))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    rows = score_job_listing_vectors(admin_connection, user_id, [("role", _axis_vector(1))], MODEL)
+    assert rows[0][0] == "role"
+    assert rows[0][1] > .99
+
+
+def test_listing_similarity_returns_empty_without_owned_vectors(admin_connection):
+    """An empty library has no implicit cross-user fallback."""
+    from database.job_listing_similarity import score_job_listing_vectors
+
+    user_id = _insert_user(admin_connection)
+    other_id = _insert_user(admin_connection)
+    _insert_embedding(admin_connection, other_id, "Other skill", _axis_vector(1))
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    assert score_job_listing_vectors(admin_connection, user_id, [("role", _axis_vector(1))], MODEL) == []

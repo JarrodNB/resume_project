@@ -23,7 +23,7 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   See docs/architecture/interview-sessions.md for the boundary and staged implementation.
   The database connection uses the read-only `ai_reader` role (career library and jobs for gap
   analysis; career library embeddings for memory retrieval); never attempt writes. Rails writes
-  the embeddings; the worker only embeds search queries. Every query is scoped by the task
+  the embeddings; the worker embeds search queries and bounded job-listing excerpts for optional reranking. Every query is scoped by the task
   message's `user_id`, and SQL lives only in `database/`. Rails grants the role its tables
   (`lib/ai_reader_access.rb`); a new table needs a grant there. Queued-task uploaded files are read (never written) from the S3 uploads bucket by
   their Active Storage blob key.

@@ -68,3 +68,17 @@ def test_nested_breaks_keep_inline_punctuation_and_links() -> None:
         '<p>Use <span><em>Python</em></span></p>'
         '<p><span><em><a href="https://example.com">SQL</a></em></span>, daily.</p>'
     )
+
+
+def test_outer_bold_wrapper_does_not_hide_preferred_heading() -> None:
+    """A heading inside surrounding bold markup still separates optional skills."""
+    html = linkedin_description_to_html(
+        "<h3>Requirements</h3><ul><li>Python</li></ul>"
+        "<strong><div><b>Preferred Qualifications</b></div></strong>"
+        "<ul><li>Go</li></ul>"
+    )
+
+    sections = split_description_sections(html)
+
+    assert sections.requirements == ["Python"]
+    assert sections.nice_to_haves == ["Go"]

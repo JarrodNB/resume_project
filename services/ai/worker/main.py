@@ -24,6 +24,7 @@ from database.career_library_reader import (
     build_database_context_reader,
     build_database_library_reader,
 )
+from database.job_listing_similarity import build_job_listing_scorer
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
 from worker.contact_mask import using_known_contact
@@ -187,6 +188,7 @@ def run_worker() -> None:
         http_client=build_http_client(settings),
         read_gap_analysis_context=build_database_context_reader(settings),
         read_career_library=build_database_library_reader(settings),
+        score_job_listings=build_job_listing_scorer(settings),
     )
 
     stop_requested = False

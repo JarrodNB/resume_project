@@ -16,6 +16,7 @@ from worker.library_review_handler import handle_library_review_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
 from worker.parse_resume_handler import handle_parse_resume_task
 from worker.queue_messages import AiResultMessage, AiTaskMessage, TaskType
+from worker.rerank_job_listings_handler import handle_rerank_job_listings_task
 from worker.scrape_job_handler import handle_scrape_job_task
 from worker.study_guide_handler import handle_study_guide_task
 from worker.tailor_resume_handler import handle_tailor_resume_task
@@ -24,6 +25,7 @@ from worker.task_dependencies import TaskDependencies
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
+    "rerank_job_listings": handle_rerank_job_listings_task,
     "generate_study_guide": handle_study_guide_task,
     "improve_library_entry": handle_library_edit_task,
     "review_library_section": handle_library_review_task,

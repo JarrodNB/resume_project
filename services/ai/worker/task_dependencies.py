@@ -8,7 +8,7 @@ Index:
     - build_http_client: the HTTP client job scrapers fetch pages with
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -40,6 +40,7 @@ class TaskDependencies:
     # Called with (user_id, job_id); production reads Postgres as ai_reader.
     read_gap_analysis_context: GapAnalysisContextReader
     read_career_library: Callable[[UUID], CareerLibrary] | None = None
+    score_job_listings: Callable[[UUID, Sequence[tuple[str, list[float]]], str], list[tuple[str, float]]] | None = None
 
 
 def build_http_client(settings: WorkerSettings) -> httpx.Client:

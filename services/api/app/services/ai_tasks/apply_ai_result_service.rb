@@ -63,13 +63,8 @@ module AiTasks
     # All result writes acquire the owner first. This preserves domain lock ordering and
     # serializes the outcome cursor through commit for reconnect recovery.
     def with_result_lock(ai_task, &block)
-      if ai_task.interview_clarification? || ai_task.interview_references?
-        ai_task.user.with_lock do
-          interview = ai_task.user.interview_sessions.find_by(id: ai_task.subject_id)
-          interview&.lock!
-          (ai_task.interview_references? ? interview&.career_references : interview&.clarifications)&.find_by(ai_task_id: ai_task.id)&.lock!
-          ai_task.with_lock(&block)
-        end
+      if (prompt_work = Interviews::CurrentPromptWork.for_task(ai_task))
+        prompt_work.with_result_lock(ai_task: ai_task, &block)
       else
         ai_task.user.with_lock { ai_task.with_lock(&block) }
       end
@@ -105,12 +100,8 @@ module AiTasks
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
       end
-      if ai_task.interview_references?
-        result = Interviews::ApplyReferencesService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
-      end
-      if ai_task.interview_clarification?
-        result = Interviews::ApplyClarificationService.call(ai_task: ai_task, result: @message["result"])
+      if (prompt_work = Interviews::CurrentPromptWork.for_task(ai_task))
+        result = prompt_work.apply(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
       end
       if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?

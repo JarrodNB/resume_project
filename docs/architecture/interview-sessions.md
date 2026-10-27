@@ -818,6 +818,10 @@ modes migrate to the reviewed editor.
 
 ## Question clarification
 
+Rails coordinates clarification and career-reference tasks in `Interviews::CurrentPromptWork`.
+Its `Clarification` and `References` adapters share locking, admission, retries and publication
+recovery while keeping payloads, allowances and result validation feature-specific.
+
 `requestInterviewClarification` authorizes an owned active real-mode session and its exact latest
 saved opening/follow-up message. It creates one `InterviewClarification` per message.
 Only `message.content` enters its SQS payload, alongside the clarification identity;
@@ -834,6 +838,10 @@ environment before enabling clarification. A blank secret fails without provider
 Deploy the migration/API and compatible queue worker together; schema fields require
 regenerating the web client. Existing saved sessions and interview-runtime operations
 keep their contracts.
+
+Clarification rejects an already-claimed delivery before rechecking availability, so a
+fresh request finalizes expired claimed work. References check availability first, allowing
+redelivery itself to finalize obsolete work before the duplicate-claim guard.
 
 One logical record has at most two explicitly requested task attempts. Queue duplicates
 cannot claim an attempt twice. Each task has a three-minute deadline; the UI uses a local

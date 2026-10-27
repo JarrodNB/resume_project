@@ -8,7 +8,7 @@ module Mutations
       field :clarification, Types::InterviewClarificationType, null: true
 
       def resolve(interview_id:, **args)
-        result = ::Interviews::RequestClarificationService.call(interview: interview(interview_id), **args)
+        result = ::Interviews::CurrentPromptWork::Clarification.new.request(interview: interview(interview_id), **args)
         { clarification: result.success? ? result.value : nil, errors: result.errors }
       end
     end

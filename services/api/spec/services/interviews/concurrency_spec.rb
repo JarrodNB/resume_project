@@ -49,6 +49,36 @@ RSpec.describe "Basic Interview concurrency" do
       question_id: @question.id, recording_id: @recording_id, expected_revision: 0, submission_key: key)
   end
 
+  [
+    [ Interviews::CurrentPromptWork::Clarification, :clarifications, { "explanation" => "Describe how you solved a problem." } ],
+    [ Interviews::CurrentPromptWork::References, :career_references, { "references" => [] } ]
+  ].each do |feature, association, output|
+    it "requests, claims and accepts #{association} once across independent connections" do
+      @interview.destroy!
+      @interview = Interviews::CreateFixtureService.call(user: @user, execution_mode: "real").value
+      queue = double(send_message: true)
+      allow(Shoryuken::Client).to receive(:queues).and_return(queue)
+      prompt = @interview.messages.first
+      requested = race do
+        feature.new.request(interview: @user.interview_sessions.find(@interview.id), message_id: prompt.id)
+      end
+      expect(requested).to all(be_success)
+      expect(requested.map { |result| result.value.id }.uniq.size).to eq(1)
+      expect(queue).to have_received(:send_message).once
+      record = @interview.public_send(association).sole
+      task = record.ai_task
+      claimed = race { feature.new.claim(ai_task: @user.ai_tasks.find(task.id)) }
+      expect(claimed.count { |result| result.value[:allowed] }).to eq(1)
+      message = { "ai_task_id" => task.id, "status" => "completed", "result" => output,
+        "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 17 } ] }
+      expect(race { AiTasks::ApplyAiResultService.call(message: message) }).to all(be_success)
+      expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 17)
+      expect(task.ai_task_outcomes.pluck(:status)).to eq([ "completed" ])
+      expect(record.reload.attempt_count).to eq(1)
+      expect(record.attributes.slice(*output.keys)).to eq(output)
+    end
+  end
+
   it "serializes competing skip keys without consuming another question" do
     results = race do |index|
       Interviews::SkipQuestionService.call(interview: @user.interview_sessions.find(@interview.id),

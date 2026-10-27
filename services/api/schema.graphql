@@ -2342,6 +2342,11 @@ type Query {
   recentInterviewSessions: [InterviewSession!]!
   resume(id: ID!): Resume!
   resumes: [Resume!]!
+
+  """
+  The signed-in user's AI work still in progress, newest first (live interview work excluded).
+  """
+  runningAiTasks: [RunningAiTask!]!
   skills: [Skill!]!
   taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
   unfinishedInterviewSession: InterviewSession
@@ -2640,6 +2645,28 @@ type ReviewLibrarySectionPayload {
   Validation or business-rule errors; empty on success.
   """
   errors: [String!]!
+}
+
+"""
+AI work still in progress, with a safe label and the page that shows it.
+"""
+type RunningAiTask {
+  """
+  The app path that shows this work's progress or result.
+  """
+  destination: String!
+  id: ID!
+
+  """
+  Short safe words naming the work, with the job title for job work.
+  """
+  label: String!
+  startedAt: ISO8601DateTime!
+
+  """
+  The kind of AI work.
+  """
+  taskType: AiTaskTypeEnum!
 }
 
 """

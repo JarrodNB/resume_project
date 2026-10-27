@@ -1,5 +1,6 @@
 # Gives an outcome a short safe label and an owned app destination. Destinations are
 # resolved at delivery/read time so deleted jobs, sets and interviews lead to an overview.
+# `destination_for` is shared with ListRunningTasksService, which links work still in progress.
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
@@ -15,32 +16,40 @@ module AiTasks
     # Which job workspace tab shows each job task's result; gap analysis opens the default Fit tab.
     JOB_TABS = { "analyze_gaps" => "", "tailor_resume" => "/resume", "generate_study_guide" => "/study" }.freeze
 
-    def initialize(outcome:)
+    # The owned page for a task's work. `status` is the outcome status, or "queued" for work
+    # still running (a running job import opens its progress page, like a failed one).
+    def self.destination_for(task:, user:, status:)
+      new(task: task, user: user, status: status).send(:destination)
+    end
+
+    def initialize(outcome: nil, task: nil, user: nil, status: nil)
       @outcome = outcome
-      @task = outcome.ai_task
-      @user = outcome.user
+      @task = outcome&.ai_task || task
+      @user = outcome&.user || user
+      @task_type = outcome&.task_type || task.task_type
+      @status = outcome&.status || status
     end
 
     def call
-      label = LABELS.fetch(@outcome.task_type, "AI task")
-      success({ title: "#{label} #{@outcome.status == 'completed' ? 'completed' : 'failed'}", destination: destination })
+      label = LABELS.fetch(@task_type, "AI task")
+      success({ title: "#{label} #{@status == 'completed' ? 'completed' : 'failed'}", destination: destination })
     end
 
     private
 
     def destination
-      case @outcome.task_type
+      case @task_type
       when "rerank_job_listings"
         "/jobs/find"
       when "parse_resume"
         "/library/import/#{@task.id}"
       when "scrape_job", "parse_job_posting"
         job = owned_subject("Job", @user.jobs)
-        return job ? "/jobs/#{job.id}" : "/jobs" if @outcome.status == "completed"
-        @outcome.task_type == "scrape_job" ? "/jobs/new/#{@task.id}" : "/jobs/paste/#{@task.id}"
+        return job ? "/jobs/#{job.id}" : "/jobs" if @status == "completed"
+        @task_type == "scrape_job" ? "/jobs/new/#{@task.id}" : "/jobs/paste/#{@task.id}"
       when "analyze_gaps", "tailor_resume", "generate_study_guide"
         job = owned_subject("Job", @user.jobs)
-        job ? "/jobs/#{job.id}#{JOB_TABS[@outcome.task_type]}" : "/jobs"
+        job ? "/jobs/#{job.id}#{JOB_TABS[@task_type]}" : "/jobs"
       when "generate_interview_questions", "regenerate_interview_question", "review_interview_answer"
         set = if @task.subject_type == "InterviewQuestionSet"
           @user.interview_question_sets.find_by(id: @task.subject_id)

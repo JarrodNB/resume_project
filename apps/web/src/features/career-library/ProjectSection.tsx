@@ -25,7 +25,7 @@ export function ProjectSection({ projects }: { projects: Project[] }) {
   return (
     <>
       <LibrarySection sectionId="library.projects" tone="projects" title="Projects" count={projects.length} emptyText="No projects yet." addLabel="Add project" onAdd={() => setEditing('new')}
-        reviewActions={<LibrarySectionReview section="projects" />}>
+        reviewActions={<LibrarySectionReview section="projects" />} reviewSection="projects">
 
         {projects.map((project, index) => (
           <LibraryEntry

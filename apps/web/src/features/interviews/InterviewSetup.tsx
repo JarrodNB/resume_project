@@ -45,7 +45,7 @@ export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNod
     try {
       const setup = { questionCount, questionFormat, difficulty, interviewer, focusAreas }
       const id = job ? await start('', setup, job.id) : await start('', setup)
-      if (id) await navigate(`/interviews/${id}`)
+      if (id) await navigate(`/practice/interviews/${id}`)
       else if (job) await recovery.refresh()
     } finally { submitting.current = false; setPending(false) }
   }

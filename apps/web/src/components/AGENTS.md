@@ -6,10 +6,16 @@ Shared UI used by more than one feature.
 
 ## Contents
 
-- `AppLayout.tsx` — signed-in layout: fixed desktop navigation spine; sticky compact header with
-  horizontally scrollable navigation below 900px, theme/account actions, location bar, and routed page.
-  Job Board is shared listing discovery; Jobs is the private saved list
-- `ThemeToggle.tsx` — light/dark switch (uses `lib/colorTheme.ts`)
+- `AppLayout.tsx` — signed-in layout: fixed desktop sidebar with the three sections and the
+  account menu; a top bar with the current section's tabs and the task bell; and the routed page.
+  Below 900px the sidebar becomes a sticky header and the tab row scrolls sideways
+- `workspaceSections.ts` — the sections (Jobs, Library, Practice) and their tabs. A page selects
+  the tab whose path is its longest prefix (`/jobs/42/tailor` → Saved jobs). Find jobs is shared
+  listing discovery; Saved jobs is the private list
+- `AccountMenu.tsx` — account dropdown: email label, Account security link, light/dark switch
+  (uses `lib/colorTheme.ts`), and Sign out
+- `RedirectToPath.tsx` — route element that keeps old bookmarks working by redirecting to the new
+  path, carrying route params along
 - `ErrorAlert.tsx` — destructive alert listing error messages; renders nothing when empty
 - `TransientAlert.tsx` — shared dismiss button and eight-second timeout; ErrorAlert opts in with a notification id.
 - `ErrorAlert.test.tsx` — task-notification dismissal, timeout, and retry regression coverage.

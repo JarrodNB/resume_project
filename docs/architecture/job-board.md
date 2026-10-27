@@ -1,6 +1,6 @@
 # Job Board
 
-Job Board (`/job-board`) lets signed-in users search US-confirmed opportunities by
+Job Board (the Find jobs tab at `/jobs/find`) lets signed-in users search US-confirmed opportunities by
 keyword, date posted (24 hours, 7 days, or 30 days), a resolved US city or state,
 employment types, remote arrangement, company name, minimum salary, and experience
 levels (Entry, Mid, Senior, Executive). Newest is the default order; Most relevant

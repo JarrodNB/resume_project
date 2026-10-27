@@ -18,7 +18,7 @@ function mount(available = true, historyState?: unknown) {
   return renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview', historyState, element: <JobInterviewSetupPage />,
     mocks: [available ? { request, result: { data: { job } } } : { request, result: { errors: [new GraphQLError('Record not found')] } },
       { request: { query: UNFINISHED_INTERVIEW }, result: { data: { unfinishedInterviewSession: null } } }],
-    extraRoutes: [{ path: '/interviews/:id', element: <p>Saved preparation</p> }, { path: '/jobs', element: <p>My jobs</p> }],
+    extraRoutes: [{ path: '/practice/interviews/:id', element: <p>Saved preparation</p> }, { path: '/jobs', element: <p>My jobs</p> }],
   })
 }
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); start.mockResolvedValue('session') })

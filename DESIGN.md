@@ -155,13 +155,13 @@ Section accents remain distinct on icons; section backgrounds are quiet card sur
 
 ## Typography
 
-Geist Variable with a sans-serif fallback serves every role. Page headings use the headline token; auth introductions use display. Supporting page copy uses the body token with a maximum measure of 65ch. Navigation is 14px, reducing to 13px on compact layouts; group labels are 12px. Section titles are 16px at medium weight. Desktop auth headings step down to 2.5rem below 1200px and 2rem below 600px; page headings step down to 1.75rem below 900px.
+Geist Variable with a sans-serif fallback serves every role. Page headings use the headline token; auth introductions use display. Supporting page copy uses the body token with a maximum measure of 65ch. Navigation and top-bar tabs are 14px; navigation reduces to 13px on compact layouts. Section titles are 16px at medium weight. Desktop auth headings step down to 2.5rem below 1200px and 2rem below 600px; page headings step down to 1.75rem below 900px.
 
 ## Layout
 
-Above 899px, a fixed navigation spine is 238px wide, with a matching body offset. Its content can scroll vertically. The top bar is 76px tall. Workspace content is centered within 1440px, with 48px top, 44px horizontal, and 80px bottom padding. Standard narrow page wrappers expand to 1040px.
+Above 899px, a fixed navigation spine is 238px wide, with a matching body offset. Its content can scroll vertically. It holds three sections (Jobs, Library, Practice) and an account menu at its foot. The top bar is 76px tall and shows the current section's tabs, with the task bell at its right. Workspace content is centered within 1440px, with 48px top, 44px horizontal, and 80px bottom padding. Standard narrow page wrappers expand to 1040px.
 
-Below 1200px, content padding becomes 36px 28px 64px. Below 900px, navigation becomes a sticky compact header with a horizontally scrollable row; route changes bring the active item into view. The body offset disappears, the top bar becomes 52px, and content padding is 32px 24px 64px. Below 600px, content padding is 28px 16px 48px and heading actions occupy their own row.
+Below 1200px, content padding becomes 36px 28px 64px. Below 900px, navigation becomes a sticky compact header with the three sections in one row and the account menu at the top right. The tab row scrolls sideways, and route changes bring the active tab into view. The body offset disappears, the top bar becomes 52px, and content padding is 32px 24px 64px. Below 600px, content padding is 28px 16px 48px and heading actions occupy their own row.
 
 Authentication uses equal columns, with a 360px-wide form. Below 600px it stacks; the workflow list and caption hide. The library uses 12px between sections. Above 899px, saved records sit beside a sticky AI dock (300–354px wide), with a 28px gap. At 899px and below, records use one column and AI work opens in a full-screen modal dialog. Record rows use 24px vertical padding, reducing to 20px on small screens.
 
@@ -185,7 +185,7 @@ Password visibility sits inside the field as a quiet 44px touch target. Account-
 
 Account emails use the same paper, forest, and ruled separators in a fluid 520px layout with inline styles and system sans-serif fallbacks for email clients. One green action leads each email; expiry and ignore instructions sit below. Verification shows only the active task; signup reveals resend help on request. Completed verification and password recovery offer a prominent sign-in action.
 
-Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Below 600px, workspace fields use 16px text so phones do not zoom into them. Account actions wrap rather than overflow the navigation spine. Public password recovery retains the authentication layout.
+Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Below 600px, workspace fields use 16px text so phones do not zoom into them. Account actions (the account email, an Account security link, the theme switch, and Sign out) live in the account menu, so they never crowd the navigation spine. Public password recovery retains the authentication layout.
 
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
 
@@ -204,7 +204,7 @@ is the primary action; further revision is secondary. Generation and acceptance 
 span the AI panel width, with skip and discard actions below. Closing preserves the server-owned
 draft and returns keyboard focus to its source opener.
 
-Navigation pairs simple line icons with text. The selected item uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Preserve the skip link, semantic navigation, visible focus, and related-route selection.
+Navigation pairs simple line icons with text. The selected section uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Section tabs in the top bar are plain text; the active tab is semibold with a 2px primary underline. A detail page selects the tab whose path is its longest prefix, and account security shows an "Account" label instead of tabs. Preserve the skip link, semantic navigation, visible focus, and related-route selection.
 
 Task notifications live in a bell at the right of the workspace top bar. Its forest count
 shows unread outcomes and clears when the inbox opens. A right-aligned popover uses one

@@ -19,7 +19,7 @@ export function InterviewStartRecovery({ recovery, busy, failedStart }: {
       </div>
       <p className="max-w-prose text-sm text-muted-foreground">Resume it, or end it before preparing for this job. Your choices below will stay here.</p>
       <div className="flex flex-wrap items-center gap-3">
-        <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`}>Resume interview</Link>
+        <Link className="text-sm underline underline-offset-4" to={`/practice/interviews/${interview.id}`}>Resume interview</Link>
         <AbandonInterviewButton beforeStart={interview.status !== 'active'} busy={busy || recovery.busy || recovery.checking}
           dirty={false} error={recovery.error} abandon={recovery.abandon} onAbandoned={() => {}} />
       </div>

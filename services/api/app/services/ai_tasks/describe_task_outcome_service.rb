@@ -28,9 +28,9 @@ module AiTasks
     def destination
       case @outcome.task_type
       when "rerank_job_listings"
-        "/job-board"
+        "/jobs/find"
       when "parse_resume"
-        "/import/#{@task.id}"
+        "/library/import/#{@task.id}"
       when "scrape_job", "parse_job_posting"
         job = owned_subject("Job", @user.jobs)
         return job ? "/jobs/#{job.id}" : "/jobs" if @outcome.status == "completed"
@@ -44,10 +44,10 @@ module AiTasks
         elsif @task.subject_type == "InterviewQuestion"
           @user.interview_question_sets.joins(:questions).find_by(interview_questions: { id: @task.subject_id })
         end
-        set ? "/interview-prep/#{set.id}" : "/interview-prep"
+        set ? "/practice/questions/#{set.id}" : "/practice/questions"
       when *AiTask::SPOKEN_INTERVIEW_TASK_TYPES
         interview = owned_subject("InterviewSession", @user.interview_sessions)
-        interview && interview.expires_at > Time.current && !%w[expired abandoned].include?(interview.status) ? "/interviews/#{interview.id}" : "/interviews"
+        interview && interview.expires_at > Time.current && !%w[expired abandoned].include?(interview.status) ? "/practice/interviews/#{interview.id}" : "/practice/interviews"
       else
         "/library"
       end

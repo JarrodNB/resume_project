@@ -595,10 +595,11 @@ nothing; delivery failure leaves durable state available through query/reconnect
 notifications can describe the same revision, so clients reconcile snapshots by session
 identity and reload when connection delivery is uncertain.
 
-The React entrypoint is `/interviews` (and `/interviews/:id` for reloads).
+The React entrypoint is `/practice/interviews` (and `/practice/interviews/:id` for reloads); old
+`/interviews` links redirect there.
 The normal Compose stack starts the real runtime with credentials from the ignored
 `services/ai/.env` and a shared private service secret from the ignored root `.env`.
-Written practice remains at `/interview-prep`.
+Written practice lives at `/practice/questions`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
 The active room keeps the original main question visible while showing the latest follow-up

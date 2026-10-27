@@ -1,10 +1,12 @@
 /**
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
- *   - appRoutes: public auth pages, then signed-in pages inside AppLayout, including shared Job Board discovery
+ *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Jobs, Library, and Practice,
+ *     plus redirects that keep old bookmarks (`/job-board`, `/import`, `/interview-prep`, `/interviews`) working
  */
 import { Navigate, type RouteObject } from 'react-router'
 import { AppLayout } from '@/components/AppLayout'
+import { RedirectToPath } from '@/components/RedirectToPath'
 import { RequireAuth, RequireSignedOut } from '@/features/auth/RequireAuth'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { SignUpPage } from '@/features/auth/SignUpPage'
@@ -25,7 +27,6 @@ import { ResumePage } from '@/features/resumes/ResumePage'
 import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
 import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
-import { LegacyInterviewRedirect } from '@/features/interviews/LegacyInterviewRedirect'
 import { InterviewPage } from '@/features/interviews/InterviewPage'
 import { JobInterviewSetupPage } from '@/features/interviews/JobInterviewSetupPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
@@ -49,12 +50,12 @@ export const appRoutes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/account/security', element: <PasswordUpdatePage change /> },
-          { index: true, element: <Navigate to="/library" replace /> },
+          { index: true, element: <Navigate to="/jobs" replace /> },
           { path: '/library', element: <CareerLibraryPage /> },
-          { path: '/import', element: <ResumeUploadPage /> },
-          { path: '/import/:aiTaskId', element: <ResumeImportTaskPage /> },
-          { path: '/job-board', element: <JobBoardPage /> },
+          { path: '/library/import', element: <ResumeUploadPage /> },
+          { path: '/library/import/:aiTaskId', element: <ResumeImportTaskPage /> },
           { path: '/jobs', element: <JobsPage /> },
+          { path: '/jobs/find', element: <JobBoardPage /> },
           { path: '/jobs/new', element: <AddJobFromUrlPage /> },
           { path: '/jobs/new/:aiTaskId', element: <JobScrapeTaskPage /> },
           { path: '/jobs/paste', element: <AddJobFromTextPage /> },
@@ -62,12 +63,17 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/:id/tailor', element: <TailorResumePage /> },
           { path: '/jobs/:jobId/interview', element: <JobInterviewSetupPage /> },
           { path: '/jobs/:id', element: <JobDetailPage /> },
-          { path: '/interviews/demo/:id?', element: <LegacyInterviewRedirect /> },
-          { path: '/interviews/:id?', element: <InterviewPage /> },
-          { path: '/interview-prep', element: <InterviewPrepPage /> },
-          { path: '/interview-prep/:id', element: <InterviewSetPage /> },
+          { path: '/practice', element: <Navigate to="/practice/questions" replace /> },
+          { path: '/practice/questions', element: <InterviewPrepPage /> },
+          { path: '/practice/questions/:id', element: <InterviewSetPage /> },
+          { path: '/practice/interviews/:id?', element: <InterviewPage /> },
           { path: '/resumes', element: <ResumesPage /> },
           { path: '/resumes/:id', element: <ResumePage /> },
+          { path: '/job-board', element: <RedirectToPath to="/jobs/find" /> },
+          { path: '/import/:aiTaskId?', element: <RedirectToPath to="/library/import/:aiTaskId?" /> },
+          { path: '/interview-prep/:id?', element: <RedirectToPath to="/practice/questions/:id?" /> },
+          { path: '/interviews/demo/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
+          { path: '/interviews/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
         ],
       },
     ],

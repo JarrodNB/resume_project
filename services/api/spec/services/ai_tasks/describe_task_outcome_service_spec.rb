@@ -64,4 +64,12 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     end
   end
 
+  it "links search, resume import, and practice results to their current web pages" do
+    user = create(:user)
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "rerank_job_listings"))[:destination]).to eq("/jobs/find")
+    import_task = create(:ai_task, user: user, task_type: "parse_resume")
+    expect(describe_outcome(import_task)[:destination]).to eq("/library/import/#{import_task.id}")
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "generate_interview_questions"))[:destination]).to eq("/practice/questions")
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "interview_turn"))[:destination]).to eq("/practice/interviews")
+  end
 end

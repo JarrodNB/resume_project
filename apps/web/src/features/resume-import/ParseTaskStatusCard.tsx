@@ -39,7 +39,7 @@ export function ParseTaskStatusCard({ status, errorMessage }: ParseTaskStatusCar
               body={errorMessage ?? 'Something went wrong while parsing.'}
             />
             <Button asChild variant="outline">
-              <Link to="/import">Try another file</Link>
+              <Link to="/library/import">Try another file</Link>
             </Button>
           </>
         )}

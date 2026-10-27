@@ -48,7 +48,7 @@ export function InterviewPage() {
   const { user } = useAuth()
   const { state: navigationState } = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
-    <PageHeading title="Interview" description="Practice a complete interview using your career library and a saved job or fictional role." />
+    <PageHeading title="Mock interview" description="Practice a full spoken interview using your career library and a saved job or fictional role." />
     {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
       <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
@@ -105,18 +105,18 @@ function OwnedInterview({ id }: { id: string }) {
     {recordingWarning}
     <div className="grid gap-3">
       <p role={state.loadError ? 'alert' : 'status'}>{state.loadError ? 'Could not load this interview. It may be unavailable, expired, or outside your account.' : 'Loading saved interview…'}</p>
-      {state.loadError && <Link className="text-sm underline underline-offset-4" to="/interviews">Back to interviews</Link>}
+      {state.loadError && <Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>}
       {state.loadError && <Button variant="outline" onClick={() => void state.checkSavedStatus()}>Check saved status</Button>}
     </div>
   </>
   if (interview.status === 'completed') return <>{recordingWarning}<CompletedInterviewReview interview={interview} /></>
   if (interview.executionMode !== 'real') return <div className="grid gap-3">
     <p>This older scripted session is retired. Start a real spoken interview to continue.</p>
-    <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Start a new interview</Link>
+    <Link className="justify-self-start text-sm underline underline-offset-4" to="/practice/interviews">Start a new interview</Link>
   </div>
   const abandonControl = <AbandonInterviewButton beforeStart={interview.status === 'preparing' || interview.status === 'ready'} busy={state.busy || savingRecording} textDraft={Boolean(draftText)} dirty={Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || (recorder.status === 'requesting' || recorder.status === 'finalizing')} error={state.error} abandon={state.abandonInterview} onAbandoned={() => setAbandoned(true)} />
-  const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews">Recent interviews</Link>
-  if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to="/interviews" replace state={{ interviewEnded: 'abandoned' }} /></>
+  const recentLink = <Link className="justify-self-start text-sm underline underline-offset-4" to="/practice/interviews">Recent interviews</Link>
+  if (abandoned || interview.status === 'abandoned') return <>{recordingWarning}<Navigate to="/practice/interviews" replace state={{ interviewEnded: 'abandoned' }} /></>
   if (interview.status === 'expired') return <>{recordingWarning}<div className="grid gap-2"><h2 className="text-xl font-semibold">Interview expired</h2><p>This interview can no longer be continued. Start a new interview when you’re ready.</p></div>{recentLink}</>
   if (interview.status === 'preparing' || interview.status === 'ready') return <>{recordingWarning}<InterviewPreparation interview={interview} busy={state.busy} error={state.error} disconnected={Boolean(state.subscriptionError)} retry={state.retryOperation} refresh={() => state.checkSavedStatus()} begin={state.beginInterview} />{abandonControl}<InterviewPrivacy /></>
   const browserSpeech = interview.speechPlaybackMode === 'browser'

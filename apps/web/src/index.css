@@ -206,15 +206,15 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .brand-mark { display: grid; place-items: center; color: var(--primary); }
 .brand-period { color: var(--primary); margin-left: -9px; }
 .workspace-nav { margin-top: 48px; }
-.nav-group-label { color: var(--muted-foreground); font-size: 12px; font-weight: 500; margin: 28px 12px 10px; }
-.workspace-nav-item:first-child .nav-group-label { margin-top: 0; }
 .workspace-nav-link { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 10px 12px; margin: 3px 0; border-radius: 7px; font-size: 14px; color: var(--muted-foreground); transition: background-color 160ms, color 160ms; }
 .workspace-nav-link:active { background: var(--muted); }
 .workspace-nav-link.is-active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 600; }
-.workspace-sidebar-note { margin-top: auto; padding: 44px 12px 26px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
-.workspace-sidebar-note a { display: flex; align-items: center; gap: 6px; color: var(--primary); margin-top: 12px; font-weight: 500; }
-.workspace-account { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--sidebar-border); }
-.workspace-account > a { flex-basis: 100%; }
+.workspace-account { margin-top: auto; padding-top: 14px; border-top: 1px solid var(--sidebar-border); display: grid; gap: 6px; }
+.account-menu-trigger { width: 100%; min-height: 44px; justify-content: space-between; gap: 8px; padding: 0 12px; font-weight: 500; color: var(--muted-foreground); }
+.account-menu-trigger[data-state=open] { background: var(--muted); color: var(--foreground); }
+.account-menu-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-label { overflow-wrap: anywhere; font-weight: 500; }
+.account-menu-error { font-size: 13px; color: var(--destructive); padding: 0 12px; }
 .account-security-page { max-width: 600px; }
 .security-account-identity { padding: 0 0 24px; border-bottom: 1px solid var(--border); }
 .security-password-section { padding-top: 28px; }
@@ -225,9 +225,14 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .security-password-section input { font-size: 16px; }
 }
 .workspace-body { margin-left: 238px; min-width: 0; }
-.workspace-topbar { height: 76px; padding: 0 44px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
-.breadcrumb-divider { padding: 0 12px; color: var(--input); }
-.workspace-principle { font-size: 12px; }
+.workspace-topbar { height: 76px; padding: 0 44px; display: flex; align-items: stretch; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--border); font-size: 14px; color: var(--muted-foreground); }
+.workspace-topbar > :last-child { align-self: center; flex-shrink: 0; }
+.section-tabs { display: flex; gap: 28px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tab { display: flex; align-items: center; flex-shrink: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding-top: 2px; transition: color 160ms, border-color 160ms; }
+.section-tab:focus-visible { outline: none; color: var(--foreground); box-shadow: inset 0 -3px 0 color-mix(in oklab, var(--ring) 50%, transparent); }
+.section-tab.is-active { color: var(--foreground); font-weight: 600; border-bottom-color: var(--primary); }
+.section-tabs-placeholder { align-self: center; color: var(--foreground); font-weight: 600; }
 .workspace-content { max-width: 1440px; margin: auto; padding: 48px 44px 80px; outline: none; }
 .workspace-content > .max-w-3xl { max-width: 1040px; }
 .page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid var(--border); }
@@ -246,6 +251,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
    The :active rules above give touch users the same feedback while pressing. */
 @media (hover: hover) and (pointer: fine) {
   .workspace-nav-link:hover { background: var(--muted); color: var(--foreground); }
+  .section-tab:hover:not(.is-active) { color: var(--foreground); border-bottom-color: var(--input); }
   .record-link:hover { background: var(--accent); }
 }
 .record-icon { flex-shrink: 0; color: var(--muted-foreground); }
@@ -317,7 +323,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 1199px) {
   .workspace-content { padding: 36px 28px 64px; }
   .workspace-topbar { padding: 0 28px; }
-  .workspace-principle { display: none; }
   .auth-introduction { padding: 40px 32px; }
   .auth-message h1 { font-size: 2.5rem; }
 }
@@ -325,10 +330,10 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .workspace-sidebar { position: sticky; top: 0; width: 100%; padding: 18px 20px 0; border-right: 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; }
   .workspace-brand { font-size: 18px; }
   .workspace-nav { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 4px; margin: 14px -20px 0; padding: 0 12px 8px; overflow-x: auto; }
-  .workspace-nav-item { flex-shrink: 0; }
-  .workspace-nav-link { font-size: 13px; gap: 8px; padding: 10px; }
-  .nav-group-label, .workspace-sidebar-note { display: none; }
-  .workspace-account { grid-column: 2; grid-row: 1; padding: 0; border: 0; gap: 4px; }
+  .workspace-nav-link { flex-shrink: 0; font-size: 13px; gap: 8px; padding: 10px; }
+  .workspace-account { grid-column: 2; grid-row: 1; margin: 0; padding: 0; border: 0; justify-items: end; }
+  .account-menu-trigger { width: auto; max-width: 220px; }
+  .section-tabs { gap: 22px; }
   .workspace-body { margin-left: 0; }
   .workspace-topbar { height: 52px; padding: 0 24px; }
   .workspace-content { padding: 32px 24px 64px; }
@@ -338,8 +343,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 599px) {
   .workspace-content { padding: 28px 16px 48px; }
   .workspace-topbar { padding: 0 16px; }
-  .workspace-account button { min-height: 40px; }
-  .workspace-account button svg { width: 15px; }
+  .account-menu-trigger { max-width: 160px; }
   .page-heading-actions { width: 100%; }
   .record-link { padding: 20px 4px; gap: 12px; flex-wrap: wrap; }
   .record-arrow { display: none; }
@@ -360,7 +364,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 
 @media (min-width: 900px) {
-  .workspace-sidebar { overflow-y: auto; }
+  .workspace-sidebar { overflow: hidden auto; }
 }
 @media (max-width: 899px) {
   .workspace-nav { position: relative; }

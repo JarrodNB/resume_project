@@ -19,7 +19,7 @@ const unfinished = (value: typeof blocker | null): MockLink.MockedResponse => ({
 function mount(mocks: MockLink.MockedResponse[]) {
   return renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/selected-job/interview',
     element: <InterviewSetup job={job} notice={null} />, mocks,
-    extraRoutes: [{ path: '/interviews/:id', element: <p>Saved interview</p> }],
+    extraRoutes: [{ path: '/practice/interviews/:id', element: <p>Saved interview</p> }],
   })
 }
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks() })
@@ -38,7 +38,7 @@ function started() {
 
 it('shows the actual unfinished interview and blocks preparation until explicitly resolved', async () => {
   mount([unfinished(blocker)])
-  expect(await screen.findByRole('link', { name: 'Resume interview' })).toHaveAttribute('href', '/interviews/older-session')
+  expect(await screen.findByRole('link', { name: 'Resume interview' })).toHaveAttribute('href', '/practice/interviews/older-session')
   expect(screen.getByText('Original frozen job')).toBeVisible()
   expect(screen.getByText('Original company')).toBeVisible()
   expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeDisabled()
@@ -78,7 +78,7 @@ it('recovers a lost start reply with an owned read and never automatically repla
   mount([unfinished(null), { ...startMock(), result: undefined, error: new Error('Lost reply') }, unfinished(blocker), startMock(defaultSetup, replay)])
   await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
-  expect(await screen.findByRole('link', { name: 'Resume interview' })).toHaveAttribute('href', '/interviews/older-session')
+  expect(await screen.findByRole('link', { name: 'Resume interview' })).toHaveAttribute('href', '/practice/interviews/older-session')
   expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeDisabled()
   expect(replay).not.toHaveBeenCalled()
 })

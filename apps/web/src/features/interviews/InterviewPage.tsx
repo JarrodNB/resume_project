@@ -52,7 +52,7 @@ export function InterviewPage() {
   // The overview and a session share this route, so key the overview by the navigation entry:
   // each arrival (including "Practice again") starts its setup steps fresh.
   const location = useLocation()
-  return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
+  return <div className="interview-page grid w-full max-w-6xl gap-6">
     <PageHeading title="Mock interview" description="Practice a full spoken interview using your career library and a saved job or fictional role." />
     {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <InterviewOverview key={location.key} navigationState={location.state} />}
   </div>

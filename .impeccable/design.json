@@ -1,921 +1,996 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-26T04:57:52.778310+00:00",
+  "generatedAt": "2026-10-27T14:50:45.781754+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "White Ground",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 calc(c * 0.6) h)",
+          "oklch(from #ffffff 0.26 calc(c * 1) h)",
+          "oklch(from #ffffff 0.38 calc(c * 1) h)",
+          "oklch(from #ffffff 0.49 calc(c * 1) h)",
+          "oklch(from #ffffff 0.61 calc(c * 1) h)",
+          "oklch(from #ffffff 0.72 calc(c * 1) h)",
+          "oklch(from #ffffff 0.84 calc(c * 1) h)",
+          "oklch(from #ffffff 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "foreground": {
+        "role": "primary",
+        "displayName": "Signage Ink",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "card": {
+        "role": "neutral",
+        "displayName": "White Ground (tile)",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 calc(c * 0.6) h)",
+          "oklch(from #ffffff 0.26 calc(c * 1) h)",
+          "oklch(from #ffffff 0.38 calc(c * 1) h)",
+          "oklch(from #ffffff 0.49 calc(c * 1) h)",
+          "oklch(from #ffffff 0.61 calc(c * 1) h)",
+          "oklch(from #ffffff 0.72 calc(c * 1) h)",
+          "oklch(from #ffffff 0.84 calc(c * 1) h)",
+          "oklch(from #ffffff 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Signage Ink (primary)",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "primary-foreground": {
+        "role": "neutral",
+        "displayName": "White",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 calc(c * 0.6) h)",
+          "oklch(from #ffffff 0.26 calc(c * 1) h)",
+          "oklch(from #ffffff 0.38 calc(c * 1) h)",
+          "oklch(from #ffffff 0.49 calc(c * 1) h)",
+          "oklch(from #ffffff 0.61 calc(c * 1) h)",
+          "oklch(from #ffffff 0.72 calc(c * 1) h)",
+          "oklch(from #ffffff 0.84 calc(c * 1) h)",
+          "oklch(from #ffffff 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Pale Gray",
+        "tonalRamp": [
+          "oklch(from #f1f2f4 0.15 calc(c * 0.6) h)",
+          "oklch(from #f1f2f4 0.26 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.38 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.49 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.61 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.72 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.84 calc(c * 1) h)",
+          "oklch(from #f1f2f4 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Pale Gray (muted)",
+        "tonalRamp": [
+          "oklch(from #f4f5f6 0.15 calc(c * 0.6) h)",
+          "oklch(from #f4f5f6 0.26 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.38 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.49 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.61 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.72 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.84 calc(c * 1) h)",
+          "oklch(from #f4f5f6 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Cool Gray Text",
+        "tonalRamp": [
+          "oklch(from #5b6168 0.15 calc(c * 0.6) h)",
+          "oklch(from #5b6168 0.26 calc(c * 1) h)",
+          "oklch(from #5b6168 0.38 calc(c * 1) h)",
+          "oklch(from #5b6168 0.49 calc(c * 1) h)",
+          "oklch(from #5b6168 0.61 calc(c * 1) h)",
+          "oklch(from #5b6168 0.72 calc(c * 1) h)",
+          "oklch(from #5b6168 0.84 calc(c * 1) h)",
+          "oklch(from #5b6168 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Pale Gray (hover)",
+        "tonalRamp": [
+          "oklch(from #eceef0 0.15 calc(c * 0.6) h)",
+          "oklch(from #eceef0 0.26 calc(c * 1) h)",
+          "oklch(from #eceef0 0.38 calc(c * 1) h)",
+          "oklch(from #eceef0 0.49 calc(c * 1) h)",
+          "oklch(from #eceef0 0.61 calc(c * 1) h)",
+          "oklch(from #eceef0 0.72 calc(c * 1) h)",
+          "oklch(from #eceef0 0.84 calc(c * 1) h)",
+          "oklch(from #eceef0 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Hairline Gray",
+        "tonalRamp": [
+          "oklch(from #d9dce0 0.15 calc(c * 0.6) h)",
+          "oklch(from #d9dce0 0.26 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.38 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.49 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.61 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.72 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.84 calc(c * 1) h)",
+          "oklch(from #d9dce0 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Field Gray",
+        "tonalRamp": [
+          "oklch(from #a9afb6 0.15 calc(c * 0.6) h)",
+          "oklch(from #a9afb6 0.26 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.38 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.49 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.61 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.72 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.84 calc(c * 1) h)",
+          "oklch(from #a9afb6 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "ring": {
+        "role": "neutral",
+        "displayName": "Focus Ink",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "destructive": {
+        "role": "neutral",
+        "displayName": "Error Red",
+        "tonalRamp": [
+          "oklch(from #c8231b 0.15 calc(c * 0.6) h)",
+          "oklch(from #c8231b 0.26 calc(c * 1) h)",
+          "oklch(from #c8231b 0.38 calc(c * 1) h)",
+          "oklch(from #c8231b 0.49 calc(c * 1) h)",
+          "oklch(from #c8231b 0.61 calc(c * 1) h)",
+          "oklch(from #c8231b 0.72 calc(c * 1) h)",
+          "oklch(from #c8231b 0.84 calc(c * 1) h)",
+          "oklch(from #c8231b 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "band": {
+        "role": "primary",
+        "displayName": "Signage Band Black",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "band-foreground": {
+        "role": "neutral",
+        "displayName": "Band White",
+        "tonalRamp": [
+          "oklch(from #ffffff 0.15 calc(c * 0.6) h)",
+          "oklch(from #ffffff 0.26 calc(c * 1) h)",
+          "oklch(from #ffffff 0.38 calc(c * 1) h)",
+          "oklch(from #ffffff 0.49 calc(c * 1) h)",
+          "oklch(from #ffffff 0.61 calc(c * 1) h)",
+          "oklch(from #ffffff 0.72 calc(c * 1) h)",
+          "oklch(from #ffffff 0.84 calc(c * 1) h)",
+          "oklch(from #ffffff 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "band-muted": {
+        "role": "neutral",
+        "displayName": "Band Gray",
+        "tonalRamp": [
+          "oklch(from #b8bdc3 0.15 calc(c * 0.6) h)",
+          "oklch(from #b8bdc3 0.26 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.38 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.49 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.61 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.72 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.84 calc(c * 1) h)",
+          "oklch(from #b8bdc3 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "band-rule": {
+        "role": "neutral",
+        "displayName": "Band Rule",
+        "tonalRamp": [
+          "oklch(from #3a4048 0.15 calc(c * 0.6) h)",
+          "oklch(from #3a4048 0.26 calc(c * 1) h)",
+          "oklch(from #3a4048 0.38 calc(c * 1) h)",
+          "oklch(from #3a4048 0.49 calc(c * 1) h)",
+          "oklch(from #3a4048 0.61 calc(c * 1) h)",
+          "oklch(from #3a4048 0.72 calc(c * 1) h)",
+          "oklch(from #3a4048 0.84 calc(c * 1) h)",
+          "oklch(from #3a4048 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "rule-strong": {
+        "role": "primary",
+        "displayName": "Line Ink",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "stop-off": {
+        "role": "neutral",
+        "displayName": "Stop Ahead Gray",
+        "tonalRamp": [
+          "oklch(from #b9bec4 0.15 calc(c * 0.6) h)",
+          "oklch(from #b9bec4 0.26 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.38 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.49 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.61 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.72 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.84 calc(c * 1) h)",
+          "oklch(from #b9bec4 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "stop-closed": {
+        "role": "neutral",
+        "displayName": "Closed Line Gray",
+        "tonalRamp": [
+          "oklch(from #9aa0a6 0.15 calc(c * 0.6) h)",
+          "oklch(from #9aa0a6 0.26 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.38 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.49 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.61 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.72 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.84 calc(c * 1) h)",
+          "oklch(from #9aa0a6 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-action": {
+        "role": "secondary",
+        "displayName": "Action Red",
+        "tonalRamp": [
+          "oklch(from #ee352e 0.15 calc(c * 0.6) h)",
+          "oklch(from #ee352e 0.26 calc(c * 1) h)",
+          "oklch(from #ee352e 0.38 calc(c * 1) h)",
+          "oklch(from #ee352e 0.49 calc(c * 1) h)",
+          "oklch(from #ee352e 0.61 calc(c * 1) h)",
+          "oklch(from #ee352e 0.72 calc(c * 1) h)",
+          "oklch(from #ee352e 0.84 calc(c * 1) h)",
+          "oklch(from #ee352e 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-action-text": {
+        "role": "secondary",
+        "displayName": "Action Red Text",
+        "tonalRamp": [
+          "oklch(from #c8231b 0.15 calc(c * 0.6) h)",
+          "oklch(from #c8231b 0.26 calc(c * 1) h)",
+          "oklch(from #c8231b 0.38 calc(c * 1) h)",
+          "oklch(from #c8231b 0.49 calc(c * 1) h)",
+          "oklch(from #c8231b 0.61 calc(c * 1) h)",
+          "oklch(from #c8231b 0.72 calc(c * 1) h)",
+          "oklch(from #c8231b 0.84 calc(c * 1) h)",
+          "oklch(from #c8231b 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-ai": {
+        "role": "secondary",
+        "displayName": "Working Blue",
+        "tonalRamp": [
+          "oklch(from #0039a6 0.15 calc(c * 0.6) h)",
+          "oklch(from #0039a6 0.26 calc(c * 1) h)",
+          "oklch(from #0039a6 0.38 calc(c * 1) h)",
+          "oklch(from #0039a6 0.49 calc(c * 1) h)",
+          "oklch(from #0039a6 0.61 calc(c * 1) h)",
+          "oklch(from #0039a6 0.72 calc(c * 1) h)",
+          "oklch(from #0039a6 0.84 calc(c * 1) h)",
+          "oklch(from #0039a6 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-ai-text": {
+        "role": "secondary",
+        "displayName": "Working Blue Text",
+        "tonalRamp": [
+          "oklch(from #0039a6 0.15 calc(c * 0.6) h)",
+          "oklch(from #0039a6 0.26 calc(c * 1) h)",
+          "oklch(from #0039a6 0.38 calc(c * 1) h)",
+          "oklch(from #0039a6 0.49 calc(c * 1) h)",
+          "oklch(from #0039a6 0.61 calc(c * 1) h)",
+          "oklch(from #0039a6 0.72 calc(c * 1) h)",
+          "oklch(from #0039a6 0.84 calc(c * 1) h)",
+          "oklch(from #0039a6 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-wait": {
+        "role": "secondary",
+        "displayName": "Waiting Yellow",
+        "tonalRamp": [
+          "oklch(from #fccc0a 0.15 calc(c * 0.6) h)",
+          "oklch(from #fccc0a 0.26 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.38 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.49 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.61 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.72 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.84 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-wait-text": {
+        "role": "secondary",
+        "displayName": "Waiting Yellow Text",
+        "tonalRamp": [
+          "oklch(from #7a5c00 0.15 calc(c * 0.6) h)",
+          "oklch(from #7a5c00 0.26 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.38 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.49 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.61 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.72 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.84 calc(c * 1) h)",
+          "oklch(from #7a5c00 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-done": {
+        "role": "secondary",
+        "displayName": "Offer Green",
+        "tonalRamp": [
+          "oklch(from #00933c 0.15 calc(c * 0.6) h)",
+          "oklch(from #00933c 0.26 calc(c * 1) h)",
+          "oklch(from #00933c 0.38 calc(c * 1) h)",
+          "oklch(from #00933c 0.49 calc(c * 1) h)",
+          "oklch(from #00933c 0.61 calc(c * 1) h)",
+          "oklch(from #00933c 0.72 calc(c * 1) h)",
+          "oklch(from #00933c 0.84 calc(c * 1) h)",
+          "oklch(from #00933c 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "signal-done-text": {
+        "role": "secondary",
+        "displayName": "Offer Green Text",
+        "tonalRamp": [
+          "oklch(from #007a32 0.15 calc(c * 0.6) h)",
+          "oklch(from #007a32 0.26 calc(c * 1) h)",
+          "oklch(from #007a32 0.38 calc(c * 1) h)",
+          "oklch(from #007a32 0.49 calc(c * 1) h)",
+          "oklch(from #007a32 0.61 calc(c * 1) h)",
+          "oklch(from #007a32 0.72 calc(c * 1) h)",
+          "oklch(from #007a32 0.84 calc(c * 1) h)",
+          "oklch(from #007a32 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-background": {
+        "role": "neutral",
+        "displayName": "White Ground (dark)",
+        "tonalRamp": [
+          "oklch(from #15181c 0.15 calc(c * 0.6) h)",
+          "oklch(from #15181c 0.26 calc(c * 1) h)",
+          "oklch(from #15181c 0.38 calc(c * 1) h)",
+          "oklch(from #15181c 0.49 calc(c * 1) h)",
+          "oklch(from #15181c 0.61 calc(c * 1) h)",
+          "oklch(from #15181c 0.72 calc(c * 1) h)",
+          "oklch(from #15181c 0.84 calc(c * 1) h)",
+          "oklch(from #15181c 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-foreground": {
+        "role": "primary",
+        "displayName": "Signage Ink (dark)",
+        "tonalRamp": [
+          "oklch(from #eef0f2 0.15 calc(c * 0.6) h)",
+          "oklch(from #eef0f2 0.26 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.38 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.49 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.61 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.72 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.84 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-card": {
+        "role": "neutral",
+        "displayName": "White Ground (tile) (dark)",
+        "tonalRamp": [
+          "oklch(from #1c2025 0.15 calc(c * 0.6) h)",
+          "oklch(from #1c2025 0.26 calc(c * 1) h)",
+          "oklch(from #1c2025 0.38 calc(c * 1) h)",
+          "oklch(from #1c2025 0.49 calc(c * 1) h)",
+          "oklch(from #1c2025 0.61 calc(c * 1) h)",
+          "oklch(from #1c2025 0.72 calc(c * 1) h)",
+          "oklch(from #1c2025 0.84 calc(c * 1) h)",
+          "oklch(from #1c2025 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-primary": {
+        "role": "primary",
+        "displayName": "Signage Ink (primary) (dark)",
+        "tonalRamp": [
+          "oklch(from #eef0f2 0.15 calc(c * 0.6) h)",
+          "oklch(from #eef0f2 0.26 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.38 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.49 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.61 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.72 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.84 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-primary-foreground": {
+        "role": "neutral",
+        "displayName": "White (dark)",
+        "tonalRamp": [
+          "oklch(from #111418 0.15 calc(c * 0.6) h)",
+          "oklch(from #111418 0.26 calc(c * 1) h)",
+          "oklch(from #111418 0.38 calc(c * 1) h)",
+          "oklch(from #111418 0.49 calc(c * 1) h)",
+          "oklch(from #111418 0.61 calc(c * 1) h)",
+          "oklch(from #111418 0.72 calc(c * 1) h)",
+          "oklch(from #111418 0.84 calc(c * 1) h)",
+          "oklch(from #111418 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-secondary": {
+        "role": "neutral",
+        "displayName": "Pale Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #262b31 0.15 calc(c * 0.6) h)",
+          "oklch(from #262b31 0.26 calc(c * 1) h)",
+          "oklch(from #262b31 0.38 calc(c * 1) h)",
+          "oklch(from #262b31 0.49 calc(c * 1) h)",
+          "oklch(from #262b31 0.61 calc(c * 1) h)",
+          "oklch(from #262b31 0.72 calc(c * 1) h)",
+          "oklch(from #262b31 0.84 calc(c * 1) h)",
+          "oklch(from #262b31 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Pale Gray (muted) (dark)",
+        "tonalRamp": [
+          "oklch(from #22262b 0.15 calc(c * 0.6) h)",
+          "oklch(from #22262b 0.26 calc(c * 1) h)",
+          "oklch(from #22262b 0.38 calc(c * 1) h)",
+          "oklch(from #22262b 0.49 calc(c * 1) h)",
+          "oklch(from #22262b 0.61 calc(c * 1) h)",
+          "oklch(from #22262b 0.72 calc(c * 1) h)",
+          "oklch(from #22262b 0.84 calc(c * 1) h)",
+          "oklch(from #22262b 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-muted-foreground": {
+        "role": "neutral",
+        "displayName": "Cool Gray Text (dark)",
+        "tonalRamp": [
+          "oklch(from #a3a9b0 0.15 calc(c * 0.6) h)",
+          "oklch(from #a3a9b0 0.26 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.38 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.49 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.61 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.72 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.84 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-accent": {
+        "role": "neutral",
+        "displayName": "Pale Gray (hover) (dark)",
+        "tonalRamp": [
+          "oklch(from #2a2f35 0.15 calc(c * 0.6) h)",
+          "oklch(from #2a2f35 0.26 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.38 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.49 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.61 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.72 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.84 calc(c * 1) h)",
+          "oklch(from #2a2f35 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-border": {
+        "role": "neutral",
+        "displayName": "Hairline Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #353b42 0.15 calc(c * 0.6) h)",
+          "oklch(from #353b42 0.26 calc(c * 1) h)",
+          "oklch(from #353b42 0.38 calc(c * 1) h)",
+          "oklch(from #353b42 0.49 calc(c * 1) h)",
+          "oklch(from #353b42 0.61 calc(c * 1) h)",
+          "oklch(from #353b42 0.72 calc(c * 1) h)",
+          "oklch(from #353b42 0.84 calc(c * 1) h)",
+          "oklch(from #353b42 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-input": {
+        "role": "neutral",
+        "displayName": "Field Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #5b6168 0.15 calc(c * 0.6) h)",
+          "oklch(from #5b6168 0.26 calc(c * 1) h)",
+          "oklch(from #5b6168 0.38 calc(c * 1) h)",
+          "oklch(from #5b6168 0.49 calc(c * 1) h)",
+          "oklch(from #5b6168 0.61 calc(c * 1) h)",
+          "oklch(from #5b6168 0.72 calc(c * 1) h)",
+          "oklch(from #5b6168 0.84 calc(c * 1) h)",
+          "oklch(from #5b6168 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-destructive": {
+        "role": "neutral",
+        "displayName": "Error Red (dark)",
+        "tonalRamp": [
+          "oklch(from #ff6b63 0.15 calc(c * 0.6) h)",
+          "oklch(from #ff6b63 0.26 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.38 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.49 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.61 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.72 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.84 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-band": {
+        "role": "primary",
+        "displayName": "Signage Band Black (dark)",
+        "tonalRamp": [
+          "oklch(from #0a0c0e 0.15 calc(c * 0.6) h)",
+          "oklch(from #0a0c0e 0.26 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.38 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.49 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.61 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.72 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.84 calc(c * 1) h)",
+          "oklch(from #0a0c0e 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-band-muted": {
+        "role": "neutral",
+        "displayName": "Band Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #a3a9b0 0.15 calc(c * 0.6) h)",
+          "oklch(from #a3a9b0 0.26 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.38 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.49 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.61 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.72 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.84 calc(c * 1) h)",
+          "oklch(from #a3a9b0 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-band-rule": {
+        "role": "neutral",
+        "displayName": "Band Rule (dark)",
+        "tonalRamp": [
+          "oklch(from #353b42 0.15 calc(c * 0.6) h)",
+          "oklch(from #353b42 0.26 calc(c * 1) h)",
+          "oklch(from #353b42 0.38 calc(c * 1) h)",
+          "oklch(from #353b42 0.49 calc(c * 1) h)",
+          "oklch(from #353b42 0.61 calc(c * 1) h)",
+          "oklch(from #353b42 0.72 calc(c * 1) h)",
+          "oklch(from #353b42 0.84 calc(c * 1) h)",
+          "oklch(from #353b42 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-rule-strong": {
+        "role": "primary",
+        "displayName": "Line Ink (dark)",
+        "tonalRamp": [
+          "oklch(from #eef0f2 0.15 calc(c * 0.6) h)",
+          "oklch(from #eef0f2 0.26 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.38 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.49 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.61 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.72 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.84 calc(c * 1) h)",
+          "oklch(from #eef0f2 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-stop-off": {
+        "role": "neutral",
+        "displayName": "Stop Ahead Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #5b6168 0.15 calc(c * 0.6) h)",
+          "oklch(from #5b6168 0.26 calc(c * 1) h)",
+          "oklch(from #5b6168 0.38 calc(c * 1) h)",
+          "oklch(from #5b6168 0.49 calc(c * 1) h)",
+          "oklch(from #5b6168 0.61 calc(c * 1) h)",
+          "oklch(from #5b6168 0.72 calc(c * 1) h)",
+          "oklch(from #5b6168 0.84 calc(c * 1) h)",
+          "oklch(from #5b6168 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-stop-closed": {
+        "role": "neutral",
+        "displayName": "Closed Line Gray (dark)",
+        "tonalRamp": [
+          "oklch(from #6f757c 0.15 calc(c * 0.6) h)",
+          "oklch(from #6f757c 0.26 calc(c * 1) h)",
+          "oklch(from #6f757c 0.38 calc(c * 1) h)",
+          "oklch(from #6f757c 0.49 calc(c * 1) h)",
+          "oklch(from #6f757c 0.61 calc(c * 1) h)",
+          "oklch(from #6f757c 0.72 calc(c * 1) h)",
+          "oklch(from #6f757c 0.84 calc(c * 1) h)",
+          "oklch(from #6f757c 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-action": {
+        "role": "secondary",
+        "displayName": "Action Red (dark)",
+        "tonalRamp": [
+          "oklch(from #ff4a42 0.15 calc(c * 0.6) h)",
+          "oklch(from #ff4a42 0.26 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.38 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.49 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.61 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.72 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.84 calc(c * 1) h)",
+          "oklch(from #ff4a42 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-action-text": {
+        "role": "secondary",
+        "displayName": "Action Red Text (dark)",
+        "tonalRamp": [
+          "oklch(from #ff6b63 0.15 calc(c * 0.6) h)",
+          "oklch(from #ff6b63 0.26 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.38 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.49 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.61 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.72 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.84 calc(c * 1) h)",
+          "oklch(from #ff6b63 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-ai": {
+        "role": "secondary",
+        "displayName": "Working Blue (dark)",
+        "tonalRamp": [
+          "oklch(from #4d82f0 0.15 calc(c * 0.6) h)",
+          "oklch(from #4d82f0 0.26 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.38 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.49 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.61 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.72 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.84 calc(c * 1) h)",
+          "oklch(from #4d82f0 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-ai-text": {
+        "role": "secondary",
+        "displayName": "Working Blue Text (dark)",
+        "tonalRamp": [
+          "oklch(from #8fb0ff 0.15 calc(c * 0.6) h)",
+          "oklch(from #8fb0ff 0.26 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.38 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.49 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.61 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.72 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.84 calc(c * 1) h)",
+          "oklch(from #8fb0ff 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-wait": {
+        "role": "secondary",
+        "displayName": "Waiting Yellow (dark)",
+        "tonalRamp": [
+          "oklch(from #fccc0a 0.15 calc(c * 0.6) h)",
+          "oklch(from #fccc0a 0.26 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.38 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.49 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.61 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.72 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.84 calc(c * 1) h)",
+          "oklch(from #fccc0a 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-wait-text": {
+        "role": "secondary",
+        "displayName": "Waiting Yellow Text (dark)",
+        "tonalRamp": [
+          "oklch(from #fcd84a 0.15 calc(c * 0.6) h)",
+          "oklch(from #fcd84a 0.26 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.38 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.49 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.61 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.72 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.84 calc(c * 1) h)",
+          "oklch(from #fcd84a 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-done": {
+        "role": "secondary",
+        "displayName": "Offer Green (dark)",
+        "tonalRamp": [
+          "oklch(from #22b45a 0.15 calc(c * 0.6) h)",
+          "oklch(from #22b45a 0.26 calc(c * 1) h)",
+          "oklch(from #22b45a 0.38 calc(c * 1) h)",
+          "oklch(from #22b45a 0.49 calc(c * 1) h)",
+          "oklch(from #22b45a 0.61 calc(c * 1) h)",
+          "oklch(from #22b45a 0.72 calc(c * 1) h)",
+          "oklch(from #22b45a 0.84 calc(c * 1) h)",
+          "oklch(from #22b45a 0.95 calc(c * 0.6) h)"
+        ]
+      },
+      "dark-signal-done-text": {
+        "role": "secondary",
+        "displayName": "Offer Green Text (dark)",
+        "tonalRamp": [
+          "oklch(from #4ccf7c 0.15 calc(c * 0.6) h)",
+          "oklch(from #4ccf7c 0.26 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.38 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.49 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.61 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.72 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.84 calc(c * 1) h)",
+          "oklch(from #4ccf7c 0.95 calc(c * 0.6) h)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Home title only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and job workspace titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Home sub-headings: job count, first-run heading."
+      },
+      "title-small": {
+        "displayName": "Title Small",
+        "purpose": "Station names and job titles in tiles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Page intro text, gray, max 65ch."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Supporting descriptions."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Nav links, tabs, buttons, next-step links."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Stage names, legend, badges."
+      },
+      "brand": {
+        "displayName": "Brand",
+        "purpose": "Product name in the band."
+      }
+    },
     "shadows": [
       {
-        "name": "card-ring",
-        "value": "0 0 0 1px color-mix(in oklab, var(--foreground) 10%, transparent)",
-        "purpose": "Generated card surface edge."
+        "name": "stop-ring",
+        "value": "0 0 0 3px var(--card), 0 0 0 4.5px var(--rule-strong)",
+        "purpose": "Gap and ring around a job's current stop."
+      },
+      {
+        "name": "popover-lift",
+        "value": "0 4px 16px rgb(17 20 24 / 0.12)",
+        "purpose": "Only for things floating over the page."
       }
     ],
     "motion": [
       {
-        "name": "workspace-transition",
-        "value": "160ms",
-        "purpose": "Navigation and record hover transitions."
+        "name": "ease-out-strong",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "Default easing for button and state changes."
       },
       {
-        "name": "reduced-motion-duration",
-        "value": "0.01ms",
-        "purpose": "Transition and animation duration when reduced motion is preferred."
+        "name": "state-duration",
+        "value": "160ms",
+        "purpose": "Hover, tab, nav, and button transitions."
+      },
+      {
+        "name": "press-scale",
+        "value": "scale(0.97)",
+        "purpose": "Buttons shrink on press; menu triggers do not."
+      },
+      {
+        "name": "ai-breathe",
+        "value": "2.4s ease-out-strong infinite, scale 0.6 to 1.5, opacity 0.7 to 0",
+        "purpose": "The only looping signal motion: the ring around an AI-working dot. Off under reduced motion (static ring at 0.35 opacity)."
+      },
+      {
+        "name": "reduced-motion-spinner",
+        "value": "2.4s",
+        "purpose": "Spinners slow down instead of stopping under reduced motion."
       }
     ],
     "breakpoints": [
       {
-        "name": "compact-content",
+        "name": "laptop",
         "value": "1199px"
       },
       {
-        "name": "compact-navigation",
+        "name": "tablet",
         "value": "899px"
+      },
+      {
+        "name": "board-stack",
+        "value": "639px"
       },
       {
         "name": "phone",
         "value": "599px"
       }
-    ],
-    "colorMeta": {
-      "background": {
-        "role": "neutral",
-        "displayName": "Background",
-        "tonalRamp": [
-          "oklch(from #f6f5f0 0.15 c h)",
-          "oklch(from #f6f5f0 0.26 c h)",
-          "oklch(from #f6f5f0 0.38 c h)",
-          "oklch(from #f6f5f0 0.49 c h)",
-          "oklch(from #f6f5f0 0.61 c h)",
-          "oklch(from #f6f5f0 0.72 c h)",
-          "oklch(from #f6f5f0 0.84 c h)",
-          "oklch(from #f6f5f0 0.95 c h)"
-        ]
-      },
-      "foreground": {
-        "role": "neutral",
-        "displayName": "Foreground",
-        "tonalRamp": [
-          "oklch(from #25352e 0.15 c h)",
-          "oklch(from #25352e 0.26 c h)",
-          "oklch(from #25352e 0.38 c h)",
-          "oklch(from #25352e 0.49 c h)",
-          "oklch(from #25352e 0.61 c h)",
-          "oklch(from #25352e 0.72 c h)",
-          "oklch(from #25352e 0.84 c h)",
-          "oklch(from #25352e 0.95 c h)"
-        ]
-      },
-      "card": {
-        "role": "neutral",
-        "displayName": "Card",
-        "tonalRamp": [
-          "oklch(from #ffffff 0.15 c h)",
-          "oklch(from #ffffff 0.26 c h)",
-          "oklch(from #ffffff 0.38 c h)",
-          "oklch(from #ffffff 0.49 c h)",
-          "oklch(from #ffffff 0.61 c h)",
-          "oklch(from #ffffff 0.72 c h)",
-          "oklch(from #ffffff 0.84 c h)",
-          "oklch(from #ffffff 0.95 c h)"
-        ]
-      },
-      "primary": {
-        "role": "primary",
-        "displayName": "Primary",
-        "tonalRamp": [
-          "oklch(from #285c45 0.15 c h)",
-          "oklch(from #285c45 0.26 c h)",
-          "oklch(from #285c45 0.38 c h)",
-          "oklch(from #285c45 0.49 c h)",
-          "oklch(from #285c45 0.61 c h)",
-          "oklch(from #285c45 0.72 c h)",
-          "oklch(from #285c45 0.84 c h)",
-          "oklch(from #285c45 0.95 c h)"
-        ]
-      },
-      "primary-foreground": {
-        "role": "neutral",
-        "displayName": "Primary Foreground",
-        "tonalRamp": [
-          "oklch(from #ffffff 0.15 c h)",
-          "oklch(from #ffffff 0.26 c h)",
-          "oklch(from #ffffff 0.38 c h)",
-          "oklch(from #ffffff 0.49 c h)",
-          "oklch(from #ffffff 0.61 c h)",
-          "oklch(from #ffffff 0.72 c h)",
-          "oklch(from #ffffff 0.84 c h)",
-          "oklch(from #ffffff 0.95 c h)"
-        ]
-      },
-      "secondary": {
-        "role": "neutral",
-        "displayName": "Secondary",
-        "tonalRamp": [
-          "oklch(from #e9eee7 0.15 c h)",
-          "oklch(from #e9eee7 0.26 c h)",
-          "oklch(from #e9eee7 0.38 c h)",
-          "oklch(from #e9eee7 0.49 c h)",
-          "oklch(from #e9eee7 0.61 c h)",
-          "oklch(from #e9eee7 0.72 c h)",
-          "oklch(from #e9eee7 0.84 c h)",
-          "oklch(from #e9eee7 0.95 c h)"
-        ]
-      },
-      "secondary-foreground": {
-        "role": "neutral",
-        "displayName": "Secondary Foreground",
-        "tonalRamp": [
-          "oklch(from #2b513e 0.15 c h)",
-          "oklch(from #2b513e 0.26 c h)",
-          "oklch(from #2b513e 0.38 c h)",
-          "oklch(from #2b513e 0.49 c h)",
-          "oklch(from #2b513e 0.61 c h)",
-          "oklch(from #2b513e 0.72 c h)",
-          "oklch(from #2b513e 0.84 c h)",
-          "oklch(from #2b513e 0.95 c h)"
-        ]
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Muted",
-        "tonalRamp": [
-          "oklch(from #eeeee7 0.15 c h)",
-          "oklch(from #eeeee7 0.26 c h)",
-          "oklch(from #eeeee7 0.38 c h)",
-          "oklch(from #eeeee7 0.49 c h)",
-          "oklch(from #eeeee7 0.61 c h)",
-          "oklch(from #eeeee7 0.72 c h)",
-          "oklch(from #eeeee7 0.84 c h)",
-          "oklch(from #eeeee7 0.95 c h)"
-        ]
-      },
-      "muted-foreground": {
-        "role": "neutral",
-        "displayName": "Muted Foreground",
-        "tonalRamp": [
-          "oklch(from #626b63 0.15 c h)",
-          "oklch(from #626b63 0.26 c h)",
-          "oklch(from #626b63 0.38 c h)",
-          "oklch(from #626b63 0.49 c h)",
-          "oklch(from #626b63 0.61 c h)",
-          "oklch(from #626b63 0.72 c h)",
-          "oklch(from #626b63 0.84 c h)",
-          "oklch(from #626b63 0.95 c h)"
-        ]
-      },
-      "accent": {
-        "role": "neutral",
-        "displayName": "Accent",
-        "tonalRamp": [
-          "oklch(from #e7ede3 0.15 c h)",
-          "oklch(from #e7ede3 0.26 c h)",
-          "oklch(from #e7ede3 0.38 c h)",
-          "oklch(from #e7ede3 0.49 c h)",
-          "oklch(from #e7ede3 0.61 c h)",
-          "oklch(from #e7ede3 0.72 c h)",
-          "oklch(from #e7ede3 0.84 c h)",
-          "oklch(from #e7ede3 0.95 c h)"
-        ]
-      },
-      "accent-foreground": {
-        "role": "neutral",
-        "displayName": "Accent Foreground",
-        "tonalRamp": [
-          "oklch(from #254d39 0.15 c h)",
-          "oklch(from #254d39 0.26 c h)",
-          "oklch(from #254d39 0.38 c h)",
-          "oklch(from #254d39 0.49 c h)",
-          "oklch(from #254d39 0.61 c h)",
-          "oklch(from #254d39 0.72 c h)",
-          "oklch(from #254d39 0.84 c h)",
-          "oklch(from #254d39 0.95 c h)"
-        ]
-      },
-      "destructive": {
-        "role": "neutral",
-        "displayName": "Destructive",
-        "tonalRamp": [
-          "oklch(from #b43732 0.15 c h)",
-          "oklch(from #b43732 0.26 c h)",
-          "oklch(from #b43732 0.38 c h)",
-          "oklch(from #b43732 0.49 c h)",
-          "oklch(from #b43732 0.61 c h)",
-          "oklch(from #b43732 0.72 c h)",
-          "oklch(from #b43732 0.84 c h)",
-          "oklch(from #b43732 0.95 c h)"
-        ]
-      },
-      "border": {
-        "role": "neutral",
-        "displayName": "Border",
-        "tonalRamp": [
-          "oklch(from #dcdfd5 0.15 c h)",
-          "oklch(from #dcdfd5 0.26 c h)",
-          "oklch(from #dcdfd5 0.38 c h)",
-          "oklch(from #dcdfd5 0.49 c h)",
-          "oklch(from #dcdfd5 0.61 c h)",
-          "oklch(from #dcdfd5 0.72 c h)",
-          "oklch(from #dcdfd5 0.84 c h)",
-          "oklch(from #dcdfd5 0.95 c h)"
-        ]
-      },
-      "input": {
-        "role": "neutral",
-        "displayName": "Input",
-        "tonalRamp": [
-          "oklch(from #c7cdc2 0.15 c h)",
-          "oklch(from #c7cdc2 0.26 c h)",
-          "oklch(from #c7cdc2 0.38 c h)",
-          "oklch(from #c7cdc2 0.49 c h)",
-          "oklch(from #c7cdc2 0.61 c h)",
-          "oklch(from #c7cdc2 0.72 c h)",
-          "oklch(from #c7cdc2 0.84 c h)",
-          "oklch(from #c7cdc2 0.95 c h)"
-        ]
-      },
-      "ring": {
-        "role": "neutral",
-        "displayName": "Ring",
-        "tonalRamp": [
-          "oklch(from #427456 0.15 c h)",
-          "oklch(from #427456 0.26 c h)",
-          "oklch(from #427456 0.38 c h)",
-          "oklch(from #427456 0.49 c h)",
-          "oklch(from #427456 0.61 c h)",
-          "oklch(from #427456 0.72 c h)",
-          "oklch(from #427456 0.84 c h)",
-          "oklch(from #427456 0.95 c h)"
-        ]
-      },
-      "sidebar": {
-        "role": "neutral",
-        "displayName": "Sidebar",
-        "tonalRamp": [
-          "oklch(from #eeefe8 0.15 c h)",
-          "oklch(from #eeefe8 0.26 c h)",
-          "oklch(from #eeefe8 0.38 c h)",
-          "oklch(from #eeefe8 0.49 c h)",
-          "oklch(from #eeefe8 0.61 c h)",
-          "oklch(from #eeefe8 0.72 c h)",
-          "oklch(from #eeefe8 0.84 c h)",
-          "oklch(from #eeefe8 0.95 c h)"
-        ]
-      },
-      "sidebar-accent": {
-        "role": "neutral",
-        "displayName": "Sidebar Accent",
-        "tonalRamp": [
-          "oklch(from #dfe8db 0.15 c h)",
-          "oklch(from #dfe8db 0.26 c h)",
-          "oklch(from #dfe8db 0.38 c h)",
-          "oklch(from #dfe8db 0.49 c h)",
-          "oklch(from #dfe8db 0.61 c h)",
-          "oklch(from #dfe8db 0.72 c h)",
-          "oklch(from #dfe8db 0.84 c h)",
-          "oklch(from #dfe8db 0.95 c h)"
-        ]
-      },
-      "sidebar-accent-foreground": {
-        "role": "neutral",
-        "displayName": "Sidebar Accent Foreground",
-        "tonalRamp": [
-          "oklch(from #254d39 0.15 c h)",
-          "oklch(from #254d39 0.26 c h)",
-          "oklch(from #254d39 0.38 c h)",
-          "oklch(from #254d39 0.49 c h)",
-          "oklch(from #254d39 0.61 c h)",
-          "oklch(from #254d39 0.72 c h)",
-          "oklch(from #254d39 0.84 c h)",
-          "oklch(from #254d39 0.95 c h)"
-        ]
-      },
-      "sidebar-border": {
-        "role": "neutral",
-        "displayName": "Sidebar Border",
-        "tonalRamp": [
-          "oklch(from #d9ddd1 0.15 c h)",
-          "oklch(from #d9ddd1 0.26 c h)",
-          "oklch(from #d9ddd1 0.38 c h)",
-          "oklch(from #d9ddd1 0.49 c h)",
-          "oklch(from #d9ddd1 0.61 c h)",
-          "oklch(from #d9ddd1 0.72 c h)",
-          "oklch(from #d9ddd1 0.84 c h)",
-          "oklch(from #d9ddd1 0.95 c h)"
-        ]
-      },
-      "section-contact-accent": {
-        "role": "secondary",
-        "displayName": "Section Contact Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.45 0.06 260) 0.15 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.26 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.38 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.49 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.61 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.72 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.84 c h)",
-          "oklch(from oklch(0.45 0.06 260) 0.95 c h)"
-        ]
-      },
-      "section-summary-accent": {
-        "role": "secondary",
-        "displayName": "Section Summary Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.74 0.14 68) 0.15 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.26 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.38 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.49 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.61 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.72 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.84 c h)",
-          "oklch(from oklch(0.74 0.14 68) 0.95 c h)"
-        ]
-      },
-      "section-experience-accent": {
-        "role": "secondary",
-        "displayName": "Section Experience Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.31 0.075 262) 0.15 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.26 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.38 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.49 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.61 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.72 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.84 c h)",
-          "oklch(from oklch(0.31 0.075 262) 0.95 c h)"
-        ]
-      },
-      "section-projects-accent": {
-        "role": "secondary",
-        "displayName": "Section Projects Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.67 0.14 38) 0.15 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.26 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.38 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.49 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.61 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.72 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.84 c h)",
-          "oklch(from oklch(0.67 0.14 38) 0.95 c h)"
-        ]
-      },
-      "section-education-accent": {
-        "role": "secondary",
-        "displayName": "Section Education Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.52 0.07 248) 0.15 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.26 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.38 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.49 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.61 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.72 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.84 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.95 c h)"
-        ]
-      },
-      "section-certifications-accent": {
-        "role": "secondary",
-        "displayName": "Section Certifications Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.52 0.07 248) 0.15 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.26 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.38 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.49 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.61 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.72 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.84 c h)",
-          "oklch(from oklch(0.52 0.07 248) 0.95 c h)"
-        ]
-      },
-      "section-skills-accent": {
-        "role": "secondary",
-        "displayName": "Section Skills Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.72 0.13 70) 0.15 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.26 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.38 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.49 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.61 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.72 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.84 c h)",
-          "oklch(from oklch(0.72 0.13 70) 0.95 c h)"
-        ]
-      },
-      "section-facts-accent": {
-        "role": "secondary",
-        "displayName": "Section Facts Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.55 0.1 165) 0.15 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.26 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.38 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.49 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.61 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.72 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.84 c h)",
-          "oklch(from oklch(0.55 0.1 165) 0.95 c h)"
-        ]
-      },
-      "dark-background": {
-        "role": "neutral",
-        "displayName": "Dark Background",
-        "tonalRamp": [
-          "oklch(from #191f1b 0.15 c h)",
-          "oklch(from #191f1b 0.26 c h)",
-          "oklch(from #191f1b 0.38 c h)",
-          "oklch(from #191f1b 0.49 c h)",
-          "oklch(from #191f1b 0.61 c h)",
-          "oklch(from #191f1b 0.72 c h)",
-          "oklch(from #191f1b 0.84 c h)",
-          "oklch(from #191f1b 0.95 c h)"
-        ]
-      },
-      "dark-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Foreground",
-        "tonalRamp": [
-          "oklch(from #e7ebe2 0.15 c h)",
-          "oklch(from #e7ebe2 0.26 c h)",
-          "oklch(from #e7ebe2 0.38 c h)",
-          "oklch(from #e7ebe2 0.49 c h)",
-          "oklch(from #e7ebe2 0.61 c h)",
-          "oklch(from #e7ebe2 0.72 c h)",
-          "oklch(from #e7ebe2 0.84 c h)",
-          "oklch(from #e7ebe2 0.95 c h)"
-        ]
-      },
-      "dark-card": {
-        "role": "neutral",
-        "displayName": "Dark Card",
-        "tonalRamp": [
-          "oklch(from #222a24 0.15 c h)",
-          "oklch(from #222a24 0.26 c h)",
-          "oklch(from #222a24 0.38 c h)",
-          "oklch(from #222a24 0.49 c h)",
-          "oklch(from #222a24 0.61 c h)",
-          "oklch(from #222a24 0.72 c h)",
-          "oklch(from #222a24 0.84 c h)",
-          "oklch(from #222a24 0.95 c h)"
-        ]
-      },
-      "dark-primary": {
-        "role": "primary",
-        "displayName": "Dark Primary",
-        "tonalRamp": [
-          "oklch(from #a6c6a5 0.15 c h)",
-          "oklch(from #a6c6a5 0.26 c h)",
-          "oklch(from #a6c6a5 0.38 c h)",
-          "oklch(from #a6c6a5 0.49 c h)",
-          "oklch(from #a6c6a5 0.61 c h)",
-          "oklch(from #a6c6a5 0.72 c h)",
-          "oklch(from #a6c6a5 0.84 c h)",
-          "oklch(from #a6c6a5 0.95 c h)"
-        ]
-      },
-      "dark-primary-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Primary Foreground",
-        "tonalRamp": [
-          "oklch(from #1d3425 0.15 c h)",
-          "oklch(from #1d3425 0.26 c h)",
-          "oklch(from #1d3425 0.38 c h)",
-          "oklch(from #1d3425 0.49 c h)",
-          "oklch(from #1d3425 0.61 c h)",
-          "oklch(from #1d3425 0.72 c h)",
-          "oklch(from #1d3425 0.84 c h)",
-          "oklch(from #1d3425 0.95 c h)"
-        ]
-      },
-      "dark-secondary": {
-        "role": "neutral",
-        "displayName": "Dark Secondary",
-        "tonalRamp": [
-          "oklch(from #303d31 0.15 c h)",
-          "oklch(from #303d31 0.26 c h)",
-          "oklch(from #303d31 0.38 c h)",
-          "oklch(from #303d31 0.49 c h)",
-          "oklch(from #303d31 0.61 c h)",
-          "oklch(from #303d31 0.72 c h)",
-          "oklch(from #303d31 0.84 c h)",
-          "oklch(from #303d31 0.95 c h)"
-        ]
-      },
-      "dark-secondary-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Secondary Foreground",
-        "tonalRamp": [
-          "oklch(from #d3e2ce 0.15 c h)",
-          "oklch(from #d3e2ce 0.26 c h)",
-          "oklch(from #d3e2ce 0.38 c h)",
-          "oklch(from #d3e2ce 0.49 c h)",
-          "oklch(from #d3e2ce 0.61 c h)",
-          "oklch(from #d3e2ce 0.72 c h)",
-          "oklch(from #d3e2ce 0.84 c h)",
-          "oklch(from #d3e2ce 0.95 c h)"
-        ]
-      },
-      "dark-muted": {
-        "role": "neutral",
-        "displayName": "Dark Muted",
-        "tonalRamp": [
-          "oklch(from #293129 0.15 c h)",
-          "oklch(from #293129 0.26 c h)",
-          "oklch(from #293129 0.38 c h)",
-          "oklch(from #293129 0.49 c h)",
-          "oklch(from #293129 0.61 c h)",
-          "oklch(from #293129 0.72 c h)",
-          "oklch(from #293129 0.84 c h)",
-          "oklch(from #293129 0.95 c h)"
-        ]
-      },
-      "dark-muted-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Muted Foreground",
-        "tonalRamp": [
-          "oklch(from #acb6a9 0.15 c h)",
-          "oklch(from #acb6a9 0.26 c h)",
-          "oklch(from #acb6a9 0.38 c h)",
-          "oklch(from #acb6a9 0.49 c h)",
-          "oklch(from #acb6a9 0.61 c h)",
-          "oklch(from #acb6a9 0.72 c h)",
-          "oklch(from #acb6a9 0.84 c h)",
-          "oklch(from #acb6a9 0.95 c h)"
-        ]
-      },
-      "dark-accent": {
-        "role": "neutral",
-        "displayName": "Dark Accent",
-        "tonalRamp": [
-          "oklch(from #334332 0.15 c h)",
-          "oklch(from #334332 0.26 c h)",
-          "oklch(from #334332 0.38 c h)",
-          "oklch(from #334332 0.49 c h)",
-          "oklch(from #334332 0.61 c h)",
-          "oklch(from #334332 0.72 c h)",
-          "oklch(from #334332 0.84 c h)",
-          "oklch(from #334332 0.95 c h)"
-        ]
-      },
-      "dark-accent-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Accent Foreground",
-        "tonalRamp": [
-          "oklch(from #e0ecda 0.15 c h)",
-          "oklch(from #e0ecda 0.26 c h)",
-          "oklch(from #e0ecda 0.38 c h)",
-          "oklch(from #e0ecda 0.49 c h)",
-          "oklch(from #e0ecda 0.61 c h)",
-          "oklch(from #e0ecda 0.72 c h)",
-          "oklch(from #e0ecda 0.84 c h)",
-          "oklch(from #e0ecda 0.95 c h)"
-        ]
-      },
-      "dark-destructive": {
-        "role": "neutral",
-        "displayName": "Dark Destructive",
-        "tonalRamp": [
-          "oklch(from #f08b80 0.15 c h)",
-          "oklch(from #f08b80 0.26 c h)",
-          "oklch(from #f08b80 0.38 c h)",
-          "oklch(from #f08b80 0.49 c h)",
-          "oklch(from #f08b80 0.61 c h)",
-          "oklch(from #f08b80 0.72 c h)",
-          "oklch(from #f08b80 0.84 c h)",
-          "oklch(from #f08b80 0.95 c h)"
-        ]
-      },
-      "dark-border": {
-        "role": "neutral",
-        "displayName": "Dark Border",
-        "tonalRamp": [
-          "oklch(from #3b463b 0.15 c h)",
-          "oklch(from #3b463b 0.26 c h)",
-          "oklch(from #3b463b 0.38 c h)",
-          "oklch(from #3b463b 0.49 c h)",
-          "oklch(from #3b463b 0.61 c h)",
-          "oklch(from #3b463b 0.72 c h)",
-          "oklch(from #3b463b 0.84 c h)",
-          "oklch(from #3b463b 0.95 c h)"
-        ]
-      },
-      "dark-input": {
-        "role": "neutral",
-        "displayName": "Dark Input",
-        "tonalRamp": [
-          "oklch(from #546150 0.15 c h)",
-          "oklch(from #546150 0.26 c h)",
-          "oklch(from #546150 0.38 c h)",
-          "oklch(from #546150 0.49 c h)",
-          "oklch(from #546150 0.61 c h)",
-          "oklch(from #546150 0.72 c h)",
-          "oklch(from #546150 0.84 c h)",
-          "oklch(from #546150 0.95 c h)"
-        ]
-      },
-      "dark-ring": {
-        "role": "neutral",
-        "displayName": "Dark Ring",
-        "tonalRamp": [
-          "oklch(from #a6c6a5 0.15 c h)",
-          "oklch(from #a6c6a5 0.26 c h)",
-          "oklch(from #a6c6a5 0.38 c h)",
-          "oklch(from #a6c6a5 0.49 c h)",
-          "oklch(from #a6c6a5 0.61 c h)",
-          "oklch(from #a6c6a5 0.72 c h)",
-          "oklch(from #a6c6a5 0.84 c h)",
-          "oklch(from #a6c6a5 0.95 c h)"
-        ]
-      },
-      "dark-sidebar": {
-        "role": "neutral",
-        "displayName": "Dark Sidebar",
-        "tonalRamp": [
-          "oklch(from #202720 0.15 c h)",
-          "oklch(from #202720 0.26 c h)",
-          "oklch(from #202720 0.38 c h)",
-          "oklch(from #202720 0.49 c h)",
-          "oklch(from #202720 0.61 c h)",
-          "oklch(from #202720 0.72 c h)",
-          "oklch(from #202720 0.84 c h)",
-          "oklch(from #202720 0.95 c h)"
-        ]
-      },
-      "dark-sidebar-accent": {
-        "role": "neutral",
-        "displayName": "Dark Sidebar Accent",
-        "tonalRamp": [
-          "oklch(from #344332 0.15 c h)",
-          "oklch(from #344332 0.26 c h)",
-          "oklch(from #344332 0.38 c h)",
-          "oklch(from #344332 0.49 c h)",
-          "oklch(from #344332 0.61 c h)",
-          "oklch(from #344332 0.72 c h)",
-          "oklch(from #344332 0.84 c h)",
-          "oklch(from #344332 0.95 c h)"
-        ]
-      },
-      "dark-sidebar-accent-foreground": {
-        "role": "neutral",
-        "displayName": "Dark Sidebar Accent Foreground",
-        "tonalRamp": [
-          "oklch(from #e0ecda 0.15 c h)",
-          "oklch(from #e0ecda 0.26 c h)",
-          "oklch(from #e0ecda 0.38 c h)",
-          "oklch(from #e0ecda 0.49 c h)",
-          "oklch(from #e0ecda 0.61 c h)",
-          "oklch(from #e0ecda 0.72 c h)",
-          "oklch(from #e0ecda 0.84 c h)",
-          "oklch(from #e0ecda 0.95 c h)"
-        ]
-      },
-      "dark-sidebar-border": {
-        "role": "neutral",
-        "displayName": "Dark Sidebar Border",
-        "tonalRamp": [
-          "oklch(from #3b463b 0.15 c h)",
-          "oklch(from #3b463b 0.26 c h)",
-          "oklch(from #3b463b 0.38 c h)",
-          "oklch(from #3b463b 0.49 c h)",
-          "oklch(from #3b463b 0.61 c h)",
-          "oklch(from #3b463b 0.72 c h)",
-          "oklch(from #3b463b 0.84 c h)",
-          "oklch(from #3b463b 0.95 c h)"
-        ]
-      },
-      "dark-section-contact-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Contact Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.7 0.03 250) 0.15 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.26 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.38 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.49 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.61 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.72 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.84 c h)",
-          "oklch(from oklch(0.7 0.03 250) 0.95 c h)"
-        ]
-      },
-      "dark-section-summary-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Summary Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.8 0.13 80) 0.15 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.26 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.38 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.49 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.61 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.72 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.84 c h)",
-          "oklch(from oklch(0.8 0.13 80) 0.95 c h)"
-        ]
-      },
-      "dark-section-experience-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Experience Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.72 0.1 190) 0.15 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.26 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.38 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.49 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.61 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.72 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.84 c h)",
-          "oklch(from oklch(0.72 0.1 190) 0.95 c h)"
-        ]
-      },
-      "dark-section-projects-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Projects Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.72 0.13 295) 0.15 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.26 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.38 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.49 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.61 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.72 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.84 c h)",
-          "oklch(from oklch(0.72 0.13 295) 0.95 c h)"
-        ]
-      },
-      "dark-section-education-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Education Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.72 0.11 240) 0.15 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.26 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.38 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.49 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.61 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.72 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.84 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.95 c h)"
-        ]
-      },
-      "dark-section-certifications-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Certifications Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.72 0.11 240) 0.15 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.26 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.38 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.49 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.61 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.72 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.84 c h)",
-          "oklch(from oklch(0.72 0.11 240) 0.95 c h)"
-        ]
-      },
-      "dark-section-skills-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Skills Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.74 0.12 160) 0.15 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.26 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.38 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.49 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.61 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.72 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.84 c h)",
-          "oklch(from oklch(0.74 0.12 160) 0.95 c h)"
-        ]
-      },
-      "dark-section-facts-accent": {
-        "role": "secondary",
-        "displayName": "Dark Section Facts Accent",
-        "tonalRamp": [
-          "oklch(from oklch(0.74 0.1 175) 0.15 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.26 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.38 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.49 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.61 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.72 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.84 c h)",
-          "oklch(from oklch(0.74 0.1 175) 0.95 c h)"
-        ]
-      }
-    },
-    "typographyMeta": {
-      "headline": {
-        "displayName": "Headline",
-        "purpose": "Page headings; steps down to 1.75rem below 900px."
-      },
-      "display": {
-        "displayName": "Display",
-        "purpose": "Authentication introductions; steps down to 2.5rem below 1200px and 2rem below 600px."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "Supporting page copy with a maximum measure of 65ch."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Navigation group labels and supporting control labels."
-      }
-    }
+    ]
   },
   "components": [
     {
       "name": "Primary button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Primary button as implemented in the web workspace.",
-      "html": "<button class=\"ds-button-primary\">Save changes</button>",
-      "css": ".ds-button-primary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--primary);color:var(--primary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-primary:hover{background:color-mix(in oklab,var(--primary) 80%,transparent)}.ds-button-primary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-primary:active{transform:translateY(1px)}.ds-button-primary:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-primary{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+      "description": "Ink-filled action; shrinks slightly on press.",
+      "html": "<button class=\"ds-btn-primary\">Add a job</button>",
+      "css": ".ds-btn-primary { display:inline-flex; align-items:center; height:36px; padding:0 14px; border:1.5px solid transparent; border-radius:4px; background:var(--primary,#111418); color:var(--primary-foreground,#fff); font:600 14px \"Archivo Variable\",Arial,sans-serif; cursor:pointer; transition:background-color 160ms cubic-bezier(0.23,1,0.32,1), transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-primary:hover { background:color-mix(in oklab, var(--primary,#111418) 85%, transparent); } .ds-btn-primary:focus-visible { outline:none; border-color:var(--ring,#111418); box-shadow:0 0 0 3px color-mix(in oklab, var(--ring,#111418) 50%, transparent); } .ds-btn-primary:active { transform:scale(0.97); }"
     },
     {
       "name": "Outline button",
       "kind": "button",
       "refersTo": "button-outline",
-      "description": "Outline button as implemented in the web workspace.",
-      "html": "<button class=\"ds-button-outline\">Save changes</button>",
-      "css": ".ds-button-outline{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--background);color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-outline:hover{background:var(--muted)}.ds-button-outline:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-outline:active{transform:translateY(1px)}.ds-button-outline:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-outline{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+      "description": "White with an ink border; secondary actions like Find jobs.",
+      "html": "<button class=\"ds-btn-outline\">Find jobs</button>",
+      "css": ".ds-btn-outline { display:inline-flex; align-items:center; height:36px; padding:0 14px; border:1.5px solid var(--foreground,#111418); border-radius:4px; background:var(--background,#fff); color:var(--foreground,#111418); font:600 14px \"Archivo Variable\",Arial,sans-serif; cursor:pointer; transition:background-color 160ms cubic-bezier(0.23,1,0.32,1), transform 160ms cubic-bezier(0.23,1,0.32,1); } .ds-btn-outline:hover { background:var(--muted,#f4f5f6); } .ds-btn-outline:focus-visible { outline:none; box-shadow:0 0 0 3px color-mix(in oklab, var(--ring,#111418) 50%, transparent); } .ds-btn-outline:active { transform:scale(0.97); }"
     },
     {
-      "name": "Ghost button",
-      "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "Ghost button as implemented in the web workspace.",
-      "html": "<button class=\"ds-button-ghost\">Save changes</button>",
-      "css": ".ds-button-ghost{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:transparent;color:var(--foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-ghost:hover{background:var(--muted)}.ds-button-ghost:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-ghost:active{transform:translateY(1px)}.ds-button-ghost:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-ghost{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
-    },
-    {
-      "name": "Secondary button",
-      "kind": "button",
-      "refersTo": "button-secondary",
-      "description": "Secondary button as implemented in the web workspace.",
-      "html": "<button class=\"ds-button-secondary\">Save changes</button>",
-      "css": ".ds-button-secondary{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:var(--radius);background:var(--secondary);color:var(--secondary-foreground);font-weight:500;cursor:pointer;transition:all 150ms}.ds-button-secondary:hover{background:color-mix(in oklch,var(--secondary),var(--foreground) 5%)}.ds-button-secondary:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-button-secondary:active{transform:translateY(1px)}.ds-button-secondary:disabled{pointer-events:none;opacity:0.5}@media(max-width:899px){.ds-button-secondary{min-height:44px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
-    },
-    {
-      "name": "Text input",
-      "kind": "input",
-      "refersTo": "input",
-      "description": "Text input as implemented in the web workspace.",
-      "html": "<input class=\"ds-input\" aria-label=\"Job title\" placeholder=\"Job title\">",
-      "css": ".ds-input{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;height:32px;padding:4px 10px;border:1px solid var(--input);border-radius:var(--radius);background:transparent;color:var(--foreground);transition:border-color 150ms}.ds-input::placeholder{color:var(--muted-foreground)}.ds-input:hover{border-color:var(--input)}.ds-input:focus-visible{border-color:var(--ring);outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
-    },
-    {
-      "name": "Section count",
-      "kind": "chip",
-      "refersTo": "badge-secondary",
-      "description": "Section count as implemented in the web workspace.",
-      "html": "<span class=\"ds-badge\">3</span>",
-      "css": ".ds-badge{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:inline-flex;align-items:center;height:20px;padding:2px 8px;border-radius:calc(var(--radius)*2.6);background:var(--secondary);color:var(--secondary-foreground);font-size:12px;font-weight:500}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
-    },
-    {
-      "name": "Selected navigation",
+      "name": "Signage band",
       "kind": "nav",
-      "description": "Selected navigation as implemented in the web workspace.",
-      "html": "<nav aria-label=\"Workspace\"><a href=\"#library\" aria-current=\"page\" class=\"ds-nav\">Career library</a></nav>",
-      "css": ".ds-nav{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;display:flex;align-items:center;min-height:46px;padding:10px 12px;border-radius:7px;background:var(--sidebar-accent);color:var(--sidebar-accent-foreground);font-weight:600;text-decoration:none;transition:background-color 160ms,color 160ms}.ds-nav:hover{background:var(--muted);color:var(--foreground)}.ds-nav:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+      "refersTo": "signage-band",
+      "description": "Black navigation band; the current section gets a 4px white underline.",
+      "html": "<header class=\"ds-band\"><a class=\"ds-band-brand\" href=\"#\"><span class=\"ds-band-bullet\"></span>Careergrind</a><nav class=\"ds-band-nav\"><a class=\"ds-band-link is-active\" href=\"#\">Home</a><a class=\"ds-band-link\" href=\"#\">Jobs</a><a class=\"ds-band-link\" href=\"#\">Library</a><a class=\"ds-band-link\" href=\"#\">Practice</a></nav></header>",
+      "css": ".ds-band { display:flex; align-items:stretch; gap:40px; height:60px; padding:0 48px; background:var(--band,#111418); color:var(--band-foreground,#fff); font-family:\"Archivo Variable\",Arial,sans-serif; } .ds-band-brand { display:flex; align-items:center; gap:10px; color:var(--band-foreground,#fff); font-size:19px; font-weight:800; letter-spacing:-0.01em; text-decoration:none; } .ds-band-bullet { position:relative; width:22px; height:22px; border-radius:50%; background:var(--band-foreground,#fff); } .ds-band-bullet::after { content:\"\"; position:absolute; inset:7px; border-radius:50%; background:var(--band,#111418); } .ds-band-nav { display:flex; } .ds-band-link { display:flex; align-items:center; padding:4px 18px 0; border-bottom:4px solid transparent; color:var(--band-muted,#b8bdc3); font-size:15px; font-weight:600; text-decoration:none; transition:color 160ms, border-color 160ms; } .ds-band-link:hover { color:var(--band-foreground,#fff); border-bottom-color:var(--band-rule,#3a4048); } .ds-band-link.is-active { color:var(--band-foreground,#fff); border-bottom-color:var(--band-foreground,#fff); } .ds-band-link:focus-visible { outline:2px solid var(--band-foreground,#fff); outline-offset:-8px; border-radius:4px; }"
     },
     {
-      "name": "Section surface",
+      "name": "Section tabs",
+      "kind": "nav",
+      "refersTo": "section-tab",
+      "description": "Plain tab row under the band for a section with several pages.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab is-active\" href=\"#\">Saved jobs</a><a class=\"ds-tab\" href=\"#\">Find jobs</a></nav>",
+      "css": ".ds-tabs { display:flex; gap:28px; height:52px; padding:0 48px; border-bottom:1px solid var(--border,#d9dce0); font:600 14px \"Archivo Variable\",Arial,sans-serif; } .ds-tab { display:flex; align-items:center; margin-bottom:-1px; padding-top:3px; border-bottom:3px solid transparent; color:var(--muted-foreground,#5b6168); text-decoration:none; transition:color 160ms, border-color 160ms; } .ds-tab:hover { color:var(--foreground,#111418); border-bottom-color:var(--border,#d9dce0); } .ds-tab.is-active { color:var(--foreground,#111418); border-bottom-color:var(--rule-strong,#111418); } .ds-tab:focus-visible { outline:none; color:var(--foreground,#111418); box-shadow:inset 0 -3px 0 var(--ring,#111418); }"
+    },
+    {
+      "name": "Station line",
+      "kind": "custom",
+      "refersTo": "station-bullet",
+      "description": "Home stations with counts on an 8px ink track; Offer is green, Rejected is a dashed branch.",
+      "html": "<div class=\"ds-stations\"><div class=\"ds-station\"><span class=\"ds-station-bullet\">3</span><b>Saved</b></div><div class=\"ds-station\"><span class=\"ds-station-bullet\">2</span><b>Applied</b></div><div class=\"ds-station is-offer\"><span class=\"ds-station-bullet\">1</span><b>Offer</b></div><div class=\"ds-station is-rejected\"><span class=\"ds-station-bullet\">1</span><b>Rejected</b><small>Branch line</small></div></div>",
+      "css": ".ds-stations { display:grid; grid-template-columns:repeat(4,minmax(110px,1fr)); gap:16px; font-family:\"Archivo Variable\",Arial,sans-serif; color:var(--foreground,#111418); } .ds-station { position:relative; display:grid; justify-items:center; align-content:start; gap:10px; padding-bottom:14px; border-bottom:1px solid var(--border,#d9dce0); font-size:16px; } .ds-station::before, .ds-station::after { content:\"\"; position:absolute; top:17px; height:8px; background:var(--rule-strong,#111418); } .ds-station::before { left:-8px; right:50%; } .ds-station::after { left:50%; right:-8px; } .ds-station:first-child::before, .ds-station:last-child::after { display:none; } .ds-station.is-offer::after, .ds-station.is-rejected::before { top:19px; height:0; background:none; border-top:4px dashed var(--stop-closed,#9aa0a6); } .ds-station-bullet { position:relative; z-index:1; display:grid; place-items:center; width:42px; height:42px; box-sizing:border-box; border:6px solid var(--rule-strong,#111418); border-radius:50%; background:var(--background,#fff); font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; } .ds-station.is-offer .ds-station-bullet { border-color:var(--signal-done,#00933c); } .ds-station.is-rejected .ds-station-bullet { border-color:var(--stop-closed,#9aa0a6); color:var(--muted-foreground,#5b6168); } .ds-station small { margin-top:-8px; color:var(--muted-foreground,#5b6168); font-size:12px; }"
+    },
+    {
+      "name": "Job tile with stop line",
       "kind": "card",
-      "refersTo": "section-card",
-      "description": "Section surface as implemented in the web workspace.",
-      "html": "<section class=\"ds-card\"><h2>Experience</h2><div>Career evidence belongs here.</div></section>",
-      "css": ".ds-card{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:14px;border-radius:calc(var(--radius)*1.4);background:var(--card);color:var(--card-foreground);box-shadow:none;overflow:hidden}.ds-card h2{font-size:16px;font-weight:500;margin:0;padding:20px;border-bottom:1px solid var(--border)}.ds-card div{padding:20px}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}}"
+      "refersTo": "job-tile",
+      "description": "A job on the board: title, company, its own five-stop line, and its next step.",
+      "html": "<article class=\"ds-tile\"><h3>Senior Product Designer</h3><p>Example Co.</p><div class=\"ds-stops\"><i class=\"is-done\"></i><i class=\"is-now\"></i><i></i><i></i><i></i></div><a class=\"ds-next\" href=\"#\"><span class=\"ds-dot is-action\"></span>Review resume draft</a></article>",
+      "css": ".ds-tile { width:240px; padding:16px 16px 14px; border:1.5px solid var(--rule-strong,#111418); border-radius:6px; background:var(--card,#fff); color:var(--foreground,#111418); font-family:\"Archivo Variable\",Arial,sans-serif; } .ds-tile h3 { margin:0; font-size:16px; font-weight:700; line-height:1.25; } .ds-tile p { margin:3px 0 0; color:var(--muted-foreground,#5b6168); font-size:13px; } .ds-stops { position:relative; display:flex; justify-content:space-between; align-items:center; margin:14px 0 13px; padding-bottom:13px; border-bottom:1px solid var(--border,#d9dce0); } .ds-stops::before { content:\"\"; position:absolute; left:4px; right:4px; top:calc(50% - 7px); height:2px; background:var(--border,#d9dce0); } .ds-stops i { position:relative; width:9px; height:9px; box-sizing:border-box; border:2px solid var(--stop-off,#b9bec4); border-radius:50%; background:var(--card,#fff); } .ds-stops i.is-done { border-color:var(--rule-strong,#111418); background:var(--rule-strong,#111418); } .ds-stops i.is-now { width:13px; height:13px; border-color:var(--rule-strong,#111418); background:var(--rule-strong,#111418); box-shadow:0 0 0 3px var(--card,#fff), 0 0 0 4.5px var(--rule-strong,#111418); } .ds-next { display:inline-flex; align-items:center; gap:9px; color:var(--foreground,#111418); font-size:14px; font-weight:700; text-decoration:none; text-underline-offset:4px; } .ds-next:hover { text-decoration:underline; } .ds-next:focus-visible { outline:2px solid var(--ring,#111418); outline-offset:3px; border-radius:4px; } .ds-dot { width:12px; height:12px; border-radius:50%; } .ds-dot.is-action { background:var(--signal-action,#ee352e); }"
     },
     {
-      "name": "Library review toolbar",
-      "kind": "custom",
-      "description": "Manual add stays at the start of each open section; a quiet AI review action sits at the end. Detail improvement uses the same pencil as the AI workspace.",
-      "html": "<div class=\"ds-library-toolbar\"><button class=\"ds-library-add\">Add role</button><button class=\"ds-library-review\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" aria-hidden=\"true\"><rect x=\"8\" y=\"2\" width=\"8\" height=\"4\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2m1 10 2 2 4-4\"/></svg>Review Experience</button></div>",
-      "css": ".ds-library-toolbar{display:flex;flex-wrap:wrap;align-items:start;justify-content:space-between;gap:12px;background:var(--card);padding:20px}.ds-library-add,.ds-library-review{font-family:var(--font-sans,\"Geist Variable\",sans-serif);font-size:13px;font-weight:500;border:1px solid transparent;border-radius:var(--radius);padding:0 10px;min-height:28px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;transition:background-color 160ms,color 160ms;}.ds-library-add{background:var(--background);border-color:var(--border);color:var(--foreground)}.ds-library-review{background:transparent;color:var(--primary)}.ds-library-add:hover,.ds-library-review:hover{background:var(--muted)}.ds-library-add:focus-visible,.ds-library-review:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}.ds-library-add:disabled,.ds-library-review:disabled{opacity:0.5;pointer-events:none}@media(max-width:899px){.ds-library-add,.ds-library-review{min-height:44px}}"
+      "name": "Signal legend",
+      "kind": "chip",
+      "description": "The four signals, one meaning each; only the AI dot breathes outside the legend.",
+      "html": "<ul class=\"ds-legend\"><li><span class=\"ds-sig is-action\"></span>Needs you</li><li><span class=\"ds-sig is-ai is-live\"></span>AI working</li><li><span class=\"ds-sig is-wait\"></span>Waiting</li><li><span class=\"ds-sig is-done\"></span>Offer</li></ul>",
+      "css": ".ds-legend { display:flex; flex-wrap:wrap; gap:6px 18px; margin:0; padding:0; list-style:none; color:var(--muted-foreground,#5b6168); font:400 12px \"Archivo Variable\",Arial,sans-serif; } .ds-legend li { display:flex; align-items:center; gap:6px; } .ds-sig { position:relative; width:12px; height:12px; border-radius:50%; } .ds-sig.is-action { background:var(--signal-action,#ee352e); } .ds-sig.is-ai { background:var(--signal-ai,#0039a6); } .ds-sig.is-wait { background:var(--signal-wait,#fccc0a); } .ds-sig.is-done { background:var(--signal-done,#00933c); } .ds-sig.is-live::after { content:\"\"; position:absolute; inset:-4px; border-radius:50%; border:2px solid var(--signal-ai,#0039a6); opacity:0; animation:ds-breathe 2.4s cubic-bezier(0.23,1,0.32,1) infinite; } @keyframes ds-breathe { 0% { transform:scale(0.6); opacity:0.7; } 100% { transform:scale(1.5); opacity:0; } } @media (prefers-reduced-motion: reduce) { .ds-sig.is-live::after { animation:none; opacity:0.35; } }"
     },
     {
-      "name": "Task notification inbox",
-      "kind": "custom",
-      "description": "A bell in the workspace top bar opens a right-aligned inbox. New outcomes update its unread count; ruled rows hold result and dismissal actions.",
-      "html": "<section class=\"ds-inbox\"><header><strong>Notifications</strong><span>1 update</span></header><a href=\"#task\"><strong>Gap analysis completed</strong><span>View result</span></a></section>",
-      "css": ".ds-inbox{font-family:var(--font-sans,\"Geist Variable\",sans-serif);max-width:384px;background:var(--popover,var(--card));color:var(--popover-foreground,var(--foreground));border-radius:12px;overflow:hidden;box-shadow:0 4px 6px -1px rgb(0 0 0 / 0.1),0 2px 4px -2px rgb(0 0 0 / 0.1)}.ds-inbox header{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:16px 20px;border-bottom:1px solid var(--border)}.ds-inbox header strong{font-size:16px;font-weight:600}.ds-inbox span{font-size:12px;color:var(--muted-foreground)}.ds-inbox a{display:grid;gap:6px;padding:16px 20px;color:var(--foreground);text-decoration:none;font-size:14px;transition:color 160ms}.ds-inbox a strong{font-weight:500}.ds-inbox a:hover{color:var(--primary)}.ds-inbox a:focus-visible{outline:3px solid color-mix(in oklab,var(--ring) 50%,transparent);outline-offset:1px;}"
+      "name": "Verdict badges",
+      "kind": "chip",
+      "refersTo": "badge-outline",
+      "description": "Outline status badges: signal border, -text words; partial stays ink.",
+      "html": "<span class=\"ds-badge is-met\">Met</span> <span class=\"ds-badge is-partial\">Partial</span> <span class=\"ds-badge is-missing\">Missing</span>",
+      "css": ".ds-badge { display:inline-flex; align-items:center; height:20px; padding:0 8px; border:1px solid; border-radius:3px; font:600 12px \"Archivo Variable\",Arial,sans-serif; } .ds-badge.is-met { border-color:var(--signal-done,#00933c); color:var(--signal-done-text,#007a32); } .ds-badge.is-partial { border-color:var(--foreground,#111418); color:var(--foreground,#111418); } .ds-badge.is-missing { border-color:var(--signal-action,#ee352e); color:var(--signal-action-text,#c8231b); }"
+    },
+    {
+      "name": "View switch",
+      "kind": "button",
+      "refersTo": "view-switch-selected",
+      "description": "Board/List toggle in a 2px ink frame; the selected half is filled ink.",
+      "html": "<div class=\"ds-switch\"><button aria-pressed=\"true\">Board</button><button aria-pressed=\"false\">List</button></div>",
+      "css": ".ds-switch { display:inline-flex; border:2px solid var(--rule-strong,#111418); border-radius:4px; overflow:hidden; } .ds-switch button { min-height:34px; padding:0 18px; border:0; background:var(--background,#fff); color:var(--foreground,#111418); font:700 13px \"Archivo Variable\",Arial,sans-serif; cursor:pointer; transition:background-color 160ms, color 160ms; } .ds-switch button[aria-pressed=false]:hover { background:var(--muted,#f4f5f6); } .ds-switch button[aria-pressed=true] { background:var(--rule-strong,#111418); color:var(--background,#fff); } .ds-switch button:focus-visible { outline:2px solid var(--ring,#111418); outline-offset:-5px; }"
     }
   ],
   "narrative": {
-    "northStar": "The Career Folio",
-    "overview": "The career folio presents career evidence as an ordered personal record. Warm paper, forest ink, restrained selection, and ruled rows keep long editing sessions calm and readable.\n\nThe main web app shares this system across signed-in tools and authentication. The separate marketing landing page is outside this specification.",
+    "northStar": "The Transit Line",
+    "overview": "The app reads like a subway map. Each job you apply to rides one line through five stops: Saved, Applied, Interviewing, Offer, and a Rejected branch. Home is the system map. A black signage band runs across the top like station signs, and a few bright signal colors tell you what to do next. The rest is white paper and near-black ink.\n\nIt is light-first because people use it at a desk during the day. Dark mode keeps the same map with a deep ink ground. Density is medium: tight enough to see every job at once, with real space between sections. Type does the heavy lifting with one family, Archivo, at strong weights. Color is never decoration. If something is colored, it is telling you something.\n\nThis world replaced an older \"paper and forest\" look. Nothing from that look carries over: no warm paper ground, no green primary, no per-section accent colors.",
     "keyCharacteristics": [
-      "Quiet surfaces and visible current location.",
-      "Clear page titles and restrained action hierarchy.",
-      "Remembered disclosures and structurally responsive navigation."
+      "White ground, ink type (#111418), cool grays for quiet text and hairlines.",
+      "A black signage band holds navigation, with a thick white underline under the current section.",
+      "Four signal colors, one meaning each, used the same way on every page.",
+      "Round station bullets and thick lines that only appear where they show progress.",
+      "Archivo for everything, from the 44px Home title down to 12px labels.",
+      "Flat surfaces. Depth comes from ink rules and borders, not shadows."
     ],
     "rules": [
       {
-        "name": "The Quiet Record Rule",
-        "body": "Let evidence and headings carry the page; use borders rather than colored section bands to organize records.",
+        "name": "The One Meaning Rule",
+        "body": "Red means needs you, blue means AI working, yellow means waiting on someone else, green means offer or success. A signal color never shows up for any other reason, including decoration, links, charts, or section color.",
         "section": "colors"
+      },
+      {
+        "name": "The No Fifth Signal Rule",
+        "body": "In-between states like \"partial\" or \"could improve\" use plain ink (`foreground`), not a signal. Only the four meanings above get color.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fill vs. Text Rule",
+        "body": "Dots, lines, and borders use the plain signal token. Words and icons use the `-text` token. Never set small text in the fill color.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Archivo is the only typeface. Don't bring in a second display or mono font.",
+        "section": "typography"
+      },
+      {
+        "name": "The Bold Sign Rule",
+        "body": "Headings are 700 or 800. Nothing between body weight and bold is used for headings in the Transit Line surfaces.",
+        "section": "typography"
+      },
+      {
+        "name": "The Ink Not Shadow Rule",
+        "body": "If something needs to stand apart, give it an ink border or rule. Don't add a drop shadow to tiles, cards, or panels that sit in the page.",
+        "section": "elevation"
       }
     ],
     "dos": [
-      "Do use semantic theme variables in both color modes.",
-      "Do preserve disclosure state and keep the current navigation item visible.",
-      "Do use quiet rules to separate career records."
+      "Do use the four signals only for their one meaning: red needs you (including failures), blue AI working, yellow waiting on someone else, green offer or success.",
+      "Do use the `-text` token whenever a signal colors words or icons, and the plain token for dots, lines, and borders.",
+      "Do show \"partial\" and \"could improve\" in plain ink.",
+      "Do draw Rejected as a dashed gray branch off the line, never as the stop after Offer.",
+      "Do separate things with ink rules (2px) and hairlines (1px) instead of shadows.",
+      "Do keep the breathing blue ring as the only looping motion, and turn it off under reduced motion.",
+      "Do stack the board into a vertical list of stations on phones.",
+      "Do keep Archivo at 700 to 800 for headings and use tabular numbers for counts."
     ],
     "donts": [
-      "Don't restore colored header bands or accent stripes to section cards.",
-      "Don't replace the mobile navigation with a clipped desktop sidebar.",
-      "Don't treat the marketing landing page as covered by this workspace system."
+      "Don't use a signal color for decoration, links, charts, or to tell sections apart.",
+      "Don't add a fifth status color for in-between states.",
+      "Don't put small white text on a signal fill; it doesn't have enough contrast.",
+      "Don't draw thick colored lines where nothing is progressing.",
+      "Don't bring back the old paper-and-forest look: warm paper ground, green primary, or per-section accent colors.",
+      "Don't build the gray-sidebar kanban with pastel status pills that most job trackers ship.",
+      "Don't add drop shadows to tiles or panels that sit in the page."
     ]
   }
 }

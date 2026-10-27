@@ -1,10 +1,10 @@
 /** The signed-in account menu: account security, light/dark theme, and sign out.
- * Sits at the foot of the navigation spine (top right on small screens). Signing out
+ * Sits at the right of the signage band; phones show an icon instead of the email. Signing out
  * replaces the session; a failure stays visible next to the menu.
  */
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { ChevronsUpDown, LogOut, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { ChevronDown, LogOut, Moon, ShieldCheck, Sun, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/features/auth/useAuth'
@@ -34,11 +34,12 @@ export function AccountMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="account-menu-trigger" aria-label="Account menu">
+            <UserRound className="account-menu-icon" aria-hidden />
             <span className="account-menu-email">{user?.email ?? 'Account'}</span>
-            <ChevronsUpDown aria-hidden />
+            <ChevronDown className="account-menu-email" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" side="top" className="min-w-56">
+        <DropdownMenuContent align="end" className="min-w-56">
           {user && <DropdownMenuLabel className="account-menu-label">{user.email}</DropdownMenuLabel>}
           <DropdownMenuItem asChild>
             <Link to="/account/security"><ShieldCheck aria-hidden /> Account security</Link>

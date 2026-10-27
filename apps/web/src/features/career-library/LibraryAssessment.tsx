@@ -18,9 +18,9 @@ export interface Assessment {
 }
 
 const grades: Record<string, { label: string; className: string }> = {
-  red: { label: 'Needs work', className: 'text-red-700 dark:text-red-300' },
-  yellow: { label: 'Could improve', className: 'text-amber-800 dark:text-amber-300' },
-  green: { label: 'Looks good', className: 'text-green-800 dark:text-green-300' },
+  red: { label: 'Needs work', className: 'text-signal-action-text' },
+  yellow: { label: 'Could improve', className: 'text-foreground' },
+  green: { label: 'Looks good', className: 'text-signal-done-text' },
 }
 
 export function LibraryAssessment({ assessment, compact = false, action }: { assessment?: Assessment; compact?: boolean; action?: ReactNode }) {

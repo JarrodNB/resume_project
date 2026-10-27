@@ -1,4 +1,4 @@
-/** Checks Home's stage board and list, next-step links, AI work in progress, and the first-run steps. */
+/** Checks Home's stage board and list, next-step signals, AI work in progress, and the first-run steps. */
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it } from 'vitest'
@@ -70,4 +70,12 @@ it('explains a load failure and offers to try again', async () => {
   renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }] })
   expect(await screen.findByText("Couldn't load your jobs")).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+})
+
+it('marks an offer in green words and says when no AI work is running', async () => {
+  renderHome([entry('job-6', 'Analytics Engineer', 'OFFER', 'NONE')])
+  const offer = await screen.findByRole('region', { name: /^Offer/ })
+  expect(within(offer).getByText('Offer received')).toBeInTheDocument()
+  expect(within(screen.getByRole('region', { name: 'AI work in progress' })).getByText('Nothing running right now')).toBeInTheDocument()
+  expect(within(screen.getByRole('list', { name: 'Signal colors' })).getByText('Needs you')).toBeInTheDocument()
 })

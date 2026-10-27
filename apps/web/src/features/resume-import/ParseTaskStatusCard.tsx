@@ -46,7 +46,7 @@ export function ParseTaskStatusCard({ status, errorMessage }: ParseTaskStatusCar
         {status === 'imported' && (
           <>
             <StatusMessage
-              icon={<CircleCheck className="size-10 text-emerald-600" />}
+              icon={<CircleCheck className="size-10 text-signal-done-text" />}
               title="Already imported"
               body="This resume is already in your career library."
             />

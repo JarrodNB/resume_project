@@ -3,14 +3,14 @@
  */
 import { useRef, useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
-import type { JobBoardExperienceLevel, JobBoardSearchQuery } from '@/graphql/generated/graphql'
+import type { JobBoardExperienceLevel, JobBoardFiltersInput, JobBoardSearchQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_BOARD_SEARCH_QUERY } from './jobBoardOperations'
 
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
 export type BoardListing = SearchPage['listings'][number]
 type LoadedPage = Omit<SearchPage, 'retrievedAt'> & { retrievedAt: string; cursor: string | null }
-type Search = { keyword: string; remoteOnly: boolean; experienceLevels: JobBoardExperienceLevel[] }
+type Search = { keyword: string; remoteOnly: boolean; experienceLevels: JobBoardExperienceLevel[]; filters?: JobBoardFiltersInput }
 
 export function useJobBoardSearch() {
   const client = useApolloClient()
@@ -29,7 +29,7 @@ export function useJobBoardSearch() {
     setLoading(true)
     setErrors([])
     try {
-      // Do not let Apollo's cache replace Rails' shared 24-hour search policy.
+      // Rails owns shared freshness, including shorter date-filtered cache windows.
       const { data } = await client.query({ query: JOB_BOARD_SEARCH_QUERY, variables: { ...search, cursor }, fetchPolicy: 'no-cache' })
       if (generation.current !== current) return
       const page = data?.jobBoardSearch
@@ -59,9 +59,9 @@ export function useJobBoardSearch() {
     }
   }
 
-  function search(keyword: string, remoteOnly: boolean, experienceLevels: JobBoardExperienceLevel[] = []) {
+  function search(keyword: string, remoteOnly: boolean, experienceLevels: JobBoardExperienceLevel[] = [], filters?: JobBoardFiltersInput) {
     if (!keyword.trim()) return
-    submitted.current = { keyword: keyword.trim(), remoteOnly, experienceLevels: [...experienceLevels] }
+    submitted.current = { keyword: keyword.trim(), remoteOnly, experienceLevels: [...experienceLevels], ...(filters && { filters: { ...filters, ...(filters.employmentTypes && { employmentTypes: [...filters.employmentTypes] }) } }) }
     generation.current += 1
     setPages([])
     setErrors([])

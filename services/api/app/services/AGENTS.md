@@ -24,8 +24,8 @@ All business logic, as service objects grouped by domain folder.
   with new imports, including legacy catalogue snapshots; existing Jobs stay unchanged.
   Contract references: https://cleanjobdata.com/docs/api/jobs and https://cleanjobdata.com/docs/api/errors.
 - `job_board/search_catalogue_service.rb` — shared catalogue search and 24-hour page cache.
-  Cache identity includes a normalization revision to bypass older normalized pages.
-  Accepts keyword, remote-only, explicit experience-level selections, and exact cursor; returns ordered `JobBoardListing` records,
+  Cache identity includes a normalization revision and all effective filters/sort to bypass older normalized pages. Date-filtered pages refresh after 15 minutes.
+  Accepts keyword, remote-only, explicit experience-level selections, validated optional filters/sort, and exact cursor; returns ordered `JobBoardListing` records,
   retrieval time, next cursor, and stale/errors metadata. Keyword normalization collapses
   spaces, trims outer whitespace, and lowercases letters while preserving punctuation
   and quote characters. Case variants share provider requests, cache pages, and locks;
@@ -40,6 +40,8 @@ All business logic, as service objects grouped by domain folder.
   snapshots bounded plain-text excerpts and the submitted keyword. Existing matching queued work
   is reused; normal AI allowance checks apply. `validate_reranking_result_service.rb` accepts only
   exact permutations of the frozen candidate IDs.
+- `job_board/search_filters.rb` — validates and canonicalizes provider date, city/state, employment, remote type, salary, company, and sort preferences for HTTP/cache identity.
+- `job_board/suggest_locations_service.rb` — authenticated fixed-endpoint US city/state lookup, with bounded query/results and a five-second deadline. Provider credentials and raw responses stay server-side.
 - `job_board/saved_job_lookup.rb` — read-only owner-scoped source/URL matching shared by search and import.
 - `job_board/import_listing_service.rb` — copies a shared listing into an owned Job under
   the user's row lock. Returns `{ job:, warnings: }`; repeat listing IDs or application URLs

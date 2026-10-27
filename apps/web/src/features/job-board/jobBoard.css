@@ -72,3 +72,30 @@
 .board-reranking-options > p, .board-ranking-status { color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
 .board-reranking-options .board-remote { min-height: 44px; }
 .board-ranking-status { margin-top: 16px; }
+/* Preferences follow the workspace controls and collapse to one column on mobile. */
+.board-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.board-filter-grid > div { min-width: 0; }
+.board-filter-grid label { margin-bottom: 8px; }
+.board-filter-grid input, .board-filter-grid select { min-height: 44px; }
+.board-filter-grid select { width: 100%; min-width: 0; border: 1px solid var(--input); border-radius: var(--radius-lg); padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
+.board-filter-grid select:focus-visible, .board-location-choices input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.board-location-field { display: flex; gap: 8px; }
+.board-location-field input { min-width: 0; }
+.board-location-field button { min-height: 44px; flex-shrink: 0; }
+.board-filter-help { margin-top: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.board-location-choices { margin-top: 12px; }
+.board-location-choices legend { font-size: 13px; font-weight: 500; }
+.board-location-choices label { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 13px; cursor: pointer; }
+.board-location-choices input { min-height: auto; accent-color: var(--primary); }
+.board-location-choices span { color: var(--muted-foreground); margin-left: auto; }
+.board-advanced { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
+.board-advanced > button { min-height: 44px; font-size: 14px; }
+.board-undisclosed { margin-top: 12px; min-height: 44px; }
+.board-result-controls { display: grid; justify-items: end; gap: 8px; }
+.board-hide-saved { min-height: 44px; white-space: nowrap; }
+.board-saved-empty { padding: 32px 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+@media (max-width: 699px) {
+  .board-filter-grid { grid-template-columns: minmax(0, 1fr); }
+  .board-results-heading { flex-wrap: wrap; }
+  .board-result-controls { justify-items: start; }
+}

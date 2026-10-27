@@ -6,6 +6,7 @@ import { ArrowUpRight, MapPin, Plus, Radio } from 'lucide-react'
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
+import { employmentTypeOptions, remoteOptions } from './searchFilters'
 import type { BoardListing } from './useJobBoardSearch'
 
 interface Props {
@@ -16,6 +17,9 @@ interface Props {
 
 export function JobBoardListingRow({ listing, busyId, onCreate }: Props) {
   const { open, toggle, panelId } = useOpenSection(`job-board:${listing.id}:description`)
+  const published = listing.published ? new Date(listing.published) : null
+  const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
+  const employmentLabel = employmentTypeOptions.find(([value]) => value === listing.employmentType)?.[1]
   return (
     <li className="board-listing">
       <article aria-labelledby={`listing-${listing.id}`}>
@@ -23,9 +27,12 @@ export function JobBoardListingRow({ listing, busyId, onCreate }: Props) {
           <div className="board-listing-identity">
             <h2 id={`listing-${listing.id}`} className="board-listing-title">{listing.title}</h2>
             <p className="board-listing-company">{listing.company ?? 'Unknown company'}</p>
-            {(listing.location || listing.hasRemote) && <div className="board-listing-meta">
+            {(listing.location || listing.hasRemote || employmentLabel || listing.salaryText || (published && !Number.isNaN(published.getTime()))) && <div className="board-listing-meta">
               {listing.location && <span><MapPin size={14} aria-hidden />{listing.location}</span>}
-              {listing.hasRemote && <span className="board-remote-tag"><Radio size={13} aria-hidden />Remote option</span>}
+              {listing.hasRemote && <span className="board-remote-tag"><Radio size={13} aria-hidden />{remoteLabel}</span>}
+              {employmentLabel && <span>{employmentLabel}</span>}
+              {listing.salaryText && <span>{listing.salaryText}{listing.salaryCurrency && ` · ${listing.salaryCurrency}`}</span>}
+              {published && !Number.isNaN(published.getTime()) && <span>Posted <time dateTime={listing.published!}>{published.toLocaleDateString()}</time></span>}
             </div>}
           </div>
           {listing.savedJob ? (

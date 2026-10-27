@@ -10,6 +10,9 @@ module Types
     field :application_url, String
     field :remote_type, String
     field :has_remote, Boolean
+    field :employment_type, String
+    field :salary_text, String
+    field :salary_currency, String
     field :published, String
     field :is_active, Boolean
     field :saved_job, Types::JobType
@@ -21,6 +24,9 @@ module Types
     def application_url = object.payload["application_url"]
     def remote_type = object.payload["remote_type"]
     def has_remote = object.payload["has_remote"]
+    def employment_type = object.payload["employment_type"]
+    def salary_text = object.payload["salary_text"]
+    def salary_currency = object.payload["salary_currency"]
     def published = object.payload["published"]
     def is_active = object.payload["is_active"]
 

@@ -59,8 +59,16 @@ export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: Crea
     typePolicies: {
       // The id is a navigation link shared by snapshots from different interviews.
       InterviewJobContext: { keyFields: false },
-      // History selects fewer fields than the room; merge within this interview.
-      InterviewSession: { fields: { jobContext: { merge: true } } },
+      InterviewSession: { fields: { jobContext: {
+        merge(existing, incoming, { mergeObjects, readField }) {
+          // History selects fewer fields than the room; merge within this interview.
+          const merged = mergeObjects(existing, incoming)
+          // A job link can only be detached. Late responses must not restore it.
+          return existing && incoming && readField('id', existing) === null
+            ? { ...merged, id: null }
+            : merged
+        },
+      } } },
     },
   })
   const client = new ApolloClient({

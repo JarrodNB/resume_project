@@ -34,6 +34,20 @@ it('retains saved job details when history refreshes only the navigation and lab
   expect(saved?.interviewSession.jobContext).toMatchObject({ id: null, description: 'Frozen responsibilities.' })
   session.dispose()
 })
+it('keeps a deleted job link detached when an older response arrives at the same turn revision', async () => {
+  const savedInterview = gql`query { interviewSession(id: "saved") { id revision jobContext { id title company } } }`
+  const job = { __typename: 'InterviewJobContext', title: 'Frozen role', company: 'Saved company' }
+  const response = (id: string | null) => new Response(JSON.stringify({ data: { interviewSession: {
+    __typename: 'InterviewSession', id: 'saved', revision: 1, jobContext: { ...job, id },
+  } } }), { headers: { 'Content-Type': 'application/json' } })
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response(null)).mockResolvedValueOnce(response('deleted-job')))
+  const session = createApolloClient({ signedIn: false, csrfToken: 'csrf', onUnauthorized: vi.fn() })
+  await session.client.query({ query: savedInterview, fetchPolicy: 'network-only' })
+  await session.client.query({ query: savedInterview, fetchPolicy: 'network-only' })
+  const saved = session.client.readQuery<{ interviewSession: { revision: number; jobContext: { id: string | null } } }>({ query: savedInterview })
+  expect(saved?.interviewSession).toMatchObject({ revision: 1, jobContext: { id: null } })
+  session.dispose()
+})
 it('sends credentials and CSRF without exposing a session credential in the socket URL', async () => {
   const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { me: { email: 'ada@example.com' } } }), { headers: { 'Content-Type': 'application/json' } }))
   vi.stubGlobal('fetch', fetch)

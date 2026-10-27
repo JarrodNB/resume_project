@@ -9,11 +9,14 @@ Source of the web app, organized by feature.
 - `main.tsx` — entry point (applies the saved color theme before rendering); `App.tsx` —
   AuthProvider > SessionApolloProvider > router
 - `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`, grouped
-  under `/jobs`, `/library`, and `/practice`; `/` goes to `/jobs`; old paths redirect to their new homes)
+  under Home (`/`), `/jobs`, `/library`, and `/practice`; old paths redirect to their new homes)
 - `index.css` — Tailwind + shadcn theme variables: warm paper and forest ink in light
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
+- `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
+  localStorage), each with the next step Rails suggests (`jobPipeline`) linked to the job tab that
+  handles it, AI work in progress, and three starting steps before any job is saved
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, paginated results, and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching

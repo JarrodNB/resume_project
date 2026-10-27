@@ -35,6 +35,7 @@ GraphQL output/input types, enums, and root operation fields.
 - `job_attributes_input.rb`
 - `job_gap_response_type.rb`
 - `job_board_experience_level_enum.rb` — explicit provider experience-level search choices.
+- `job_next_step_enum.rb`, `job_pipeline_entry_type.rb` — Home `jobPipeline` entries (job plus suggested next step).
 - `job_stage_enum.rb`
 - `job_type.rb`
 - `study_guide_history_page_type.rb`, `study_guide_summary_type.rb` — bounded successful-guide history without generated bodies.

@@ -1,6 +1,6 @@
 """
 Description: Evaluates configured prompt screening through the input capability, with a fake generator.
-Run: docker compose run --rm ai python -m evals.run_prompt_guardrail_evals
+Run: docker compose run --rm ai-worker python -m evals.run_prompt_guardrail_evals
 Index:
     - load_prompt_guardrail_dataset: synthetic assembled inputs and expected allow decisions
     - run_prompt_guardrail_evals: reports safety decisions and errors to Logfire

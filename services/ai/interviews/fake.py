@@ -1,4 +1,4 @@
-"""Supply deterministic demo text and an offline Pydantic interviewer.
+"""Supply deterministic fixture text and an offline Pydantic interviewer.
 
 These adapters never infer anything from the recording and cannot resolve a real model.
 The advance tool expresses intent only; Rails still chooses the accepted response.
@@ -44,7 +44,7 @@ def make_agent(scenario: str, guard, provider_call):
         returned = any(isinstance(part, ToolReturnPart) and part.tool_name == "advance_to_next_question"
                        for part in messages[-1].parts)
         if scenario == "early-advance" and not returned:
-            return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-demo")])
+            return ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="advance-fixture")])
         output = {"decision": "advance" if scenario == "early-advance" else "continue",
                   "reply": None if scenario == "early-advance" else FOLLOW_UP}
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, output)])
@@ -62,7 +62,7 @@ def make_agent(scenario: str, guard, provider_call):
 
 
 def speech_bytes(text: str) -> bytes:
-    """Read only speech recorded for this exact accepted demo message."""
+    """Read only speech recorded for this exact accepted fixture message."""
     try:
         index = SPEECH_TEXTS.index(text)
     except ValueError:

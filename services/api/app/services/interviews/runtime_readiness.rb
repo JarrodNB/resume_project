@@ -4,9 +4,9 @@ require "net/http"
 require "timeout"
 
 module Interviews
-  module RealRuntimeReadiness
+  module RuntimeReadiness
     def self.ready?
-      uri = URI(ENV.fetch("INTERVIEW_REAL_RUNTIME_ORIGIN", "http://interview-real-runtime:8000"))
+      uri = URI(ENV.fetch("AI_HTTP_ORIGIN", "http://ai-http:8000"))
       return false unless %w[http https].include?(uri.scheme) && uri.host && !uri.userinfo &&
         [ nil, "", "/" ].include?(uri.path) && !uri.query && !uri.fragment
       return false if ENV["INTERVIEW_SERVICE_SECRET"].blank?

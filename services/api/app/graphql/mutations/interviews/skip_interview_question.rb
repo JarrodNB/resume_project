@@ -1,7 +1,7 @@
 # Authorizes a durable skip of the current core-question cycle.
 module Mutations
   module Interviews
-    class SkipInterviewQuestion < BaseDemoMutation
+    class SkipInterviewQuestion < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :question_id, ID, required: true
       argument :expected_revision, Integer, required: true

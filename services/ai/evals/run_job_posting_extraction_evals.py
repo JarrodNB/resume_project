@@ -1,7 +1,7 @@
 """
 Description: Runs the job posting extraction evals (heading split, plus the real requirements
 sorting agent where headings don't match) and reports the average of each score to Logfire.
-Run: docker compose run --rm ai python -m evals.run_job_posting_extraction_evals
+Run: docker compose run --rm ai-worker python -m evals.run_job_posting_extraction_evals
 Index:
     - load_job_posting_extraction_dataset: reads the YAML cases with the custom evaluators
     - linkedin_case_to_page: the JobPage the LinkedIn scraper would build from a case's inputs

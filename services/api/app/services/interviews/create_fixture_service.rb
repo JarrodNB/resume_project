@@ -11,7 +11,7 @@ module Interviews
       @user, @question_count, @execution_mode = user, question_count, execution_mode
     end
 
-    # @return [ServiceResult<InterviewSession>] committed demo with one pending opening speech
+    # @return [ServiceResult<InterviewSession>] committed fixture with one pending opening speech
     def call
       return failure("Fixture must contain one or two questions") unless [ 1, 2 ].include?(@question_count)
 

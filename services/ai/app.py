@@ -1,6 +1,6 @@
-"""Supervise explicitly enabled real interviews in a separate development process.
+"""Serve interactive AI endpoints and supervise interview execution.
 
-No provider client is constructed until dedicated enablement and credentials pass.
+No provider client is constructed until service enablement and credentials pass.
 Readiness exposes stable setup reasons, never credentials or exception contents.
 """
 import os
@@ -15,11 +15,9 @@ from interviews.runtime import RecoveryRuntime
 
 
 def configuration():
-    """Return dedicated configuration or an actionable, non-sensitive reason."""
-    if os.getenv("INTERVIEW_REAL_RUNTIME_ENABLED") != "true":
+    """Return HTTP service configuration or an actionable, non-sensitive reason."""
+    if os.getenv("AI_HTTP_ENABLED") != "true":
         return None, "runtime_disabled"
-    if os.getenv("INTERVIEW_ENVIRONMENT") != "development":
-        return None, "development_only"
     if not os.getenv("INTERVIEW_SERVICE_SECRET", "").strip():
         return None, "service_secret_missing"
     if not all(os.getenv(name, "").strip() for name in ("OPENAI_API_KEY", "TYPESAFE_API_KEY")):
@@ -84,7 +82,7 @@ def create_app():
 
     @app.get("/health")
     async def health():
-        return {"status": "alive", "provider_mode": "real"}
+        return {"status": "alive", "service": "ai-http"}
 
     @app.get("/ready")
     async def ready():

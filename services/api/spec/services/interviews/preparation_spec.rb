@@ -4,8 +4,8 @@ require "rails_helper"
 RSpec.describe "Spoken interview preparation" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   before do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 
   it "snapshots shared avoided questions once for preparation and later claims" do
@@ -19,7 +19,7 @@ RSpec.describe "Spoken interview preparation" do
   end
 
   it "starts durable preparation instead of a fixture question and never starts speech" do
-    result = Interviews::StartDemoService.call(user: user)
+    result = Interviews::StartSessionService.call(user: user)
     expect(result).to be_success
     interview = result.value
     expect(interview.status).to eq("preparing")

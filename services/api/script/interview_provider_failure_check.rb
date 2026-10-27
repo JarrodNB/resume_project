@@ -3,7 +3,7 @@
 raise "Synthetic verification only" unless Rails.env.development? && ENV["INTERVIEW_SYNTHETIC_PROVIDER_CHECK"] == "true"
 user = User.create!(email: "spoken-fault-#{SecureRandom.hex(6)}@example.invalid", password: SecureRandom.base64(30), confirmed_at: Time.current,
   summary: "I coordinate scheduling improvements and build tools for team projects.")
-result = Interviews::StartDemoService.call(user: user, execution_mode: "real")
+result = Interviews::StartSessionService.call(user: user, execution_mode: "real")
 raise "Creation rejected" unless result.success?
 interview = result.value
 preparation = interview.operations.preparation.first

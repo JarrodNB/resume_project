@@ -5,7 +5,7 @@ module Subscriptions
     type Types::InterviewSessionType, null: false
 
     def subscribe(id:)
-      Interviews::DemoAccess.find!(current_user, id)
+      Interviews::Access.find!(current_user, id)
     end
 
     def update(id:)

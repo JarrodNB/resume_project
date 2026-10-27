@@ -1,7 +1,7 @@
 # Requests an explanation for an owned current prompt without submitting an answer.
 module Mutations
   module Interviews
-    class RequestInterviewClarification < BaseDemoMutation
+    class RequestInterviewClarification < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :message_id, ID, required: true
       argument :retry_failed, Boolean, required: false, default_value: false

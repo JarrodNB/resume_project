@@ -25,7 +25,6 @@ import { ResumePage } from '@/features/resumes/ResumePage'
 import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
 import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
-import { LegacyInterviewRedirect } from '@/features/interviews/LegacyInterviewRedirect'
 import { InterviewPage } from '@/features/interviews/InterviewPage'
 import { JobInterviewSetupPage } from '@/features/interviews/JobInterviewSetupPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
@@ -62,7 +61,6 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/:id/tailor', element: <TailorResumePage /> },
           { path: '/jobs/:jobId/interview', element: <JobInterviewSetupPage /> },
           { path: '/jobs/:id', element: <JobDetailPage /> },
-          { path: '/interviews/demo/:id?', element: <LegacyInterviewRedirect /> },
           { path: '/interviews/:id?', element: <InterviewPage /> },
           { path: '/interview-prep', element: <InterviewPrepPage /> },
           { path: '/interview-prep/:id', element: <InterviewSetPage /> },

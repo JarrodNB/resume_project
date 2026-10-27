@@ -1,4 +1,4 @@
-# Stores spoken demo dialogue separately from written interview practice. Partial unique
+# Stores spoken interview dialogue separately from written interview practice. Partial unique
 # indexes protect the processing slot and semantic messages even if callers race.
 class CreateInterviewSessions < ActiveRecord::Migration[8.1]
   def change

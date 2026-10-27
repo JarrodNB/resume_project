@@ -1,4 +1,4 @@
-# Real browser QA on the original paid database. Combine with the demo base and paid
+# Real browser QA on the original paid database. Combine with the recovery base and paid
 # overlay, always using project cg-interview-12-paid so its ledger is never renewed.
 services:
   api:
@@ -44,8 +44,8 @@ services:
         condition: service_healthy
       sqs:
         condition: service_started
-  ai:
-    image: cg-interview-qa-interview-runtime
+  ai-worker:
+    image: cg-interview-qa-ai-http
     command: python -m worker.main
     restart: unless-stopped
     init: true
@@ -69,7 +69,7 @@ services:
       LOGFIRE_ENVIRONMENT: development
       # Queued clarification uses the same Rails claim authority as the live runtime.
       INTERVIEW_RAILS_ORIGIN: http://api:3000
-      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
+      INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
     volumes:
       - ../services/ai:/app
     depends_on:
@@ -88,20 +88,19 @@ services:
       - ../services/api/schema.graphql:/services/api/schema.graphql:ro
   storage-setup:
     image: cg-interview-qa-api
-  interview-runtime:
+  ai-http:
     # Ordinary recovery supports explicit speech retries. Every paid request still
     # needs Rails admission, bounded attempts, and the retained cumulative allowance.
-    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000 --ws-max-size 32768 --ws-max-queue 8
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --ws-max-size 32768 --ws-max-queue 8
     # Replace probe environment overrides, leaving credentials to env_file.
     # A null token would still mask the env_file value, so omit it entirely.
     environment: !override
       INTERVIEW_FAKE_RUNTIME_ENABLED: "false"
       INTERVIEW_PROVIDER_MODE: fake
-      INTERVIEW_REAL_RUNTIME_ENABLED: "true"
+      AI_HTTP_ENABLED: "true"
       INTERVIEW_PAID_VERIFICATION: "true"
-      INTERVIEW_ENVIRONMENT: development
       INTERVIEW_RAILS_ORIGIN: http://api:3000
-      INTERVIEW_SERVICE_SECRET: interview-local-demo-only-not-a-production-secret
+      INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
       INTERVIEW_STORAGE_ORIGINS: http://s3:9090
       INTERVIEW_BROWSER_ORIGINS: http://127.0.0.2:15176
       INTERVIEW_FAKE_SCENARIO: normal

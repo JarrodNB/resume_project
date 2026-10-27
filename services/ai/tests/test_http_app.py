@@ -1,19 +1,18 @@
 """Check explicit real-process startup without contacting paid services."""
 from fastapi.testclient import TestClient
 
-from interviews.real_app import create_app
+from app import create_app
 
 
 def test_disabled_real_process_is_alive_and_actionably_unready(monkeypatch):
-    monkeypatch.delenv("INTERVIEW_REAL_RUNTIME_ENABLED", raising=False)
+    monkeypatch.delenv("AI_HTTP_ENABLED", raising=False)
     with TestClient(create_app()) as client:
-        assert client.get("/health").json() == {"status": "alive", "provider_mode": "real"}
+        assert client.get("/health").json() == {"status": "alive", "service": "ai-http"}
         assert client.get("/ready").json() == {"ready": False, "reason": "runtime_disabled"}
 
 
 def test_missing_keys_are_safe_readiness_failure_without_destroying_environment(monkeypatch):
-    monkeypatch.setenv("INTERVIEW_REAL_RUNTIME_ENABLED", "true")
-    monkeypatch.setenv("INTERVIEW_ENVIRONMENT", "development")
+    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-secret")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic-key")
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
@@ -26,12 +25,9 @@ def test_missing_keys_are_safe_readiness_failure_without_destroying_environment(
     assert os.environ["OPENAI_API_KEY"] == "synthetic-key"
 
 
-def test_real_setup_requires_explicit_development_and_rejects_malformed_origin(monkeypatch):
-    from interviews.real_app import configuration
-    monkeypatch.setenv("INTERVIEW_REAL_RUNTIME_ENABLED", "true")
-    monkeypatch.delenv("INTERVIEW_ENVIRONMENT", raising=False)
-    assert configuration()[1] == "development_only"
-    monkeypatch.setenv("INTERVIEW_ENVIRONMENT", "development")
+def test_http_setup_rejects_malformed_origin(monkeypatch):
+    from app import configuration
+    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
     monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic")
     monkeypatch.setenv("OPENAI_API_KEY", "synthetic")
     monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic")
@@ -78,7 +74,7 @@ def test_health_probes_emit_no_native_fastapi_spans(monkeypatch):
     provider = TracerProvider()
     provider.add_span_processor(SimpleSpanProcessor(exporter))
     monkeypatch.setattr(trace, "_TRACER_PROVIDER", provider)
-    monkeypatch.setenv("INTERVIEW_REAL_RUNTIME_ENABLED", "false")
+    monkeypatch.setenv("AI_HTTP_ENABLED", "false")
     app = create_app()
 
     @app.get("/ordinary")
@@ -92,3 +88,19 @@ def test_health_probes_emit_no_native_fastapi_spans(monkeypatch):
         assert client.get("/ordinary").status_code == 200
     assert any(span.name == "GET /ordinary" for span in exporter.get_finished_spans())
     provider.shutdown()
+
+
+def test_enabled_http_configuration_is_not_limited_to_development(monkeypatch):
+    from app import configuration
+
+    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
+    monkeypatch.setenv("LOGFIRE_ENVIRONMENT", "production")
+    monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-service-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-provider-key")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-screening-key")
+    monkeypatch.setenv("INTERVIEW_RAILS_ORIGIN", "https://api.example.test")
+    monkeypatch.setenv("INTERVIEW_STORAGE_ORIGINS", "https://storage.example.test")
+
+    configured, reason = configuration()
+    assert reason is None
+    assert configured == ("https://api.example.test", {"https://storage.example.test"})

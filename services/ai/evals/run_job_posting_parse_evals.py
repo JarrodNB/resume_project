@@ -1,7 +1,7 @@
 """
 Description: Runs the pasted job-ad parse evals (the real parse agent, then the same posting
 builder the handler uses) and reports the average of each score to Logfire.
-Run: docker compose run --rm ai python -m evals.run_job_posting_parse_evals
+Run: docker compose run --rm ai-worker python -m evals.run_job_posting_parse_evals
 Index:
     - load_job_posting_parse_dataset: reads the YAML cases with the custom evaluators
     - run_job_posting_parse_evals: evaluates every case, prints the report, scores the trace

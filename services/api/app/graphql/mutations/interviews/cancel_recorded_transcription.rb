@@ -1,7 +1,7 @@
 # Releases only a capture from the authenticated owner's interview.
 module Mutations
   module Interviews
-    class CancelRecordedTranscription < BaseDemoMutation
+    class CancelRecordedTranscription < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :operation_id, ID, required: true
       field :interview, Types::InterviewSessionType, null: true

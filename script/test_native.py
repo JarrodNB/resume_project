@@ -40,7 +40,8 @@ class NativeSetupTests(unittest.TestCase):
                     "NATIVE_WEB_ORIGIN": "https://web.example"}
         with patch.dict(os.environ, supplied, clear=True):
             api = native.app_env("api")
-            ai = native.app_env("ai")
+            ai = native.app_env("ai-worker")
+            http = native.app_env("ai-http")
         self.assertEqual(api["OPENAI_API_KEY"], "test-only")
         self.assertEqual(api["HTTP_PROXY"], "http://session-proxy")
         self.assertIn("internal.example", api["NO_PROXY"])
@@ -53,13 +54,16 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(api["AWS_DEFAULT_REGION"], "us-east-1")
         self.assertEqual(api["UV_CACHE_DIR"], str(self.state / "cache/uv"))
         self.assertEqual(api["npm_config_cache"], str(self.state / "cache/npm"))
+        self.assertEqual(http["DB_USERNAME"], "ai_reader")
+        self.assertEqual(http["DATABASE_URL"], ai["DATABASE_URL"])
+        self.assertEqual(http["AI_HTTP_ENABLED"], "true")
         self.assertEqual(ai["DB_USERNAME"], "ai_reader")
         self.assertTrue(ai["DATABASE_URL"].startswith("postgresql://ai_reader:"))
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
         self.assertNotIn("CABLE_DATABASE_URL", ai)
         self.assertEqual(api["INTERVIEW_SERVICE_SECRET"], ai["INTERVIEW_SERVICE_SECRET"])
-        self.assertEqual(api["INTERVIEW_REAL_ADMISSION_ENABLED"], "true")
-        self.assertEqual(api["INTERVIEW_REAL_RUNTIME_ORIGIN"], "http://127.0.0.1:8000")
+        self.assertEqual(api["INTERVIEW_ADMISSION_ENABLED"], "true")
+        self.assertEqual(api["AI_HTTP_ORIGIN"], "http://127.0.0.1:8000")
         self.assertNotEqual(api["DB_PASSWORD"], ai["DB_PASSWORD"])
 
     def test_local_services_do_not_inherit_cloud_aws_profiles(self):
@@ -148,6 +152,10 @@ class NativeSetupTests(unittest.TestCase):
         self.assertIn("jobs", names)
         self.assertLess(names.index("prepared"), names.index("jobs"))
         self.assertEqual(dict(events)["jobs"], ["bundle", "exec", "ruby", "bin/jobs"])
+        self.assertIn("ai-worker", names)
+        self.assertIn("ai-http", names)
+        self.assertIn("app:app", dict(events)["ai-http"])
+        self.assertNotIn("interview", names)
 
     def test_check_rejects_a_missing_or_stale_jobs_supervisor(self):
         self.state.mkdir()

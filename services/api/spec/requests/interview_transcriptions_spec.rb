@@ -7,7 +7,7 @@ RSpec.describe "Interview transcription permissions", type: :request do
   let(:query) { "mutation($input: AuthorizeInterviewTranscriptionInput!) { authorizeInterviewTranscription(input: $input) { captureId token errors } }" }
   let(:input) { { interviewId: interview.id, questionId: interview.questions.first.id, expectedRevision: 0 } }
 
-  before { allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true) }
+  before { allow(Interviews::Access).to receive(:enabled?).and_return(true) }
 
   around do |example|
     previous = ENV["INTERVIEW_SERVICE_SECRET"]

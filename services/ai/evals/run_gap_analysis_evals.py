@@ -2,7 +2,7 @@
 Description: Runs the gap analysis evals (prompt builder, the real agent with its label checks,
 and evidence mapping, exactly as the worker runs them) and reports the average of each score to
 Logfire.
-Run: docker compose run --rm ai python -m evals.run_gap_analysis_evals
+Run: docker compose run --rm ai-worker python -m evals.run_gap_analysis_evals
 Index:
     - EVAL_TODAY: the fixed "today" the cases are labelled against
     - load_gap_analysis_dataset: reads the YAML cases with the custom evaluators

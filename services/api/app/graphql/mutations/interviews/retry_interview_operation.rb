@@ -1,7 +1,7 @@
-# Exposes one owned demo action through the existing durable interview services.
+# Exposes one owned interview action through the existing durable interview services.
 module Mutations
   module Interviews
-    class RetryInterviewOperation < BaseDemoMutation
+    class RetryInterviewOperation < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :operation_id, ID, required: true
       field :interview, Types::InterviewSessionType, null: true

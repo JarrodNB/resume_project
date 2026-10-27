@@ -1,4 +1,4 @@
-# Description: Local dev image for the AI worker. Source is bind-mounted by docker compose;
+# Description: Local dev image shared by the AI HTTP app and queue worker. Source is bind-mounted by docker compose;
 # the virtualenv lives in /opt/venv so the bind mount doesn't hide it.
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 

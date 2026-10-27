@@ -6,8 +6,8 @@
 #   - api: Rails GraphQL API (port 3000; GraphQL subscriptions over WebSocket at /cable)
 #   - api-results-worker: Shoryuken consumer of ai_results (same image and code as api)
 #   - api-jobs-worker: durable Rails jobs (same image, primary database, and code as api)
-#   - ai: Python SQS worker
-#   - interview-real-runtime: spoken interview worker
+#   - ai-worker: Python SQS worker
+#   - ai-http: FastAPI app for interactive AI execution
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
 
@@ -70,7 +70,7 @@ services:
     environment:
       <<: [*local-aws, *api-bootsnap]
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
-      INTERVIEW_REAL_ADMISSION_ENABLED: ${INTERVIEW_REAL_ADMISSION_ENABLED:-true}
+      INTERVIEW_ADMISSION_ENABLED: ${INTERVIEW_ADMISSION_ENABLED:-true}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
@@ -144,7 +144,7 @@ services:
       api:
         condition: service_started
 
-  ai:
+  ai-worker:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
@@ -194,7 +194,7 @@ services:
 
   web:
     environment:
-      INTERVIEW_TRANSCRIPTION_TARGET: http://interview-real-runtime:8000
+      INTERVIEW_TRANSCRIPTION_TARGET: http://ai-http:8000
     build:
       context: ./apps/web
       dockerfile: Dockerfile.dev
@@ -217,21 +217,20 @@ services:
       - ./apps/landing:/app
       - /app/node_modules
 
-  interview-real-runtime:
+  ai-http:
     # Uses the same provider credentials as the local AI worker.
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
-    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000
+    command: uvicorn app:app --host 0.0.0.0 --port 8000
     init: true
     env_file:
       - path: ./services/ai/.env
         required: false
     environment:
-      INTERVIEW_REAL_RUNTIME_ENABLED: ${INTERVIEW_REAL_RUNTIME_ENABLED:-true}
+      AI_HTTP_ENABLED: ${AI_HTTP_ENABLED:-true}
       INTERVIEW_PREPARATION_THINKING: ${INTERVIEW_PREPARATION_THINKING:-false}
       INTERVIEW_DIALOGUE_THINKING: ${INTERVIEW_DIALOGUE_THINKING:-false}
-      INTERVIEW_ENVIRONMENT: development
       INTERVIEW_RAILS_ORIGIN: http://api:3000
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
       INTERVIEW_STORAGE_ORIGINS: http://s3:9090

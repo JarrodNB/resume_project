@@ -2,7 +2,7 @@
 Description: Integration tests for career library hybrid search against the compose Postgres.
 Seeds embeddings as the admin role inside a transaction that always rolls back, then searches as
 ai_reader (SET LOCAL ROLE), so the real grants are exercised. Skipped when the database isn't
-reachable. Run only these with `docker compose run --rm ai pytest -m db`.
+reachable. Run only these with `docker compose run --rm ai-worker pytest -m db`.
 Index:
     - admin_connection: a postgres connection inside a rolled-back transaction
     - test_returns_the_users_entries_nearest_first

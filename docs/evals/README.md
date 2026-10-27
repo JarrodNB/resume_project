@@ -8,15 +8,15 @@ runners do not write reports here. To request a saved Markdown report, pass the
 `--save` option. Without it, the report CLI prints results without creating files:
 
 ```bash
-docker compose run --rm --no-deps ai python -m evals.run_report resume_parsing --save
+docker compose run --rm --no-deps ai-worker python -m evals.run_report resume_parsing --save
 ```
 
 Use the configured defaults, select one model, or repeat `--model` for two-model comparison:
 
 ```bash
-docker compose run --rm --no-deps ai python -m evals.run_report interview_questions --model openai:gpt-5-mini --model openai:gpt-5 --output-dir /docs/evals
-docker compose run --rm --no-deps ai python -m evals.run_report library_retrieval --model openai:text-embedding-3-small --model openai:text-embedding-3-large --output-dir /docs/evals
-docker compose run --rm --no-deps ai python -m evals.run_report user_text_screen --model typesafe:jev-1.13.0 --output-dir /docs/evals
+docker compose run --rm --no-deps ai-worker python -m evals.run_report interview_questions --model openai:gpt-5-mini --model openai:gpt-5 --output-dir /docs/evals
+docker compose run --rm --no-deps ai-worker python -m evals.run_report library_retrieval --model openai:text-embedding-3-small --model openai:text-embedding-3-large --output-dir /docs/evals
+docker compose run --rm --no-deps ai-worker python -m evals.run_report user_text_screen --model typesafe:jev-1.13.0 --output-dir /docs/evals
 ```
 
 Supported suites: `resume_parsing`, `job_posting_parse`, `job_posting_extraction`,

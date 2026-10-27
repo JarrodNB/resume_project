@@ -1,13 +1,13 @@
-# Exercises the owned public demo boundary without exposing execution internals.
+# Exercises the owned public interview interface without exposing execution internals.
 require "rails_helper"
 
-RSpec.describe "Spoken interview demo GraphQL" do
+RSpec.describe "Spoken interview GraphQL" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
   let(:snapshot) { "id status executionMode speechPlaybackMode revision questions { id content acceptedAnswerCount } messages { id content kind } operations { id status checkpoint failureCode }" }
 
   before do
-    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
+    allow(Interviews::Access).to receive(:enabled?).and_return(true)
   end
 
   it "queues recorded review only for its owner and exposes a transcript only while current and live" do
@@ -120,11 +120,11 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
   it "starts owned preparation without opening speech and safe operation progress" do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
-    result = execute_graphql("mutation { startInterviewDemo(input: {}) { interview { #{snapshot} } errors } }", user: user)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
+    result = execute_graphql("mutation { startInterview(input: {}) { interview { #{snapshot} } errors } }", user: user)
     expect(result["errors"]).to be_nil
-    payload = result.dig("data", "startInterviewDemo")
+    payload = result.dig("data", "startInterview")
     expect(payload["errors"]).to eq([])
     expect(payload.dig("interview", "executionMode")).to eq("real")
     expect(payload.dig("interview", "speechPlaybackMode")).to eq("browser")
@@ -146,33 +146,33 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
   it "rejects scripted creation even when a legacy client explicitly requests it" do
-    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "fake"}) { interview { id } errors } }', user: user)
-    expect(result.dig("data", "startInterviewDemo", "interview")).to be_nil
-    expect(result.dig("data", "startInterviewDemo", "errors").join).to include("Scripted interviews are retired")
+    result = execute_graphql('mutation { startInterview(input: {executionMode: "fake"}) { interview { id } errors } }', user: user)
+    expect(result.dig("data", "startInterview", "interview")).to be_nil
+    expect(result.dig("data", "startInterview", "errors").join).to include("Scripted interviews are retired")
     expect(user.interview_sessions.count).to eq(0)
   end
 
 
   it "creates real only with explicit development admission and keeps saved mode after disabling" do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
-    query = 'mutation { startInterviewDemo(input: {executionMode: "real"}) { interview { id executionMode } errors } }'
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
+    query = 'mutation { startInterview(input: {executionMode: "real"}) { interview { id executionMode } errors } }'
     result = execute_graphql(query, user: user)
     expect(result["errors"]).to be_nil
-    real = result.dig("data", "startInterviewDemo", "interview")
+    real = result.dig("data", "startInterview", "interview")
     expect(real["executionMode"]).to eq("real")
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(false)
-    expect(execute_graphql(query, user: user).dig("data", "startInterviewDemo", "errors")).to include("Interview service is unavailable. Check the interview runtime and admission settings.")
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(false)
+    expect(execute_graphql(query, user: user).dig("data", "startInterview", "errors")).to include("Interview service is unavailable. Check the interview runtime and admission settings.")
     expect(execute_graphql("query { interviewSession(id: \"#{real['id']}\") { executionMode } }", user: user).dig("data", "interviewSession", "executionMode")).to eq("real")
     expect(Types::InterviewSessionType.fields.keys).not_to include("executionConfig")
   end
 
   it "fails new real admission actionably when its runtime is unavailable" do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(false)
-    result = execute_graphql('mutation { startInterviewDemo(input: {executionMode: "real"}) { interview { id } errors } }', user: user)
-    expect(result.dig("data", "startInterviewDemo", "interview")).to be_nil
-    expect(result.dig("data", "startInterviewDemo", "errors").join).to include("runtime readiness")
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(false)
+    result = execute_graphql('mutation { startInterview(input: {executionMode: "real"}) { interview { id } errors } }', user: user)
+    expect(result.dig("data", "startInterview", "interview")).to be_nil
+    expect(result.dig("data", "startInterview", "errors").join).to include("runtime readiness")
     expect(user.interview_sessions.count).to eq(0)
   end
 
@@ -184,9 +184,9 @@ RSpec.describe "Spoken interview demo GraphQL" do
   end
 
   it "rejects unauthenticated and feature-disabled operations" do
-    query = "mutation { startInterviewDemo(input: {}) { errors } }"
+    query = "mutation { startInterview(input: {}) { errors } }"
     expect(execute_graphql(query, user: nil).dig("errors", 0, "message")).to eq("Authentication required")
-    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(false)
+    allow(Interviews::Access).to receive(:enabled?).and_return(false)
     expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
   end
 
@@ -202,9 +202,9 @@ RSpec.describe "Spoken interview demo GraphQL" do
     actions.each do |name, arguments|
       query = "mutation { #{name}(input: {interviewId: \"#{session.id}\", #{arguments}}) { errors } }"
       expect(execute_graphql(query, user: outsider).dig("errors", 0, "message")).to eq("Record not found")
-      allow(Interviews::DemoAccess).to receive(:enabled?).and_return(false)
+      allow(Interviews::Access).to receive(:enabled?).and_return(false)
       expect(execute_graphql(query, user: user).dig("errors", 0, "message")).to eq("Interviews unavailable in this environment")
-      allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
+      allow(Interviews::Access).to receive(:enabled?).and_return(true)
     end
   end
 
@@ -240,9 +240,9 @@ RSpec.describe "Spoken interview demo GraphQL" do
     end
   end
 
-  it "allows interview access without the retired demo flag" do
-    allow(Interviews::DemoAccess).to receive(:enabled?).and_call_original
-    expect(Interviews::DemoAccess.enabled?).to be(true)
+  it "allows ordinary authenticated interview access" do
+    allow(Interviews::Access).to receive(:enabled?).and_call_original
+    expect(Interviews::Access.enabled?).to be(true)
   end
 end
 
@@ -250,7 +250,7 @@ RSpec.describe "Interview snapshot subscriptions" do
   let(:user) { create(:user) }
   let(:session) { Interviews::CreateFixtureService.call(user: user).value }
 
-  before { allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true) }
+  before { allow(Interviews::Access).to receive(:enabled?).and_return(true) }
 
   it "returns a fresh accepted snapshot on reconnect and checks ownership" do
     query = "subscription($id: ID!) { interviewSessionUpdated(id: $id) { id revision messages { content } } }"
@@ -286,18 +286,18 @@ end
 
 RSpec.describe "Spoken preparation GraphQL privacy" do
   it "saves selected length and restores it through the owned public snapshot" do
-    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    allow(Interviews::Access).to receive(:enabled?).and_return(true)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     owner = create(:user, summary: "Private laboratory facts")
-    invalid = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 6}}) { interview { id } errors } }', user: owner)
-    expect(invalid.dig("data", "startInterviewDemo", "interview")).to be_nil
+    invalid = execute_graphql('mutation { startInterview(input: {setup: {questionCount: 6}}) { interview { id } errors } }', user: owner)
+    expect(invalid.dig("data", "startInterview", "interview")).to be_nil
     expect(owner.interview_sessions).to be_empty
-    invalid_format = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 5, questionFormat: "unknown"}}) { interview { id } errors } }', user: owner)
-    expect(invalid_format.dig("data", "startInterviewDemo", "interview")).to be_nil
+    invalid_format = execute_graphql('mutation { startInterview(input: {setup: {questionCount: 5, questionFormat: "unknown"}}) { interview { id } errors } }', user: owner)
+    expect(invalid_format.dig("data", "startInterview", "interview")).to be_nil
     expect(owner.interview_sessions).to be_empty
-    result = execute_graphql('mutation { startInterviewDemo(input: {setup: {questionCount: 12, questionFormat: "screening", difficulty: "stretch", interviewer: "priya", focusAreas: ["leadership"]}}) { interview { id setup { questionCount questionFormat difficulty interviewer focusAreas } } errors } }', user: owner)
-    payload = result.dig("data", "startInterviewDemo")
+    result = execute_graphql('mutation { startInterview(input: {setup: {questionCount: 12, questionFormat: "screening", difficulty: "stretch", interviewer: "priya", focusAreas: ["leadership"]}}) { interview { id setup { questionCount questionFormat difficulty interviewer focusAreas } } errors } }', user: owner)
+    payload = result.dig("data", "startInterview")
     expect(payload.fetch("errors")).to be_empty
     expect(payload.dig("interview", "setup", "questionCount")).to eq(12)
     expect(payload.dig("interview", "setup", "questionFormat")).to eq("screening")
@@ -311,12 +311,12 @@ RSpec.describe "Spoken preparation GraphQL privacy" do
   end
 
   it "exposes owned role progress but never raw frozen sources or another owner's session" do
-    allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true)
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    allow(Interviews::Access).to receive(:enabled?).and_return(true)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
     owner = create(:user, summary: "Private laboratory facts")
-    result = execute_graphql('mutation { startInterviewDemo(input: {careerFocus: "laboratory"}) { interview { id status preparedRole operations { kind questionId } } errors } }', user: owner)
-    payload = result.dig("data", "startInterviewDemo")
+    result = execute_graphql('mutation { startInterview(input: {careerFocus: "laboratory"}) { interview { id status preparedRole operations { kind questionId } } errors } }', user: owner)
+    payload = result.dig("data", "startInterview")
     expect(payload["errors"]).to be_empty
     expect(payload.dig("interview", "operations", 0, "questionId")).to be_nil
     expect(payload.dig("interview", "preparedRole")).to eq({})

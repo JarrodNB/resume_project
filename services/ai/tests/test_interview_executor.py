@@ -263,12 +263,12 @@ def test_known_fixture_contact_is_masked_before_screening_and_absent_from_saved_
         await original(self, claim, text)
     monkeypatch.setattr(InterviewExecutor, "_screen", capture)
     request = claim()
-    request.payload.fixture_context.update({"names": ["Demo Person"], "career": "Demo Person built tools"})
+    request.payload.fixture_context.update({"names": ["Sample Person"], "career": "Sample Person built tools"})
     client = Client()
     execute(client, request)
     saved = str(client.accepted[0]["model_history"])
-    assert "Demo Person" not in saved
-    assert all("Demo Person" not in text for text in screened)
+    assert "Sample Person" not in saved
+    assert all("Sample Person" not in text for text in screened)
     assert any("«name»" in text for text in screened)
 
 
@@ -298,12 +298,12 @@ def test_fake_execution_denies_outbound_connections_even_with_provider_credentia
 
 def test_earlier_public_dialogue_is_freshly_screened_masked_and_present_in_prompt(monkeypatch):
     request = claim()
-    request.payload.fixture_context.update({"names": ["Demo Person"]})
+    request.payload.fixture_context.update({"names": ["Sample Person"]})
     payload = type(request.payload).model_validate({**request.payload.model_dump(), "earlier_dialogue": {
         "version": 1, "character_budget": 12000, "omitted_question_positions": [0], "groups": [
             {"question_position": 1, "messages": [
                 {"kind": "opening", "content": "Explain the incident?"},
-                {"kind": "answer", "content": "Demo Person repaired the sensor."}]}]}})
+                {"kind": "answer", "content": "Sample Person repaired the sensor."}]}]}})
     request = request.model_copy(update={"payload": payload})
     screened = []
     original = InterviewExecutor._screen
@@ -317,10 +317,10 @@ def test_earlier_public_dialogue_is_freshly_screened_masked_and_present_in_promp
         execute(client, request)
         assert not client.failed
         saved = str(client.accepted[0]["model_history"])
-        assert "Demo Person" not in saved
+        assert "Sample Person" not in saved
         assert "earlier_dialogue" not in saved
     assert sum("repaired the sensor" in text for text in screened) >= 2
-    assert all("Demo Person" not in text for text in screened)
+    assert all("Sample Person" not in text for text in screened)
     assert any("«name»" in text for text in screened)
 
 

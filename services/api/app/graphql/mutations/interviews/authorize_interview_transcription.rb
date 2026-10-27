@@ -1,7 +1,7 @@
 # Authorize an owned capture through the same session and CSRF checks as other interview writes.
 module Mutations
   module Interviews
-    class AuthorizeInterviewTranscription < BaseDemoMutation
+    class AuthorizeInterviewTranscription < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :question_id, ID, required: true
       argument :expected_revision, Integer, required: true

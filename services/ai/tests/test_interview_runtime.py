@@ -85,7 +85,7 @@ def test_lost_heartbeat_stops_local_execution_before_another_provider_call():
 def test_health_and_disabled_readiness_do_not_discover_or_claim(monkeypatch):
     from fastapi.testclient import TestClient
 
-    from interviews.app import RuntimeSettings, create_app
+    from interviews.fixture_app import RuntimeSettings, create_app
 
     # Lifespan mutates only its process; restore this test process for other features.
     monkeypatch.setenv("OPENAI_API_KEY", "offline-test")
@@ -98,7 +98,7 @@ def test_health_and_disabled_readiness_do_not_discover_or_claim(monkeypatch):
 def test_fake_process_disables_model_requests_and_credentials(monkeypatch):
     from pydantic_ai import models
 
-    from interviews.app import isolate_fake_process
+    from interviews.fixture_app import isolate_fake_process
 
     monkeypatch.setenv("OPENAI_API_KEY", "cannot-use")
     monkeypatch.setenv("LOGFIRE_TOKEN", "cannot-export")
@@ -111,7 +111,7 @@ def test_fake_process_disables_model_requests_and_credentials(monkeypatch):
 
 
 def test_disabled_runtime_needs_no_service_credential(monkeypatch):
-    from interviews.app import RuntimeSettings
+    from interviews.fixture_app import RuntimeSettings
 
     monkeypatch.delenv("INTERVIEW_FAKE_RUNTIME_ENABLED", raising=False)
     monkeypatch.delenv("INTERVIEW_SERVICE_SECRET", raising=False)

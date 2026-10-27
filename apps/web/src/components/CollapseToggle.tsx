@@ -28,7 +28,7 @@ export function CollapseToggle({ open, panelId, onToggle, className, children }:
       aria-controls={panelId}
       onClick={onToggle}
     >
-      <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden />
+      <ChevronRight className={cn('size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-(--ease-out-strong)', open && 'rotate-90')} aria-hidden />
       {children}
     </button>
   )

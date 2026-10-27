@@ -189,6 +189,17 @@ body { margin: 0; }
 input, textarea { caret-color: var(--primary); }
 a { text-underline-offset: 0.2em; }
 button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
+
+/* Interaction feel: a strong ease-out answers instantly, and buttons shrink slightly
+   on press so a click feels heard. This replaces the generated one-pixel nudge and its
+   `transition: all`. Menu triggers keep still so their popover stays anchored. */
+:root { --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); }
+[data-slot=button] { transition-property: color, background-color, border-color, box-shadow, opacity, transform; transition-duration: 160ms; transition-timing-function: var(--ease-out-strong); }
+[data-slot=button]:active:not([aria-haspopup], :disabled, [aria-disabled=true]) { translate: none; transform: scale(0.97); }
+/* Phones zoom into fields smaller than 16px; keep workspace fields at 16px there. */
+@media (max-width: 599px) {
+  .workspace :is(input:not([type=checkbox], [type=radio], [type=range]), textarea, select) { font-size: 16px; }
+}
 .workspace { min-height: 100svh; }
 .workspace-sidebar { width: 238px; position: fixed; inset: 0 auto 0 0; z-index: 30; display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); padding: 34px 20px 18px; }
 .workspace-brand { display: flex; align-items: center; gap: 10px; color: var(--foreground); font-size: 20px; font-weight: 650; letter-spacing: -0.03em; text-decoration: none; }
@@ -198,7 +209,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .nav-group-label { color: var(--muted-foreground); font-size: 12px; font-weight: 500; margin: 28px 12px 10px; }
 .workspace-nav-item:first-child .nav-group-label { margin-top: 0; }
 .workspace-nav-link { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 10px 12px; margin: 3px 0; border-radius: 7px; font-size: 14px; color: var(--muted-foreground); transition: background-color 160ms, color 160ms; }
-.workspace-nav-link:hover { background: var(--muted); color: var(--foreground); }
+.workspace-nav-link:active { background: var(--muted); }
 .workspace-nav-link.is-active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 600; }
 .workspace-sidebar-note { margin-top: auto; padding: 44px 12px 26px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
 .workspace-sidebar-note a { display: flex; align-items: center; gap: 6px; color: var(--primary); margin-top: 12px; font-weight: 500; }
@@ -230,7 +241,13 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .record-list { display: grid; }
 .record-list > li + li { border-top: 1px solid var(--border); }
 .record-link { display: flex; align-items: center; gap: 20px; padding: 24px 16px; border-radius: 8px; transition: background-color 160ms; }
-.record-link:hover { background: var(--accent); }
+.record-link:active { background: var(--accent); }
+/* Touch screens keep hover styles after a tap, so hover only applies to a real pointer.
+   The :active rules above give touch users the same feedback while pressing. */
+@media (hover: hover) and (pointer: fine) {
+  .workspace-nav-link:hover { background: var(--muted); color: var(--foreground); }
+  .record-link:hover { background: var(--accent); }
+}
 .record-icon { flex-shrink: 0; color: var(--muted-foreground); }
 .record-text { flex: 1; min-width: 0; }
 .record-text p:first-child { font-weight: 550; overflow-wrap: anywhere; }
@@ -338,6 +355,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* A 0.01ms infinite spin flickers; a slow turn still shows that work is happening. */
+  .animate-spin { animation-duration: 2.4s !important; }
 }
 
 @media (min-width: 900px) {

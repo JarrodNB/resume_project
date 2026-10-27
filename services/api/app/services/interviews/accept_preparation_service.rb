@@ -1,4 +1,5 @@
-# Saves a complete fictional role and question plan once. A stale executor cannot replace
+# Saves a question plan and its role context once. Saved-job facts remain Rails-owned.
+# A stale executor cannot replace
 # prepared content, and lost acceptance replies resolve to the original durable receipt.
 # Terminal task changes record owner-visible outcomes in the same transaction.
 require "digest"
@@ -27,7 +28,8 @@ module Interviews
         @questions.each_with_index do |question, position|
           interview.questions.create!(content: question.fetch("content"), question_type: question.fetch("question_type"), position: position)
         end
-        interview.update!(status: "ready", prepared_role: @role, revision: interview.revision + 1)
+        saved_role = interview.frozen_context["job"]&.slice("title", "responsibilities", "requirements") || @role
+        interview.update!(status: "ready", prepared_role: saved_role, revision: interview.revision + 1)
         receipt = { "interview_id" => interview.id, "status" => "ready", "revision" => interview.revision }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)
         AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "completed", completed_at: Time.current }) if @operation.ai_task
@@ -41,8 +43,12 @@ module Interviews
 
     def valid_output?
       types = SetupConfiguration.question_types(@operation.interview_session)
-      return false unless @role.is_a?(Hash) && @role.keys.sort == %w[requirements responsibilities title] &&
-        prose?(@role["title"], 120) && %w[responsibilities requirements].all? { |key| @role[key].is_a?(Array) && @role[key].size.between?(1, 6) && @role[key].all? { |item| prose?(item, 200) } }
+      if @operation.interview_session.frozen_context["job"]
+        return false unless @role.nil?
+      else
+        return false unless @role.is_a?(Hash) && @role.keys.sort == %w[requirements responsibilities title] &&
+          prose?(@role["title"], 120) && %w[responsibilities requirements].all? { |key| @role[key].is_a?(Array) && @role[key].size.between?(1, 6) && @role[key].all? { |item| prose?(item, 200) } }
+      end
       return false unless @questions.is_a?(Array) && @questions.size == types.size
       return false unless @questions.each_with_index.all? { |question, index| question.is_a?(Hash) && question.keys.sort == %w[content question_type] && question["question_type"] == types[index] && prose?(question["content"], 400) }
       @questions.map { |question| question["content"].downcase.gsub(/\s+/, " ").strip }.uniq.size == types.size

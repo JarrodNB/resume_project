@@ -2,10 +2,62 @@
 
 Interview sessions own spoken interview dialogue and progress, separate from written
 InterviewPrep. Basic Interview is the first supported type in the app.
-New sessions prepare a frozen fictional role and 5, 8 or 12 typed main questions from the owner's career
-library, then begin explicitly after review. Each question allows at most three accepted
+New sessions prepare 5, 8 or 12 typed main questions from the owner's career library,
+using either an owned saved job or a fictional role, then begin explicitly after review. Each question allows at most three accepted
 answers. Older fixture sessions keep their one/two questions and two-answer cap. Real providers
 run in the normal local Compose stack when its credentials are configured.
+
+### Saved-job practice
+
+The job page's **Practise interview** action opens `/jobs/:jobId/interview`. Setup loads
+the owned job from the route and retains the existing round and microphone choices.
+`startInterviewDemo` accepts an optional `jobId`, resolved through `current_user.jobs`;
+no job text is accepted from the browser. Career-library evidence remains required,
+and comparison/resume generation is not a prerequisite. The action does not change
+application stage. Library-only starts retain fictional-role preparation.
+
+Rails freezes the job's identity, title, company, description, requirements,
+responsibilities and nice-to-haves in `frozen_context.job`. The same private context's
+`sources` includes separate `jobs` entries with exact typed values, readable text and
+screening flags. These share the existing fenced source-index receipt. Matching saved
+approvals are reused; newly approved frozen values update live job approvals only if
+the owned, locked field still matches. Editing description/responsibilities also clears
+their approvals. Missing job fields stay missing, and required oversize context fails
+without truncation. Notes, gap responses and tailored resumes are excluded.
+
+Readable model context renders **Saved job expectations** separately from **Candidate
+career evidence**. Job preparation returns questions with `role: null`; Rails rejects
+model-authored job roles and derives its saved role summary from the authoritative
+snapshot. Generic preparation still requires a valid generated fictional role. The
+unchanged version-one turn envelope carries the full frozen context in its legacy
+`personal_evidence` key, including the separate job branch; the formatter excludes job
+sources from candidate evidence and does not present that key as a personal claim.
+The job snapshot remains the authority for preparation and subsequent follow-ups.
+
+The public `jobContext` field exposes only the session's saved vacancy details, with
+a nullable live job id. Deleting the job nulls the optional association without deleting
+practice; edits do not change frozen details. Normal expiry cleanup purges the copied
+context and prepared role with other session text. Title-only jobs show limited-context
+copy and use broader role questions rather than invented vacancy requirements.
+
+Recent interviews identify saved-job practice using its frozen title/company. Preparation,
+active sessions and completed reviews retain that identity and offer a return link only
+while the original job exists. Repeating completed practice carries the saved choices to
+the same job's setup; deleted sources instead offer an explicit choice of another job.
+Job deletion detaches live retained sessions through normal snapshot callbacks under the
+existing owner/job locks. This updates live navigation without changing progression revision,
+accepted dialogue or pending answer identity. A rejected deletion rolls back the detachment.
+
+Job setup checks `unfinishedInterviewSession` before enabling preparation. This owner-scoped
+read uses the same live preparing/ready/active, nonempty-context scope as admission, rather
+than the latest twenty history entries. An unfinished round offers explicit resume and
+confirmed cancellation/abandonment. Ending it keeps the selected job and every current
+setup choice; preparing another round still requires a separate user action.
+Failed or uncertain start replies trigger a read of saved state, never an automatic replay
+of the start mutation. A failed state read keeps preparation disabled until an explicit
+successful check. The setup also offers another saved job and manual reload after a failed
+job read; an unavailable source never falls back to fictional-role preparation. These
+recovery reads are on demand and do not poll or execute provider work.
 
 Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
 (Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions

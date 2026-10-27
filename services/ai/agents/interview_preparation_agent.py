@@ -4,17 +4,24 @@ from pydantic_ai.capabilities import Hooks
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
-from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_INSTRUCTIONS
-from schemas.interview_preparation import InterviewPreparation
+from prompts.interview_preparation_instructions import (
+    FICTIONAL_ROLE_PREPARATION_INSTRUCTIONS,
+    INTERVIEW_PREPARATION_INSTRUCTIONS,
+    SAVED_JOB_PREPARATION_INSTRUCTIONS,
+)
+from schemas.interview_preparation import InterviewPreparation, SavedJobInterviewPreparation
 from schemas.interview_setup import InterviewSetup
 from worker.contact_mask import _mask_request, _unmask_response
 
 
-def make_preparer(guard, *, system_prompt="", question_count=9, question_format="mixed"):
+def make_preparer(guard, *, system_prompt="", question_count=9, question_format="mixed", saved_job=False):
+    """Use questions-only output for saved jobs; fictional practice generates a role too."""
     setup = InterviewSetup(question_count=question_count, question_format=question_format)
     expected_types = setup.question_types()
-    agent = Agent(name="spoken_interview_preparation", output_type=InterviewPreparation,
-        instructions=(f"{INTERVIEW_PREPARATION_INSTRUCTIONS}\nGenerate exactly {question_count} main questions. "
+    role_instructions = SAVED_JOB_PREPARATION_INSTRUCTIONS if saved_job else FICTIONAL_ROLE_PREPARATION_INSTRUCTIONS
+    agent = Agent(name="spoken_interview_preparation",
+        output_type=SavedJobInterviewPreparation if saved_job else InterviewPreparation,
+        instructions=(f"{INTERVIEW_PREPARATION_INSTRUCTIONS}\n{role_instructions}\nGenerate exactly {question_count} main questions. "
             f"The selected question format is {question_format}. Use these question types in this exact order: "
             + ", ".join(expected_types) + "."),
         system_prompt=system_prompt, defer_model_check=True, retries=1,

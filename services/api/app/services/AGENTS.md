@@ -9,7 +9,8 @@ All business logic, as service objects grouped by domain folder.
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;
-  deleting a career library entry queues an embedding sync
+  deleting a career library entry queues an embedding sync; deleting a job detaches retained
+  interview navigation through committed snapshots while preserving dialogue and turn revisions
 - `embeddings/open_ai_embedding_client.rb` — `embed_texts(texts)` via the OpenAI embeddings API
   (batches of 500, raises API errors for the job to retry); `configured?` checks
   `OPENAI_API_KEY`. The only place Rails calls OpenAI

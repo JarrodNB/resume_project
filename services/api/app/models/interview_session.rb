@@ -5,10 +5,15 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
+  # Mirrors admission: only live sessions with durable prepared-source context block a new start.
+  scope :blocking_new_preparation, -> {
+    where(status: %w[preparing ready active]).where("expires_at > ?", Time.current).where.not(frozen_context: {})
+  }
   attr_readonly :execution_mode, :execution_config, :setup_config
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
   validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }
   belongs_to :user
+  belongs_to :job, optional: true
   has_many :questions, -> { order(:position) }, class_name: "InterviewSessionQuestion", dependent: :destroy
   has_many :messages, -> { order(:position) }, class_name: "InterviewSessionMessage", dependent: :destroy
   has_many :career_references, class_name: "InterviewCareerReferences", dependent: :destroy

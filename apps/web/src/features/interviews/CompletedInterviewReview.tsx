@@ -8,8 +8,10 @@ import { ChevronRight } from 'lucide-react'
 import { useOpenSection } from '@/components/useOpenSection'
 import './completedInterviewReview.css'
 import { difficultyOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
+import { InterviewJobContext } from './InterviewJobContext'
 
 export function CompletedInterviewReview({ interview }: { interview: InterviewSnapshotFragment }) {
+  const job = interview.jobContext
   const role = interview.preparedRole && typeof interview.preparedRole === 'object' && !Array.isArray(interview.preparedRole)
     ? interview.preparedRole as Record<string, unknown> : null
   const answered = (question: InterviewSnapshotFragment['questions'][number]) => question.acceptedAnswerCount > 0 || interview.messages.some((message) => message.questionId === question.id && message.kind === 'answer')
@@ -18,14 +20,17 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
   const followUpsSkipped = interview.questions.filter((question) => question.skipped && answered(question)).length
   return <div className="interview-review grid min-w-0 gap-4">
     <nav aria-label="Review actions" className="flex flex-wrap gap-4"><Link className="text-sm underline underline-offset-4" to="/interviews">Back to interviews</Link>
-    <Link className="justify-self-start text-sm underline underline-offset-4" to="/interviews" state={{ practiceSetup: interview.setup }}>Practice again</Link></nav>
+    {job && !job.id ? <Link className="text-sm underline underline-offset-4" to="/jobs">Choose another job</Link>
+      : <Link className="justify-self-start text-sm underline underline-offset-4" to={job ? `/jobs/${job.id}/interview` : '/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link>}
+    {job?.id && <Link className="text-sm underline underline-offset-4" to={`/jobs/${job.id}`}>Back to job</Link>}</nav>
     <header className="grid gap-2 border-b pb-4">
       <h2 className="text-2xl font-semibold">Interview complete</h2>
       <p className="max-w-prose text-sm text-muted-foreground">Review your saved questions and answers. Saved text lasts 7 days; this review does not require audio.</p>
       <p className="text-sm">{typeOptions.find((item) => item.value === interview.setup.questionFormat)?.label ?? 'Interview'} · {difficultyOptions.find((item) => item.value === interview.setup.difficulty)?.label ?? interview.setup.difficulty} · {interviewerOptions.find((item) => item.value === interview.setup.interviewer)?.label ?? interview.setup.interviewer} · {interview.questions.length} core questions</p>
     <p className="text-sm">{answeredCount} answered · {skippedCount} skipped without an answer · Remaining follow-ups skipped on {followUpsSkipped} {followUpsSkipped === 1 ? 'question' : 'questions'}</p>
     </header>
-    <ReviewSection title="Fictional role" sectionId={`spoken:review:${interview.id}:role`}>
+    {job && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. This interview keeps the saved job details from preparation.</p>}
+    {job ? <InterviewJobContext job={job} sectionId={`spoken:review:${interview.id}:job`} /> : <ReviewSection title="Fictional role" sectionId={`spoken:review:${interview.id}:role`}>
       {typeof role?.title === 'string' ? <div className="grid gap-4 text-sm">
         <h3 className="text-lg font-medium break-words">{role.title}</h3>
         {(['responsibilities', 'requirements'] as const).map((key) => <div key={key} className="grid gap-2">
@@ -33,7 +38,7 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
           <ul className="list-disc space-y-2 pl-5">{Array.isArray(role[key]) && role[key].filter((item): item is string => typeof item === 'string').map((item, index) => <li key={index} className="max-w-prose break-words">{item}</li>)}</ul>
         </div>)}
       </div> : <p className="text-sm text-muted-foreground">Role details were not saved for this interview.</p>}
-    </ReviewSection>
+    </ReviewSection>}
     <div className="divide-y border-y" aria-label="Saved questions and answers">
       {interview.questions.toSorted((a, b) => a.position - b.position).map((question) => {
         const dialogue = interview.messages.filter((message) => message.questionId === question.id && ['answer', 'follow_up'].includes(message.kind)).toSorted((a, b) => a.position - b.position)

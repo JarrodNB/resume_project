@@ -4,6 +4,7 @@
 # Index:
 #   - STAGES / stage enum: unapplied, applied, interviewing, rejected, offer
 #   - resumes: tailored resumes written for this job
+#   - interview_sessions: spoken practice kept with its frozen context after job deletion
 #   - ai_tasks: AI tasks about this job (its scrape, gap analyses); kept when the job is
 #     deleted, because their cost still counts toward the monthly AI budget
 #   - gap_responses: the user's answers to this job's requirements, keyed by requirement text
@@ -15,6 +16,7 @@ class Job < ApplicationRecord
   belongs_to :user
   belongs_to :job_board_listing, optional: true
   has_many :resumes, dependent: :nullify
+  has_many :interview_sessions, dependent: :nullify
   has_many :ai_tasks, as: :subject, dependent: :nullify
   has_many :gap_responses, -> { order(:created_at) }, class_name: "JobGapResponse", dependent: :destroy, inverse_of: :job
 

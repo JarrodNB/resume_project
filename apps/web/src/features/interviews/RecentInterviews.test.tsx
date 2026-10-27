@@ -8,10 +8,22 @@ import { RecentInterviews } from './RecentInterviews'
 vi.mock('./useRecentInterviews', () => ({ useRecentInterviews: () => ({ loading: false, error: null,
   interviews: ['preparing', 'ready', 'active', 'completed', 'abandoned', 'expired'].map((status, index) => ({
     id: status, status, createdAt: '2026-10-21T09:00:00Z', currentQuestionPosition: index,
+    jobContext: status === 'active' ? { id: 'job-live', title: 'Laboratory technician', company: 'Sample Labs' }
+      : status === 'completed' ? { id: null, title: 'Research coordinator', company: null } : null,
     questions: status === 'preparing' ? [] : Array.from({ length: 9 }, (_, position) => ({ id: `q${position}` })),
   })) }) }))
 
 describe('RecentInterviews', () => {
+  it('identifies saved-job practice using its frozen title and company, including a deleted source', async () => {
+    renderPage({ path: '/', url: '/', element: <RecentInterviews /> })
+    await userEvent.click(screen.getByRole('button', { name: /recent interviews/i }))
+    expect(screen.getByText('Laboratory technician')).toBeVisible()
+    expect(screen.getByText('Sample Labs')).toBeVisible()
+    expect(screen.getByText('Research coordinator')).toBeVisible()
+    expect(screen.getByText('Unknown company')).toBeVisible()
+    expect(screen.getByRole('link', { name: /resume interview for laboratory technician/i })).toHaveAttribute('href', '/interviews/active')
+    expect(screen.getByRole('link', { name: /review interview for research coordinator/i })).toHaveAttribute('href', '/interviews/completed')
+  })
   it('shows saved dates, statuses and question progress with resume and review links', async () => {
     renderPage({ path: '/', url: '/', element: <RecentInterviews /> })
     await userEvent.click(screen.getByRole('button', { name: /recent interviews/i }))

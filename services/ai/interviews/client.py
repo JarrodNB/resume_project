@@ -394,7 +394,7 @@ class RailsInterviewClient:
     async def fail(self, claim: Claim, code: str, retryable: bool):
         return await self._callback(claim, "fail", code=code, retryable=retryable)
 
-    async def accept_preparation(self, claim: Claim, *, role: dict, questions: list[dict]):
+    async def accept_preparation(self, claim: Claim, *, role: dict | None, questions: list[dict]):
         return await self._callback(claim, "accept_preparation", role=role, questions=questions)
 
     async def start_provider(

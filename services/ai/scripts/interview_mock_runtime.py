@@ -71,6 +71,8 @@ def reasoning_response(request):
                 if {"decision", "role"} & tool.get("parameters", {}).get("properties", {}).keys())
     result = preparation(_preparation_setup.get()) if "role" in tool["parameters"]["properties"] else {
         "decision": "continue", "reply": "How did you measure the shorter wait?"}
+    if tool["parameters"]["properties"].get("role", {}).get("type") == "null":
+        result["role"] = None
     return httpx.Response(200, json={"id": "resp_synthetic", "object": "response", "created_at": 1,
         "status": "completed", "model": "gpt-6-luna",
         "output": [{"type": "function_call", "id": "fc_synthetic", "call_id": "call_synthetic",

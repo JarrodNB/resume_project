@@ -1133,6 +1133,16 @@ type InterviewClarification {
   status: String!
 }
 
+type InterviewJobContext {
+  company: String
+  description: String
+  id: ID
+  niceToHaves: [String!]!
+  requirements: [String!]!
+  responsibilities: [String!]!
+  title: String!
+}
+
 type InterviewPlayback {
   contentType: String!
   expiresIn: Int!
@@ -1212,6 +1222,7 @@ type InterviewSession {
   expiresAt: ISO8601DateTime!
   id: ID!
   interviewType: String!
+  jobContext: InterviewJobContext
   messages: [InterviewSessionMessage!]!
   operations: [InterviewSessionOperation!]!
   preparedRole: JSON!
@@ -2213,6 +2224,7 @@ type Query {
   resumes: [Resume!]!
   skills: [Skill!]!
   taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
+  unfinishedInterviewSession: InterviewSession
 }
 
 """
@@ -2685,6 +2697,7 @@ input StartInterviewDemoInput {
   """
   clientMutationId: String
   executionMode: String = "real"
+  jobId: ID
   setup: InterviewSetupInput
 }
 

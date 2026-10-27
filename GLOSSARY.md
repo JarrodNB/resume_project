@@ -41,8 +41,8 @@ The initial turn-based interview type, using prepared questions and limited
 follow-ups without coaching.
 
 **Interview preparation**:
-The creation of a fictional role and questions from the user's saved career details,
-ready for the user to review before beginning an interview.
+The preparation of questions and role context from the user's saved career details,
+using a saved job or a fictional role, ready for review before beginning an interview.
 
 **Fictional interview role**:
 An imagined job used to frame interview practice. Its responsibilities and requirements

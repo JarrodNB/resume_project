@@ -15,6 +15,13 @@ module AiExecutions
       candidates = SolidQueue::FailedExecution.joins(:job)
         .where(solid_queue_jobs: { class_name: JOBS })
         .where("solid_queue_failed_executions.error::jsonb ->> 'exception_class' IN (?)", ERRORS)
+        .where(<<~SQL.squish)
+          NOT EXISTS (
+            SELECT 1 FROM ai_job_recoveries
+            WHERE ai_job_recoveries.active_job_id::text = solid_queue_jobs.active_job_id
+              AND ai_job_recoveries.exhausted_at IS NOT NULL
+          )
+        SQL
       candidates = candidates.where(job_id: @job_ids) if @job_ids
       candidates.order(:id).limit(100).pluck(:id).each { |id| recover(id) }
       success

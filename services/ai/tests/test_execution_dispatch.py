@@ -1,4 +1,4 @@
-"""Check immediate execution receipts, capacity and durable-owner lease fencing."""
+"""Check execution receipts, lease fencing and bounded accounting during shutdown."""
 
 import asyncio
 from datetime import UTC, datetime, timedelta
@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
+import pytest
 from fastapi import FastAPI
 
 
@@ -153,3 +154,153 @@ def test_deadline_allows_bounded_accounting_tail_and_stuck_tail_fails_closed():
 
     asyncio.run(scenario(False))
     asyncio.run(scenario(True))
+
+
+@pytest.mark.parametrize("cause", ["deadline", "lease_loss"])
+def test_close_during_accounting_keeps_surviving_work_fail_closed(cause):
+    from execution.runner import ExecutionRunner
+
+    async def scenario():
+        accounting_started = asyncio.Event()
+        release_accounting = asyncio.Event()
+        accounted = asyncio.Event()
+
+        class Adapter:
+            async def claim(self, identity):
+                return SimpleNamespace(
+                    execution_deadline=datetime.now(UTC) + timedelta(
+                        seconds=0.01 if cause == "deadline" else 1))
+
+            async def execute(self, claim, output):
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    accounting_started.set()
+                    await release_accounting.wait()
+                    accounted.set()
+
+            async def heartbeat(self, claim):
+                if cause == "lease_loss":
+                    raise RuntimeError("lease lost")
+                return {}
+
+        runner = ExecutionRunner({"interviews": Adapter()}, cleanup_seconds=0.02,
+                                 heartbeat_seconds=0.001)
+        assert runner.start("interviews", "one") == "received"
+        await asyncio.wait_for(accounting_started.wait(), 0.5)
+        try:
+            await asyncio.wait_for(runner.close(), 0.5)
+            runner.reopen()
+            assert not runner.ready
+            assert runner.start("interviews", "two") == "overloaded"
+            # A later lifespan/owner close must not cancel final accounting again.
+            await asyncio.wait_for(runner.close(), 0.5)
+            runner.reopen()
+            assert not runner.ready
+        finally:
+            release_accounting.set()
+            await asyncio.wait_for(accounted.wait(), 0.5)
+            await runner.close()
+        runner.reopen()
+        assert runner.ready
+
+    asyncio.run(scenario())
+
+
+def test_close_awaits_accounting_that_finishes_within_the_cleanup_budget():
+    from execution.runner import ExecutionRunner
+
+    async def scenario():
+        accounting_started = asyncio.Event()
+        release_accounting = asyncio.Event()
+        accounted = asyncio.Event()
+
+        class Adapter:
+            async def claim(self, identity):
+                return SimpleNamespace(
+                    execution_deadline=datetime.now(UTC) + timedelta(seconds=0.01))
+
+            async def execute(self, claim, output):
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    accounting_started.set()
+                    await release_accounting.wait()
+                    accounted.set()
+
+            async def heartbeat(self, claim):
+                return {}
+
+        runner = ExecutionRunner({"interviews": Adapter()}, cleanup_seconds=0.5)
+        runner.start("interviews", "one")
+        await asyncio.wait_for(accounting_started.wait(), 0.5)
+        # Accounting starts before shutdown and completes independently while close
+        # waits. The lifespan may close its clients only after this callback finishes.
+        release = asyncio.get_running_loop().call_later(0.01, release_accounting.set)
+        try:
+            await asyncio.wait_for(runner.close(), 0.5)
+            assert accounted.is_set()
+        finally:
+            release.cancel()
+            release_accounting.set()
+            await asyncio.wait_for(accounted.wait(), 0.5)
+            await runner.close()
+
+    asyncio.run(scenario())
+
+
+def test_repeated_shutdown_cancellation_does_not_extend_the_cleanup_budget():
+    from execution.runner import ExecutionRunner
+
+    async def scenario():
+        executing = asyncio.Event()
+        accounting_started = asyncio.Event()
+        release_accounting = asyncio.Event()
+        accounted = asyncio.Event()
+        stop_cancelling = asyncio.Event()
+
+        class Adapter:
+            async def claim(self, identity):
+                return SimpleNamespace(
+                    execution_deadline=datetime.now(UTC) + timedelta(seconds=1))
+
+            async def execute(self, claim, output):
+                try:
+                    executing.set()
+                    await asyncio.Event().wait()
+                finally:
+                    accounting_started.set()
+                    await release_accounting.wait()
+                    accounted.set()
+
+            async def heartbeat(self, claim):
+                return {}
+
+        runner = ExecutionRunner({"interviews": Adapter()}, cleanup_seconds=0.02)
+        runner.start("interviews", "one")
+        await asyncio.wait_for(executing.wait(), 0.5)
+        closing = asyncio.create_task(runner.close())
+        await asyncio.wait_for(accounting_started.wait(), 0.5)
+
+        async def repeatedly_cancel_close():
+            while not stop_cancelling.is_set():
+                closing.cancel()
+                # Keep delivering cancellation while letting the drain run.
+                await asyncio.sleep(0)
+
+        cancellations = asyncio.create_task(repeatedly_cancel_close())
+        try:
+            done, _ = await asyncio.wait({closing}, timeout=0.2)
+            assert closing in done, "Repeated cancellation extended the cleanup budget"
+            assert closing.cancelled()
+            runner.reopen()
+            assert not runner.ready
+        finally:
+            stop_cancelling.set()
+            await cancellations
+            await asyncio.gather(closing, return_exceptions=True)
+            release_accounting.set()
+            await asyncio.wait_for(accounted.wait(), 0.5)
+            await runner.close()
+
+    asyncio.run(scenario())

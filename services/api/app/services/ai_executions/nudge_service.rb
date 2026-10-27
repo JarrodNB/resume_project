@@ -1,5 +1,6 @@
 # Send an operation identity to the fixed AI origin after its database commit.
 # A received HTTP202 is intentionally not a durable-delivery acknowledgement.
+# Only the runtime's explicit busy response represents healthy capacity pressure.
 require "net/http"
 require "timeout"
 
@@ -9,6 +10,7 @@ module AiExecutions
       @feature, @operation_id = feature, operation_id
     end
 
+    # @return [ServiceResult<Symbol>] :accepted or :busy, otherwise a transport failure
     def call
       uri = URI(ENV.fetch("AI_HTTP_ORIGIN", "http://ai-http:8000"))
       secret = ENV["INTERVIEW_SERVICE_SECRET"]
@@ -25,20 +27,22 @@ module AiExecutions
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = http.write_timeout = 0.2
       http.read_timeout = 0.5
-      accepted = Timeout.timeout(1) do
+      Timeout.timeout(1) do
         http.start do |connection|
           connection.request(request) do |response|
-            return failure("AI execution unavailable") unless response.code == "202"
-            bytes = 0
+            return failure("AI execution unavailable") unless %w[202 503].include?(response.code)
+            body = +""
             response.read_body do |chunk|
-              bytes += chunk.bytesize
-              return failure("AI execution unavailable") if bytes > 1024
+              body << chunk
+              return failure("AI execution unavailable") if body.bytesize > 1024
             end
+            return success(:accepted) if response.code == "202"
+            return success(:busy) if JSON.parse(body) == { "error" => "busy" }
+
+            return failure("AI execution unavailable")
           end
-          true
         end
       end
-      success(accepted)
     rescue StandardError
       # Transport exceptions may include credentials or URLs; return a fixed code.
       failure("AI execution unavailable")

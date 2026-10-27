@@ -1,4 +1,6 @@
 # Retry a specific committed command until the owner confirms durable execution.
+# Explicit executor capacity pressure waits under owner expiry, outside the bounded
+# transport/lost-claim retry budget. Every retry retains the exact delivery fence.
 module AiExecutions
   class DispatchJob < DurableJob
     class DeliveryPending < StandardError; end
@@ -13,8 +15,14 @@ module AiExecutions
         retry_job(wait_until: state[:retry_at])
         return
       end
-      NudgeService.call(feature: feature, operation_id: operation_id)
-      raise DeliveryPending, "AI execution delivery pending" unless Features.state(feature, operation_id, delivery_job_id: job_id).fetch(:delivered)
+      result = NudgeService.call(feature: feature, operation_id: operation_id)
+      return if Features.state(feature, operation_id, delivery_job_id: job_id).fetch(:delivered)
+
+      if result.success? && result.value == :busy
+        retry_job(wait: 1.second)
+      else
+        raise DeliveryPending, "AI execution delivery pending"
+      end
     end
 
     def stop_delivery

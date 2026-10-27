@@ -17,13 +17,14 @@ RSpec.describe "Interrupted AI queue delivery" do
     @user = create(:user, summary: "I maintain inventory systems.")
     @operation = Interviews::StartPreparationService.call(user: @user).value.operations.first
     @process_ids = []
+    @maintenance_job_ids = []
     @job = AiExecutions::DispatchJob.perform_later("interviews", @operation.id)
     @operation.update!(delivery_job_id: @job.job_id)
   end
 
   after do
     jobs = SolidQueue::Job.where("arguments LIKE ?", "%#{@operation.id}%")
-    jobs = jobs.or(SolidQueue::Job.where(active_job_id: @maintenance_job_id)) if @maintenance_job_id
+    jobs = jobs.or(SolidQueue::Job.where(active_job_id: @maintenance_job_ids))
     AiJobRecovery.where(active_job_id: jobs.pluck(:active_job_id)).delete_all
     jobs.destroy_all
     SolidQueue::Process.where(id: @process_ids).delete_all
@@ -64,6 +65,32 @@ RSpec.describe "Interrupted AI queue delivery" do
     expect(AiExecutions::NudgeService).not_to receive(:call)
     old.perform_now
     expect(@operation.reload).to be_pending
+  end
+
+  it "recovers later failures after retaining a full batch of exhausted diagnostic rows" do
+    @maintenance_job_ids = Array.new(100) { Interviews::CleanupJob.perform_later.job_id }
+    process = SolidQueue::Process.register(kind: "Worker", name: "exhausted-batch-#{SecureRandom.uuid}", pid: Process.pid, hostname: "test")
+    @process_ids << process.id
+    claimed = SolidQueue::ReadyExecution.claim([ "maintenance" ], 100, process.id)
+    expect(claimed.size).to eq(100)
+    claimed.each { |execution| execution.failed_with(SolidQueue::Processes::ProcessMissingError.new) }
+    @maintenance_job_ids.each { |id| AiJobRecovery.create!(active_job_id: id, recovery_count: 3) }
+
+    AiExecutions::RecoverInterruptedJobsJob.perform_now
+    receipts = AiJobRecovery.where(active_job_id: @maintenance_job_ids)
+    expect(receipts.where.not(exhausted_at: nil).count).to eq(100)
+    exhaustion_times = receipts.pluck(:active_job_id, :exhausted_at).to_h
+
+    claimed_delivery.failed_with(SolidQueue::Processes::ProcessMissingError.new)
+    AiExecutions::RecoverInterruptedJobsJob.perform_now
+    expect(SolidQueue::ReadyExecution.joins(:job).where(job: { active_job_id: @job.job_id })).to exist
+    expect(AiJobRecovery.find_by!(active_job_id: @job.job_id).recovery_count).to eq(1)
+
+    AiExecutions::RecoverInterruptedJobsJob.perform_now
+    expect(AiJobRecovery.find_by!(active_job_id: @job.job_id).recovery_count).to eq(1)
+    expect(receipts.pluck(:active_job_id, :exhausted_at).to_h).to eq(exhaustion_times)
+    expect(receipts.distinct.pluck(:recovery_count)).to eq([ 3 ])
+    expect(SolidQueue::FailedExecution.joins(:job).where(job: { active_job_id: @maintenance_job_ids }).count).to eq(100)
   end
 
   it "keeps fallback delivery durable when HTTP202 has not produced a claim" do
@@ -142,7 +169,7 @@ RSpec.describe "Interrupted AI queue delivery" do
   end
   it "recovers interrupted maintenance with the same persistent infrastructure budget" do
     cleanup = Interviews::CleanupJob.perform_later
-    @maintenance_job_id = cleanup.job_id
+    @maintenance_job_ids << cleanup.job_id
     process = SolidQueue::Process.register(kind: "Worker", name: "cleanup-interruption-#{SecureRandom.uuid}", pid: Process.pid, hostname: "test")
     @process_ids << process.id
     4.times do |index|

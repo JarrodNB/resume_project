@@ -9,7 +9,7 @@ RSpec suite. Run with `docker compose run --rm api bundle exec rspec`.
 - `models/` — validations, enums, ordering
 - `services/` — service object behavior, mirrored from `app/services/`
 - `graphql/queries/`, `graphql/mutations/` — operations run directly against the schema
-- `graphql/schema_dump_spec.rb` — fails when `schema.graphql` is out of date
+- `graphql/schema_dump_spec.rb` — fails when `graphql_schema/schema.graphql` is out of date
 - `requests/auth_spec.rb` — signup verification pending, cookie sign-in/out over HTTP
 - `requests/email_verification_spec.rb` — Devise confirmation, resend, errors, CSRF and queue failure
 - `requests/password_recovery_spec.rb` — recovery/change, token expiry, policy, session replay,

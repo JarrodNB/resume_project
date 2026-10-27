@@ -3,7 +3,6 @@ Description: Invalid library-search scopes fail before touching the database.
 Index:
     - test_rejects_invalid_source_types: empty, malformed, and unknown scopes fail closed
     - test_requires_source_types: callers cannot silently search every type
-    - test_tailoring_passes_explicit_scope: task identity and selected types reach search
 """
 
 from contextlib import nullcontext
@@ -11,13 +10,8 @@ from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
-from pydantic_ai.usage import RequestUsage
 
 from database.library_embedding_search import search_career_library
-from memory.embed_search_query import QueryEmbedding
-from schemas.gap_analysis_context import JobToAnalyze
-from tailoring.retrieve_for_section import retrieve_source_keys
-from worker.settings import WorkerSettings
 
 
 @pytest.mark.parametrize(
@@ -31,37 +25,6 @@ def test_rejects_invalid_source_types(source_types: object) -> None:
             connection, uuid4(), [0.1], "Ruby", "model", source_types=source_types
         )
     assert connection.mock_calls == []
-
-
-def test_tailoring_passes_explicit_scope(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Tailoring chooses its mixed library scope in code and retains the no-results fallback."""
-    user_id = uuid4()
-    connection = Mock()
-    search = Mock(return_value=[])
-    monkeypatch.setattr("tailoring.retrieve_for_section.search_career_library", search)
-    monkeypatch.setattr(
-        "tailoring.retrieve_for_section.open_read_only_connection",
-        Mock(return_value=nullcontext(connection)),
-    )
-    monkeypatch.setattr(
-        "tailoring.retrieve_for_section.embed_search_query",
-        Mock(return_value=QueryEmbedding([0.1], RequestUsage())),
-    )
-    job = JobToAnalyze(id=str(uuid4()), title="Engineer", company="Example")
-
-    keys, _usage = retrieve_source_keys(user_id, "experience", job, WorkerSettings())
-
-    assert keys is None
-    assert search.call_args.args[1] == user_id
-    assert search.call_args.kwargs["source_types"] == {
-        "Experience",
-        "ExperienceHighlight",
-        "Project",
-        "Education",
-        "Certification",
-        "Skill",
-        "LibraryFact",
-    }
 
 
 def test_requires_source_types() -> None:
@@ -91,30 +54,6 @@ def test_search_owns_stored_model_representation(monkeypatch, model):
     assert params["model"] == "text-embedding-3-small"
     assert params["user_id"] == user_id
     assert params["source_types"] == ["Skill"]
-
-
-def test_async_tailoring_retains_user_scope_and_empty_search_fallback(monkeypatch):
-    """Awaited query embedding keeps search filters identical to the synchronous path."""
-    import asyncio
-    from unittest.mock import AsyncMock
-
-    from tailoring.retrieve_for_section import retrieve_source_keys_async
-
-    user = uuid4()
-    search = Mock(return_value=[])
-    monkeypatch.setattr("tailoring.retrieve_for_section.search_career_library", search)
-    monkeypatch.setattr("tailoring.retrieve_for_section.open_read_only_connection", Mock(return_value=nullcontext(Mock())))
-    embed = AsyncMock(return_value=QueryEmbedding([0.1], RequestUsage(input_tokens=3)))
-    monkeypatch.setattr("memory.embed_search_query.embed_search_query_async", embed)
-    settings = WorkerSettings()
-    job = JobToAnalyze(id=str(uuid4()), title="Engineer", company="Example")
-    keys, usage = asyncio.run(retrieve_source_keys_async(user, "experience", job, settings))
-    assert keys is None
-    assert usage.input_tokens == 3
-    assert search.call_args.args[1] == user
-    assert search.call_args.kwargs["source_types"] == {
-        "Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "LibraryFact"}
-    assert embed.await_count == 1
 
 
 def test_search_preserves_row_metadata_after_hybrid_ranking(monkeypatch):

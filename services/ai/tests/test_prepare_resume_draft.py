@@ -26,7 +26,6 @@ def preparation(task_dependencies, monkeypatch):
     context = build_gap_analysis_context()
     reads = []
     calls = []
-    retrievals = []
     user_id, job_id = uuid4(), uuid4()
 
     def read(user, job):
@@ -38,13 +37,13 @@ def preparation(task_dependencies, monkeypatch):
         return allowed_run(text)
 
     monkeypatch.setattr("tailoring.prepare_resume_draft.screen_user_message_async", classify)
-    return replace(task_dependencies, read_gap_analysis_context=read), context, reads, calls, retrievals, user_id, job_id
+    return replace(task_dependencies, read_gap_analysis_context=read), context, reads, calls, user_id, job_id
 
 
 def test_shared_evidence_once_exact_prompts_and_fresh_execution(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, reads, calls, retrievals, user, job = preparation
+    dependencies, _, reads, calls, user, job = preparation
 
     async def run():
         usage, warnings = [], []
@@ -66,13 +65,12 @@ def test_shared_evidence_once_exact_prompts_and_fresh_execution(preparation):
         assert len(calls) > first_count
     asyncio.run(run())
     assert reads == [(user, job), (user, job)]
-    assert not retrievals
 
 
 def test_completed_gap_analysis_includes_every_assessment_without_rescreening(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, calls, _, user, job = preparation
+    dependencies, _, _, calls, user, job = preparation
     analysis = {
         "summary": "Strong match with one gap.",
         "assessments": [
@@ -106,7 +104,7 @@ def test_completed_gap_analysis_includes_every_assessment_without_rescreening(pr
 def test_user_gap_responses_are_screened_together(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, calls, _, user, job = preparation
+    dependencies, _, _, calls, user, job = preparation
     responses = [
         {"requirement": "Python", "body": "Built backend services."},
         {"requirement": "AWS", "body": "Deployed production workloads."},
@@ -128,16 +126,15 @@ def test_user_gap_responses_are_screened_together(preparation):
     asyncio.run(run())
 
 
-def test_required_rejection_before_retrieval_and_optional_omission(preparation):
+def test_required_rejection_before_generation_and_optional_omission(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, _, retrievals, user, job = preparation
+    dependencies, context, _, _, user, job = preparation
     context.job.title = "attack"
 
     async def run():
         with screening_session(), pytest.raises(ValueError, match="job context"):
             await prepare_resume_draft(user, job, dependencies, usage=[], warnings=[])
-        assert not retrievals
         context.job.title = "Engineer"
         context.career_library.summary = "attack"
         context.career_library.skills[0].name = "attack"
@@ -153,7 +150,7 @@ def test_required_rejection_before_retrieval_and_optional_omission(preparation):
 def test_bounded_overlap_and_awaited_cancellation(preparation, monkeypatch):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, _, _, user, job = preparation
+    dependencies, _, _, _, user, job = preparation
 
     async def run():
         active = 0
@@ -193,7 +190,7 @@ def test_bounded_overlap_and_awaited_cancellation(preparation, monkeypatch):
 def test_summary_uses_selected_stable_labels_and_rejects_later_execution(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, _, _, user, job = preparation
+    dependencies, _, _, _, user, job = preparation
 
     async def run():
         with screening_session():
@@ -278,7 +275,7 @@ def test_summary_selected_labels_filter_the_full_library(preparation):
     """The summary keeps selected evidence without embedding a search query."""
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, _, _, user, job = preparation
+    dependencies, _, _, _, user, job = preparation
 
     async def run():
         with screening_session():
@@ -348,7 +345,7 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
 def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     library = context.career_library
     library.summary_record_id = str(user)
     library.projects[0].role = "unused project role"
@@ -398,7 +395,7 @@ def test_approved_oversized_library_still_fails_before_screening(preparation):
     """A previous field approval never exempts saved text from the aggregate cap."""
     from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     project = context.career_library.projects[0]
     project.name = "x" * 81_000
     project.screened_fields = ["name", "description"]
@@ -420,7 +417,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
     from tailoring.labeled_sources import label_sources
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     ids = {kind: str(uuid4()) for kind in (
         "experience", "highlight", "project", "education", "certification", "skill", "fact")}
     context.career_library = CareerLibrary.model_validate({
@@ -460,7 +457,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
         ("skill", ids["skill"]): {"name": "Skill evidence"},
         ("library_fact", ids["fact"]): {"requirement": "Fact requirement", "response": "Fact evidence"},
     }
-    sources = label_sources(context, [], [], None)
+    sources = label_sources(context, [], [])
     assert sources.records["C1"].text == (
         "Credential evidence, Issuer evidence, issued 2020, expires 2030-02, "
         "Credential identifier, https://credential.example, Credential description")
@@ -493,7 +490,7 @@ def test_highlights_reuse_partial_saved_parent_checks(preparation):
     """Role identity screens once and highlights screen only their unchecked content."""
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     role = context.career_library.experiences[0]
     role.screened_fields = ["title"]
     role.description = "Unsaved role description"
@@ -522,7 +519,7 @@ def test_identical_saved_skills_keep_each_identity_and_reuse_field_checks(prepar
     from schemas.gap_analysis_context import LibrarySkill
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     skills = [LibrarySkill(id=str(uuid4()), name="Shared skill", category="Unused category")
               for _ in range(2)]
     context.career_library.skills = skills
@@ -559,7 +556,7 @@ def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation)
     )
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     shared = "Shared: detail"
     context.career_library = CareerLibrary(
         summary=shared, summary_record_id=str(user),
@@ -596,7 +593,7 @@ def test_summary_records_new_saved_id_even_when_its_text_was_already_screened(pr
     from schemas.gap_analysis_context import LibrarySkill
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     context.career_library.skills = [LibrarySkill(id="first-skill", name="Shared skill")]
 
     async def run():
@@ -622,7 +619,7 @@ def test_checked_text_collision_cannot_hide_rejected_saved_fields(preparation, m
     from schemas.gap_analysis_context import CareerLibrary, LibrarySkill
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     approved = LibrarySkill(id="approved-skill", name="attack", screened_fields=["name"])
     unchecked = LibrarySkill(id="unchecked-skill", name="attack")
     context.career_library = CareerLibrary(skills=[approved, unchecked] if approved_first else [unchecked, approved])
@@ -656,7 +653,7 @@ def test_tailoring_reuses_job_checks_from_gap_analysis_and_checks_only_edited_li
     from tailoring.prepare_resume_draft import prepare_resume_draft
     from tests.test_gap_context_screening import jev_model
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     with screening_session() as session, user_text_screen_agent.override(model=jev_model([])):
         assert prepare_gap_analysis(context, today=date(2026, 10, 25),
             screen_model="typesafe:jev-1.13.0", timeout_seconds=5).prompt is not None
@@ -682,7 +679,7 @@ def test_tailoring_reuses_job_checks_from_gap_analysis_and_checks_only_edited_li
 def test_approved_job_still_obeys_complete_source_limit(preparation):
     from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     context.job.title = "x" * 80_001
     context.job.screened_fields = ["title", "company", "requirements", "nice_to_haves"]
 
@@ -698,7 +695,7 @@ def test_approved_job_still_obeys_complete_source_limit(preparation):
 def test_saved_gap_response_fields_reused_without_screening(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, calls, _, user, job = preparation
+    dependencies, _, _, calls, user, job = preparation
     responses = [{"id": str(uuid4()), "requirement": "Unique requirement",
                   "body": "Unique saved answer", "screened_fields": ["requirement", "body"]}]
 
@@ -718,7 +715,7 @@ def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, app
     from screening.job_fields import field_fingerprint
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, calls, _, user, job = preparation
+    dependencies, _, _, calls, user, job = preparation
     ids = [str(uuid4()) for _ in range(3)]
     responses = [
         {"id": ids[0], "requirement": "A: B", "body": "C"},
@@ -749,7 +746,7 @@ def test_grouped_gap_checks_keep_every_identity_and_field_split(preparation, app
 def test_gap_partial_approval_and_legacy_summary_subset_reuse(preparation):
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, _, _, calls, _, user, job = preparation
+    dependencies, _, _, calls, user, job = preparation
     response_id = str(uuid4())
     responses = [
         {"id": response_id, "requirement": "Already approved", "body": "Fresh answer",
@@ -776,7 +773,7 @@ def test_gap_library_text_collision_preserves_each_provenance(preparation, block
     from schemas.gap_analysis_context import LibraryFact
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
-    dependencies, context, _, calls, _, user, job = preparation
+    dependencies, context, _, calls, user, job = preparation
     context.career_library.facts = [LibraryFact(id="fact-collision", requirement="Equal requirement",
         response="attack" if blocked else "Equal answer", screened_fields=["requirement", "response"])]
     responses = [{"id": str(uuid4()), "requirement": "Equal requirement",

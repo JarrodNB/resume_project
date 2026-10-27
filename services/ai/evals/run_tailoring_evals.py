@@ -44,7 +44,6 @@ def run_tailoring_evals(model_override: str | None = None) -> EvaluationReport:
             case.context,
             [],
             [],
-            None,
             write_anyway=False,
             gap_analysis=None,
             today=date(2026, 10, 1),

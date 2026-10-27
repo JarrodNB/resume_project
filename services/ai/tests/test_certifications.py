@@ -3,7 +3,7 @@ Description: Certification parsing compatibility, evidence labels, and resume sn
 Index:
     - test_old_parse_payload_accepts_missing_certifications
     - test_certification_only_library_supplies_gap_evidence
-    - test_native_certifications_survive_retrieval_and_copy_identity
+    - test_certifications_keep_source_labels_and_copy_identity
 """
 from datetime import date
 
@@ -49,10 +49,10 @@ def test_certification_only_library_supplies_gap_evidence() -> None:
     assert "## Education" not in prompt.text
 
 
-def test_native_certifications_survive_retrieval_and_copy_identity() -> None:
-    """Unrelated search results cannot hide credentials; identity comes from library rows."""
+def test_certifications_keep_source_labels_and_copy_identity() -> None:
+    """Credential labels preserve the identity copied from library rows."""
     context = _context()
-    sources = label_sources(context, [], [], {("Experience", "unrelated")}, "certifications")
+    sources = label_sources(context, [], [])
     assert sources.records["C1"].source_type == "Certification"
     draft = TailoredSectionDraft(nothing_fits=False, entries=[ChosenEntry(label="C1")])
     content = materialize_section("certifications", draft, context.career_library, sources)
@@ -72,7 +72,7 @@ def test_partial_date_materialization_and_prompt_preserve_precision() -> None:
     certification = context.career_library.certifications[0]
     certification.issued_date_precision = "year"
     certification.expiry_date_precision = "month"
-    prompt = build_section_prompt("certifications", context, [], [], None,
+    prompt = build_section_prompt("certifications", context, [], [],
                                   write_anyway=False, gap_analysis=None, today=date(2027, 3, 10))
     assert "Today's date: 2027-03-10" in prompt.text
     assert "unknown within stated expiry period" in prompt.text

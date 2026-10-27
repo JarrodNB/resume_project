@@ -69,13 +69,12 @@ def labels_to_draft(labels: TailorEvalLabels) -> TailoredSectionDraft:
 
 
 def _sources(ctx: TailorContext):
-    """The labeled library the checker uses (no retrieval narrowing)."""
+    """The complete labeled library the checker uses."""
     prompt = build_section_prompt(
         ctx.inputs.section_type,
         ctx.inputs.context,
         [],
         [],
-        None,
         write_anyway=False,
         gap_analysis=None,
     )

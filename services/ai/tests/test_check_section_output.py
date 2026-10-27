@@ -12,7 +12,7 @@ from tests.fakes import build_gap_analysis_context
 
 
 def _sources():
-    prompt = build_section_prompt("experience", build_gap_analysis_context(), [], [], None,
+    prompt = build_section_prompt("experience", build_gap_analysis_context(), [], [],
         write_anyway=False, gap_analysis=None)
     return prompt.sources
 

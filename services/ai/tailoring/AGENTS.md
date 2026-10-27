@@ -10,12 +10,9 @@ prompt, the output-shape check, and the resume JSON the model does not get to in
 - `section_catalog.py` — section order (contact, then summary, experience, projects,
   education, certifications, skills) and entry label prefixes
 - `tailor_resume_input.py` — the task input: contact snapshot, gap analysis, and gap responses
-- `retrieve_for_section.py` — legacy search helper retained for retrieval evaluation;
-  complete-draft tailoring now uses the library snapshot already read for the task
-- `labeled_sources.py` — short labels for retrieved entries, gap responses, and selected draft snapshots.
+- `labeled_sources.py` — short labels for the complete library snapshot, gap responses, and selected draft snapshots.
   Text and saved-field provenance are built together; preparation passes that provenance
-  to screening without looking entries up again. Projects, education, certifications, and
-  skills are labeled even when retrieval returned other rows
+  to screening without looking entries up again. Tailoring does not retrieve or rank library rows.
 - `build_section_prompt.py` — the user prompt for one written section
 - `format_gap_analysis.py` — readable overview and every saved requirement assessment
 - `check_section_output.py` — checks usable section shape and known source labels;

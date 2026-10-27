@@ -25,7 +25,7 @@ def test_screened_sources_do_not_trigger_an_assembled_prompt_pass(monkeypatch, o
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test")
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
     with screening_session():
-        prompt = build_section_prompt("summary", build_gap_analysis_context(), [], [], None,
+        prompt = build_section_prompt("summary", build_gap_analysis_context(), [], [],
             write_anyway=False, gap_analysis=None,
             allow_text=lambda text: screen_user_text(text, "typesafe:jev-1.13.0", 20))
         screened_count = len(calls)
@@ -35,7 +35,7 @@ def test_screened_sources_do_not_trigger_an_assembled_prompt_pass(monkeypatch, o
     assert screened_count == len(prompt.sources.records) + 1
     assert len(calls) == screened_count
     with screening_session():
-        build_section_prompt("summary", build_gap_analysis_context(), [], [], None,
+        build_section_prompt("summary", build_gap_analysis_context(), [], [],
             write_anyway=False, gap_analysis=None,
             allow_text=lambda text: screen_user_text(text, "typesafe:jev-1.13.0", 20))
     assert len(calls) == 2 * screened_count
@@ -55,7 +55,7 @@ def test_rejected_optional_inputs_are_absent_from_prompt_and_citations(unchecked
 
     prompt = build_section_prompt("skills", context,
         [{"requirement": "unsafe requirement", "body": "innocent body"}],
-        [{"title": "unsafe title", "content": {"text": "innocent content"}}], set(),
+        [{"title": "unsafe title", "content": {"text": "innocent content"}}],
         write_anyway=False, gap_analysis={"summary": "unsafe gap summary"},
         allow_text=allow, warnings=warnings)
     assert "unsafe" not in prompt.text
@@ -68,7 +68,7 @@ def test_rejected_optional_inputs_are_absent_from_prompt_and_citations(unchecked
     assert "unsafe title: innocent content" in seen
 
 
-def test_required_job_rejection_prevents_retrieval(task_dependencies, monkeypatch):
+def test_required_job_rejection_prevents_generation(task_dependencies, monkeypatch):
     from dataclasses import replace
     from uuid import uuid4
 
@@ -116,7 +116,7 @@ def test_handler_counts_each_input_once_and_rescreens_next_task(
     offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(classify, model_name="jev-1.13.0"))
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume",
         input={"job_id": str(uuid4()), "contact": {"full_name": "Synthetic Candidate"}})
-    sources = label_sources(context, [], [], None)
+    sources = label_sources(context, [], [])
     with resume_tailoring_agent.override(model=FunctionModel(answer, model_name="gpt-5-mini")):
         first = handle_tailor_resume_task(task, task_dependencies)
         assert first.status == "completed"

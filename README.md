@@ -23,12 +23,11 @@ prompt injection defenses, and evaluation workflows in a full-stack application.
 
 ### Retrieval-augmented generation
 
-Resume tailoring retrieves career evidence for each section using the role and job requirements.
-[Hybrid search](services/ai/database/library_embedding_search.py) combines pgvector cosine
+Interview references and job ranking use saved career evidence. [Hybrid search](services/ai/database/library_embedding_search.py) combines pgvector cosine
 ranking with BM25 keyword ranking through reciprocal rank fusion. Queries are scoped to
-the user and embedding model; the highest-ranked entries ground the section's context.
-[Section retrieval](services/ai/tailoring/retrieve_for_section.py) selects up to eight entries
-and falls back to the full library when no matching embeddings exist.
+the user and embedding model. Resume tailoring reads the complete career-library snapshot
+once and supplies screened evidence directly to its section writers, without retrieval or
+per-section query embeddings.
 
 ### Prompt injection defenses and grounded outputs
 

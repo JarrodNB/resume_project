@@ -1,7 +1,7 @@
 """
-Description: Evaluators for career-library hybrid search. A case ranks one section's query
-against synthetic library texts and scores recall@k, precision@k, and MRR inside the
-production limit.
+Description: Evaluators for career-library hybrid search. A case ranks an explicit query
+against synthetic library texts and scores recall@k, precision@k, and MRR at a fixed
+evaluation cutoff, independently of any consuming workflow.
 Index:
     - LibraryDocument / RetrievalEvalInput / RetrievalEvalLabels: one case
     - RankedLibrary: document ids, best first
@@ -16,8 +16,8 @@ from dataclasses import dataclass
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from schemas.gap_analysis_context import JobToAnalyze
-from tailoring.retrieve_for_section import _LIMIT
+# A stable comparison window for this evaluation, not a production selection limit.
+RETRIEVAL_EVAL_LIMIT = 8
 
 
 class LibraryDocument(BaseModel):
@@ -28,10 +28,9 @@ class LibraryDocument(BaseModel):
 
 
 class RetrievalEvalInput(BaseModel):
-    """A section query and the library it searches."""
+    """A search query and the library it searches."""
 
-    section_type: str
-    job: JobToAnalyze
+    query_text: str
     documents: list[LibraryDocument]
 
 
@@ -87,7 +86,7 @@ class HitAt1(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLabels]):
 
 @dataclass
 class RecallAtK(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLabels]):
-    """Share of relevant rows inside the number of neighbours production keeps."""
+    """Share of relevant rows inside the evaluation cutoff."""
 
     def evaluate(self, ctx: RetrievalContext) -> float:
         """|relevant ∩ top k| / |relevant|."""
@@ -105,7 +104,7 @@ class PrecisionAtK(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLab
 
 @dataclass
 class MeanReciprocalRank(Evaluator[RetrievalEvalInput, RankedLibrary, RetrievalEvalLabels]):
-    """Reciprocal rank of the first relevant row inside the production limit."""
+    """Reciprocal rank of the first relevant row inside the evaluation cutoff."""
 
     def evaluate(self, ctx: RetrievalContext) -> float:
         """1/rank of the first hit, or 0 when none of the kept rows is relevant."""
@@ -116,7 +115,7 @@ def _score(ctx: RetrievalContext, name: str) -> float:
     """One retrieval metric for this case."""
     labels = ctx.metadata
     assert labels is not None
-    return retrieval_scores(ctx.output.ids, labels.relevant_ids, _LIMIT)[name]
+    return retrieval_scores(ctx.output.ids, labels.relevant_ids, RETRIEVAL_EVAL_LIMIT)[name]
 
 
 LIBRARY_RETRIEVAL_EVALUATORS = (HitAt1, RecallAtK, PrecisionAtK, MeanReciprocalRank)

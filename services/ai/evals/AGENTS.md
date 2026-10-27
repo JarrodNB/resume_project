@@ -79,10 +79,10 @@ score attached, so runs can be compared across prompt and model changes.
   `docker compose run --rm ai python -m evals.run_tailoring_evals`. This section quality
   suite does not benchmark complete-draft execution or create a second orchestration path
 - `datasets/library_retrieval_cases.yaml` — synthetic libraries in the text shape Rails embeds
-  (experience highlight, project, education, skill, library fact). An experience query and a
-  summary query, each with more rows than the search keeps, and the ids that should rank
+  (experience highlight, project, education, skill, library fact). Explicit search queries,
+  each with more rows than the evaluation cutoff, and the ids that should rank
 - `library_retrieval_evaluators.py` — `HitAt1`, `RecallAtK`, `PrecisionAtK`, and
-  `MeanReciprocalRank` (k is the production limit from `retrieve_for_section`)
+  `MeanReciprocalRank` (k=8 is a fixed evaluation cutoff, independent of production consumers)
 - `run_library_retrieval_evals.py` — embeds the corpus with `Embedder.embed_documents` and the
   query with `embed_search_query`, then ranks with `hybrid_order` (no Postgres):
   `docker compose run --rm ai python -m evals.run_library_retrieval_evals`

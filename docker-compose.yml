@@ -5,6 +5,7 @@
 #   - s3: Adobe S3Mock, local S3 emulator for uploaded files (port 9090)
 #   - api: Rails GraphQL API (port 3000; GraphQL subscriptions over WebSocket at /cable)
 #   - api-results-worker: Shoryuken consumer of ai_results (same image and code as api)
+#   - api-jobs-worker: durable Rails jobs (same image, primary database, and code as api)
 #   - ai: Python SQS worker
 #   - interview-real-runtime: spoken interview worker
 #   - web: React app (port 5173)
@@ -112,6 +113,34 @@ services:
         condition: service_healthy
       sqs:
         condition: service_started
+      api:
+        condition: service_started
+
+  api-jobs-worker:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile.dev
+    command: bundle exec ruby bin/jobs
+    init: true
+    # First boot can race api's db:prepare; keep retrying until storage exists.
+    restart: on-failure
+    stop_grace_period: 30s
+    env_file:
+      - path: ./services/api/.env
+        required: false
+    environment:
+      <<: [*local-aws, *api-bootsnap]
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+    volumes:
+      - ./services/api:/rails
+      - api_bundle:/usr/local/bundle
+      - api_bootsnap:/bootsnap
+    depends_on:
+      db:
+        condition: service_healthy
       api:
         condition: service_started
 

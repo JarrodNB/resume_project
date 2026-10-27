@@ -128,6 +128,47 @@ class NativeSetupTests(unittest.TestCase):
                 native.start()
             stop.assert_not_called()
 
+    def test_start_runs_a_durable_jobs_worker_after_database_preparation(self):
+        (self.state / "emulators/bin").mkdir(parents=True)
+        (self.state / "emulators/bin/moto_server").touch()
+        events = []
+
+        def spawn(name, args, cwd, env):
+            events.append((name, args))
+            return type("Process", (), {"poll": lambda self: None})()
+
+        with patch.object(native, "spawn", side_effect=spawn), \
+                patch.object(native, "prepare_database", side_effect=lambda env: events.append(("prepared", []))), \
+                patch.object(native, "run"), patch.object(native, "wait_port"), \
+                patch.object(native, "check"), patch.object(native.time, "sleep"), \
+                patch("socket.socket"):
+            native.start()
+
+        names = [name for name, _ in events]
+        self.assertIn("jobs", names)
+        self.assertLess(names.index("prepared"), names.index("jobs"))
+        self.assertEqual(dict(events)["jobs"], ["bundle", "exec", "ruby", "bin/jobs"])
+
+    def test_check_rejects_a_missing_or_stale_jobs_supervisor(self):
+        self.state.mkdir()
+        with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                native.check()
+            (self.state / "jobs.pid").write_text(json.dumps({"pid": os.getpid(), "started": "stale"}))
+            with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                native.check()
+            (self.state / "jobs.pid").write_text(json.dumps({"pid": os.getpid(), "started": None}))
+            with patch.object(native, "process_start", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                    native.check()
+
+    def test_check_accepts_the_recorded_jobs_process_identity(self):
+        self.state.mkdir()
+        (self.state / "jobs.pid").write_text(json.dumps({
+            "pid": os.getpid(), "started": native.process_start(os.getpid())}))
+        with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            native.check()
+
     def test_background_process_starts_and_stops(self):
         self.state.mkdir()
         proc = native.spawn("probe", [sys.executable, "-c", "import time; time.sleep(60)"],

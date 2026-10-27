@@ -1,6 +1,6 @@
 """
 Description: Result of a scrape_job task: one job posting with its requirements split out. Rails
-creates a Job from it (Jobs::CreateJobFromScrapedPostingService), so changes must be mirrored there.
+creates a Job from it (Jobs::CreateJobFromPostingService), so changes must be mirrored there.
 Index:
     - RequirementsSortedBy: how the requirement lists were filled
     - ScrapedJobPosting: the posting sent to Rails as result["scraped_job"]

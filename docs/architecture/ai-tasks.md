@@ -133,7 +133,7 @@ Per task type:
   `{scraped_job: ScrapedJobPosting}` (`services/ai/schemas/scraped_job_posting.py`: source,
   source_url, title, company, location, description, requirements, nice_to_haves,
   requirements_sorted_by, warnings). `ApplyAiResultService` saves it as a Job
-  (`Jobs::CreateJobFromScrapedPostingService`, `url` = the canonical link) inside the same row lock,
+  (`Jobs::CreateJobFromPostingService`, `url` = the canonical link) inside the same row lock,
   links it as the task's `subject` (GraphQL `AiTask.job`), and fails the task instead if the
   Job can't be saved. Usage is reported only when the sorting agent ran.
 - `parse_job_posting`: input `{text}` (the pasted advertisement, stripped, at most 20,000
@@ -143,7 +143,7 @@ Per task type:
   paste; location or a link that does not is dropped with a warning. The description saved on
   the job is the paste itself. The completed result is `{scraped_job: ScrapedJobPosting}` with
   `source` `pasted_text`. `ApplyAiResultService` saves it
-  (`Jobs::CreateJobFromPastedPostingService`; `url` is the posting's `source_url`, or nil) inside
+  (`Jobs::CreateJobFromPostingService`; `url` is the posting's `source_url`, or nil) inside
   the same row lock, links it as the task's `subject`, and fails the task instead if the Job
   can't be saved. A blank url is not matched against other jobs that have no link.
 - `analyze_gaps`: input `{job_id}`; the task's `subject` is the Job. The worker reads the job

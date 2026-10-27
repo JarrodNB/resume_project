@@ -123,19 +123,10 @@ module AiTasks
       return {} unless ai_task.scrape_job? || ai_task.parse_job_posting?
 
       scraped_job = @message["result"]["scraped_job"] if @message["result"].is_a?(Hash)
-      result = save_job(ai_task, scraped_job)
+      result = Jobs::CreateJobFromPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
       return { subject: result.value } if result.success?
 
       { status: "failed", error_message: "We couldn't save this job: #{result.errors.join(', ')}" }
-    end
-
-    # Turns the worker's posting into a Job. A paste has no canonical link of its own.
-    def save_job(ai_task, scraped_job)
-      if ai_task.parse_job_posting?
-        Jobs::CreateJobFromPastedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
-      else
-        Jobs::CreateJobFromScrapedPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
-      end
     end
 
     # Messages without execution identity assign totals; finished-task checks above keep

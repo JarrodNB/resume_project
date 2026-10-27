@@ -7,23 +7,13 @@ from tailoring.labeled_sources import label_sources
 from tests.fakes import build_gap_analysis_context
 
 
-def test_education_stays_when_retrieval_only_found_a_highlight() -> None:
-    """A degree is labeled for the education section even if search returned a work highlight."""
-    context = build_gap_analysis_context()
-    retrieved = {("ExperienceHighlight", "highlight-1")}
+def test_complete_library_supplies_all_entry_types() -> None:
+    """Writers receive all saved evidence, including education and work highlights."""
+    sources = label_sources(build_gap_analysis_context(), [], [])
 
-    sources = label_sources(context, [], [], retrieved, "education")
-
-    assert "ED1" in sources.records
+    assert set(sources.records) == {"SUMMARY", "E1", "H1", "H2", "P1", "ED1", "S1", "S2"}
     assert sources.records["ED1"].text == "BSc, Computer Science, State University"
-
-
-def test_an_unrelated_highlight_is_left_out_of_education() -> None:
-    """Education does not list work highlights when retrieval found none of them."""
-    sources = label_sources(build_gap_analysis_context(), [], [], set(), "education")
-
-    assert "ED1" in sources.records
-    assert "H1" not in sources.records
+    assert sources.records["H1"].text == "Senior Engineer at Now Co: Built Python APIs"
 
 
 def test_saved_evidence_keeps_its_rendered_field_provenance():
@@ -32,7 +22,7 @@ def test_saved_evidence_keeps_its_rendered_field_provenance():
     context.career_library.facts.append(LibraryFact(
         id="fact-1", requirement="Cloud deployments", response="Shipped to AWS"
     ))
-    sources = label_sources(context, [], [], None)
+    sources = label_sources(context, [], [])
     expected_text = {
         "SUMMARY": "Backend engineer.",
         "E1": "Senior Engineer at Now Co",
@@ -60,7 +50,7 @@ def test_saved_evidence_keeps_its_rendered_field_provenance():
 def test_temporary_evidence_has_no_saved_field_provenance():
     sources = label_sources(
         build_gap_analysis_context(), [{"requirement": "Python", "body": "Used it"}],
-        [{"title": "Draft", "content": {"text": "Built tools"}}], None,
+        [{"title": "Draft", "content": {"text": "Built tools"}}],
     )
     assert sources.records["GR1"].provenance is None
     assert sources.records["A1"].provenance is None
@@ -74,7 +64,7 @@ def test_certification_text_and_provenance_include_the_same_rendered_fields():
         issued_date=date(2024, 3, 1), expiry_date=date(2027, 3, 1),
         credential_id="AWS-123", credential_url="https://example.com/credential",
     ))
-    sources = label_sources(context, [], [], None, "certifications")
+    sources = label_sources(context, [], [])
 
     source = sources.records["C1"]
     assert source.text == (

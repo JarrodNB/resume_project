@@ -96,7 +96,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 - `test_screen_user_text.py` — phrase block, missing key fails closed, yes-confidence threshold
 - `test_check_section_output.py` — usable section shape and supplied labels;
   novel prose and empty citations are accepted
-- `test_labeled_sources.py` — a section's own rows stay labeled when retrieval returned other rows
+- `test_labeled_sources.py` — the complete library stays labeled with saved-field provenance
 - `test_tailor_resume_handler.py` — copied contact/credentials, prompt failures, empty section
   skipping and completed output without section approval metadata
 - `test_complete_resume_draft.py` — complete-draft ordering, preserved copied descriptions,
@@ -128,7 +128,7 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 Certifications are separate career-library entries (`Certification`, labels `C1`), with
 name, issuer, issued/expiry dates, credential ID/URL, and description. Older parsed
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
-`test_certifications.py` checks compatibility, citable evidence, retrieval, and copied identity.
+`test_certifications.py` checks compatibility, citable evidence, and copied identity.
 
 Certification tests cover year/month/day precision, leap-month expiry boundaries, and
 unknown expiration within partially stated periods.

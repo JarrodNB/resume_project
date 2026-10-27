@@ -1,17 +1,11 @@
 # Description: Hand-labelled library retrieval cases. People, companies, and jobs are synthetic.
 # Document text matches CareerLibrary::BuildEmbeddingTextsService. metadata.relevant_ids are
-# the rows that should rank inside the production limit. Each library has more than that limit
+# the rows that should rank inside the evaluation cutoff. Each library has more than that cutoff
 # so a random ranking can miss. The runner ranks with the production hybrid order.
 cases:
-  - name: experience_ranks_the_kernel_highlight
+  - name: kernel_query_ranks_the_kernel_highlight
     inputs:
-      section_type: experience
-      job:
-        id: job-kernel
-        title: Kernel Engineer
-        company: Northwind
-        requirements:
-          - Linux kernel internals
+      query_text: "Experience maintaining Linux kernel internals and storage drivers"
       documents:
         - id: hl-kernel
           content: "Kernel Engineer at Redwood: Maintained Linux kernel internals for storage drivers"
@@ -46,15 +40,9 @@ cases:
       - PrecisionAtK
       - MeanReciprocalRank
 
-  - name: summary_ranks_the_python_highlight
+  - name: python_query_ranks_the_python_highlight
     inputs:
-      section_type: summary
-      job:
-        id: job-python
-        title: Backend Engineer
-        company: Northwind
-        requirements:
-          - Python services
+      query_text: "Experience building Python backend services"
       documents:
         - id: hl-python
           content: "Senior Engineer at Ledgerly: Built Python services for card payouts"

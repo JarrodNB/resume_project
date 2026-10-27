@@ -85,7 +85,7 @@ async def generate_resume_draft(
                 selected_labels.update(entry.label for entry in draft.entries)
                 selected_labels.update(label for entry in draft.entries for prose in entry.prose for label in prose.source_labels)
                 sections[section] = materialize_section(section, draft, library, prepared.prompts[section].sources)
-            sources = label_sources(prepared.context, [], [], None)
+            sources = label_sources(prepared.context, [], [])
             for section, kind in (("education", "education"), ("certifications", "certification")):
                 labels = [label for label, record in sources.records.items() if record.kind == kind]
                 if labels:

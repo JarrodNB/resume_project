@@ -1,4 +1,4 @@
-"""Saved jobs can lack an employer without breaking screened prompts or retrieval.
+"""Saved jobs can lack an employer without breaking screened prompts.
 
 The placeholder is presentation text; the shared job context keeps company as None.
 """
@@ -10,7 +10,6 @@ from schemas.gap_analysis_context import JobToAnalyze
 from screening.screen_user_text import ScreenOutcome
 from screening.session import screening_session
 from tailoring.build_section_prompt import build_section_prompt
-from tailoring.retrieve_for_section import section_query
 from tests.fakes import build_gap_analysis_context
 
 
@@ -27,13 +26,12 @@ def test_unknown_company_survives_serialization_and_screened_prompt_builders():
 
     with screening_session():
         gap = build_gap_analysis_prompt(context, date(2026, 10, 17))
-        section = build_section_prompt("summary", context, [], [], None,
+        section = build_section_prompt("summary", context, [], [],
             write_anyway=False, gap_analysis=None, allow_text=allow)
 
-    for rendered in [gap.text, section.text, section_query("summary", context.job), *seen]:
+    for rendered in [gap.text, section.text, *seen]:
         assert " at None" not in rendered
         assert " at null" not in rendered
     assert "Unknown company" in gap.text
     assert "Unknown company" in section.text
-    assert "Unknown company" in section_query("summary", context.job)
     assert context.job.company is None

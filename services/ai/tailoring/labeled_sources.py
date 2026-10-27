@@ -1,6 +1,6 @@
 """Label library evidence, gap responses, and selected resume snapshots.
 
-Prompts and output checks share stable labels even when retrieval narrows the library.
+Prompts and output checks share stable labels for the complete library snapshot.
 Selected section records supply generated/copied draft snapshots to later writers.
 Saved evidence keeps its rendered field selection alongside its screening provenance.
 """
@@ -56,29 +56,14 @@ class LabeledSources:
         return "\n".join(self.records[label].text for label in labels if label in self.records)
 
 
-# A section's own rows. Retrieval ranks experience; it must not hide a degree or a skill
-# because a job's requirements sit closer to work highlights.
-_NATIVE_TYPES = {
-    "projects": frozenset({"Project"}),
-    "certifications": frozenset({"Certification"}),
-    "education": frozenset({"Education"}),
-    "skills": frozenset({"Skill"}),
-}
-
-
 def label_sources(
     context: GapAnalysisContext,
     gap_responses: list[GapResponseSnapshot | dict],
     selected_sections: list[dict[str, object]],
-    retrieved: set[tuple[str, str]] | None,
-    section_type: str = "",
 ) -> LabeledSources:
-    """Label library evidence plus gap responses and selected draft snapshots.
-    Selected snapshots are included independently of retrieval. The section's own entry type is included
-    even when retrieval returned other rows."""
+    """Label the complete library, gap responses, and selected draft snapshots."""
     sources = LabeledSources()
-    native = _NATIVE_TYPES.get(section_type, frozenset())
-    _add_library(sources, context.career_library, retrieved, native)
+    _add_library(sources, context.career_library)
     for number, response in enumerate(gap_responses, start=1):
         response = GapResponseSnapshot.model_validate(response)
         text = f"{response.requirement}: {response.body}"
@@ -96,10 +81,8 @@ def label_sources(
 def _add_library(
     sources: LabeledSources,
     library: CareerLibrary,
-    retrieved: set[tuple[str, str]] | None,
-    native: frozenset[str],
 ) -> None:
-    """Labels library entries, dropping ones retrieval did not return."""
+    """Label every saved library entry and retain its screening provenance."""
     if library.summary:
         provenance = SourceProvenance(
             CareerLibrary(summary=library.summary, summary_record_id=library.summary_record_id,
@@ -110,104 +93,76 @@ def _add_library(
                                                   provenance=provenance)
     highlight_number = 0
     for number, experience in enumerate(library.experiences, start=1):
-        highlight_labels = []
+        provenance = SourceProvenance()
+        values = provenance.select("experiences", "experience", experience, "title", "company", "description")
+        role = f"{values['title']} at {values['company']}"
+        text = role if not values["description"] else f"{role}: {values['description']}"
+        sources.records[f"E{number}"] = SourceRecord(
+            f"E{number}", "experience", text, experience.id, "Experience", provenance
+        )
         for highlight in experience.highlights:
             highlight_number += 1
-            highlight_labels.append((highlight_number, highlight))
-        experience_kept = _keep(retrieved, "Experience", experience.id, native) or any(
-            _keep(retrieved, "ExperienceHighlight", highlight.id, native)
-            for _, highlight in highlight_labels
-        )
-        if experience_kept:
             provenance = SourceProvenance()
-            values = provenance.select("experiences", "experience", experience, "title", "company", "description")
+            values = provenance.select("experiences", "experience", experience, "title", "company")
             role = f"{values['title']} at {values['company']}"
-            text = role if not values["description"] else f"{role}: {values['description']}"
-            sources.records[f"E{number}"] = SourceRecord(
-                f"E{number}", "experience", text, experience.id, "Experience", provenance
+            values = provenance.select("highlights", "experience_highlight", highlight, "content")
+            sources.records[f"H{highlight_number}"] = SourceRecord(
+                f"H{highlight_number}",
+                "highlight",
+                f"{role}: {values['content']}",
+                highlight.id,
+                "ExperienceHighlight",
+                provenance,
             )
-        for highlight_number_value, highlight in highlight_labels:
-            if experience_kept or _keep(retrieved, "ExperienceHighlight", highlight.id, native):
-                provenance = SourceProvenance()
-                values = provenance.select("experiences", "experience", experience, "title", "company")
-                role = f"{values['title']} at {values['company']}"
-                values = provenance.select("highlights", "experience_highlight", highlight, "content")
-                sources.records[f"H{highlight_number_value}"] = SourceRecord(
-                    f"H{highlight_number_value}",
-                    "highlight",
-                    f"{role}: {values['content']}",
-                    highlight.id,
-                    "ExperienceHighlight",
-                    provenance,
-                )
-    _add_simple(sources, library, retrieved, native)
+    _add_simple(sources, library)
 
 
 def _add_simple(
     sources: LabeledSources,
     library: CareerLibrary,
-    retrieved: set[tuple[str, str]] | None,
-    native: frozenset[str],
 ) -> None:
     """Labels projects, education, certifications, skills, and library facts."""
     for number, project in enumerate(library.projects, start=1):
-        if _keep(retrieved, "Project", project.id, native):
-            provenance = SourceProvenance()
-            values = provenance.select("projects", "project", project, "name", "description")
-            text = values["name"] if not values["description"] else f"{values['name']}: {values['description']}"
-            sources.records[f"P{number}"] = SourceRecord(f"P{number}", "project", text, project.id, "Project", provenance)
+        provenance = SourceProvenance()
+        values = provenance.select("projects", "project", project, "name", "description")
+        text = values["name"] if not values["description"] else f"{values['name']}: {values['description']}"
+        sources.records[f"P{number}"] = SourceRecord(f"P{number}", "project", text, project.id, "Project", provenance)
     for number, education in enumerate(library.educations, start=1):
-        if _keep(retrieved, "Education", education.id, native):
-            provenance = SourceProvenance()
-            values = provenance.select("educations", "education", education,
-                                       "degree", "field_of_study", "institution", "description")
-            text = ", ".join(part for part in values.values() if part)
-            sources.records[f"ED{number}"] = SourceRecord(
-                f"ED{number}", "education", text, education.id, "Education", provenance
-            )
+        provenance = SourceProvenance()
+        values = provenance.select("educations", "education", education,
+                                   "degree", "field_of_study", "institution", "description")
+        text = ", ".join(part for part in values.values() if part)
+        sources.records[f"ED{number}"] = SourceRecord(
+            f"ED{number}", "education", text, education.id, "Education", provenance
+        )
     for number, certification in enumerate(library.certifications, start=1):
-        if _keep(retrieved, "Certification", certification.id, native):
-            provenance = SourceProvenance()
-            values = provenance.select("certifications", "certification", certification,
-                                       "name", "issuer", "issued_date", "issued_date_precision",
-                                       "expiry_date", "expiry_date_precision", "credential_id",
-                                       "credential_url", "description")
-            text = ", ".join(str(part) for part in (
-                values["name"], values["issuer"],
-                f"issued {format_certification_date(values['issued_date'], values['issued_date_precision'])}"
-                if values["issued_date"] else None,
-                f"expires {format_certification_date(values['expiry_date'], values['expiry_date_precision'])}"
-                if values["expiry_date"] else None,
-                values["credential_id"], values["credential_url"], values["description"],
-            ) if part)
-            sources.records[f"C{number}"] = SourceRecord(
-                f"C{number}", "certification", text, certification.id, "Certification", provenance
-            )
+        provenance = SourceProvenance()
+        values = provenance.select("certifications", "certification", certification,
+                                   "name", "issuer", "issued_date", "issued_date_precision",
+                                   "expiry_date", "expiry_date_precision", "credential_id",
+                                   "credential_url", "description")
+        text = ", ".join(str(part) for part in (
+            values["name"], values["issuer"],
+            f"issued {format_certification_date(values['issued_date'], values['issued_date_precision'])}"
+            if values["issued_date"] else None,
+            f"expires {format_certification_date(values['expiry_date'], values['expiry_date_precision'])}"
+            if values["expiry_date"] else None,
+            values["credential_id"], values["credential_url"], values["description"],
+        ) if part)
+        sources.records[f"C{number}"] = SourceRecord(
+            f"C{number}", "certification", text, certification.id, "Certification", provenance
+        )
     for number, skill in enumerate(library.skills, start=1):
-        if _keep(retrieved, "Skill", skill.id, native):
-            provenance = SourceProvenance()
-            values = provenance.select("skills", "skill", skill, "name")
-            sources.records[f"S{number}"] = SourceRecord(
-                f"S{number}", "skill", values["name"], skill.id, "Skill", provenance)
+        provenance = SourceProvenance()
+        values = provenance.select("skills", "skill", skill, "name")
+        sources.records[f"S{number}"] = SourceRecord(
+            f"S{number}", "skill", values["name"], skill.id, "Skill", provenance)
     for number, fact in enumerate(library.facts, start=1):
-        if _keep(retrieved, "LibraryFact", fact.id, native):
-            provenance = SourceProvenance()
-            values = provenance.select("facts", "library_fact", fact, "requirement", "response")
-            sources.records[f"F{number}"] = SourceRecord(
-                f"F{number}", "fact", f"{values['requirement']}: {values['response']}", fact.id, "LibraryFact", provenance
-            )
-
-
-def _keep(
-    retrieved: set[tuple[str, str]] | None, source_type: str, record_id: str | None, native: frozenset[str]
-) -> bool:
-    """True for a section's own rows, when retrieval didn't narrow the library, or when this
-    row was retrieved."""
-    if source_type in native and record_id is not None:
-        return True
-    if retrieved is None or record_id is None:
-        return retrieved is None
-    return (source_type, record_id) in retrieved
+        provenance = SourceProvenance()
+        values = provenance.select("facts", "library_fact", fact, "requirement", "response")
+        sources.records[f"F{number}"] = SourceRecord(
+            f"F{number}", "fact", f"{values['requirement']}: {values['response']}", fact.id, "LibraryFact", provenance
+        )
 
 
 def _flatten(content: object) -> str:

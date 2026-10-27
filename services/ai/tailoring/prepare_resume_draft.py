@@ -150,7 +150,6 @@ class PreparedResumeDraft:
     def _prompt(self, section_type, selected_sections, selected_labels=None):
         return build_section_prompt(
             section_type, self.context, self._gap_responses, selected_sections,
-            None,
             write_anyway=False, gap_analysis=self._gap_analysis,
             trusted_gap_analysis=True,
             allow_text=lambda text: self._decisions[text], warnings=self._warnings,
@@ -167,8 +166,7 @@ class PreparedResumeDraft:
         """
         if current_session() is not self._session:
             raise RuntimeError("Prepare evidence again inside the current screening session")
-        sources = label_sources(self.context, self._gap_responses, selected_sections,
-            None, "summary")
+        sources = label_sources(self.context, self._gap_responses, selected_sections)
         records = [record for label, record in sources.records.items()
                    if selected_labels is None or label in selected_labels or record.kind == "selected_section"]
         await self._screen([record.text for record in records], records)
@@ -225,7 +223,7 @@ async def prepare_resume_draft(
             texts = [job_text]
             records = []
             for section in sections:
-                sources = label_sources(context, prepared._gap_responses, [], None, section)
+                sources = label_sources(context, prepared._gap_responses, [])
                 texts.extend(record.text for record in sources.records.values())
                 records.extend(sources.records.values())
             await prepared._screen(texts, records)

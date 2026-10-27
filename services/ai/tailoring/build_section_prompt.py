@@ -32,7 +32,6 @@ def build_section_prompt(
     context: GapAnalysisContext,
     gap_responses: list[GapResponseSnapshot | dict],
     selected_sections: list[dict[str, object]],
-    retrieved: set[tuple[str, str]] | None,
     *,
     write_anyway: bool,
     gap_analysis: dict[str, object] | None,
@@ -42,10 +41,10 @@ def build_section_prompt(
     warnings: list[str] | None = None,
     source_labels: set[str] | None = None,
 ) -> SectionPrompt:
-    """Builds one prompt; retrieval narrows library evidence but retains supplied snapshots.
+    """Build one prompt from the library snapshot and supplied draft sections.
     The `selected_sections` argument contains generated/copied draft snapshots. Rejected
     optional sources are omitted; required job context fails closed."""
-    sources = label_sources(context, gap_responses, selected_sections, retrieved, section_type)
+    sources = label_sources(context, gap_responses, selected_sections)
     if source_labels is not None:
         sources.records = {label: record for label, record in sources.records.items()
                            if label in source_labels or record.kind == "selected_section"}
@@ -91,7 +90,7 @@ def build_section_prompt(
 
 
 def job_context_text(context: GapAnalysisContext) -> str:
-    """The exact job input shared by retrieval screening and generation."""
+    """The exact job input shared by screening and generation."""
     return "\n".join([
         f"# Job: {context.job.title} at {context.job.company or 'Unknown company'}",
         *_bullets("Requirements", context.job.requirements),

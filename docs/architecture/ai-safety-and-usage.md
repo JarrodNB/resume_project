@@ -82,7 +82,7 @@ requests get a JSON 429 with `Retry-After`.
   timeout stays retryable, because the same run may finish next time. A cap on the Jev screen
   fails the task the same way. Screening outages omit text only when recovery also fails.
   Complete-draft tailoring shares one deadline across preparation and all writers.
-  Screening and retrieval have bounded concurrency; at most three independent section
+  Screening has bounded concurrency; at most three independent section
   writers run together. A failure cancels and awaits outstanding requests before reporting
   an outcome. Received responses remain billable; cancelled requests without usage mark
   the attempt incomplete.

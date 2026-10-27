@@ -20,7 +20,7 @@ export function ResumeUploadPage() {
 
   async function handleFileSelected(file: File) {
     const aiTaskId = await parseResume(file)
-    if (aiTaskId) navigate(`/import/${aiTaskId}`)
+    if (aiTaskId) navigate(`/library/import/${aiTaskId}`)
   }
 
   async function handleLoadSample() {

@@ -29,9 +29,9 @@ export function TaskNotifications({ userId, initialCursor }: { userId: string; i
     </div>
     <Popover open={open} onOpenChange={changeOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="relative size-11 shrink-0 text-foreground" aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}>
+        <Button type="button" variant="ghost" size="icon" className="relative size-11 shrink-0" aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}>
           <Bell className="size-[19px]" strokeWidth={1.7} aria-hidden />
-          {unread > 0 && <span aria-hidden className="absolute top-0.5 right-0 flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-[10px] leading-[18px] font-semibold text-primary-foreground tabular-nums">{unread > 99 ? '99+' : unread}</span>}
+          {unread > 0 && <span aria-hidden className="absolute top-0.5 right-0 flex min-w-4.5 items-center justify-center rounded-full bg-signal-action-text px-1 text-[10px] leading-[18px] font-bold text-white tabular-nums">{unread > 99 ? '99+' : unread}</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent ref={contentRef} align="end" sideOffset={10} collisionPadding={16} className="w-[min(24rem,calc(100vw-2rem))] gap-0 overflow-hidden rounded-xl p-0" aria-label="Task notifications">
@@ -48,7 +48,7 @@ export function TaskNotifications({ userId, initialCursor }: { userId: string; i
             const Icon = failed ? CircleAlert : CheckCircle2
             return <li key={notice.id} className="flex items-start gap-1 pl-5 pr-2">
               <Link to={notice.destination} onClick={() => { changeOpen(false); dismiss(notice.id) }} className="group flex min-w-0 flex-1 items-start gap-3 rounded-md py-4 outline-offset-2 transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-ring">
-                <Icon className={cn('mt-0.5 size-[18px] shrink-0', failed ? 'text-destructive' : 'text-primary')} strokeWidth={1.7} aria-hidden />
+                <Icon className={cn('mt-0.5 size-[18px] shrink-0', failed ? 'text-signal-action-text' : 'text-signal-done-text')} strokeWidth={1.7} aria-hidden />
                 <span className="min-w-0">
                   <span className="block text-sm leading-snug font-medium wrap-anywhere">{notice.title}</span>
                   {' '}<span className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground group-hover:text-primary">{failed ? 'Review task' : 'View result'}<ArrowUpRight className="size-3.5" aria-hidden /></span>

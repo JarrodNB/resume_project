@@ -8,27 +8,34 @@ Source of the web app, organized by feature.
 
 - `main.tsx` — entry point (applies the saved color theme before rendering); `App.tsx` —
   AuthProvider > SessionApolloProvider > router
-- `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`)
+- `appRoutes.tsx` — route table (public auth pages; signed-in pages inside `AppLayout`, grouped
+  under Home (`/`), `/jobs`, `/library`, and `/practice`; old paths redirect to their new homes)
 - `index.css` — Tailwind + shadcn theme variables: warm paper and forest ink in light
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
+- `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
+  localStorage), each with the next step Rails suggests (`jobPipeline`) linked to the job tab that
+  handles it, AI work in progress, and three starting steps before any job is saved
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
-- `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, paginated results, and explicit import into private Jobs (`/job-board`); Rails owns provider access, caching, and duplicate matching
+- `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, paginated results, and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
-  detail, edit, stage, and delete
-- `features/study-guides/` — description-only study guides on saved jobs, paginated history, selected-guide reading, per-guide freshness and live generation status
-- `features/gap-analysis/` — compare a job with the career library (shown on the job page)
-- `features/resumes/` — saved resumes list and one resume's editor (`/resumes`, `/resumes/:id`)
-- `features/resume-tailoring/` — generate and review a complete resume draft for a job, then edit the
-  saved resume, with an actual-size PDF preview (`/jobs/:id/tailor`)
-- `features/interview-prep/` — persistent numbered interview sets, question generation, live status,
+  and the job workspace (`/jobs/:id`: header with stage, edit, and delete, plus Fit, Resume,
+  Study, Interview, and Posting tabs)
+- `features/study-guides/` — description-only study guides on a job's Study tab, paginated history, selected-guide reading, per-guide freshness and live generation status
+- `features/gap-analysis/` — compare a job with the career library (the job's Fit tab)
+- `features/resumes/` — saved resumes list (`/resumes`) and the editor for resumes whose job was
+  deleted (`/resumes/:id`; linked resumes redirect to their job's Resume tab)
+- `features/resume-tailoring/` — the job's Resume tab (`/jobs/:id/resume`) and write route
+  (`/jobs/:id/resume/write`): generate and review a complete draft, then edit the saved resume,
+  with an actual-size PDF preview
+- `features/interview-prep/` — written practice at `/practice/questions`: persistent numbered interview sets, question generation, live status,
   five collapsible question cards, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and confirmed deletion
-- `features/interviews/` — real spoken interviews, saved-job setup at `/jobs/:jobId/interview`, fictional-role setup, browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
+- `features/interviews/` — real spoken interviews at `/practice/interviews`, two-step setup there (step 1 `InterviewRoleStep`: a practice role, or a non-rejected saved job that continues to that job's Interview tab `/jobs/:id/interview`; step 2 round setup for the practice role; "Practice again" skips to step 2), focus mode while an interview is active (`useFocusMode`), browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
   resume import, jobs, gap analysis, resume tailoring, and interview prep
-- `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in
+- `components/` — shared app components (layout, section navigation, account menu, section cards, drag-and-drop in
   `components/dnd/`; see `components/AGENTS.md`); `components/ui/` is generated shadcn/ui
 - `graphql/` — `createApolloClient.ts` (upload HTTP link + ActionCable link for subscriptions,
   401/explicit CSRF rejection handling), `SessionApolloProvider.tsx` (new client per session), `requestErrorMessage.ts`

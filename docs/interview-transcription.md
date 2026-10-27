@@ -22,7 +22,7 @@ turn. Microphone denial cannot fall back without captured audio.
 
 ## Microphone timing
 
-The interview lives at `/interviews`.
+The interview lives at `/practice/interviews` (the Mock interview tab); older `/interviews` links redirect there.
 Interview settings contain transcription mode, automatic microphone capture, and a
 thinking pause of 0, 3, 5, or 10 seconds. Turning automatic capture off also sets
 the thinking pause to Off and disables its selector. Automatic capture starts off
@@ -88,7 +88,7 @@ the complete recording. Finish recording, then explicitly choose Transcribe reco
 fill the answer for review. Nothing is automatically submitted. Submit or discard the
 current recording before changing modes, or type/correct the answer instead.
 
-Use the retained local QA stack at `http://127.0.0.2:15176/interviews`. On each mode,
+Use the retained local QA stack at `http://127.0.0.2:15176/practice/interviews`. On each mode,
 record, stop, edit the recognized words, submit, and reload after acceptance. Verify the preference survives
 reload and accepted dialogue advances once. Disconnect the streaming network or deny
 recognition permission while permitting microphone capture, and verify the visible fallback

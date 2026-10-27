@@ -85,7 +85,7 @@ services:
     ports:
       - "127.0.0.2:15176:5173"
     volumes:
-      - ../services/api/schema.graphql:/services/api/schema.graphql:ro
+      - ../services/api/graphql_schema:/services/api/graphql_schema:ro
   storage-setup:
     image: cg-interview-qa-api
   ai-http:

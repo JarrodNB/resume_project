@@ -1,15 +1,26 @@
-/* The career folio theme: warm paper, forest ink, and restrained record sections.
-   Shared workspace and auth layouts adapt structurally to small screens. */
+/* The Transit Line theme: white ground, ink type, a black signage band for navigation,
+   and four signal colors with one meaning each (see DESIGN.md). Shared workspace and
+   auth layouts adapt structurally to small screens. */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./shadcn-tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource-variable/archivo";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-sans: 'Archivo Variable', 'Helvetica Neue', Arial, sans-serif;
+    --color-signal-action: var(--signal-action);
+    --color-signal-action-text: var(--signal-action-text);
+    --color-signal-ai: var(--signal-ai);
+    --color-signal-ai-text: var(--signal-ai-text);
+    --color-signal-wait: var(--signal-wait);
+    --color-signal-wait-text: var(--signal-wait-text);
+    --color-signal-done: var(--signal-done);
+    --color-signal-done-text: var(--signal-done-text);
+    --color-band: var(--band);
+    --color-band-foreground: var(--band-foreground);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -66,108 +77,150 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Warm paper is comfortable for long editing sessions; green identifies actions. */
+/* Daytime desk work: a white ground and near-black ink. Color is reserved for the
+   signals, each with one meaning everywhere: red needs your action, blue means AI is
+   working, yellow means waiting on someone else, green means an offer or success.
+   Each signal has a fill (bullets, lines) and a darker text shade that passes contrast. */
 :root {
-    --background: #f6f5f0;
-    --foreground: #25352e;
+    --background: #ffffff;
+    --foreground: #111418;
     --card: #ffffff;
-    --card-foreground: #25352e;
+    --card-foreground: #111418;
     --popover: #ffffff;
-    --popover-foreground: #25352e;
-    --primary: #285c45;
+    --popover-foreground: #111418;
+    --primary: #111418;
     --primary-foreground: #ffffff;
-    --secondary: #e9eee7;
-    --secondary-foreground: #2b513e;
-    --muted: #eeeee7;
-    --muted-foreground: #626b63;
-    --accent: #e7ede3;
-    --accent-foreground: #254d39;
-    --destructive: #b43732;
-    --border: #dcdfd5;
-    --input: #c7cdc2;
-    --ring: #427456;
-    --chart-1: #285c45;
-    --chart-2: #8e7541;
-    --chart-3: #a8533a;
-    --chart-4: #52766d;
-    --chart-5: #80745c;
-    --radius: 0.75rem;
-    --sidebar: #eeefe8;
-    --sidebar-foreground: #25352e;
-    --sidebar-primary: #285c45;
+    --secondary: #f1f2f4;
+    --secondary-foreground: #111418;
+    --muted: #f4f5f6;
+    --muted-foreground: #5b6168;
+    --accent: #eceef0;
+    --accent-foreground: #111418;
+    --destructive: #c8231b;
+    --border: #d9dce0;
+    --input: #a9afb6;
+    --ring: #111418;
+    --chart-1: #111418;
+    --chart-2: #5b6168;
+    --chart-3: #3a4048;
+    --chart-4: #8a9097;
+    --chart-5: #a9afb6;
+    --radius: 0.375rem;
+    --sidebar: #f4f5f6;
+    --sidebar-foreground: #111418;
+    --sidebar-primary: #111418;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #dfe8db;
-    --sidebar-accent-foreground: #254d39;
-    --sidebar-border: #d9ddd1;
-    --sidebar-ring: #427456;
+    --sidebar-accent: #eceef0;
+    --sidebar-accent-foreground: #111418;
+    --sidebar-border: #d9dce0;
+    --sidebar-ring: #111418;
 
-    --section-contact: oklch(0.97 0.008 258);
-    --section-contact-accent: oklch(0.45 0.06 260);
-    --section-summary: oklch(0.98 0.018 75);
-    --section-summary-accent: oklch(0.74 0.14 68);
-    --section-experience: oklch(0.97 0.01 260);
-    --section-experience-accent: oklch(0.31 0.075 262);
-    --section-projects: oklch(0.978 0.016 45);
-    --section-projects-accent: oklch(0.67 0.14 38);
-    --section-education: oklch(0.97 0.008 245);
-    --section-certifications: oklch(0.97 0.008 245);
-    --section-education-accent: oklch(0.52 0.07 248);
-    --section-certifications-accent: oklch(0.52 0.07 248);
-    --section-skills: oklch(0.98 0.018 75);
-    --section-skills-accent: oklch(0.72 0.13 70);
-    --section-facts: oklch(0.97 0.02 165);
-    --section-facts-accent: oklch(0.55 0.1 165);
+    --band: #111418;
+    --band-foreground: #ffffff;
+    --band-muted: #b8bdc3;
+    --band-rule: #3a4048;
+    --rule-strong: #111418;
+    --stop-off: #b9bec4;
+    --stop-closed: #9aa0a6;
+    --tab-idle: #3a4048;
+
+    --signal-action: #ee352e;
+    --signal-action-text: #c8231b;
+    --signal-ai: #0039a6;
+    --signal-ai-text: #0039a6;
+    --signal-wait: #fccc0a;
+    --signal-wait-text: #7a5c00;
+    --signal-done: #00933c;
+    --signal-done-text: #007a32;
+
+    /* Resume sections share one quiet ink; color stays reserved for the signals. */
+    --section-contact: #f4f5f6;
+    --section-contact-accent: #3a4048;
+    --section-summary: #f4f5f6;
+    --section-summary-accent: #3a4048;
+    --section-experience: #f4f5f6;
+    --section-experience-accent: #3a4048;
+    --section-projects: #f4f5f6;
+    --section-projects-accent: #3a4048;
+    --section-education: #f4f5f6;
+    --section-certifications: #f4f5f6;
+    --section-education-accent: #3a4048;
+    --section-certifications-accent: #3a4048;
+    --section-skills: #f4f5f6;
+    --section-skills-accent: #3a4048;
+    --section-facts: #f4f5f6;
+    --section-facts-accent: #3a4048;
 }
 
+/* Dark keeps the same map: a deep ink ground, the band one step darker, and signals
+   lifted just enough to stay bright against it. */
 .dark {
-    --background: #191f1b;
-    --foreground: #e7ebe2;
-    --card: #222a24;
-    --card-foreground: #e7ebe2;
-    --popover: #222a24;
-    --popover-foreground: #e7ebe2;
-    --primary: #a6c6a5;
-    --primary-foreground: #1d3425;
-    --secondary: #303d31;
-    --secondary-foreground: #d3e2ce;
-    --muted: #293129;
-    --muted-foreground: #acb6a9;
-    --accent: #334332;
-    --accent-foreground: #e0ecda;
-    --destructive: #f08b80;
-    --border: #3b463b;
-    --input: #546150;
-    --ring: #a6c6a5;
-    --chart-1: #a6c6a5;
-    --chart-2: #c8af78;
-    --chart-3: #dc9b7e;
-    --chart-4: #8fb8a8;
-    --chart-5: #b9ac91;
-    --sidebar: #202720;
-    --sidebar-foreground: #e7ebe2;
-    --sidebar-primary: #a6c6a5;
-    --sidebar-primary-foreground: #1d3425;
-    --sidebar-accent: #344332;
-    --sidebar-accent-foreground: #e0ecda;
-    --sidebar-border: #3b463b;
-    --sidebar-ring: #a6c6a5;
+    --background: #15181c;
+    --foreground: #eef0f2;
+    --card: #1c2025;
+    --card-foreground: #eef0f2;
+    --popover: #1c2025;
+    --popover-foreground: #eef0f2;
+    --primary: #eef0f2;
+    --primary-foreground: #111418;
+    --secondary: #262b31;
+    --secondary-foreground: #eef0f2;
+    --muted: #22262b;
+    --muted-foreground: #a3a9b0;
+    --accent: #2a2f35;
+    --accent-foreground: #eef0f2;
+    --destructive: #ff6b63;
+    --border: #353b42;
+    --input: #5b6168;
+    --ring: #eef0f2;
+    --chart-1: #eef0f2;
+    --chart-2: #a3a9b0;
+    --chart-3: #c7ccd2;
+    --chart-4: #7a8087;
+    --chart-5: #5b6168;
+    --sidebar: #1c2025;
+    --sidebar-foreground: #eef0f2;
+    --sidebar-primary: #eef0f2;
+    --sidebar-primary-foreground: #111418;
+    --sidebar-accent: #2a2f35;
+    --sidebar-accent-foreground: #eef0f2;
+    --sidebar-border: #353b42;
+    --sidebar-ring: #eef0f2;
 
-    --section-contact: oklch(0.25 0.012 250);
-    --section-contact-accent: oklch(0.7 0.03 250);
-    --section-summary: oklch(0.26 0.03 80);
-    --section-summary-accent: oklch(0.8 0.13 80);
-    --section-experience: oklch(0.25 0.03 195);
-    --section-experience-accent: oklch(0.72 0.1 190);
-    --section-projects: oklch(0.25 0.035 300);
-    --section-projects-accent: oklch(0.72 0.13 295);
-    --section-education: oklch(0.25 0.03 240);
-    --section-certifications: oklch(0.25 0.03 240);
-    --section-education-accent: oklch(0.72 0.11 240);
-    --section-certifications-accent: oklch(0.72 0.11 240);
-    --section-skills: oklch(0.25 0.03 160);
-    --section-skills-accent: oklch(0.74 0.12 160);
-    --section-facts: oklch(0.25 0.03 175);
-    --section-facts-accent: oklch(0.74 0.1 175);
+    --band: #0a0c0e;
+    --band-foreground: #ffffff;
+    --band-muted: #a3a9b0;
+    --band-rule: #353b42;
+    --rule-strong: #eef0f2;
+    --stop-off: #5b6168;
+    --stop-closed: #6f757c;
+    --tab-idle: #c7ccd2;
+
+    --signal-action: #ff4a42;
+    --signal-action-text: #ff6b63;
+    --signal-ai: #4d82f0;
+    --signal-ai-text: #8fb0ff;
+    --signal-wait: #fccc0a;
+    --signal-wait-text: #fcd84a;
+    --signal-done: #22b45a;
+    --signal-done-text: #4ccf7c;
+
+    --section-contact: #1c2025;
+    --section-contact-accent: #c7ccd2;
+    --section-summary: #1c2025;
+    --section-summary-accent: #c7ccd2;
+    --section-experience: #1c2025;
+    --section-experience-accent: #c7ccd2;
+    --section-projects: #1c2025;
+    --section-projects-accent: #c7ccd2;
+    --section-education: #1c2025;
+    --section-certifications: #1c2025;
+    --section-education-accent: #c7ccd2;
+    --section-certifications-accent: #c7ccd2;
+    --section-skills: #1c2025;
+    --section-skills-accent: #c7ccd2;
+    --section-facts: #1c2025;
+    --section-facts-accent: #c7ccd2;
 }
 
 @layer base {
@@ -201,20 +254,30 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .workspace :is(input:not([type=checkbox], [type=radio], [type=range]), textarea, select) { font-size: 16px; }
 }
 .workspace { min-height: 100svh; }
-.workspace-sidebar { width: 238px; position: fixed; inset: 0 auto 0 0; z-index: 30; display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); padding: 34px 20px 18px; }
-.workspace-brand { display: flex; align-items: center; gap: 10px; color: var(--foreground); font-size: 20px; font-weight: 650; letter-spacing: -0.03em; text-decoration: none; }
-.brand-mark { display: grid; place-items: center; color: var(--primary); }
-.brand-period { color: var(--primary); margin-left: -9px; }
-.workspace-nav { margin-top: 48px; }
-.nav-group-label { color: var(--muted-foreground); font-size: 12px; font-weight: 500; margin: 28px 12px 10px; }
-.workspace-nav-item:first-child .nav-group-label { margin-top: 0; }
-.workspace-nav-link { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 10px 12px; margin: 3px 0; border-radius: 7px; font-size: 14px; color: var(--muted-foreground); transition: background-color 160ms, color 160ms; }
-.workspace-nav-link:active { background: var(--muted); }
-.workspace-nav-link.is-active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 600; }
-.workspace-sidebar-note { margin-top: auto; padding: 44px 12px 26px; font-size: 13px; line-height: 1.7; color: var(--muted-foreground); }
-.workspace-sidebar-note a { display: flex; align-items: center; gap: 6px; color: var(--primary); margin-top: 12px; font-weight: 500; }
-.workspace-account { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--sidebar-border); }
-.workspace-account > a { flex-basis: 100%; }
+/* The signage band: brand, the four sections, then notifications and account. It reads like
+   station signage: white type on black, with a thick white underline under the current section. */
+.signage-band { position: sticky; top: 0; z-index: 30; background: var(--band); color: var(--band-foreground); }
+.signage-band-inner { height: 60px; display: flex; align-items: stretch; gap: 40px; padding: 0 48px; }
+.band-brand { display: flex; align-items: center; gap: 10px; flex-shrink: 0; color: var(--band-foreground); font-size: 19px; font-weight: 800; letter-spacing: -0.01em; text-decoration: none; }
+.band-bullet { position: relative; width: 22px; height: 22px; border-radius: 50%; background: var(--band-foreground); flex: none; }
+.band-bullet::after { content: ""; position: absolute; inset: 7px; border-radius: 50%; background: var(--band); }
+.band-nav { display: flex; min-width: 0; }
+.band-nav-link { display: flex; align-items: center; flex-shrink: 0; padding: 4px 18px 0; border-bottom: 4px solid transparent; color: var(--band-muted); font-size: 15px; font-weight: 600; transition: color 160ms, border-color 160ms; }
+.band-nav-link.is-active { color: var(--band-foreground); border-bottom-color: var(--band-foreground); }
+.band-brand:focus-visible, .band-nav-link:focus-visible { outline: 2px solid var(--band-foreground); outline-offset: -8px; border-radius: 4px; }
+.band-tools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.band-tools [data-slot=button] { color: var(--band-foreground); }
+/* The bell sits in a thin ring, like a station roundel. */
+.band-tools [aria-label^=Notifications]::before { content: ""; position: absolute; inset: 5px; border: 1.5px solid var(--band-rule); border-radius: 50%; pointer-events: none; }
+.band-tools [aria-label^=Notifications] { border-radius: 50%; }
+.band-tools [data-slot=button]:focus-visible { outline: 2px solid var(--band-foreground); outline-offset: 0; box-shadow: none; }
+.band-tools [data-slot=button][aria-expanded=true] { background: rgb(255 255 255 / 0.14); color: var(--band-foreground); }
+.workspace-account { display: grid; justify-items: end; }
+.account-menu-trigger { max-width: 260px; min-height: 44px; gap: 8px; padding: 0 12px; font-weight: 500; color: var(--band-muted) !important; }
+.account-menu-icon { display: none; }
+.account-menu-email { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu-label { overflow-wrap: anywhere; font-weight: 500; }
+.account-menu-error { position: absolute; top: 60px; right: 16px; padding: 8px 12px; border-radius: 4px; background: var(--background); color: var(--destructive); font-size: 13px; box-shadow: 0 4px 16px rgb(17 20 24 / 0.12); }
 .account-security-page { max-width: 600px; }
 .security-account-identity { padding: 0 0 24px; border-bottom: 1px solid var(--border); }
 .security-password-section { padding-top: 28px; }
@@ -224,50 +287,214 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 599px) {
   .security-password-section input { font-size: 16px; }
 }
-.workspace-body { margin-left: 238px; min-width: 0; }
-.workspace-topbar { height: 76px; padding: 0 44px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-foreground); }
-.breadcrumb-divider { padding: 0 12px; color: var(--input); }
-.workspace-principle { font-size: 12px; }
-.workspace-content { max-width: 1440px; margin: auto; padding: 48px 44px 80px; outline: none; }
+.workspace-body { min-width: 0; }
+/* A section's own pages sit in a plain tab row under the band. */
+/* A section's own pages: a gray platform strip under the band, so the second level of
+   navigation reads as part of the signage instead of fading into the page. */
+.section-tabs { display: flex; align-items: stretch; gap: 32px; height: 52px; padding: 0 48px; background: var(--muted); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; font-size: 15px; color: var(--tab-idle); }
+.section-tabs-label { display: flex; align-items: center; flex-shrink: 0; margin-right: -8px; padding-right: 24px; border-right: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.section-tabs::-webkit-scrollbar { display: none; }
+.section-tab { display: flex; align-items: center; flex-shrink: 0; border-bottom: 4px solid transparent; margin-bottom: -1px; padding-top: 4px; font-weight: 700; transition: color 160ms, border-color 160ms; }
+.section-tab:focus-visible { outline: none; color: var(--foreground); box-shadow: inset 0 -3px 0 var(--ring); }
+.section-tab.is-active { color: var(--foreground); border-bottom-color: var(--rule-strong); }
+.workspace-content { max-width: 1440px; margin: auto; padding: 40px 48px 80px; outline: none; }
 .workspace-content > .max-w-3xl { max-width: 1040px; }
-.page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 30px; border-bottom: 1px solid var(--border); }
-.page-heading h1 { font-size: 2rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.035em; text-wrap: balance; }
-.page-heading p { margin-top: 10px; max-width: 65ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
-.page-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.page-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; padding-bottom: 28px; border-bottom: 2px solid var(--rule-strong); }
+.page-heading h1 { font-size: 2.5rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; }
+.page-heading p { margin-top: 12px; max-width: 65ch; color: var(--muted-foreground); font-size: 16px; line-height: 1.55; }
+.page-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .library-sections { display: grid; gap: 12px; min-width: 0; }
+/* Focus mode: during a live interview the band shrinks to one way out. */
+.workspace.is-focused .workspace-content { max-width: 1180px; padding-top: 32px; }
+.workspace.is-focused .page-heading { padding-bottom: 16px; }
+.workspace.is-focused .page-heading p { display: none; }
+.focus-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 52px; padding: 0 48px; background: var(--band); color: var(--band-foreground); }
+.focus-bar-exit { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--band-muted); font-size: 14px; font-weight: 600; transition: color 160ms; }
+.focus-bar-exit svg { width: 16px; height: 16px; }
+.focus-bar-exit:focus-visible { outline: 2px solid var(--band-foreground); outline-offset: 2px; border-radius: 4px; }
+.focus-bar-brand { display: flex; align-items: center; gap: 8px; color: var(--band-muted); font-size: 13px; font-weight: 700; }
+.focus-bar-brand .band-bullet { width: 14px; height: 14px; }
+.focus-bar-brand .band-bullet::after { inset: 4px; }
+@media (hover: hover) and (pointer: fine) {
+  .focus-bar-exit:hover { color: var(--band-foreground); }
+  .band-nav-link:hover:not(.is-active) { color: var(--band-foreground); border-bottom-color: var(--band-rule); }
+  .band-tools [data-slot=button]:hover { background: rgb(255 255 255 / 0.14); color: var(--band-foreground) !important; }
+}
+@media (max-width: 899px) {
+  .focus-bar { padding: 0 24px; }
+}
+@media (max-width: 599px) {
+  .focus-bar { padding: 0 16px; }
+}
+
+/* Home: the system map. A station line names each stage with its job count; every job is a tile
+   with its own five-stop line and its next step as a signal bullet. */
+.home-page { display: grid; min-width: 0; }
+.home-page .page-heading { padding-bottom: 0; border-bottom: 0; }
+.home-page .page-heading h1 { font-size: 2.75rem; line-height: 1; }
+.signal-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px; margin-top: 28px; min-height: 52px; padding: 10px 0; border-top: 2px solid var(--rule-strong); border-bottom: 1px solid var(--border); }
+.signal-strip h2 { flex: none; color: var(--muted-foreground); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.signal-strip ul { display: flex; flex-wrap: wrap; gap: 6px 24px; min-width: 0; }
+.signal-strip li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; }
+.signal-strip-job { font-weight: 700; overflow-wrap: anywhere; }
+.signal-strip-idle { color: var(--muted-foreground); font-size: 14px; }
+.signal-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-left: auto; color: var(--muted-foreground); font-size: 12px; }
+.signal-legend li { display: flex; align-items: center; gap: 6px; }
+.signal-legend .signal-dot { width: 9px; height: 9px; }
+.signal-dot { position: relative; width: 12px; height: 12px; border-radius: 50%; flex: none; background: var(--stop-off); }
+.signal-dot.is-action { background: var(--signal-action); }
+.signal-dot.is-ai { background: var(--signal-ai); }
+.signal-dot.is-wait { background: var(--signal-wait); }
+.signal-dot.is-done { background: var(--signal-done); }
+/* The one moving thing on Home: AI work breathes so it reads as live, not as a status. */
+.signal-dot.is-ai::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--signal-ai); opacity: 0; animation: signal-breathe 2.4s var(--ease-out-strong) infinite; }
+@keyframes signal-breathe { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.5); opacity: 0; } }
+.signal-legend .signal-dot.is-ai::after { display: none; }
+.home-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; }
+.home-toolbar h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.view-switch { display: flex; border: 2px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.view-switch button { min-height: 34px; padding: 0 18px; background: var(--background); color: var(--foreground); font-size: 13px; font-weight: 700; cursor: pointer; transition: background-color 160ms, color 160ms; }
+.view-switch button[aria-pressed=true] { background: var(--rule-strong); color: var(--background); }
+.view-switch button:focus-visible { outline: 2px solid var(--ring); outline-offset: -5px; }
+.view-switch button[aria-pressed=true]:focus-visible { outline-color: var(--background); }
+
+.pipeline-board { display: grid; grid-template-columns: repeat(5, minmax(210px, 1fr)); align-items: start; gap: 16px; margin-top: 22px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: var(--input) transparent; }
+.pipeline-column { display: grid; align-content: start; gap: 12px; min-width: 0; }
+.station { position: relative; display: grid; align-content: start; justify-items: center; gap: 10px; min-height: 104px; padding-bottom: 14px; border-bottom: 1px solid var(--border); text-align: center; }
+.station h2 { font-size: 16px; font-weight: 700; }
+.station-note { margin-top: -8px; color: var(--muted-foreground); font-size: 12px; }
+/* Each station draws half the track on either side, so the line runs through every bullet. */
+.station::before, .station::after { content: ""; position: absolute; top: 17px; height: 8px; background: var(--rule-strong); }
+.station::before { left: -8px; right: 50%; }
+.station::after { left: 50%; right: -8px; }
+.pipeline-column:first-child .station::before { display: none; }
+.pipeline-column:last-child .station::after { display: none; }
+/* Rejected is a branch off the line, not the next stop after an offer. */
+.pipeline-column.is-offer .station::after, .pipeline-column.is-rejected .station::before { top: 19px; height: 0; background: none; border-top: 4px dashed var(--stop-closed); }
+.station-bullet { position: relative; z-index: 1; display: grid; place-items: center; width: 42px; height: 42px; border: 6px solid var(--rule-strong); border-radius: 50%; background: var(--background); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.is-offer .station-bullet { border-color: var(--signal-done); }
+.is-rejected .station-bullet { border-color: var(--stop-closed); color: var(--muted-foreground); }
+.pipeline-column ul { display: grid; gap: 12px; }
+.job-tile { padding: 16px 16px 14px; border: 1.5px solid var(--rule-strong); border-radius: 6px; background: var(--card); }
+.job-tile.is-closed { border-color: var(--border); color: var(--muted-foreground); }
+.pipeline-job { min-width: 0; }
+.pipeline-job h3 { font-size: 16px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
+.pipeline-job a { color: inherit; text-underline-offset: 4px; }
+.pipeline-job p { margin-top: 3px; color: var(--muted-foreground); font-size: 13px; overflow-wrap: anywhere; }
+.stop-line { position: relative; display: flex; justify-content: space-between; align-items: center; margin: 14px 0 13px; }
+.stop-line::before { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; margin-top: -1px; background: var(--border); }
+.stop { position: relative; width: 9px; height: 9px; border: 2px solid var(--stop-off); border-radius: 50%; background: var(--card); }
+.stop.is-done { border-color: var(--rule-strong); background: var(--rule-strong); }
+.stop.is-now { width: 13px; height: 13px; border-color: var(--rule-strong); background: var(--rule-strong); box-shadow: 0 0 0 3px var(--card), 0 0 0 4.5px var(--rule-strong); }
+.job-stop-line { min-width: 0; }
+.job-stop-line.is-compact { display: grid; gap: 4px; width: 112px; flex-shrink: 0; }
+.job-stop-line.is-compact .stop-line { margin: 0; }
+.job-stop-label { color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.is-closed .stop.is-done { border-color: var(--stop-closed); background: var(--stop-closed); }
+.is-closed .stop.is-now { border-color: var(--stop-closed); background: var(--stop-closed); box-shadow: 0 0 0 3px var(--card), 0 0 0 4.5px var(--stop-closed); }
+.job-tile .next-step-row { padding-top: 11px; border-top: 1px solid var(--border); }
+.next-step { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 24px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.next-step.is-quiet { color: var(--muted-foreground); font-weight: 500; }
+.pipeline-job a:focus-visible, .next-step:focus-visible, .home-first-run a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
+.pipeline-empty { display: grid; place-items: center; height: 92px; border: 1.5px dashed var(--border); border-radius: 6px; color: var(--muted-foreground); font-size: 13px; }
+.pipeline-list { display: grid; gap: 32px; margin-top: 22px; }
+.list-station { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 2px solid var(--rule-strong); }
+.pipeline-list h2 { font-size: 16px; font-weight: 800; }
+.pipeline-list .station-bullet { width: 28px; height: 28px; border-width: 4px; font-size: 12px; }
+.pipeline-list .is-offer .station-bullet { border-color: var(--signal-done); }
+.pipeline-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 24px; padding: 14px 4px; border-bottom: 1px solid var(--border); }
+.pipeline-row.is-closed { color: var(--muted-foreground); }
+/* First run: the three starting steps ride a short line of their own. */
+.home-first-run { display: grid; gap: 24px; margin-top: 32px; padding-top: 28px; border-top: 2px solid var(--rule-strong); }
+.home-first-run h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.home-first-run ol { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; counter-reset: first-run-step; }
+.home-first-run ol::before { content: ""; position: absolute; top: 15px; left: 17px; right: calc((100% - 48px) / 3 - 17px); height: 6px; margin-top: -3px; background: var(--rule-strong); }
+.home-first-run li { position: relative; display: grid; align-content: start; gap: 8px; counter-increment: first-run-step; }
+.home-first-run li::before { content: counter(first-run-step); position: relative; display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 8px; border: 5px solid var(--rule-strong); border-radius: 50%; background: var(--background); font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.home-first-run h3 { font-size: 17px; font-weight: 700; }
+.home-first-run p { max-width: 40ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
+.home-first-run a { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
+.home-first-run a svg { width: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .pipeline-job a:hover, .next-step:is(a):hover, .home-first-run a:hover { text-decoration: underline; }
+  .view-switch button[aria-pressed=false]:hover { background: var(--muted); }
+}
+@media (max-width: 899px) {
+  .home-page .page-heading h1 { font-size: 2.25rem; }
+  .signal-legend { margin-left: 0; }
+  .home-first-run ol { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .home-first-run ol::before { top: 17px; bottom: 17px; left: 17px; right: auto; width: 6px; height: auto; margin: 0 0 0 -3px; }
+  .home-first-run li { padding-left: 52px; }
+  .home-first-run li::before { position: absolute; left: 0; top: 0; margin: 0; }
+}
+@media (max-width: 639px) {
+  .pipeline-board { grid-template-columns: minmax(0, 1fr); gap: 24px; overflow: visible; }
+  .station { min-height: 0; grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; gap: 4px 12px; text-align: left; }
+  .station::before, .station::after { display: none; }
+  .station-note { grid-column: 2; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .signal-dot.is-ai::after { animation: none; opacity: 0.35; transform: none; }
+}
+
+/* One saved job: header, job tabs, and the selected tab's work. */
+.job-workspace { max-width: 1040px; display: grid; min-width: 0; }
+.job-workspace-header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px 24px; padding-bottom: 24px; }
+.job-workspace-title { min-width: 0; flex: 1 1 320px; }
+.job-workspace-title h1 { font-size: 2.5rem; line-height: 1.05; font-weight: 800; letter-spacing: -0.025em; text-wrap: balance; overflow-wrap: anywhere; }
+.job-workspace-title p { margin-top: 10px; color: var(--muted-foreground); font-size: 16px; }
+.job-workspace-title p + p { margin-top: 2px; font-size: 13px; }
+.job-workspace-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.job-tabs { display: flex; gap: 32px; border-bottom: 2px solid var(--rule-strong); overflow-x: auto; scrollbar-width: none; font-size: 15px; color: var(--tab-idle); }
+.job-tabs::-webkit-scrollbar { display: none; }
+.job-tabs .section-tab { min-height: 48px; margin-bottom: -2px; border-bottom-width: 4px; }
+.job-workspace-panel { padding-top: 28px; display: grid; gap: 24px; min-width: 0; }
+.job-posting { display: grid; gap: 28px; max-width: 72ch; font-size: 14px; line-height: 1.7; }
+.job-posting h2 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+.job-posting ul { list-style: disc; padding-left: 20px; display: grid; gap: 6px; }
 
 /* Keep long career details within their review workspace. */
 .library-assessment, .library-edit-panel { overflow-wrap: anywhere; }
 .record-list { display: grid; }
 .record-list > li + li { border-top: 1px solid var(--border); }
-.record-link { display: flex; align-items: center; gap: 20px; padding: 24px 16px; border-radius: 8px; transition: background-color 160ms; }
+.job-record { position: relative; }
+.job-record .record-link { padding-bottom: 52px; }
+.job-record-step { position: absolute; left: 16px; bottom: 20px; }
+.record-link { display: flex; align-items: center; gap: 20px; padding: 24px 16px; border-radius: 4px; transition: background-color 160ms; }
 .record-link:active { background: var(--accent); }
 /* Touch screens keep hover styles after a tap, so hover only applies to a real pointer.
    The :active rules above give touch users the same feedback while pressing. */
 @media (hover: hover) and (pointer: fine) {
-  .workspace-nav-link:hover { background: var(--muted); color: var(--foreground); }
+  .section-tab:hover:not(.is-active) { color: var(--foreground); border-bottom-color: var(--input); }
   .record-link:hover { background: var(--accent); }
 }
 .record-icon { flex-shrink: 0; color: var(--muted-foreground); }
 .record-text { flex: 1; min-width: 0; }
-.record-text p:first-child { font-weight: 550; overflow-wrap: anywhere; }
+.record-text p:first-child { font-weight: 700; overflow-wrap: anywhere; }
 .record-text p + p { color: var(--muted-foreground); font-size: 13px; margin-top: 5px; }
 .record-arrow { color: var(--muted-foreground); flex-shrink: 0; }
-.empty-records { padding: 48px 28px; border: 1px dashed var(--input); border-radius: 12px; text-align: center; display: grid; justify-items: center; gap: 14px; }
+.empty-records { padding: 48px 28px; border: 1px dashed var(--input); border-radius: 6px; text-align: center; display: grid; justify-items: center; gap: 14px; }
 .empty-records > svg { color: var(--primary); margin-bottom: 4px; }
-.empty-records h2 { font-size: 18px; font-weight: 550; }
+.empty-records h2 { font-size: 18px; font-weight: 700; }
 .empty-records p { color: var(--muted-foreground); max-width: 48ch; font-size: 14px; line-height: 1.7; }
 .skip-link { position: fixed; top: -100px; left: 20px; z-index: 100; padding: 12px 20px; background: var(--primary); color: var(--primary-foreground); border-radius: 6px; }
 .skip-link:focus { top: 12px; }
-.auth-layout { min-height: 100svh; display: grid; grid-template-columns: 1fr 1fr; }
-.auth-introduction { padding: 48px 56px; display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--border); }
-.auth-message { margin: auto 0; padding: 64px 0; max-width: 460px; }
-.auth-message h1 { font-size: 3rem; line-height: 1.12; letter-spacing: -0.04em; font-weight: 550; }
-.auth-message > p { margin-top: 24px; color: var(--muted-foreground); line-height: 1.8; max-width: 38ch; }
-.auth-workflow { margin-top: 44px; border-top: 1px solid var(--border); }
-.auth-workflow li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 17px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-.auth-workflow svg { color: var(--primary); }
-.auth-caption { color: var(--muted-foreground); font-size: 12px; }
+/* Sign-in pages: a black signage panel beside a plain white form. The panel draws the three
+   steps of a search as stops on one white line, the same language as Home's station line. */
+.auth-layout { min-height: 100svh; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+.auth-introduction { padding: 40px 56px; display: flex; flex-direction: column; background: var(--band); color: var(--band-foreground); }
+.auth-introduction .band-brand { height: auto; }
+.auth-message { margin: auto 0; padding: 64px 0; max-width: 480px; }
+.auth-message h1 { font-size: 3.25rem; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; text-wrap: balance; }
+.auth-message > p { margin-top: 20px; color: var(--band-muted); font-size: 17px; line-height: 1.55; max-width: 38ch; }
+.auth-workflow { position: relative; display: grid; gap: 26px; margin-top: 48px; }
+.auth-workflow::before { content: ""; position: absolute; left: 13px; top: 14px; bottom: 14px; width: 6px; margin-left: -3px; background: var(--band-foreground); }
+.auth-workflow li { position: relative; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 700; }
+.auth-workflow li::before { content: ""; position: relative; width: 26px; height: 26px; flex: none; border: 5px solid var(--band-foreground); border-radius: 50%; background: var(--band); }
+.auth-caption { color: var(--band-muted); font-size: 13px; }
+.auth-form-heading { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--rule-strong); }
+.auth-form-heading h2 { font-size: 2rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.auth-form-heading p { margin-top: 12px; color: var(--muted-foreground); line-height: 1.55; }
 .auth-form-region { padding: 48px; display: grid; place-items: center; }
 .auth-form-content { width: 100%; max-width: 360px; }
 .auth-form-content input { min-height: 44px; background: var(--card); }
@@ -279,10 +506,10 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .auth-form-content input { caret-color: var(--primary); }
 .auth-form-content [role="status"] {
   padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  border: 1.5px solid var(--signal-done);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
   font-size: 14px;
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -299,7 +526,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.auth-form-content a:hover { color: var(--primary); }
+.auth-form-content a:hover { text-decoration-thickness: 2px; }
 .auth-form-content a:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 4px;
@@ -309,49 +536,59 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 899px) and (min-width: 600px) {
   .auth-introduction { padding: 32px 24px; }
   .auth-form-region { padding: 32px 24px; }
-  .auth-message h1 { font-size: 2rem; }
+  .auth-message h1 { font-size: 2.25rem; }
 }
 @media (max-width: 599px) {
   .auth-form-content input { font-size: 16px; }
 }
 @media (max-width: 1199px) {
   .workspace-content { padding: 36px 28px 64px; }
-  .workspace-topbar { padding: 0 28px; }
-  .workspace-principle { display: none; }
+  .signage-band-inner { padding: 0 28px; gap: 28px; }
+  .section-tabs { padding: 0 28px; }
   .auth-introduction { padding: 40px 32px; }
-  .auth-message h1 { font-size: 2.5rem; }
+  .auth-message h1 { font-size: 2.75rem; }
 }
 @media (max-width: 899px) {
-  .workspace-sidebar { position: sticky; top: 0; width: 100%; padding: 18px 20px 0; border-right: 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; }
-  .workspace-brand { font-size: 18px; }
-  .workspace-nav { grid-column: 1 / -1; grid-row: 2; display: flex; gap: 4px; margin: 14px -20px 0; padding: 0 12px 8px; overflow-x: auto; }
-  .workspace-nav-item { flex-shrink: 0; }
-  .workspace-nav-link { font-size: 13px; gap: 8px; padding: 10px; }
-  .nav-group-label, .workspace-sidebar-note { display: none; }
-  .workspace-account { grid-column: 2; grid-row: 1; padding: 0; border: 0; gap: 4px; }
-  .workspace-body { margin-left: 0; }
-  .workspace-topbar { height: 52px; padding: 0 24px; }
+  .signage-band { position: static; }
+  .signage-band-inner { height: auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0; padding: 0 24px; }
+  .band-brand { height: 56px; font-size: 18px; }
+  .band-tools { grid-column: 2; grid-row: 1; }
+  .band-nav { grid-column: 1 / -1; grid-row: 2; height: 48px; margin: 0 -24px; padding: 0 12px; border-top: 1px solid var(--band-rule); overflow-x: auto; scrollbar-width: none; }
+  .band-nav::-webkit-scrollbar { display: none; }
+  .band-nav-link { padding: 4px 12px 0; font-size: 14px; }
+  .account-menu-trigger { max-width: 200px; }
+  .section-tabs { gap: 24px; height: 48px; padding: 0 24px; }
+  .section-tabs-label { display: none; }
+  .page-heading { gap: 20px; padding-bottom: 24px; }
+  .page-heading h1 { font-size: 2rem; }
+  .job-workspace-title h1 { font-size: 2rem; }
+  .job-tabs { gap: 22px; }
   .workspace-content { padding: 32px 24px 64px; }
   .page-heading { gap: 20px; padding-bottom: 24px; }
-  .page-heading h1 { font-size: 1.75rem; }
+  .job-tabs { gap: 22px; }
 }
 @media (max-width: 599px) {
   .workspace-content { padding: 28px 16px 48px; }
-  .workspace-topbar { padding: 0 16px; }
-  .workspace-account button { min-height: 40px; }
-  .workspace-account button svg { width: 15px; }
+  .signage-band-inner { padding: 0 16px; }
+  .band-nav { margin: 0 -16px; padding: 0 4px; }
+  .section-tabs { padding: 0 16px; }
+  .account-menu-email { display: none; }
+  .account-menu-icon { display: block; }
+  .account-menu-trigger { padding: 0; width: 44px; justify-content: center; }
   .page-heading-actions { width: 100%; }
   .record-link { padding: 20px 4px; gap: 12px; flex-wrap: wrap; }
   .record-arrow { display: none; }
   .record-text { min-width: 150px; }
-  .record-link [data-slot=badge] { margin-left: 32px; }
+  .record-link :is([data-slot=badge], .job-stop-line) { margin-left: 0; }
+  .job-record-step { left: 4px; }
   .auth-layout { grid-template-columns: 1fr; }
-  .auth-introduction { padding: 28px 24px; border-right: 0; border-bottom: 1px solid var(--border); }
-  .auth-message { padding: 32px 0 0; }
+  .auth-introduction { padding: 20px 16px 28px; }
+  .auth-message { padding: 28px 0 0; }
   .auth-message h1 { font-size: 2rem; }
-  .auth-message > p { font-size: 14px; margin-top: 16px; }
+  .auth-message > p { font-size: 15px; margin-top: 12px; }
+  .auth-form-heading h2 { font-size: 1.75rem; }
   .auth-workflow, .auth-caption { display: none; }
-  .auth-form-region { padding: 36px 24px 48px; }
+  .auth-form-region { padding: 32px 16px 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -359,18 +596,14 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .animate-spin { animation-duration: 2.4s !important; }
 }
 
-@media (min-width: 900px) {
-  .workspace-sidebar { overflow-y: auto; }
-}
 @media (max-width: 899px) {
-  .workspace-nav { position: relative; }
   .workspace-content [data-slot=button] { min-height: 44px; }
 }
 
 /* Career library AI work stays beside the records; mobile gives it a focused screen. */
 .library-page { max-width: 1440px; }
 .library-workspace-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 354px); align-items: start; gap: 28px; }
-.library-ai-dock { position: sticky; top: 24px; min-width: 0; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; scrollbar-color: var(--input) transparent; }
+.library-ai-dock { position: sticky; top: 24px; min-width: 0; max-height: calc(100dvh - 48px); overflow-y: auto; background: var(--card); border: 1px solid var(--border); border-radius: 6px; scrollbar-color: var(--input) transparent; }
 .library-ai-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
 .library-ai-heading h2 { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; }
 .library-ai-heading h2 > svg { width: 17px; height: 17px; color: var(--primary); }
@@ -382,6 +615,12 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .library-detail[data-selected] { background: var(--secondary); outline: 1px solid var(--primary); outline-offset: -1px; }
 .library-detail .library-assessment { padding: 0; font-size: 12px; }
 .library-detail .library-assessment svg { width: 14px; height: 14px; }
+/* Review questions waiting on the user: a red-signal box, not muted text, with the answer button inside. */
+.review-questions { display: grid; gap: 10px; max-width: 72ch; margin-top: 6px; padding: 14px 16px; border: 1.5px solid var(--signal-action); border-radius: 6px; background: var(--background); }
+.review-questions-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--signal-action-text); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.review-questions-badge .signal-dot { width: 9px; height: 9px; }
+.review-questions-title { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 14px; font-weight: 700; }
+.review-questions ul { display: grid; gap: 6px; padding-left: 21px; list-style: disc; color: var(--foreground); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
 [data-slot=dialog-content].library-ai-mobile { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; transform: none; translate: none; border-radius: 0; padding: 0; display: block; overflow-y: auto; box-shadow: none; animation: none; }
 .library-ai-mobile .library-ai-heading { padding-top: max(18px, env(safe-area-inset-top)); }
 .library-ai-mobile .library-ai-body { padding-bottom: max(24px, env(safe-area-inset-bottom)); }

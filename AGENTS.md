@@ -47,7 +47,8 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
    dependency directions; consult it before changing those contracts. Use `GLOSSARY.md`
    for domain terms. Update affected docs when behavior or design changes; avoid duplication.
 9. **Verify changes.** Follow `docs/testing.md` for focused tests, lint, schema generation,
-   and offline vs. paid eval commands. Test changed behavior through observable interfaces.
+   offline vs. paid eval commands, and reusable development account credentials.
+   Test changed behavior through observable interfaces.
    Report checks and limitations.
 10. **History lives in git**, not file headers. Do not hand-edit generated code; use its
     generator. Generated files do not need added metadata headers.

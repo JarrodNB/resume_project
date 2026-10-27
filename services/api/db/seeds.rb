@@ -1,9 +1,17 @@
-# This file should ensure the existence of records required to run the application in every environment (production,
-# development, test). The code here should be idempotent so that it can be executed at any point in every environment.
-# The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+# Creates two confirmed, synthetic accounts for development browser checks.
+# Existing accounts keep their passwords and saved work. These public fixture
+# credentials must never create accounts outside development; see docs/testing.md.
+if Rails.env.development?
+  User.transaction do
+    [
+      [ "qa.primary@example.test", "QA Primary" ],
+      [ "qa.secondary@example.test", "QA Secondary" ]
+    ].each do |email, name|
+      User.find_or_create_by!(email: email) do |user|
+        user.name = name
+        user.password = "local cedar lantern harbor 2026"
+        user.skip_confirmation!
+      end
+    end
+  end
+end

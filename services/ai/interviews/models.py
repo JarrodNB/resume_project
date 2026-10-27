@@ -22,7 +22,7 @@ from conversation_logging import observe_request
 from interviews.audio_providers import ProviderError
 from interviews.provider_calls import ProviderCalls
 from interviews.provider_transport import provider_transport
-from worker.model_prices import build_model_usage
+from llm.model_prices import build_model_usage
 
 
 class InterviewModel(WrapperModel):

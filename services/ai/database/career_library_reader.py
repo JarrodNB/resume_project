@@ -31,7 +31,7 @@ from schemas.gap_analysis_context import (
     LibraryProject,
     LibrarySkill,
 )
-from worker.settings import WorkerSettings
+from settings import AISettings
 
 # Same order as the MostRecentFirst concern in Rails.
 MOST_RECENT_FIRST = """
@@ -129,7 +129,7 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
 
 
 def build_database_context_reader(
-    settings: WorkerSettings,
+    settings: AISettings,
 ) -> Callable[[UUID, UUID], GapAnalysisContext | None]:
     """A reader for TaskDependencies that connects per task, so a database restart between tasks
     needs no reconnect logic."""
@@ -150,7 +150,7 @@ def read_career_library(connection: psycopg.Connection[DictRow], user_id: UUID) 
         return _read_library(cursor, {"user_id": user_id})
 
 
-def build_database_library_reader(settings: WorkerSettings) -> Callable[[UUID], CareerLibrary]:
+def build_database_library_reader(settings: AISettings) -> Callable[[UUID], CareerLibrary]:
     """Builds a job-independent reader opening one read-only connection per task."""
     def read_from_database(user_id: UUID) -> CareerLibrary:
         """Reads the current library and closes the connection."""

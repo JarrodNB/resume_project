@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def reviewed_rates():
     """Read the literal Python table without importing worker runtime dependencies."""
-    tree = ast.parse((ROOT / "services/ai/worker/model_prices.py").read_text())
+    tree = ast.parse((ROOT / "services/ai/llm/model_prices.py").read_text())
     table = next(node.value for node in tree.body if isinstance(node, ast.AnnAssign)
                  and isinstance(node.target, ast.Name) and node.target.id == "MODEL_PRICES")
     for key, value in zip(table.keys, table.values, strict=True):

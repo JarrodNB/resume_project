@@ -215,11 +215,11 @@ def test_real_guardrail_reuses_coverage_and_preserves_task_privacy(
 
     from agents.resume_tailoring_agent import resume_tailoring_agent
     from conversation_logging import conversation_scope
+    from llm.usage import collect_task_usage, current_task_usage
+    from privacy.contact_mask import contact_scope, current_known_contact
+    from privacy.known_contact import KnownContact
     from tailoring.prepare_resume_draft import prepare_resume_draft
-    from worker.contact_mask import contact_scope, current_known_contact
-    from worker.known_contact import KnownContact
     from worker.queue_messages import AiTaskMessage
-    from worker.task_usage import collect_task_usage, current_task_usage
 
     monkeypatch.chdir(tmp_path)
     context = build_gap_analysis_context()
@@ -294,8 +294,8 @@ def test_cancelled_real_screen_requests_keep_known_usage_and_mark_unknown_costs(
     from pydantic_ai.messages import ModelResponse, ToolCallPart
     from pydantic_ai.models.function import FunctionModel
 
+    from llm.usage import collect_task_usage
     from tailoring.prepare_resume_draft import prepare_resume_draft
-    from worker.task_usage import collect_task_usage
 
     context = build_gap_analysis_context()
     dependencies = replace(task_dependencies, read_gap_analysis_context=lambda *_: context)

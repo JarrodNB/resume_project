@@ -11,7 +11,7 @@ from evals.run_user_text_screen_evals import load_user_text_screen_dataset
 from evals.telemetry import evaluate_dataset, record_score
 from prompts.user_text_fallback_instructions import USER_TEXT_FALLBACK_PROMPT_VERSION
 from schemas.user_text_fallback import UserTextFallbackScreen
-from worker.settings import load_settings
+from settings import load_settings
 
 
 def load_user_text_fallback_dataset():

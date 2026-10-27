@@ -6,10 +6,10 @@ from pydantic_ai.messages import ModelResponse
 from pydantic_ai.usage import RunUsage
 
 from agents.study_guide_agent import generate_study_guide
+from llm.model_prices import build_model_usage, reported_model_name
 from schemas.study_guide import StudyGuideInput
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
-from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage
 
 

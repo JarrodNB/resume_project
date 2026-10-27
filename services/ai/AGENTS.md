@@ -127,8 +127,14 @@ skip it. Export indexes are not required.
 - `conversation_logging/` — local-only readable Markdown exchanges grouped by user and
   individual AI task, with redeliveries appended to that task file; concrete requests are captured after masking.
 
-- `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
-  clients, Logfire tracing (see `worker/AGENTS.md`)
+- `worker/` — queue polling, envelopes, task dispatch/handlers, SQS/S3 clients and task-only
+  profile/tracing adapters (see `worker/AGENTS.md`)
+- `settings.py` — `AISettings` for reusable model, screening, limits and read-only retrieval
+  options; `worker/settings.py` extends it with queue/storage delivery settings
+- `llm/` — generative model selection, per-request usage accounting, pricing and run limits
+- `privacy/` — explicit known-contact/import masking for model input, output and embeddings
+- `telemetry/` — process-independent Logfire instrumentation, privacy processors, prompt
+  labels and bounded export flushing
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
   `job_requirements_sorting_agent.py`,
   `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,

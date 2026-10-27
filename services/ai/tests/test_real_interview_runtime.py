@@ -45,9 +45,9 @@ def test_real_parent_trace_masks_contacts_and_excludes_media_capabilities(monkey
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+    from telemetry.tracing import configure_tracing, flush_tracing
     from tests.test_interview_executor import Client, claim
     from tests.test_real_interview_executor import Models, run
-    from worker.tracing import configure_tracing, flush_tracing
 
     spans = InMemorySpanExporter()
     monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)

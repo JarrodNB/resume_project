@@ -9,7 +9,7 @@ Index:
 from evals.interview_judge import InterviewJudge
 from evals.telemetry import evaluate_dataset, record_average_scores, record_score
 from prompts.interview_judge_instructions import INTERVIEW_JUDGE_PROMPT_VERSION
-from worker.settings import load_settings
+from settings import load_settings
 
 
 def report_interview_evals(

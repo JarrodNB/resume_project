@@ -124,7 +124,7 @@ def test_complete_json_is_written_on_case_errors(monkeypatch, tmp_path, offline_
 def test_temporary_hooks_and_candidate_setting_restore_after_errors(monkeypatch, offline_model_resolution):
     import os
 
-    from worker import task_usage
+    from llm import usage as task_usage
 
     previous_observer = task_usage.observe_request
     monkeypatch.setenv("USER_TEXT_SCREEN_CHUNK_SIZE", "4000")

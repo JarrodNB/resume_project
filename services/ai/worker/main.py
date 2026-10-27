@@ -25,20 +25,22 @@ from database.career_library_reader import (
     build_database_library_reader,
 )
 from database.job_listing_similarity import build_job_listing_scorer
+from llm.run_limits import RUN_LIMIT_MESSAGE
+from llm.usage import TaskUsage, collect_task_usage
+from schemas.model_usage import ModelUsage
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.session import screening_session
-from worker.contact_mask import using_known_contact
-from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from telemetry.tracing import configure_tracing, flush_tracing
+from worker.contact_context import using_known_contact
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.result_delivery import publish_result
 from worker.retryable_errors import is_retryable_error
-from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.s3_file_storage import S3FileStorage
 from worker.settings import load_settings
 from worker.sqs_queue_client import SqsQueueClient
 from worker.task_dependencies import TaskDependencies, build_http_client
 from worker.task_handlers import handle_ai_task
-from worker.task_usage import TaskUsage, collect_task_usage
-from worker.tracing import configure_tracing, flush_tracing, trace_ai_task
+from worker.task_tracing import trace_ai_task
 
 logger = logging.getLogger(__name__)
 

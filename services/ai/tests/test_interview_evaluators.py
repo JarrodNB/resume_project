@@ -14,8 +14,8 @@ from evals import interview_eval_reporting, telemetry
 from evals.interview_evaluators import (
     FeedbackEvalInput,
     FeedbackStructure,
-    QuestionStructure,
     QuestionEvalInput,
+    QuestionStructure,
     feedback_context,
     question_context,
 )

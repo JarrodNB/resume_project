@@ -21,7 +21,7 @@ from evals.user_text_screen_evaluators import (
     UserTextScreenEvalOutput,
 )
 from prompts.user_text_screen_instructions import USER_TEXT_SCREEN_PROMPT_VERSION
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "user_text_screen_cases.yaml"
 TRACE_NAME = "evals.user_text_screen"

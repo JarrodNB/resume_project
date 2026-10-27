@@ -9,8 +9,8 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from pydantic_ai import Agent
 
+from telemetry import tracing
 from tests.test_eval_report_costs import _model
-from worker import tracing
 
 
 def test_production_tracing_records_model_and_parent_costs(monkeypatch):

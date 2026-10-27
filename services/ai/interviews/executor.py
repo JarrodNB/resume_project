@@ -23,13 +23,13 @@ from interviews.fake import SCENARIOS, TRANSCRIPT, make_agent, speech_bytes
 from interviews.history import compact_turn_history, restore_history, serialize_history
 from interviews.media import MediaError, download_audio, upload_audio
 from interviews.timing import stage_timing
+from privacy.contact_mask import contact_scope, covered_prompt_length, mask_outbound
+from privacy.known_contact import KnownContact
 from schemas.user_text_screen import UserTextScreen
 from screening.prompt_guardrail import _input_parts
 from screening.screen_user_text import screen_user_text_async
 from screening.session import bind_screened_prompt, prompt_is_covered, screening_session
 from text_limits import MAX_PROMPT_TEXT
-from worker.contact_mask import contact_scope, covered_prompt_length, mask_outbound
-from worker.known_contact import KnownContact
 
 # Match Rails TextLimits::PROSE, the durable accepted transcript field limit.
 MAX_TRANSCRIPT_CHARACTERS = 4_000

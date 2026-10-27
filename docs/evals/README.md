@@ -55,7 +55,7 @@ Reports include estimated USD costs for the whole run and each aligned case, plu
 per-provider-model input, cached input and output tokens. The total includes captured
 generation, Jev screening, LLM judges, embeddings and validation retries, even if a later
 step fails. Cached input is part of the input count; its discounted rate is applied once.
-Fake models are excluded. Prices come from `services/ai/worker/model_prices.py`, using
+Fake models are excluded. Prices come from `services/ai/llm/model_prices.py`, using
 standard rates and rounding up to a microdollar per request. These are estimates, not invoices.
 
 Unknown prices or missing provider token usage produce an **incomplete known subtotal**.

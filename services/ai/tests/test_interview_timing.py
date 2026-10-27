@@ -43,7 +43,7 @@ def test_polling_stays_quiet_without_suppressing_later_model_traces(monkeypatch,
     from pydantic_ai.models.test import TestModel
 
     from interviews.client import RailsClientError, RailsInterviewClient
-    from worker.tracing import configure_tracing, flush_tracing
+    from telemetry.tracing import configure_tracing, flush_tracing
 
     monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
     # Production setup enables defaults globally; restore them after this test.

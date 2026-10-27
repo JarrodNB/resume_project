@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from pydantic_ai_harness import InputBlocked
 
-from worker.contact_mask import mask_outbound
+from privacy.contact_mask import mask_outbound
 
 
 @dataclass(frozen=True)

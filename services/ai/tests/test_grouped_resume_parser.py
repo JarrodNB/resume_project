@@ -59,7 +59,7 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage():
         result = parse()
@@ -93,7 +93,7 @@ def test_combined_requests_reserve_inflight_capacity(monkeypatch, offline_model_
     )
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage(), pytest.raises(UsageLimitExceeded):
         parse()
@@ -112,7 +112,7 @@ def test_whole_deadline_cancels_and_awaits_every_group(offline_model_resolution)
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage(), pytest.raises(TimeoutError):
         parse(0.8)
@@ -143,7 +143,7 @@ def test_success_preserves_each_groups_answering_model(offline_model_resolution)
     offline_model_resolution(
         "openai:gpt-5-nano", FunctionModel(fallback, model_name="openai:gpt-5-nano")
     )
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage():
         result = parse()
@@ -482,7 +482,7 @@ def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_
     )
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage(), pytest.raises(UsageLimitExceeded):
         parse()
@@ -491,7 +491,7 @@ def test_combined_tokens_fail_even_when_each_response_fits(monkeypatch, offline_
 def test_fallback_charges_survive_later_group_failure(offline_model_resolution):
     from pydantic_ai.exceptions import ModelHTTPError
 
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     async def primary(messages, info):
         raise ModelHTTPError(503, "synthetic", "unavailable")
@@ -541,7 +541,7 @@ def test_group_failure_cancels_and_awaits_siblings(offline_model_resolution):
 
     offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
     offline_model_resolution("openai:gpt-5-nano", FunctionModel(answer))
-    from worker.task_usage import collect_task_usage
+    from llm.usage import collect_task_usage
 
     with collect_task_usage(), pytest.raises(ValueError, match="group failed"):
         parse()

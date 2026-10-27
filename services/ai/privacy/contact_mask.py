@@ -5,11 +5,10 @@ session before screening and explicitly restore structured results before source
 Other task types restore profile contact on the model response.
 Index:
     - contact_scope: applies a KnownContact to the current task
-    - using_known_contact: loads the profile and applies it for one task
     - current_known_contact: privacy object retained before asynchronous telemetry export
     - mask_outbound: masks one string with the current task's contact
     - install_contact_hook: adds the model-request hook to one agent
-    - install_contact_hooks: adds it to every worker agent
+    - install_contact_hooks: adds it to every registered agent
 """
 
 from collections.abc import Callable, Iterator
@@ -22,12 +21,8 @@ from pydantic import BaseModel
 from pydantic_ai import Agent
 from pydantic_ai.capabilities import Hooks
 
-from database.open_read_only_connection import open_read_only_connection
-from database.profile_contact import read_profile_contact
 from pii.task_privacy import TaskPrivacy
-from worker.known_contact import KnownContact
-from worker.queue_messages import AiTaskMessage
-from worker.settings import load_settings
+from privacy.known_contact import KnownContact
 
 _current: ContextVar[KnownContact | TaskPrivacy] = ContextVar("known_contact")
 _installed: set[int] = set()
@@ -44,6 +39,11 @@ def mask_outbound(text: str) -> str:
 def current_known_contact() -> KnownContact | TaskPrivacy:
     """Returns the task privacy object retained by spans through completion."""
     return _current.get(KnownContact())
+
+
+def has_contact_scope() -> bool:
+    """Whether this execution already owns privacy, including an empty known profile."""
+    return _current.get(None) is not None
 
 
 def covered_prompt_length(text: str) -> int:
@@ -66,23 +66,8 @@ def contact_scope(contact: KnownContact | TaskPrivacy) -> Iterator[None]:
 
 
 @contextmanager
-def using_known_contact(task: AiTaskMessage) -> Iterator[None]:
-    """Loads the user's name, contact email, and phone and applies them for one task."""
-    if _current.get(None) is not None:
-        yield
-        return
-    contact = _load_known_contact(task)
-    if task.task_type == "parse_resume":
-        with import_privacy_scope(contact):
-            yield
-        return
-    with contact_scope(contact):
-        yield
-
-
-@contextmanager
 def import_privacy_scope(contact: KnownContact | None = None) -> Iterator[TaskPrivacy]:
-    """Reuse worker privacy, or protect a standalone import without a database read."""
+    """Reuse current execution privacy, or protect a standalone import without a database read."""
     current = _current.get(None)
     if isinstance(current, TaskPrivacy):
         yield current
@@ -110,7 +95,7 @@ def install_contact_hook(agent: Agent[Any, Any]) -> None:
 
 
 def install_contact_hooks() -> None:
-    """Installs the mask hook on every worker agent. Call once, from configure_tracing."""
+    """Installs the mask hook on every registered agent. Call once, from configure_tracing."""
     from agents.gap_analysis_agent import gap_analysis_agent
     from agents.interview_clarification_agent import interview_clarification_agent
     from agents.interview_feedback_agent import interview_feedback_agent
@@ -137,20 +122,6 @@ def install_contact_hooks() -> None:
         resume_tailoring_agent,
     ):
         install_contact_hook(agent)
-
-
-def _load_known_contact(task: AiTaskMessage) -> KnownContact:
-    """Profile columns plus the tailoring snapshot, when the task carries one."""
-    with open_read_only_connection(load_settings()) as connection:
-        name, email, phone = read_profile_contact(connection, task.user_id)
-    snapshot = task.input.get("contact")
-    if not isinstance(snapshot, dict):
-        snapshot = {}
-    return KnownContact.from_values(
-        names=[name, snapshot.get("full_name")],
-        emails=[email, snapshot.get("email")],
-        phones=[phone, snapshot.get("phone")],
-    )
 
 
 def _mask_request(ctx: Any, request_context: Any) -> Any:

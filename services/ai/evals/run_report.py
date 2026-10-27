@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from evals.report_capture import capture_run
 from evals.report_markdown import render_report, report_errors
-from worker.settings import SCREEN_LLM_OPTION, load_settings
+from settings import SCREEN_LLM_OPTION, load_settings
 
 SUITES = {
     "resume_parsing": "resume_parsing_model",

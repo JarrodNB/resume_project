@@ -10,7 +10,7 @@ from threading import Event
 from threading import enumerate as active_threads
 from time import monotonic
 
-from worker.telemetry_flush import BoundedTelemetryFlush
+from telemetry.flush import BoundedTelemetryFlush
 
 
 def test_blocked_flush_shares_one_attempt():

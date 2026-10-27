@@ -24,7 +24,7 @@ from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
 from prompts.gap_analysis_instructions import GAP_ANALYSIS_PROMPT_VERSION
 from schemas.gap_analysis import GapAnalysisResult
 from schemas.gap_analysis_context import GapAnalysisContext
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "gap_analysis_cases.yaml"
 TRACE_NAME = "evals.gap_analysis"

@@ -20,10 +20,10 @@ from pydantic_ai.embeddings import TestEmbeddingModel
 from pydantic_ai.models.test import TestModel
 
 from evals.telemetry import eval_run, record_score
-from worker.contact_mask import contact_scope
-from worker.known_contact import KnownContact
-from worker.telemetry_privacy import ContactLogProcessor, ContactSpanProcessor, telemetry_scope
-from worker.tracing import record_prompt_version
+from privacy.contact_mask import contact_scope
+from privacy.known_contact import KnownContact
+from telemetry.privacy import ContactLogProcessor, ContactSpanProcessor, telemetry_scope
+from telemetry.tracing import record_prompt_version
 
 
 @pytest.fixture

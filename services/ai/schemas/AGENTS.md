@@ -7,6 +7,9 @@ the `result` sent to Rails, so changes must be mirrored there.
 
 ## Contents
 
+- `model_usage.py` / `screening_receipts.py` — pure provider-cost and saved-source check
+  records shared by HTTP execution and queue results; queue envelopes stay in `worker/`.
+
 - `parsed_resume.py` — `ParsedResume` and its parts (including `ParsedCertification`); mirrors the Rails career library and is
   imported by `ResumeImports::ImportParsedResumeService`
 - `parsed_job_posting.py` — `ParsedJobPosting`, the parse agent's output (title, company, requirements, responsibilities, nice-to-haves; not sent to Rails)

@@ -24,7 +24,7 @@ from schemas.scraped_job_posting import ScrapedJobPosting
 from scrapers.job_page import JobPage
 from scrapers.linkedin.linkedin_description_to_html import linkedin_description_to_html
 from scrapers.linkedin.parse_linkedin_job_url import linkedin_job_url
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "job_posting_extraction_cases.yaml"
 TRACE_NAME = "evals.job_posting_extraction"

@@ -130,9 +130,9 @@ def test_history_limit_preserves_consumed_model_usage(task_dependencies, monkeyp
 
 def test_registered_edit_agent_masks_known_contact_in_source_and_feedback(task_dependencies, monkeypatch):
     from agents.library_edit_agent import library_edit_agent
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
     from screening.screen_user_text import ScreenOutcome
-    from worker.contact_mask import contact_scope, install_contact_hooks
-    from worker.known_contact import KnownContact
     install_contact_hooks()
     screened = []
     monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda text, *_args, **_kwargs: screened.append(text) or ScreenOutcome(True))

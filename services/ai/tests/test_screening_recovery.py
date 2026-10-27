@@ -381,11 +381,11 @@ def test_async_guard_recovery_retains_real_fallback_cost(
     from pydantic_ai.messages import TextPart
     from pydantic_ai_harness import InputGuardrail
 
+    from llm.usage import accounted_model
     from screening.prompt_guardrail import screen_prompt
     from tests.test_process_task_message import FakeResultQueue, build_task_body
     from worker import main
     from worker.queue_messages import AiResultMessage
-    from worker.task_usage import accounted_model
 
     generated = []
 

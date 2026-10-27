@@ -19,13 +19,14 @@ from documents.extract_document_text import (
     UnsupportedDocumentError,
     extract_document_text,
 )
+from llm.model_prices import build_model_usage
 from pii import PiiDetectionError, PiiRestorationError
+from privacy.contact_mask import import_privacy_scope
+from schemas.model_usage import ModelUsage
 from screening.screen_user_text import ScreenOutcome, screen_user_text
 from screening.session import within_screening_session
 from text_limits import MAX_RESUME_TEXT, RESUME_TOO_LONG_MESSAGE
-from worker.contact_mask import import_privacy_scope
-from worker.model_prices import build_model_usage
-from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 _stage_tracer = trace.get_tracer(__name__)

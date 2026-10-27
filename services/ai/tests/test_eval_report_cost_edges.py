@@ -14,8 +14,8 @@ from pydantic_ai.usage import RequestUsage
 
 from evals.report_capture import capture_run, report_span_processors
 from evals.report_cost_markdown import cost_label
+from telemetry.tracing import configure_tracing
 from tests.test_eval_report_costs import ProviderModel
-from worker.tracing import configure_tracing
 
 
 def test_validation_retries():

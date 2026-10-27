@@ -15,7 +15,7 @@ from opentelemetry.sdk._logs import LogRecordProcessor
 from opentelemetry.sdk.trace import Event, SpanProcessor
 from opentelemetry.trace import Link, Status
 
-from worker.contact_mask import current_known_contact
+from privacy.contact_mask import current_known_contact
 
 _metadata = ContextVar("telemetry_metadata", default=None)
 

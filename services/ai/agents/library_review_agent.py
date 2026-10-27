@@ -12,6 +12,9 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from llm.generative_model import generative_model
+from llm.model_prices import reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.library_review_instructions import (
     LIBRARY_REVIEW_INSTRUCTIONS,
     LIBRARY_REVIEW_PROMPT_VERSION,
@@ -19,11 +22,8 @@ from prompts.library_review_instructions import (
 from schemas.library_review import LibraryReviewDraft
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
-from worker.run_limits import agent_usage_limits
-from worker.settings import WorkerSettings
-from worker.tracing import record_prompt_version
+from settings import AISettings
+from telemetry.tracing import record_prompt_version
 
 library_review_agent = Agent(
     name="library_review_agent", deps_type=list[str], output_type=LibraryReviewDraft,
@@ -51,7 +51,7 @@ class LibraryReviewRun(NamedTuple):
 
 
 @within_screening_session
-def review_library_section(prompt: str, labels: list[str], settings: WorkerSettings) -> LibraryReviewRun:
+def review_library_section(prompt: str, labels: list[str], settings: AISettings) -> LibraryReviewRun:
     """Run the agent within the shared execution deadline and configured model budgets."""
     return asyncio.run(_review(prompt, labels, settings))
 

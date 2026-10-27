@@ -20,8 +20,8 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RequestUsage, RunUsage
 
 from conversation_logging import observe_request
-from worker.model_prices import build_model_usage, reported_model_name
-from worker.queue_messages import ModelUsage
+from llm.model_prices import build_model_usage, reported_model_name
+from schemas.model_usage import ModelUsage
 
 
 @dataclass

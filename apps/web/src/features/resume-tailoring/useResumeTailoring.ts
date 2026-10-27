@@ -1,6 +1,7 @@
 /**
- * Description: Loads the tailor page's job, starts a tailor task when there isn't one, and
- * follows it live. Accepted tasks are history, not editable drafts. A saved resume
+ * Description: Loads a job's resume and tailoring task and follows the task live. With
+ * `autoStart`, it starts a tailor task when there isn't one (the write route); without it
+ * (the Resume tab) it never starts paid generation on its own. Accepted tasks are history, not editable drafts. A saved resume
  * prevents generation and old-draft restoration for this visit, including when deletion
  * removes its cached link before the task's accepted timestamp reaches the cache.
  * Index:
@@ -24,7 +25,7 @@ export interface TailorTaskView {
 }
 
 /** The job's tailoring task (live when one is running) and its saved resume. */
-export function useResumeTailoring(jobId: string) {
+export function useResumeTailoring(jobId: string, { autoStart = true }: { autoStart?: boolean } = {}) {
   const { data, loading, error, refetch } = useQuery(TAILOR_JOB_QUERY, { variables: { id: jobId } })
   const [startTailoring] = useMutation(START_RESUME_TAILORING_MUTATION)
   const [startedTask, setStartedTask] = useState<TailorTaskView | null>(null)
@@ -59,10 +60,10 @@ export function useResumeTailoring(jobId: string) {
   useEffect(() => {
     // Deleting the saved resume must not turn this visit into a generation request.
     if (job?.resume) started.current = true
-    if (loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt && usableExisting) || started.current) return
+    if (!autoStart || loading || !job || job.resume || (job.latestTailoring && !job.latestTailoring.acceptedAt && usableExisting) || started.current) return
     started.current = true
     void begin()
-  }, [loading, job, jobId, begin, usableExisting])
+  }, [autoStart, loading, job, jobId, begin, usableExisting])
 
   /** Starts again after a failed task. */
   function retry() {

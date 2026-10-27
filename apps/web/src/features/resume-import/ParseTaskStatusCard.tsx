@@ -39,14 +39,14 @@ export function ParseTaskStatusCard({ status, errorMessage }: ParseTaskStatusCar
               body={errorMessage ?? 'Something went wrong while parsing.'}
             />
             <Button asChild variant="outline">
-              <Link to="/import">Try another file</Link>
+              <Link to="/library/import">Try another file</Link>
             </Button>
           </>
         )}
         {status === 'imported' && (
           <>
             <StatusMessage
-              icon={<CircleCheck className="size-10 text-emerald-600" />}
+              icon={<CircleCheck className="size-10 text-signal-done-text" />}
               title="Already imported"
               body="This resume is already in your career library."
             />

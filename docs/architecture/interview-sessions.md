@@ -9,11 +9,11 @@ run in the normal local Compose stack when its credentials are configured.
 
 ### Saved-job practice
 
-The job page's **Practise interview** action opens `/jobs/:jobId/interview`. Setup loads
-the owned job from the route and retains the existing round and microphone choices.
+The job workspace's **Interview** tab (`/jobs/:id/interview`) holds saved-job setup. Setup uses
+the owned job the workspace already loaded and retains the existing round and microphone choices.
 `startInterviewDemo` accepts an optional `jobId`, resolved through `current_user.jobs`;
 no job text is accepted from the browser. Career-library evidence remains required,
-and comparison/resume generation is not a prerequisite. The action does not change
+and comparison/resume generation is not a prerequisite. Starting from the tab does not change
 application stage. Library-only starts retain fictional-role preparation.
 
 Rails freezes the job's identity, title, company, description, requirements,
@@ -595,10 +595,20 @@ nothing; delivery failure leaves durable state available through query/reconnect
 notifications can describe the same revision, so clients reconcile snapshots by session
 identity and reload when connection delivery is uncertain.
 
-The React entrypoint is `/interviews` (and `/interviews/:id` for reloads).
+The React entrypoint is `/practice/interviews` (and `/practice/interviews/:id` for reloads); old
+`/interviews` links redirect there.
+Setup there has two steps. Step 1 asks who the interview is for: a practice role (fictional,
+built from the career library; the default) or any saved job that is not rejected. A job
+continues to that job's Interview tab; the practice role shows round setup on the same page,
+with a "Change role" button back to step 1. "Practice again" (navigation state
+`practiceSetup`) starts at round setup. While a session is active and loaded, the page turns
+on the workspace's focus mode: navigation is replaced by a slim bar whose "Leave interview
+room" link returns to `/practice/interviews`. Only the surrounding chrome changes, so the
+interview page and any recording are not remounted. Leaving does not end the session; the
+usual unsaved-recording warning still applies.
 The normal Compose stack starts the real runtime with credentials from the ignored
 `services/ai/.env` and a shared private service secret from the ignored root `.env`.
-Written practice remains at `/interview-prep`.
+Written practice lives at `/practice/questions`.
 
 The browser selects supported WebM/MP4 recording and stops the microphone with **Done answering**.
 The active room keeps the original main question visible while showing the latest follow-up

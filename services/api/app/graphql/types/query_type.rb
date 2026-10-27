@@ -7,7 +7,7 @@
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
 #   - experiences, projects, educations, certifications, skills, library_facts (career library)
-#   - jobs(stage:), job(id:)
+#   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
 #   - resumes, resume(id:)
 #   - ai_task(id:)
 module Types
@@ -97,6 +97,11 @@ module Types
     field :job, Types::JobType, null: false do
       argument :id, ID, required: true
     end
+    field :job_pipeline, [ Types::JobPipelineEntryType ], null: false,
+          description: "The signed-in user's jobs, newest first, each with its one suggested next step."
+
+    field :running_ai_tasks, [ Types::RunningAiTaskType ], null: false,
+          description: "The signed-in user's AI work still in progress, newest first (live interview work excluded)."
 
     field :resumes, [ Types::ResumeType ], null: false
     field :resume, Types::ResumeType, null: false do
@@ -157,6 +162,17 @@ module Types
 
     # Returns one of the user's jobs.
     def job(id:) = current_user.jobs.find(id)
+
+    # Returns the user's jobs with their suggested next steps, in a fixed number of queries.
+    def job_pipeline
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      Jobs::BuildPipelineService.call(user: current_user).value
+    end
+
+    def running_ai_tasks
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      AiTasks::ListRunningTasksService.call(user: current_user).value
+    end
 
     # Returns the user's resumes, most recently updated first.
     def resumes = current_user.resumes.includes(:job, :sections).order(updated_at: :desc)

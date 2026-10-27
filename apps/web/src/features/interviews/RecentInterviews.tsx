@@ -21,7 +21,7 @@ export function RecentInterviews() {
             <time className="text-muted-foreground" dateTime={interview.createdAt}>{date}</time>
             {interview.questions.length > 0 && interview.status !== 'abandoned' && interview.status !== 'expired' && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} core questions` : `Core question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
           </div>
-          {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview${interview.jobContext ? ` for ${interview.jobContext.title}` : ''} from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
+          {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/practice/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview${interview.jobContext ? ` for ${interview.jobContext.title}` : ''} from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
         </li>
       })}
     </ol>

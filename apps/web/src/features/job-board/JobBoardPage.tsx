@@ -2,8 +2,8 @@
  * Search owns submitted results and optional ordering; the form owns editable filters.
  */
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router'
-import { ArrowRight, ArrowUpRight, Search } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { ArrowRight, Search } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -37,9 +37,7 @@ export function JobBoardPage() {
 
   return (
     <div className="job-board">
-      <PageHeading title="Job Board" description="Find your next opportunity. Save the roles you want to pursue to your private Jobs." actions={
-        <Button asChild variant="outline"><Link to="/jobs">Your saved jobs <ArrowUpRight aria-hidden /></Link></Button>
-      } />
+      <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
       <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>

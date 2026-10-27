@@ -1433,6 +1433,81 @@ type JobGapResponse {
   requirement: String!
 }
 
+"""
+The one thing to do next for a saved job.
+"""
+enum JobNextStepEnum {
+  """
+  Applied; waiting to hear back.
+  """
+  AWAITING_RESPONSE
+
+  """
+  Compare the job with the career library.
+  """
+  COMPARE
+
+  """
+  The latest comparison failed; try it again.
+  """
+  COMPARISON_FAILED
+
+  """
+  The job is being compared with the career library.
+  """
+  COMPARISON_RUNNING
+
+  """
+  Nothing left to do (offer or rejection).
+  """
+  NONE
+
+  """
+  Interviewing; practice for it.
+  """
+  PRACTICE_INTERVIEW
+
+  """
+  A resume is saved; apply to the job.
+  """
+  READY_TO_APPLY
+
+  """
+  The latest resume draft failed; try it again.
+  """
+  RESUME_FAILED
+
+  """
+  A tailored resume is being written.
+  """
+  RESUME_RUNNING
+
+  """
+  A resume draft is ready but not saved yet.
+  """
+  REVIEW_RESUME_DRAFT
+
+  """
+  Write a tailored resume for the job.
+  """
+  WRITE_RESUME
+}
+
+"""
+A saved job and the one thing to do next for it.
+"""
+type JobPipelineEntry {
+  """
+  The saved job.
+  """
+  job: Job!
+
+  """
+  The suggested next step for this job.
+  """
+  nextStep: JobNextStepEnum!
+}
+
 enum JobStageEnum {
   APPLIED
   INTERVIEWING
@@ -2253,6 +2328,11 @@ type Query {
   job(id: ID!): Job!
   jobBoardLocations(query: String!): JobBoardLocationsPage!
   jobBoardSearch(cursor: String, experienceLevels: [JobBoardExperienceLevel!] = [], filters: JobBoardFiltersInput, keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!
+
+  """
+  The signed-in user's jobs, newest first, each with its one suggested next step.
+  """
+  jobPipeline: [JobPipelineEntry!]!
   jobs(stage: JobStageEnum): [Job!]!
   libraryEdit(kind: String!, recordId: ID!): LibraryEdit!
   libraryFacts: [LibraryFact!]!
@@ -2262,6 +2342,11 @@ type Query {
   recentInterviewSessions: [InterviewSession!]!
   resume(id: ID!): Resume!
   resumes: [Resume!]!
+
+  """
+  The signed-in user's AI work still in progress, newest first (live interview work excluded).
+  """
+  runningAiTasks: [RunningAiTask!]!
   skills: [Skill!]!
   taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
   unfinishedInterviewSession: InterviewSession
@@ -2560,6 +2645,28 @@ type ReviewLibrarySectionPayload {
   Validation or business-rule errors; empty on success.
   """
   errors: [String!]!
+}
+
+"""
+AI work still in progress, with a safe label and the page that shows it.
+"""
+type RunningAiTask {
+  """
+  The app path that shows this work's progress or result.
+  """
+  destination: String!
+  id: ID!
+
+  """
+  Short safe words naming the work, with the job title for job work.
+  """
+  label: String!
+  startedAt: ISO8601DateTime!
+
+  """
+  The kind of AI work.
+  """
+  taskType: AiTaskTypeEnum!
 }
 
 """

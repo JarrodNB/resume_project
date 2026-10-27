@@ -97,7 +97,9 @@ Domain-specific guides remain useful where they record ownership, retry, privacy
   (`careergrind.openSections`), the same way it remembers the color theme, so the choice is not
   stored on the account. The section the user is in the middle of editing stays open: the import
   review form, and the resume section being written. A new titled section on a page follows this
-  rather than rendering fully open.
+  rather than rendering fully open. A tab's main content is the exception: each job workspace
+  tab (Fit, Resume, Study, Interview, Posting) stays open, and only long extras inside it, like
+  the full job description, collapse.
 
 - **File history in git**, not in file headers.
 

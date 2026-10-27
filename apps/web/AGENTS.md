@@ -18,7 +18,8 @@ Testing Library, oxlint.
   the user opens it; this browser remembers the open ones (`src/lib/openSections.ts`). Pass a
   stable `sectionId` to `SectionCard`, or use `useOpenSection` with `CollapseToggle`. Leave open
   the section the user is filling in right now (the import review form, the resume section
-  being written).
+  being written). A tab's main content also stays open (each job workspace tab); only long
+  extras inside it, like a job's full description, collapse.
 - Data fetching lives in hooks (`useTailoredResume`), not inline in components.
 - GraphQL operations live next to the feature that uses them (`<feature>Operations.ts`), written
   with `graphql(...)` from `@/graphql/generated`. After adding or changing one, run

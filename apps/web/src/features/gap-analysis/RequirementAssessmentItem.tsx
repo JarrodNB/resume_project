@@ -20,9 +20,9 @@ import { VERDICT_LABELS, type AssessedRequirement, type Verdict } from './parseG
 import type { SavedGapResponse } from './savedGapResponse'
 
 const VERDICT_STYLES: Record<Verdict, string> = {
-  met: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  partial: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  missing: 'bg-destructive/10 text-destructive dark:bg-destructive/20',
+  met: 'border-signal-done text-signal-done-text',
+  partial: 'border-foreground text-foreground',
+  missing: 'border-signal-action text-signal-action-text',
 }
 
 const VERDICT_ICONS = { met: CircleCheck, partial: CircleDashed, missing: CircleX }
@@ -31,7 +31,7 @@ const VERDICT_ICONS = { met: CircleCheck, partial: CircleDashed, missing: Circle
 export function VerdictBadge({ verdict }: { verdict: Verdict }) {
   const Icon = VERDICT_ICONS[verdict]
   return (
-    <Badge className={cn('shrink-0', VERDICT_STYLES[verdict])}>
+    <Badge variant="outline" className={cn('shrink-0', VERDICT_STYLES[verdict])}>
       <Icon data-icon="inline-start" />
       {VERDICT_LABELS[verdict]}
     </Badge>

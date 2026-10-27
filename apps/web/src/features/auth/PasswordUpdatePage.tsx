@@ -60,7 +60,7 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
       {change && <p id="password-change-notice" className="security-session-notice">Changing your password signs this account out on every device, including this one. Sign in again with your new password afterward.</p>}
       <div className="flex flex-wrap items-center gap-3">
         <Button size="lg" className="min-h-11" disabled={pending} aria-describedby={change ? 'password-change-notice' : undefined}>{pending ? 'Saving…' : change ? 'Change password' : 'Reset password'}</Button>
-        {change && <Button asChild variant="ghost" size="lg" className="min-h-11"><Link to="/library" aria-disabled={pending} onClick={(event) => { if (pending) event.preventDefault() }}>Cancel</Link></Button>}
+        {change && <Button asChild variant="ghost" size="lg" className="min-h-11"><Link to="/" aria-disabled={pending} onClick={(event) => { if (pending) event.preventDefault() }}>Cancel</Link></Button>}
       </div>
     </form>
 
@@ -86,7 +86,7 @@ export function PasswordUpdatePage({ change = false }: { change?: boolean }) {
 export function PasswordUpdatedPage() {
   const { user } = useAuth()
   return <AuthPageShell title="Password updated" description="This account is signed out everywhere. Sign in with the new password."
-    footer={user ? <Link to="/library" className="inline-flex min-h-11 items-center underline underline-offset-4">Continue with your signed-in account</Link> : 'Grounded in your experience. Refined with you.'}>
+    footer={user ? <Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-4">Continue with your signed-in account</Link> : 'Grounded in your experience. Refined with you.'}>
     <p role="status">Your password has been updated.</p>
     <Button asChild size="lg" className="mt-6 min-h-11 w-full"><Link to="/sign-in">Sign in with new password</Link></Button>
   </AuthPageShell>

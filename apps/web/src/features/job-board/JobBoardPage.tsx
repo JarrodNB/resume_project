@@ -1,37 +1,28 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
  * Search and import hooks own requests; this page keeps draft filters separate from submitted results.
  */
-import { useRef, useState } from 'react'
-import type { JobBoardExperienceLevel } from '@/graphql/generated/graphql'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { ArrowRight, ArrowUpRight, Globe2, Search } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, Search } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { JobBoardSearchForm } from './JobBoardSearchForm'
+import { describeSearch, type BoardSearch } from './searchFilters'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
 import { useJobBoardReranking } from './useJobBoardReranking'
 import './jobBoard.css'
 
-const experienceLevelOptions: { value: JobBoardExperienceLevel; label: string }[] = [
-  { value: 'EN', label: 'Entry level' },
-  { value: 'MI', label: 'Mid level' },
-  { value: 'SE', label: 'Senior' },
-  { value: 'EX', label: 'Executive' },
-]
-
 const searchIdeas = ['Software engineer', 'Product designer', 'Data analyst']
 
 export function JobBoardPage() {
+  const [submittedSearch, setSubmittedSearch] = useState<BoardSearch>({ keyword: '', remoteOnly: false, experienceLevels: [] })
   const [keyword, setKeyword] = useState('')
-  const [submittedSearch, setSubmittedSearch] = useState({ keyword: '', remoteOnly: false, experienceLevels: [] as JobBoardExperienceLevel[] })
-  const [remoteOnly, setRemoteOnly] = useState(false)
-  const [experienceLevels, setExperienceLevels] = useState<JobBoardExperienceLevel[]>([])
-  const keywordInput = useRef<HTMLInputElement>(null)
+  const [hideSaved, setHideSaved] = useState(false)
   const board = useJobBoardSearch()
   const [rerankingEnabled, setRerankingEnabled] = useState(false)
   const reranking = useJobBoardReranking(rerankingEnabled, submittedSearch.keyword, board.listings, board.resultVersion)
@@ -43,61 +34,39 @@ export function JobBoardPage() {
     if (result) navigate(`/jobs/${result.jobId}`, { state: { jobBoardImport: result } })
   }
 
+  const visibleListings = reranking.listings.filter((listing) => !hideSaved || !listing.savedJob)
+  const hiddenCount = board.listings.length - visibleListings.length
+
   return (
     <div className="job-board">
       <PageHeading title="Job Board" description="Find your next opportunity. Save the roles you want to pursue to your private Jobs." actions={
         <Button asChild variant="outline"><Link to="/jobs">Your saved jobs <ArrowUpRight aria-hidden /></Link></Button>
       } />
-      <form aria-label="Find jobs" className="board-search" onSubmit={(event) => {
-        event.preventDefault()
-        if (!keyword.trim()) return
-        setSubmittedSearch({ keyword: keyword.trim(), remoteOnly, experienceLevels: [...experienceLevels] })
-        board.search(keyword, remoteOnly, experienceLevels)
+      <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={(search) => {
+        setSubmittedSearch(search)
+        board.search(search.keyword, search.remoteOnly, search.experienceLevels, search.filters)
       }}>
-        <Label htmlFor="job-board-keyword">Keyword or job title</Label>
-        <div className="board-search-field">
-          <div className="board-keyword">
-            <Search size={19} strokeWidth={1.7} aria-hidden />
-            <Input ref={keywordInput} id="job-board-keyword" value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="e.g. Software engineer" maxLength={200} autoComplete="off" />
-          </div>
-          <Button type="submit" disabled={!keyword.trim()} className="board-search-submit"><Search aria-hidden /> Search jobs</Button>
-        </div>
-        <div className="board-search-options">
-          <Label className="board-remote" data-checked={remoteOnly}>
-            <Checkbox checked={remoteOnly} onCheckedChange={(checked) => setRemoteOnly(checked === true)} />Remote only
-          </Label>
-          <span className="board-region"><Globe2 size={15} aria-hidden />US-based opportunities</span>
-        </div>
-        <fieldset className="board-experience-levels" aria-describedby="experience-level-help">
-          <legend>Experience level</legend>
-          <p id="experience-level-help">Select any levels, or leave blank to include all.</p>
-          <div className="board-level-options">
-            {experienceLevelOptions.map(({ value, label }) => <Label key={value} className="board-remote" data-checked={experienceLevels.includes(value)}>
-              <Checkbox checked={experienceLevels.includes(value)} onCheckedChange={(checked) => setExperienceLevels((current) =>
-                experienceLevelOptions.filter((option) => option.value === value ? checked === true : current.includes(option.value)).map((option) => option.value))} />{label}
-            </Label>)}
-          </div>
-        </fieldset>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
             <Checkbox aria-describedby="board-reranking-help" checked={rerankingEnabled} onCheckedChange={(checked) => setRerankingEnabled(checked === true)} />Rerank using my career library
           </Label>
           <p id="board-reranking-help">Combines your search terms with related career experience. Applies to loaded roles.</p>
         </div>
-      </form>
+      </JobBoardSearchForm>
 
       {!board.hasSearched && <div className="board-introduction">
         <div className="board-introduction-icon"><Search size={27} strokeWidth={1.5} aria-hidden /></div>
         <h2>Find a role worth your next step.</h2>
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
         <div className="board-search-ideas" aria-label="Search ideas">
-          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); keywordInput.current?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
+          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
         </div>
       </div>}
 
       {board.hasSearched && <div className="board-results-heading">
-        <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">For “{submittedSearch.keyword}”{submittedSearch.remoteOnly && ' · Remote only'} · {submittedSearch.experienceLevels.length ? experienceLevelOptions.filter((option) => submittedSearch.experienceLevels.includes(option.value)).map((option) => option.label).join(', ') : 'All experience levels'}</p></div>
-        {board.listings.length > 0 && <span className="board-results-count">{board.listings.length} {board.listings.length === 1 ? 'role' : 'roles'} loaded</span>}
+        <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
+        <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
+          {board.listings.length > 0 && <span className="board-results-count">{visibleListings.length} shown · {board.listings.length} loaded{hiddenCount > 0 && ` · ${hiddenCount} saved hidden`}</span>}</div>
       </div>}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
         {board.listings.length === 0 && <div aria-hidden="true" className="board-skeletons">{[0, 1, 2].map((item) => <div className="board-skeleton" key={item}><span /><span /><span /></div>)}</div>}
@@ -117,8 +86,9 @@ export function JobBoardPage() {
       </div>}
       <ErrorAlert title="Couldn't create this job" messages={importer.errors} />
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><Search size={26} strokeWidth={1.4} aria-hidden /><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
-      {board.listings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {reranking.listings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
+      {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Load more to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
+      {visibleListings.length > 0 && <ul aria-label="Job listings" className="board-listings">
+        {visibleListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {board.nextCursor && <Button variant="outline" disabled={board.loading} onClick={board.loadMore}>Load more</Button>}

@@ -8,7 +8,7 @@ import { JobBoardPage } from './JobBoardPage'
 import { JOB_BOARD_SEARCH_QUERY, JOB_BOARD_RERANKING_SUBSCRIPTION, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
 
 function listing(id: string) {
-  return { __typename: 'JobBoardListing', id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, savedJob: null }
+  return { __typename: 'JobBoardListing', id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function searchMock(keyword = 'engineer', ids = ['first', 'second'], cursor: string | null = null, nextCursor: string | null = null): MockLink.MockedResponse {
   return {
@@ -30,8 +30,8 @@ function renderBoard(mocks: MockLink.MockedResponse[]) {
   return renderPage({ path: '/job-board', url: '/job-board', element: <JobBoardPage />, mocks })
 }
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {
-  await user.clear(screen.getByRole('textbox'))
-  await user.type(screen.getByRole('textbox'), keyword)
+  await user.clear(screen.getByRole('textbox', { name: 'Keyword or job title' }))
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), keyword)
   await user.click(screen.getByRole('button', { name: 'Search jobs' }))
 }
 function titles() { return screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent) }
@@ -185,4 +185,30 @@ it('retains provider order when a running task fails', async () => {
   await screen.findByText('Embeddings are not ready yet.')
   expect(titles()).toEqual(['first role', 'second role'])
   expect(screen.getByRole('button', { name: 'Retry reranking' })).toBeEnabled()
+})
+
+it('keeps provider filters and career ranking when saved results are hidden', async () => {
+  const user = userEvent.setup()
+  const filters = { maxAge: '7d', sortBy: 'relevance' }
+  renderBoard([
+    {
+      request: { query: JOB_BOARD_SEARCH_QUERY, variables: { keyword: 'engineer', remoteOnly: false, experienceLevels: [], cursor: null, filters } },
+      result: { data: { jobBoardSearch: { __typename: 'JobBoardSearchPage', listings: [
+        { ...listing('first'), savedJob: { __typename: 'Job', id: 'owned' } }, listing('second'), listing('third'),
+      ], nextCursor: null, retrievedAt: '2026-10-27T00:00:00Z', stale: false, errors: [] } } },
+    },
+    rankMock('engineer', ['first', 'second', 'third'], ['third', 'first', 'second']),
+  ])
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '7d')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'relevance')
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(screen.getByRole('checkbox', { name: 'Hide already saved' }))
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['third role', 'second role'])
+  await user.click(toggle())
+  expect(titles()).toEqual(['second role', 'third role'])
+  expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Past 7 days')
+  expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Most relevant')
 })

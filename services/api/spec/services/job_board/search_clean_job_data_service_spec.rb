@@ -232,4 +232,42 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     expect(search.errors).to eq([ "CleanJobData is busy. Please retry shortly." ])
     expect(http).to have_received(:request).exactly(4).times
   end
+  it "forwards every optional filter using provider parameter names" do
+    result = search(filters: { max_age: "7d", city_id: 5391959, employment_types: %w[CONTRACT FULL_TIME CONTRACT],
+      remote_type: "fully_remote", minimum_salary: 100000, include_undisclosed_salaries: false,
+      company_name: "  Acme   Labs  ", sort_by: "relevance" })
+    expect(result).to be_success
+    expect(http).to have_received(:request) do |request|
+      expect(URI.decode_www_form(URI(request.path).query).to_h).to include(
+        "max_age" => "7d", "city_id" => "5391959", "country_id" => "233", "employment_type" => "FULL_TIME,CONTRACT",
+        "remote" => "true", "remote_type" => "fully_remote", "salary" => "100000", "require_salary" => "true",
+        "company_name" => "acme labs", "sort_by" => "relevance")
+    end
+  end
+
+  it "includes undisclosed salaries unless explicitly excluded with a minimum" do
+    search(filters: { minimum_salary: 100000, include_undisclosed_salaries: true, state_id: 5332921 })
+    expect(http).to have_received(:request) do |request|
+      parameters = URI.decode_www_form(URI(request.path).query).to_h
+      expect(parameters).to include("salary" => "100000", "state_id" => "5332921")
+      expect(parameters).not_to have_key("require_salary")
+    end
+  end
+
+  it "rejects invalid optional filters without HTTP" do
+    [ nil, { unknown: true }, { max_age: "1y" }, { city_id: -1 }, { city_id: 1, state_id: 2 },
+      { city_id: "1" }, { state_id: 0 }, { remote_type: "onsite" }, { minimum_salary: 0 },
+      { minimum_salary: 1.5 }, { minimum_salary: 1_000_000_001 }, { include_undisclosed_salaries: "false" },
+      { company_name: "bad\nname" }, { company_name: "x" * 201 }, { employment_types: [ "bad" ] },
+      { employment_types: "FULL_TIME" }, { sort_by: "salary" } ].each do |filters|
+      expect(search(filters: filters)).not_to be_success
+    end
+    expect(http).not_to have_received(:request)
+  end
+
+  it "keeps salary and employment display fields without accepting malformed types" do
+    body["data"] = [ listing.merge("employment_type" => "CONTRACT", "salary_text" => "$60 per hour", "salary_currency" => "USD") ]
+    respond_with
+    expect(search.value[:listings].first).to include("employment_type" => "CONTRACT", "salary_text" => "$60 per hour", "salary_currency" => "USD")
+  end
 end

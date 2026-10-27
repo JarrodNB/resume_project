@@ -1365,18 +1365,44 @@ enum JobBoardExperienceLevel {
   SE
 }
 
+input JobBoardFiltersInput {
+  cityId: Int
+  companyName: String
+  employmentTypes: [String!]
+  includeUndisclosedSalaries: Boolean
+  maxAge: String
+  minimumSalary: Int
+  remoteType: String
+  sortBy: String
+  stateId: Int
+}
+
 type JobBoardListing {
   applicationUrl: String
   company: String
   description: String!
+  employmentType: String
   hasRemote: Boolean
   id: ID!
   isActive: Boolean
   location: String
   published: String
   remoteType: String
+  salaryCurrency: String
+  salaryText: String
   savedJob: Job
   title: String!
+}
+
+type JobBoardLocation {
+  kind: String!
+  label: String!
+  providerId: Int!
+}
+
+type JobBoardLocationsPage {
+  errors: [String!]!
+  locations: [JobBoardLocation!]!
 }
 
 type JobBoardSearchPage {
@@ -2212,7 +2238,8 @@ type Query {
   interviewQuestionSets: [InterviewQuestionSet!]!
   interviewSession(id: ID!): InterviewSession!
   job(id: ID!): Job!
-  jobBoardSearch(cursor: String, experienceLevels: [JobBoardExperienceLevel!] = [], keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!
+  jobBoardLocations(query: String!): JobBoardLocationsPage!
+  jobBoardSearch(cursor: String, experienceLevels: [JobBoardExperienceLevel!] = [], filters: JobBoardFiltersInput, keyword: String!, remoteOnly: Boolean = false): JobBoardSearchPage!
   jobs(stage: JobStageEnum): [Job!]!
   libraryEdit(kind: String!, recordId: ID!): LibraryEdit!
   libraryFacts: [LibraryFact!]!

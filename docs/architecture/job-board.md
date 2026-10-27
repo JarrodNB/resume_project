@@ -1,8 +1,11 @@
 # Job Board
 
 Job Board (`/job-board`) lets signed-in users search US-confirmed opportunities by
-keyword, an optional remote filter, and optional experience levels (Entry, Mid,
-Senior, Executive). People may select multiple levels; leaving them all blank omits
+keyword, date posted (24 hours, 7 days, or 30 days), a resolved US city or state,
+employment types, remote arrangement, company name, minimum salary, and experience
+levels (Entry, Mid, Senior, Executive). Newest is the default order; Most relevant
+uses provider relevance. Company and salary live in a remembered More filters
+disclosure. People may select multiple levels; leaving them all blank omits
 the provider filter, including jobs with unspecified experience. Selecting all four
 is an explicit filter and remains distinct from leaving the selection blank.
 It starts without a search. Jobs (`/jobs`)
@@ -21,15 +24,38 @@ responses update its payload without changing personal saved Job snapshots.
 `SearchCatalogueService` trims keywords, collapses repeated spaces, and lowercases
 letters before provider requests and page locking; punctuation and quote characters
 are preserved. The browser keeps the entered text. `JobBoardSearchPage` caches this
-canonical keyword/filter/cursor page for 24 hours. Case variants share first and
+canonical keyword/filter/sort/cursor page for 24 hours, or 15 minutes when a date
+posted window is selected so short-window results do not remain cached for a full day.
+Case variants share first and
 continuation pages; opaque cursor case, remote-only filters, and different
 experience-level selections
 remain distinct. Selected experience levels are validated provider codes (`EN`, `MI`,
 `SE`, `EX`) and canonicalized as a deduplicated set before provider calls, cache keys,
 and advisory locks. The provider receives a comma-separated `experience_level` filter;
 no level is inferred from a career library and reranking does not set it.
-Remote-only off omits the provider remote filter, allowing both remote and non-remote jobs.
-Its identity includes a normalization revision, so older normalized pages cannot hide
+Any arrangement omits the provider remote filter. Any remote option uses `remote=true`,
+which can include hybrid roles. Fully remote, Hybrid, and country/region-restricted
+options additionally send `remote_type`; this describes the provider classification,
+not a guarantee of location eligibility. The board still enforces US confirmation.
+
+`SearchFilters` validates optional inputs before HTTP or cache access. It canonicalizes
+employment selections as a set and company whitespace/casing, removes empty/default
+preferences, and includes every effective filter and sort in page identity. City and
+state IDs are mutually exclusive. Minimum salary uses the provider's `salary` lower
+bound; excluding undisclosed values sends `require_salary=true`. The UI does not
+assume annual USD or convert hourly values: users should check currency and pay period
+in the listing. Employment, salary text/currency, remote type, and valid posting dates
+are displayed when supplied; missing values remain unknown.
+
+`jobBoardLocations(query:)` calls the fixed `/geo/suggest` endpoint only when Find
+locations is clicked. This authenticated server boundary accepts a bounded query,
+requests city/state suggestions, and returns only validated US labels, kinds, and IDs.
+It uses a five-second deadline and safe retryable errors without returning provider
+payloads or credentials. The selected kind determines the city/state search parameter;
+typed but unresolved locations block search until selected or cleared. Editing location
+text invalidates pending suggestions. Location lookup does not populate the job cache.
+
+The shared search-page identity includes a normalization revision, so older pages cannot hide
 changed provider handling; old pages are bypassed rather than used as stale fallback.
 `SearchCatalogueService` serializes identical misses with a database advisory lock,
 rechecks freshness, and upserts listings before recording a successful page. A failed
@@ -43,9 +69,9 @@ not receive access to the catalogue tables.
 
 ## Browser contract
 
-`jobBoardSearch(keyword:, remoteOnly:, experienceLevels:, cursor:)` returns ordered listings, an opaque
+`jobBoardSearch(keyword:, remoteOnly:, experienceLevels:, filters:, cursor:)` returns ordered listings, an opaque
 continuation cursor, retrieval time, stale status, and errors. The browser requests
-only on submit, load more, or retry. Multi-select experience controls are draft
+only on submit, load more, or retry. All provider controls are draft
 filters until submit; displayed result context and all continuation/retry requests use
 the submitted snapshot even if the form changes. Apollo's search cache is bypassed
 so Rails
@@ -55,6 +81,10 @@ successful pages. A successful earlier-page refresh preserves descendants when i
 continuation is unchanged; a changed cursor drops the obsolete descendants.
 Request generations prevent old successes or failures replacing a newer search.
 Descriptions are text inside remembered collapsed disclosures, never raw HTML.
+Hide already saved immediately filters loaded results by the owner-scoped `savedJob`
+reference, after optional career-library ordering. It does not change provider requests,
+shared pages, or reranking candidates. Counts distinguish shown, loaded, and hidden rows;
+an all-hidden page keeps Load more available and explains how to reveal saved results.
 
 `importJobBoardListing(input: { listingId: })` delegates to `ImportListingService` and returns
 the saved or existing private Job plus field-omission warnings. The UI prevents

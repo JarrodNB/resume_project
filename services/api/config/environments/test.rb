@@ -6,6 +6,10 @@
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
+  # Most specs inspect queued work without running it; queue persistence specs
+  # explicitly select the real adapter against this environment's isolated DB.
+  config.active_job.queue_adapter = :test
+
   # While tests run files are not watched, reloading is not necessary.
   config.enable_reloading = false
 

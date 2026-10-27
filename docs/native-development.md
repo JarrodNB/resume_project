@@ -100,7 +100,10 @@ Once workers run, queued work or user actions can invoke configured providers.
   A persistent S3 service is needed if durable uploads are required.
 - PostgreSQL uses an isolated local cluster, generated development passwords,
   and the same read-only AI role/grant task as Compose. Rails prepares its primary
-  and cable databases before any application worker starts.
+  and cable databases before any application worker starts. Solid Queue tables live
+  in the primary database; the `jobs` process runs `bundle exec ruby bin/jobs` for
+  durable Rails background work and scheduled maintenance. Its log is
+  `.native/logs/jobs.log`.
 - Services run as background process groups, with logs in `.native/logs`.
   `stop` targets this checkout's recorded process groups and PostgreSQL cluster.
   There is no automatic restart policy; inspect logs and restart after crashes.
@@ -109,9 +112,15 @@ Once workers run, queued work or user actions can invoke configured providers.
 - The frontend's Docker-only example-resume mount is unavailable. Upload a
   repository example manually to test resume import.
 
-`check` checks Rails health, both frontend HTTP endpoints, and local database,
-emulator, and interview ports. It does not validate every product flow, provider
+`check` checks Rails health, both frontend HTTP endpoints, local database,
+emulator and interview ports, and the recorded jobs-supervisor process identity.
+It does not validate every job delivery, product flow, provider
 credential, subscription, or browser audio path. Inspect worker logs as well.
+
+Durable jobs survive application/worker restarts because PostgreSQL persists their
+queue records. This does not make Moto's uploads or SQS messages persistent. See
+[Rails background jobs](architecture/background-jobs.md) for the transaction
+contract, operation commands, and safe migration from a separate production queue.
 
 For syntax and basic command checks without installing anything:
 

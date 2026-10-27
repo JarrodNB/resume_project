@@ -274,6 +274,7 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
         prepare_database(env)
         commands = {
             "api": (["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"], "services/api", env),
+            "jobs": (["bundle", "exec", "ruby", "bin/jobs"], "services/api", env),
             "results": (["bundle", "exec", "shoryuken", "-R", "-C", "config/shoryuken.yml"], "services/api", env),
             "ai": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai")),
             "interview": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "interviews.real_app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", app_env("ai")),
@@ -356,6 +357,12 @@ def check():
     for port in (9090, 8000, int(PORT)):
         wait_port(port, timeout=2)
         print(f"Port {port}: reachable")
+    jobs_pid = STATE / "jobs.pid"
+    record = json.loads(jobs_pid.read_text()) if jobs_pid.exists() else None
+    started = process_start(record["pid"]) if record else None
+    if not started or started != record["started"]:
+        raise RuntimeError("Durable jobs worker is not running; inspect .native/logs/jobs.log")
+    print("Durable jobs supervisor: running")
 
 
 def doctor():

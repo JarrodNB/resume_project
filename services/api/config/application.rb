@@ -22,6 +22,11 @@ module Api
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
 
+    # Use durable jobs in development and production. Solid Queue must inherit the
+    # primary connection pool so transactional jobs commit with domain writes;
+    # a separate connects_to declaration would silently break that guarantee.
+    config.active_job.queue_adapter = :solid_queue
+
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.

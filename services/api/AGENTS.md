@@ -47,7 +47,8 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
 - `app/channels/` — ActionCable: cookie-authenticated WebSocket at `/cable`, GraphQL channel
 - `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
-- `app/jobs/` — Active Job background jobs (career-library and question-specific interview embedding sync)
+- `app/jobs/` — durable Solid Queue jobs on the primary database (career-library and
+  question-specific interview embedding sync, account email); run `bin/jobs` separately
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
 - `config/routes.rb` — `/auth/*` (REST, cookie sessions), `/graphql`, `/up`

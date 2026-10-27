@@ -3,6 +3,7 @@
 The durable owner supplies claims and renews their leases. Local task registration
 is only a capacity reservation: an HTTP receipt never proves durable delivery.
 Feature adapters retain their own provider, acceptance and accounting contracts.
+Shutdown allows bounded accounting cleanup and retains unfinished work locally.
 """
 
 import asyncio
@@ -88,7 +89,7 @@ class ExecutionRunner:
                 return
 
     async def close(self):
-        """Stop and await all locally supervised work without losing durable state."""
+        """Stop work and await bounded cleanup, retaining any unfinished tails."""
         self._closed = True
         await self._drain([*self.active.values(), *self._tails])
 
@@ -100,8 +101,25 @@ class ExecutionRunner:
         if not tasks:
             return
         for task in tasks:
-            task.cancel()
-        done, pending = await asyncio.wait(tasks, timeout=self.cleanup_seconds)
+            # A second cancellation would interrupt an adapter's final accounting.
+            if not task.cancelling():
+                task.cancel()
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + self.cleanup_seconds
+        interrupted = False
+        while True:
+            try:
+                done, pending = await asyncio.wait(
+                    tasks, timeout=max(0, deadline - loop.time()))
+                break
+            except asyncio.CancelledError:
+                # Shutdown can cancel run_once while it is already draining. Keep
+                # supervising its children within the original bound before exiting.
+                interrupted = True
+                if loop.time() >= deadline:
+                    done = {task for task in tasks if task.done()}
+                    pending = set(tasks) - done
+                    break
         for task in done:
             if not task.cancelled():
                 task.exception()
@@ -109,8 +127,11 @@ class ExecutionRunner:
             # A broken adapter must not release unlimited new work behind a stuck tail.
             self._unhealthy = True
             for task in pending:
-                self._tails.add(task)
-                task.add_done_callback(self._tail_finished)
+                if task not in self._tails:
+                    self._tails.add(task)
+                    task.add_done_callback(self._tail_finished)
+        if interrupted:
+            raise asyncio.CancelledError
 
     def _tail_finished(self, task):
         self._tails.discard(task)

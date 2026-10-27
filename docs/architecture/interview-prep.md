@@ -107,7 +107,7 @@ remain separate. Newly requested feedback uses the guidance without rewriting sa
 Feedback evals cover complete and incomplete stories, no example, uncertain/negative outcomes,
 and legacy nonbehavioral questions alongside technical and knowledge regressions.
 
-The web routes `/interview-prep` and `/interview-prep/:id` list numbered/date sets newest first
+The web routes `/practice/questions` and `/practice/questions/:id` (old `/interview-prep` links redirect) list numbered/date sets newest first
 and display five ordered cards. Persisted `latestTask` fields restore subscriptions on reload.
 Cards preserve local drafts, show outdated feedback for substantive unsaved changes too, warn before
 navigation with unsaved answers, and keep replacement controls locked until the new question

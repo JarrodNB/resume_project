@@ -1,6 +1,6 @@
 /**
- * Description: One saved resume opens for editing and links back to its job.
- * The PDF preview is mocked.
+ * Description: A resume linked to a job opens in that job's Resume tab; a resume whose job was
+ * removed is edited, downloaded, and deleted on its own page. The PDF preview is mocked.
  */
 import { downloadResumePdf, downloadResumeDocx } from '@/features/resume-tailoring/resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
@@ -11,7 +11,6 @@ import { expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { ResumePage } from './ResumePage'
 import { DELETE_RESUME_MUTATION, RESUME_QUERY, RESUMES_QUERY } from './resumesOperations'
-import { TAILOR_JOB_QUERY } from '@/features/resume-tailoring/tailorOperations'
 
 vi.mock('@/features/resume-tailoring/resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
 
@@ -45,34 +44,24 @@ function resumeQuery(job: Record<string, unknown> | null) {
   }
 }
 
-it('opens the resume and links to its job', async () => {
-  renderPage({
+it("sends a resume that belongs to a job to that job's Resume tab", async () => {
+  const { router } = renderPage({
     path: '/resumes/:id',
     url: '/resumes/resume-1',
     element: <ResumePage />,
+    extraRoutes: [{ path: '/jobs/:id/resume', element: <p>Job resume tab</p> }],
     mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' })],
   })
+
+  expect(await screen.findByText('Job resume tab')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/jobs/job-1/resume')
+})
+
+it('links an orphaned resume back to the resume list', async () => {
+  renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />, mocks: [resumeQuery(null)] })
 
   expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Back to resumes' })).toHaveAttribute('href', '/resumes')
-  expect(screen.getByRole('link', { name: 'Engineer at Acme' })).toHaveAttribute('href', '/jobs/job-1')
-  await userEvent.click(screen.getByRole('button', { name: 'Edit sections' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Summary' }))
-  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Backend engineer.')
-})
-
-it('points the breadcrumb at the job when opened from that job', async () => {
-  renderPage({
-    path: '/resumes/:id',
-    url: '/resumes/resume-1',
-    element: <ResumePage />,
-    historyState: { fromJobId: 'job-1' },
-    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' })],
-  })
-
-  expect(await screen.findByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
-  expect(screen.getByRole('link', { name: 'Engineer at Acme' })).toHaveAttribute('href', '/jobs/job-1')
-  expect(screen.queryByRole('link', { name: 'Back to resumes' })).not.toBeInTheDocument()
 })
 
 it('still opens a resume whose job was removed', async () => {
@@ -134,13 +123,13 @@ it('cancels deletion without a request, then deletes an orphan resume and return
   expect(deleted).toHaveBeenCalledOnce()
 })
 
-it('keeps edits after network and payload failures, prevents duplicate requests, and retries to the list even from a job', async () => {
+it('keeps edits after network and payload failures, prevents duplicate requests, and retries to the list', async () => {
   const user = userEvent.setup()
   const deleted = vi.fn(() => ({ data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } }))
   const request = { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }
-  const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', historyState: { fromJobId: 'job-1' }, element: <ResumePage />,
+  const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
-    mocks: [resumeQuery({ __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme' }),
+    mocks: [resumeQuery(null),
       { request, error: new Error('Offline') },
       { request, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: null, errors: ['Try later.'] } } } },
       { request, result: deleted, delay: 200 }],
@@ -164,19 +153,18 @@ it('keeps edits after network and payload failures, prevents duplicate requests,
   expect(deleted).toHaveBeenCalledOnce()
 })
 
-it('clears cached resume detail, list, and job links while preserving other resumes', async () => {
+it('clears cached resume detail and list entries while preserving other resumes', async () => {
   const user = userEvent.setup()
   const cache = new InMemoryCache()
-  const job = { __typename: 'Job' as const, id: 'job-1', title: 'Engineer', company: 'Acme' }
-  const resume = { ...resumeQuery(job).result.data.resume, __typename: 'Resume' as const, job,
+  // Only orphaned resumes are edited here; the job workspace's resume tests cover clearing a job's link.
+  const resume = { ...resumeQuery(null).result.data.resume, __typename: 'Resume' as const, job: null,
     sections: [{ __typename: 'ResumeSection' as const, id: 'section-1', sectionType: 'SUMMARY' as const, title: 'Summary', position: 0, content: { text: 'Backend engineer.' } }] }
-  cache.writeQuery({ query: RESUME_QUERY, variables: { id: 'resume-1' }, data: { resume } })
   const list = [
-    { __typename: 'Resume', id: 'resume-1', title: resume.title, updatedAt: '2026-10-18', job },
+    { __typename: 'Resume', id: 'resume-1', title: resume.title, updatedAt: '2026-10-18', job: null },
     { __typename: 'Resume', id: 'other', title: 'Another resume', updatedAt: '2026-10-18', job: null },
   ]
   cache.writeQuery({ query: RESUMES_QUERY, data: { resumes: list } })
-  cache.writeQuery({ query: TAILOR_JOB_QUERY, variables: { id: 'job-1' }, data: { job: { ...job, resume, latestTailoring: null } } })
+  cache.writeQuery({ query: RESUME_QUERY, variables: { id: 'resume-1' }, data: { resume } })
   const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1',
     element: <MockedProvider cache={cache} mocks={[{ request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } }]}><ResumePage /></MockedProvider>,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
@@ -186,7 +174,6 @@ it('clears cached resume detail, list, and job links while preserving other resu
   await waitFor(() => expect(router.state.location.pathname).toBe('/resumes'))
   expect(cache.readQuery({ query: RESUME_QUERY, variables: { id: 'resume-1' } })?.resume).toBeNull()
   expect(cache.readQuery({ query: RESUMES_QUERY })?.resumes.map((entry) => entry.id)).toEqual(['other'])
-  expect(cache.readQuery({ query: TAILOR_JOB_QUERY, variables: { id: 'job-1' } })?.job?.resume).toBeNull()
 })
 
 

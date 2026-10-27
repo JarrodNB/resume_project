@@ -1,8 +1,7 @@
 /**
- * Description: Collapsible cards on the job page.
+ * Description: A collapsible card for long job content, such as the full description.
  * Index:
  *   - CollapsibleJobCard: a titled card that stays collapsed until opened
- *   - BulletCard: a collapsible list of bullet points
  */
 import type { ReactNode } from 'react'
 import { CollapseToggle } from '@/components/CollapseToggle'
@@ -22,22 +21,5 @@ export function CollapsibleJobCard({ sectionId, title, children }: { sectionId: 
       </CardHeader>
       {open && <CardContent id={panelId}>{children}</CardContent>}
     </Card>
-  )
-}
-
-/** A titled card listing bullet points. */
-export function BulletCard({ sectionId, title, items, emptyText }: { sectionId: string; title: string; items: string[]; emptyText?: string }) {
-  return (
-    <CollapsibleJobCard sectionId={sectionId} title={title}>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyText}</p>
-      ) : (
-        <ul className="grid list-disc gap-1.5 pl-5 text-sm">
-          {items.map((item, index) => (
-            <li key={index}>{item}</li>
-          ))}
-        </ul>
-      )}
-    </CollapsibleJobCard>
   )
 }

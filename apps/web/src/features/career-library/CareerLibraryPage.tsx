@@ -38,7 +38,7 @@ export function CareerLibraryPage() {
   return (
     <div className="library-page mx-auto grid gap-6">
       <PageHeading title="Career library" description="Your experience, all in one place. The foundation for every application." actions={
-        <Button asChild><Link to="/import"><FileUp /> Import a resume</Link></Button>
+        <Button asChild><Link to="/library/import"><FileUp /> Import a resume</Link></Button>
       } />
       <ImportSummaryNotice />
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}

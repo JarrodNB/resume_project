@@ -92,7 +92,7 @@ function searchVariables(keyword = 'engineer', remoteOnly = false, cursor: strin
   return { keyword, remoteOnly, cursor, experienceLevels }
 }
 function renderBoard(mocks: MockLink.MockedResponse[] = []) {
-  return renderPage({ path: '/job-board', url: '/job-board', element: <JobBoardPage />, mocks, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
+  return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
 }
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {
   const input = screen.getByRole('textbox', { name: 'Keyword or job title' })
@@ -292,9 +292,9 @@ it.each(['validation', 'network'])('keeps search results after an import %s fail
 it('refreshes an already visited private Jobs list after creating a listing', async () => {
   const user = userEvent.setup()
   renderPage({
-    path: '/jobs', url: '/jobs', element: <><Link to="/job-board">Find opportunities</Link><JobsPage /></>,
+    path: '/jobs', url: '/jobs', element: <><Link to="/jobs/find">Find opportunities</Link><JobsPage /></>,
     extraRoutes: [
-      { path: '/job-board', element: <JobBoardPage /> },
+      { path: '/jobs/find', element: <JobBoardPage /> },
       { path: '/jobs/:id', element: <Link to="/jobs">Return to saved jobs</Link> },
     ],
     mocks: [

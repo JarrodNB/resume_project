@@ -49,7 +49,7 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   record, so clients never miss an update that landed before they subscribed. Services
   trigger them with `ApiSchema.subscriptions.trigger(:field_name, { id: ... }, record)`.
 - After changing the schema, run `docker compose run --rm api bin/rails graphql:schema:dump`
-  and commit `services/api/schema.graphql` (the web app generates its types from it).
+  and commit `services/api/graphql_schema/schema.graphql` (the web app generates its types from it).
 - Test operations with `execute_graphql(query, user:, variables:)` from `spec/support`.
 - File uploads use the GraphQL multipart request spec (`apollo_upload_server` middleware) and
   the `ApolloUploadServer::Upload` scalar. In specs, wrap `build_uploaded_file(...)` in

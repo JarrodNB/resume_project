@@ -78,7 +78,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
-- `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
+- `graphql_schema/schema.graphql` — GraphQL SDL dump read by `apps/web` codegen (in its own
+  folder so the web container mounts the folder and always sees the latest dump). Regenerate after any
   GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`
   (`lib/tasks/graphql_schema.rake`); `spec/graphql/schema_dump_spec.rb` fails if it's stale
 - `Dockerfile.dev` — local dev image; `Dockerfile` — generated production image

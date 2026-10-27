@@ -205,7 +205,7 @@ services:
       - /app/node_modules
       - ./example_resumes/uci_business.pdf:/example_resumes/uci_business.pdf:ro
       # GraphQL codegen input, at the same relative path (../../services/api) as on the host.
-      - ./services/api/schema.graphql:/services/api/schema.graphql:ro
+      - ./services/api/graphql_schema:/services/api/graphql_schema:ro
 
   landing:
     build:

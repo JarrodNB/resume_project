@@ -1,16 +1,19 @@
 /** Offers saved, description-based reference guides beside a job, with links between their topics. */
 import { useId } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
-import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
 import { parseStudyGuide, type StudyGuide } from './parseStudyGuide'
 import { useStudyGuide } from './useStudyGuide'
 
-export function StudyGuideCard({ jobId, description }: { jobId: string; description: string | null }) {
-  return <SectionCard sectionId={`job.${jobId}.study-guides`} tone="education" title="Study guides"
-    description="Learn and practice topics from this job's description.">
+/** The job workspace's Study tab: saved guides and generation, always open. */
+export function StudyGuidePanel({ jobId, description }: { jobId: string; description: string | null }) {
+  return <section className="grid gap-5" aria-labelledby={`study-guides-${jobId}`}>
+    <div className="grid gap-1">
+      <h2 id={`study-guides-${jobId}`} className="text-base font-medium">Study guides</h2>
+      <p className="text-sm text-muted-foreground">Learn and practice topics from this job's description.</p>
+    </div>
     <StudyGuideContent key={jobId} jobId={jobId} description={description} />
-  </SectionCard>
+  </section>
 }
 
 function StudyGuideContent({ jobId, description }: { jobId: string; description: string | null }) {

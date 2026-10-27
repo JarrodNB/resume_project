@@ -2,7 +2,7 @@
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
@@ -24,7 +24,7 @@ import { InterviewJobSource } from './InterviewJobSource'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
 import { AnswerEditor } from './AnswerEditor'
-import { useAnswerDraft } from './useAnswerDraft'
+import { useInterviewAnswerCapture } from './useInterviewAnswerCapture'
 import { RecordingReview } from './RecordingReview'
 import { RecordingUnsavedChanges } from './RecordingUnsavedChanges'
 import { BrowserInterviewSpeech } from './BrowserInterviewSpeech'
@@ -34,7 +34,6 @@ import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { useNewInterviewSpeech } from './useNewInterviewSpeech'
 import type { TranscriptionMode } from './transcriptionCapture'
 import { useTranscriptionPreference } from './useTranscriptionPreference'
-import { useInterviewRecorder } from './useInterviewRecorder'
 import { useInterviewStreaming } from './useInterviewStreaming'
 import { useInterviewSession } from './useInterviewSession'
 
@@ -70,61 +69,11 @@ function OwnedInterview({ id }: { id: string }) {
   const state = useInterviewSession(id, user?.id ?? '')
   const [transcriptionMode, setTranscriptionMode] = useTranscriptionPreference(user?.id ?? '')
   const startStreaming = useInterviewStreaming(state.interview)
-  const recorder = useInterviewRecorder({ mode: transcriptionMode, startStreaming })
-  const draftContext = `${id}:${state.interview?.revision}:${state.interview?.status}`
-  const previousContext = useRef(draftContext)
-  const draft = useAnswerDraft(draftContext)
-  const draftText = draft.text
-  const captureTicket = useRef<ReturnType<typeof draft.beginCapture> | null>(null)
-  const { previewCapture, finishCapture } = draft
-  useEffect(() => {
-    if ((recorder.status !== 'recording' && recorder.status !== 'finalizing') || !captureTicket.current || !recorder.transcript) return
-    previewCapture(captureTicket.current, recorder.transcript)
-  }, [recorder.status, recorder.transcript, previewCapture])
-  useEffect(() => {
-    if (recorder.status !== 'ready' || !recorder.candidateTranscript || !captureTicket.current) return
-    finishCapture(captureTicket.current, recorder.candidateTranscript)
-    captureTicket.current = null
-  }, [recorder.status, recorder.candidateTranscript, finishCapture])
-  function startCapture() {
-    cancelReview()
-    setReviewedRecording(null)
-    captureTicket.current = draft.beginCapture()
-    void recorder.start()
-  }
-  const [reviewedRecording, setReviewedRecording] = useState<Blob | null>(null)
-  const reviewGeneration = useRef(0)
-  const [recordedReview, setRecordedReview] = useState<{ id: string; context: string; ticket: ReturnType<typeof draft.beginCapture> | null } | null>(null)
-  const reviewOperation = recordedReview?.context === draftContext
-    ? state.interview?.operations.find((item) => item.id === recordedReview.id)
-    : state.interview?.operations.filter((item) => item.kind === 'transcription' && item.expectedRevision === state.interview?.revision && item.status !== 'expired').at(-1)
-  const mountedReview = useRef(false)
-  useEffect(() => {
-    mountedReview.current = true
-    return () => {
-      // React replays cleanup in StrictMode; passive disposal only fences local writes.
-      mountedReview.current = false
-    }
-  }, [])
-  const reviewPending = reviewOperation?.status === 'pending' || reviewOperation?.status === 'running'
-  useEffect(() => {
-    if (!recordedReview?.ticket || recordedReview.context !== draftContext || reviewOperation?.status !== 'accepted' || !reviewOperation.reviewTranscript) return
-    finishCapture(recordedReview.ticket, reviewOperation.reviewTranscript)
-  }, [recordedReview, reviewOperation, draftContext, finishCapture])
-  function cancelReview() {
-    reviewGeneration.current++
-    captureTicket.current = null
-    if (reviewOperation) {
-      setReviewedRecording(recorder.recording)
-      void state.cancelTranscription(reviewOperation.id)
-    }
-    setRecordedReview(null)
-  }
-  function discardRecording() { cancelReview(); recorder.reset() }
-  const submitting = useRef(false)
-  const [savingRecording, setSavingRecording] = useState(false)
-  const [muted, setMuted] = useState(false)
   const [abandoned, setAbandoned] = useState(false)
+  const answer = useInterviewAnswerCapture({ session: state, abandoned, mode: transcriptionMode, startStreaming, onModeChange: setTranscriptionMode })
+  const { recorder, text: draftText, terminal, start: startCapture } = answer
+  const { operation: reviewOperation, pending: reviewPending, saving: savingRecording } = answer.review
+  const [muted, setMuted] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pendingTranscriptionMode, setPendingTranscriptionMode] = useState<TranscriptionMode | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
@@ -142,19 +91,7 @@ function OwnedInterview({ id }: { id: string }) {
   }, [])
   const interview = state.interview
   const newSpeech = useNewInterviewSpeech(interview)
-  const terminal = abandoned || interview?.status === 'abandoned' || interview?.status === 'completed' || interview?.status === 'expired'
   const recordingWarning = <RecordingUnsavedChanges textDraft={Boolean(draftText)} dirty={!terminal && (Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing')} />
-  const { status: recordingStatus, reset: resetRecording } = recorder
-  useEffect(() => {
-    // Saved progress from another tab must release capture for the previous prompt.
-    const changed = previousContext.current !== draftContext
-    previousContext.current = draftContext
-    if (terminal || changed) {
-      reviewGeneration.current++
-      captureTicket.current = null
-      if (recordingStatus !== 'idle') resetRecording()
-    }
-  }, [terminal, draftContext, recordingStatus, resetRecording])
   const autoPrompt = interview ? currentInterviewPrompt(interview).reply : undefined
   const thinkingTime = useAutomaticMicrophone({
     promptId: autoPrompt?.id,
@@ -191,28 +128,10 @@ function OwnedInterview({ id }: { id: string }) {
   const hasQuestionText = Boolean(question && reply?.content.trim())
   const historyMessages = interview.messages
   const canRecord = interview.status === 'active' && hasQuestionText && !state.loading && !state.loadError && !state.busy && !state.unresolved && !state.skipPending && !turnActive && !speechPlaying
-  async function transcribe() {
-    if (!recorder.recording || submitting.current || !canRecord) return
-    const generation = ++reviewGeneration.current
-    const ticket = captureTicket.current ?? draft.beginCapture()
-    captureTicket.current = null
-    submitting.current = true; setSavingRecording(true)
-    try {
-      const operationId = await state.transcribeRecording(recorder.recording)
-      if (operationId) {
-        if (mountedReview.current && reviewGeneration.current === generation) setRecordedReview({ id: operationId, context: draftContext, ticket })
-        else if (mountedReview.current) void state.cancelTranscription(operationId)
-      }
-    } finally { submitting.current = false; setSavingRecording(false) }
-  }
   const recordingLocked = state.busy || savingRecording || Boolean(state.unresolved)
   const transcriptionSettingsLocked = ['requesting', 'recording', 'finalizing'].includes(recorder.status) || recordingLocked || turnActive
   function switchTranscriptionMode(mode: TranscriptionMode) {
-    cancelReview()
-    draft.setText('')
-    recorder.reset()
-    setReviewedRecording(null)
-    setTranscriptionMode(mode)
+    answer.changeMode(mode)
     setPendingTranscriptionMode(null)
   }
   const roomTitle = interview.status === 'completed' ? 'Interview complete'
@@ -294,37 +213,25 @@ function OwnedInterview({ id }: { id: string }) {
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
       {state.skipPending && !state.busy && <p role="status" className="text-sm text-muted-foreground">The skip response was not confirmed. Retry skip to check the same question safely before answering.</p>}
-      <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={() => { cancelReview(); draft.setText(""); recorder.reset() }} />
-      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={recorder.stop}><Square size={20} fill="currentColor" />{recorder.fallbackReason ? 'Stop recording to transcribe' : 'Stop recording'}</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={(text) => {
-        if (recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing') draft.editCapture(text)
-        else { cancelReview(); draft.setText(text) }
-      }}
-        capturing={recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing'}
+      <SkipInterviewQuestionButton pending={state.skipPending} dirty={Boolean(draftText) || Boolean(recorder.recording)} disabled={(!canRecord && !state.skipPending) || turnActive || state.loading || Boolean(state.loadError) || Boolean(state.unresolved) || speechPlaying || reviewPending || savingRecording || recorder.status === "recording" || recorder.status === "requesting" || recorder.status === "finalizing"} busy={state.busy} error={state.error} skip={state.skipQuestion} onOpenChange={setSkipOpen} onSkipped={answer.clear} />
+      <AnswerEditor recordingControls={recorder.status === 'recording' ? <Button variant="destructive" onClick={answer.stop}><Square size={20} fill="currentColor" />{recorder.fallbackReason ? 'Stop recording to transcribe' : 'Stop recording'}</Button> : <Button variant="outline" disabled={!canRecord || (recorder.status === 'requesting' || recorder.status === 'finalizing') || recorder.status === 'ready'} onClick={startCapture}><Mic size={24} />{recorder.status === 'finalizing' ? 'Finalizing answer…' : recorder.status === 'requesting' ? 'Requesting microphone…' : 'Record answer'}</Button>} text={draftText} onTextChange={answer.edit}
+        capturing={answer.capturing}
         disabled={!canRecord}
-        onSubmit={async (text) => {
-          cancelReview()
-          const saved = await state.answerText(text)
-          if (saved) { draft.setText(''); recorder.reset() }
-          return saved
-        }} />
+        onSubmit={answer.submit} />
       {recorder.recording && <div className="flex flex-wrap gap-3 [&_button]:min-h-11">
-          {!recorder.candidateTranscript && !recordedReview && reviewedRecording !== recorder.recording && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => void transcribe()}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
-          <Button variant="outline" disabled={recordingLocked} onClick={discardRecording}>Discard recording</Button>
+          {answer.review.canTranscribe && <Button disabled={!canRecord || savingRecording} aria-busy={savingRecording} onClick={() => { if (canRecord) void answer.transcribe() }}>{savingRecording && <LoaderCircle className="animate-spin motion-reduce:animate-none" aria-hidden="true" />}{savingRecording ? 'Transcribing recording…' : 'Transcribe recording'}</Button>}
+          <Button variant="outline" disabled={recordingLocked} onClick={answer.discardRecording}>Discard recording</Button>
           <Button variant="outline" disabled={!canRecord || savingRecording} onClick={startCapture}>Re-record</Button>
       </div>}
       {recorder.status === 'finalizing' && <p role="status">Finalizing recognition before review…</p>}
-      {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={cancelReview}>Cancel transcription</Button></div>}
-      {!recordedReview && reviewOperation?.status === 'accepted' && reviewOperation.reviewTranscript && <Button variant="outline" onClick={() => {
-        const ticket = draft.beginCapture()
-        finishCapture(ticket, reviewOperation.reviewTranscript!)
-        setRecordedReview({ id: reviewOperation.id, context: draftContext, ticket: null })
-      }}>Review saved transcript</Button>}
+      {reviewPending && <div className="grid gap-2"><p role="status">Transcribing your recording… You can type a replacement answer to cancel transcription.</p><Button variant="outline" disabled={state.busy} onClick={answer.cancelReview}>Cancel transcription</Button></div>}
+      {answer.review.canRestore && <Button variant="outline" onClick={answer.reviewSavedTranscript}>Review saved transcript</Button>}
       {(reviewOperation?.status === 'failed' || reviewOperation?.status === 'expired') && <div className="grid gap-2"><p role="alert">Transcription unavailable. Your recording and any edited text are retained.</p>{reviewOperation.canRetry && <Button variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(reviewOperation.id)}>Retry transcription</Button>}</div>}
       {recorder.recording && <RecordingReview recording={recorder.recording} />}
       {recorder.status === 'recording' && <p role="status">Recording… Stop within 2 minutes.</p>}
       {recorder.status === 'recording' && recorder.effectiveMode !== 'recorded' && !recorder.transcript && !recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Listening for words…</p><p>If you are speaking and no words appear in Your answer, finish recording and choose Transcribe recording. You can also type your answer.</p></div>}
       {recorder.status === 'recording' && recorder.effectiveMode === 'recorded' && !recorder.fallbackReason && <p className="text-sm text-muted-foreground">This mode records audio first. Finish recording, then choose Transcribe recording to see the words.</p>}
-      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : recordedReview || reviewedRecording === recorder.recording ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
+      {recorder.fallbackReason && <div role="status" className="grid gap-1 text-sm"><p className="font-medium">Live transcription stopped</p><p>{recorder.fallbackReason}</p><p>{recorder.status === 'recording' ? 'Your microphone is still recording. Stop recording, then choose Transcribe recording to review the words.' : recorder.status === 'finalizing' ? 'Your recording is being finalized. Transcribe recording will be available when it is ready.' : savingRecording || reviewPending ? 'Transcribing your retained recording. Your edited answer stays under your control.' : answer.review.reviewed ? 'Review and edit your answer before submitting. Your recording is retained.' : 'Choose Transcribe recording to review the words before submitting, or type your answer. Your recording and edited text are retained.'}</p></div>}
       {!browserSpeech && hasQuestionText && speech?.status !== 'accepted' && <p className="text-sm text-muted-foreground">You can read the question and record your answer while interviewer audio is unavailable.</p>}
       {recorder.error && <p role="alert" className="text-destructive">{recorder.error}</p>}
     </div>}

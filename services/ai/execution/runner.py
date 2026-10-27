@@ -10,6 +10,8 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from opentelemetry import trace
+
 logger = logging.getLogger(__name__)
 
 
@@ -42,8 +44,11 @@ class ExecutionRunner:
             return "received"
         if not self.ready or len(self.active) >= self.capacity:
             return "overloaded"
+        # Execution outlives its HTTP receipt and owns a complete priced trace.
+        # Replace only the parent span; retain privacy and other task context.
         # No await separates the capacity check from registration on this loop.
-        task = asyncio.create_task(self.run_once(feature, str(operation_id)))
+        with trace.use_span(trace.INVALID_SPAN):
+            task = asyncio.create_task(self.run_once(feature, str(operation_id)))
         self.active[key] = task
         task.add_done_callback(lambda completed: self._finished(key, completed))
         return "received"

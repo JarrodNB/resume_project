@@ -76,6 +76,12 @@ filters until submit; displayed result context and all continuation/retry reques
 the submitted snapshot even if the form changes. Apollo's search cache is bypassed
 so Rails
 controls freshness. Loaded pages retain individual timestamps and stale warnings.
+`useJobBoardSearch` owns that submitted snapshot, its provider pages, and optional
+ranking coordination. The page supplies a form snapshot and ranking preference,
+then reads submitted context and displayed listings together. Each submission or
+accepted provider page creates a new snapshot identity, including refreshes with
+unchanged listing IDs; ranking uses that identity directly. Form drafts and the
+Hide already saved preference do not change ranking candidates or identity.
 Displayed IDs are deduplicated in first-seen order. A failed page retry preserves
 successful pages. A successful earlier-page refresh preserves descendants when its
 continuation is unchanged; a changed cursor drops the obsolete descendants.

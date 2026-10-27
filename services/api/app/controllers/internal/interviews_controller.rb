@@ -9,11 +9,11 @@ module Internal
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
 
     def claim_references
-      respond Interviews::ClaimReferencesService.call(ai_task: AiTask.find(params.require(:id)))
+      respond Interviews::CurrentPromptWork::References.new.claim(ai_task: AiTask.find(params.require(:id)))
     end
 
     def claim_clarification
-      respond Interviews::ClaimClarificationService.call(ai_task: AiTask.find(params.require(:id)))
+      respond Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: AiTask.find(params.require(:id)))
     end
 
     def discover

@@ -43,7 +43,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(result.dig("data", "requestInterviewReferences", "careerReferences", "aiTaskId")).to eq(record.ai_task_id)
     query = "{ interviewSession(id: \"#{current.id}\") { messages { careerReferences { id status } } } }"
     expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "careerReferences", "id")).to eq(record.id)
-    Interviews::ClaimReferencesService.call(ai_task: record.ai_task)
+    Interviews::CurrentPromptWork::References.new.claim(ai_task: record.ai_task)
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "references" => [] } })
     current.update!(expires_at: 1.second.ago)
     task_query = "{ aiTask(id: \"#{record.ai_task_id}\") { input result } }"
@@ -62,7 +62,7 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(result.dig("data", "requestInterviewClarification", "clarification", "aiTaskId")).to eq(record.ai_task_id)
     query = "{ interviewSession(id: \"#{current.id}\") { messages { clarification { id status } } } }"
     expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "clarification", "id")).to eq(record.id)
-    Interviews::ClaimClarificationService.call(ai_task: record.ai_task)
+    Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: record.ai_task)
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "explanation" => "Explain the question in simpler words." } })
     current.update!(expires_at: 1.second.ago)
     task_query = "{ aiTask(id: \"#{record.ai_task_id}\") { input result } }"

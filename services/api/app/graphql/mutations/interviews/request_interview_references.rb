@@ -8,7 +8,7 @@ module Mutations
       field :career_references, Types::InterviewCareerReferencesType, null: true
 
       def resolve(interview_id:, **args)
-        result = ::Interviews::RequestReferencesService.call(interview: interview(interview_id), **args)
+        result = ::Interviews::CurrentPromptWork::References.new.request(interview: interview(interview_id), **args)
         { career_references: result.success? ? result.value : nil, errors: result.errors }
       end
     end

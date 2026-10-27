@@ -37,18 +37,23 @@ RSpec.describe "Internal interview execution", type: :request do
     expect(response.parsed_body["execution_config"]).to eq(real.execution_config)
   end
 
-  it "claims a queued clarification only through service authentication, once" do
-    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
-    real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
-    clarification = Interviews::RequestClarificationService.call(interview: real, message_id: real.messages.first.id).value
-    endpoint = "/internal/interviews/clarifications/#{clarification.ai_task_id}/claim"
-    post endpoint, params: { user_id: interview.user_id }, as: :json
-    expect(response).to have_http_status(:unauthorized)
-    2.times do |index|
-      post endpoint, headers: headers, as: :json
-      expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["allowed"]).to eq(index.zero?)
-      expect(response.headers["Cache-Control"]).to eq("no-store")
+  [
+    [ Interviews::CurrentPromptWork::Clarification, "clarifications" ],
+    [ Interviews::CurrentPromptWork::References, "references" ]
+  ].each do |feature, resource|
+    it "claims queued #{resource} only through service authentication, once" do
+      allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+      real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
+      record = feature.new.request(interview: real, message_id: real.messages.first.id).value
+      endpoint = "/internal/interviews/#{resource}/#{record.ai_task_id}/claim"
+      post endpoint, params: { user_id: interview.user_id }, as: :json
+      expect(response).to have_http_status(:unauthorized)
+      2.times do |index|
+        post endpoint, headers: headers, as: :json
+        expect(response).to have_http_status(:ok)
+        expect(response.parsed_body["allowed"]).to eq(index.zero?)
+        expect(response.headers["Cache-Control"]).to eq("no-store")
+      end
     end
   end
 

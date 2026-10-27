@@ -12,7 +12,7 @@ the `result` sent to Rails, so changes must be mirrored there.
 - `parsed_job_posting.py` — `ParsedJobPosting`, the parse agent's output (title, company, requirements, responsibilities, nice-to-haves; not sent to Rails)
 - `scraped_job_posting.py` — `ScrapedJobPosting`, the `scrape_job` and `parse_job_posting` result
   (`result["scraped_job"]`); Rails turns it into a Job in
-  `Jobs::CreateJobFromScrapedPostingService`
+  `Jobs::CreateJobFromPostingService`
 - `sorted_requirement_bullets.py` — `SortedRequirementBullets`, the job requirements sorting
   agent's output (1-based bullet numbers for requirements, responsibilities, and nice-to-haves)
 - `gap_analysis_context.py` — `GapAnalysisContext` (job + `CareerLibrary`, including library facts),

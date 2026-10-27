@@ -48,11 +48,11 @@ All business logic, as service objects grouped by domain folder.
   owned Job and matching fingerprints; edits lock/reload and clear changed field checks atomically;
   `start_job_scraping_service.rb` (accepts LinkedIn job links only, canonicalizes them to
   `https://www.linkedin.com/jobs/view/<id>/`, rejects a job the user already saved, enqueues
-  `scrape_job`);   `create_job_from_scraped_posting_service.rb` (saves the Job from a
-  `ScrapedJobPosting` with the task's canonical URL; reuses the user's Job for the same URL);
+  `scrape_job`); `create_job_from_posting_service.rb` saves scraped and pasted results with
+  shared validation/mapping and owned URL reuse. Scrapes use the task's canonical URL;
   `start_job_posting_parse_service.rb` (rejects a blank or oversized paste, enqueues
-  `parse_job_posting`); `create_job_from_pasted_posting_service.rb` (saves that result; a blank
-  link is nil and is not used to find an existing job; a present link reuses the user's Job)
+  `parse_job_posting`); pasted results use the posting's link, or nil. A blank link is not
+  used to find an existing job.
 - `gap_analysis/start_gap_analysis_service.rb` — checks the job has requirements, responsibilities, or nice-to-haves, the career
   library isn't empty, and no analysis for this job is already running (within the in-flight
   window), then enqueues `analyze_gaps` with the job as task `subject`; the result stays on the

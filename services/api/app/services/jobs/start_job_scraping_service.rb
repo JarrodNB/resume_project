@@ -1,7 +1,7 @@
 # Description: Queues a scrape_job AI task for a LinkedIn job link. The link is reduced to its
 # canonical form (https://www.linkedin.com/jobs/view/<id>/) so tracking parameters and search-page
 # links don't create duplicate jobs. The AI worker scrapes the posting with a deterministic
-# scraper; Jobs::CreateJobFromScrapedPostingService saves the Job when the result arrives.
+# scraper; Jobs::CreateJobFromPostingService saves the Job when the result arrives.
 # Index:
 #   - UNSUPPORTED_URL_MESSAGE: shown for links that aren't one LinkedIn job
 #   - call: canonicalizes the link, rejects jobs already saved, enqueues; returns the AiTask

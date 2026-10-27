@@ -1,5 +1,5 @@
 # Description: Queues a parse_job_posting AI task for a job advertisement the user pasted.
-# The worker extracts a title, company, and requirement lines; Jobs::CreateJobFromPastedPostingService
+# The worker extracts a title, company, and requirement lines; Jobs::CreateJobFromPostingService
 # saves the Job when the result arrives.
 # Index:
 #   - BLANK_MESSAGE / TOO_LONG_MESSAGE: shown when the paste can't be queued

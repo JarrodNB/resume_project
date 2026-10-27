@@ -96,8 +96,17 @@ such as `redis://redis:6379/15` when running checks in the Compose streaming pro
 Tests use unique synthetic stream keys and never flush the service database.
 
 With an isolated local Redis running, execute `python -m scripts.stream_latency_probe`
-from the AI project. The probe reports p50/p95 admission, relay and first-visible-text
-latency at one and eight concurrent streams. It uses real Redis TCP and in-process ASGI
+from the AI project. The probe reports p50/p95 admission, relay, first-visible-text
+and completion latency at one and eight concurrent streams. Completion ends at the
+observer's synthetic `completed` event; Rails acceptance is mocked. It also records
+before, sampled peak, after and retained change in bytes for Linux process RSS and
+Redis used memory/RSS. Sampling waits 10 ms between reads and includes case boundaries, so short peaks
+can be missed; Redis updates its RSS on its own schedule. Process memory includes
+both ASGI apps, clients and probe bookkeeping. Redis measurements cover the entire
+instance: use an isolated Redis for attribution. Cases retain keys and allocator
+memory between runs and never flush Redis. Sampling adds overhead; each short stream
+emits three events, so this does not establish sustained token throughput or capacity.
+The probe uses real Redis TCP and in-process ASGI
 HTTP/WebSocket clients, plus a five-millisecond synthetic provider and mocked Rails
 authority. External HTTP/TLS/authentication, actual screening and model latency are
 excluded. These measurements verify framework behavior; they are not production SLOs

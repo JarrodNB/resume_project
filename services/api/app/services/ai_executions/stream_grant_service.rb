@@ -18,15 +18,15 @@ module AiExecutions
       end
       return failure("Stream unavailable") unless grant
 
+      authority = Features.stream_authority(grant.feature)
       grant.user.with_lock do
-        operation = StreamAuthority.operation(grant.feature, grant.operation_id, grant.user)
+        operation = authority.operation(grant.operation_id, grant.user)
         next failure("Stream unavailable") unless operation
-        operation.interview_session.lock!
-        operation.lock!
+        authority.lock(operation)
         grant.lock!
         identity = BrowserSessions::ResolveSessionIdentityService.call(private_id: grant.session_digest)
         valid = grant.expires_at > Time.current && identity.success? && identity.value.id == grant.user_id &&
-          StreamAuthority.current?(operation, attempt_id: grant.attempt_id, claim_generation: grant.claim_generation)
+          authority.current?(operation, attempt_id: grant.attempt_id, claim_generation: grant.claim_generation)
         next failure("Stream unavailable") unless valid
         if @action == "redeem"
           next failure("Capability already used") if grant.redeemed_at
@@ -35,8 +35,11 @@ module AiExecutions
           next failure("Capability not redeemed") unless grant.redeemed_at
         end
         success({ grant_id: grant.id, feature: grant.feature, operation_id: grant.operation_id,
-          attempt_id: grant.attempt_id, claim_generation: grant.claim_generation, expires_at: grant.expires_at.iso8601 })
+          attempt_id: grant.attempt_id, claim_generation: grant.claim_generation,
+          status: operation.status, expires_at: grant.expires_at.iso8601 })
       end
+    rescue ArgumentError
+      failure("Stream unavailable")
     end
   end
 end

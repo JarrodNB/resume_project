@@ -12,21 +12,25 @@ module AiExecutions
       identity = BrowserSessions::ResolveSessionIdentityService.call(session_id: @session_id)
       return failure("Authentication required") unless @user && identity.success? && identity.value.id == @user.id
 
+      authority = Features.stream_authority(@feature)
       @user.with_lock do
-        operation = StreamAuthority.operation(@feature, @operation_id, @user)
+        next failure("Too many active stream capabilities") if AiExecutionStreamGrant.where(user: @user)
+          .where("expires_at > ?", Time.current).count >= 8
+        operation = authority.operation(@operation_id, @user)
         next failure("Stream unavailable") unless operation
-        operation.interview_session.lock!
-        operation.lock!
-        next failure("Stream unavailable") unless StreamAuthority.current?(operation,
+        authority.lock(operation)
+        next failure("Stream unavailable") unless authority.current?(operation,
           attempt_id: operation.attempt_id, claim_generation: operation.claim_generation) && operation.attempt_id.present?
 
         token = SecureRandom.urlsafe_base64(32)
         grant = AiExecutionStreamGrant.create!(user: @user, session_digest: @session_id.private_id,
           feature: @feature, operation_id: operation.id, attempt_id: operation.attempt_id,
           claim_generation: operation.claim_generation, token_digest: Digest::SHA256.hexdigest(token),
-          expires_at: [ 60.seconds.from_now, operation.interview_session.expires_at ].min)
+          expires_at: [ 60.seconds.from_now, authority.expires_at(operation) ].min)
         success({ token: token, expires_at: grant.expires_at.iso8601 })
       end
+    rescue ArgumentError
+      failure("Stream unavailable")
     end
   end
 end

@@ -7,14 +7,14 @@ import httpx
 
 
 class RailsStreamOwner:
-    def __init__(self, origin, secret):
+    def __init__(self, origin, secret, *, transport=None):
         parsed = urlsplit(origin)
         if (parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username
                 or parsed.password or parsed.path not in {"", "/"} or parsed.query or parsed.fragment
                 or not secret or any(char in secret for char in "\r\n")):
             raise ValueError("Explicit Rails origin and service secret are required")
         self.origin = origin.rstrip("/")
-        self.client = httpx.AsyncClient(timeout=2, follow_redirects=False, trust_env=False,
+        self.client = httpx.AsyncClient(transport=transport, timeout=2, follow_redirects=False, trust_env=False,
             headers={"Authorization": f"Bearer {secret}"})
 
     async def __call__(self, action, payload):

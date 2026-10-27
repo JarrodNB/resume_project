@@ -21,6 +21,10 @@ test support. See docs/architecture/interview-sessions.md.
   adapters own claims, provider calls and Rails acceptance. Its optional output sink
   does not create a second scheduling or accounting lifecycle. `/internal/executions`
   receipts acknowledge a nudge only; Rails owns durable delivery and watchdog jobs.
+- Streaming is an opt-in output sink on that runner, never another lifecycle.
+  Interviews remain final-only. `execution/stream_runtime.py` creates no Redis client
+  when only final-only adapters are registered; observer sockets never start work.
+  See docs/architecture/ai-streaming.md for capability, replay and latency contracts.
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
   Basic Interview is the scoped exception: a separate FastAPI process claims durable

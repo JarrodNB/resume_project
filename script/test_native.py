@@ -170,11 +170,37 @@ class NativeSetupTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
                     native.check()
 
+    def test_streaming_redis_is_opt_in_and_external_redis_is_not_started(self):
+        (self.state / "emulators/bin").mkdir(parents=True)
+        (self.state / "emulators/bin/moto_server").touch()
+        for enabled, redis_url, expected in [("false", "", False), ("true", "", True),
+                ("true", "redis://external:6379/0", False)]:
+            started = []
+            with patch.dict(os.environ, {"AI_STREAMING_ENABLED": enabled, "AI_STREAM_REDIS_URL": redis_url}), \
+                    patch.object(native, "spawn", side_effect=lambda name, *args, started=started: (
+                        started.append(name) or type("Process", (), {"poll": lambda self: None})())), \
+                    patch.object(native, "require_tools"), patch.object(native, "prepare_database"), \
+                    patch.object(native, "run"), patch.object(native, "wait_port"), \
+                    patch.object(native, "check"), patch.object(native.time, "sleep"), patch("socket.socket"):
+                native.start()
+            self.assertEqual("redis" in started, expected)
+
     def test_check_accepts_the_recorded_jobs_process_identity(self):
         self.state.mkdir()
         (self.state / "jobs.pid").write_text(json.dumps({
             "pid": os.getpid(), "started": native.process_start(os.getpid())}))
         with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            native.check()
+
+    def test_optional_redis_check_requires_its_recorded_process_identity(self):
+        self.state.mkdir()
+        identity = {"pid": os.getpid(), "started": native.process_start(os.getpid())}
+        (self.state / "jobs.pid").write_text(json.dumps(identity))
+        with patch.dict(os.environ, {"AI_STREAMING_ENABLED": "true", "AI_STREAM_REDIS_URL": ""}), \
+                patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            with self.assertRaisesRegex(RuntimeError, "Optional stream buffer is not running"):
+                native.check()
+            (self.state / "redis.pid").write_text(json.dumps(identity))
             native.check()
 
     def test_background_process_starts_and_stops(self):

@@ -9,6 +9,9 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 ## Contents
 
+- `ai_executions/prune_stream_grants_job.rb` — bounded expiry cleanup for observer grants;
+  catches up remaining batches without touching durable model execution.
+
 - `ai_executions/` — transactional dispatch and exact-lease recovery jobs, plus
   bounded framework-failure reconciliation. HTTP202 alone never completes delivery;
   stale delivery/watchdog identities cannot stop a newer execution cycle.

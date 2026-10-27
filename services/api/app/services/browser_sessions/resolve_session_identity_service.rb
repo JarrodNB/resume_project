@@ -2,6 +2,7 @@
 # the serialized user and password salt; the timestamp limits authentication to one day.
 module BrowserSessions
   class ResolveSessionIdentityService < ApplicationService
+    # Only server-owned observer grants supply a stored digest; browsers never do.
     def initialize(session_id: nil, private_id: nil)
       @private_id = session_id&.private_id || private_id
     end

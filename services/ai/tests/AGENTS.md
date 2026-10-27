@@ -6,6 +6,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai-worker pytest`
 
 ## Contents
 
+- `test_execution_streaming.py` — real local Redis protocol, shared-runner optional output,
+  authenticated observer/replay tests; uses `REDIS_SERVER` or explicit local `AI_TEST_REDIS_URL`.
+
 - `test_shared_ai_support.py` — fresh-process checks keep HTTP/model helpers independent
   of worker imports and queue-only configuration.
 

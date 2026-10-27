@@ -2,6 +2,7 @@
 require "rails_helper"
 
 RSpec.describe "AI execution stream grants" do
+  include ActiveJob::TestHelper
   let(:user) { create(:user) }
   let(:session_id) { Rack::Session::SessionId.new(SecureRandom.hex(32)) }
   let!(:browser_session) do
@@ -41,6 +42,11 @@ RSpec.describe "AI execution stream grants" do
     expect(AiExecutionStreamGrant.count).to eq(0)
   end
 
+  it "keeps observer and session digests outside the AI reader role" do
+    expect(ApplicationRecord.connection.select_value(
+      "SELECT has_table_privilege('ai_reader', 'ai_execution_stream_grants', 'SELECT')")).to be(false)
+  end
+
   it "redeems each capability once and permits a fresh read-only reconnect" do
     first = authorize.value.fetch(:token)
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: first).success?).to be(true)
@@ -76,5 +82,27 @@ RSpec.describe "AI execution stream grants" do
       feature: "arbitrary_class", operation_id: operation.id).success?).to be(false)
     allow(ENV).to receive(:[]).with("AI_STREAMING_ENABLED").and_return("false")
     expect(authorize.success?).to be(false)
+  end
+
+  it "bounds active capabilities without preventing expired-grant cleanup" do
+    8.times { expect(authorize.success?).to be(true) }
+    expect(authorize.success?).to be(false)
+    AiExecutionStreamGrant.update_all(expires_at: 1.minute.ago)
+    AiExecutions::PruneStreamGrantsService.call
+    expect(AiExecutionStreamGrant.count).to eq(0)
+    expect(authorize.success?).to be(true)
+  end
+
+  it "catches up expired credential batches while retaining live grants" do
+    authorize
+    live = AiExecutionStreamGrant.last
+    rows = 501.times.map do
+      live.attributes.except("id").merge("token_digest" => SecureRandom.hex(32), "expires_at" => 1.minute.ago)
+    end
+    AiExecutionStreamGrant.insert_all!(rows)
+    perform_enqueued_jobs(only: AiExecutions::PruneStreamGrantsJob) do
+      AiExecutions::PruneStreamGrantsJob.perform_later
+    end
+    expect(AiExecutionStreamGrant.pluck(:id)).to eq([ live.id ])
   end
 end

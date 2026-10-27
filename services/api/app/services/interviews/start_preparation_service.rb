@@ -47,8 +47,7 @@ module Interviews
           end
         end
         return failure("Your interview sources are too long for preparation. Shorten your job, career library or saved question preferences and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
-        if @user.interview_sessions.where(status: %w[preparing ready active]).where("expires_at > ?", Time.current)
-            .where.not(frozen_context: {}).exists?
+        if @user.interview_sessions.blocking_new_preparation.exists?
           next failure("Resume or abandon your unfinished interview before preparing another.")
         end
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)

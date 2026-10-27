@@ -1,8 +1,9 @@
 /** Verifies saved-job setup keeps the source explicit while reusing round choices. */
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { InterviewSetup } from './InterviewSetup'
+import { UNFINISHED_INTERVIEW } from './interviewOperations'
 
 const { start } = vi.hoisted(() => ({ start: vi.fn() }))
 vi.mock('./useInterviewSession', () => ({ useStartInterview: () => ({ start, loading: false, error: null }) }))
@@ -15,6 +16,7 @@ beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); start.mockResolvedV
 it('prepares for the selected job with limited-context copy and the existing round choices', async () => {
   const { router } = renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview',
     element: <InterviewSetup notice={null} job={job} />,
+    mocks: [{ request: { query: UNFINISHED_INTERVIEW }, result: { data: { unfinishedInterviewSession: null } } }],
     extraRoutes: [{ path: '/interviews/:id', element: <p>Saved interview preparation</p> }],
   })
   expect(screen.getByRole('heading', { name: 'Laboratory technician' })).toBeVisible()
@@ -22,6 +24,7 @@ it('prepares for the selected job with limited-context copy and the existing rou
   expect(screen.queryByText(/prepare a fictional role/)).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('radio', { name: /Stretch/ }))
   fireEvent.click(screen.getByRole('radio', { name: /Short/ }))
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'mixed', difficulty: 'stretch',
     interviewer: 'daniel', focusAreas: [] }, 'job-1')

@@ -2224,6 +2224,7 @@ type Query {
   resumes: [Resume!]!
   skills: [Skill!]!
   taskOutcomes(after: String!, limit: Int = 100, through: String!): AiTaskOutcomePage!
+  unfinishedInterviewSession: InterviewSession
 }
 
 """

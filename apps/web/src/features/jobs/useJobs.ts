@@ -2,7 +2,7 @@
  * Description: Hooks that load saved jobs.
  * Index:
  *   - useJobs: the user's jobs plus loading and error state
- *   - useJob: one job plus loading and error state
+ *   - useJob: one job plus loading, error state, and an explicit reload
  */
 import { useQuery } from '@apollo/client/react'
 import { JOB_QUERY, JOBS_QUERY } from './jobsOperations'
@@ -15,6 +15,6 @@ export function useJobs() {
 
 /** Fetches one of the user's jobs by id. */
 export function useJob(id: string) {
-  const { data, loading, error } = useQuery(JOB_QUERY, { variables: { id } })
-  return { job: data?.job ?? null, loading, error }
+  const { data, loading, error, refetch } = useQuery(JOB_QUERY, { variables: { id } })
+  return { job: data?.job ?? null, loading, error, refresh: refetch }
 }

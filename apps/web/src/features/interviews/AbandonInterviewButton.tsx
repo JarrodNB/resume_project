@@ -19,7 +19,7 @@ export function AbandonInterviewButton({ busy, dirty, beforeStart = false, textD
     } finally { confirming.current = false }
   }
   return <>
-    <Button className="justify-self-start" variant="outline" disabled={busy} onClick={() => setOpen(true)}>{beforeStart ? 'Cancel preparation' : 'Abandon interview'}</Button>
+    <Button type="button" className="justify-self-start" variant="outline" disabled={busy} onClick={() => setOpen(true)}>{beforeStart ? 'Cancel preparation' : 'Abandon interview'}</Button>
     <Dialog open={open} onOpenChange={(value) => { if (!busy) setOpen(value) }}>
       <DialogContent aria-describedby={beforeStart ? undefined : descriptionId}>
         <DialogHeader>
@@ -28,8 +28,8 @@ export function AbandonInterviewButton({ busy, dirty, beforeStart = false, textD
         </DialogHeader>
         {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <DialogFooter>
-          <Button autoFocus variant="outline" disabled={busy} onClick={() => setOpen(false)}>{beforeStart ? 'Keep preparation' : 'Keep interview'}</Button>
-          <Button variant="destructive" disabled={busy} onClick={() => void confirm()}>{busy ? busyLabel : confirmLabel}</Button>
+          <Button type="button" autoFocus variant="outline" disabled={busy} onClick={() => setOpen(false)}>{beforeStart ? 'Keep preparation' : 'Keep interview'}</Button>
+          <Button type="button" variant="destructive" disabled={busy} onClick={() => void confirm()}>{busy ? busyLabel : confirmLabel}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

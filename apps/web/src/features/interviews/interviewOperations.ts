@@ -64,6 +64,18 @@ export const RECENT_INTERVIEWS = graphql(`
   }
 `)
 
+export const UNFINISHED_INTERVIEW = graphql(`
+  query UnfinishedInterviewSession {
+    unfinishedInterviewSession { id status jobContext { id title company } }
+  }
+`)
+
+export const ABANDON_UNFINISHED_INTERVIEW = graphql(`
+  mutation AbandonUnfinishedInterview($interviewId: ID!) {
+    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }
+  }
+`)
+
 export const START_RECORDED_TRANSCRIPTION = graphql(`
   mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {
     startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }

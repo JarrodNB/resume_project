@@ -73,6 +73,8 @@ type Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
+    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": typeof types.UnfinishedInterviewSessionDocument,
+    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": typeof types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": typeof types.RequestInterviewClarificationDocument,
@@ -166,6 +168,8 @@ const documents: Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
+    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": types.UnfinishedInterviewSessionDocument,
+    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": types.RequestInterviewClarificationDocument,
@@ -450,6 +454,14 @@ export function graphql(source: "\n  mutation AbandonInterview($interviewId: ID!
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n"): (typeof documents)["\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"): (typeof documents)["\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"): (typeof documents)["\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

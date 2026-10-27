@@ -3,9 +3,11 @@ require "rails_helper"
 
 RSpec.describe "Job Board authentication", type: :request do
   it "rejects signed-out search and import before reading or writing shared or private data" do
+    expect(JobBoard::SuggestLocationsService).not_to receive(:call)
     expect(JobBoard::SearchCatalogueService).not_to receive(:call)
     expect(JobBoard::ImportListingService).not_to receive(:call)
     queries = [
+      '{ jobBoardLocations(query: "Boston") { errors } }',
       '{ jobBoardSearch(keyword: "Engineer") { errors } }',
       'mutation { importJobBoardListing(input: { listingId: "unknown" }) { errors } }'
     ]

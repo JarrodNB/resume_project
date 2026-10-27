@@ -7,6 +7,7 @@ module Types
     field :speech_playback_mode, String, null: false
     field :interview_type, String, null: false
     field :prepared_role, GraphQL::Types::JSON, null: false
+    field :job_context, Types::InterviewJobContextType, null: true
     field :setup, Types::InterviewSetupType, null: false
     field :revision, Integer, null: false
     field :answer_cap, Integer, null: false
@@ -19,6 +20,11 @@ module Types
 
     def speech_playback_mode
       Interviews::SpeechPlayback.mode(object)
+    end
+
+    def job_context
+      context = object.frozen_context["job"]
+      context&.merge("id" => object.job_id)
     end
 
     def setup

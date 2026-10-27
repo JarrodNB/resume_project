@@ -1,5 +1,5 @@
 /**
- * Checks saved-job actions: editing, stages, deletion, resumes, and visiting the saved website.
+ * Checks saved-job actions: editing, stages, deletion, resumes, interview setup and the saved website.
  */
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -50,6 +50,20 @@ const savedAttributes = {
   responsibilities: [],
   niceToHaves: [],
 }
+
+it('opens spoken interview setup for this saved job without changing its stage', async () => {
+  const user = userEvent.setup()
+  const { router } = renderPage({
+    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+    mocks: [jobQuery(job())],
+    extraRoutes: [{ path: '/jobs/:jobId/interview', element: <p>Job interview setup</p> }],
+  })
+  const action = await screen.findByRole('link', { name: 'Practise interview' })
+  expect(action).toHaveAttribute('href', '/jobs/job-1/interview')
+  await user.click(action)
+  expect(router.state.location.pathname).toBe('/jobs/job-1/interview')
+  expect(screen.getByText('Job interview setup')).toBeVisible()
+})
 
 it('offers the saved website in a new tab without changing the application stage', async () => {
   const user = userEvent.setup()

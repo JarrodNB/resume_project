@@ -1,4 +1,4 @@
-# Remembers successful screening of exact frozen sources before dependent model work.
+# Remembers successful screening of exact frozen career and job sources before model work.
 # Only a current execution may report source indices. Live fields earn approval only
 # when their owned, locked value still equals the screened snapshot; replay is harmless.
 # Preparation may also remember an exact frozen career-focus check, never a session-wide pass.
@@ -44,7 +44,7 @@ module Interviews
           next unless record
 
           record.with_lock do
-            next unless record[source["field"]] == source["text"]
+            next unless record[source["field"]] == FrozenLibraryScreening.source_value(source)
             fields = record.screened_fields | [ source["field"] ]
             record.update!(screened_fields: fields) if fields != record.screened_fields
           end

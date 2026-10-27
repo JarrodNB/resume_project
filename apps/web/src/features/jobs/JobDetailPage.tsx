@@ -1,5 +1,5 @@
 /**
- * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, or write a resume, then how the
+ * Description: One saved job (/jobs/:id): edit it, move its stage, delete it, write a resume or practise an interview, then how the
  * career library matches it, requirements, responsibilities, nice-to-haves, notes, the description, and the
  * saved website. Job Board import omissions stay visible on arrival. Requirements, responsibilities,
  * nice-to-haves, notes, and the description start collapsed.
@@ -98,6 +98,9 @@ function JobDetails({ id }: { id: string }) {
                 comparisonBusy={comparison.busy}
                 onCompare={() => void comparison.start()}
               />
+              <Button asChild variant="outline" size="sm">
+                <Link to={`/jobs/${job.id}/interview`}>Practise interview</Link>
+              </Button>
               {job.url && (
                 <Button asChild variant="outline" size="sm">
                   <a href={job.url} target="_blank" rel="noreferrer">

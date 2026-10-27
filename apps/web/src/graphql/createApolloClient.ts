@@ -1,6 +1,7 @@
 /**
  * Description: Builds the Apollo Client for one session. Queries and mutations (including file
  * uploads, via the GraphQL multipart spec) go over HTTP; subscriptions go over ActionCable.
+ * Frozen vacancy details belong to their interview rather than to the live job's cache identity.
  * Index:
  *   - ApolloSession: the client plus a dispose function that closes its WebSocket connection
  *   - createApolloClient: builds cookie/CSRF HTTP and cookie-authenticated Cable transports
@@ -54,7 +55,22 @@ export function createApolloClient({ signedIn, csrfToken, onUnauthorized }: Crea
       )
     : httpLink
 
-  const cache = new InMemoryCache()
+  const cache = new InMemoryCache({
+    typePolicies: {
+      // The id is a navigation link shared by snapshots from different interviews.
+      InterviewJobContext: { keyFields: false },
+      InterviewSession: { fields: { jobContext: {
+        merge(existing, incoming, { mergeObjects, readField }) {
+          // History selects fewer fields than the room; merge within this interview.
+          const merged = mergeObjects(existing, incoming)
+          // A job link can only be detached. Late responses must not restore it.
+          return existing && incoming && readField('id', existing) === null
+            ? { ...merged, id: null }
+            : merged
+        },
+      } } },
+    },
+  })
   const client = new ApolloClient({
     link: ApolloLink.from([unauthorizedLink, orderedInterviewSnapshots(cache), transportLink]),
     cache,

@@ -185,4 +185,38 @@ RSpec.describe JobBoard::SearchCatalogueService do
     page = JobBoardSearchPage.first
     expect { JobBoardSearchPage.transaction(requires_new: true) { page.dup.save! } }.to raise_error(ActiveRecord::RecordNotUnique)
   end
+  it "shares canonical filter sets while keeping each changed filter and cursor separate" do
+    allow(provider).to receive(:call).and_return(successful_page)
+    filters = { max_age: "7d", city_id: 5391959, employment_types: %w[CONTRACT FULL_TIME], remote_type: "hybrid",
+      minimum_salary: 100000, include_undisclosed_salaries: false, company_name: "  Acme   Labs ", sort_by: "relevance" }
+    first = search(filters: filters).value
+    equivalent = filters.merge(company_name: "acme labs", employment_types: %w[FULL_TIME CONTRACT FULL_TIME])
+    expect(search(filters: equivalent).value).to eq(first)
+    expect(provider).to have_received(:call).once
+    filters.each_key { |key| search(filters: filters.except(key)) }
+    search(filters: filters, cursor: "Next")
+    search(filters: filters, cursor: "next")
+    expect(JobBoardSearchPage.count).to eq(11)
+  end
+
+  it "refreshes date-filtered results after fifteen minutes while leaving unrestricted pages cached" do
+    travel_to(Time.utc(2026, 10, 27, 1)) do
+      allow(provider).to receive(:call).and_return(successful_page)
+      search(filters: { max_age: "24h" })
+      search
+      travel 15.minutes - 1.second
+      search(filters: { max_age: "24h" })
+      expect(provider).to have_received(:call).twice
+      travel 1.second
+      search(filters: { max_age: "24h" })
+      search
+      expect(provider).to have_received(:call).exactly(3).times
+    end
+  end
+
+  it "rejects bad optional filters before creating cache records" do
+    expect(provider).not_to receive(:call)
+    expect(search(filters: { minimum_salary: -100 })).not_to be_success
+    expect(JobBoardSearchPage.count).to eq(0)
+  end
 end

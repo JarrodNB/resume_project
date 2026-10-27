@@ -5,6 +5,7 @@ require "json"
 require "timeout"
 require_relative "listing_location"
 require_relative "experience_levels"
+require_relative "search_filters"
 
 module JobBoard
   class SearchCleanJobDataService < ApplicationService
@@ -12,25 +13,27 @@ module JobBoard
     TRANSIENT_RATE_LIMIT = "Too many requests. Please slow down and retry.".freeze
     UNAVAILABLE = "CleanJobData is temporarily unavailable. Please retry.".freeze
     INVALID_PAGE = "CleanJobData returned an invalid search page.".freeze
-    STRING_FIELDS = %w[description published remote_type expired_at].freeze
+    STRING_FIELDS = %w[description published remote_type expired_at employment_type salary_text salary_currency].freeze
 
     # @param keyword [String] nonblank title/keyword search, at most 200 characters
     # @param remote_only [Boolean] require the provider's remote filter
     # @param experience_levels [Array<String>] provider codes; empty means all levels
+    # @param filters [Hash] date, location, employment, remote type, salary, company and sort
     # @param cursor [String, nil] opaque token from the same search's previous page
     # @return [ServiceResult] {listings: Array<Hash>, next_cursor: String | nil}
     #   Listings keep provider field names, with only confirmed US locations and a
     #   display location preferring those rows, with original-text fallback.
     #   Optional fields remain missing/null.
     #   Failure messages are safe to show and never contain raw provider responses.
-    def initialize(keyword:, api_key: ENV["CLEANJOBDATA_API_KEY"], remote_only: false, cursor: nil, experience_levels: [])
+    def initialize(keyword:, api_key: ENV["CLEANJOBDATA_API_KEY"], remote_only: false, cursor: nil, experience_levels: [], filters: {})
       @keyword, @api_key, @remote_only, @cursor = keyword, api_key, remote_only, cursor
       @experience_levels = ExperienceLevels.normalize(experience_levels)
+      @filters = SearchFilters.normalize(filters)
     end
 
     def call
       return failure("Enter a keyword of 1 to 200 characters.") unless valid_text?(@keyword, 200)
-      return failure("Invalid search filters.") unless @experience_levels && [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
+      return failure("Invalid search filters.") unless @filters && @experience_levels && [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
       return failure("CleanJobData is not configured.") unless valid_text?(@api_key, 4096)
 
       # The total deadline also bounds slow streaming reads across both attempts.
@@ -72,6 +75,8 @@ module JobBoard
       parameters = { title: @keyword.strip, country_id: "233", extra_fields: "description" }
       parameters[:remote] = "true" if @remote_only
       parameters[:experience_level] = @experience_levels.join(",") if @experience_levels.any?
+      parameters.merge!(SearchFilters.parameters(@filters))
+      parameters[:remote] = "true" if @filters[:remote_type]
       parameters[:cursor] = @cursor if @cursor
       uri.query = URI.encode_www_form(parameters)
       # Ignore proxy environment variables; the host and HTTPS transport are fixed.

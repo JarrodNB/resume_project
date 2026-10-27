@@ -1,4 +1,4 @@
-/** Lists owned saved sessions on the existing spoken interview start route. */
+/** Lists owned sessions with their frozen job identity so past practice stays recognizable. */
 import { Link } from 'react-router'
 import { SectionCard } from '@/components/SectionCard'
 import { Button } from '@/components/ui/button'
@@ -16,11 +16,12 @@ export function RecentInterviews() {
         const date = new Date(interview.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
         return <li key={interview.id} className="flex flex-wrap items-center justify-between gap-3 py-4 last:pb-0">
           <div className="grid gap-1 text-sm">
+            {interview.jobContext && <><p className="font-medium break-words">{interview.jobContext.title}</p><p className="text-muted-foreground break-words">{interview.jobContext.company ?? 'Unknown company'}</p></>}
             <p className="font-medium">{interview.status === 'abandoned' ? 'Ended' : interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</p>
             <time className="text-muted-foreground" dateTime={interview.createdAt}>{date}</time>
             {interview.questions.length > 0 && interview.status !== 'abandoned' && interview.status !== 'expired' && <p className="text-muted-foreground">{interview.status === 'completed' ? `${interview.questions.length} core questions` : `Core question ${interview.currentQuestionPosition + 1} of ${interview.questions.length}`}</p>}
           </div>
-          {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
+          {interview.status !== 'abandoned' && interview.status !== 'expired' && <Link className="text-sm underline underline-offset-4" to={`/interviews/${interview.id}`} aria-label={`${interview.status === 'completed' ? 'Review' : 'Resume'} interview${interview.jobContext ? ` for ${interview.jobContext.title}` : ''} from ${date}`}>{interview.status === 'completed' ? 'Review interview' : 'Resume interview'}</Link>}
         </li>
       })}
     </ol>

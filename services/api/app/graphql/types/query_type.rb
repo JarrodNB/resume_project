@@ -3,6 +3,7 @@
 # Root queries keep private records owner-scoped. Authenticated Job Board search
 # reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
+#   - interview_session, recent_interview_sessions, unfinished_interview_session
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
 #   - experiences, projects, educations, certifications, skills, library_facts (career library)
@@ -13,6 +14,7 @@ module Types
   class QueryType < Types::BaseObject
     field :interview_demo_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
+    field :unfinished_interview_session, Types::InterviewSessionType, null: true
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
     end
@@ -32,6 +34,11 @@ module Types
         .order(created_at: :desc, id: :desc).limit(20)
     end
 
+    def unfinished_interview_session
+      Interviews::DemoAccess.check!(current_user)
+      current_user.interview_sessions.blocking_new_preparation.order(created_at: :desc, id: :desc).first
+    end
+
     field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false
     field :interview_question_set, Types::InterviewQuestionSetType, null: false do
       argument :id, ID, required: true
@@ -39,14 +46,24 @@ module Types
 
     field :job_board_search, Types::JobBoardSearchPageType, null: false do
       argument :keyword, String, required: true
+      argument :filters, Types::JobBoardFiltersInput, required: false
       argument :experience_levels, [ Types::JobBoardExperienceLevelEnum ], required: false, default_value: []
       argument :remote_only, Boolean, required: false, default_value: false
       argument :cursor, String, required: false
     end
 
-    def job_board_search(keyword:, remote_only: false, cursor: nil, experience_levels: [])
-      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, experience_levels: experience_levels, cursor: cursor)
+    def job_board_search(keyword:, remote_only: false, cursor: nil, experience_levels: [], filters: nil)
+      result = JobBoard::SearchCatalogueService.call(keyword: keyword, remote_only: remote_only, experience_levels: experience_levels, cursor: cursor, filters: filters&.to_h || {})
       result.value || { listings: [], next_cursor: nil, retrieved_at: nil, stale: false, errors: result.errors }
+    end
+
+    field :job_board_locations, Types::JobBoardLocationsPageType, null: false do
+      argument :query, String, required: true
+    end
+
+    def job_board_locations(query:)
+      result = JobBoard::SuggestLocationsService.call(query: query)
+      result.value || { locations: [], errors: result.errors }
     end
 
     field :me, Types::UserType, null: false

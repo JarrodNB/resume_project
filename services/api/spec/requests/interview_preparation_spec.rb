@@ -41,6 +41,28 @@ RSpec.describe "Internal interview preparation", type: :request do
     expect(interview.questions.count).to eq(8)
     expect(interview.messages).to be_empty
   end
+
+  it "accepts explicit null role for an owned saved-job claim and persists its exact source checks" do
+    job = create(:job, user: owner, title: "Laboratory technician", company: nil,
+      requirements: [], responsibilities: [], nice_to_haves: [])
+    prepared = Interviews::StartPreparationService.call(user: owner, job: job).value
+    path = "/internal/interviews/operations/#{prepared.operations.first.id}"
+    post "#{path}/claim", params: { execution_mode: "real" }, headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    claim = response.parsed_body
+    expect(claim.dig("payload", "frozen_context", "job", "title")).to eq(job.title)
+    identity = claim.slice("attempt_id", "claim_generation")
+    indices = claim.dig("payload", "frozen_context", "sources").each_index.to_a
+    post "#{path}/screen_library", params: identity.merge(source_indices: indices), headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.fetch("screened_source_indices")).to eq(indices)
+    post "#{path}/accept_preparation", params: identity.merge(role: nil,
+      questions: 8.times.map { |i| { question_type: %w[behavioral technical knowledge][i % 3], content: "Laboratory topic #{i}?" } }),
+      headers: headers, as: :json
+    expect(response).to have_http_status(:ok)
+    expect(prepared.reload.prepared_role).to eq("title" => job.title, "responsibilities" => [], "requirements" => [])
+    expect(prepared.questions.count).to eq(8)
+  end
   it "persists a focus-only check before generation" do
     focus = "Laboratory leadership"
     interview.update!(frozen_context: interview.frozen_context.merge("career_focus" => focus))

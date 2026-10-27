@@ -1,5 +1,5 @@
-# Keeps field approvals tied to frozen career text, separate from model-facing prose.
-# Legacy snapshots may reuse a live approval only for the same owned field and value.
+# Keeps approvals tied to frozen career text and typed job expectations, outside model prose.
+# Snapshots may reuse a live approval only for the same owned career/job field and value.
 module Interviews
   module FrozenLibraryScreening
     SOURCE_TYPES = {
@@ -9,9 +9,16 @@ module Interviews
     }.freeze
 
     def self.valid_source?(source)
+      return false unless source.is_a?(Hash) && source["id"].is_a?(String) && source["text"].is_a?(String)
+      return FrozenJobContext.valid_source?(source) if source["type"] == "jobs"
+
       model = source.is_a?(Hash) && SOURCE_TYPES[source["type"]]
       model && source["text"].is_a?(String) && source["id"].is_a?(String) &&
         CareerLibrary::RecordScreeningService::FIELDS.fetch(model).include?(source["field"])
+    end
+
+    def self.source_value(source)
+      source["type"] == "jobs" ? source["value"] : source["text"]
     end
 
     def self.owned_record(user, source)
@@ -36,7 +43,7 @@ module Interviews
         next if source["screened"] == true
 
         record = owned_record(interview.user, source)
-        source["screened"] = !!(record && record[source["field"]] == source["text"] &&
+        source["screened"] = !!(record && record[source["field"]] == source_value(source) &&
           record.screened_fields.include?(source["field"]))
       end
       context

@@ -111,4 +111,34 @@ RSpec.describe "Job Board search" do
     expect(links).to eq([ { "id" => own_source.id }, { "id" => own_url.id }, nil ])
     expect(own_url.reload.job_board_listing_id).to be_nil
   end
+  it "passes optional filters through GraphQL, returns display fields, and rejects invalid values" do
+    operation = <<~GQL
+      query($filters: JobBoardFiltersInput!) {
+        jobBoardSearch(keyword: "Engineer", filters: $filters) {
+          listings { employmentType salaryText salaryCurrency } errors
+        }
+      }
+    GQL
+    provider_page(data: [ provider_listing.merge(employment_type: "FULL_TIME", salary_text: "$120k per year", salary_currency: "USD") ])
+    filters = { maxAge: "7d", stateId: 5332921, remoteType: "fully_remote", employmentTypes: [ "FULL_TIME" ],
+      minimumSalary: 100000, includeUndisclosedSalaries: false, companyName: "Acme", sortBy: "relevance" }
+    result = execute_graphql(operation, user: user, variables: { filters: filters }).dig("data", "jobBoardSearch")
+    expect(result["errors"]).to eq([])
+    expect(result["listings"]).to eq([ { "employmentType" => "FULL_TIME", "salaryText" => "$120k per year", "salaryCurrency" => "USD" } ])
+    expect(http).to have_received(:request).with(have_attributes(path: include("state_id=5332921", "require_salary=true", "sort_by=relevance")))
+    bad = execute_graphql(operation, user: user, variables: { filters: { maxAge: "forever" } }).dig("data", "jobBoardSearch")
+    expect(bad["errors"]).to eq([ "Invalid search filters." ])
+    expect(http).to have_received(:request).once
+  end
+
+  it "returns only safe US location suggestions through the authenticated schema" do
+    operation = '{ jobBoardLocations(query: "Boston") { locations { kind providerId label } errors } }'
+    allow(http).to receive(:request).and_return(instance_double(Net::HTTPResponse, code: "200", body: [
+      { kind: "city", city_id: 4930956, country_code: "US", display_label: "Boston, MA, US" },
+      { kind: "city", city_id: 999, country_code: "GB", display_label: "Boston, UK" }
+    ].to_json))
+    result = execute_graphql(operation, user: user).dig("data", "jobBoardLocations")
+    expect(result).to eq("locations" => [ { "kind" => "city", "providerId" => 4930956, "label" => "Boston, MA, US" } ], "errors" => [])
+    expect(JobBoardSearchPage.count).to eq(0)
+  end
 end

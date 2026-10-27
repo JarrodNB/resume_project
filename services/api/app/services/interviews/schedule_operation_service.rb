@@ -1,8 +1,8 @@
 # Commit delivery intent with the operation, then make one optional immediate nudge.
 module Interviews
   class ScheduleOperationService < ApplicationService
-    def initialize(operation:)
-      @operation = operation
+    def initialize(operation:, nudge: true)
+      @operation, @nudge = operation, nudge
     end
 
     def call
@@ -12,7 +12,7 @@ module Interviews
       raise ActiveJob::EnqueueError, "AI dispatch enqueue failed" unless job.successfully_enqueued?
       @operation.update!(delivery_job_id: job.job_id)
 
-      if at <= Time.current
+      if @nudge && at <= Time.current
         id = @operation.id
         ActiveRecord.after_all_transactions_commit do
           AiExecutions::NudgeService.call(feature: "interviews", operation_id: id)

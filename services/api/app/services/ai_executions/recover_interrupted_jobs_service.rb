@@ -2,7 +2,7 @@
 # Persist the budget separately because Solid Queue manual retry resets AJ counters.
 module AiExecutions
   class RecoverInterruptedJobsService < ApplicationService
-    JOBS = %w[AiExecutions::DispatchJob AiExecutions::RecoveryJob].freeze
+    JOBS = %w[AiExecutions::DispatchJob AiExecutions::RecoveryJob Interviews::CleanupJob].freeze
     ERRORS = (%w[ProcessExitError ProcessPrunedError ProcessMissingError ThreadTerminatedError]
       .map { |name| "SolidQueue::Processes::#{name}" } + DurableJob::TRANSIENT_ERRORS.map(&:name)).freeze
     MAX_RECOVERIES = 3
@@ -33,13 +33,10 @@ module AiExecutions
           if receipt.recovery_count >= MAX_RECOVERIES
             unless receipt.exhausted_at
               receipt.update!(exhausted_at: Time.current, last_error: failed.exception_class)
-              arguments = job.arguments.fetch("arguments")
-              fence = if job.class_name == "AiExecutions::DispatchJob"
-                { delivery_job_id: job.active_job_id }
-              else
-                { attempt_id: arguments[2], generation: arguments[3], recovery_job_id: job.active_job_id }
-              end
-              Features.stop(*arguments.first(2), **fence)
+              arguments = ActiveJob::Arguments.deserialize(job.arguments.fetch("arguments"))
+              recovered = job.class_name.constantize.new(*arguments)
+              recovered.job_id = job.active_job_id
+              recovered.stop_delivery
             end
             next
           end

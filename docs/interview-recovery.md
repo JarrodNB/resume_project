@@ -43,7 +43,8 @@ is `cg-interview-06`. The former fake browser QA project is retired; real browse
 the original paid database. Do not run an isolated project against two worktrees simultaneously.
 The automation stack publishes no ports. Database and S3 objects survive container recreation
 in project-scoped named volumes. The committed service credential is for this isolated local
-fixture stack only. No runtime HTTP port is exposed to the host.
+fixture stack only. The Rails jobs worker must run for fallback delivery, exact-lease
+recovery and cleanup. No runtime HTTP port is exposed to the host.
 
 Run the recovery checks from the primary checkout:
 
@@ -87,7 +88,7 @@ checks; they do not establish microphone behavior or production storage permissi
 | 3 | Identical/conflicting submission identity and competing submits | Harness real DB submit race; `submit_turn_service_spec.rb`, `concurrency_spec.rb`; frontend ambiguous-submit tests |
 | 4 | Competing/expired claims and stale dialogue/audio | Harness real HTTP claim race, killed lease recovery and stale heartbeat; `concurrency_spec.rb`, `media_service_spec.rb` stale completion |
 | 5 | Reload/disconnect and lost result receipt | Harness real committed receipt loss/status and identical acceptance replay; frontend hook/page reload/reconnect tests; human reload |
-| 6 | Pending discovery, lease recovery and bounded exhaustion | Harness real process kills before/after acceptance, pending speech without wakeup; `claim_operation_service_spec.rb`, `test_interview_runtime.py` deadline/exhaustion; budget rejection is saved as actionable failure |
+| 6 | Durable pending delivery, lease recovery and bounded exhaustion | Harness real process kills before/after acceptance, pending speech through its saved fallback job; `claim_operation_service_spec.rb`, `test_execution_dispatch.py` deadline/exhaustion; budget rejection is saved as actionable failure |
 | 7 | Speech-only retry and artifact replay | Harness explicitly fails/retries saved speech, checks unchanged turn execution/counts and reads saved artifact; `media_service_spec.rb` |
 | 8 | Screening, malformed/empty/large/long/context/expired input | Harness blocked/unavailable/oversized scripted transcripts and malformed real stored bytes; `test_interview_media.py`, `test_interview_executor.py`, Rails media/claim specs cover other bounds and expiry |
 | 9 | Owner, reference, capability and stale-generation boundaries | Harness unauthenticated internal request and stale heartbeat; `interview_sessions_spec.rb`, `interview_media_spec.rb`, media service/storage and Python origin tests. S3Mock cannot prove expired credential enforcement |

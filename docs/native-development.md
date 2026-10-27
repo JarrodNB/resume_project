@@ -100,7 +100,9 @@ Once workers run, queued work or user actions can invoke configured providers.
   A persistent S3 service is needed if durable uploads are required.
 - PostgreSQL uses an isolated local cluster, generated development passwords,
   and the same read-only AI role/grant task as Compose. Rails prepares its primary
-  and cable databases before any application worker starts. Solid Queue tables live
+  and cable databases before any application worker starts. Its `db:prepare` step also idempotently adopts
+  saved legacy interview delivery/watchdogs through `interviews:adopt_delivery`,
+  without nudging the HTTP process before it starts. Solid Queue tables live
   in the primary database; the `jobs` process runs `bundle exec ruby bin/jobs` for
   durable Rails background work and scheduled maintenance. Its log is
   `.native/logs/jobs.log`.

@@ -23,6 +23,7 @@ RSpec.describe "Interrupted AI queue delivery" do
 
   after do
     jobs = SolidQueue::Job.where("arguments LIKE ?", "%#{@operation.id}%")
+    jobs = jobs.or(SolidQueue::Job.where(active_job_id: @maintenance_job_id)) if @maintenance_job_id
     AiJobRecovery.where(active_job_id: jobs.pluck(:active_job_id)).delete_all
     jobs.destroy_all
     SolidQueue::Process.where(id: @process_ids).delete_all
@@ -138,5 +139,21 @@ RSpec.describe "Interrupted AI queue delivery" do
         nil
       end
     end
+  end
+  it "recovers interrupted maintenance with the same persistent infrastructure budget" do
+    cleanup = Interviews::CleanupJob.perform_later
+    @maintenance_job_id = cleanup.job_id
+    process = SolidQueue::Process.register(kind: "Worker", name: "cleanup-interruption-#{SecureRandom.uuid}", pid: Process.pid, hostname: "test")
+    @process_ids << process.id
+    4.times do |index|
+      claimed = SolidQueue::ReadyExecution.claim([ "maintenance" ], 1, process.id).first
+      expect(claimed).to be_present
+      claimed.failed_with(SolidQueue::Processes::ProcessMissingError.new)
+      AiExecutions::RecoverInterruptedJobsJob.perform_now
+      receipt = AiJobRecovery.find_by!(active_job_id: cleanup.job_id)
+      expect(receipt.recovery_count).to eq([ index + 1, 3 ].min)
+    end
+    expect(AiJobRecovery.find_by!(active_job_id: cleanup.job_id).exhausted_at).to be_present
+    expect(SolidQueue::FailedExecution.joins(:job).where(job: { active_job_id: cleanup.job_id })).to exist
   end
 end

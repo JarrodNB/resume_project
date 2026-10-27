@@ -10,6 +10,10 @@ services:
       # Their full reservations still count; a new unknown stops admission again.
       INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS: ${INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS:-}
       AI_HTTP_ORIGIN: http://ai-http:8000
+  api-jobs-worker:
+    environment:
+      INTERVIEW_PAID_VERIFICATION: "true"
+      INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS: ${INTERVIEW_REVIEWED_UNKNOWN_OBSERVATIONS:-}
   ai-http:
     image: cg-interview-qa-ai-http
     command: python -m scripts.interview_paid_runtime

@@ -14,8 +14,8 @@ RSpec.describe "Spoken interview preparation" do
     InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "A later preference?")
     claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
     expect(claim).to be_success
-    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq(["Describe an old challenge."])
-    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq(["Describe an old challenge."])
+    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
+    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
   end
 
   it "starts durable preparation instead of a fixture question and never starts speech" do
@@ -44,7 +44,7 @@ RSpec.describe "Preparation execution" do
   end
   it "discovers and claims frozen preparation without a question or recording" do
     operation
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "real").value).to include(operation.id)
+    expect(operation.reload.delivery_job_id).to be_present
     result = claim
     expect(result).to be_success
     expect(result.value.fetch(:payload).fetch(:frozen_context).fetch("career_focus")).to eq("laboratory")

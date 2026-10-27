@@ -97,3 +97,19 @@ If the old queue cannot be drained, stop the rollout and prepare an explicit
 transfer plan; removing its database or silently changing connections loses work.
 Rollback also requires draining/transferring new primary-queue work before restoring
 an old release that only reads the separate queue.
+
+## Interview cutover and maintenance
+
+Every interview operation and retry commits its fallback job with domain state, then
+uses the same immediate start interface as preparation. Claims and renewals commit
+exact-operation watchdogs. There is no Python discovery or cleanup timer.
+`Interviews::CleanupJob` runs every minute and retains expiry, deletion retries and
+key-only tombstone reaping. Its interrupted queue jobs share the capped process-death
+recovery policy; after exhaustion, the next scheduled maintenance run remains available.
+
+After migrations and before retiring the old runtime, run
+`bin/rails interviews:adopt_delivery`. It adopts only legacy pending/running operations
+missing delivery/watchdog identities, preserves their attempts and ledger, and enqueues
+without an immediate HTTP nudge. The task is idempotent and is attached to normal
+`db:prepare` startup used by native/Compose setups. Deployments using another migration
+entrypoint must invoke it explicitly. It is never a recurring runnable-operation scan.

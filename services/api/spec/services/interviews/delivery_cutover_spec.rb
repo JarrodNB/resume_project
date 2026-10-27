@@ -116,5 +116,4 @@ RSpec.describe "Interview delivery cutover" do
     expect(task.reload).to have_attributes(status: "failed", error_message: "media_expired")
     expect(task.ai_usage_attempts.count).to eq(1)
   end
-
 end

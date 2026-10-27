@@ -2,6 +2,9 @@
 # Feature-specific retry and cleanup jobs can use the same scheduler.
 
 development: &recurring
+  cleanup_interviews:
+    class: Interviews::CleanupJob
+    schedule: every minute
   recover_interrupted_ai_jobs:
     class: AiExecutions::RecoverInterruptedJobsJob
     schedule: every minute

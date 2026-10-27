@@ -9,6 +9,9 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 ## Contents
 
+- `interviews/cleanup_job.rb` — bounded scheduled expiry/content/audio maintenance;
+  it never discovers executable work and uses the shared interrupted-job recovery budget.
+
 - `ai_executions/` — transactional dispatch and exact-lease recovery jobs, plus
   bounded framework-failure reconciliation. HTTP202 alone never completes delivery;
   stale delivery/watchdog identities cannot stop a newer execution cycle.

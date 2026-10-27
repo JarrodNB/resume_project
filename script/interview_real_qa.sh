@@ -18,7 +18,7 @@ case "${1:-}" in
       end
       AiReaderAccess.grant(connection)
     '
-    "${compose[@]}" up -d --no-build api-results-worker ai-worker
+    "${compose[@]}" up -d --no-build api-jobs-worker api-results-worker ai-worker
     "${compose[@]}" exec -T api bundle exec rails runner '
       raise "Retained paid ledger missing; do not create a replacement allowance" unless InterviewVerificationReservation.exists?
       used = InterviewVerificationReservation.sum("COALESCE(actual_microdollars, reserved_microdollars)")

@@ -8,18 +8,23 @@ import argparse
 import asyncio
 import json
 import math
+import os
 import secrets
 import statistics
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from threading import Event, Thread
 from types import SimpleNamespace
 from urllib.parse import urlsplit
 from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from redis import Redis
+from redis.exceptions import RedisError
 
 from execution.runner import ExecutionRunner
 from execution.streaming import StreamBuffer, StreamingOutputs
@@ -29,6 +34,50 @@ from routes.executions import install_execution_routes
 
 def percentile(values, fraction):
     return sorted(values)[max(0, math.ceil(len(values) * fraction) - 1)]
+
+
+@contextmanager
+def memory_samples(redis_url):
+    """Sample this Linux process and the whole Redis instance without clearing keys."""
+    readings = []
+    errors = []
+    stop = Event()
+    client = Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1)
+
+    def sample():
+        resident_pages = int(Path("/proc/self/statm").read_text().split()[1])
+        memory = client.info("memory")
+        readings.append({"process_rss": resident_pages * os.sysconf("SC_PAGE_SIZE"),
+                         "redis_used": memory["used_memory"],
+                         "redis_rss": memory["used_memory_rss"]})
+
+    def poll():
+        try:
+            while not stop.wait(0.01):
+                sample()
+        except (RedisError, OSError, ValueError, KeyError, IndexError) as error:
+            errors.append(error)
+            stop.set()
+
+    summary = {"sample_interval_ms": 10}
+    try:
+        sample()
+        thread = Thread(target=poll, daemon=True)
+        thread.start()
+        try:
+            yield summary
+        finally:
+            stop.set()
+            thread.join()
+        if errors:
+            raise errors[0]
+        sample()
+        summary.update({"samples": len(readings), "bytes": {
+            key: {"before": readings[0][key], "sampled_peak": max(row[key] for row in readings),
+                  "after": readings[-1][key], "retained_change": readings[-1][key] - readings[0][key]}
+            for key in readings[0]}})
+    finally:
+        client.close()
 
 
 def run_case(redis_url, *, samples=20, concurrency=1):
@@ -76,7 +125,7 @@ def run_case(redis_url, *, samples=20, concurrency=1):
     install_execution_routes(producer, secret=lambda: "synthetic-probe-secret")
     install_output_stream(consumer, allowed_origins={"http://probe"})
 
-    with TestClient(producer) as sender, TestClient(consumer) as observer:
+    with memory_samples(redis_url) as memory, TestClient(producer) as sender, TestClient(consumer) as observer:
         def sample(_):
             operation_id = str(uuid4())
             operation = {"operation_id": operation_id, "attempt_id": str(uuid4()), "claim_generation": 1}
@@ -98,16 +147,19 @@ def run_case(redis_url, *, samples=20, concurrency=1):
                     if event["type"] == "delta":
                         received = time.perf_counter()
                     if event["type"] == "completed":
+                        completed = time.perf_counter()
                         break
                     assert event["type"] not in {"error", "reset"}
             timing = timings[operation_id]
             return {"admission_ms": (timing["admitted"] - started) * 1000,
                     "relay_ms": (received - timing["emitted"]) * 1000,
-                    "first_visible_text_ms": (received - started) * 1000}
+                    "first_visible_text_ms": (received - started) * 1000,
+                    "completion_ms": (completed - started) * 1000}
 
         with ThreadPoolExecutor(max_workers=concurrency) as threads:
             results = list(threads.map(sample, range(samples)))
     return {"samples": samples, "concurrency": concurrency, "runner_capacity": max(2, concurrency * 2),
+        "memory": memory,
         "milliseconds": {key: {"p50": round(statistics.median([row[key] for row in results]), 3),
                                 "p95": round(percentile([row[key] for row in results], 0.95), 3)}
                          for key in results[0]}}
@@ -125,7 +177,12 @@ def main():
     print(json.dumps({"kind": "local_synthetic_framework_probe",
         "simulated_provider_delay_ms": 5,
         "limitations": ["ASGI clients are in process; external HTTP/TLS/authentication, screening and model latency are excluded.",
-                        "Redis uses real local TCP. Results depend on machine load and do not establish a production SLO."],
+                        "Redis uses real local TCP. Results depend on machine load and do not establish a production SLO.",
+                        "Completion ends when the observer receives the synthetic completed event; Rails acceptance is mocked.",
+                        "Linux process RSS includes both ASGI apps, clients and probe bookkeeping. Redis memory covers the entire instance.",
+                        "Memory sampling waits 10ms between reads plus case boundaries; shorter peaks can be missed. Redis RSS updates on Redis's own schedule.",
+                        "Sampling adds overhead. Each short synthetic stream emits three events; these cases do not establish sustained token throughput or capacity.",
+                        "Cases share one process and Redis instance; retained keys/allocator memory carry forward. Use isolated Redis for attribution; no keys are flushed."],
         "cases": [run_case(args.redis_url, samples=args.samples, concurrency=n) for n in args.concurrency]}, indent=2))
 
 

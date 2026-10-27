@@ -122,6 +122,10 @@ All business logic, as service objects grouped by domain folder.
 
 ## Local Rules
 
+- `ai_executions/` coordinates fixed-origin nudges and bounded recovery of known
+  idempotent queue jobs. Interview-specific eligibility, retry budgets and fenced
+  state changes remain in `interviews/`; no generic dispatcher writes domain state.
+
 - Name services `<Verb><Noun>Service` in a domain module: `Jobs::MoveJobToStageService`.
 - Subclass `ApplicationService`, take keyword arguments in `initialize`, expose only `call`.
 - Always return a `ServiceResult` via `success`/`failure`; never raise for validation errors.

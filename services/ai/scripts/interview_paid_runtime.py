@@ -20,6 +20,7 @@ class StopAfterFailureRuntime(RecoveryRuntime):
 
         async def stop_and_fail(*args, **kwargs):
             self._stopping = True
+            self.runner.pause()
             return await original_fail(*args, **kwargs)
 
         client.fail = stop_and_fail

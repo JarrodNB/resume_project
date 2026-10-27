@@ -17,6 +17,11 @@ test support. See docs/architecture/interview-sessions.md.
 
 ## Local Rules
 
+- `execution/runner.py` is the shared bounded execution/lease supervisor. Feature
+  adapters own claims, provider calls and Rails acceptance. Its optional output sink
+  does not create a second scheduling or accounting lifecycle. `/internal/executions`
+  receipts acknowledge a nudge only; Rails owns durable delivery and watchdog jobs.
+
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
   Basic Interview is the scoped exception: a separate FastAPI process claims durable
   operations and returns results through authenticated internal Rails HTTP. Rails still

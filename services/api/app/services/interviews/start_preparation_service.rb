@@ -57,6 +57,7 @@ module Interviews
         operation = interview.operations.create!(kind: "preparation")
         operation.update!(ai_task: @user.ai_tasks.create!(task_type: "interview_preparation", subject: interview,
           input: { operation_id: operation.id }))
+        ScheduleOperationService.call(operation: operation)
         success(interview)
       end
     rescue ActiveRecord::RecordNotFound, ActiveRecord::InvalidForeignKey

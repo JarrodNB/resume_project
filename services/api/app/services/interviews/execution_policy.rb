@@ -62,6 +62,7 @@ module Interviews
         @operation.retry_expires_at > Time.current
       @operation.update!(status: automatic ? "pending" : "failed", failure_code: code,
         retry_at: automatic ? Time.current + BACKOFF.fetch(@operation.cycle_execution_count - 1).seconds : nil)
+      ScheduleOperationService.call(operation: @operation) if automatic && @operation.preparation?
       AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
         error_message: code }) if @operation.ai_task
       if (@operation.turn? || @operation.transcription?) && (!retryable || @operation.execution_count >= 6)

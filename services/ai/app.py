@@ -42,6 +42,7 @@ def create_app():
     @asynccontextmanager
     async def lifespan(app):
         app.state.runtime = None
+        app.state.execution_runner = None
         configured, app.state.reason = configuration()
         if configured is None:
             yield
@@ -66,6 +67,7 @@ def create_app():
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
                 runtime = RecoveryRuntime(rails, executor)
                 app.state.runtime = runtime
+                app.state.execution_runner = runtime.runner
                 await runtime.start()
                 try:
                     yield
@@ -76,6 +78,8 @@ def create_app():
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
                   telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
+    from routes.executions import install_execution_routes
+    install_execution_routes(app, secret=lambda: os.getenv("INTERVIEW_SERVICE_SECRET", ""))
     from interviews.live_transcription import install_streaming
     install_streaming(app, allowed_origins=set(filter(None, os.getenv("INTERVIEW_BROWSER_ORIGINS", "").split(","))),
                       api_key=os.getenv("OPENAI_API_KEY", ""))

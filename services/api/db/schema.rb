@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -57,6 +57,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_010000) do
     t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
     t.check_constraint "cost_microdollars IS NULL OR cost_microdollars >= 0", name: "embedding_cost_nonnegative"
     t.check_constraint "input_tokens IS NULL OR input_tokens >= 0", name: "embedding_tokens_nonnegative"
+  end
+
+  create_table "ai_job_recoveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "active_job_id", null: false
+    t.integer "recovery_count", default: 0, null: false
+    t.string "last_error"
+    t.datetime "exhausted_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_ai_job_recoveries_on_active_job_id", unique: true
+    t.check_constraint "recovery_count >= 0", name: "ai_job_recoveries_nonnegative_count"
   end
 
   create_table "ai_task_outcomes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -385,6 +396,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_010000) do
     t.string "checkpoint"
     t.text "candidate_transcript"
     t.string "transcription_mode", default: "recorded", null: false
+    t.uuid "recovery_job_id"
+    t.uuid "delivery_job_id"
     t.index ["ai_task_id"], name: "interview_operation_unique_task", unique: true
     t.index ["interview_session_id", "question_id", "id"], name: "interview_operation_media_identity", unique: true
     t.index ["interview_session_id", "submission_key"], name: "interview_session_submission_identity", unique: true, where: "((kind)::text = 'turn'::text)"

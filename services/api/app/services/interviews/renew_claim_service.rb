@@ -19,6 +19,7 @@ module Interviews
         next failure("Claim is stale or expired") unless current_claim?
         @operation.update!(lease_expires_at: [ LEASE.from_now, @operation.execution_deadline ].min,
           checkpoint: @checkpoint || @operation.checkpoint)
+        ScheduleRecoveryService.call(operation: @operation)
         success({ lease_expires_at: @operation.lease_expires_at, execution_deadline: @operation.execution_deadline })
       end
     end

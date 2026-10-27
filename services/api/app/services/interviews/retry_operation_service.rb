@@ -16,6 +16,7 @@ module Interviews
         next allowance unless allowance.success?
         @operation.update!(status: "pending", cycle_execution_count: 0, retry_at: Time.current, failure_code: nil)
         @operation.ai_task&.update!(status: "queued", completed_at: nil, error_message: nil)
+        ScheduleOperationService.call(operation: @operation) if @operation.preparation?
         success(@operation)
       end
     end

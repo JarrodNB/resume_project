@@ -44,6 +44,35 @@ retain their current settings and bounded retry policies. Most specs keep the te
 adapter; the queue persistence specs explicitly use the real adapter against the
 isolated test database.
 
+## Interactive AI delivery and recovery
+
+Interactive AI execution uses one shared Python runner. Rails first commits an
+operation and its fallback job, then sends an immediate bounded HTTP nudge. The
+normal path starts without waiting for a queue worker. HTTP202 only means the
+process received that nudge; the fallback job completes only after Rails observes
+a terminal result or a current claim with an atomically saved recovery job.
+
+Claim and renewal transactions save exact attempt/generation/deadline watchdogs.
+Old delivery IDs and watchdogs cannot terminate newer work. Early current
+watchdogs are rearmed; expired current watchdogs use the existing domain retry
+policy. A lost claim reply never authorizes Python to invent or replay that claim.
+
+Known idempotent AI jobs have bounded retries for explicit database-availability
+errors. Solid Queue does not retry killed workers automatically: its process-death
+hook, supervisor startup and recurring maintenance reconcile only failed queue
+records for these job classes. `AiJobRecovery` preserves the three-recovery budget
+when manual queue retry resets Active Job counters. Exhaustion remains inspectable
+and marks only the matching current delivery/expired lease failed; accepted dialogue
+and usage identities are retained. Programmer errors are not blindly retried.
+Queue processes heartbeat every five seconds and are considered dead after thirty;
+the standard thirty-second pruning cadence can add another interval to detection.
+
+Run the offline local transport probe from the AI project with
+`python -m scripts.execution_latency_probe --samples 50 --concurrency 4`.
+It measures actual loopback HTTP receipt/execution-start overhead with a synthetic
+adapter and no queue/model calls; it excludes Rails commits, screening and provider
+latency. Final-only interview execution constructs no Redis or streaming client.
+
 ## Moving an existing production queue safely
 
 This change does not copy or delete an old separate production queue. Before

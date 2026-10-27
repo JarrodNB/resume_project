@@ -11,6 +11,7 @@ import math
 import platform
 import statistics
 import time
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from interviews.runtime import RecoveryRuntime
@@ -52,7 +53,7 @@ async def _sample(work_seconds, discovery_seconds):
         async def claim(self, identity):
             pending.remove(identity)
             times[identity + "_claimed"] = time.monotonic()
-            return SimpleNamespace(operation_id=identity)
+            return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
         async def heartbeat(self, claim):
             return {}
@@ -61,7 +62,7 @@ async def _sample(work_seconds, discovery_seconds):
             return {}
 
     class Executor:
-        async def execute(self, claim):
+        async def execute(self, claim, **options):
             if claim.operation_id == "turn":
                 await asyncio.sleep(work_seconds)
                 times["speech_created"] = time.monotonic()

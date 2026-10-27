@@ -66,14 +66,15 @@ class RealInterviewExecutor(InterviewExecutor):
         ):
             yield
 
-    async def execute(self, claim):
+    async def execute(self, claim, *, deadline_managed=False):
+        """Standalone calls own their timeout; the shared runner supplies it otherwise."""
         if claim.execution_mode != "real":
             raise ValueError("Real executor requires a real claim")
         try:
             remaining = min((claim.execution_deadline - datetime.now(UTC)).total_seconds(), 120)
             if remaining <= 0:
                 raise TimeoutError
-            async with asyncio.timeout(remaining):
+            async with asyncio.timeout(None if deadline_managed else remaining):
                 version = INTERVIEW_PREPARATION_PROMPT_VERSION if claim.kind == "preparation" else SPOKEN_INTERVIEW_PROMPT_VERSION
                 with self._trace(claim), record_prompt_version(version):
                     await super().execute(claim)

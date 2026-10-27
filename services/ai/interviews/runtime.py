@@ -12,6 +12,8 @@ import logging
 import time
 from typing import Any
 
+from execution.runner import ExecutionRunner
+from interviews.execution_adapter import InterviewExecutionAdapter
 from interviews.timing import stage_timing
 
 logger = logging.getLogger(__name__)
@@ -27,7 +29,9 @@ class RecoveryRuntime:
         self.discovery_seconds = discovery_seconds
         self.heartbeat_seconds = heartbeat_seconds
         self.cleanup_seconds = cleanup_seconds
-        self.active: dict[str, asyncio.Task] = {}
+        self.runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(client, executor)},
+                                      heartbeat_seconds=heartbeat_seconds)
+        self.active = self.runner.active
         self._supervisor: asyncio.Task | None = None
         self._stopping = False
         self._last_contact: float | None = None
@@ -37,12 +41,13 @@ class RecoveryRuntime:
     @property
     def ready(self) -> bool:
         """Readiness requires a live supervisor and recent Rails contact."""
-        return bool(self._supervisor and not self._supervisor.done() and not self._stopping
+        return bool(self.runner.ready and self._supervisor and not self._supervisor.done() and not self._stopping
                     and self._last_contact is not None
                     and time.monotonic() - self._last_contact < 30)
 
     async def start(self) -> None:
         self._stopping = False
+        self.runner.reopen()
         self._last_contact = None
         self._wake = asyncio.Event()
         self._last_dispatched.clear()
@@ -52,11 +57,9 @@ class RecoveryRuntime:
         self._stopping = True
         if self._supervisor:
             self._supervisor.cancel()
-        tasks = [task for task in [self._supervisor, *self.active.values()] if task]
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        self.active.clear()
+        if self._supervisor:
+            await asyncio.gather(self._supervisor, return_exceptions=True)
+        await self.runner.close()
 
     async def _supervise(self) -> None:
         next_cleanup = 0.0
@@ -68,19 +71,21 @@ class RecoveryRuntime:
                 with stage_timing(None, "discovery"):
                     ids = (await self.client.discover())[:10]
                 self._last_contact = time.monotonic()
-                visible = set(ids) | self.active.keys()
+                visible = set(ids) | {identity for feature, identity in self.active}
                 self._last_dispatched = {key: value for key, value in self._last_dispatched.items()
                                          if key in visible}
                 for identity in ids:
                     if self._stopping or len(self.active) >= 2:
                         break
                     now = time.monotonic()
-                    if identity not in self.active and now - self._last_dispatched.get(
+                    if ("interviews", identity) not in self.active and now - self._last_dispatched.get(
                         identity, float("-inf")
                     ) >= self.discovery_seconds:
                         self._last_dispatched[identity] = now
-                        task = asyncio.create_task(self._run(identity))
-                        self.active[identity] = task
+                        self.runner.start("interviews", identity)
+                        task = self.active.get(("interviews", identity))
+                        if task is None:
+                            continue
                         task.add_done_callback(lambda completed, key=identity: self._finished(key, completed))
                 if time.monotonic() >= next_cleanup:
                     await self.client.cleanup()
@@ -98,43 +103,10 @@ class RecoveryRuntime:
                 pass
 
     def _finished(self, identity: str, task: asyncio.Task) -> None:
-        self.active.pop(identity, None)
         # Inspect completion safely: cancellations and failed claims/heartbeats
         # must not create callback errors or immediate retry loops.
         if not self._stopping and not task.cancelled() and task.exception() is None and task.result():
             self._wake.set()
 
     async def _run(self, identity: str) -> bool:
-        try:
-            with stage_timing(None, "claim"):
-                claim = await self.client.claim(identity)
-            execution = asyncio.create_task(self.executor.execute(claim))
-            heartbeat = asyncio.create_task(self._heartbeat(claim))
-            try:
-                done, _ = await asyncio.wait({execution, heartbeat},
-                                             return_when=asyncio.FIRST_COMPLETED)
-                for task in done:
-                    task.result()
-                # A finished-execution heartbeat is not lease loss. The executor
-                # still owns its bounded acceptance/accounting HTTP response.
-                if heartbeat in done:
-                    await execution
-            finally:
-                execution.cancel()
-                heartbeat.cancel()
-                await asyncio.gather(execution, heartbeat, return_exceptions=True)
-            return True
-        except asyncio.CancelledError:
-            raise
-        except Exception as error:  # noqa: BLE001 - durable Rails recovery owns retry policy
-            # Lost claim or network failure must never continue provider work unchecked.
-            logger.warning("Interview execution stopped; durable recovery remains in Rails (%s)",
-                           type(error).__name__)
-            return False
-
-    async def _heartbeat(self, claim: Any) -> None:
-        while True:
-            await asyncio.sleep(self.heartbeat_seconds)
-            receipt = await self.client.heartbeat(claim)
-            if receipt.get("execution_finished") is True:
-                return
+        return await self.runner.run_once("interviews", identity)

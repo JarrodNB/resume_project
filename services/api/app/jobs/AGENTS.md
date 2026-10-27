@@ -9,6 +9,10 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
 
 ## Contents
 
+- `ai_executions/` — transactional dispatch and exact-lease recovery jobs, plus
+  bounded framework-failure reconciliation. HTTP202 alone never completes delivery;
+  stale delivery/watchdog identities cannot stop a newer execution cycle.
+
 - `interview_prep/` — question-specific saved Q&A vector jobs; after-commit enqueue, temporary provider retries, missing-key skip, no AI-task accounting.
 
 - `application_job.rb` — generated base class

@@ -2,6 +2,7 @@
 
 import asyncio
 import os
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -29,7 +30,7 @@ def test_discovery_is_bounded_and_shutdown_cancels_recoverable_claims():
 
             async def claim(self, identity):
                 self.claimed.append(identity)
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim, checkpoint=None):
                 return {}
@@ -38,7 +39,7 @@ def test_discovery_is_bounded_and_shutdown_cancels_recoverable_claims():
                 self.cleanups += 1
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 await asyncio.Event().wait()
 
         client = Client()
@@ -63,13 +64,13 @@ def test_lost_heartbeat_stops_local_execution_before_another_provider_call():
 
         class Client:
             async def claim(self, identity):
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 raise RuntimeError("expired claim")
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 try:
                     await asyncio.Event().wait()
                 finally:
@@ -131,7 +132,7 @@ def test_runtime_keeps_local_discovery_timings_without_claim_data(caplog):
                 return ["private-operation"]
 
             async def claim(self, identity):
-                return SimpleNamespace(operation_id=identity, payload="private-transcript")
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120), payload="private-transcript")
 
             async def heartbeat(self, claim):
                 return {}
@@ -140,7 +141,7 @@ def test_runtime_keeps_local_discovery_timings_without_claim_data(caplog):
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 finished.set()
 
         runtime = RecoveryRuntime(Client(), Executor(), discovery_seconds=0.01)
@@ -172,7 +173,7 @@ def test_completed_turn_wakes_durable_discovery_before_idle_poll_deadline():
                 pending.remove(identity)
                 if identity == "speech":
                     speech_claimed.set()
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -181,7 +182,7 @@ def test_completed_turn_wakes_durable_discovery_before_idle_poll_deadline():
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 if claim.operation_id == "turn":
                     pending.append("speech")
 
@@ -223,7 +224,7 @@ def test_completion_during_inflight_discovery_is_not_lost():
                 pending.remove(identity)
                 if identity == "speech":
                     speech_claimed.set()
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -232,7 +233,7 @@ def test_completion_during_inflight_discovery_is_not_lost():
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 if claim.operation_id == "second":
                     await release_second.wait()
                     pending.append("speech")
@@ -276,7 +277,7 @@ def test_stale_operations_and_failures_keep_bounded_retry_load(failure):
                 claims += 1
                 if failure == "claim":
                     raise RuntimeError("stale claim")
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -285,7 +286,7 @@ def test_stale_operations_and_failures_keep_bounded_retry_load(failure):
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 if failure == "execution":
                     raise RuntimeError("private execution failure")
                 # A stale/no-op executor may return without changing discovery.
@@ -318,7 +319,7 @@ def test_shutdown_cancels_waits_and_same_runtime_can_recover_after_restart():
             async def claim(self, identity):
                 nonlocal claims
                 claims += 1
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -327,7 +328,7 @@ def test_shutdown_cancels_waits_and_same_runtime_can_recover_after_restart():
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 if claims == 1:
                     started.set()
                     try:
@@ -380,7 +381,7 @@ def test_completion_hint_during_discovery_outage_does_not_bypass_backoff():
                 pending.remove(identity)
                 if identity == "speech":
                     speech_claimed.set()
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -389,7 +390,7 @@ def test_completion_hint_during_discovery_outage_does_not_bypass_backoff():
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 if claim.operation_id == "second":
                     await finish_second.wait()
                     pending.append("speech")
@@ -435,7 +436,7 @@ def test_concurrent_completions_coalesce_without_losing_dependent_work():
                     speech_claims.append(identity)
                     if len(speech_claims) == 2:
                         both_speech_claimed.set()
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 return {}
@@ -444,7 +445,7 @@ def test_concurrent_completions_coalesce_without_losing_dependent_work():
                 return {}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 nonlocal started
                 if claim.operation_id.startswith("turn"):
                     started += 1
@@ -478,7 +479,7 @@ def test_finished_execution_heartbeat_allows_final_usage_receipt_to_complete():
 
         class Client:
             async def claim(self, identity):
-                return SimpleNamespace(operation_id=identity)
+                return SimpleNamespace(operation_id=identity, execution_deadline=datetime.now(UTC) + timedelta(seconds=120))
 
             async def heartbeat(self, claim):
                 await final_usage_started.wait()
@@ -488,7 +489,7 @@ def test_finished_execution_heartbeat_allows_final_usage_receipt_to_complete():
                 return {"execution_finished": True}
 
         class Executor:
-            async def execute(self, claim):
+            async def execute(self, claim, **options):
                 # Rails has accepted the result; only the final usage HTTP receipt remains.
                 final_usage_started.set()
                 await release_usage_response.wait()

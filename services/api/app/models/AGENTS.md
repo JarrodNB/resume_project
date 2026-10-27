@@ -6,6 +6,10 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `ai_job_recovery.rb` retains a bounded infrastructure retry count independent of
+  Active Job counters. These receipts contain queue identities and safe error names,
+  never model prompts or results.
+
 - `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
 
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;

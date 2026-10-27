@@ -66,7 +66,7 @@ class InterviewExecutor:
             # Fake execution cannot incur provider charges, even when local work fails.
             await self.client.usage(claim, [{"cost_microdollars": 0}], observation_id=identity)
 
-    async def execute(self, claim):
+    async def execute(self, claim, *, deadline_managed=False):
         """Run one operation; fail safe domain errors, leaving transport loss recoverable."""
         finished = False
         try:

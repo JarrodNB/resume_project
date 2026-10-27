@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Careergrind Home: Transit Line sketch</title>
+<!-- Design-direction sketch only (not app code): Home as a transit system map. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111418;--mute:#5B6168;--rule:#D9DCE0;--soft:#F4F5F6;--red:#EE352E;--blue:#0039A6;--yellow:#FCCC0A;--green:#00933C}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#fff;color:var(--ink);font:400 14px/1.4 "Archivo","Helvetica Neue",Helvetica,Arial,sans-serif}
+button{font:inherit;cursor:pointer}
+.band{height:60px;background:var(--ink);color:#fff;display:flex;align-items:center;padding:0 48px;gap:40px}
+.brand{font-weight:800;font-size:19px;letter-spacing:-.01em;display:flex;align-items:center;gap:10px}
+.brand i{width:22px;height:22px;border-radius:50%;background:#fff;display:inline-block;position:relative}
+.brand i:after{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--ink)}
+nav{display:flex;height:100%}
+nav a{color:#B8BDC3;text-decoration:none;font-weight:600;font-size:15px;padding:0 18px;display:flex;align-items:center;border-bottom:4px solid transparent;padding-top:4px}
+nav a.on{color:#fff;border-color:#fff}
+.acct{margin-left:auto;display:flex;align-items:center;gap:20px;font-size:13px;color:#D6D9DD}
+.bell{width:34px;height:34px;border:1.5px solid #4A5057;border-radius:50%;background:none;color:#fff;display:grid;place-items:center}
+.main{padding:36px 48px 0}
+.head{display:flex;align-items:flex-end;justify-content:space-between}
+h1{font-size:44px;font-weight:800;letter-spacing:-.025em;line-height:1}
+.sub{font-size:17px;color:var(--mute);margin-top:10px}
+.btn{height:44px;padding:0 22px;border-radius:4px;font-weight:700;font-size:15px;border:2px solid var(--ink)}
+.btn.sec{background:#fff;color:var(--ink)}
+.btn.pri{background:var(--ink);color:#fff;margin-left:10px}
+.ai{margin-top:26px;display:flex;align-items:center;gap:14px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);height:50px}
+.lbl{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.ai .lbl{color:var(--mute);width:190px}
+.sig{display:inline-flex;align-items:center;gap:9px;font-weight:600}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.r{background:var(--red)}.b{background:var(--blue)}.y{background:var(--yellow)}.g{background:var(--green)}
+.ai .dot{box-shadow:0 0 0 4px rgba(0,57,166,.15)}
+.ai em{font-style:normal;color:var(--mute);font-weight:400}
+.legend{margin-left:auto;display:flex;gap:18px;font-size:12px;color:var(--mute)}
+.legend span{display:flex;align-items:center;gap:6px}.legend .dot{width:9px;height:9px;box-shadow:none}
+.bar{display:flex;align-items:center;justify-content:space-between;margin-top:26px}
+.bar h2{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.seg{display:flex;border:2px solid var(--ink);border-radius:4px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:7px 18px;font-weight:700;font-size:13px}
+.seg .on{background:var(--ink);color:#fff}
+.map{position:relative;display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:22px;height:96px}
+.track{position:absolute;top:17px;height:8px;background:var(--ink);left:calc(10% - 13px);width:calc(60% + 6px)}
+.branch{position:absolute;top:19px;height:0;border-top:4px dashed #9AA0A6;left:calc(70% + 3px);width:calc(20% + 3px)}
+.st{position:relative;text-align:center}
+.st .bul{width:42px;height:42px;border-radius:50%;background:#fff;border:6px solid var(--ink);margin:0 auto;display:grid;place-items:center;font-weight:800;font-size:15px}
+.st.off .bul{border-color:#9AA0A6;color:#5B6168}
+.st b{display:block;margin-top:10px;font-size:16px;font-weight:700}
+.st small{font-size:12px;color:var(--mute)}
+.cols{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-top:8px}
+.col{border-top:1px solid var(--rule);padding-top:14px;display:flex;flex-direction:column;gap:12px}
+.tile{border:1.5px solid var(--ink);border-radius:6px;padding:16px 16px 14px;background:#fff}
+.tile.dim{border-color:var(--rule);color:var(--mute)}
+.tile h3{font-size:16px;font-weight:700;letter-spacing:-.005em;line-height:1.25}
+.tile p{font-size:13px;color:var(--mute);margin-top:3px}
+.line{display:flex;align-items:center;margin:14px 0 13px;position:relative}
+.line:before{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;background:var(--rule);margin-top:-1px}
+.line i{position:relative;width:9px;height:9px;border-radius:50%;background:#fff;border:2px solid #B9BEC4;flex:none}
+.line i+i{margin-left:auto}
+.line i.done{background:var(--ink);border-color:var(--ink)}
+.line i.now{width:13px;height:13px;background:var(--ink);border-color:var(--ink);box-shadow:0 0 0 3px #fff,0 0 0 4.5px var(--ink)}
+.line i.gone{background:#9AA0A6;border-color:#9AA0A6}
+.next{border-top:1px solid var(--rule);padding-top:11px;font-size:14px}
+.next a{color:var(--ink);text-decoration:none;font-weight:700}
+.next .quiet{font-weight:500;color:var(--mute)}
+.empty{border:1.5px dashed var(--rule);border-radius:6px;height:92px;display:grid;place-items:center;color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="brand"><i></i>Careergrind</div>
+  <nav aria-label="Main"><a class="on" href="#" aria-current="page">Home</a><a href="#">Jobs</a><a href="#">Library</a><a href="#">Practice</a></nav>
+  <div class="acct"><button class="bell" aria-label="Notifications"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 21h4"/></svg></button>qa.primary@example.test</div>
+</header>
+<main class="main">
+  <div class="head">
+    <div><h1>Your job search</h1><p class="sub">Where each application stands, and what to do next for it.</p></div>
+    <div><button class="btn sec">Find jobs</button><button class="btn pri">Add a job</button></div>
+  </div>
+  <section class="ai" aria-label="AI work in progress">
+    <span class="lbl">AI work in progress</span>
+    <span class="sig"><span class="dot b"></span>Data Analyst <em>— Writing resume draft</em></span>
+    <div class="legend"><span><i class="dot r"></i>Needs you</span><span><i class="dot b"></i>AI working</span><span><i class="dot y"></i>Waiting</span><span><i class="dot g"></i>Offer</span></div>
+  </section>
+  <div class="bar">
+    <h2>6 saved jobs</h2>
+    <div class="seg" role="group" aria-label="View"><button class="on" aria-pressed="true">Board</button><button aria-pressed="false">List</button></div>
+  </div>
+  <div class="map" aria-label="Stages">
+    <div class="track"></div><div class="branch"></div>
+    <div class="st"><div class="bul">3</div><b>Not applied</b></div>
+    <div class="st"><div class="bul">1</div><b>Applied</b></div>
+    <div class="st"><div class="bul">1</div><b>Interviewing</b></div>
+    <div class="st"><div class="bul" style="border-color:var(--green)">0</div><b>Offer</b></div>
+    <div class="st off"><div class="bul">1</div><b>Rejected</b><small>Branch line</small></div>
+  </div>
+  <div class="cols">
+    <div class="col">
+      <article class="tile"><h3>Platform Engineer</h3><p>Northwind Synthetic · Remote (US)</p>
+        <div class="line"><i class="now"></i><i></i><i></i><i></i><i></i></div>
+        <div class="next"><a href="#" class="sig"><span class="dot r"></span>Write resume</a></div></article>
+      <article class="tile"><h3>Data Analyst</h3><p>Contoso Synthetic · Austin, TX</p>
+        <div class="line"><i class="now"></i><i></i><i></i><i></i><i></i></div>
+        <div class="next"><span class="sig"><span class="dot b"></span>Writing resume draft</span></div></article>
+      <article class="tile"><h3>Analytics Engineer</h3><p>Adatum Synthetic · Remote (US)</p>
+        <div class="line"><i class="now"></i><i></i><i></i><i></i><i></i></div>
+        <div class="next"><a href="#" class="sig"><span class="dot r"></span>Compare with library</a></div></article>
+    </div>
+    <div class="col">
+      <article class="tile"><h3>Site Reliability Engineer</h3><p>Fabrikam Synthetic</p>
+        <div class="line"><i class="done"></i><i class="now"></i><i></i><i></i><i></i></div>
+        <div class="next"><span class="sig quiet"><span class="dot y"></span>Waiting to hear back</span></div></article>
+    </div>
+    <div class="col">
+      <article class="tile"><h3>Backend Developer</h3><p>Litware Synthetic</p>
+        <div class="line"><i class="done"></i><i class="done"></i><i class="now"></i><i></i><i></i></div>
+        <div class="next"><a href="#" class="sig"><span class="dot r"></span>Practise interview</a></div></article>
+    </div>
+    <div class="col"><div class="empty">No jobs</div></div>
+    <div class="col">
+      <article class="tile dim"><h3>QA Lead</h3><p>Woodgrove Synthetic</p>
+        <div class="line"><i class="gone"></i><i class="gone"></i><i></i><i></i><i class="now" style="background:#9AA0A6;border-color:#9AA0A6;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #9AA0A6"></i></div>
+        <div class="next"><span class="quiet">Closed</span></div></article>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -3,22 +3,25 @@
  */
 import type { JobNextStepEnum } from '@/graphql/generated/graphql'
 
-/** running: AI is working. attention: something failed. action: the user's move. quiet: nothing to do yet. */
-export type NextStepTone = 'running' | 'attention' | 'action' | 'quiet'
+/** The four signal colors, one meaning each, used the same way across the app: action is the
+ * user's move (including retrying a failure), ai means AI is working, wait means nothing to do yet. */
+export type Signal = 'action' | 'ai' | 'wait' | 'done'
 
-export interface NextStepView { label: string; tone: NextStepTone; tab: string | null }
+export const SIGNAL_LABELS: Record<Signal, string> = { action: 'Needs you', ai: 'AI working', wait: 'Waiting', done: 'Offer' }
+
+export interface NextStepView { label: string; signal: Signal; tab: string | null }
 
 export const NEXT_STEPS: Record<JobNextStepEnum, NextStepView | null> = {
-  COMPARISON_RUNNING: { label: 'Comparing with library', tone: 'running', tab: '' },
-  RESUME_RUNNING: { label: 'Writing resume draft', tone: 'running', tab: 'resume' },
-  COMPARISON_FAILED: { label: 'Comparison failed', tone: 'attention', tab: '' },
-  RESUME_FAILED: { label: 'Resume draft failed', tone: 'attention', tab: 'resume' },
-  REVIEW_RESUME_DRAFT: { label: 'Review resume draft', tone: 'action', tab: 'resume' },
-  COMPARE: { label: 'Compare with library', tone: 'action', tab: '' },
-  WRITE_RESUME: { label: 'Write resume', tone: 'action', tab: 'resume' },
-  READY_TO_APPLY: { label: 'Ready to apply', tone: 'action', tab: 'posting' },
-  AWAITING_RESPONSE: { label: 'Waiting to hear back', tone: 'quiet', tab: null },
-  PRACTICE_INTERVIEW: { label: 'Practise interview', tone: 'action', tab: 'interview' },
+  COMPARISON_RUNNING: { label: 'Comparing with library', signal: 'ai', tab: '' },
+  RESUME_RUNNING: { label: 'Writing resume draft', signal: 'ai', tab: 'resume' },
+  COMPARISON_FAILED: { label: 'Comparison failed', signal: 'action', tab: '' },
+  RESUME_FAILED: { label: 'Resume draft failed', signal: 'action', tab: 'resume' },
+  REVIEW_RESUME_DRAFT: { label: 'Review resume draft', signal: 'action', tab: 'resume' },
+  COMPARE: { label: 'Compare with library', signal: 'action', tab: '' },
+  WRITE_RESUME: { label: 'Write resume', signal: 'action', tab: 'resume' },
+  READY_TO_APPLY: { label: 'Ready to apply', signal: 'action', tab: 'posting' },
+  AWAITING_RESPONSE: { label: 'Waiting to hear back', signal: 'wait', tab: null },
+  PRACTICE_INTERVIEW: { label: 'Practise interview', signal: 'action', tab: 'interview' },
   NONE: null,
 }
 

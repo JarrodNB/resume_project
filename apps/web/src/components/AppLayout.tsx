@@ -71,6 +71,7 @@ export function AppLayout() {
         </header>
         {currentSection && currentSection.tabs.length > 1 && (
           <nav ref={tabsRef} className="section-tabs" aria-label={`${currentSection.label} pages`}>
+            <span className="section-tabs-label" aria-hidden>{currentSection.label}</span>
             {currentSection.tabs.map((tab) => (
               <Link
                 key={tab.to}

@@ -312,7 +312,11 @@ Solid and square-shouldered, like a sign you can press.
 - **Focus mode** (during a live interview) swaps the band for a slim 52px black bar with one "Leave interview room" link and a small brand mark.
 
 ### Section Tabs
-- A plain 52px row under the band with a hairline bottom. Tabs are 14px semibold gray. The current tab turns ink with a 3px ink underline. The job workspace uses the same tabs on a 2px ink rule with a 4px underline.
+- A 52px gray platform strip (`muted`) under the band, so the second level of navigation reads as part of the signage. It starts with the section name as a small uppercase label (hidden on phones). Tabs are 15px bold in dark gray (`tab-idle`). The current tab turns ink with a 4px ink underline. The job workspace uses the same 15px bold tabs on a 2px ink rule.
+
+### Review Questions (Library)
+- When an AI review has questions you can answer, they sit in a box with a 1.5px red signal border. Inside are a red bullet with "The review has N questions for you", the questions in full ink, and a filled "Answer review questions" button. Questions are never muted gray text.
+- Library sections start collapsed, so each section header also shows a red-bullet count ("2 questions for you") whenever it holds open questions.
 
 ### Station Line (Home signature)
 - Five stations across the top of the board, each a 42px ringed bullet holding its job count, with the stage name under it. An 8px ink track runs through every bullet.

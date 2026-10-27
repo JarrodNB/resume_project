@@ -122,6 +122,7 @@
     --rule-strong: #111418;
     --stop-off: #b9bec4;
     --stop-closed: #9aa0a6;
+    --tab-idle: #3a4048;
 
     --signal-action: #ee352e;
     --signal-action-text: #c8231b;
@@ -193,6 +194,7 @@
     --rule-strong: #eef0f2;
     --stop-off: #5b6168;
     --stop-closed: #6f757c;
+    --tab-idle: #c7ccd2;
 
     --signal-action: #ff4a42;
     --signal-action-text: #ff6b63;
@@ -287,9 +289,12 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 .workspace-body { min-width: 0; }
 /* A section's own pages sit in a plain tab row under the band. */
-.section-tabs { display: flex; gap: 28px; height: 52px; padding: 0 48px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; font-size: 14px; color: var(--muted-foreground); }
+/* A section's own pages: a gray platform strip under the band, so the second level of
+   navigation reads as part of the signage instead of fading into the page. */
+.section-tabs { display: flex; align-items: stretch; gap: 32px; height: 52px; padding: 0 48px; background: var(--muted); border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; font-size: 15px; color: var(--tab-idle); }
+.section-tabs-label { display: flex; align-items: center; flex-shrink: 0; margin-right: -8px; padding-right: 24px; border-right: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
 .section-tabs::-webkit-scrollbar { display: none; }
-.section-tab { display: flex; align-items: center; flex-shrink: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; padding-top: 3px; font-weight: 600; transition: color 160ms, border-color 160ms; }
+.section-tab { display: flex; align-items: center; flex-shrink: 0; border-bottom: 4px solid transparent; margin-bottom: -1px; padding-top: 4px; font-weight: 700; transition: color 160ms, border-color 160ms; }
 .section-tab:focus-visible { outline: none; color: var(--foreground); box-shadow: inset 0 -3px 0 var(--ring); }
 .section-tab.is-active { color: var(--foreground); border-bottom-color: var(--rule-strong); }
 .workspace-content { max-width: 1440px; margin: auto; padding: 40px 48px 80px; outline: none; }
@@ -440,7 +445,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .job-workspace-title p { margin-top: 10px; color: var(--muted-foreground); font-size: 16px; }
 .job-workspace-title p + p { margin-top: 2px; font-size: 13px; }
 .job-workspace-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
-.job-tabs { display: flex; gap: 28px; border-bottom: 2px solid var(--rule-strong); overflow-x: auto; scrollbar-width: none; font-size: 14px; color: var(--muted-foreground); }
+.job-tabs { display: flex; gap: 32px; border-bottom: 2px solid var(--rule-strong); overflow-x: auto; scrollbar-width: none; font-size: 15px; color: var(--tab-idle); }
 .job-tabs::-webkit-scrollbar { display: none; }
 .job-tabs .section-tab { min-height: 48px; margin-bottom: -2px; border-bottom-width: 4px; }
 .job-workspace-panel { padding-top: 28px; display: grid; gap: 24px; min-width: 0; }
@@ -460,7 +465,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 /* Touch screens keep hover styles after a tap, so hover only applies to a real pointer.
    The :active rules above give touch users the same feedback while pressing. */
 @media (hover: hover) and (pointer: fine) {
-  .section-tab:hover:not(.is-active) { color: var(--foreground); border-bottom-color: var(--border); }
+  .section-tab:hover:not(.is-active) { color: var(--foreground); border-bottom-color: var(--input); }
   .record-link:hover { background: var(--accent); }
 }
 .record-icon { flex-shrink: 0; color: var(--muted-foreground); }
@@ -552,7 +557,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .band-nav::-webkit-scrollbar { display: none; }
   .band-nav-link { padding: 4px 12px 0; font-size: 14px; }
   .account-menu-trigger { max-width: 200px; }
-  .section-tabs { gap: 22px; height: 48px; padding: 0 24px; }
+  .section-tabs { gap: 24px; height: 48px; padding: 0 24px; }
+  .section-tabs-label { display: none; }
   .page-heading { gap: 20px; padding-bottom: 24px; }
   .page-heading h1 { font-size: 2rem; }
   .job-workspace-title h1 { font-size: 2rem; }
@@ -609,6 +615,12 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .library-detail[data-selected] { background: var(--secondary); outline: 1px solid var(--primary); outline-offset: -1px; }
 .library-detail .library-assessment { padding: 0; font-size: 12px; }
 .library-detail .library-assessment svg { width: 14px; height: 14px; }
+/* Review questions waiting on the user: a red-signal box, not muted text, with the answer button inside. */
+.review-questions { display: grid; gap: 10px; max-width: 72ch; margin-top: 6px; padding: 14px 16px; border: 1.5px solid var(--signal-action); border-radius: 6px; background: var(--background); }
+.review-questions-badge { display: inline-flex; align-items: center; gap: 7px; color: var(--signal-action-text); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.review-questions-badge .signal-dot { width: 9px; height: 9px; }
+.review-questions-title { display: flex; align-items: center; gap: 9px; color: var(--foreground); font-size: 14px; font-weight: 700; }
+.review-questions ul { display: grid; gap: 6px; padding-left: 21px; list-style: disc; color: var(--foreground); font-size: 14px; line-height: 1.55; text-wrap: pretty; }
 [data-slot=dialog-content].library-ai-mobile { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; transform: none; translate: none; border-radius: 0; padding: 0; display: block; overflow-y: auto; box-shadow: none; animation: none; }
 .library-ai-mobile .library-ai-heading { padding-top: max(18px, env(safe-area-inset-top)); }
 .library-ai-mobile .library-ai-body { padding-bottom: max(24px, env(safe-area-inset-bottom)); }

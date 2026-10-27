@@ -41,7 +41,7 @@ recovery harness remain for offline tests only.
 
 This browser URL uses the same Rails app for career-library uploads and spoken interviews.
 The real QA overlay now starts local ElasticMQ (`sqs`), the Python `ai` worker and the Rails
-`api-results-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
+`api-results-worker` and the durable `api-jobs-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
 it must not send local development credentials to AWS SQS. The launcher provisions the
 standard local read-only `ai_reader` role and applies the repository table grants. Resume
 processing uses the original AI environment file and the general AI allowance. The existing

@@ -26,10 +26,11 @@ services:
       - interview_s3:/s3mockroot
 
   api:
+    image: cg-interview-qa-api
     build:
       context: ../services/api
       dockerfile: Dockerfile.dev
-    environment:
+    environment: &interview-rails-environment
       RAILS_ENV: development
       DB_HOST: db
       DB_USERNAME: postgres
@@ -41,6 +42,7 @@ services:
       S3_ENDPOINT_URL: http://s3:9090
       S3_UPLOADS_BUCKET: careergrind-uploads
       INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
+      AI_HTTP_ORIGIN: http://ai-http:8000
       INTERVIEW_BROWSER_STORAGE_ORIGIN: http://s3:9090
       BOOTSNAP_CACHE_DIR: /bootsnap
       OPENAI_API_KEY: ""
@@ -58,6 +60,23 @@ services:
       interval: 3s
       timeout: 5s
       retries: 60
+
+  api-jobs-worker:
+    image: cg-interview-qa-api
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile.dev
+    command: bundle exec ruby bin/jobs
+    init: true
+    restart: on-failure
+    environment:
+      <<: *interview-rails-environment
+    volumes:
+      - ../services/api:/rails
+      - interview_bootsnap:/bootsnap
+    depends_on:
+      api:
+        condition: service_healthy
 
   storage-setup:
     profiles: [checks]

@@ -13,7 +13,7 @@ rails() {
 cleanup() {
   result=$?
   docker rm -f "$probe" >/dev/null 2>&1 || true
-  "${compose[@]}" stop ai-http >/dev/null 2>&1 || true
+  "${compose[@]}" stop ai-http api-jobs-worker >/dev/null 2>&1 || true
   if [[ ${fixtures_created:-false} == true && "$result" == 0 ]]; then
     rails cleanup || true
   elif [[ ${fixtures_created:-false} == true ]]; then
@@ -25,7 +25,7 @@ trap cleanup EXIT
 "${compose[@]}" build api ai-http
 "${compose[@]}" up -d db s3
 "${compose[@]}" run --rm api bundle exec rails db:prepare
-"${compose[@]}" up -d --wait api
+"${compose[@]}" up -d --wait api api-jobs-worker
 "${compose[@]}" run --rm --no-deps storage-setup
 rails setup
 fixtures_created=true

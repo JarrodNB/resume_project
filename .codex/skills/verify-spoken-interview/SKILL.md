@@ -39,7 +39,8 @@ target checkout and use its absolute script path instead of copying a stale mach
 - Real local QA uses the one retained paid database named by the current guide, the original
   ignored AI environment file, configured telemetry, private storage, and internal service
   credentials. Never print/copy secret values into artifacts. The same browser stack also
-  needs SQS and both queue workers for resume uploads and other queued features.
+  needs SQS and both SQS workers for resume uploads and other queued features, plus
+  the Rails durable jobs worker for interview fallback, lease recovery and cleanup.
 - Starting real execution may immediately resume pending work and incur charges. Stay within
   the requested/previously authorized provider scope. If missing authorization matters,
   prepare the exact path, pending-work implications, and bounded plan before asking once.

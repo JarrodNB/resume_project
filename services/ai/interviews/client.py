@@ -11,7 +11,6 @@ from typing import Any, Literal
 from urllib.parse import quote, urlsplit
 
 import httpx
-import logfire
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, ValidationError, model_validator
 
 from schemas.interview_setup import InterviewSetup
@@ -292,16 +291,6 @@ class RailsInterviewClient:
     def _path(operation_id, action=""):
         return "operations/" + quote(str(operation_id), safe="") + ("/" + action if action else "")
 
-    async def discover(self) -> list[str]:
-        # Suppress only transport polling. The supervisor creates execution tasks
-        # after this scope closes, so their operation/model traces remain enabled.
-        with logfire.suppress_instrumentation():
-            result = await self._request("GET", "operations?execution_mode=" + self._execution_mode)
-        ids = result.get("operation_ids")
-        if not isinstance(ids, list) or any(not isinstance(value, str) for value in ids):
-            raise RailsTransportError("Invalid operation discovery")
-        return ids
-
     async def claim(self, operation_id) -> Claim:
         # This endpoint has no idempotency key; never replay ambiguous claim creation.
         result = await self._request("POST", self._path(operation_id, "claim"),
@@ -423,6 +412,3 @@ class RailsInterviewClient:
         return await self._callback(
             claim, "usage", usage=usage, incomplete=incomplete, observation_id=observation_id
         )
-
-    async def cleanup(self):
-        return await self._request("POST", "cleanup", {})

@@ -1,4 +1,4 @@
-"""Keep optional local interview timings without exporting periodic Logfire noise.
+"""Keep optional local interview timings without exporting private stage details.
 
 Durations use one process's monotonic clock. Fenced attempt IDs distinguish retries;
 debug records contain no prompts, audio capabilities, provider errors or user details.
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def stage_timing(claim, stage):
-    """Observe one stage; discovery/claim pass None before a fenced claim exists."""
+    """Observe one stage; claim passes None before a fenced identity exists."""
     started = time.monotonic()
     outcome = "completed"
     try:

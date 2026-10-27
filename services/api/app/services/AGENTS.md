@@ -151,7 +151,8 @@ All business logic, as service objects grouped by domain folder.
   library-informed preparation and atomic ready-state role/question acceptance,
   exact-value frozen library/focus screening reuse and fenced `screen_library` approval callbacks
   (focus checks require current preparation and matching locked-value fingerprints),
-  claim-bound speech and bounded cleanup. Lock owner, interview, ordered questions,
+  claim-bound speech, transactional delivery for every operation/retry, exact-lease
+  watchdogs, explicit startup adoption of legacy work, and bounded scheduled cleanup. Lock owner, interview, ordered questions,
   then operation/task/media; perform object/provider I/O outside locks and recheck
   authority before committing. Submission requires owned ready unexpired audio for
   the current question. Keep deletion tombstones for delayed-write reaping and preserve

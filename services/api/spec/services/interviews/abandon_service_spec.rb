@@ -54,7 +54,7 @@ RSpec.describe "Interview abandonment" do
     expect(Interviews::RenewClaimService.call(operation: operation, **identity)).not_to be_success
     expect(Interviews::FailOperationService.call(operation: operation, **identity, code: "dependency_unavailable", retryable: true)).not_to be_success
     expect(Interviews::RetryOperationService.call(operation: operation)).not_to be_success
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "real").value).not_to include(operation.id)
+    expect(Interviews::DeliveryStateService.call(operation: operation).value[:delivered]).to be(true)
     expect(preparing.reload.prepared_role).to eq({})
     expect(preparing.questions).to be_empty
     expect(Interviews::BeginService.call(interview: preparing)).not_to be_success

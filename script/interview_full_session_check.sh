@@ -13,7 +13,7 @@ cleanup() { docker rm -f "$probe" >/dev/null 2>&1 || true; "${compose[@]}" stop 
 trap cleanup EXIT
 "${compose[@]}" up -d db s3
 "${compose[@]}" run --rm api bundle exec rails db:prepare
-"${compose[@]}" up -d --no-build --wait api ai-http
+"${compose[@]}" up -d --no-build --wait api api-jobs-worker ai-http
 "${compose[@]}" run --rm --no-deps storage-setup
 "${compose[@]}" stop ai-http
 start_probe() {

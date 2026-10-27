@@ -16,19 +16,11 @@ RSpec.describe "Internal interview execution", type: :request do
   end
 
 
-  it "validates requested execution mode and filters real work for legacy callers" do
-    # This legacy fixture's first operation is provider speech; discovery is
-    # intentionally disabled for that operation in the default browser mode.
+  it "validates saved execution mode before claiming specific work" do
     allow(ENV).to receive(:[]).and_call_original
     allow(ENV).to receive(:[]).with("INTERVIEW_SPEECH_PLAYBACK").and_return("provider")
     real = Interviews::CreateFixtureService.call(user: interview.user, execution_mode: "real").value
     real_operation = real.operations.first
-    get "/internal/interviews/operations", headers: headers
-    expect(response.parsed_body["operation_ids"]).not_to include(real_operation.id)
-    get "/internal/interviews/operations", params: { execution_mode: "real" }, headers: headers
-    expect(response.parsed_body["operation_ids"]).to include(real_operation.id)
-    get "/internal/interviews/operations", params: { execution_mode: "invalid" }, headers: headers
-    expect(response).to have_http_status(:conflict)
     post "/internal/interviews/operations/#{real_operation.id}/claim", params: {}, headers: headers, as: :json
     expect(response).to have_http_status(:conflict)
     expect(real_operation.reload.execution_count).to eq(0)
@@ -162,7 +154,7 @@ RSpec.describe "Internal credential scheme", type: :request do
   it "rejects the raw secret without the Bearer scheme" do
     original = ENV["INTERVIEW_SERVICE_SECRET"]
     ENV["INTERVIEW_SERVICE_SECRET"] = "scheme-secret"
-    get "/internal/interviews/operations", headers: { "Authorization" => "scheme-secret" }
+    post "/internal/interviews/operations/00000000-0000-0000-0000-000000000000/claim", headers: { "Authorization" => "scheme-secret" }, as: :json
     expect(response).to have_http_status(:unauthorized)
   ensure
     ENV["INTERVIEW_SERVICE_SECRET"] = original

@@ -53,7 +53,10 @@ module Interviews
         question.update!(accepted_answer_count: question.accepted_answer_count + 1,
           history_version: @history_version, model_history: @model_history)
         interview.update!(revision: interview.revision + 1)
-        interview.operations.create!(kind: "speech", question: response.question, message: response) if interview.active? && SpeechPlayback.provider?(interview)
+        if interview.active? && SpeechPlayback.provider?(interview)
+          speech = interview.operations.create!(kind: "speech", question: response.question, message: response)
+          ScheduleOperationService.call(operation: speech)
+        end
         receipt = { "revision" => interview.revision, "status" => interview.status,
           "message_ids" => [ answer.id, response.id ], "question_id" => question.id }
         @operation.update!(status: "accepted", accepted_at: Time.current, result_fingerprint: fingerprint, accepted_result: receipt)

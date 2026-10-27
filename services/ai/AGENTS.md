@@ -11,7 +11,8 @@ Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
 retrieval. Existing queue workers use exec health probes. The shared FastAPI app starts at
 `app.py` and runs integrated interview execution using explicitly configured providers.
-Its lifespan supervises Rails claims and cleanup; private audio helpers validate sealed
+Its lifespan supervises directly dispatched Rails claims; Rails jobs own retry/recovery
+and cleanup. Private audio helpers validate sealed
 capabilities and decode audio offline. `interviews/fixture_app.py` is isolated offline
 test support. See docs/architecture/interview-sessions.md.
 

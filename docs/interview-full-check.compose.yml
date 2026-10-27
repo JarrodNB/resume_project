@@ -7,6 +7,9 @@ services:
       INTERVIEW_ADMISSION_ENABLED: "true"
       INTERVIEW_SYNTHETIC_PROVIDER_CHECK: "true"
       AI_HTTP_ORIGIN: http://ai-http:8000
+  api-jobs-worker:
+    environment:
+      INTERVIEW_SYNTHETIC_PROVIDER_CHECK: "true"
   ai-http:
     image: cg-interview-qa-ai-http
     command: python -m scripts.interview_mock_runtime

@@ -27,7 +27,9 @@ module Interviews
         root = @interview.operations.preparation.first&.ai_task
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @interview.user, existing_task: root, interview: true)
         next allowance unless allowance.success?
-        success(@interview.operations.create!(kind: "transcription", question: question, expected_revision: @revision, recording_id: recording.id))
+        operation = @interview.operations.create!(kind: "transcription", question: question, expected_revision: @revision, recording_id: recording.id)
+        ScheduleOperationService.call(operation: operation)
+        success(operation)
       end
     end
   end

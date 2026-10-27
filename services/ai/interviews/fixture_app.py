@@ -13,7 +13,8 @@ import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from interviews.runtime import RecoveryRuntime
+from execution.runner import ExecutionRunner
+from interviews.execution_adapter import InterviewExecutionAdapter
 
 
 @dataclass(frozen=True)
@@ -66,7 +67,8 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         isolate_fake_process()
         configured = settings or RuntimeSettings.from_environment()
-        app.state.runtime = None
+        app.state.execution_runner = None
+        app.state.service_secret = configured.secret
         if configured.enabled:
             from interviews.client import RailsInterviewClient
             from interviews.executor import InterviewExecutor
@@ -78,17 +80,19 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
                         allowed_origins=set(configured.storage_origins), allow_http=True,
                         scenario=configured.scenario,
                     )
-                    runtime = RecoveryRuntime(client, executor)
-                    app.state.runtime = runtime
-                    await runtime.start()
+                    runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(client, executor)})
+                    app.state.execution_runner = runner
                     try:
                         yield
                     finally:
-                        await runtime.stop()
+                        await runner.close()
         else:
             yield
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+
+    from routes.executions import install_execution_routes
+    install_execution_routes(app, secret=lambda: getattr(app.state, "service_secret", ""))
 
     @app.get("/health")
     async def health():
@@ -96,8 +100,8 @@ def create_app(settings: RuntimeSettings | None = None) -> FastAPI:
 
     @app.get("/ready")
     async def ready():
-        runtime = getattr(app.state, "runtime", None)
-        ready = bool(runtime and runtime.ready)
+        runner = getattr(app.state, "execution_runner", None)
+        ready = bool(runner and runner.ready)
         return JSONResponse({"ready": ready}, status_code=200 if ready else 503)
 
     return app

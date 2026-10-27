@@ -53,9 +53,9 @@ RSpec.describe "Recorded transcript review" do
     expect(operation.reload.accepted_result).to eq({})
     expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end
-  it "discovers durable work, fences stale revisions and expires its private text" do
+  it "dispatches durable work, fences stale revisions and expires its private text" do
     operation = Interviews::StartRecordedTranscriptionService.call(**input).value
-    expect(Interviews::DiscoverOperationsService.call.value).to include(operation.id)
+    expect(operation.reload.delivery_job_id).to be_present
     claim = Interviews::ClaimOperationService.call(operation: operation).value
     args = { operation: operation, attempt_id: claim[:attempt_id], claim_generation: claim[:claim_generation], transcript: "review me" }
     interview.update!(revision: 1)

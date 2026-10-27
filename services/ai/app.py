@@ -11,7 +11,8 @@ import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
-from interviews.runtime import RecoveryRuntime
+from execution.runner import ExecutionRunner
+from interviews.execution_adapter import InterviewExecutionAdapter
 
 
 def configuration():
@@ -41,7 +42,6 @@ def configuration():
 def create_app():
     @asynccontextmanager
     async def lifespan(app):
-        app.state.runtime = None
         app.state.execution_runner = None
         configured, app.state.reason = configuration()
         if configured is None:
@@ -65,15 +65,13 @@ def create_app():
             with httpx.Client(trust_env=False, timeout=15, follow_redirects=False) as storage:
                 executor = RealInterviewExecutor(rails, audio=audio, models=models,
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
-                runtime = RecoveryRuntime(rails, executor)
-                app.state.runtime = runtime
-                app.state.execution_runner = runtime.runner
-                await runtime.start()
+                runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor)})
+                app.state.execution_runner = runner
                 try:
                     yield
                 finally:
                     app.state.capture_owner = None
-                    await runtime.stop()
+                    await runner.close()
                     flush_tracing()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
@@ -90,9 +88,9 @@ def create_app():
 
     @app.get("/ready")
     async def ready():
-        runtime = getattr(app.state, "runtime", None)
-        is_ready = bool(runtime and runtime.ready)
-        reason = getattr(app.state, "reason", "runtime_disabled") or "rails_unavailable"
+        runner = getattr(app.state, "execution_runner", None)
+        is_ready = bool(runner and runner.ready)
+        reason = getattr(app.state, "reason", "runtime_disabled") or "execution_unavailable"
         return JSONResponse({"ready": is_ready, **({} if is_ready else {"reason": reason})},
                             status_code=200 if is_ready else 503)
 

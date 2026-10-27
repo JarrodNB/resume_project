@@ -20,6 +20,7 @@ import { InterviewCareerReferences } from './InterviewCareerReferences'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { InterviewPreparation } from './InterviewPreparation'
+import { InterviewJobSource } from './InterviewJobSource'
 import { AbandonInterviewButton } from './AbandonInterviewButton'
 import { RecentInterviews } from './RecentInterviews'
 import { AnswerEditor } from './AnswerEditor'
@@ -229,6 +230,7 @@ function OwnedInterview({ id }: { id: string }) {
     : 'Your turn'
   return <>
     {recordingWarning}
+    {interview.jobContext && <InterviewJobSource job={interview.jobContext} />}
     <div className="flex flex-wrap items-center justify-end gap-3">
       {interview.status === 'active' && abandonControl}
       {interview.status === 'active' && <Dialog open={settingsOpen} onOpenChange={(open) => { setSettingsOpen(open); if (!open) setPendingTranscriptionMode(null) }}>

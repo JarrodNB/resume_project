@@ -29,4 +29,58 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     end
     expect(user.interview_sessions).to be_empty
   end
+
+  it "retains frozen history after edits and publishes detached navigation when the job is deleted" do
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    preparation = interview.operations.preparation.first
+    identity = Interviews::ClaimOperationService.call(operation: preparation, execution_mode: "real").value.slice(:attempt_id, :claim_generation)
+    questions = 8.times.map { |index| { "question_type" => %w[behavioral technical knowledge][index % 3], "content" => "Saved laboratory topic #{index}?" } }
+    expect(Interviews::AcceptPreparationService.call(operation: preparation, **identity, role: nil, questions: questions)).to be_success
+    expect(Interviews::BeginService.call(interview: interview)).to be_success
+    revision = interview.revision
+    turn = Interviews::SubmitTurnService.call(interview: interview, question_id: interview.questions.first.id,
+      expected_revision: revision, submission_key: "delete-job-pending-turn", transcription_mode: "typed",
+      candidate_transcript: "I checked the calibration records.").value
+    query = '{ recentInterviewSessions { id jobContext { id title company } } }'
+    job.update!(title: "Renamed vacancy", company: "Changed company")
+    saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
+    expect(saved).to eq("id" => job.id, "title" => "Laboratory technician", "company" => nil)
+    expect(execute_graphql(query, user: create(:user)).dig("data", "recentInterviewSessions")).to eq([])
+
+    allow(Interviews::PublishSnapshotService).to receive(:call).and_call_original
+    deleted = execute_graphql('mutation($id: ID!) { deleteJob(input: {id: $id}) { errors } }', user: user, variables: { id: job.id })
+    expect(deleted.dig("data", "deleteJob", "errors")).to eq([])
+    expect(Interviews::PublishSnapshotService).to have_received(:call).with(interview_id: interview.id)
+    saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
+    expect(saved).to eq("id" => nil, "title" => "Laboratory technician", "company" => nil)
+    expect(interview.reload.frozen_context.dig("job", "description")).to eq("Maintain instruments.")
+    expect(interview.revision).to eq(revision)
+    expect(interview.messages.first.content).to eq(questions.first.fetch("content"))
+    claimed = Interviews::ClaimOperationService.call(operation: turn, execution_mode: "real")
+    expect(claimed).to be_success
+    expect(claimed.value.dig(:payload, :candidate_transcript)).to eq("I checked the calibration records.")
+  end
+
+  it "removes expired job context from public history and purges it with the saved text" do
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    interview.update!(expires_at: 1.second.ago)
+    expect(execute_graphql('{ recentInterviewSessions { id jobContext { title } } }', user: user).dig("data", "recentInterviewSessions")).to eq([])
+    expect(execute_graphql("{ interviewSession(id: \"#{interview.id}\") { jobContext { title } } }", user: user).dig("errors", 0, "message")).to eq("Interview expired")
+    expect(Interviews::CleanupService.call).to be_success
+    expect(interview.reload.frozen_context).to eq({})
+    expect(interview.prepared_role).to eq({})
+  end
+
+  it "keeps live job navigation when deletion is rejected" do
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    reject_deletion = -> { errors.add(:base, "Deletion unavailable"); throw :abort }
+    Job.set_callback(:destroy, :before, reject_deletion)
+    begin
+      deleted = execute_graphql('mutation($id: ID!) { deleteJob(input: {id: $id}) { errors } }', user: user, variables: { id: job.id })
+      expect(deleted.dig("data", "deleteJob", "errors")).to include("Deletion unavailable")
+      expect(interview.reload.job_id).to eq(job.id)
+    ensure
+      Job.skip_callback(:destroy, :before, reject_deletion)
+    end
+  end
 end

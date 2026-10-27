@@ -60,7 +60,7 @@ export const ABANDON_INTERVIEW = graphql(`
 
 export const RECENT_INTERVIEWS = graphql(`
   query RecentInterviewSessions {
-    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } }
+    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }
   }
 `)
 

@@ -5,6 +5,8 @@ import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { difficultyOptions, focusOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { Button } from '@/components/ui/button'
 import { InterviewJobContext } from './InterviewJobContext'
+import { InterviewJobSource } from './InterviewJobSource'
+import { Link } from 'react-router'
 
 interface Props {
   interview: InterviewSnapshotFragment
@@ -29,6 +31,9 @@ export function InterviewPreparation({ interview, busy, error, disconnected, ret
   const job = interview.jobContext
   const followUpLimit = Math.max(0, interview.answerCap - 1)
   return <div className="grid gap-5">
+    {job && interview.status !== 'ready' && <InterviewJobSource job={job} />}
+    {job && interview.status === 'ready' && job.id && <Link className="justify-self-start text-sm underline underline-offset-4" to={`/jobs/${job.id}`}>Back to job</Link>}
+    {job && interview.status === 'ready' && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. This interview keeps the saved job details from preparation.</p>}
     {interview.status === 'ready' && role ? <>
       <div className="grid gap-2">
         <h2 className="text-xl font-medium">{job ? 'Review your saved job' : 'Review your fictional role'}</h2>

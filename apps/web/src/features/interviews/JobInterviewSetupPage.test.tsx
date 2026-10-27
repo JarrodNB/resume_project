@@ -13,13 +13,22 @@ const job = { __typename: 'Job', id: 'job-1', title: 'Laboratory technician', co
   stage: 'UNAPPLIED', url: null, description: 'Maintain laboratory instruments.', notes: null, appliedAt: null,
   requirements: ['Calibration'], responsibilities: [], niceToHaves: [], gapResponses: [], latestGapAnalysis: null, resume: null }
 const request = { query: JOB_QUERY, variables: { id: 'job-1' } }
-function mount(available = true) {
-  return renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview', element: <JobInterviewSetupPage />,
+function mount(available = true, historyState?: unknown) {
+  return renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/job-1/interview', historyState, element: <JobInterviewSetupPage />,
     mocks: [available ? { request, result: { data: { job } } } : { request, result: { errors: [new GraphQLError('Record not found')] } }],
     extraRoutes: [{ path: '/interviews/:id', element: <p>Saved preparation</p> }, { path: '/jobs', element: <p>My jobs</p> }],
   })
 }
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); start.mockResolvedValue('session') })
+
+it('restores the saved round choices when repeating practice for the same job', async () => {
+  mount(true, { practiceSetup: { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] } })
+  await screen.findByRole('heading', { name: 'Laboratory technician' })
+  expect(screen.getByRole('radio', { name: /Technical \/ Role/ })).toBeChecked()
+  expect(screen.getByRole('radio', { name: /Stretch/ })).toBeChecked()
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
+  expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, 'job-1')
+})
 
 it('loads selection from the route again on reload, then starts practice for that exact job', async () => {
   const first = mount()

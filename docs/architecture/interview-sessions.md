@@ -40,6 +40,14 @@ practice; edits do not change frozen details. Normal expiry cleanup purges the c
 context and prepared role with other session text. Title-only jobs show limited-context
 copy and use broader role questions rather than invented vacancy requirements.
 
+Recent interviews identify saved-job practice using its frozen title/company. Preparation,
+active sessions and completed reviews retain that identity and offer a return link only
+while the original job exists. Repeating completed practice carries the saved choices to
+the same job's setup; deleted sources instead offer an explicit choice of another job.
+Job deletion detaches live retained sessions through normal snapshot callbacks under the
+existing owner/job locks. This updates live navigation without changing progression revision,
+accepted dialogue or pending answer identity. A rejected deletion rolls back the detachment.
+
 Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
 (Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions
 default to Realistic, Daniel and no focus when those fields are absent. Preparation

@@ -37,6 +37,44 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
+  it.each(['preparing', 'ready'])('identifies the saved job and return path when resuming %s preparation', (status) => {
+    state.interview = { ...snapshot, status, preparedRole: { title: 'Original laboratory technician', requirements: [], responsibilities: [] },
+      jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+    renderInterview()
+    expect(screen.getByText('Original Labs')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
+  })
+  it('identifies the frozen job and offers return navigation when resuming an active interview', () => {
+    state.interview = { ...snapshot, jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+    renderInterview()
+    expect(screen.getByText('Original laboratory technician')).toBeVisible()
+    expect(screen.getByText('Original Labs')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
+  })
+  it.each(['active', 'completed'])('keeps deleted-job %s practice readable without linking to the removed job', (status) => {
+    state.interview = { ...snapshot, status, jobContext: { id: null, title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+    renderInterview()
+    expect(screen.getByText('Original laboratory technician')).toBeVisible()
+    expect(screen.getByText('Original Labs')).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Back to job' })).not.toBeInTheDocument()
+    expect(screen.getByText(/original job was deleted/i)).toBeVisible()
+    if (status === 'completed') {
+      expect(screen.queryByRole('button', { name: 'Fictional role' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Practice again' })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Choose another job' })).toHaveAttribute('href', '/jobs')
+    }
+  })
+  it('reviews and repeats practice for the same live job, with the saved setup choices', async () => {
+    state.interview = { ...snapshot, status: 'completed', jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: 'Saved role description.', requirements: [], responsibilities: [], niceToHaves: [] } }
+    const { router } = renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewPage />,
+      extraRoutes: [{ path: '/jobs/:jobId/interview', element: <p>Job practice setup</p> }] })
+    expect(screen.getByText('Original laboratory technician')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Fictional role' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to job' })).toHaveAttribute('href', '/jobs/job-1')
+    await userEvent.click(screen.getByRole('link', { name: 'Practice again' }))
+    expect(router.state.location.pathname).toBe('/jobs/job-1/interview')
+    expect(router.state.location.state).toEqual({ practiceSetup: snapshot.setup })
+  })
   it('reviews the saved job snapshot without labelling it as a fictional role', async () => {
     state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician', requirements: [], responsibilities: [] },
       jobContext: { id: 'job-1', title: 'Laboratory technician', company: 'Sample Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }

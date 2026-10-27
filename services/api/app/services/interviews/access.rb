@@ -1,12 +1,12 @@
 # Checks access to user-owned spoken interviews and admission to the real runtime.
 module Interviews
-  module DemoAccess
+  module Access
     def self.enabled?
       true
     end
 
-    def self.real_enabled?
-      enabled? && ENV["INTERVIEW_REAL_ADMISSION_ENABLED"] == "true"
+    def self.admission_enabled?
+      enabled? && ENV["INTERVIEW_ADMISSION_ENABLED"] == "true"
     end
 
     def self.find!(user, id)

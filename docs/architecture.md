@@ -10,7 +10,7 @@ when changing a contract or feature:
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Rails background jobs](architecture/background-jobs.md) | Durable job storage, transactional enqueue and queue-worker operations |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |
-| [Interview sessions](architecture/interview-sessions.md) | Spoken demo records, atomic acceptance, HTTP boundary and recovery ownership |
+| [Interview sessions](architecture/interview-sessions.md) | Spoken interview records, atomic acceptance, HTTP boundary and recovery ownership |
 | [Study guides](architecture/study-guides.md) | Job-description learning material, queued generation and retained results |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |

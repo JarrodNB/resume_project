@@ -105,17 +105,16 @@ def app_env(service):
         "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS": urlsplit(web_origin).hostname or "localhost",
         "INTERVIEW_SERVICE_SECRET": cfg["interview_secret"],
         "INTERVIEW_RAILS_ORIGIN": "http://127.0.0.1:3000",
-        "INTERVIEW_REAL_RUNTIME_ENABLED": "true",
-        "INTERVIEW_REAL_ADMISSION_ENABLED": "true",
-        "INTERVIEW_REAL_RUNTIME_ORIGIN": "http://127.0.0.1:8000",
-        "INTERVIEW_ENVIRONMENT": "development",
+        "AI_HTTP_ENABLED": "true",
+        "INTERVIEW_ADMISSION_ENABLED": "true",
+        "AI_HTTP_ORIGIN": "http://127.0.0.1:8000",
         "INTERVIEW_BROWSER_ORIGINS": web_origin,
         "INTERVIEW_STORAGE_ORIGINS": "http://127.0.0.1:9090",
         "INTERVIEW_BROWSER_STORAGE_ORIGIN": env.get(
             "NATIVE_STORAGE_ORIGIN", "http://localhost:9090"),
         "INTERVIEW_TRANSCRIPTION_TARGET": "http://127.0.0.1:8000",
     })
-    if service == "ai":
+    if service in {"ai", "ai-worker", "ai-http"}:
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
                    PGPASSWORD=cfg["reader_password"],
                    DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
@@ -276,8 +275,8 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
             "api": (["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"], "services/api", env),
             "jobs": (["bundle", "exec", "ruby", "bin/jobs"], "services/api", env),
             "results": (["bundle", "exec", "shoryuken", "-R", "-C", "config/shoryuken.yml"], "services/api", env),
-            "ai": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai")),
-            "interview": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "interviews.real_app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", app_env("ai")),
+            "ai-worker": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai-worker")),
+            "ai-http": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", app_env("ai-http")),
             "web": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/web", env),
             "landing": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/landing", env),
         }

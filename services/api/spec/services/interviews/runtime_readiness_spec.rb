@@ -1,14 +1,14 @@
 # Exercises the bounded readiness probe without an actual runtime or provider request.
 require "rails_helper"
 
-RSpec.describe Interviews::RealRuntimeReadiness do
+RSpec.describe Interviews::RuntimeReadiness do
   around do |example|
-    saved = ENV.to_h.slice("INTERVIEW_SERVICE_SECRET", "INTERVIEW_REAL_RUNTIME_ORIGIN")
+    saved = ENV.to_h.slice("INTERVIEW_SERVICE_SECRET", "AI_HTTP_ORIGIN")
     ENV["INTERVIEW_SERVICE_SECRET"] = "synthetic-service-secret"
-    ENV["INTERVIEW_REAL_RUNTIME_ORIGIN"] = "http://runtime:8000"
+    ENV["AI_HTTP_ORIGIN"] = "http://runtime:8000"
     example.run
   ensure
-    %w[INTERVIEW_SERVICE_SECRET INTERVIEW_REAL_RUNTIME_ORIGIN].each { |key| ENV.delete(key) }
+    %w[INTERVIEW_SERVICE_SECRET AI_HTTP_ORIGIN].each { |key| ENV.delete(key) }
     ENV.update(saved)
   end
 
@@ -19,7 +19,7 @@ RSpec.describe Interviews::RealRuntimeReadiness do
     allow(http).to receive(:start).and_yield(http)
     allow(http).to receive(:request).and_yield(response)
     expect(described_class.ready?).to be(false)
-    ENV["INTERVIEW_REAL_RUNTIME_ORIGIN"] = "http://user:secret@runtime:8000"
+    ENV["AI_HTTP_ORIGIN"] = "http://user:secret@runtime:8000"
     expect(described_class.ready?).to be(false)
   end
 

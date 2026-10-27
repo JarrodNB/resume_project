@@ -78,7 +78,7 @@ browser audio storage URLs, and Rails/Vite development host allowances.
 Publish/forward ports 5173, 3000, and 9090 through
 your environment's supported mechanism. Microphone access requires HTTPS or
 localhost. Port 5174 serves the optional landing page. Rails, web, landing, and
-the interview server bind to all interfaces; the database and emulator bind to
+the AI HTTP server bind to all interfaces; the database and emulator bind to
 loopback. Do not expose the unauthenticated emulator publicly beyond your trusted
 development preview.
 
@@ -113,7 +113,7 @@ Once workers run, queued work or user actions can invoke configured providers.
   repository example manually to test resume import.
 
 `check` checks Rails health, both frontend HTTP endpoints, local database,
-emulator and interview ports, and the recorded jobs-supervisor process identity.
+emulator and AI HTTP ports, and the recorded jobs-supervisor process identity.
 It does not validate every job delivery, product flow, provider
 credential, subscription, or browser audio path. Inspect worker logs as well.
 

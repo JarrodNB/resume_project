@@ -8,10 +8,10 @@ import os
 
 import httpx
 
+from app import configuration
 from interviews import audio_providers, models
 from interviews.client import RailsInterviewClient, RailsTransportError
 from interviews.real import RealInterviewExecutor
-from interviews.real_app import configuration
 from scripts import interview_mock_runtime
 
 

@@ -71,7 +71,7 @@ See [accounting](architecture/interview-provider-accounting.md).
 
 Run from the retained checkout. Credentials stay in the original ignored environment file;
 the commands pass its path, never its contents. The launcher uses existing local images
-`cg-interview-qa-api`, `cg-interview-qa-web` and `cg-interview-qa-interview-runtime`.
+`cg-interview-qa-api`, `cg-interview-qa-web` and `cg-interview-qa-ai-http`.
 Rebuild them from this checkout if dependencies change.
 
 ```bash
@@ -83,7 +83,7 @@ The original fake QA stack must be stopped first because it uses the same loopba
 Its volumes are preserved by this command:
 
 ```bash
-docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml --profile qa stop
+docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml --profile qa stop
 ```
 
 The real launcher keeps an existing runtime running, refuses a missing retained ledger,

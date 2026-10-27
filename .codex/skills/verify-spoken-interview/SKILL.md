@@ -18,7 +18,7 @@ from historical verification records.
 | Requested evidence | Existing path | What it establishes |
 | --- | --- | --- |
 | Contract or implementation regression | Focused Rails/Python/frontend tests in [testing guidance](../../../docs/testing.md) | Ownership, state transitions, validation, rendering, and mocked failures |
-| Current full-flow process recovery | [Full-session harness](../../../script/interview_full_session_check.sh) and [offline guide](../../../docs/interview-demo.md) | Real local services with synthetic provider HTTP, process interruptions, accepted-result replay, speech recovery, and storage handling |
+| Current full-flow process recovery | [Full-session harness](../../../script/interview_full_session_check.sh) and [offline guide](../../../docs/interview-recovery.md) | Real local services with synthetic provider HTTP, process interruptions, accepted-result replay, speech recovery, and storage handling |
 | Legacy fixture/lease recovery | [Recovery harness](../../../script/interview_recovery_check.sh) | Its scripted fixture flow and recovery assertions; not current live interview quality |
 | Actual provider smoke or human device QA | [Real QA launcher](../../../script/interview_real_qa.sh) and real QA guide | Only the provider samples or browser/device observations actually performed |
 | Conservative bounded paid diagnostic | [Paid-check driver](../../../script/interview_paid_check.sh) and its [Rails entrypoint](../../../services/api/script/interview_paid_check.rb) | The driver's bounded live checks with its stricter failure/unknown-cost stop policy |

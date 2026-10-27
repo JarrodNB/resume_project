@@ -24,7 +24,7 @@ export function useStartInterview() {
   const [error, setError] = useState<string | null>(null)
   async function start(careerFocus = "", setup: InterviewSetupInput = { questionCount: 8, questionFormat: 'mixed' }, jobId?: string) {
     setError(null)
-    try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterviewDemo).interview?.id ?? null }
+    try { return requirePayload((await mutate({ variables: { careerFocus: careerFocus.trim() || null, setup, ...(jobId ? { jobId } : {}) } })).data?.startInterview).interview?.id ?? null }
     catch (cause) { setError(requestErrorMessage(cause, cause instanceof Error ? cause.message : 'Could not start the interview.')); return null }
   }
   return { start, loading, error }

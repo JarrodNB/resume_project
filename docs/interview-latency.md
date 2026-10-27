@@ -60,7 +60,7 @@ Run from the checkout under test, using its compatible AI development image:
 ```bash
 docker run --rm --network none \
   -v "$PWD/services/ai:/app" -w /app \
-  cg-interview-qa-interview-runtime:latest \
+  cg-interview-qa-ai-http:latest \
   python -m scripts.interview_latency_probe --samples 5
 ```
 
@@ -100,7 +100,7 @@ Focused checks:
 
 ```bash
 docker run --rm --network none -e TYPESAFE_API_KEY=synthetic-offline \
-  -v "$PWD/services/ai:/app" -w /app cg-interview-qa-interview-runtime:latest \
+  -v "$PWD/services/ai:/app" -w /app cg-interview-qa-ai-http:latest \
   pytest -q tests/test_interview_timing.py tests/test_interview_latency_probe.py \
   tests/test_interview_executor.py tests/test_interview_runtime.py
 ```

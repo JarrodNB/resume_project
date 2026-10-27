@@ -1,7 +1,7 @@
-# Exposes one owned demo action through the existing durable interview services.
+# Exposes one owned interview action through the existing durable interview services.
 module Mutations
   module Interviews
-    class AuthorizeInterviewRecording < BaseDemoMutation
+    class AuthorizeInterviewRecording < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :question_id, ID, required: true
       argument :expected_revision, Integer, required: true

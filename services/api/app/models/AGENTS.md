@@ -68,7 +68,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - Interview task types: `generate_interview_questions`, `regenerate_interview_question`, and `review_interview_answer`; Python handlers return structured results, and `InterviewPrep` services apply them through `AiTasks::ApplyAiResultService`.
 
-- `interview_session*` — separate spoken demo sessions, prepared questions, accepted
+- `interview_session*` — separate spoken interview sessions, prepared questions, accepted
   dialogue and durable turn/speech work. Composite foreign keys keep linked records in
   one interview. Lifecycle policy stays in `Interviews` services. `InterviewExecutionAttempt`
   and `InterviewProviderAttempt` bind durable execution/provider identities to shared

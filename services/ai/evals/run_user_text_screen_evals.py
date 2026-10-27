@@ -1,7 +1,7 @@
 """
 Description: Runs the Jev user-text screen evals and reports average scores to Logfire.
 The task is the Jev call itself (screen_user_message), not the phrase list in front of it.
-Run: docker compose run --rm ai python -m evals.run_user_text_screen_evals
+Run: docker compose run --rm ai-worker python -m evals.run_user_text_screen_evals
 Index:
     - load_user_text_screen_dataset: reads the YAML cases
     - run_user_text_screen_evals: evaluates every case

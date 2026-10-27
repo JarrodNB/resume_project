@@ -24,14 +24,14 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
 it('sends only the selected job id and setup when starting job-specific preparation', async () => {
   const setup = { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }
   const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, jobId: 'job-1' } },
-    result: { data: { startInterviewDemo: { __typename: 'StartInterviewDemoPayload', errors: [], interview: { ...snapshot, status: 'preparing' } } } } }]
+    result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], interview: { ...snapshot, status: 'preparing' } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   await act(async () => { expect(await result.current.start('', setup, 'job-1')).toBe('session') })
   expect(result.current.error).toBeNull()
 })
 it('starts preparation with the selected length and trimmed career focus', async () => {
   const mocks = [{ request: { query: START_INTERVIEW, variables: { careerFocus: 'Laboratory', setup: { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] } } },
-    result: { data: { startInterviewDemo: { __typename: 'StartInterviewDemoPayload', errors: [],
+    result: { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [],
       interview: { ...snapshot, status: 'preparing', setup: { __typename: 'InterviewSetup', questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] } } } } } }]
   const { result } = renderHook(() => useStartInterview(), { wrapper: ({ children }) => <MockedProvider mocks={mocks}>{children}</MockedProvider> })
   await act(async () => { expect(await result.current.start(' Laboratory ', { questionCount: 5, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })).toBe('session') })

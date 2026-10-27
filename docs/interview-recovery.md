@@ -19,7 +19,7 @@ The script stops its own project on exit and retains synthetic database/storage 
 inspection. Each run has a fresh synthetic project and owner. Failed synthetic ledgers remain
 intact; no paid ledger or allowance is reused or reset. Failed check fixtures remain available for diagnosis. It never reads, changes or
 creates an allowance in the retained paid QA project. Existing local images
-`cg-interview-qa-api` and `cg-interview-qa-interview-runtime` must match the checkout dependencies.
+`cg-interview-qa-api` and `cg-interview-qa-ai-http` must match the checkout dependencies.
 
 The standalone Ruby smoke entrypoint `services/api/script/interview_real_smoke.rb` also drives
 preparation → Begin → full progression under the synthetic runtime; use the shell command above
@@ -30,7 +30,7 @@ not implement the QA launcher's exact historical-observation exception.
 Use [real browser QA](interview-real-qa.md) for the public real-only feature. The earlier fake
 fixture and recovery commands below remain offline legacy engineering coverage only.
 
-## Offline interview demo and recovery checks
+## Offline interview recovery checks
 
 This isolated stack runs the spoken interview with fictional context, scripted transcripts,
 and fixed synthetic speech. It never loads a service `.env`, starts paid providers, or starts
@@ -43,7 +43,7 @@ is `cg-interview-06`. The former fake browser QA project is retired; real browse
 the original paid database. Do not run an isolated project against two worktrees simultaneously.
 The automation stack publishes no ports. Database and S3 objects survive container recreation
 in project-scoped named volumes. The committed service credential is for this isolated local
-demo only. No runtime HTTP port is exposed to the host.
+fixture stack only. No runtime HTTP port is exposed to the host.
 
 Run the recovery checks from the primary checkout:
 
@@ -58,7 +58,7 @@ failed offline runs inspectable; the stop command below preserves their data.
 Stop the automation stack while retaining its data:
 
 ```bash
-docker compose -p cg-interview-06 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml down
+docker compose -p cg-interview-06 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml down
 ```
 
 ## Browser QA
@@ -90,14 +90,14 @@ checks; they do not establish microphone behavior or production storage permissi
 | 6 | Pending discovery, lease recovery and bounded exhaustion | Harness real process kills before/after acceptance, pending speech without wakeup; `claim_operation_service_spec.rb`, `test_interview_runtime.py` deadline/exhaustion; budget rejection is saved as actionable failure |
 | 7 | Speech-only retry and artifact replay | Harness explicitly fails/retries saved speech, checks unchanged turn execution/counts and reads saved artifact; `media_service_spec.rb` |
 | 8 | Screening, malformed/empty/large/long/context/expired input | Harness blocked/unavailable/oversized scripted transcripts and malformed real stored bytes; `test_interview_media.py`, `test_interview_executor.py`, Rails media/claim specs cover other bounds and expiry |
-| 9 | Owner, reference, capability and stale-generation boundaries | Harness unauthenticated internal request and stale heartbeat; `interview_demo_spec.rb`, `interview_media_spec.rb`, media service/storage and Python origin tests. S3Mock cannot prove expired credential enforcement |
+| 9 | Owner, reference, capability and stale-generation boundaries | Harness unauthenticated internal request and stale heartbeat; `interview_sessions_spec.rb`, `interview_media_spec.rb`, media service/storage and Python origin tests. S3Mock cannot prove expired credential enforcement |
 | 10 | Usage identity, unknown cost, fake isolation | Harness killed execution retains incomplete marker and zero known spend; `provider_accounting_spec.rb`, `test_interview_executor.py`, `test_interview_runtime.py` outbound-denial tests. No paid-cost/latency claim |
 | 11 | Retention, deletion retries and permitted metadata | Harness actual storage recreation, completed-speech expiry, object deletion and dialogue/history scrub with usage retained; `cleanup_service_spec.rb` deletion failure/tombstone races |
 | 12 | UI devices, permissions, processing, retry and written regression | Full frontend tests, GraphQL ownership/subscription tests; human QA above remains required |
 | 13 | Reviewed role begins once; nine typed questions, three-response cap, early advance and one closing | `begin_service_spec.rb`, `full_progression_spec.rb`, independent-connection `concurrency_spec.rb`, React page/hook tests; earlier-question context and session-aware allowances remain separate slices |
 
 Rails test paths in this table are under `services/api/spec/services/interviews/` except
-request tests under `spec/requests/` and `interview_demo_spec.rb` under `spec/graphql/`.
+request tests under `spec/requests/` and `interview_sessions_spec.rb` under `spec/graphql/`.
 Python paths are under `services/ai/tests/`. Run the standard Docker checks in
 [testing.md](testing.md). These checks do not claim that an emulator enforces production IAM,
 that browser QA ran, or that real transcription/interviewer/speech quality was evaluated.
@@ -129,11 +129,11 @@ The guide replaces the earlier root-profile and fake-browser startup instruction
 The isolated deterministic real-process check makes no paid requests:
 
 ```sh
-docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d db s3
-docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm api bundle exec rails db:prepare
-docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d --no-build --wait api interview-runtime
-docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm --no-deps api bundle exec rails runner script/interview_real_smoke.rb
-docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml stop
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d db s3
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm api bundle exec rails db:prepare
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d --no-build --wait api ai-http
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm --no-deps api bundle exec rails runner script/interview_real_smoke.rb
+docker compose -p cg-interview-11 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml stop
 ```
 
 The check overlay uses existing local image names, synthetic credentials and a dedicated synthetic-check flag only. Its usage rows reflect synthetic positive charges in its isolated database; no provider charges are incurred. Its Python entrypoint replaces provider HTTP transports before real lifespan startup, preserving production provider URLs and accounting. It exercises real Rails/PostgreSQL/private storage, forced closing, exact saved-text speech, a known-cost speech failure, independent speech retry, and private playback. Restart its mock runtime before repeating the single injected speech-failure check. Volumes are retained. The existing QA project is not changed. Microphone permissions, preview playback and navigation remain human browser checks.

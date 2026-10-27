@@ -2,7 +2,7 @@
 
 ## Purpose
 
-pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
+pytest suite for the worker. Run with `docker compose run --rm ai-worker pytest`.
 
 ## Contents
 

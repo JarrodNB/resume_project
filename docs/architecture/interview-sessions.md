@@ -11,7 +11,7 @@ run in the normal local Compose stack when its credentials are configured.
 
 The job page's **Practise interview** action opens `/jobs/:jobId/interview`. Setup loads
 the owned job from the route and retains the existing round and microphone choices.
-`startInterviewDemo` accepts an optional `jobId`, resolved through `current_user.jobs`;
+`startInterview` accepts an optional `jobId`, resolved through `current_user.jobs`;
 no job text is accepted from the browser. Career-library evidence remains required,
 and comparison/resume generation is not a prerequisite. The action does not change
 application stage. Library-only starts retain fictional-role preparation.
@@ -112,7 +112,7 @@ features continue to use SQS and `ai_results` without changes.
 
 The delivered foundation includes library-informed preparation, persistence, private HTTP claims/recovery, accounting,
 private media services and offline audio validation. The offline runtime executes this boundary;
-the owned GraphQL demo exposes accepted dialogue and safe operation progress.
+the owned GraphQL interface exposes accepted dialogue and safe operation progress.
 
 ## Shared domain and Basic type
 
@@ -314,7 +314,7 @@ Registration fixes synthesized byte count/checksum and validates/seals those byt
 requires the current claim and exact saved-message identity; identical completion returns its
 receipt. Playback selects only the accepted receipt's artifact through an already owner-scoped
 interview, rather than choosing an arbitrary ready upload. The public GraphQL media mutations
-issue short-lived upload and playback capabilities only after owner and demo-gate checks.
+issue short-lived upload and playback capabilities only after owner and feature-admission checks.
 
 Local Compose stores S3Mock files in the named `s3_data` volume, sets
 `COM_ADOBE_TESTING_S3MOCK_STORE_ROOT=/s3mockroot` and enables
@@ -365,7 +365,7 @@ than rolling the schema back and losing those cleanup obligations.
 ## Internal execution HTTP contract
 
 Private Rails callbacks expose execution and media authority to the authenticated service;
-they expose no public demo. `/internal/interviews/operations` is the generic shared route.
+they expose no browser-facing execution interface. `/internal/interviews/operations` is the generic shared route.
 Set `INTERVIEW_SERVICE_SECRET` to a separate random credential and send exactly
 `Authorization: Bearer <secret>`. An unset credential disables these routes. Browser
 cookies and caller-supplied user IDs confer no authority. Request bodies are capped at
@@ -527,7 +527,7 @@ execution marker does not resolve its unfinished provider markers.
 
 ## Offline runtime
 
-`interviews.app:app` is a separate FastAPI process. Its lifespan owns a supervised
+`interviews.fixture_app:app` is a separate FastAPI process. Its lifespan owns a supervised
 recovery loop, discovering every two seconds in batches of ten and running at most
 two claims at once. Each execution renews its 30-second Rails lease every ten seconds;
 Rails retains the 120-second deadline and all retry limits. A lost heartbeat stops
@@ -540,7 +540,7 @@ leases for another process. Cleanup runs in bounded Rails batches every minute.
 successful Rails discovery. Neither health route consumes work.
 
 The fake runtime is retained only in the isolated offline recovery harness; its former
-root Compose `interview-demo` profile has been removed. The offline runtime deliberately
+offline fixture stack runs separately from the integrated app. It deliberately
 does not load the worker `.env`, use worker startup,
 resolve provider model names, or configure tracing. Real Pydantic model requests and
 remote OpenTelemetry/Logfire export are disabled in this process. Existing SQS workers
@@ -565,18 +565,18 @@ unknown text has no fallback synthesis. Their text mapping lives in
 Run the dependency image and focused offline checks from this checkout:
 
 ```bash
-docker compose build ai
-docker compose run --rm --no-deps ai pytest -m 'not db' tests/test_interview_runtime.py tests/test_interview_client.py tests/test_interview_executor.py tests/test_interview_media.py
+docker compose build ai-worker
+docker compose run --rm --no-deps ai-worker pytest -m 'not db' tests/test_interview_runtime.py tests/test_interview_client.py tests/test_interview_executor.py tests/test_interview_media.py
 ```
 
 For offline real-process recovery checks, use `script/interview_recovery_check.sh` and
-the isolated [recovery guide](../interview-demo.md). For real browser QA, use the
+the isolated [recovery guide](../interview-recovery.md). For real browser QA, use the
 [real QA guide](../interview-real-qa.md). Do not enable paid execution in an offline
 test database or create another ledger to renew the verification allowance.
 
 ## Spoken interview access
 
-The spoken interview surface is available to authenticated users. `startInterviewDemo` creates
+The spoken interview surface is available to authenticated users. `startInterview` creates
 fictional context in real mode (legacy explicit fake requests are rejected);
 `interviewSession(id)` and `interviewSessionUpdated(id)` read through the
 current user's sessions. Initial subscription delivery and reconnect return a fresh snapshot.
@@ -644,7 +644,7 @@ PUT uses exactly the signed headers and never sends account cookies. The isolate
 real S3Mock PUT/GET/HEAD preflight responses. Actual browser upload, microphone and playback
 behavior still need human QA; frontend automated checks use browser resource fakes.
 
-The [isolated recovery guide](../interview-demo.md) provides deterministic restart checks
+The [isolated recovery guide](../interview-recovery.md) provides deterministic restart checks
 without provider credentials. The [real QA guide](../interview-real-qa.md) uses the same
 loopback browser URL against the original paid database. The old fake QA containers are
 stopped with data retained; no UI control creates or continues scripted interviews.
@@ -670,11 +670,11 @@ rate units, conservative reservations, unknown-cost recovery, and the paid-check
 
 ### Explicit real runtime admission
 
-`interviews.real_app` is a separate development-only process, enabled by `INTERVIEW_REAL_RUNTIME_ENABLED=true` and an explicit `INTERVIEW_ENVIRONMENT=development`. It constructs fixed approved audio/model clients only after service/storage origins and required provider credentials pass validation. Client shutdown closes both provider SDK transports and the audio transport. The fake entrypoint retains its environment isolation and disables paid model requests.
+The shared FastAPI app starts with `uvicorn app:app` and is enabled by `AI_HTTP_ENABLED=true`; execution is not restricted to a development environment. It constructs fixed approved audio/model clients only after service/storage origins and required provider credentials pass validation. Client shutdown closes both provider SDK transports and the audio transport. The fake entrypoint retains its environment isolation and disables paid model requests.
 
-New real sessions additionally require Rails `INTERVIEW_REAL_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the dedicated real process. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
+New real sessions additionally require Rails `INTERVIEW_ADMISSION_ENABLED=true` and a successful bounded readiness probe of the AI HTTP app. The probe sends only the service credential to its validated configured origin, ignores proxy environment settings, rejects redirects, caps response bytes and has an overall two-second deadline. Browser errors are stable setup instructions, never raw endpoint bodies or credentials. Disabling this admission switch leaves old sessions' immutable modes and configurations, reads, recovery and cleanup intact. Stopping the real runtime is the separate action that stops execution of already saved real work.
 
-Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See [real browser QA](../interview-real-qa.md) for startup and [offline recovery](../interview-demo.md) for deterministic integration commands.
+Real speech follows the shared media/registration path but synthesizes exactly the accepted message text; it never runs transcription or reasoning. A failed delivery preserves text and history. Its bounded explicit retry operates only on that saved speech identity. Real reasoning spans use repository contact/privacy processors and operation IDs, without recording audio, storage grants or service credentials. See [real browser QA](../interview-real-qa.md) for startup and [offline recovery](../interview-recovery.md) for deterministic integration commands.
 
 ## Earlier accepted dialogue
 
@@ -717,7 +717,7 @@ nine questions through real Rails/Postgres/private storage and the real Python e
 with synthetic HTTP responses at each provider SDK boundary. Its isolated internal-network
 project has no provider credentials or public fake path. It checks killed processes,
 acceptance replay/lost receipts, speech-only recovery, abandonment fencing and persistent
-playback. See [offline checks](../interview-demo.md) for the exact command and scope.
+playback. See [offline checks](../interview-recovery.md) for the exact command and scope.
 Legacy `script/interview_recovery_check.sh` remains coverage for retained fixture sessions.
 Neither deterministic harness establishes live quality or browser microphone behavior.
 
@@ -837,7 +837,7 @@ grants. The worker uses `INTERVIEW_RAILS_ORIGIN` and `INTERVIEW_SERVICE_SECRET` 
 private secret as Rails/the interview runtime); configure these in the queue worker's
 environment before enabling clarification. A blank secret fails without provider calls.
 Deploy the migration/API and compatible queue worker together; schema fields require
-regenerating the web client. Existing saved sessions and interview-runtime operations
+regenerating the web client. Existing saved sessions and ai-http operations
 keep their contracts.
 
 Clarification rejects an already-claimed delivery before rechecking availability, so a

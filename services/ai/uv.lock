@@ -1,79 +1,9 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 resolution-markers = [
     "sys_platform != 'darwin'",
     "sys_platform == 'darwin'",
-]
-
-[[package]]
-name = "ai-worker"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "beautifulsoup4" },
-    { name = "boto3" },
-    { name = "click" },
-    { name = "en-core-web-sm" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "logfire" },
-    { name = "pgvector" },
-    { name = "presidio-analyzer" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "pydantic" },
-    { name = "pydantic-ai-harness" },
-    { name = "pydantic-ai-slim", extra = ["openai", "typesafe"] },
-    { name = "pydantic-settings" },
-    { name = "pypdf" },
-    { name = "python-docx" },
-    { name = "spacy" },
-    { name = "torch", version = "2.14.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
-    { name = "torch", version = "2.14.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
-    { name = "transformers" },
-    { name = "uvicorn" },
-    { name = "websockets" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pydantic-evals" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "watchfiles" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "beautifulsoup4", specifier = ">=4.15.0" },
-    { name = "boto3" },
-    { name = "click", specifier = "==8.3.1" },
-    { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
-    { name = "fastapi", specifier = ">=0.115,<1" },
-    { name = "httpx", specifier = ">=0.28.1" },
-    { name = "logfire", specifier = ">=4.0" },
-    { name = "pgvector", specifier = ">=0.5.0" },
-    { name = "presidio-analyzer", specifier = "==2.2.362" },
-    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
-    { name = "pydantic" },
-    { name = "pydantic-ai-harness", specifier = "==0.53.0" },
-    { name = "pydantic-ai-slim", extras = ["openai", "typesafe"], specifier = "==2.53.0" },
-    { name = "pydantic-settings" },
-    { name = "pypdf", specifier = ">=6.19.0" },
-    { name = "python-docx", specifier = ">=1.2.0" },
-    { name = "spacy", specifier = "==3.8.11" },
-    { name = "torch", specifier = ">=2.7,<3", index = "https://download.pytorch.org/whl/cpu" },
-    { name = "transformers", specifier = ">=4.51,<5" },
-    { name = "uvicorn", specifier = ">=0.34,<1" },
-    { name = "websockets", specifier = ">=15,<17" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pydantic-evals", specifier = "==2.53.0" },
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "watchfiles", specifier = ">=1,<2" },
 ]
 
 [[package]]
@@ -171,6 +101,76 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/11/b9/10ca68d0092895d5ea60f485a61a9840d5aff9d732c66ed60da53a20b1d4/botocore-1.43.106.tar.gz", hash = "sha256:006870b3b4e40547232ad12c3bb4faec91bbbe0659aafaa3b7fa48a112c4ee97", size = 16271399, upload-time = "2026-09-30T19:36:35.836Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/eb/c51d3b54dfaa9267a687359d946dc2a1ca6a27fb4d381773e59b7bd72bf4/botocore-1.43.106-py3-none-any.whl", hash = "sha256:c1fb8818f9957cb5037f73db34ac1a12ba43562e31d6e7f9cb7e5fc64e1dba78", size = 15965506, upload-time = "2026-09-30T19:36:32.625Z" },
+]
+
+[[package]]
+name = "careergrind-ai"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "beautifulsoup4" },
+    { name = "boto3" },
+    { name = "click" },
+    { name = "en-core-web-sm" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "logfire" },
+    { name = "pgvector" },
+    { name = "presidio-analyzer" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "pydantic" },
+    { name = "pydantic-ai-harness" },
+    { name = "pydantic-ai-slim", extra = ["openai", "typesafe"] },
+    { name = "pydantic-settings" },
+    { name = "pypdf" },
+    { name = "python-docx" },
+    { name = "spacy" },
+    { name = "torch", version = "2.14.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'darwin'" },
+    { name = "torch", version = "2.14.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform != 'darwin'" },
+    { name = "transformers" },
+    { name = "uvicorn" },
+    { name = "websockets" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pydantic-evals" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "watchfiles" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.15.0" },
+    { name = "boto3" },
+    { name = "click", specifier = "==8.3.1" },
+    { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
+    { name = "fastapi", specifier = ">=0.115,<1" },
+    { name = "httpx", specifier = ">=0.28.1" },
+    { name = "logfire", specifier = ">=4.0" },
+    { name = "pgvector", specifier = ">=0.5.0" },
+    { name = "presidio-analyzer", specifier = "==2.2.362" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.3.6" },
+    { name = "pydantic" },
+    { name = "pydantic-ai-harness", specifier = "==0.53.0" },
+    { name = "pydantic-ai-slim", extras = ["openai", "typesafe"], specifier = "==2.53.0" },
+    { name = "pydantic-settings" },
+    { name = "pypdf", specifier = ">=6.19.0" },
+    { name = "python-docx", specifier = ">=1.2.0" },
+    { name = "spacy", specifier = "==3.8.11" },
+    { name = "torch", specifier = ">=2.7,<3", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "transformers", specifier = ">=4.51,<5" },
+    { name = "uvicorn", specifier = ">=0.34,<1" },
+    { name = "websockets", specifier = ">=15,<17" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pydantic-evals", specifier = "==2.53.0" },
+    { name = "pytest" },
+    { name = "ruff" },
+    { name = "watchfiles", specifier = ">=1,<2" },
 ]
 
 [[package]]
@@ -2123,13 +2123,13 @@ resolution-markers = [
     "sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform == 'darwin'" },
-    { name = "fsspec", marker = "sys_platform == 'darwin'" },
-    { name = "jinja2", marker = "sys_platform == 'darwin'" },
-    { name = "networkx", marker = "sys_platform == 'darwin'" },
-    { name = "setuptools", marker = "sys_platform == 'darwin'" },
-    { name = "sympy", marker = "sys_platform == 'darwin'" },
-    { name = "typing-extensions", marker = "sys_platform == 'darwin'" },
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "jinja2" },
+    { name = "networkx" },
+    { name = "setuptools" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.14.1-cp313-cp313-macosx_14_0_arm64.whl", hash = "sha256:82762c7527079f1e17a771684362ed51400e3bc72942df30217e40f27c6816d7", upload-time = "2026-09-30T19:50:39Z" },
@@ -2147,13 +2147,13 @@ resolution-markers = [
     "sys_platform != 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "sys_platform != 'darwin'" },
-    { name = "fsspec", marker = "sys_platform != 'darwin'" },
-    { name = "jinja2", marker = "sys_platform != 'darwin'" },
-    { name = "networkx", marker = "sys_platform != 'darwin'" },
-    { name = "setuptools", marker = "sys_platform != 'darwin'" },
-    { name = "sympy", marker = "sys_platform != 'darwin'" },
-    { name = "typing-extensions", marker = "sys_platform != 'darwin'" },
+    { name = "filelock" },
+    { name = "fsspec" },
+    { name = "jinja2" },
+    { name = "networkx" },
+    { name = "setuptools" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
 ]
 wheels = [
     { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.14.1%2Bcpu-cp313-cp313-linux_s390x.whl", hash = "sha256:4b323c71a5ac184485c87d694842157b1eb217c425ad69761dafd379d1590521", upload-time = "2026-09-30T19:47:59Z" },

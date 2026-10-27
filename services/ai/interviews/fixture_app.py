@@ -1,4 +1,4 @@
-"""Run the development-only fake interview executor as a separate HTTP process.
+"""Run isolated offline interview fixtures as a separate test-support HTTP process.
 
 This entrypoint never loads worker settings, provider credentials or remote tracing.
 Health routes inspect process/dependency state without claiming work themselves.

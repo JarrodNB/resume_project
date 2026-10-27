@@ -13,7 +13,7 @@ Project-level documentation that spans services.
 - `architecture/background-jobs.md` — primary-database Solid Queue, transactional enqueue,
   dedicated worker operation and old production queue draining
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals
-- `interview-real-qa.md` — real spoken browser QA on the retained paid ledger; `interview-demo.md` keeps offline recovery instructions
+- `interview-real-qa.md` — real spoken browser QA on the retained paid ledger; `interview-recovery.md` keeps offline recovery instructions
 - `interview-latency.md` — private stage timing, repeatable offline scheduler measurements, and limits on latency claims
 - `interview-transcription.md` — answer input modes, complete-recording fallback, live capture ownership and human device checks
 - `mvp_plan.md` — first milestone scope and build order

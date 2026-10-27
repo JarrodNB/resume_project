@@ -59,7 +59,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/interview-transcription/stream': {
-        target: process.env.INTERVIEW_TRANSCRIPTION_TARGET ?? 'http://interview-runtime:8000',
+        target: process.env.INTERVIEW_TRANSCRIPTION_TARGET ?? 'http://ai-http:8000',
         ws: true,
       },
     },

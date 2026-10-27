@@ -36,8 +36,10 @@ class ModelUsage(BaseModel):
     model: str
     input_tokens: int = Field(ge=0)
     cached_input_tokens: int = Field(ge=0)
+    cache_write_tokens: int = Field(default=0, ge=0)
     output_tokens: int = Field(ge=0)
     cost_microdollars: int | None = Field(default=None, ge=0)
+    provider_response_id: str | None = None
 
 
 class LibraryScreening(BaseModel):

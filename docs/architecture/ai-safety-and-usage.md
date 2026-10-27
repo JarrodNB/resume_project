@@ -10,8 +10,8 @@ LLM calls cost money, so each user has limits, checked by `AiUsage::CheckAiTaskA
 before a task is queued (under a lock on the user row, so concurrent requests can't both pass).
 General AI limits exclude spoken interview preparation, turns and speech:
 
-- **Monthly budget** (fallback $3.00, `AI_MONTHLY_BUDGET_USD`): the sum of `ai_tasks.cost_microdollars`
-  for general AI tasks created this calendar month (UTC). The worker estimates each request's cost from its
+- **Monthly budget** (fallback $3.00, `AI_MONTHLY_BUDGET_USD`): known general AI task costs plus
+  background embedding request costs created this calendar month (UTC). The worker estimates each request's cost from its
   token usage and a per-model price table (`services/ai/worker/model_prices.py`) and reports it
   with attempt reports, including unsuccessful attempts. Missing provider usage or prices
   makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
@@ -22,9 +22,12 @@ General AI limits exclude spoken interview preparation, turns and speech:
 Nullable columns on `users` override each general AI default. The existing API `.env.example`
 explicitly configures $2/month, 10 tasks/hour and two in-flight tasks; those example values
 are overrides of the fallback defaults above, and are unchanged. The existing `me { aiUsage }` query exposes
-known general AI monthly spend. Spoken interview bills and incomplete markers are excluded
-from that summary. The backend monthly summary also retains the incomplete-attempt count;
-no new user-facing spend display or usage subscription is added.
+combined known monthly spend across general AI and every spoken interview stage, with the
+sum of both monthly allowances as its budget. Admission checks explicitly select their own
+general or interview allowance; combined reporting does not merge those limits.
+The API also exposes `incompleteAttempts` and `accountingComplete`, so consumers can distinguish
+known subtotals from complete recorded usage. No spend display or usage subscription is added.
+See [cost accounting and verified receipt reconciliation](ai-cost-accounting.md).
 
 Spoken interviews have an independent per-user allowance: $3/month
 (`INTERVIEW_MONTHLY_BUDGET_USD`), 30 session starts/hour (`INTERVIEW_SESSIONS_PER_HOUR`), and
@@ -159,7 +162,9 @@ requests get a JSON 429 with `Retry-After`.
   worker's local price table and integer micro-dollars; provider charges without usage or
   pricing stay unknown rather than being estimated as zero. An unfinished report is sent
   before execution, so a stopped worker or failed final publication leaves an unknown marker.
-  Exact charges for such attempts require provider reconciliation, which is not automated.
+  Exact charges for such attempts require verified provider receipts. The operator-only
+  `ai_usage:reconcile` import dry-runs by default, retains prior evidence, and applies each
+  verified replacement once. It cannot infer missing user-level charges from account-wide invoices.
   `ai_usage_attempts` records each execution independently of task outcome.
   Under the task lock, final reports add known totals once, including retries and late or
   out-of-order reports. Finished tasks keep their outcome. Legacy messages without an
@@ -167,8 +172,11 @@ requests get a JSON 429 with `Retry-After`.
   tasks created in the UTC calendar month; unknown costs flag incomplete accounting and do
   not independently block work. The existing hourly and in-flight caps remain in place.
   Deploy the Rails migration/consumer before the new worker message format. This accounting
-  covers queued AI tasks and their query embeddings; independent Rails career-library/interview Q&A
-  embedding syncs and paid eval runs retain their separate existing execution paths.
+  covers queued AI tasks and their query embeddings. Independent Rails career-library/interview
+  Q&A embedding batches retain separate durable receipts included in general/combined spend;
+  paid eval runs retain their separate execution paths. Queued Luna uses standard service and
+  a fixed 30-minute cache lifetime; writes are priced separately. Old Luna receipts without
+  cache-write counts are flagged incomplete without changing their known totals.
 
 - **Rack::Attack on Rails.cache for request throttling.** No Redis: the dev memory store and
   production Solid Cache are enough at this scale.

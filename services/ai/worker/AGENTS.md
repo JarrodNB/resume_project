@@ -58,6 +58,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   database and never pauses for section approval. Unexpected errors retain normal retries
 - `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
   `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
+  Queued Luna fixes standard service and 30-minute cache writes; cache-write usage is
+  priced separately. Scheduled `script/check_ai_prices.py` detects catalogue drift.
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
   incl. job site fetches through httpx and database connection errors) are left for SQS to redeliver; anything else, or the
   last attempt, publishes `failed`

@@ -42,8 +42,10 @@ and three concurrent operations. These are independently configurable with
 `INTERVIEW_MONTHLY_BUDGET_USD`, `INTERVIEW_SESSIONS_PER_HOUR`, and
 `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and general per-user overrides do not
 consume or change interview allowances; interview preparation/turn/speech work does not
-consume general budgets, hourly starts or concurrency. The public general usage summary
-excludes spoken interview bills and incomplete markers. Written interview Q&A stays general.
+consume general budgets, hourly starts or concurrency. The public usage summary now combines
+general and spoken interview bills and sums their monthly allowances; allowance checks retain
+their separate spending scopes. Backend combined summaries include incomplete markers from
+both scopes. Written interview Q&A stays general.
 Every provider bill and unknown marker remains recorded; the separate paid-verification stop
 below is unchanged.
 

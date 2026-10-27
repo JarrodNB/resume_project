@@ -6,6 +6,14 @@ require "rails_helper"
 RSpec.describe AiTasks::ApplyAiResultService do
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
 
+  it "marks an unpriced receipt incomplete even if the producer omits its flag" do
+    task = create(:ai_task)
+    described_class.call(message: { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,
+      "usage" => [ { "model" => "unpriced-model", "input_tokens" => 100, "cost_microdollars" => nil } ] })
+    expect(task.ai_usage_attempts.sole).to be_incomplete
+    expect(task.reload.cost_microdollars).to eq(0)
+  end
+
   it "retains an unfinished execution as unknown and resolves it without double counting" do
     task = create(:ai_task)
     started = { "ai_task_id" => task.id, "status" => "usage", "attempt_id" => SecureRandom.uuid,

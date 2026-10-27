@@ -25,17 +25,26 @@ RSpec.describe "Query scoping" do
     expect(result["errors"].first["message"]).to eq("Record not found")
   end
 
-  it "reports only the signed-in user's general AI spend, including written practice" do
+  it "reports the signed-in user's combined general and spoken interview spend" do
+    stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 3_000_000)
     user.update!(monthly_ai_budget_microdollars: 5_000_000)
     create(:ai_task, user: user, cost_microdollars: 1_250_000)
     create(:ai_task, user: other_user, cost_microdollars: 900_000)
     create(:ai_task, user: user, task_type: "interview_turn", cost_microdollars: 700_000)
     create(:ai_task, user: user, task_type: "review_interview_answer", cost_microdollars: 250_000)
+    user.ai_embedding_requests.create!(model: "text-embedding-3-small", purpose: "career_library", cost_microdollars: 50_000, finalized: true, incomplete: false)
+    unknown = create(:ai_task, user: user, task_type: "interview_turn")
+    report = unknown.ai_usage_attempts.create!(attempt_id: SecureRandom.uuid, incomplete: true)
+    other_user.ai_embedding_requests.create!(model: "text-embedding-3-small", purpose: "career_library")
 
-    result = execute_graphql("{ me { aiUsage { spentThisMonthUsd monthlyBudgetUsd resetsAt } } }", user: user)
+    query = "{ me { aiUsage { spentThisMonthUsd monthlyBudgetUsd resetsAt incompleteAttempts accountingComplete } } }"
+    result = execute_graphql(query, user: user)
 
-    expect(result.dig("data", "me", "aiUsage")).to include("spentThisMonthUsd" => 1.5, "monthlyBudgetUsd" => 5.0)
+    expect(result.dig("data", "me", "aiUsage")).to include("spentThisMonthUsd" => 2.25, "monthlyBudgetUsd" => 8.0,
+      "incompleteAttempts" => 1, "accountingComplete" => false)
     expect(Time.zone.parse(result.dig("data", "me", "aiUsage", "resetsAt"))).to eq(Time.now.utc.beginning_of_month.next_month)
+    report.update!(incomplete: false, finalized: true)
+    expect(execute_graphql(query, user: user).dig("data", "me", "aiUsage")).to include("incompleteAttempts" => 0, "accountingComplete" => true)
   end
 
   it "returns experiences with ordered highlights" do

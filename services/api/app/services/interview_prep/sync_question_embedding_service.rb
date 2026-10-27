@@ -4,8 +4,9 @@
 module InterviewPrep
   class SyncQuestionEmbeddingService < ApplicationService
     # Receives the deterministic owner and question identity, never provider-supplied ownership.
-    def initialize(user:, question_id:, embedding_client: Embeddings::OpenAiEmbeddingClient.new)
-      @user, @question_id, @client = user, question_id, embedding_client
+    def initialize(user:, question_id:, embedding_client: nil)
+      @user, @question_id = user, question_id
+      @client = embedding_client || Embeddings::OpenAiEmbeddingClient.new(user: user, purpose: "interview_question")
     end
 
     # Returns whether a current vector was written.

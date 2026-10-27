@@ -119,7 +119,7 @@ RSpec.describe "Prepared interview allowances" do
     expect(user.ai_tasks.hourly_admissions.count).to eq(1)
     expect(user.ai_tasks.where.not(hourly_admission_task_id: nil).count).to eq(55)
     expect(user.ai_tasks).to all(be_completed)
-    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, interview: true).value.spent_microdollars).to eq(110)
+    expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(110)
     expect(InterviewVerificationReservation.sum(:actual_microdollars)).to eq(110)
     expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("too many interview sessions")
   end
@@ -162,7 +162,7 @@ RSpec.describe "Prepared interview allowances" do
       speech = session.operations.speech.first
       expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
       speech.ai_task.update!(cost_microdollars: 20)
-      expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, interview: true).value.spent_microdollars).to eq(20)
+      expect(AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value.spent_microdollars).to eq(20)
       expect(speech.ai_task.hourly_admission_task_id).to eq(root.id)
     end
   end

@@ -43,6 +43,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_030000) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "ai_embedding_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "model", null: false
+    t.string "purpose", null: false
+    t.bigint "input_tokens"
+    t.bigint "cost_microdollars"
+    t.boolean "incomplete", default: true, null: false
+    t.boolean "finalized", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "created_at"], name: "index_ai_embedding_requests_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
+    t.check_constraint "cost_microdollars IS NULL OR cost_microdollars >= 0", name: "embedding_cost_nonnegative"
+    t.check_constraint "input_tokens IS NULL OR input_tokens >= 0", name: "embedding_tokens_nonnegative"
+  end
+
   create_table "ai_task_outcomes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.uuid "ai_task_id", null: false
@@ -99,6 +115,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_030000) do
     t.boolean "finalized", default: true, null: false
     t.index ["ai_task_id"], name: "index_ai_usage_attempts_on_ai_task_id"
     t.index ["attempt_id"], name: "index_ai_usage_attempts_on_attempt_id", unique: true
+  end
+
+  create_table "ai_usage_reconciliations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "receipt_reference", null: false
+    t.uuid "attempt_id", null: false
+    t.string "record_type", null: false
+    t.jsonb "previous_usage", default: [], null: false
+    t.jsonb "usage", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["receipt_reference"], name: "index_ai_usage_reconciliations_on_receipt_reference", unique: true
+    t.index ["record_type", "attempt_id"], name: "index_ai_usage_reconciliations_on_record_type_and_attempt_id", unique: true
   end
 
   create_table "avoided_interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -636,6 +664,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_030000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "ai_embedding_requests", "users", on_delete: :cascade
   add_foreign_key "ai_task_outcomes", "ai_tasks"
   add_foreign_key "ai_task_outcomes", "users"
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify

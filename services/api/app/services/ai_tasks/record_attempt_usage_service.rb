@@ -22,7 +22,8 @@ module AiTasks
       entries = finalized ? Array(@message["usage"]) : []
       report ||= AiUsageAttempt.new(ai_task: @ai_task, attempt_id: attempt_id)
       report.update!(usage: entries, finalized: finalized,
-                     incomplete: !finalized || @message["usage_incomplete"] == true)
+                     incomplete: !finalized || @message["usage_incomplete"] == true ||
+                       entries.any? { |entry| entry["cost_microdollars"].nil? })
       totals = COLUMNS.index_with do |column|
         @ai_task.public_send(column) + entries.sum { |entry| entry.fetch(column, 0).to_i }
       end

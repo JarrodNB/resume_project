@@ -12,6 +12,10 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   finalized reports are immutable and independent of task outcome. Spoken interview
   unknown reports may reconcile once to known through `Interviews::RecordUsageService`;
   known reports remain immutable.
+- `ai_embedding_request.rb` — independent background embedding batches retained through
+  vector/source deletion; included in general/combined monthly spend without task-rate slots.
+- `ai_usage_reconciliation.rb` — audited operator-verified replacements of task/embedding
+  receipts; runtime reports cannot overwrite reconciled charges.
 
 - `user.rb` — account (Devise + Rails sessions); owns everything below. Profile columns (`name`,
   `contact_email`, `phone`, `location`, `links`, `summary`) are filled from an imported resume

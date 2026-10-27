@@ -23,6 +23,7 @@ class User < ApplicationRecord
   has_many :interview_sessions, -> { order(created_at: :desc, id: :desc) }, dependent: :destroy
   has_many :ai_task_outcomes, dependent: :delete_all
   has_many :ai_tasks, dependent: :destroy
+  has_many :ai_embedding_requests, dependent: :delete_all
   has_many :library_embeddings, dependent: :delete_all
 
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }

@@ -56,9 +56,10 @@ class InterviewModel(WrapperModel):
                 0 <= usage.cache_read_tokens <= usage.input_tokens <= 272_000 and
                 usage.output_tokens >= 0 and usage.cache_write_tokens == 0
             )):
-                known = True
                 priced = build_model_usage(f"{self.provider_name}:{self.configured}", usage)
-                entries = [priced.model_dump(exclude={"model"}, exclude_none=True)]
+                known = priced.cost_microdollars is not None
+                if known:
+                    entries = [priced.model_dump(exclude={"model", "cache_write_tokens"}, exclude_none=True)]
             return response, entries
 
         response = await self.calls.run(self.claim, self.stage, self.provider_name, self.configured, dispatch)

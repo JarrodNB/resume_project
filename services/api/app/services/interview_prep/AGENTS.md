@@ -21,7 +21,7 @@ User-owned interview practice business logic. Follow parent Rails/service instru
 
 - Answers are user-written and stay separate from the career library.
 - Future nonblank saves enqueue question-specific embedding after commit, including unchanged saves and feedback saves. Actual edits and successful replacements delete obsolete vectors transactionally. Never backfill or scan other questions on a save.
-- Embedding provider work holds only a question advisory lock, never the owner row lock; snapshots and writes recheck ownership/revisions under the owner lock. Independent embedding costs are outside AI-task accounting.
+- Embedding provider work holds only a question advisory lock, never the owner row lock; snapshots and writes recheck ownership/revisions under the owner lock. Each batch retains an independent durable receipt included in per-user general/combined spend.
 - General, technical, and knowledge scopes are immutable snapshots; question application checks five type-specific categories, including `concepts`, `mechanisms`, `application`, `reasoning`, and `limitations` for knowledge.
 - General outputs use one introduction plus collaboration, problem solving, learning/adaptation and initiative/judgment. Complete legacy general category sets and single legacy replacements remain accepted for in-flight older workers; mixed full sets are rejected. Categories are not stored on question slots.
 - Question IDs are authorized through their owning set.

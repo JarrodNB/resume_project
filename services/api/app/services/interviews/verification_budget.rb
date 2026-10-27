@@ -58,6 +58,12 @@ module Interviews
       reservation.update!(actual_microdollars: cost) unless reservation.actual_microdollars
     end
 
+    # Operator-verified receipts may correct an earlier estimate as well as resolve an unknown.
+    def self.reconcile_verified(observation_id:, cost:)
+      lock
+      InterviewVerificationReservation.find_by!(observation_id: observation_id).update!(actual_microdollars: cost)
+    end
+
     def self.lock
       raise ArgumentError, "Verification accounting requires a transaction" unless ApplicationRecord.connection.transaction_open?
 

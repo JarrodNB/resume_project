@@ -1,5 +1,5 @@
 # Proves spoken practice and ordinary AI features cannot consume one another's allowance.
-# Durable task/provider accounting stays shared; only admission and usage views are separated.
+# Durable task/provider accounting stays shared; only admission limits are separated.
 require "rails_helper"
 
 RSpec.describe "Independent spoken interview allowances" do
@@ -36,7 +36,7 @@ RSpec.describe "Independent spoken interview allowances" do
     create(:ai_task, user: user, cost_microdollars: 500)
     task = create(:ai_task, user: user, task_type: "interview_turn", cost_microdollars: 25, status: "completed")
     AiUsageAttempt.create!(ai_task: task, attempt_id: SecureRandom.uuid, incomplete: true)
-    usage = AiUsage::SummarizeMonthlyAiUsageService.call(user: user, interview: true).value
+    usage = AiUsage::SummarizeMonthlyAiUsageService.call(user: user, scope: :interview).value
     expect(usage).to have_attributes(spent_microdollars: 25, budget_microdollars: 25, incomplete_attempts: 1)
     expect(Interviews::StartPreparationService.call(user: user).errors.join).to include("month's interview usage")
   end

@@ -20,7 +20,7 @@ module AiUsage
     # Checks each limit in turn and fails with the first one that's reached.
     def call
       unless @interview && Interviews::LocalTesting.unmetered?
-        monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, interview: @interview).value
+        monthly_usage = SummarizeMonthlyAiUsageService.call(user: @user, scope: @interview ? :interview : :general).value
         return failure([ monthly_limit_message(monthly_usage) ]) if monthly_usage.exhausted?
         return failure([ "You've started too many #{@interview ? 'interview sessions' : 'AI tasks'} in the last hour. Please try again later." ]) if !@existing_task && hourly_limit_reached?
       end

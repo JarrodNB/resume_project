@@ -34,7 +34,7 @@ export function ResumesPage() {
         <ul className="record-list">
           {resumes.map((resume) => (
             <li key={resume.id}>
-              <Link to={`/resumes/${resume.id}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
+              <Link to={resume.job ? `/jobs/${resume.job.id}/resume` : `/resumes/${resume.id}`} className="record-link focus-visible:outline-2 focus-visible:outline-ring">
                 <FileText size={20} className="record-icon" aria-hidden />
                 <div className="record-text">
                   <p className="font-medium">{resume.title}</p>

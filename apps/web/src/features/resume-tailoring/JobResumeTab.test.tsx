@@ -1,7 +1,8 @@
 /**
- * The tailor page starts or restores whole-draft generation, follows completion and failure,
- * and preserves editing, exclusion, saving, and saved-resume editing.
- * The PDF preview is mocked.
+ * Checks the job workspace's resume pages. The Resume tab only shows what exists and never starts
+ * generation; the write route starts or restores whole-draft generation, follows completion and
+ * failure, and returns to the tab after saving. Editing, exclusion, saving, saved-resume editing
+ * and deletion are covered too. Both render inside the real workspace layout; the PDF preview is mocked.
  */
 import { downloadResumePdf, downloadResumeDocx } from './resumeDownload'
 import { screen, waitFor } from '@testing-library/react'
@@ -10,7 +11,9 @@ import { expect, it, vi } from 'vitest'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
 import { renderPage } from '@/test/renderPage'
 import { DELETE_RESUME_MUTATION } from '@/features/resumes/resumesOperations'
-import { TailorResumePage } from './TailorResumePage'
+import { JOB_QUERY } from '@/features/jobs/jobsOperations'
+import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
+import { JobResumeTab, WriteJobResumePage } from './JobResumeTab'
 import { SAVE_TAILORED_RESUME_MUTATION, START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY, UPDATE_RESUME_MUTATION } from './tailorOperations'
 
 vi.mock('./resumeDownload', () => ({ downloadResumePdf: vi.fn().mockResolvedValue(undefined), downloadResumeDocx: vi.fn().mockResolvedValue(undefined) }))
@@ -77,12 +80,74 @@ function subscription(fields: Record<string, unknown>) {
   }
 }
 
-function renderTailor(mocks: Parameters<typeof renderPage>[0]['mocks']) {
-  return renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />, mocks })
+/** The workspace's own job load; its saved resume must agree with the tailor query's. */
+function workspaceJobMock(resume: Record<string, unknown> | null = null) {
+  return {
+    request: { query: JOB_QUERY, variables: { id: 'job-1' } },
+    result: { data: { job: {
+      __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme', location: null, stage: 'UNAPPLIED', url: null,
+      description: null, notes: null, appliedAt: null, requirements: [], responsibilities: [], niceToHaves: [],
+      gapResponses: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', id: resume.id },
+    } } },
+  }
 }
 
+type Mocks = NonNullable<Parameters<typeof renderPage>[0]['mocks']>
+
+/** Renders the workspace with both resume routes; defaults to the write route, which may start a draft. */
+function renderResume(mocks: Mocks, { url = '/jobs/job-1/resume/write', resume = null as Record<string, unknown> | null } = {}) {
+  return renderPage({
+    path: '/jobs/:id', url, element: <JobWorkspaceLayout />,
+    children: [
+      { path: 'resume', element: <JobResumeTab /> },
+      { path: 'resume/write', element: <WriteJobResumePage /> },
+    ],
+    mocks: [workspaceJobMock(resume), ...mocks],
+  })
+}
+
+function startMock(result: Mocks[number]['result']) {
+  return { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result }
+}
+
+it('shows an empty Resume tab without starting generation', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
+  const { router } = renderResume([jobMock(null), startMock(start)], { url: '/jobs/job-1/resume' })
+
+  expect(await screen.findByRole('heading', { name: 'No resume for this job yet' })).toBeInTheDocument()
+  // The header hides its own Write resume on this tab, so the empty state's button is the only one.
+  expect(screen.getAllByRole('button', { name: 'Write resume' })).toHaveLength(1)
+  expect(start).not.toHaveBeenCalled()
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Write resume' }))
+  await userEvent.setup().click(screen.getByRole('button', { name: 'Write resume anyway' }))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write'))
+})
+
+it('does not start a new draft from accepted history on the Resume tab', async () => {
+  const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
+  renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })), startMock(start)], { url: '/jobs/job-1/resume' })
+
+  expect(await screen.findByRole('heading', { name: 'No resume for this job yet' })).toBeInTheDocument()
+  expect(start).not.toHaveBeenCalled()
+})
+
+it('follows a draft already being written when the Resume tab opens', async () => {
+  renderResume([jobMock(task({})), subscription({})], { url: '/jobs/job-1/resume' })
+
+  expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'No resume for this job yet' })).not.toBeInTheDocument()
+})
+
+it('sends the write route to the Resume tab when a resume is already saved', async () => {
+  const resume = { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', sections: [] }
+  const { router } = renderResume([jobMock(null, resume)], { resume })
+
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume'))
+  expect(await screen.findByRole('button', { name: 'Download PDF' })).toBeInTheDocument()
+})
+
 it('restores whole-draft loading after reloading a queued task', async () => {
-  renderTailor([jobMock(task({})), subscription({})])
+  renderResume([jobMock(task({})), subscription({})])
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
@@ -93,7 +158,7 @@ it('opens the complete editable draft when its subscription finishes', async () 
   const user = userEvent.setup()
   const result = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } }], warnings: [] }
   const completed = { ...subscription({ status: 'COMPLETED', result }), delay: 100 }
-  renderTailor([jobMock(task({})), completed])
+  renderResume([jobMock(task({})), completed])
 
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
   await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
@@ -108,7 +173,7 @@ it('retries a failed task and follows the new task through completion', async ()
   const result = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Retried draft.' } }], warnings: [] }
   const retriedSubscription = { ...subscription({ id: 'task-2', status: 'COMPLETED', result }), delay: 500 }
   retriedSubscription.request.variables.id = 'task-2'
-  renderTailor([
+  renderResume([
     jobMock(task({ status: 'FAILED', errorMessage: 'Provider unavailable.' })),
     {
       request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } },
@@ -128,7 +193,7 @@ it('retries a failed task and follows the new task through completion', async ()
 
 it('lets the user retry after starting the draft fails', async () => {
   const user = userEvent.setup()
-  renderTailor([
+  renderResume([
     jobMock(null),
     {
       request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } },
@@ -155,7 +220,7 @@ it('shows omitted-section explanations alongside the completed draft', async () 
     ],
     warnings: ['Projects omitted: no relevant evidence.'],
   }
-  renderTailor([jobMock(task({ status: 'COMPLETED', result })), subscription({ status: 'COMPLETED', result })])
+  renderResume([jobMock(task({ status: 'COMPLETED', result })), subscription({ status: 'COMPLETED', result })])
 
   expect(await screen.findByText('Projects omitted: no relevant evidence.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Edit sections' })).toBeInTheDocument()
@@ -164,10 +229,10 @@ it('shows omitted-section explanations alongside the completed draft', async () 
   expect(screen.queryByRole('button', { name: 'Edit again' })).not.toBeInTheDocument()
 })
 
-it('saves the finished draft', async () => {
+it('saves the finished draft and returns to the Resume tab', async () => {
   const user = userEvent.setup()
   const result = { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' }, omitted: false }], warnings: [] }
-  renderTailor([
+  const renderTailorSaved = renderResume([
     jobMock(task({ status: 'COMPLETED', result })),
     subscription({ status: 'COMPLETED', result }),
     {
@@ -180,13 +245,15 @@ it('saves the finished draft', async () => {
     jobMock(null, { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', sections: [] }),
   ])
 
+  const { router } = renderTailorSaved
   await user.click(await screen.findByRole('button', { name: 'Save resume' }))
-  expect(await screen.findByRole('heading', { name: 'Engineer at Acme' })).toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: 'Download PDF' })).toBeInTheDocument()
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume'))
 })
 
 it('edits a resume that was already saved and shows the preview', async () => {
   const user = userEvent.setup()
-  renderTailor([
+  renderResume([
     jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), {
       __typename: 'Resume',
       id: 'resume-1',
@@ -224,7 +291,7 @@ it('edits a resume that was already saved and shows the preview', async () => {
         },
       },
     },
-  ])
+  ], { url: '/jobs/job-1/resume', resume: { id: 'resume-1' } })
 
   await user.click(await screen.findByRole('button', { name: 'Download PDF' }))
   expect(downloadResumePdf).toHaveBeenLastCalledWith(expect.any(Object), 'Engineer at Acme')
@@ -256,7 +323,7 @@ it('sends only edited included sections and keeps the draft when saving fails', 
     warnings: ['Projects omitted: no relevant evidence.'],
   }
   const saveResult = vi.fn(() => ({ data: { saveTailoredResume: { __typename: 'SaveTailoredResumePayload', resume: null, errors: ['Save unavailable.'] } } }))
-  renderTailor([
+  renderResume([
     jobMock(task({ status: 'COMPLETED', result })),
     subscription({ status: 'COMPLETED', result }),
     {
@@ -282,7 +349,7 @@ it('sends only edited included sections and keeps the draft when saving fails', 
 })
 
 it('shows a live generation failure without exposing partial sections for saving', async () => {
-  renderTailor([
+  renderResume([
     jobMock(task({})),
     subscription({ status: 'FAILED', errorMessage: 'Draft generation failed. Please retry.', result: { sections: [{ section_type: 'summary', content: { text: 'Partial draft.' } }] } }),
   ])
@@ -300,10 +367,10 @@ it('starts fresh from accepted history without exposing the old editable draft',
   const oldResultReceived = vi.fn(() => oldSubscription.result)
   const nextSubscription = subscription({ id: 'task-2' })
   nextSubscription.request.variables.id = 'task-2'
-  renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })),
+  renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT, result: oldResult })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start, delay: 200 }, nextSubscription,
     { ...oldSubscription, result: oldResultReceived }])
-  await screen.findByRole('heading', { name: 'Write resume' })
+  await screen.findByRole('heading', { name: 'Engineer' })
   expect(screen.queryByRole('button', { name: 'Save resume' })).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Summary' })).not.toBeInTheDocument()
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
@@ -315,7 +382,7 @@ it('regenerates an unsaved result in the retired draft format instead of showing
   const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-2', status: 'QUEUED' }, errors: [] } } }))
   const nextSubscription = subscription({ id: 'task-2' })
   nextSubscription.request.variables.id = 'task-2'
-  renderTailor([
+  renderResume([
     jobMock(task({ status: 'COMPLETED', result: { drafts: [], markdown: 'Old draft' } })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
     nextSubscription,
@@ -336,7 +403,7 @@ it.each([
   const nextResult = { sections: [{ section_type: 'summary', content: { text: 'New draft.' } }] }
   const nextSubscription = subscription({ id: 'task-2', status: 'COMPLETED', result: nextResult })
   nextSubscription.request.variables.id = 'task-2'
-  renderTailor([
+  renderResume([
     jobMock(task({ status: 'COMPLETED', result: { sections: [section] } })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start },
     nextSubscription,
@@ -351,7 +418,7 @@ it.each([
 
 it('allows retry when starting after accepted history fails', async () => {
   const user = userEvent.setup()
-  renderTailor([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
+  renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT })),
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Queue unavailable.'] } } } },
     { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: { data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'QUEUED' }, errors: [] } } } },
     subscription({}),
@@ -361,23 +428,22 @@ it('allows retry when starting after accepted history fails', async () => {
   expect(await screen.findByText('Writing your complete draft…')).toBeInTheDocument()
 })
 
-it('deletes an edited resume and returns to the job without another discard warning or generation', async () => {
+it('deletes an edited resume and returns to the Resume tab without another discard warning or generation', async () => {
   const user = userEvent.setup()
   const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
-  const { router } = renderPage({ path: '/jobs/:id/tailor', url: '/jobs/job-1/tailor', element: <TailorResumePage />,
-    extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job</p> }],
-    mocks: [jobMock(task({ status: 'COMPLETED', acceptedAt: null, result: { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old generated draft.' } }] } }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [
+  const { router } = renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: null, result: { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old generated draft.' } }] } }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [
       { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Original summary.' } },
     ] }),
       { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },
-      { request: { query: START_RESUME_TAILORING_MUTATION, variables: { jobId: 'job-1' } }, result: start }],
-  })
+      startMock(start)], { url: '/jobs/job-1/resume', resume: { id: 'resume-1' } })
   await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), ' Unsaved edit.')
   expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
   await user.click(screen.getByRole('button', { name: 'Delete resume' }))
   await user.click(screen.getByRole('button', { name: 'Delete' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1'))
+  expect(await screen.findByRole('heading', { name: 'No resume for this job yet' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Delete resume' })).not.toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/jobs/job-1/resume')
   expect(start).not.toHaveBeenCalled()
 })

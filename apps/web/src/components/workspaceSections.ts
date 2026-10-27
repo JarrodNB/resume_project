@@ -2,7 +2,7 @@
  *
  * The sidebar has a few sections (Jobs, Library, Practice). Each section has tabs shown in
  * the top bar. A detail page belongs to the tab whose path is its longest matching prefix,
- * so `/jobs/42/tailor` keeps "Saved jobs" selected and `/library/import/7` keeps "Import resume".
+ * so `/jobs/42/resume` keeps "Saved jobs" selected and `/library/import/7` keeps "Import resume".
  */
 import { BookOpen, BriefcaseBusiness, MessagesSquare, type LucideIcon } from 'lucide-react'
 

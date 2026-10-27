@@ -10,7 +10,7 @@ Shared UI used by more than one feature.
   account menu; a top bar with the current section's tabs and the task bell; and the routed page.
   Below 900px the sidebar becomes a sticky header and the tab row scrolls sideways
 - `workspaceSections.ts` — the sections (Jobs, Library, Practice) and their tabs. A page selects
-  the tab whose path is its longest prefix (`/jobs/42/tailor` → Saved jobs). Find jobs is shared
+  the tab whose path is its longest prefix (`/jobs/42/resume` → Saved jobs). Find jobs is shared
   listing discovery; Saved jobs is the private list
 - `AccountMenu.tsx` — account dropdown: email label, Account security link, light/dark switch
   (uses `lib/colorTheme.ts`), and Sign out
@@ -31,7 +31,7 @@ Shared UI used by more than one feature.
 
 - New page sections are collapsible and start collapsed. Give `SectionCard` a `sectionId`, or
   use `useOpenSection` with `CollapseToggle`. That id is what `lib/openSections.ts` remembers.
-  Don't collapse the section the user is currently editing.
+  Don't collapse the section the user is currently editing, or a tab's main content.
 - Section colors come from the `--section-*` variables in `index.css`. Add a tone there (light
   and dark values, plus the `@theme inline` entry) before using it in `sectionTones.ts`.
 - Tailwind only finds class names written out in full, so don't build them from template

@@ -1,5 +1,8 @@
 /**
- * Checks saved-job actions: editing, stages, deletion, resumes, interview setup and the saved website.
+ * Checks the saved-job workspace: the header (edit, stage, delete, visit website, applied date,
+ * the write-resume flow and its compare-first dialog), the tab links, the import notice, and the
+ * Fit and Posting tabs. The Resume, Study, and Interview tabs are stand-ins here; their own tests
+ * cover them.
  */
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -10,7 +13,8 @@ import type { MockLink as MockLinkTypes } from '@apollo/client/testing'
 import { expect, it, vi } from 'vitest'
 import { ANALYZE_JOB_GAPS_MUTATION } from '@/features/gap-analysis/gapAnalysisOperations'
 import { renderPage } from '@/test/renderPage'
-import { JobDetailPage } from './JobDetailPage'
+import { JobFitTab, JobPostingTab } from './JobWorkspaceTabs'
+import { JobWorkspaceLayout } from './JobWorkspaceLayout'
 import { DELETE_JOB_MUTATION, JOB_QUERY, MOVE_JOB_TO_STAGE_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
 
 function job(overrides: Record<string, unknown> = {}) {
@@ -39,6 +43,26 @@ function jobQuery(data: ReturnType<typeof job>) {
   return { request: { query: JOB_QUERY, variables: { id: 'job-1' } }, result: { data: { job: data } } }
 }
 
+/** The workspace's tabs: real Fit and Posting tabs, stand-ins for the rest. */
+const workspaceTabs = [
+  { index: true, element: <JobFitTab /> },
+  { path: 'resume', element: <p>Resume tab</p> },
+  { path: 'resume/write', element: <p>Writing resume</p> },
+  { path: 'study', element: <p>Study tab</p> },
+  { path: 'interview', element: <p>Interview tab</p> },
+  { path: 'posting', element: <JobPostingTab /> },
+]
+
+/** Renders the workspace at `url` (the Fit tab by default). */
+function renderWorkspace({ url = '/jobs/job-1', ...options }: Partial<Parameters<typeof renderPage>[0]> = {}) {
+  return renderPage({ path: '/jobs/:id', url, element: <JobWorkspaceLayout />, children: workspaceTabs, ...options })
+}
+
+/** Opens the header's "More job actions" menu. */
+async function openActionsMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: 'More job actions' }))
+}
+
 const savedAttributes = {
   title: 'Senior Engineer',
   company: 'Acme',
@@ -51,34 +75,94 @@ const savedAttributes = {
   niceToHaves: [],
 }
 
-it('opens spoken interview setup for this saved job without changing its stage', async () => {
+it('links each tab to its route and marks the open one as current', async () => {
   const user = userEvent.setup()
-  const { router } = renderPage({
-    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
-    mocks: [jobQuery(job())],
-    extraRoutes: [{ path: '/jobs/:jobId/interview', element: <p>Job interview setup</p> }],
-  })
-  const action = await screen.findByRole('link', { name: 'Practise interview' })
-  expect(action).toHaveAttribute('href', '/jobs/job-1/interview')
-  await user.click(action)
+  const { router } = renderWorkspace({ mocks: [jobQuery(job())] })
+  const tabs = within(await screen.findByRole('navigation', { name: 'Job sections' }))
+  const expected = { Fit: '/jobs/job-1', Resume: '/jobs/job-1/resume', Study: '/jobs/job-1/study', Interview: '/jobs/job-1/interview', Posting: '/jobs/job-1/posting' }
+  for (const [name, href] of Object.entries(expected)) expect(tabs.getByRole('link', { name })).toHaveAttribute('href', href)
+  expect(tabs.getByRole('link', { name: 'Fit' })).toHaveAttribute('aria-current', 'page')
+  expect(tabs.getByRole('link', { name: 'Interview' })).not.toHaveAttribute('aria-current')
+
+  await user.click(tabs.getByRole('link', { name: 'Interview' }))
   expect(router.state.location.pathname).toBe('/jobs/job-1/interview')
-  expect(screen.getByText('Job interview setup')).toBeVisible()
+  expect(screen.getByText('Interview tab')).toBeVisible()
+  expect(tabs.getByRole('link', { name: 'Interview' })).toHaveAttribute('aria-current', 'page')
+  expect(tabs.getByRole('link', { name: 'Fit' })).not.toHaveAttribute('aria-current')
+})
+
+it('keeps the Resume tab current while writing a resume', async () => {
+  renderWorkspace({ url: '/jobs/job-1/resume/write', mocks: [jobQuery(job())] })
+  await screen.findByText('Writing resume')
+  const tabs = within(screen.getByRole('navigation', { name: 'Job sections' }))
+  expect(tabs.getByRole('link', { name: 'Resume' })).toHaveAttribute('aria-current', 'page')
+})
+
+it('hides the header Write resume once the job has a resume', async () => {
+  renderWorkspace({ mocks: [jobQuery(job({ resume: { __typename: 'Resume', id: 'resume-1' } }))] })
+  await screen.findByRole('heading', { name: 'Engineer' })
+  expect(screen.queryByRole('button', { name: 'Write resume' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Write resume' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Open resume' })).not.toBeInTheDocument()
+})
+
+it('hides the header Write resume on the Resume tab, which offers its own', async () => {
+  const { router } = renderWorkspace({ url: '/jobs/job-1/resume', mocks: [jobQuery(job())] })
+  await screen.findByText('Resume tab')
+  expect(screen.queryByRole('button', { name: 'Write resume' })).not.toBeInTheDocument()
+  await act(() => router.navigate('/jobs/job-1/posting'))
+  expect(await screen.findByRole('button', { name: 'Write resume' })).toBeInTheDocument()
+})
+
+it('shows the posting content as open sections with the full description collapsed', async () => {
+  const user = userEvent.setup()
+  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({
+    requirements: ['Python', 'SQL'], responsibilities: ['Ship features'], niceToHaves: ['Go'],
+    notes: 'Ask about on-call.', description: 'A long job description.',
+  }))] })
+
+  const requirements = await screen.findByRole('heading', { level: 2, name: 'Requirements' })
+  expect(within(requirements.closest('section')!).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Python', 'SQL'])
+  expect(screen.getByRole('heading', { level: 2, name: 'Responsibilities' })).toBeInTheDocument()
+  expect(screen.getByText('Ship features')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Nice to have' })).toBeInTheDocument()
+  expect(screen.getByText('Go')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { level: 2, name: 'Notes' })).toBeInTheDocument()
+  expect(screen.getByText('Ask about on-call.')).toBeInTheDocument()
+  expect(screen.queryByText('A long job description.')).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /Full description/ }))
+  expect(screen.getByText('A long job description.')).toBeInTheDocument()
+})
+
+it('explains empty requirements and leaves out empty optional posting sections', async () => {
+  renderWorkspace({ url: '/jobs/job-1/posting', mocks: [jobQuery(job({ requirements: [] }))] })
+
+  expect(await screen.findByText('No requirements were found in the posting.')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Responsibilities' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Nice to have' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Notes' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /Full description/ })).not.toBeInTheDocument()
+})
+
+it('shows a load error instead of the workspace when the job is unavailable', async () => {
+  renderWorkspace({ mocks: [{ request: { query: JOB_QUERY, variables: { id: 'job-1' } }, error: new Error('Record not found') }] })
+
+  expect(await screen.findByText("Couldn't load this job")).toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Job sections' })).not.toBeInTheDocument()
 })
 
 it('offers the saved website in a new tab without changing the application stage', async () => {
   const user = userEvent.setup()
   const moveStage = vi.fn(() => ({ data: { moveJobToStage: { __typename: 'MoveJobToStagePayload', errors: [] } } }))
-  renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
+  renderWorkspace({
     mocks: [
       jobQuery(job({ url: 'https://example.com/careers/engineer' })),
       { request: { query: MOVE_JOB_TO_STAGE_MUTATION, variables: () => true }, result: moveStage },
     ],
   })
 
-  const website = await screen.findByRole('link', { name: 'Visit website' })
+  await openActionsMenu(user)
+  const website = screen.getByRole('menuitem', { name: 'Visit website' })
   expect(website).toHaveAttribute('href', 'https://example.com/careers/engineer')
   expect(website).toHaveAttribute('target', '_blank')
   expect(website).toHaveAttribute('rel', 'noreferrer')
@@ -88,18 +172,17 @@ it('offers the saved website in a new tab without changing the application stage
 })
 
 it('omits the website action when no URL is saved', async () => {
-  renderPage({ path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />, mocks: [jobQuery(job())] })
+  const user = userEvent.setup()
+  renderWorkspace({ mocks: [jobQuery(job())] })
 
-  await screen.findByRole('heading', { name: 'Engineer' })
-  expect(screen.queryByRole('link', { name: 'Visit website' })).not.toBeInTheDocument()
+  await openActionsMenu(user)
+  expect(screen.getByRole('menuitem', { name: 'Edit job' })).toBeInTheDocument()
+  expect(screen.queryByRole('menuitem', { name: 'Visit website' })).not.toBeInTheDocument()
 })
 
 it('saves an edit and clears an optional field', async () => {
   const user = userEvent.setup()
-  renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
+  renderWorkspace({
     mocks: [
       jobQuery(job()),
       {
@@ -110,7 +193,8 @@ it('saves an edit and clears an optional field', async () => {
     ],
   })
 
-  await user.click(await screen.findByRole('button', { name: 'Edit' }))
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Edit job' }))
   await user.clear(screen.getByLabelText('Title'))
   await user.type(screen.getByLabelText('Title'), 'Senior Engineer')
   await user.clear(screen.getByLabelText('Location'))
@@ -123,10 +207,7 @@ it('saves an edit and clears an optional field', async () => {
 
 it('clears the company and displays Unknown company', async () => {
   const user = userEvent.setup()
-  renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
+  renderWorkspace({
     mocks: [
       jobQuery(job()),
       {
@@ -137,7 +218,8 @@ it('clears the company and displays Unknown company', async () => {
     ],
   })
 
-  await user.click(await screen.findByRole('button', { name: 'Edit' }))
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Edit job' }))
   await user.clear(screen.getByLabelText('Company'))
   await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -147,8 +229,7 @@ it('clears the company and displays Unknown company', async () => {
 
 it('opens an unknown company as an empty field and lets the user add it', async () => {
   const user = userEvent.setup()
-  renderPage({
-    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+  renderWorkspace({
     mocks: [
       jobQuery(job({ company: null })),
       {
@@ -158,7 +239,8 @@ it('opens an unknown company as an empty field and lets the user add it', async 
       jobQuery(job()),
     ],
   })
-  await user.click(await screen.findByRole('button', { name: 'Edit' }))
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Edit job' }))
   expect(screen.getByLabelText('Company')).toHaveValue('')
   await user.type(screen.getByLabelText('Company'), 'Acme')
   await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -167,10 +249,7 @@ it('opens an unknown company as an empty field and lets the user add it', async 
 
 it('moves the job to a new stage', async () => {
   const user = userEvent.setup()
-  renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
+  renderWorkspace({
     mocks: [
       jobQuery(job()),
       {
@@ -187,12 +266,10 @@ it('moves the job to a new stage', async () => {
   expect(screen.getByText(/Applied \d/)).toBeInTheDocument()
 })
 
-it('deletes the job after confirmation', async () => {
+it('deletes the job from any tab after confirmation and returns to the jobs list', async () => {
   const user = userEvent.setup()
-  const { router } = renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
+  const { router } = renderWorkspace({
+    url: '/jobs/job-1/posting',
     extraRoutes: [{ path: '/jobs', element: <p>Jobs list</p> }],
     mocks: [
       jobQuery(job()),
@@ -203,10 +280,12 @@ it('deletes the job after confirmation', async () => {
     ],
   })
 
-  await user.click(await screen.findByRole('button', { name: 'Delete' }))
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Delete job' }))
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs'))
+  expect(screen.getByText('Jobs list')).toBeVisible()
 })
 
 it('starts the comparison from the dialog and blocks writing during the request', async () => {
@@ -232,23 +311,15 @@ it('starts the comparison from the dialog and blocks writing during the request'
 
 it('allows writing without comparing', async () => {
   const user = userEvent.setup()
-  const { router } = renderPage({
-    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
-    extraRoutes: [{ path: '/jobs/:id/tailor', element: <p>Tailor</p> }],
-    mocks: [jobQuery(job())],
-  })
+  const { router } = renderWorkspace({ mocks: [jobQuery(job())] })
   await user.click(await screen.findByRole('button', { name: 'Write resume' }))
   await user.click(screen.getByRole('button', { name: 'Write resume anyway' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write'))
 })
 
 it('writes a resume without asking after a comparison has finished', async () => {
   const user = userEvent.setup()
-  const { router } = renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
-    extraRoutes: [{ path: '/jobs/:id/tailor', element: <p>Tailor</p> }],
+  const { router } = renderWorkspace({
     mocks: [
       jobQuery(
         job({
@@ -268,22 +339,7 @@ it('writes a resume without asking after a comparison has finished', async () =>
   await user.click(await screen.findByRole('link', { name: 'Write resume' }))
 
   expect(screen.queryByRole('heading', { name: 'Compare this job first?' })).not.toBeInTheDocument()
-  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
-})
-
-it('opens a resume that was already saved', async () => {
-  const user = userEvent.setup()
-  const { router } = renderPage({
-    path: '/jobs/:id',
-    url: '/jobs/job-1',
-    element: <JobDetailPage />,
-    extraRoutes: [{ path: '/resumes/:id', element: <p>Resume</p> }],
-    mocks: [jobQuery(job({ resume: { __typename: 'Resume', id: 'resume-1' } }))],
-  })
-
-  await user.click(await screen.findByRole('link', { name: 'Open resume' }))
-
-  await waitFor(() => expect(router.state.location.pathname).toBe('/resumes/resume-1'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write'))
 })
 
 function comparisonTask(status = 'QUEUED') {
@@ -297,10 +353,7 @@ function renderLiveJob(data = job(), mocks: MockLinkTypes.MockedResponse[] = [])
   const client = new ApolloClient({ cache: new InMemoryCache(), link: ApolloLink.split(
     operation => operation.operationName === 'AiTaskUpdated', updates, new MockLink([jobQuery(data), ...mocks]),
   ) })
-  const page = renderPage({ path: '/jobs/:id', url: '/jobs/job-1',
-    element: <ApolloProvider client={client}><JobDetailPage /></ApolloProvider>,
-    extraRoutes: [{ path: '/jobs/:id/tailor', element: <p>Tailor</p> }, { path: '/resumes/:id', element: <p>Resume</p> }],
-  })
+  const page = renderWorkspace({ element: <ApolloProvider client={client}><JobWorkspaceLayout /></ApolloProvider> })
   return { ...page, updates, client }
 }
 
@@ -319,7 +372,7 @@ it('blocks a reloaded active comparison then enables direct writing after live c
   const write = await screen.findByRole('link', { name: 'Write resume' })
   expect(router.state.location.pathname).toBe('/jobs/job-1')
   await user.click(write)
-  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write'))
 })
 
 it('blocks writing from the card request through task failure and permits optional writing afterward', async () => {
@@ -339,7 +392,7 @@ it('blocks writing from the card request through task failure and permits option
   expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
   await user.click(screen.getByRole('button', { name: 'Write resume' }))
   await user.click(screen.getByRole('button', { name: 'Write resume anyway' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/tailor'))
+  await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume/write'))
 })
 
 it('keeps writing disabled when following an active comparison fails', async () => {
@@ -348,13 +401,6 @@ it('keeps writing disabled when following an active comparison fails', async () 
   act(() => updates.simulateResult({ error: new Error('Connection interrupted') }))
   expect(await screen.findByText('Connection interrupted')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Write resume' })).toBeDisabled()
-})
-
-it('opens a saved resume while comparison is active', async () => {
-  const user = userEvent.setup()
-  const { router } = renderLiveJob(job({ latestGapAnalysis: comparisonTask(), resume: { __typename: 'Resume', id: 'resume-1' } }))
-  await user.click(await screen.findByRole('link', { name: 'Open resume' }))
-  await waitFor(() => expect(router.state.location.pathname).toBe('/resumes/resume-1'))
 })
 
 it.each(['validation', 'network'])('enables writing and retry after a %s start failure', async kind => {
@@ -430,8 +476,7 @@ it('follows a newer comparison loaded after a locally started comparison complet
 })
 
 it('shows Job Board import warnings on the returned saved job', async () => {
-  renderPage({
-    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+  renderWorkspace({
     historyState: { jobBoardImport: { jobId: 'job-1', warnings: ['The application link was omitted.'] } },
     mocks: [jobQuery(job())],
   })
@@ -444,8 +489,7 @@ it.each([
   { jobId: 'another-job', warnings: ['Only for another job'] },
   { jobId: 'job-1', warnings: { unexpected: 'shape' } },
 ])('does not show unrelated or malformed import warnings: %j', async (jobBoardImport) => {
-  renderPage({
-    path: '/jobs/:id', url: '/jobs/job-1', element: <JobDetailPage />,
+  renderWorkspace({
     historyState: { jobBoardImport }, mocks: [jobQuery(job())],
   })
   await screen.findByRole('heading', { name: 'Engineer' })

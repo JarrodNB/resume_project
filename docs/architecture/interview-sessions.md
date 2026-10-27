@@ -9,11 +9,11 @@ run in the normal local Compose stack when its credentials are configured.
 
 ### Saved-job practice
 
-The job page's **Practise interview** action opens `/jobs/:jobId/interview`. Setup loads
-the owned job from the route and retains the existing round and microphone choices.
+The job workspace's **Interview** tab (`/jobs/:id/interview`) holds saved-job setup. Setup uses
+the owned job the workspace already loaded and retains the existing round and microphone choices.
 `startInterviewDemo` accepts an optional `jobId`, resolved through `current_user.jobs`;
 no job text is accepted from the browser. Career-library evidence remains required,
-and comparison/resume generation is not a prerequisite. The action does not change
+and comparison/resume generation is not a prerequisite. Starting from the tab does not change
 application stage. Library-only starts retain fictional-role preparation.
 
 Rails freezes the job's identity, title, company, description, requirements,

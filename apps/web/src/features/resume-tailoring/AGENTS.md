@@ -10,8 +10,12 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 
 ## Contents
 
-- `TailorResumePage.tsx` (`/jobs/:id/tailor`) — whole-draft loading, failure/retry, the completed
-  editor, or the saved resume (`SavedResumeEditor.tsx`, also used by `/resumes/:id`)
+- `JobResumeTab.tsx` — `JobResumeTab` (`/jobs/:id/resume`, inside the job workspace) never starts
+  paid generation: it shows the saved resume (`SavedResumeEditor.tsx`, also used by
+  `/resumes/:id`), a draft in progress or failed, or an empty state with Write resume.
+  `WriteJobResumePage` (`/jobs/:id/resume/write`) starts a tailor task when none exists,
+  redirects to the Resume tab when a resume exists, and returns there after saving. The old
+  `/jobs/:id/tailor` redirects to the Resume tab, so old links never start generation
 - `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor; preview and save use the same included content in draft order
@@ -37,7 +41,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 - `tailorDraft.ts` — section JSON to and from the review-field draft
 - `parseTailorTask.ts` — completed draft sections and warnings
 - `tailorOperations.ts` — job query and start / save / update mutations
-- `useResumeTailoring.ts` — load, start when needed, follow `aiTaskUpdated`, and retry failures
+- `useResumeTailoring.ts` — `useResumeTailoring(jobId, { autoStart })`: load, start when needed
+  (write route only), follow `aiTaskUpdated`, and retry failures
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
 - `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
@@ -45,7 +50,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   PDF.js renderer to fit every page to the available width, expose readable text to assistive
   technology, and cancel loading/drawing when unmounted. `resumeWorkspace.css` scopes the
   document desk, toolbar, and ruled editing sections
-- `TailorResumePage.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
+- `JobResumeTab.test.tsx` — reload, live completion, failure/retry, omissions, save, and saved
   editing. `FinalResumeEditor.test.tsx` covers edit/exclude/restore and preview/save parity.
   The PDF preview is mocked; jsdom cannot draw it
 
@@ -53,8 +58,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
 
 - Reload reads `Job.latestTailoring`; live status and completed results come from
   `aiTaskUpdated`. There is no token streaming or per-section approval flow.
-- An accepted task without a saved resume is history. A new tailor-page visit starts a
-  fresh task; removing a saved resume during the current visit never starts one or restores
+- An accepted task without a saved resume is history. A new write-route visit starts a
+  fresh task; the Resume tab never does; removing a saved resume during the current visit never starts one or restores
   the old draft, even when the cached task still lacks its accepted timestamp.
 - A completed task needs at least one supported, non-omitted section with object content to
   resume. Unsupported-only, omitted-only, and malformed results are history; start a fresh

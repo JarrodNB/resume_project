@@ -11,7 +11,7 @@ function resumesMock(resumes: Record<string, unknown>[]) {
   return { request: { query: RESUMES_QUERY }, result: { data: { resumes } } }
 }
 
-it('lists saved resumes and links to each one', async () => {
+it('lists saved resumes, linking job resumes to the job workspace and orphans to their own page', async () => {
   renderPage({
     path: '/resumes',
     url: '/resumes',
@@ -38,7 +38,7 @@ it('lists saved resumes and links to each one', async () => {
 
   expect(await screen.findByText('Tailored resume')).toBeInTheDocument()
   expect(screen.getByText('Engineer at Acme')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /Tailored resume/ })).toHaveAttribute('href', '/resumes/resume-1')
+  expect(screen.getByRole('link', { name: /Tailored resume/ })).toHaveAttribute('href', '/jobs/job-1/resume')
   expect(screen.getByText('The job for this resume was removed.')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /Old resume/ })).toHaveAttribute('href', '/resumes/resume-2')
 })

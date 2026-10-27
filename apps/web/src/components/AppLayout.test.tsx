@@ -19,7 +19,7 @@ function renderWorkspace(url: string) {
 }
 
 it('selects the parent section and tab on a detail page', () => {
-  renderWorkspace('/jobs/42/tailor')
+  renderWorkspace('/jobs/42/resume')
   const main = screen.getByRole('navigation', { name: 'Main navigation' })
   expect(within(main).getByRole('link', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page')
   expect(within(main).getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')

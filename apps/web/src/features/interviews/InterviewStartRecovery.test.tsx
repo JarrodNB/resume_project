@@ -6,7 +6,8 @@ import type { InterviewSetupInput } from '@/graphql/generated/graphql'
 import { JOB_QUERY } from '@/features/jobs/jobsOperations'
 import { renderPage } from '@/test/renderPage'
 import { InterviewSetup } from './InterviewSetup'
-import { JobInterviewSetupPage } from './JobInterviewSetupPage'
+import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
+import { JobInterviewTab } from './JobInterviewTab'
 import { ABANDON_UNFINISHED_INTERVIEW, START_INTERVIEW, UNFINISHED_INTERVIEW } from './interviewOperations'
 
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
@@ -114,22 +115,20 @@ it('keeps the blocker and choices when abandonment is rejected', async () => {
   expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeDisabled()
 })
 
-it('offers another saved job when the selected source is deleted after setup has loaded', async () => {
+it('keeps choices and allows another try when the selected job is deleted after setup has loaded', async () => {
   const reject = vi.fn(() => ({ data: { startInterviewDemo: { __typename: 'StartInterviewDemoPayload', interview: null, errors: ['Record not found'] } } }))
-  renderPage({ path: '/jobs/:jobId/interview', url: '/jobs/selected-job/interview', element: <JobInterviewSetupPage />,
+  renderPage({ path: '/jobs/:id', url: '/jobs/selected-job/interview', element: <JobWorkspaceLayout />,
+    children: [{ path: 'interview', element: <JobInterviewTab /> }],
     mocks: [
       { request: { query: JOB_QUERY, variables: { id: job.id } }, result: { data: { job: { ...job, __typename: 'Job',
         stage: 'UNAPPLIED', location: null, url: null, notes: null, appliedAt: null, gapResponses: [], latestGapAnalysis: null, resume: null } } } },
       unfinished(null), startMock(defaultSetup, reject), unfinished(null),
     ],
-    extraRoutes: [{ path: '/jobs', element: <p>My saved jobs</p> }],
   })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
   expect(await screen.findByRole('alert')).toHaveTextContent('Record not found')
   await screen.findByText('No unfinished interview was found. Your choices are kept; choose Prepare interview to try again.')
   expect(reject).toHaveBeenCalledTimes(1)
-  fireEvent.click(screen.getByRole('link', { name: 'Choose another job' }))
-  expect(await screen.findByText('My saved jobs')).toBeVisible()
-  expect(reject).toHaveBeenCalledTimes(1)
+  expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeEnabled()
 })

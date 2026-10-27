@@ -12,6 +12,9 @@ module AiTasks
       "interview_transcription" => "Answer transcription", "interview_clarification" => "Question clarification", "interview_references" => "Career references"
     }.freeze
 
+    # Which job workspace tab shows each job task's result; gap analysis opens the default Fit tab.
+    JOB_TABS = { "analyze_gaps" => "", "tailor_resume" => "/resume", "generate_study_guide" => "/study" }.freeze
+
     def initialize(outcome:)
       @outcome = outcome
       @task = outcome.ai_task
@@ -37,7 +40,7 @@ module AiTasks
         @outcome.task_type == "scrape_job" ? "/jobs/new/#{@task.id}" : "/jobs/paste/#{@task.id}"
       when "analyze_gaps", "tailor_resume", "generate_study_guide"
         job = owned_subject("Job", @user.jobs)
-        job ? "/jobs/#{job.id}#{'/tailor' if @outcome.task_type == 'tailor_resume'}" : "/jobs"
+        job ? "/jobs/#{job.id}#{JOB_TABS[@outcome.task_type]}" : "/jobs"
       when "generate_interview_questions", "regenerate_interview_question", "review_interview_answer"
         set = if @task.subject_type == "InterviewQuestionSet"
           @user.interview_question_sets.find_by(id: @task.subject_id)

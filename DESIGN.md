@@ -204,6 +204,8 @@ is the primary action; further revision is secondary. Generation and acceptance 
 span the AI panel width, with skip and discard actions below. Closing preserves the server-owned
 draft and returns keyboard focus to its source opener.
 
+A saved job opens as a workspace, centered within 1040px. Its header holds the job title, company · location, and applied date on the left; the stage select, the resume action, and a "More job actions" menu (edit, visit website, delete) sit on the right and wrap below on narrow screens. A "Job sections" tab row (Fit, Resume, Study, Interview, Posting) reuses the top-bar section-tab style: plain 14px text, semibold active tab with a 2px primary underline, over a fine bottom rule, scrolling sideways when narrow. Tab panels start 28px below the row. A tab's main content stays open rather than collapsing; on Posting, requirements, responsibilities, nice-to-haves, and notes are open lists in a 72ch column, and only the full description collapses.
+
 Navigation pairs simple line icons with text. The selected section uses the sidebar accent and medium-heavy text. Hover uses the muted surface. Section tabs in the top bar are plain text; the active tab is semibold with a 2px primary underline. A detail page selects the tab whose path is its longest prefix, and account security shows an "Account" label instead of tabs. Preserve the skip link, semantic navigation, visible focus, and related-route selection.
 
 Task notifications live in a bell at the right of the workspace top bar. Its forest count

@@ -1,7 +1,8 @@
 /**
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
- *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Jobs, Library, and Practice,
+ *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Jobs, Library, and Practice
+ *     (one saved job is a workspace with Fit, Resume, Study, Interview, and Posting tabs),
  *     plus redirects that keep old bookmarks (`/job-board`, `/import`, `/interview-prep`, `/interviews`) working
  */
 import { Navigate, type RouteObject } from 'react-router'
@@ -16,7 +17,8 @@ import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/Passwor
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
 import { AddJobFromTextPage } from '@/features/jobs/AddJobFromTextPage'
 import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
-import { JobDetailPage } from '@/features/jobs/JobDetailPage'
+import { JobFitTab, JobPostingTab, JobStudyTab } from '@/features/jobs/JobWorkspaceTabs'
+import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
 import { JobPasteTaskPage } from '@/features/jobs/JobPasteTaskPage'
 import { JobScrapeTaskPage } from '@/features/jobs/JobScrapeTaskPage'
 import { JobBoardPage } from '@/features/job-board/JobBoardPage'
@@ -28,8 +30,8 @@ import { ResumesPage } from '@/features/resumes/ResumesPage'
 import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
 import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
 import { InterviewPage } from '@/features/interviews/InterviewPage'
-import { JobInterviewSetupPage } from '@/features/interviews/JobInterviewSetupPage'
-import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
+import { JobInterviewTab } from '@/features/interviews/JobInterviewTab'
+import { JobResumeTab, WriteJobResumePage } from '@/features/resume-tailoring/JobResumeTab'
 
 export const appRoutes: RouteObject[] = [
   { path: '/verify-email', element: <VerifyEmailPage /> },
@@ -60,9 +62,19 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/new/:aiTaskId', element: <JobScrapeTaskPage /> },
           { path: '/jobs/paste', element: <AddJobFromTextPage /> },
           { path: '/jobs/paste/:aiTaskId', element: <JobPasteTaskPage /> },
-          { path: '/jobs/:id/tailor', element: <TailorResumePage /> },
-          { path: '/jobs/:jobId/interview', element: <JobInterviewSetupPage /> },
-          { path: '/jobs/:id', element: <JobDetailPage /> },
+          {
+            path: '/jobs/:id',
+            element: <JobWorkspaceLayout />,
+            children: [
+              { index: true, element: <JobFitTab /> },
+              { path: 'resume', element: <JobResumeTab /> },
+              { path: 'resume/write', element: <WriteJobResumePage /> },
+              { path: 'study', element: <JobStudyTab /> },
+              { path: 'interview', element: <JobInterviewTab /> },
+              { path: 'posting', element: <JobPostingTab /> },
+            ],
+          },
+          { path: '/jobs/:id/tailor', element: <RedirectToPath to="/jobs/:id/resume" /> },
           { path: '/practice', element: <Navigate to="/practice/questions" replace /> },
           { path: '/practice/questions', element: <InterviewPrepPage /> },
           { path: '/practice/questions/:id', element: <InterviewSetPage /> },

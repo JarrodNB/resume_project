@@ -96,7 +96,7 @@ an all-hidden page keeps Load more available and explains how to reveal saved re
 the saved or existing private Job plus field-omission warnings. The UI prevents
 concurrent save clicks, invalidates a cached private Jobs list after success, and
 opens the returned Job. Warnings travel with that navigation and remain visible
-on the matching saved Job page. Import errors keep the search results for retry.
+on the matching saved Job's workspace. Import errors keep the search results for retry.
 
 ## Optional hybrid reranking
 

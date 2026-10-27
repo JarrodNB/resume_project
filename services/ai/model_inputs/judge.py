@@ -2,6 +2,8 @@
 
 from pydantic_core import to_jsonable_python
 
+from model_inputs.blocks import source_block
+
 
 def readable(value, indent=0):
     """Render the case data as labeled lines while preserving source wording."""
@@ -24,6 +26,6 @@ def readable(value, indent=0):
 
 
 def format_judge_input(rubrics, inputs, output) -> str:
-    return (f"Rubrics:\n{readable(rubrics, 2)}\n\n"
-            f"Inputs:\n{readable(inputs, 2)}\n\n"
-            f"Output:\n{readable(output, 2)}")
+    return ("Rubrics:\n" + source_block("rubrics", readable(rubrics, 2)) + "\n\n"
+            + "Inputs:\n" + source_block("inputs", readable(inputs, 2)) + "\n\n"
+            + "Output:\n" + source_block("output", readable(output, 2)))

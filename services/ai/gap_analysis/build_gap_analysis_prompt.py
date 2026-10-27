@@ -14,6 +14,7 @@ Index:
 from dataclasses import dataclass, field
 from datetime import date
 
+from model_inputs.blocks import source_block
 from schemas.certification_dates import format_certification_date
 from schemas.gap_analysis import EvidenceItem, RequirementKind
 from schemas.gap_analysis_context import GapAnalysisContext, JobToAnalyze
@@ -83,9 +84,10 @@ def build_gap_analysis_prompt(context: GapAnalysisContext, today: date) -> GapAn
     lines += _requirement_lines(
         prompt, "nice_to_have", "N", "Nice to have", job.nice_to_haves
     )
-    lines += ["", "# Career library"]
-    lines += _library_lines(prompt, context)
-    prompt.text = "\n".join(lines)
+    job_text = "\n".join(lines[2:])
+    library_text = "\n".join(_library_lines(prompt, context))
+    prompt.text = (lines[0] + "\n\n" + source_block("job", job_text)
+                   + "\n\n# Career library\n" + source_block("career_library", library_text))
     return prompt
 
 

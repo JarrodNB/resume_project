@@ -7,9 +7,11 @@ Index:
     - JOB_REQUIREMENTS_SORTING_INSTRUCTIONS: the agent's instructions
 """
 
-JOB_REQUIREMENTS_SORTING_PROMPT_VERSION = "1"
+from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-JOB_REQUIREMENTS_SORTING_INSTRUCTIONS = """\
+JOB_REQUIREMENTS_SORTING_PROMPT_VERSION = "2"
+
+JOB_REQUIREMENTS_SORTING_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """\
 You sort the bullet points of a job posting. The posting had no clear section headings, so its
 bullets may describe the job's responsibilities, what the candidate needs, optional extras, the
 benefits, or the company.

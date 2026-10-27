@@ -16,6 +16,7 @@ from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
 from job_postings.extract_job_posting import BulletSortingRun
+from model_inputs.blocks import source_block
 from prompts.job_requirements_sorting_instructions import (
     JOB_REQUIREMENTS_SORTING_INSTRUCTIONS,
     JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
@@ -40,7 +41,9 @@ job_requirements_sorting_agent = Agent(
 
 def format_numbered_bullets(bullets: list[str]) -> str:
     """Numbers bullets from 1, matching pick_sorted_bullets."""
-    return "\n".join(f"{number}. {bullet}" for number, bullet in enumerate(bullets, start=1))
+    return source_block("job_bullets", "\n".join(
+        f"{number}. {bullet}" for number, bullet in enumerate(bullets, start=1)
+    ))
 
 
 @within_screening_session

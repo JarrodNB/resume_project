@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import date
 
+from model_inputs.blocks import source_block
 from tailoring.section_catalog import SECTION_TITLES
 
 _WRITE_ANYWAY = (
@@ -37,10 +38,11 @@ def format_tailoring_section_input(section: TailoringSectionInput) -> str:
         _SECTION_NOTE.get(section.section_type, ""),
         _WRITE_ANYWAY if section.write_anyway else "",
         "",
-        section.job_context,
+        source_block("job", section.job_context),
     ]
     if section.analysis_text:
-        lines.extend(["", section.analysis_text])
+        lines.extend(["", source_block("gap_analysis", section.analysis_text)])
     lines.extend(["", "# Sources"])
-    lines.extend(f"[{label}] {value}" for label, value in section.sources)
+    lines.extend(source_block("career_source", f"[{label}] {value}")
+                 for label, value in section.sources)
     return "\n".join(lines)

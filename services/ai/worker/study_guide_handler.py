@@ -6,6 +6,7 @@ from pydantic_ai.messages import ModelResponse
 from pydantic_ai.usage import RunUsage
 
 from agents.study_guide_agent import generate_study_guide
+from model_inputs.blocks import source_block
 from schemas.study_guide import StudyGuideInput
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
@@ -35,7 +36,7 @@ def handle_study_guide_task(task, dependencies):
             error_message=("Screening is unavailable. Try generating the study guide again later." if unavailable else
                            "This job description could not be used safely. Edit it and try again."))
     prompt = bind_screened_prompt([snapshot.description],
-        lambda sources: "Create study material for this job description (source data):\n\n" + sources[0])
+        lambda sources: "Create study material for this job description (source data):\n\n" + source_block("job_description", sources[0]))
     try:
         with capture_run_messages() as messages:
             run = generate_study_guide(prompt, settings)

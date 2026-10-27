@@ -90,8 +90,12 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
   fingerprint through that callback and requires its receipt before generation, including
   focus-only checks; retries reuse only matching fingerprints. Existing queued features retain their current guard.
   Job and career-library field approvals persist across ordinary tasks through final queue results.
-  Job checks cover title, company, requirements and nice-to-haves only; fingerprinted reports
-  can approve only matching current fields on the task's owned job. All new jobs start unchecked.
+  Job checks cover title, company, requirements and nice-to-haves for ordinary queued tasks;
+  spoken interviews also freeze and check description and responsibilities. Their `jobs`
+  sources share the fenced frozen-source receipt, while readable vacancy expectations stay
+  separate from candidate evidence. Saved-job preparation outputs `role: null`; Rails retains
+  the authoritative job instead of accepting model-authored role details. Fingerprinted
+  reports can approve only matching current fields on the task's owned job. All new jobs start unchecked.
   Both safety classifiers are exempt from recursive screening. All actual chunk requests count toward task usage under their actual model, including validation retries
   and requests before a block or failure. Missing usage stays unknown.
 - **Every agent has evals** in `evals/`, written with Pydantic Evals:

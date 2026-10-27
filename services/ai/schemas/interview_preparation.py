@@ -1,4 +1,8 @@
-"""Bound complete role/question output; the agent checks the saved count and format."""
+"""Bound interview questions and the optional generated fictional vacancy.
+
+Saved jobs already have authoritative role details, so their output cannot replace them.
+The agent checks the user's saved question count and format.
+"""
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -45,3 +49,7 @@ class InterviewPreparation(BaseModel):
         if any(not value for value in text) or len(set(text)) != count:
             raise ValueError("Provide distinct nonblank questions")
         return self
+
+
+class SavedJobInterviewPreparation(InterviewPreparation):
+    role: None = Field(description="Must be null: Rails retains the saved job, including any missing details.")

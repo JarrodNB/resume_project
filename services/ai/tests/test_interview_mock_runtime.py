@@ -29,6 +29,21 @@ def test_mock_provider_returns_complete_preparation_for_preparer_tool(monkeypatc
         assert speech.status_code == 200
 
 
+def test_mock_provider_keeps_saved_job_role_null(monkeypatch):
+    from schemas.interview_preparation import SavedJobInterviewPreparation
+
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-offline")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-offline")
+    runtime = importlib.import_module("scripts.interview_mock_runtime")
+    request = httpx.Request("POST", "https://api.openai.com/v1/responses", json={"tools": [
+        {"name": "final_result", "parameters": SavedJobInterviewPreparation.model_json_schema()}
+    ]})
+    response = runtime.reasoning_response(request)
+    result = SavedJobInterviewPreparation.model_validate(json.loads(response.json()["output"][0]["arguments"]))
+    assert result.role is None
+    assert len(result.questions) == 9
+
+
 @pytest.mark.parametrize("count", [5, 8, 12])
 @pytest.mark.parametrize("question_format,cycle", [("mixed", ["behavioral", "technical", "knowledge"]),
     ("behavioral", ["behavioral"]), ("technical", ["technical", "knowledge"]), ("screening", ["screening"])])

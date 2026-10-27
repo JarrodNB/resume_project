@@ -46,6 +46,13 @@ uses the browser cookie, not a URL token. The channel checks validity before eac
 operation and private transmission. The regular Cable heartbeat closes invalid
 connections; delivery checks block private updates before that heartbeat runs.
 
+Optional AI output streams use a separate, read-only capability issued through the
+session/CSRF-authenticated GraphQL API. It is scoped to one saved attempt, expires in
+60 seconds, and does not authenticate general browser requests or start execution.
+Their one-second read-authorization lease bounds logout/revocation delay without a
+database transaction per token; expiry is checked before each frame. This does not
+change Cable's per-delivery session checks. See [AI streaming](ai-streaming.md).
+
 ## Origins and deployment
 
 Set `CORS_ORIGINS` to explicit HTTP(S) web origins separated by commas; the default

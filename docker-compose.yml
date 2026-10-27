@@ -71,6 +71,7 @@ services:
       <<: [*local-aws, *api-bootsnap]
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
       INTERVIEW_ADMISSION_ENABLED: ${INTERVIEW_ADMISSION_ENABLED:-true}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
@@ -222,13 +223,16 @@ services:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
-    command: uvicorn app:app --host 0.0.0.0 --port 8000
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --ws-max-size 65536
     init: true
     env_file:
       - path: ./services/ai/.env
         required: false
     environment:
       AI_HTTP_ENABLED: ${AI_HTTP_ENABLED:-true}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
+      AI_STREAM_REDIS_URL: ${AI_STREAM_REDIS_URL:-redis://redis:6379/0}
+      AI_BROWSER_ORIGINS: http://localhost:5173
       INTERVIEW_PREPARATION_THINKING: ${INTERVIEW_PREPARATION_THINKING:-false}
       INTERVIEW_DIALOGUE_THINKING: ${INTERVIEW_DIALOGUE_THINKING:-false}
       INTERVIEW_RAILS_ORIGIN: http://api:3000
@@ -243,6 +247,13 @@ services:
         condition: service_started
       s3:
         condition: service_started
+
+  redis:
+    image: redis:8.10.2-alpine
+    profiles: [streaming]
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
+    # No published port; this is an optional ephemeral output buffer, never job storage.
+    restart: unless-stopped
 
 volumes:
   s3_data:

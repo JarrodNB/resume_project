@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -59,6 +59,24 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
     t.check_constraint "input_tokens IS NULL OR input_tokens >= 0", name: "embedding_tokens_nonnegative"
   end
 
+  create_table "ai_execution_stream_grants", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "session_digest", null: false
+    t.string "feature", null: false
+    t.uuid "operation_id", null: false
+    t.uuid "attempt_id", null: false
+    t.integer "claim_generation", null: false
+    t.string "token_digest", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "redeemed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_ai_execution_stream_grants_on_expires_at"
+    t.index ["token_digest"], name: "index_ai_execution_stream_grants_on_token_digest", unique: true
+    t.index ["user_id"], name: "index_ai_execution_stream_grants_on_user_id"
+    t.check_constraint "claim_generation > 0", name: "ai_stream_grant_positive_generation"
+  end
+
   create_table "ai_job_recoveries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "active_job_id", null: false
     t.integer "recovery_count", default: 0, null: false
@@ -83,7 +101,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
     t.index ["sequence"], name: "index_ai_task_outcomes_on_sequence", unique: true
     t.index ["user_id", "sequence"], name: "index_ai_task_outcomes_on_user_id_and_sequence", unique: true
     t.index ["user_id"], name: "index_ai_task_outcomes_on_user_id"
-    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying, 'failed'::character varying]::text[])", name: "ai_task_outcomes_terminal_status"
+    t.check_constraint "status::text = ANY (ARRAY['completed'::character varying::text, 'failed'::character varying::text])", name: "ai_task_outcomes_terminal_status"
   end
 
   create_table "ai_tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -113,7 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -828,6 +846,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_020000) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "ai_embedding_requests", "users", on_delete: :cascade
+  add_foreign_key "ai_execution_stream_grants", "users", on_delete: :cascade
   add_foreign_key "ai_task_outcomes", "ai_tasks"
   add_foreign_key "ai_task_outcomes", "users"
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify

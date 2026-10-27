@@ -1,6 +1,12 @@
 # Resolve a fixed feature adapter; payloads cannot choose arbitrary Ruby classes.
 module AiExecutions
   module Features
+    def self.stream_authority(feature)
+      raise ArgumentError, "Unknown execution feature" unless feature == "interviews"
+
+      Interviews::StreamAuthority
+    end
+
     def self.operation(feature, operation_id)
       raise ArgumentError, "Unknown execution feature" unless feature == "interviews"
 

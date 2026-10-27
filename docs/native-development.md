@@ -90,6 +90,13 @@ Once workers run, queued work or user actions can invoke configured providers.
 
 ## Differences from Compose
 
+Optional future streaming features use `AI_STREAMING_ENABLED=true` exported before
+install/start. Native setup then installs Redis under `.native/bin` if needed and
+manages its loopback port 56379. An explicit external `AI_STREAM_REDIS_URL` is preserved
+and starts no local buffer. The default final-result interview setup needs no Redis;
+see [optional streaming](architecture/ai-streaming.md) for its separate output capability
+on the same executor and protocol/latency checks.
+
 - **Moto replaces ElasticMQ and S3Mock**, serving SQS and S3 at
   `http://127.0.0.1:9090`. Queue visibility times, dead-letter queues, and the
   uploads bucket are created before workers start. This is a development

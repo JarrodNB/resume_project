@@ -6,6 +6,9 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `ai_execution_stream_grant.rb` — short-lived, single-use observer capability digests,
+  bound to a persisted browser session and saved operation/attempt/generation; never execution authority.
+
 - `ai_job_recovery.rb` retains a bounded infrastructure retry count independent of
   Active Job counters. These receipts contain queue identities and safe error names,
   never model prompts or results.

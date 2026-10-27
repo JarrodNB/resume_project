@@ -58,6 +58,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      '/ai/executions/stream': {
+        target: process.env.AI_HTTP_TARGET ?? 'http://ai-http:8000',
+        ws: true,
+      },
       '/interview-transcription/stream': {
         target: process.env.INTERVIEW_TRANSCRIPTION_TARGET ?? 'http://ai-http:8000',
         ws: true,

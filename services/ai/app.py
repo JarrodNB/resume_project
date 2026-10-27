@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from execution.runner import ExecutionRunner
+from execution.stream_runtime import optional_streaming
 from interviews.execution_adapter import InterviewExecutionAdapter
 
 
@@ -67,17 +68,24 @@ def create_app():
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
                 runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor)})
                 app.state.execution_runner = runner
-                try:
-                    yield
-                finally:
-                    app.state.capture_owner = None
-                    await runner.close()
-                    flush_tracing()
+                async with optional_streaming(app, runner,
+                        enabled=os.getenv("AI_STREAMING_ENABLED") == "true",
+                        redis_url=os.getenv("AI_STREAM_REDIS_URL"), rails_origin=origin,
+                        secret=os.environ["INTERVIEW_SERVICE_SECRET"]):
+                    try:
+                        yield
+                    finally:
+                        app.state.capture_owner = None
+                        await runner.close()
+                        flush_tracing()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
                   telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
     from routes.executions import install_execution_routes
     install_execution_routes(app, secret=lambda: os.getenv("INTERVIEW_SERVICE_SECRET", ""))
+    from routes.execution_streams import install_output_stream
+    install_output_stream(app, allowed_origins=set(filter(None, os.getenv(
+        "AI_BROWSER_ORIGINS", os.getenv("INTERVIEW_BROWSER_ORIGINS", "")).split(","))))
     from interviews.live_transcription import install_streaming
     install_streaming(app, allowed_origins=set(filter(None, os.getenv("INTERVIEW_BROWSER_ORIGINS", "").split(","))),
                       api_key=os.getenv("OPENAI_API_KEY", ""))

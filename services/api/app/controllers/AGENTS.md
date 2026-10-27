@@ -29,3 +29,5 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
 - `internal/interview_transcriptions_controller.rb` uses the same service credential for
   bounded pre-answer capture callbacks. Owned capture records establish authority;
   browser capability issuance remains a session-authenticated GraphQL mutation.
+- `internal/execution_streams_controller.rb` redeems/rechecks observer capabilities only.
+  Issuance uses session/CSRF-authenticated GraphQL; attachment never starts execution.

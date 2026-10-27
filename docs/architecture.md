@@ -7,6 +7,7 @@ when changing a contract or feature:
 | Guide | Read when changing |
 | --- | --- |
 | [Authentication](architecture/authentication.md) | Browser sessions, CSRF, login/logout, live connection security |
+| [AI streaming](architecture/ai-streaming.md) | Optional public output, observer capabilities and cross-replica replay |
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Rails background jobs](architecture/background-jobs.md) | Durable job storage, transactional enqueue and queue-worker operations |
 | [Job Board](architecture/job-board.md) | Shared US catalogue, on-demand search, caching, private saved Job imports |

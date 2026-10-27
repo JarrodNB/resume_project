@@ -45,16 +45,19 @@ RSpec.describe "Interrupted AI queue delivery" do
     expect(AiJobRecovery.find_by!(active_job_id: @job.job_id).recovery_count).to eq(1)
   end
 
-  it "caps process-death recovery across manual queue retries and exposes failure" do
-    4.times do
-      claimed_delivery.failed_with(SolidQueue::Processes::ProcessMissingError.new)
-      AiExecutions::RecoverInterruptedJobsJob.perform_now
+  [ SolidQueue::Processes::ProcessMissingError, ActiveRecord::ConnectionFailed ].each do |error_class|
+    it "caps #{error_class.name} recovery across manual queue retries and exposes failure" do
+      4.times do
+        claimed_delivery.failed_with(error_class.new)
+        AiExecutions::RecoverInterruptedJobsJob.perform_now
+      end
+      receipt = AiJobRecovery.find_by!(active_job_id: @job.job_id)
+      expect(receipt.recovery_count).to eq(3)
+      expect(receipt.last_error).to eq(error_class.name)
+      expect(receipt.exhausted_at).to be_present
+      expect(@operation.reload).to be_failed
+      expect(SolidQueue::FailedExecution.joins(:job).where(job: { active_job_id: @job.job_id })).to exist
     end
-    receipt = AiJobRecovery.find_by!(active_job_id: @job.job_id)
-    expect(receipt.recovery_count).to eq(3)
-    expect(receipt.exhausted_at).to be_present
-    expect(@operation.reload).to be_failed
-    expect(SolidQueue::FailedExecution.joins(:job).where(job: { active_job_id: @job.job_id })).to exist
   end
 
   it "does not let an old delivery job stop a newly scheduled delivery" do
@@ -131,8 +134,50 @@ RSpec.describe "Interrupted AI queue delivery" do
     allow(AiExecutions::Features).to receive(:state).and_raise(ActiveRecord::Deadlocked)
     @job.perform_now
     expect(SolidQueue::ScheduledExecution.joins(:job).where(job: { active_job_id: @job.job_id })).to exist
+    allow(AiExecutions::Features).to receive(:state).and_raise(ActiveRecord::StatementInvalid, "invalid SQL")
+    expect { @job.perform_now }.to raise_error(ActiveRecord::StatementInvalid, "invalid SQL")
     allow(AiExecutions::Features).to receive(:state).and_raise(NameError, "programmer defect")
     expect { @job.perform_now }.to raise_error(NameError, "programmer defect")
+  end
+
+  it "keeps a claimed delivery durable after a real mid-query database disconnect" do
+    allow(AiExecutions::Features).to receive(:state) do
+      # Kill only this test's current connection, inside a transaction so Rails
+      # cannot transparently replay a query whose outcome may be unknown.
+      ApplicationRecord.connection.transaction do
+        ApplicationRecord.connection.execute("SELECT pg_terminate_backend(pg_backend_pid())")
+      end
+    end
+
+    expect { claimed_delivery.perform }.not_to raise_error
+
+    expect(SolidQueue::ScheduledExecution.joins(:job).where(job: { active_job_id: @job.job_id })).to exist
+    expect(SolidQueue::FailedExecution.joins(:job).where(job: { active_job_id: @job.job_id })).not_to exist
+    expect(@operation.reload).to be_pending
+    expect(@operation.ai_task.ai_usage_attempts).to be_empty
+  end
+
+  it "caps watchdog disconnect retries and retains the existing unknown-cost attempt" do
+    expect(Interviews::ClaimOperationService.call(operation: @operation, execution_mode: "real")).to be_success
+    stored = SolidQueue::Job.find_by!(active_job_id: @operation.reload.recovery_job_id)
+    watchdog = AiExecutions::RecoveryJob.new(*stored.arguments.fetch("arguments"))
+    watchdog.job_id = stored.active_job_id
+    task = @operation.ai_task
+    attempt = task.ai_usage_attempts.sole
+    allow(AiExecutions::Features).to receive(:recover).and_raise(ActiveRecord::ConnectionFailed)
+    travel 31.seconds
+
+    4.times do
+      watchdog.perform_now
+      expect(@operation.reload).to be_running
+      expect(task.reload).not_to be_failed
+    end
+    watchdog.perform_now
+
+    expect(@operation.reload).to have_attributes(status: "failed", failure_code: "dependency_unavailable")
+    expect(task.reload).to have_attributes(status: "failed", error_message: "dependency_unavailable")
+    expect(task.ai_usage_attempts.pluck(:id)).to eq([ attempt.id ])
+    expect(attempt.reload).not_to be_finalized
   end
 
   it "recovers a real SIGKILLed claimant through the framework prune notification" do

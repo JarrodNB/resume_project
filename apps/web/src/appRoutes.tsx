@@ -14,6 +14,7 @@ import { SignUpPage } from '@/features/auth/SignUpPage'
 import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
+import { HomePage } from '@/features/home/HomePage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
 import { AddJobFromTextPage } from '@/features/jobs/AddJobFromTextPage'
 import { AddJobFromUrlPage } from '@/features/jobs/AddJobFromUrlPage'
@@ -52,7 +53,7 @@ export const appRoutes: RouteObject[] = [
         element: <AppLayout />,
         children: [
           { path: '/account/security', element: <PasswordUpdatePage change /> },
-          { index: true, element: <Navigate to="/jobs" replace /> },
+          { index: true, element: <HomePage /> },
           { path: '/library', element: <CareerLibraryPage /> },
           { path: '/library/import', element: <ResumeUploadPage /> },
           { path: '/library/import/:aiTaskId', element: <ResumeImportTaskPage /> },

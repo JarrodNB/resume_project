@@ -9,7 +9,8 @@ Shared UI used by more than one feature.
 - `AppLayout.tsx` — signed-in layout: fixed desktop sidebar with the three sections and the
   account menu; a top bar with the current section's tabs and the task bell; and the routed page.
   Below 900px the sidebar becomes a sticky header and the tab row scrolls sideways
-- `workspaceSections.ts` — the sections (Jobs, Library, Practice) and their tabs. A page selects
+- `workspaceSections.ts` — the sections (Home, Jobs, Library, Practice) and their tabs; a
+  one-page section shows its name instead of tabs. A page selects
   the tab whose path is its longest prefix (`/jobs/42/resume` → Saved jobs). Find jobs is shared
   listing discovery; Saved jobs is the private list
 - `AccountMenu.tsx` — account dropdown: email label, Account security link, light/dark switch

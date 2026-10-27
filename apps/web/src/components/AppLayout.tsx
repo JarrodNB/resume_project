@@ -1,7 +1,7 @@
 /** A persistent navigation spine for the user's job-search workspace.
  * The spine lists a few sections (see `workspaceSections.ts`); the top bar shows the current
- * section's tabs, and detail routes keep their parent tab selected. On small screens the
- * spine becomes a compact header and the tabs scroll sideways.
+ * section's tabs (or its name when it has one page), and detail routes keep their parent tab
+ * selected. On small screens the spine becomes a compact header and the tabs scroll sideways.
  */
 import { useEffect, useRef } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
@@ -32,7 +32,7 @@ export function AppLayout() {
     <div className="workspace">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <aside className="workspace-sidebar">
-        <Link to="/jobs" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>
+        <Link to="/" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>
           <span className="brand-mark" aria-hidden><BookOpen size={21} strokeWidth={1.7} /></span>
           {PRODUCT_NAME}<span className="brand-period" aria-hidden>.</span>
         </Link>
@@ -56,7 +56,7 @@ export function AppLayout() {
       </aside>
       <div className="workspace-body">
         <header className="workspace-topbar">
-          {currentSection ? (
+          {currentSection && currentSection.tabs.length > 1 ? (
             <nav ref={tabsRef} className="section-tabs" aria-label={`${currentSection.label} pages`}>
               {currentSection.tabs.map((tab) => (
                 <Link
@@ -69,7 +69,7 @@ export function AppLayout() {
                 </Link>
               ))}
             </nav>
-          ) : <span className="section-tabs-placeholder">Account</span>}
+          ) : <span className="section-tabs-placeholder">{currentSection?.label ?? 'Account'}</span>}
           {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
         </header>
         <main id="main-content" tabIndex={-1} className="workspace-content"><Outlet /></main>

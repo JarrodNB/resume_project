@@ -3,11 +3,12 @@
  * Drawn as a transit map: the stages are stations on one line (Rejected is a branch), and each
  * job is a tile with its own five-stop line. Jobs show as that board or as a list (remembered
  * per browser). Rails suggests each job's next step, shown as a signal bullet: red needs you,
- * blue means AI is working, yellow means waiting, green means an offer. Jobs with AI work
- * running are also listed in the strip at the top. With no saved jobs yet, Home shows the
- * three steps that start a search instead.
+ * blue means AI is working, yellow means waiting, green means an offer. All AI work still
+ * running is listed in the strip at the top (see AiWorkStrip), which keeps itself current and
+ * reloads the board when work finishes. With no saved jobs yet, Home shows the three steps
+ * that start a search instead.
  */
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
 import { Link } from 'react-router'
 import { ArrowRight } from 'lucide-react'
@@ -21,8 +22,8 @@ import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { cn } from '@/lib/utils'
 import { JOB_PIPELINE_QUERY } from './homeOperations'
 import { readHomeView, rememberHomeView, type HomeView } from './homeView'
-import { NEXT_STEPS } from './nextSteps'
-import { NextStep, SignalLegend } from './NextStepSignal'
+import { AiWorkStrip } from './AiWorkStrip'
+import { NextStep } from './NextStepSignal'
 
 type PipelineEntry = JobPipelineQuery['jobPipeline'][number]
 
@@ -30,7 +31,7 @@ export function HomePage() {
   const { data, loading, error, refetch } = useQuery(JOB_PIPELINE_QUERY, { fetchPolicy: 'cache-and-network' })
   const [view, setView] = useState<HomeView>(readHomeView)
   const entries = data?.jobPipeline ?? []
-  const running = entries.filter((entry) => NEXT_STEPS[entry.nextStep]?.signal === 'ai')
+  const reloadBoard = useCallback(() => { void refetch().catch(() => { /* The query error stays on screen. */ }) }, [refetch])
 
   function chooseView(next: HomeView) {
     setView(next)
@@ -57,20 +58,7 @@ export function HomePage() {
       {data && entries.length === 0 && <FirstRun />}
       {entries.length > 0 && (
         <>
-          <section className="signal-strip" aria-labelledby="home-running-heading">
-            <h2 id="home-running-heading">AI work in progress</h2>
-            {running.length > 0 ? (
-              <ul>
-                {running.map((entry) => (
-                  <li key={entry.job.id}>
-                    <span className="signal-strip-job">{entry.job.title}</span>
-                    <NextStep entry={entry} />
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="signal-strip-idle">Nothing running right now</p>}
-            <SignalLegend />
-          </section>
+          <AiWorkStrip onWorkFinished={reloadBoard} />
           <div className="home-toolbar">
             <h2>{entries.length === 1 ? '1 saved job' : `${entries.length} saved jobs`}</h2>
             <div className="view-switch" role="group" aria-label="Show jobs as">

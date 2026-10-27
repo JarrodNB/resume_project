@@ -30,7 +30,7 @@ export function NextStep({ entry }: { entry: PipelineEntry }) {
   )
 }
 
-function SignalDot({ signal }: { signal: Signal }) {
+export function SignalDot({ signal }: { signal: Signal }) {
   return <span className={cn('signal-dot', `is-${signal}`)} aria-hidden />
 }
 

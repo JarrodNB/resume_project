@@ -100,6 +100,9 @@ module Types
     field :job_pipeline, [ Types::JobPipelineEntryType ], null: false,
           description: "The signed-in user's jobs, newest first, each with its one suggested next step."
 
+    field :running_ai_tasks, [ Types::RunningAiTaskType ], null: false,
+          description: "The signed-in user's AI work still in progress, newest first (live interview work excluded)."
+
     field :resumes, [ Types::ResumeType ], null: false
     field :resume, Types::ResumeType, null: false do
       argument :id, ID, required: true
@@ -164,6 +167,11 @@ module Types
     def job_pipeline
       raise GraphQL::ExecutionError, "Authentication required" unless current_user
       Jobs::BuildPipelineService.call(user: current_user).value
+    end
+
+    def running_ai_tasks
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      AiTasks::ListRunningTasksService.call(user: current_user).value
     end
 
     # Returns the user's resumes, most recently updated first.

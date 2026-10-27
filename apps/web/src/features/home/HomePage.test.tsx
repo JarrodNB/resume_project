@@ -1,9 +1,9 @@
 /** Checks Home's stage board and list, next-step signals, AI work in progress, and the first-run steps. */
-import { screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
-import { JOB_PIPELINE_QUERY } from './homeOperations'
+import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
 import { HomePage } from './HomePage'
 
 afterEach(() => localStorage.clear())
@@ -20,8 +20,19 @@ const pipeline = [
   entry('job-5', 'QA Lead', 'REJECTED', 'NONE'),
 ]
 
-function renderHome(jobPipeline: unknown[]) {
-  return renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } }] })
+function runningTask(id: string, label: string, destination: string) {
+  return { __typename: 'RunningAiTask' as const, id, label, destination }
+}
+
+function runningMock(runningAiTasks: unknown[]) {
+  return { request: { query: RUNNING_AI_TASKS_QUERY }, result: { data: { runningAiTasks } } }
+}
+
+function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = []) {
+  return renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },
+    runningMock(runningAiTasks),
+  ] })
 }
 
 it('groups jobs by stage on a board, each linking its next step to the right job tab', async () => {
@@ -37,12 +48,30 @@ it('groups jobs by stage on a board, each linking its next step to the right job
   expect(screen.getByText('5 saved jobs')).toBeInTheDocument()
 })
 
-it('lists AI work in progress above the board', async () => {
-  renderHome(pipeline)
+it('lists every kind of running AI work in the strip, each linked to its page', async () => {
+  renderHome(pipeline, [
+    runningTask('task-1', 'Resume draft: Data Analyst', '/jobs/job-2/resume'),
+    runningTask('task-2', 'Resume import', '/library/import/task-2'),
+  ])
   const running = await screen.findByRole('region', { name: 'AI work in progress' })
-  expect(within(running).getByText('Data Analyst')).toBeInTheDocument()
-  expect(within(running).getByRole('link', { name: 'Writing resume draft: Data Analyst' })).toHaveAttribute('href', '/jobs/job-2/resume')
+  expect(await within(running).findByRole('link', { name: 'Resume draft: Data Analyst' })).toHaveAttribute('href', '/jobs/job-2/resume')
+  expect(within(running).getByRole('link', { name: 'Resume import' })).toHaveAttribute('href', '/library/import/task-2')
   expect(within(running).queryByText('Platform Engineer')).not.toBeInTheDocument()
+})
+
+it('reloads the board when running work finishes', async () => {
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'RESUME_RUNNING')] } } },
+    runningMock([runningTask('task-1', 'Resume draft: Data Analyst', '/jobs/job-2/resume')]),
+    runningMock([]),
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: [entry('job-2', 'Data Analyst', 'UNAPPLIED', 'REVIEW_RESUME_DRAFT')] } } },
+  ] })
+  const running = await screen.findByRole('region', { name: 'AI work in progress' })
+  await within(running).findByRole('link', { name: 'Resume draft: Data Analyst' })
+  // Coming back to the tab checks again, as the strip's polling would.
+  act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+  expect(await within(running).findByText('Nothing running right now')).toBeInTheDocument()
+  await waitFor(() => expect(screen.getByRole('link', { name: 'Review resume draft: Data Analyst' })).toBeInTheDocument())
 })
 
 it('switches to a list that skips empty stages, and remembers the choice', async () => {
@@ -67,7 +96,7 @@ it('shows the three starting steps before any job is saved', async () => {
 })
 
 it('explains a load failure and offers to try again', async () => {
-  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }] })
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [{ request: { query: JOB_PIPELINE_QUERY }, error: new Error('Network down') }, runningMock([])] })
   expect(await screen.findByText("Couldn't load your jobs")).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
 })

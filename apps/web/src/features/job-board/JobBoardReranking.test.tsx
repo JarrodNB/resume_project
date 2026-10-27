@@ -1,7 +1,10 @@
 /** Follow optional reranking through the page's real GraphQL operations and result ordering. */
-import { act, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { MockLink } from '@apollo/client/testing'
+import { ApolloClient, InMemoryCache } from '@apollo/client'
+import { ApolloProvider } from '@apollo/client/react'
+import { MockLink } from '@apollo/client/testing'
+import { MemoryRouter } from 'react-router'
 import { expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { JobBoardPage } from './JobBoardPage'
@@ -211,4 +214,79 @@ it('keeps provider filters and career ranking when saved results are hidden', as
   expect(titles()).toEqual(['second role', 'third role'])
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Past 7 days')
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Most relevant')
+})
+
+it('ranks the submitted keyword while keyword and provider filters have unsent edits', async () => {
+  const user = userEvent.setup()
+  renderBoard([searchMock(), rankMock()])
+  await search(user, '  engineer  ')
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.clear(screen.getByRole('textbox', { name: 'Keyword or job title' }))
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), 'designer')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '24h')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'hybrid')
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Past 24 hours')
+  expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Hybrid')
+})
+
+it('reranks a refreshed page even when the keyword and provider listing IDs stay the same', async () => {
+  const user = userEvent.setup()
+  const stale = searchMock()
+  stale.result = { data: { jobBoardSearch: { __typename: 'JobBoardSearchPage', listings: ['first', 'second'].map(listing), nextCursor: null, retrievedAt: '2026-10-26T00:00:00Z', stale: true, errors: ['Temporarily unavailable.'] } } }
+  renderBoard([
+    stale, rankMock(), searchMock(),
+    rankMock('engineer', ['first', 'second'], ['first', 'second'], { delay: 100 }),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  await user.click(screen.getByRole('button', { name: 'Retry results' }))
+  await screen.findByText(/Reranking loaded roles/)
+  expect(titles()).toEqual(['first role', 'second role'])
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['first role', 'second role'])
+})
+
+it('discards private ordering when the signed-in session replaces its Apollo client', async () => {
+  const user = userEvent.setup()
+  const firstClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([searchMock(), rankMock()]) })
+  const secondClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([
+    rankMock('engineer', ['first', 'second'], [], { result: { data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: null, errors: ['Add career library entries first.'] } } } }),
+  ]) })
+  const page = (client: ApolloClient) => <ApolloProvider client={client}><MemoryRouter><JobBoardPage /></MemoryRouter></ApolloProvider>
+  const view = render(page(firstClient))
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  view.rerender(page(secondClient))
+  expect(titles()).toEqual(['first role', 'second role'])
+  await screen.findByText('Add career library entries first.')
+  expect(titles()).toEqual(['first role', 'second role'])
+})
+
+it('ignores a previous task subscription update after resubmitting the same candidates', async () => {
+  const user = userEvent.setup()
+  const oldUpdate = vi.fn(() => ({ data: { aiTaskUpdated: task('rank-1', ['second', 'first']) } }))
+  renderBoard([
+    searchMock(), rankMock(), searchMock('designer'),
+    rankMock('designer', ['first', 'second'], [], { result: { data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-2', null), errors: [] } } } }),
+    { request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-2' } }, result: oldUpdate },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  await search(user, 'designer')
+  await waitFor(() => expect(oldUpdate).toHaveBeenCalledOnce())
+  expect(titles()).toEqual(['first role', 'second role'])
+  expect(screen.queryByText('Loaded roles ranked using your career library.')).not.toBeInTheDocument()
+  expect(screen.getByText(/For “designer”/)).toBeInTheDocument()
 })

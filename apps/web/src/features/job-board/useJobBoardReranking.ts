@@ -1,4 +1,5 @@
-/** Reranks one loaded search snapshot without changing the provider's original list.
+/** Internal ordering for the search module's immutable result snapshot.
+ * The snapshot itself is the identity: ranking never reconstructs it from caller values.
  * Requests are cached for this page visit so switching off and on does not repeat work.
  * Late mutations/subscriptions stay attached to their snapshot, never a newer search.
  */
@@ -11,6 +12,7 @@ import type { BoardListing } from './useJobBoardSearch'
 
 interface RerankingTask { id: string; status: AiTaskStatusEnum; result: unknown; errorMessage?: string | null }
 interface Request { starting: boolean; task?: RerankingTask; error?: string; order?: string[] }
+interface Snapshot { submitted: { keyword: string } | null; listings: BoardListing[] }
 
 /** Only a complete permutation can replace the provider order. */
 function resultOrder(result: unknown, ids: string[]): string[] | null {
@@ -20,18 +22,19 @@ function resultOrder(result: unknown, ids: string[]): string[] | null {
     && order.every((id): id is string => typeof id === 'string' && ids.includes(id)) ? order : null
 }
 
-export function useJobBoardReranking(enabled: boolean, keyword: string, listings: BoardListing[], resultVersion: number) {
+export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot) {
+  const { listings } = snapshot
+  const keyword = snapshot.submitted?.keyword ?? ''
   const client = useApolloClient()
   // Replacing the Apollo client changes the signed-in session, so discard private ordering.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const requests = useMemo(() => new Map<string, Request>(), [client])
+  const requests = useMemo(() => new Map<Snapshot, Request>(), [client])
   const mounted = useRef(true)
   const [, refresh] = useState(0)
   const [attempt, setAttempt] = useState(0)
   const ids = listings.map((listing) => listing.id)
-  const key = `${resultVersion}:${keyword}:${ids.join(',')}`
   const available = ids.length > 0 && ids.length <= 100
-  const current = requests.get(key)
+  const current = requests.get(snapshot)
   const taskId = enabled && available && current?.task?.status === 'QUEUED' ? current.task.id : ''
   const { data, error: subscriptionError } = useSubscription(JOB_BOARD_RERANKING_SUBSCRIPTION, {
     variables: { id: taskId }, skip: !taskId,
@@ -43,9 +46,9 @@ export function useJobBoardReranking(enabled: boolean, keyword: string, listings
   }, [])
 
   useEffect(() => {
-    if (!enabled || !available || !keyword || requests.has(key)) return
+    if (!enabled || !available || !keyword || requests.has(snapshot)) return
     const request: Request = { starting: true }
-    requests.set(key, request)
+    requests.set(snapshot, request)
     // A page visit keeps only a small history; in-flight callbacks retain their own record.
     if (requests.size > 10) requests.delete(requests.keys().next().value!)
     refresh((value) => value + 1)
@@ -65,13 +68,13 @@ export function useJobBoardReranking(enabled: boolean, keyword: string, listings
       request.starting = false
       if (mounted.current) refresh((value) => value + 1)
     })
-    // The key freezes the keyword, candidate IDs and result version for this request.
+    // Search creates a new immutable snapshot on submission or accepted provider pages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, available, key, client, requests, attempt])
+  }, [enabled, available, snapshot, client, requests, attempt])
 
   useEffect(() => {
     const update = data?.aiTaskUpdated
-    const request = requests.get(key)
+    const request = requests.get(snapshot)
     if (!enabled || !request?.task || update?.id !== request.task.id) return
     request.task = update
     if (update.status === 'COMPLETED') {
@@ -82,7 +85,7 @@ export function useJobBoardReranking(enabled: boolean, keyword: string, listings
     refresh((value) => value + 1)
     // Snapshot identity also determines the exact expected result IDs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, key, data, requests])
+  }, [enabled, snapshot, data, requests])
 
   // A task may already be complete in the mutation response, before subscribing.
   const task = current?.task
@@ -95,7 +98,7 @@ export function useJobBoardReranking(enabled: boolean, keyword: string, listings
 
   function retry() {
     if (busy) return
-    requests.delete(key)
+    requests.delete(snapshot)
     setAttempt((value) => value + 1)
   }
 

@@ -1,5 +1,5 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
- * Search and import hooks own requests; this page keeps draft filters separate from submitted results.
+ * Search owns submitted results and optional ordering; the form owns editable filters.
  */
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
@@ -10,22 +10,20 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
-import { describeSearch, type BoardSearch } from './searchFilters'
+import { describeSearch } from './searchFilters'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
-import { useJobBoardReranking } from './useJobBoardReranking'
 import './jobBoard.css'
 
 const searchIdeas = ['Software engineer', 'Product designer', 'Data analyst']
 
 export function JobBoardPage() {
-  const [submittedSearch, setSubmittedSearch] = useState<BoardSearch>({ keyword: '', remoteOnly: false, experienceLevels: [] })
   const [keyword, setKeyword] = useState('')
   const [hideSaved, setHideSaved] = useState(false)
-  const board = useJobBoardSearch()
   const [rerankingEnabled, setRerankingEnabled] = useState(false)
-  const reranking = useJobBoardReranking(rerankingEnabled, submittedSearch.keyword, board.listings, board.resultVersion)
+  const board = useJobBoardSearch(rerankingEnabled)
+  const { reranking, submittedSearch } = board
   const importer = useImportJobBoardListing()
   const navigate = useNavigate()
 
@@ -34,7 +32,7 @@ export function JobBoardPage() {
     if (result) navigate(`/jobs/${result.jobId}`, { state: { jobBoardImport: result } })
   }
 
-  const visibleListings = reranking.listings.filter((listing) => !hideSaved || !listing.savedJob)
+  const visibleListings = board.listings.filter((listing) => !hideSaved || !listing.savedJob)
   const hiddenCount = board.listings.length - visibleListings.length
 
   return (
@@ -42,10 +40,7 @@ export function JobBoardPage() {
       <PageHeading title="Job Board" description="Find your next opportunity. Save the roles you want to pursue to your private Jobs." actions={
         <Button asChild variant="outline"><Link to="/jobs">Your saved jobs <ArrowUpRight aria-hidden /></Link></Button>
       } />
-      <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={(search) => {
-        setSubmittedSearch(search)
-        board.search(search.keyword, search.remoteOnly, search.experienceLevels, search.filters)
-      }}>
+      <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
             <Checkbox aria-describedby="board-reranking-help" checked={rerankingEnabled} onCheckedChange={(checked) => setRerankingEnabled(checked === true)} />Rerank using my career library
@@ -54,7 +49,7 @@ export function JobBoardPage() {
         </div>
       </JobBoardSearchForm>
 
-      {!board.hasSearched && <div className="board-introduction">
+      {!submittedSearch && <div className="board-introduction">
         <div className="board-introduction-icon"><Search size={27} strokeWidth={1.5} aria-hidden /></div>
         <h2>Find a role worth your next step.</h2>
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
@@ -63,7 +58,7 @@ export function JobBoardPage() {
         </div>
       </div>}
 
-      {board.hasSearched && <div className="board-results-heading">
+      {submittedSearch && <div className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
           {board.listings.length > 0 && <span className="board-results-count">{visibleListings.length} shown · {board.listings.length} loaded{hiddenCount > 0 && ` · ${hiddenCount} saved hidden`}</span>}</div>

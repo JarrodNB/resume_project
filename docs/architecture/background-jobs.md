@@ -52,6 +52,14 @@ normal path starts without waiting for a queue worker. HTTP202 only means the
 process received that nudge; the fallback job completes only after Rails observes
 a terminal result or a current claim with an atomically saved recovery job.
 
+The authenticated fixed-origin nudge returns `:accepted` for HTTP202 and `:busy`
+only for the runtime's explicit HTTP503 `{"error":"busy"}` response. Busy delivery
+requeues the same job after one second while the owner remains eligible; existing
+expiry, abandonment and delivery identity checks end that wait. It creates no claim
+or usage attempt before a slot is available. Transport failures, malformed replies
+and accepted nudges without a durable claim retain the separate thirty-retry budget;
+capacity waits neither consume nor reset that budget.
+
 Claim and renewal transactions save exact attempt/generation/deadline watchdogs.
 Old delivery IDs and watchdogs cannot terminate newer work. Early current
 watchdogs are rearmed; expired current watchdogs use the existing domain retry

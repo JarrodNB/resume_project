@@ -48,14 +48,14 @@ export function InterviewPage() {
   const { user } = useAuth()
   const { state: navigationState } = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
-    <PageHeading title="Interview" description="Practice a complete interview for a fictional role drawn from your career library." />
+    <PageHeading title="Interview" description="Practice a complete interview using your career library and a saved job or fictional role." />
     {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
       {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
       <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
     </>}
   </div>
 }
-function InterviewPrivacy() {
+export function InterviewPrivacy() {
   return <details className="border-t pt-4 text-sm text-muted-foreground">
       <summary className="cursor-pointer py-2 font-medium text-foreground focus-visible:outline-2 focus-visible:outline-ring">Interview details and privacy</summary>
       <div className="grid gap-3 pt-3">
@@ -344,6 +344,6 @@ function OwnedInterview({ id }: { id: string }) {
   </>
 }
 
-function ProviderNotice() {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete recording to OpenAI for transcription before you review and submit your answer. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. When career examples are enabled, saved details from your career library appear as optional answer guidance. Search text from the question and, for follow-ups, your accepted answer goes to OpenAI for retrieval embeddings. References are separate from the interviewer’s dialogue and never fill your answer. Provider requests incur charges; references do not generate answers or grade your performance.</p>
+export function ProviderNotice() {
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details, your chosen focus and any selected job details go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete recording to OpenAI for transcription before you review and submit your answer. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. When career examples are enabled, saved details from your career library appear as optional answer guidance. Search text from the question and, for follow-ups, your accepted answer goes to OpenAI for retrieval embeddings. References are separate from the interviewer’s dialogue and never fill your answer. Provider requests incur charges; references do not generate answers or grade your performance.</p>
 }

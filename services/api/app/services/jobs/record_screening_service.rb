@@ -5,7 +5,7 @@ require "json"
 
 module Jobs
   class RecordScreeningService < ApplicationService
-    FIELDS = %w[title company requirements nice_to_haves].freeze
+    FIELDS = %w[title company description requirements responsibilities nice_to_haves].freeze
 
     # Call after assigning edits under the job row lock, before saving.
     def self.discard_changed_fields(job:)

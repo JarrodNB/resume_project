@@ -1,4 +1,4 @@
-# Freezes only the owner's career evidence, then persists recoverable preparation work.
+# Freezes owned career evidence and optional saved-job expectations, then persists preparation.
 # Provider calls happen later through the private execution interface, never in this transaction.
 module Interviews
   class StartPreparationService < ApplicationService
@@ -9,8 +9,9 @@ module Interviews
     }.freeze
     MAX_CONTEXT_BYTES = 40_000
 
-    def initialize(user:, career_focus: nil, setup: nil)
+    def initialize(user:, career_focus: nil, setup: nil, job: nil)
       @user, @career_focus = user, career_focus.to_s.strip
+      @job = job
       @setup = setup.nil? ? SetupConfiguration::DEFAULT : (setup.is_a?(Hash) ? SetupConfiguration::DEFAULT.merge(setup.stringify_keys) : setup)
     end
 
@@ -18,6 +19,7 @@ module Interviews
     def call
       return failure("Choose supported interview settings and 5, 8 or 12 questions") unless SetupConfiguration.valid?(@setup)
       return failure("Career focus must be at most 200 characters") if @career_focus.length > 200
+      return failure("Record not found") if @job && @job.user_id != @user.id
       @user.with_lock do
         sources = []
         sources << { type: "profile", id: @user.id, field: "summary", text: @user.summary, screened: @user.screened_fields.include?("summary") } if @user.summary.present?
@@ -38,20 +40,28 @@ module Interviews
         context = { version: 1, sources: sources, career_focus: @career_focus,
           avoided_questions: InterviewPreferences::AvoidedQuestions.snapshot(@user),
           names: [ @user.name ].compact, emails: [ @user.contact_email ].compact, phones: [ @user.phone ].compact }
-        return failure("Your career library and saved question preferences are too long for interview preparation. Shorten your library entries and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
+        if @job
+          @job.with_lock do
+            context[:job] = FrozenJobContext.snapshot(@job)
+            sources.concat(FrozenJobContext.sources(@job))
+          end
+        end
+        return failure("Your interview sources are too long for preparation. Shorten your job, career library or saved question preferences and try again.") if JSON.generate(context).bytesize > MAX_CONTEXT_BYTES
         if @user.interview_sessions.where(status: %w[preparing ready active]).where("expires_at > ?", Time.current)
             .where.not(frozen_context: {}).exists?
           next failure("Resume or abandon your unfinished interview before preparing another.")
         end
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user, interview: true)
         next allowance unless allowance.success?
-        interview = @user.interview_sessions.create!(status: "preparing", answer_cap: 3, execution_mode: "real",
+        interview = @user.interview_sessions.create!(job: @job, status: "preparing", answer_cap: 3, execution_mode: "real",
           execution_config: ExecutionConfiguration::PRESETS.fetch("real"), setup_config: @setup, frozen_context: context, expires_at: 7.days.from_now)
         operation = interview.operations.create!(kind: "preparation")
         operation.update!(ai_task: @user.ai_tasks.create!(task_type: "interview_preparation", subject: interview,
           input: { operation_id: operation.id }))
         success(interview)
       end
+    rescue ActiveRecord::RecordNotFound, ActiveRecord::InvalidForeignKey
+      failure("Record not found")
     end
   end
 end

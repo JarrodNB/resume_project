@@ -29,6 +29,8 @@ application stages, and deleted.
   "Compare first" starts the shared comparison on this page; "Write resume anyway" continues
   without comparing. "Open resume" goes to `/resumes/:id` when one is already
   saved, and that page's breadcrumb returns here.
+  "Practise interview" goes to `/jobs/:jobId/interview` for spoken setup using that saved
+  job and the career library; it does not require a comparison or change the job stage.
   requirements, responsibilities, nice-to-haves, notes, description (those cards start collapsed, remembered per
   job), the applied date once set, and a "Visit website" link to the saved URL. The link
   opens a new tab and does not change the application stage; omit it when no URL is saved.

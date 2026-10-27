@@ -9,6 +9,7 @@ import { useStartInterview } from './useInterviewSession'
 import { useInterviewMicSettings } from './useInterviewMicSettings'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { difficultyOptions, focusOptions, interviewerOptions, lengthOptions, typeOptions } from './interviewSetupOptions'
+import { InterviewJobContext, type InterviewJob } from './InterviewJobContext'
 
 function Choices({ title, name, options, value, change }: { title: string; name: string; options: { value: string; label: string; description: string }[]; value: string; change: (value: string) => void }) {
   return <fieldset className="interview-setup-section"><legend>{title}</legend><div className="interview-setup-choices">
@@ -19,7 +20,7 @@ function Choices({ title, name, options, value, change }: { title: string; name:
   </div></fieldset>
 }
 
-export function InterviewSetup({ notice, initialSetup }: { notice: ReactNode; initialSetup?: unknown }) {
+export function InterviewSetup({ notice, initialSetup, job }: { notice: ReactNode; initialSetup?: unknown; job?: InterviewJob & { id: string } }) {
   const { start, loading, error } = useStartInterview()
   const { user } = useAuth()
   const microphone = useInterviewMicSettings(user?.id ?? '')
@@ -38,13 +39,15 @@ export function InterviewSetup({ notice, initialSetup }: { notice: ReactNode; in
     if (submitting.current) return
     submitting.current = true; setPending(true)
     try {
-      const id = await start('', { questionCount, questionFormat, difficulty, interviewer, focusAreas })
+      const setup = { questionCount, questionFormat, difficulty, interviewer, focusAreas }
+      const id = job ? await start('', setup, job.id) : await start('', setup)
       if (id) await navigate(`/interviews/${id}`)
     } finally { submitting.current = false; setPending(false) }
   }
   const canRecord = typeof navigator.mediaDevices?.getUserMedia === 'function' && typeof MediaRecorder !== 'undefined'
   return <form className="interview-setup" onSubmit={(event) => { event.preventDefault(); void prepare() }}>
-    <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.</p></div>
+    <div className="grid gap-2"><h2 className="text-xl font-medium">Set up your interview</h2><p className="max-w-prose text-sm leading-relaxed text-muted-foreground">{job ? 'Choose your round. We’ll prepare questions for this saved job using your career library. Review the job context before entering the room.' : 'Choose the round you want to practise. We’ll prepare a fictional role from your career library for you to review before entering.'}</p></div>
+    {job && <InterviewJobContext job={job} sectionId={`job.${job.id}.interview-details`} />}
     <fieldset disabled={busy} className="interview-setup-fields">
       <Choices title="Interview type" name="type" options={typeOptions} value={questionFormat} change={setQuestionFormat} />
       <Choices title="Difficulty" name="difficulty" options={difficultyOptions} value={difficulty} change={setDifficulty} />

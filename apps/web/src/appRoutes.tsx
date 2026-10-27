@@ -27,6 +27,7 @@ import { InterviewPrepPage } from '@/features/interview-prep/InterviewPrepPage'
 import { InterviewSetPage } from '@/features/interview-prep/InterviewSetPage'
 import { LegacyInterviewRedirect } from '@/features/interviews/LegacyInterviewRedirect'
 import { InterviewPage } from '@/features/interviews/InterviewPage'
+import { JobInterviewSetupPage } from '@/features/interviews/JobInterviewSetupPage'
 import { TailorResumePage } from '@/features/resume-tailoring/TailorResumePage'
 
 export const appRoutes: RouteObject[] = [
@@ -59,6 +60,7 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/paste', element: <AddJobFromTextPage /> },
           { path: '/jobs/paste/:aiTaskId', element: <JobPasteTaskPage /> },
           { path: '/jobs/:id/tailor', element: <TailorResumePage /> },
+          { path: '/jobs/:jobId/interview', element: <JobInterviewSetupPage /> },
           { path: '/jobs/:id', element: <JobDetailPage /> },
           { path: '/interviews/demo/:id?', element: <LegacyInterviewRedirect /> },
           { path: '/interviews/:id?', element: <InterviewPage /> },

@@ -25,7 +25,7 @@ Source of the web app, organized by feature.
   saved resume, with an actual-size PDF preview (`/jobs/:id/tailor`)
 - `features/interview-prep/` — persistent numbered interview sets, question generation, live status,
   five collapsible question cards, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and confirmed deletion
-- `features/interviews/` — real spoken interviews, browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
+- `features/interviews/` — real spoken interviews, saved-job setup at `/jobs/:jobId/interview`, fictional-role setup, browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
   resume import, jobs, gap analysis, resume tailoring, and interview prep
 - `components/` — shared app components (layout, theme toggle, section cards, drag-and-drop in

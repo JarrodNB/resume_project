@@ -37,6 +37,17 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
+  it('reviews the saved job snapshot without labelling it as a fictional role', async () => {
+    state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician', requirements: [], responsibilities: [] },
+      jobContext: { id: 'job-1', title: 'Laboratory technician', company: 'Sample Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+    renderInterview()
+    expect(screen.getByRole('heading', { name: 'Review your saved job' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Laboratory technician' })).toBeVisible()
+    expect(screen.queryByText(/imagined vacancy/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Enter interview room' }))
+    expect(state.beginInterview).toHaveBeenCalledOnce()
+  })
+
   it('locks setup while preparation is pending and permits retry after failure', async () => {
     let finish!: (id: null) => void
     start.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve }))

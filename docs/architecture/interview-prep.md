@@ -74,6 +74,12 @@ requires quality evaluations. Run both interview eval runners after prompt/model
 (commands in `services/ai/evals/AGENTS.md`); finite, stochastic passes are not a universal
 grounding guarantee.
 
+Question input preparation returns prompt text, temporary evidence IDs, and exact quote
+coverage together from one career-evidence projection. The worker and offline question
+evals share the pure context builder in `model_inputs/interview.py`; the worker binds
+that context to checked source values through `screening/interview_question_inputs.py`.
+Screening and generated-history provenance stay outside the pure renderer.
+
 Knowledge sets test understanding of subjects explicitly relevant to the career library in
 every occupation, including sparse skills-only backgrounds. Five categories cover concepts,
 mechanisms, application, reasoning, and limitations. Clearly hypothetical examples can test

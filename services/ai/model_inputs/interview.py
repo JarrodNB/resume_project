@@ -1,4 +1,10 @@
-"""Build interview prompts from screened evidence and resolve question evidence IDs."""
+"""Build readable interview inputs from career evidence selected by callers.
+
+Question text, citation IDs, and exact quote coverage come from one evidence projection.
+Rendering is deterministic and does not screen sources or approve a model call.
+"""
+
+from collections.abc import Sequence
 
 from model_inputs.interview_evidence import (
     format_interview_career_evidence,
@@ -6,18 +12,18 @@ from model_inputs.interview_evidence import (
     interview_question_evidence,
 )
 from schemas.gap_analysis_context import CareerLibrary
+from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
 
 
-def format_interview_question_prompt(library: CareerLibrary, excluded, count: int, set_type: str,
-                                    *, recent_questions=()) -> str:
-    """Show relevant career text with short labels; preserve source wording for quotes."""
-    return format_interview_question_input(library, excluded, count, set_type,
-                                          recent_questions=recent_questions)[0]
+def build_interview_question_context(
+    library: CareerLibrary, excluded: Sequence[str], count: int, set_type: InterviewSetType,
+    *, recent_questions: Sequence[str] = (),
+) -> InterviewQuestionContext:
+    """Keep displayed evidence and its citation rules together for workers and evals.
 
-
-def format_interview_question_input(library: CareerLibrary, excluded, count: int, set_type: str,
-                                   *, recent_questions=()):
-    """Build the prompt and exact source mapping behind its temporary evidence IDs."""
+    Only saved strings assigned an evidence ID are eligible quotes. Formatted dates,
+    saved fact requirement context, exclusions, and recent practice are not evidence.
+    """
     # A fresh marker outside every source prevents a pasted closing line from ending its own data block.
     evidence_text, evidence_by_id = interview_question_evidence(library)
     source_text = evidence_text + "\n" + "\n".join([*excluded, *recent_questions])
@@ -33,7 +39,10 @@ def format_interview_question_input(library: CareerLibrary, excluded, count: int
         for index, question in enumerate(recent_questions, 1):
             lines.append(f"Question {index}: {question}")
         lines.append(marker)
-    return "\n".join(lines), evidence_by_id
+    return InterviewQuestionContext(
+        text="\n".join(lines), library_text="\n".join(evidence_by_id.values()),
+        count=count, excluded=tuple(excluded), set_type=set_type, evidence_by_id=evidence_by_id,
+    )
 
 
 def format_feedback_prompt(set_type, question, answer, library):

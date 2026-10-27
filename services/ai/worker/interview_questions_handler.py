@@ -1,9 +1,8 @@
 """
-Description: Read-only handlers for interview set generation and single-question replacement.
-Index:
-    - InterviewQuestionsInput: Rails queue snapshot with immutable general/technical/knowledge scope
-    - interview_career_evidence: displayed fields and exact quote sources
-    - handle_interview_questions_task: screens source inputs once, then generates questions
+Generate written interview questions from checked career evidence and saved preferences.
+
+Input preparation keeps displayed evidence and citations together. This handler owns
+task validation, source screening, model execution, and usage reporting; Rails saves results.
 """
 from typing import Annotated
 from uuid import UUID
@@ -17,12 +16,11 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_questions_agent import generate_interview_questions
-from model_inputs.interview import format_interview_question_prompt
-from model_inputs.interview_evidence import interview_career_evidence, interview_question_evidence
-from schemas.interview_questions import InterviewQuestionContext, InterviewSetType
-from screening.library_inputs import rebuild_library, screen_library_inputs
+from schemas.interview_questions import InterviewSetType
+from screening.interview_question_inputs import prepare_interview_question_context
+from screening.library_inputs import screen_library_inputs
 from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
+from screening.session import trust_generated_source, within_screening_session
 from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
@@ -106,16 +104,12 @@ def handle_interview_questions_task(
     for question in recent:
         trust_generated_source(question)
     with logfire.span("interview_questions.build_prompt"):
-        text = bind_screened_prompt(
-            [*selected.sources, *excluded, *recent],
-            lambda values: _question_prompt_text(values, selected.fields, count, snapshot.set_type, len(excluded)),
+        prompt = prepare_interview_question_context(
+            selected, excluded, count, snapshot.set_type, recent_questions=recent,
         )
-        if text_limits.prompt_is_too_long(text):
+        if text_limits.prompt_is_too_long(prompt.text):
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                 error_message="Your career library and saved question preferences are too long for interview questions. Shorten your library entries and try again.")
-        _, evidence_by_id = interview_question_evidence(library)
-        prompt = InterviewQuestionContext(text, interview_career_evidence(library)[1], count,
-                                          tuple(excluded), snapshot.set_type, evidence_by_id)
     try:
         with capture_run_messages() as messages:
             run = generate_interview_questions(prompt, model=settings.interview_questions_model,
@@ -136,11 +130,3 @@ def handle_interview_questions_task(
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
         result={"interview_questions": run.questions.model_dump(mode="json"), "warnings": warnings},
         usage=[*usage, build_model_usage(run.model or settings.interview_questions_model, run.usage)])
-
-
-def _question_prompt_text(values, fields, count, set_type, excluded_count):
-    """Render checked evidence and generated history separately from hard exclusions."""
-    library = rebuild_library(values[:len(fields)], fields)
-    end = len(fields) + excluded_count
-    return format_interview_question_prompt(library, values[len(fields):end], count, set_type,
-                                            recent_questions=values[end:])

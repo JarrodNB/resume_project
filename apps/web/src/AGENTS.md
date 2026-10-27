@@ -32,7 +32,7 @@ Source of the web app, organized by feature.
   with an actual-size PDF preview
 - `features/interview-prep/` — written practice at `/practice/questions`: persistent numbered interview sets, question generation, live status,
   five collapsible question cards, saved answer drafts, feedback/examples, replacement, unsaved navigation warnings, and confirmed deletion
-- `features/interviews/` — real spoken interviews at `/practice/interviews`, saved-job setup on the job's Interview tab (`/jobs/:id/interview`), fictional-role setup, browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
+- `features/interviews/` — real spoken interviews at `/practice/interviews`, two-step setup there (step 1 `InterviewRoleStep`: a practice role, or a non-rejected saved job that continues to that job's Interview tab `/jobs/:id/interview`; step 2 round setup for the practice role; "Practice again" skips to step 2), focus mode while an interview is active (`useFocusMode`), browser recording, owned saved dialogue, direct private uploads, subscription recovery, and saved-audio playback; scripted creation is retired, independent of written practice
 - `features/ai-tasks/` — `aiTaskUpdated` subscription and `useAiTaskUpdates`, shared by
   resume import, jobs, gap analysis, resume tailoring, and interview prep
 - `components/` — shared app components (layout, section navigation, account menu, section cards, drag-and-drop in

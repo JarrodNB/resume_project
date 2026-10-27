@@ -1,4 +1,5 @@
 /** Keep the current interview turn in focus, with the complete saved dialogue nearby.
+ * While the interview is active the workspace enters focus mode: its navigation steps aside.
  * Saved text permits answering even when speech fails; actual playback and capture never overlap.
  * Saved server state controls progression; recording, review and submission remain explicit.
  */
@@ -6,12 +7,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
+import { InterviewRoleStep } from './InterviewRoleStep'
 import { InterviewMicrophoneSettings } from './InterviewMicrophoneSettings'
 import { interviewerOptions } from './interviewSetupOptions'
 import { PageHeading } from '@/components/PageHeading'
+import { useFocusMode } from '@/components/useFocusMode'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
+import { ArrowLeft, Mic, Square, AudioLines, LoaderCircle, Settings, Volume2, VolumeX } from 'lucide-react'
 import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
@@ -46,14 +49,26 @@ const TRANSCRIPTION_HELP = {
 export function InterviewPage() {
   const { id } = useParams()
   const { user } = useAuth()
-  const { state: navigationState } = useLocation()
+  // The overview and a session share this route, so key the overview by the navigation entry:
+  // each arrival (including "Practice again") starts its setup steps fresh.
+  const location = useLocation()
   return <div className="interview-page mx-auto grid w-full max-w-6xl gap-6">
     <PageHeading title="Mock interview" description="Practice a full spoken interview using your career library and a saved job or fictional role." />
-    {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <>
-      {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
-      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} /><RecentInterviews /><InterviewPrivacy />
-    </>}
+    {id ? <OwnedInterview key={`${user?.id}:${id}`} id={id} /> : <InterviewOverview key={location.key} navigationState={location.state} />}
   </div>
+}
+
+/** Two-step setup plus recent interviews. "Practice again" arrives with saved choices and skips to the round. */
+function InterviewOverview({ navigationState }: { navigationState: { interviewEnded?: string; practiceSetup?: unknown } | null }) {
+  const [step, setStep] = useState<'role' | 'round'>(navigationState?.practiceSetup ? 'round' : 'role')
+  return <>
+    {navigationState?.interviewEnded === 'abandoned' && <p role="status" className="text-sm">Interview ended. You can prepare another whenever you’re ready.</p>}
+    {step === 'role' ? <InterviewRoleStep onPracticeRole={() => setStep('round')} /> : <>
+      <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => setStep('role')}><ArrowLeft aria-hidden /> Change role</Button>
+      <InterviewSetup key={JSON.stringify(navigationState?.practiceSetup ?? null)} initialSetup={navigationState?.practiceSetup} notice={<ProviderNotice />} />
+    </>}
+    <RecentInterviews /><InterviewPrivacy />
+  </>
 }
 export function InterviewPrivacy() {
   return <details className="border-t pt-4 text-sm text-muted-foreground">
@@ -91,6 +106,7 @@ function OwnedInterview({ id }: { id: string }) {
   }, [])
   const interview = state.interview
   const newSpeech = useNewInterviewSpeech(interview)
+  useFocusMode(interview?.status === 'active' && !state.loadError)
   const recordingWarning = <RecordingUnsavedChanges textDraft={Boolean(draftText)} dirty={!terminal && (Boolean(draftText) || Boolean(recorder.recording) || recorder.status === 'recording' || recorder.status === 'requesting' || recorder.status === 'finalizing')} />
   const autoPrompt = interview ? currentInterviewPrompt(interview).reply : undefined
   const thinkingTime = useAutomaticMicrophone({

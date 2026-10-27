@@ -1,10 +1,13 @@
-/** Checks that the workspace shows the right section and tab for each page, and that old bookmarks still land. */
-import { render, screen, within } from '@testing-library/react'
+/** Checks that the workspace shows the right section and tab for each page, that old bookmarks still land,
+ * and that focus mode hides the navigation without remounting the page underneath. */
+import { act, render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { expect, it, vi } from 'vitest'
 import { AppLayout } from './AppLayout'
 import { RedirectToPath } from './RedirectToPath'
+import { useFocusMode } from './useFocusMode'
 
 const signOut = vi.fn()
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner', email: 'owner@example.test', name: null }, signOut }) }))
@@ -59,4 +62,62 @@ it('redirects an old bookmark with its id and query string', () => {
   expect(screen.getByText('Import page')).toBeInTheDocument()
   expect(router.state.location.pathname).toBe('/library/import/task-7')
   expect(router.state.location.search).toBe('?from=email')
+})
+
+let focusPageMounts = 0
+/** A stand-in live page: counts mounts and keeps local state so a remount would be visible. */
+function FocusTogglingPage() {
+  const [mountNumber] = useState(() => ++focusPageMounts)
+  const [focused, setFocused] = useState(true)
+  const [notes, setNotes] = useState('')
+  useFocusMode(focused)
+  return <div>
+    <p>Mount {mountNumber}</p>
+    <label>Notes <input value={notes} onChange={(event) => setNotes(event.target.value)} /></label>
+    <button type="button" onClick={() => setFocused((value) => !value)}>Toggle focus</button>
+  </div>
+}
+
+function renderFocusWorkspace() {
+  focusPageMounts = 0
+  const router = createMemoryRouter([
+    { element: <AppLayout />, children: [
+      { path: '/practice/interviews/live', element: <FocusTogglingPage /> },
+      { path: '*', element: <p>Page body</p> },
+    ] },
+  ], { initialEntries: ['/practice/interviews/live'] })
+  render(<RouterProvider router={router} />)
+  return router
+}
+
+it('hides navigation in focus mode and offers a way out of the interview room', () => {
+  renderFocusWorkspace()
+  expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Practice pages' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Account menu' })).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Leave interview room' })).toHaveAttribute('href', '/practice/interviews')
+})
+
+it('keeps the page mounted, with its state, while focus mode turns off and on', async () => {
+  renderFocusWorkspace()
+  const user = userEvent.setup()
+  await user.type(screen.getByRole('textbox', { name: 'Notes' }), 'half-typed answer')
+  await user.click(screen.getByRole('button', { name: 'Toggle focus' }))
+  expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: 'Practice pages' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Leave interview room' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Toggle focus' }))
+  expect(screen.queryByRole('navigation', { name: 'Main navigation' })).not.toBeInTheDocument()
+  expect(screen.getByText('Mount 1')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Notes' })).toHaveValue('half-typed answer')
+  expect(focusPageMounts).toBe(1)
+})
+
+it('restores navigation after leaving the focused page', async () => {
+  const router = renderFocusWorkspace()
+  await act(async () => { await router.navigate('/practice/questions') })
+  expect(screen.getByText('Page body')).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
+  expect(screen.getByRole('navigation', { name: 'Practice pages' })).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Leave interview room' })).not.toBeInTheDocument()
 })

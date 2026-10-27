@@ -163,6 +163,8 @@ Above 899px, a fixed navigation spine is 238px wide, with a matching body offset
 
 Below 1200px, content padding becomes 36px 28px 64px. Below 900px, navigation becomes a sticky compact header with the four sections in one row and the account menu at the top right. The tab row scrolls sideways, and route changes bring the active tab into view. The body offset disappears, the top bar becomes 52px, and content padding is 32px 24px 64px. Below 600px, content padding is 28px 16px 48px and heading actions occupy their own row.
 
+During a live spoken interview the workspace enters focus mode. The navigation spine and top bar give way to a slim sticky 56px bar (fine bottom rule) with a muted "Leave interview room" link on the left and the product name on the right; its horizontal padding follows the content (44px, 24px below 900px, 16px below 600px). Content drops the body offset, narrows to 1180px with 32px top padding, and the page heading hides its description. Leaving the room does not end the interview.
+
 Authentication uses equal columns, with a 360px-wide form. Below 600px it stacks; the workflow list and caption hide. The library uses 12px between sections. Above 899px, saved records sit beside a sticky AI dock (300–354px wide), with a 28px gap. At 899px and below, records use one column and AI work opens in a full-screen modal dialog. Record rows use 24px vertical padding, reducing to 20px on small screens.
 
 ## Elevation & Depth
@@ -205,6 +207,8 @@ span the AI panel width, with skip and discard actions below. Closing preserves 
 draft and returns keyboard focus to its source opener.
 
 A saved job opens as a workspace, centered within 1040px. Its header holds the job title, company · location, and applied date on the left; the stage select, the resume action, and a "More job actions" menu (edit, visit website, delete) sit on the right and wrap below on narrow screens. A "Job sections" tab row (Fit, Resume, Study, Interview, Posting) reuses the top-bar section-tab style: plain 14px text, semibold active tab with a 2px primary underline, over a fine bottom rule, scrolling sideways when narrow. Tab panels start 28px below the row. A tab's main content stays open rather than collapsing; on Posting, requirements, responsibilities, nice-to-haves, and notes are open lists in a 72ch column, and only the full description collapses.
+
+Mock interview setup starts with "Who is this interview for?": a practice role (selected by default) and each non-rejected saved job, using the same choice rows as the round setup (a quiet secondary fill marks the selected one). Continue leads to round setup on the same page, with a quiet ghost "Change role" button above it, or to the job's Interview tab.
 
 Home groups saved jobs by stage, in the order an application moves. The board has five 200px-minimum columns on the sidebar surface with 12px gaps, scrolling sideways inside its own container when narrow; each job is a white card with an 8px radius. The list shows the same groups as ruled rows and skips empty stages. Each job shows one next step: actions are primary text with a trailing arrow, running AI work is muted with a slow spinner, failures use the destructive color with an alert icon, and waiting states are plain muted text. Running work also appears in a bordered card above the board. Before any job is saved, three numbered steps sit in a row above a fine rule each, stacking below 900px.
 

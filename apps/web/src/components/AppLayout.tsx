@@ -2,15 +2,17 @@
  * The spine lists a few sections (see `workspaceSections.ts`); the top bar shows the current
  * section's tabs (or its name when it has one page), and detail routes keep their parent tab
  * selected. On small screens the spine becomes a compact header and the tabs scroll sideways.
+ * In focus mode (a live interview) the spine and tabs step aside for a slim bar with a way out.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { BookOpen } from 'lucide-react'
+import { ArrowLeft, BookOpen } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { TaskNotifications } from '@/features/ai-tasks/TaskNotifications'
 import { PRODUCT_NAME } from '@/lib/productName'
 import { cn } from '@/lib/utils'
 import { AccountMenu } from './AccountMenu'
+import { FocusModeContext } from './focusModeContext'
 import { locateWorkspacePage, WORKSPACE_SECTIONS } from './workspaceSections'
 
 export function AppLayout() {
@@ -18,6 +20,7 @@ export function AppLayout() {
   const { pathname } = useLocation()
   const { section: currentSection, tab: currentTab } = locateWorkspacePage(pathname)
   const tabsRef = useRef<HTMLElement>(null)
+  const [focused, setFocused] = useState(false)
 
   // Keep the selected tab in view when the tab row overflows on small screens.
   useEffect(() => {
@@ -28,10 +31,17 @@ export function AppLayout() {
     }
   }, [pathname])
 
+  // Focus mode swaps only the chrome. The page itself keeps its place in the tree, so a live
+  // interview (and any recording in progress) is never remounted when focus turns on or off.
   return (
-    <div className="workspace">
+    <div className={cn('workspace', focused && 'is-focused')}>
       <a className="skip-link" href="#main-content">Skip to content</a>
-      <aside className="workspace-sidebar">
+      {focused ? (
+        <header className="focus-bar">
+          <Link to="/practice/interviews" className="focus-bar-exit"><ArrowLeft aria-hidden /> Leave interview room</Link>
+          <span className="focus-bar-brand">{PRODUCT_NAME}</span>
+        </header>
+      ) : <aside className="workspace-sidebar">
         <Link to="/" className="workspace-brand" aria-label={`${PRODUCT_NAME} home`}>
           <span className="brand-mark" aria-hidden><BookOpen size={21} strokeWidth={1.7} /></span>
           {PRODUCT_NAME}<span className="brand-period" aria-hidden>.</span>
@@ -53,9 +63,9 @@ export function AppLayout() {
           })}
         </nav>
         <AccountMenu />
-      </aside>
+      </aside>}
       <div className="workspace-body">
-        <header className="workspace-topbar">
+        {!focused && <header className="workspace-topbar">
           {currentSection && currentSection.tabs.length > 1 ? (
             <nav ref={tabsRef} className="section-tabs" aria-label={`${currentSection.label} pages`}>
               {currentSection.tabs.map((tab) => (
@@ -71,8 +81,10 @@ export function AppLayout() {
             </nav>
           ) : <span className="section-tabs-placeholder">{currentSection?.label ?? 'Account'}</span>}
           {user && <TaskNotifications key={user.id} userId={user.id} initialCursor={taskOutcomeCursor} />}
-        </header>
-        <main id="main-content" tabIndex={-1} className="workspace-content"><Outlet /></main>
+        </header>}
+        <main id="main-content" tabIndex={-1} className="workspace-content">
+          <FocusModeContext value={setFocused}><Outlet /></FocusModeContext>
+        </main>
       </div>
     </div>
   )

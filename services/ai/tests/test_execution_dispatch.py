@@ -50,6 +50,95 @@ def test_start_receipt_does_not_wait_for_claim_and_capacity_is_shared():
     asyncio.run(scenario())
 
 
+def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(monkeypatch):
+    """Real HTTP telemetry must finish independently of the claimed operation's cost."""
+    from contextvars import ContextVar
+
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from pydantic_ai import Agent
+
+    from execution.runner import ExecutionRunner
+    from interviews.execution_adapter import InterviewExecutionAdapter
+    from interviews.real import RealInterviewExecutor
+    from privacy.contact_mask import contact_scope, mask_outbound
+    from privacy.known_contact import KnownContact
+    from routes.executions import install_execution_routes
+    from telemetry import tracing
+    from tests.test_eval_report_costs import _model
+
+    costs = tracing.OperationCostSpanProcessor()
+    monkeypatch.setattr(tracing, "OperationCostSpanProcessor", lambda: costs)
+    spans = InMemorySpanExporter()
+    tracing.configure_tracing([SimpleSpanProcessor(spans)])
+    marker = ContextVar("execution_test_marker", default=None)
+
+    async def scenario():
+        release_claim = asyncio.Event()
+        observed = []
+        identity = str(uuid4())
+
+        class Client:
+            async def claim(self, operation_id):
+                await release_claim.wait()
+                observed.append((marker.get(), mask_outbound("Receipt Contact")))
+                return SimpleNamespace(
+                    operation_id=operation_id, kind="preparation", execution_mode="real",
+                    execution_deadline=datetime.now(UTC) + timedelta(seconds=10),
+                    payload=SimpleNamespace(frozen_context={"names": ["Operation Contact"]}),
+                )
+
+            async def usage(self, claim, records, **kwargs):
+                pass
+
+            async def heartbeat(self, claim):
+                return {}
+
+        class Executor(RealInterviewExecutor):
+            async def _preparation(self, claim):
+                # Replace only provider work; keep production operation tracing and cleanup.
+                observed.append((marker.get(), mask_outbound("Operation Contact")))
+                await Agent(_model()).run("synthetic")
+
+        owner = Client()
+        executor = Executor(owner, audio=None, models=None, storage_client=None, allowed_origins=set())
+        runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(owner, executor)})
+        app = FastAPI()
+        app.state.execution_runner = runner
+        install_execution_routes(app, secret=lambda: "private-service-secret")
+        try:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                token = marker.set("inherited execution setting")
+                try:
+                    with contact_scope(KnownContact.from_values(names=["Receipt Contact"])):
+                        response = await client.post("/internal/executions",
+                            json={"feature": "interviews", "operation_id": identity},
+                            headers={"Authorization": "Bearer private-service-secret"})
+                finally:
+                    marker.reset(token)
+                assert response.status_code == 202
+                request = next(s for s in spans.get_finished_spans() if s.name == "POST /internal/executions")
+                assert request.attributes["operation.cost"] == 0
+                assert not any(s.name == "interview.operation" for s in spans.get_finished_spans())
+                task = runner.active[("interviews", identity)]
+                release_claim.set()
+                assert await asyncio.wait_for(task, 2)
+        finally:
+            await runner.close()
+        assert observed == [("inherited execution setting", "«name»")] * 2
+        finished = spans.get_finished_spans()
+        operation = next(s for s in finished if s.name == "interview.operation")
+        model = next(s for s in finished if s.attributes.get("gen_ai.operation.name"))
+        assert model.attributes["operation.cost"] == pytest.approx(0.000056)
+        assert operation.attributes.get("operation.cost") == pytest.approx(model.attributes["operation.cost"])
+        assert operation.parent is None
+        assert model.context.trace_id == operation.context.trace_id != request.context.trace_id
+        assert request.end_time < operation.start_time < model.start_time < operation.end_time
+        assert costs._cost_by_trace == {}
+
+    asyncio.run(scenario())
+
+
 def test_runner_cancels_execution_on_lost_lease_and_preserves_finished_accounting():
     from execution.runner import ExecutionRunner
 

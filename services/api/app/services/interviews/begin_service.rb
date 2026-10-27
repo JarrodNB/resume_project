@@ -18,7 +18,10 @@ module Interviews
         next failure("Prepared questions unavailable") unless question
         message = @interview.messages.create!(question: question, kind: "opening", position: 0,
           semantic_key: "question:#{question.id}:opening", content: question.content)
-        @interview.operations.create!(kind: "speech", question: question, message: message) if SpeechPlayback.provider?(@interview)
+        if SpeechPlayback.provider?(@interview)
+          operation = @interview.operations.create!(kind: "speech", question: question, message: message)
+          ScheduleOperationService.call(operation: operation)
+        end
         @interview.update!(status: "active", revision: @interview.revision + 1)
         success(@interview)
       end

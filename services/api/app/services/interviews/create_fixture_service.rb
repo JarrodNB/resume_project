@@ -1,5 +1,5 @@
 # Creates fictional interview context, its first accepted opening, and saved-text speech
-# work in one transaction. Nothing calls providers, queues, or storage here.
+# work and fallback delivery in one transaction. Provider/storage work runs later.
 module Interviews
   class CreateFixtureService < ApplicationService
     OPENINGS = [
@@ -30,7 +30,8 @@ module Interviews
         question = questions.first
         message = interview.messages.create!(question: question, kind: "opening", position: 0,
           semantic_key: "question:#{question.id}:opening", content: question.content)
-        interview.operations.create!(kind: "speech", question: question, message: message)
+        operation = interview.operations.create!(kind: "speech", question: question, message: message)
+        ScheduleOperationService.call(operation: operation) if SpeechPlayback.provider?(interview)
         success(interview)
       end
     rescue ActiveRecord::RecordInvalid => error

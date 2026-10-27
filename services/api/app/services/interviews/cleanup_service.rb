@@ -10,6 +10,7 @@ module Interviews
 
     # @return [ServiceResult<Hash>] counts of scrubbed sessions and deleted media
     def call
+      expire_operations
       InterviewSessionOperation.transcription.where.not(accepted_result: {})
         .joins("LEFT JOIN interview_session_media review_audio ON review_audio.id = interview_session_operations.recording_id")
         .where("review_audio.id IS NULL OR review_audio.expires_at <= ?", Time.current)
@@ -32,6 +33,19 @@ module Interviews
     end
 
     private
+
+    # Expiry used to be a side effect of work discovery. Maintenance now retires
+    # only expired/stale operations; it never searches for runnable work.
+    def expire_operations
+      now = Time.current
+      recording_join = "LEFT JOIN interview_session_media recording ON recording.id = interview_session_operations.recording_id"
+      expired = InterviewSessionOperation.joins(:interview_session).joins(recording_join)
+        .where(status: %w[pending running failed])
+        .where("(interview_session_operations.kind = 'transcription' AND (interview_sessions.status <> 'active' OR expected_revision <> interview_sessions.revision)) OR interview_sessions.expires_at <= :now OR retry_expires_at <= :now OR (interview_session_operations.kind IN ('turn', 'transcription') AND ((recording.id IS NULL AND interview_session_operations.transcription_mode <> 'typed') OR recording.expires_at <= :now OR interview_session_operations.created_at <= :cutoff)) OR (interview_session_operations.kind = 'speech' AND interview_sessions.completed_at <= :cutoff)", now: now, cutoff: now - 1.hour)
+      expired.order(:created_at, :id).limit(@limit).each do |operation|
+        OperationStatusService.call(operation: operation)
+      end
+    end
 
     def cleanup_captures
       candidates = InterviewTranscriptionCapture.joins(:interview_session)

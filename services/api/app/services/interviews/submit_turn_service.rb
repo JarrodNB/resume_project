@@ -45,9 +45,11 @@ module Interviews
           next failure("This question reached its answer submission limit. Abandon this interview and prepare another to continue.")
         end
 
-        success(@interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,
+        operation = @interview.operations.create!(kind: "turn", question: question, recording_id: @recording_id,
           expected_revision: @expected_revision, submission_key: @submission_key, request_fingerprint: fingerprint,
-          candidate_transcript: @candidate_transcript, transcription_mode: @transcription_mode))
+          candidate_transcript: @candidate_transcript, transcription_mode: @transcription_mode)
+        ScheduleOperationService.call(operation: operation)
+        success(operation)
       end
     rescue ActiveRecord::RecordInvalid => error
       failure(error.record.errors)

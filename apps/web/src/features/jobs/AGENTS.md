@@ -5,8 +5,8 @@
 Saved jobs: add one from a job posting link (`scrapeJob`), from a pasted advertisement
 (`parseJobPosting`), or by hand (`createJob`), list them, and view one. Both AI paths are
 followed live with `aiTaskUpdated`. Rails saves the job itself when the task completes; there
-is no review step. A saved job can be edited, moved between
-application stages, and deleted.
+is no review step. A saved job opens as a workspace with tabs for the work on that job. It can
+be edited, moved between application stages, and deleted.
 
 ## Contents
 
@@ -20,25 +20,28 @@ application stages, and deleted.
 - `JobPasteTaskPage.tsx` (`/jobs/paste/:aiTaskId`) — paste status; same redirect, failures offer
   "Try another ad"
 - `JobBoardImportNotice.tsx` — displays import warnings from navigation state only for the matching saved Job
-- `JobDetailPage.tsx` (`/jobs/:id`) — edit, stage select (`moveJobToStage`), delete, gap analysis
-  card (`features/gap-analysis/`, including gap responses), remembered Study guides section
-  (`features/study-guides/`), and `WriteResumeAction.tsx`.
-  "Write resume" is disabled while a comparison is starting or active. Otherwise it goes
-  to `/jobs/:id/tailor`. A finished comparison goes
-  straight there. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first, and
-  "Compare first" starts the shared comparison on this page; "Write resume anyway" continues
-  without comparing. "Open resume" goes to `/resumes/:id` when one is already
-  saved, and that page's breadcrumb returns here.
-  "Practise interview" goes to `/jobs/:jobId/interview` for spoken setup using that saved
-  job and the career library; it does not require a comparison or change the job stage.
-  requirements, responsibilities, nice-to-haves, notes, description (those cards start collapsed, remembered per
-  job), the applied date once set, and a "Visit website" link to the saved URL. The link
-  opens a new tab and does not change the application stage; omit it when no URL is saved.
+- `JobWorkspaceLayout.tsx` (`/jobs/:id`) — loads the job and owns the live comparison
+  (`useGapAnalysis`), shared with every tab. The header shows title, company · location, the
+  applied date once set, `JobStageSelect` (`moveJobToStage`), `WriteResumeAction` (only when the
+  job has no resume and the Resume tab isn't open), and `JobActionsMenu.tsx` ("More job actions":
+  Edit job, Visit website when a URL is saved, Delete job). Visit website opens a new tab and does
+  not change the stage. Below it, the "Job sections" tabs:
+  Fit (`/jobs/:id`), Resume (`/jobs/:id/resume`, `features/resume-tailoring/`), Study
+  (`/jobs/:id/study`), Interview (`/jobs/:id/interview`, `features/interviews/`), and Posting
+  (`/jobs/:id/posting`).
+- `useJobWorkspace.ts` — tabs read the loaded job and comparison from the layout's outlet context
+- `JobWorkspaceTabs.tsx` — `JobFitTab` (gap analysis card with gap responses), `JobStudyTab`
+  (`features/study-guides/` `StudyGuidePanel`), and `JobPostingTab` (requirements,
+  responsibilities, nice-to-haves, and notes always open; the full description collapses,
+  remembered per job)
+- `WriteResumeAction.tsx` — "Open resume" goes to `/jobs/:id/resume`. "Write resume" is disabled
+  while a comparison is starting or active. A finished comparison goes straight to
+  `/jobs/:id/resume/write`. Otherwise `ConfirmWriteResumeDialog.tsx` recommends comparing first:
+  "Compare first" starts the shared comparison, and "Write resume anyway" continues without it.
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared
   add and edit form; every field is sent, and a blank optional string is stored as null
-- `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `ConfirmWriteResumeDialog.tsx`,
-  `WriteResumeAction.tsx`, `JobDetailCards.tsx` — stage control, delete confirmation, the
-  optional-comparison confirmation, the resume action, and the collapsible cards
+- `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `JobDetailCards.tsx` — stage control, delete
+  confirmation, and the collapsible card for the full description
 - `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`,
   `gapResponses`, `resume`, `notes`, and `appliedAt`),
   `SCRAPE_JOB_MUTATION`, `PARSE_JOB_POSTING_MUTATION`, `CREATE_JOB_MUTATION`,
@@ -46,7 +49,7 @@ application stages, and deleted.
   (`useJobs`, `useJob`), `useScrapeJob.ts`, `useParseJobPosting.ts`
 - `jobStageLabels.ts` — stage labels; `scrapedJobWarnings.ts` — warnings from
   `result.scraped_job` (mirror of `services/ai/schemas/scraped_job_posting.py`)
-- `*.test.tsx` — list, manual add, edit, stage, delete, URL form, task page states
+- `*.test.tsx` — list, manual add, workspace header and tabs, edit, stage, delete, URL form, task page states
 
 ## Local Rules
 
@@ -55,4 +58,5 @@ application stages, and deleted.
 - A job requires a title. Company is nullable: show **Unknown company** in saved-job labels,
   leave its edit input empty, and send null when the field is cleared.
 - Deleting a job removes its answers. A tailored resume written for it stays, unlinked.
+- A tab's main content stays open; only long extras (the full description) collapse.
 - The task page must work on reload: the subscription sends the task's current state first.

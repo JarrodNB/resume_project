@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Persistent interview preparation sets at `/interview-prep` and `/interview-prep/:id`.
+Persistent interview preparation sets at `/practice/questions` and `/practice/questions/:id` (the Questions tab).
 
 ## Contents
 

@@ -47,7 +47,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 it('keeps the real microphone running while typing and continues filling new words', async () => {
-  renderPage({ path: '/interviews/:id', url: '/interviews/session', element: <InterviewPage /> })
+  renderPage({ path: '/practice/interviews/:id', url: '/practice/interviews/session', element: <InterviewPage /> })
   fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
   await screen.findByRole('button', { name: 'Stop recording' })
   act(() => Recognition.latest.words('I built a tool'))

@@ -14,7 +14,7 @@ runs. The real runtime exports privacy-filtered traces using `LOGFIRE_TOKEN` fro
 the original AI environment file, labeled `development`; fake and isolated paid
 probes continue to disable remote export.
 
-Open [Spoken interview](http://127.0.0.2:15176/interviews). The launcher starts a real
+Open [Spoken interview](http://127.0.0.2:15176/practice/interviews). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
 Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three
 saved responses, and the interviewer may advance earlier.

@@ -34,7 +34,7 @@ export function ExperienceSection({ experiences, highlightsOf, movingHighlight =
   return (
     <>
       <LibrarySection sectionId="library.experience" tone="experience" title="Experience" count={experiences.length} emptyText="No roles yet." addLabel="Add role" onAdd={() => setEditing('new')}
-        reviewActions={<LibrarySectionReview section="experience" />}>
+        reviewActions={<LibrarySectionReview section="experience" />} reviewSection="experience">
 
         {experiences.map((entry, index) => (
           <LibraryEntry

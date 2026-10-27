@@ -57,7 +57,7 @@ it('keeps password-change success visible after auth and Apollo are refreshed, a
   await user.type(await screen.findByLabelText('Current password'), 'old legacy password')
   expect(screen.getByRole('heading', { name: 'Account security' })).toBeInTheDocument()
   expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBeInTheDocument()
-  expect(screen.getByText('user@example.com')).toBeInTheDocument()
+  expect(within(screen.getByRole('main')).getByText('user@example.com')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Forgot your current password?' })).toHaveAttribute('href', '/forgot-password')
   expect(screen.queryByRole('link', { name: 'Request another reset email' })).not.toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Change password' })).toHaveAccessibleDescription(/every device/)
@@ -118,7 +118,7 @@ it('refreshes successful public recovery without switching an unrelated signed-i
   await user.type(screen.getByLabelText('Confirm new password'), 'a quiet orchard after rain')
   await user.click(screen.getByRole('button', { name: 'Reset password' }))
   expect(await screen.findByRole('heading', { name: 'Password updated' })).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Continue with your signed-in account' })).toHaveAttribute('href', '/library')
+  expect(screen.getByRole('link', { name: 'Continue with your signed-in account' })).toHaveAttribute('href', '/')
 })
 
 it('clears an expired account session and shows a sign-in notice after change returns 401', async () => {

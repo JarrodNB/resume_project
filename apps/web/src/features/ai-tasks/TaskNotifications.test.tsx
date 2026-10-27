@@ -51,7 +51,7 @@ function emit(link: ReturnType<typeof renderNotices>['link'], value = outcome(),
 it('announces new outcomes without opening the inbox or moving focus, then marks them read on open', async () => {
   const { link } = renderNotices()
   const user = userEvent.setup()
-  const focused = screen.getByRole('link', { name: 'Career library' })
+  const focused = screen.getByRole('link', { name: 'Library' })
   focused.focus()
   emit(link)
   expect(await screen.findByRole('button', { name: 'Notifications, 1 unread' })).toBeInTheDocument()

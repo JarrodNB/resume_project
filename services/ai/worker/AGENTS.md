@@ -157,3 +157,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   add overlap validation or retries.
 
 - `study_guide_handler.py` — screens a frozen description and returns bounded guide material without reading career-library data or reusing saved-job approvals.
+
+- `interview_references_handler.py` claims one owned prompt before query embedding/search. Returns exact saved career references for the candidate UI, never interviewer context. Duplicate claims perform no paid work; failures use explicit bounded retry like clarification. Selection/projection lives in `interviews/references.py`.

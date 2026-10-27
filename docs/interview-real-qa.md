@@ -167,3 +167,31 @@ History immediately, once, alongside earlier saved dialogue.
 After entry, check the interviewer identity and settings, playback-before-capture,
 thinking countdown, tapping the microphone early, and editable live dictation.
 Priya probes after submission; live interruptions are outside this setup.
+
+## Optional saved career references
+
+Saved career references appear automatically in active real-mode interviews. No feature
+flag or extra enablement setting is required. Use the existing real-QA stack and provider
+configuration.
+
+Review the synthetic offline policy report (`python -m evals.run_interview_reference_evals`
+from `services/ai`) and its limits. Offline fixture distances do not establish semantic
+usefulness. The optional `--paid` run measures embedding-based label agreement and incurs
+provider charges.
+
+Use a library containing a role with several highlights, a project, and a saved fact.
+Check that openings and context-dependent follow-ups show relevant, distinct saved pieces,
+with fact responses presented without their requirement labels. Check a question with no
+useful saved evidence as well. Verify the displayed text against the library.
+
+Try global blur off/on and individual Reveal/Hide with keyboard and screen-reader controls.
+Reopen the interview to verify saved results and preference restoration. Repeat on a narrow
+screen, ensuring recording and Submit remain reachable. Reveal must not speak, move focus,
+start recording or overwrite a draft. While retrieval is slow or failed, keep dictating,
+editing and submitting; references should not change these controls. Skip during retrieval
+and confirm late results never appear beside the next prompt. Confirm abandonment and
+expiry hide reference content while usage history remains.
+
+Listen and speak through a complete session: references should help recall without changing
+the interviewer's frozen context or being read aloud. Human checks establish device behavior,
+distraction and subjective relevance; automated component tests do not establish those.

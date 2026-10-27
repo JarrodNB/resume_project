@@ -13,7 +13,7 @@ const explanation = 'Describe which competing priorities you balanced and what y
 type Saved = NonNullable<InterviewSnapshotFragment['messages'][number]['clarification']> & { __typename?: 'InterviewClarification' }
 const saved: Saved = { __typename: 'InterviewClarification' as const, id: 'clarification', status: 'queued', explanation: null, attemptCount: 1, aiTaskId: 'task', deadline: '2099-01-01T00:00:00Z' }
 const message = { __typename: 'InterviewSessionMessage', id: 'follow-up', questionId: 'question', kind: 'follow_up', position: 2,
-  content: 'What trade-off did you make?', avoided: false, acknowledgement: 'You repaired the scheduler.', spokenContent: 'ack plus question', clarification: null } as InterviewSnapshotFragment['messages'][number]
+  content: 'What trade-off did you make?', avoided: false, acknowledgement: 'You repaired the scheduler.', spokenContent: 'ack plus question', clarification: null, careerReferences: null } as InterviewSnapshotFragment['messages'][number]
 function renderClarification(record: Saved | null = null, mocks: MockLink.MockedResponse[] = []) {
   return renderPage({ path: '/test', url: '/test', mocks, element: <div role="group" aria-label="Question controls"><InterviewClarification interviewId="interview" message={{ ...message, clarification: record }} disabled={false} /></div> })
 }

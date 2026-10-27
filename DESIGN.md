@@ -336,6 +336,9 @@ Solid and square-shouldered, like a sign you can press.
 ### First-Run Line
 - With no jobs saved, Home shows three starting steps on a short line of their own: numbered 34px ringed bullets on a 6px ink track. It runs across on desktop and turns vertical under 900px.
 
+### Sign-in Pages
+The sign-in, sign-up, verification and password pages split the screen. On the left is a black signage panel (band color) with the brand bullet, a white 800-weight headline, and the three steps of a search drawn as white stops on one vertical 6px line. On the right is a plain white form whose heading sits above a 2px ink rule. A success message is a white box with a green signal border. On phones the panel moves to the top and drops the line and the caption.
+
 ## Do's and Don'ts
 
 ### Do:

@@ -474,15 +474,22 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .empty-records p { color: var(--muted-foreground); max-width: 48ch; font-size: 14px; line-height: 1.7; }
 .skip-link { position: fixed; top: -100px; left: 20px; z-index: 100; padding: 12px 20px; background: var(--primary); color: var(--primary-foreground); border-radius: 6px; }
 .skip-link:focus { top: 12px; }
-.auth-layout { min-height: 100svh; display: grid; grid-template-columns: 1fr 1fr; }
-.auth-introduction { padding: 48px 56px; display: flex; flex-direction: column; background: var(--sidebar); border-right: 1px solid var(--border); }
-.auth-message { margin: auto 0; padding: 64px 0; max-width: 460px; }
-.auth-message h1 { font-size: 3rem; line-height: 1.12; letter-spacing: -0.04em; font-weight: 700; }
-.auth-message > p { margin-top: 24px; color: var(--muted-foreground); line-height: 1.8; max-width: 38ch; }
-.auth-workflow { margin-top: 44px; border-top: 1px solid var(--border); }
-.auth-workflow li { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 17px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
-.auth-workflow svg { color: var(--primary); }
-.auth-caption { color: var(--muted-foreground); font-size: 12px; }
+/* Sign-in pages: a black signage panel beside a plain white form. The panel draws the three
+   steps of a search as stops on one white line, the same language as Home's station line. */
+.auth-layout { min-height: 100svh; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+.auth-introduction { padding: 40px 56px; display: flex; flex-direction: column; background: var(--band); color: var(--band-foreground); }
+.auth-introduction .band-brand { height: auto; }
+.auth-message { margin: auto 0; padding: 64px 0; max-width: 480px; }
+.auth-message h1 { font-size: 3.25rem; line-height: 1.02; letter-spacing: -0.03em; font-weight: 800; text-wrap: balance; }
+.auth-message > p { margin-top: 20px; color: var(--band-muted); font-size: 17px; line-height: 1.55; max-width: 38ch; }
+.auth-workflow { position: relative; display: grid; gap: 26px; margin-top: 48px; }
+.auth-workflow::before { content: ""; position: absolute; left: 13px; top: 14px; bottom: 14px; width: 6px; margin-left: -3px; background: var(--band-foreground); }
+.auth-workflow li { position: relative; display: flex; align-items: center; gap: 16px; font-size: 16px; font-weight: 700; }
+.auth-workflow li::before { content: ""; position: relative; width: 26px; height: 26px; flex: none; border: 5px solid var(--band-foreground); border-radius: 50%; background: var(--band); }
+.auth-caption { color: var(--band-muted); font-size: 13px; }
+.auth-form-heading { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--rule-strong); }
+.auth-form-heading h2 { font-size: 2rem; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; text-wrap: balance; }
+.auth-form-heading p { margin-top: 12px; color: var(--muted-foreground); line-height: 1.55; }
 .auth-form-region { padding: 48px; display: grid; place-items: center; }
 .auth-form-content { width: 100%; max-width: 360px; }
 .auth-form-content input { min-height: 44px; background: var(--card); }
@@ -494,10 +501,10 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .auth-form-content input { caret-color: var(--primary); }
 .auth-form-content [role="status"] {
   padding: 16px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--secondary);
-  color: var(--secondary-foreground);
+  border: 1.5px solid var(--signal-done);
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--foreground);
   font-size: 14px;
   line-height: 1.65;
   overflow-wrap: anywhere;
@@ -514,7 +521,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.auth-form-content a:hover { color: var(--primary); }
+.auth-form-content a:hover { text-decoration-thickness: 2px; }
 .auth-form-content a:focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 4px;
@@ -524,7 +531,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 899px) and (min-width: 600px) {
   .auth-introduction { padding: 32px 24px; }
   .auth-form-region { padding: 32px 24px; }
-  .auth-message h1 { font-size: 2rem; }
+  .auth-message h1 { font-size: 2.25rem; }
 }
 @media (max-width: 599px) {
   .auth-form-content input { font-size: 16px; }
@@ -534,7 +541,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .signage-band-inner { padding: 0 28px; gap: 28px; }
   .section-tabs { padding: 0 28px; }
   .auth-introduction { padding: 40px 32px; }
-  .auth-message h1 { font-size: 2.5rem; }
+  .auth-message h1 { font-size: 2.75rem; }
 }
 @media (max-width: 899px) {
   .signage-band { position: static; }
@@ -569,12 +576,13 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
   .record-link :is([data-slot=badge], .job-stop-line) { margin-left: 0; }
   .job-record-step { left: 4px; }
   .auth-layout { grid-template-columns: 1fr; }
-  .auth-introduction { padding: 28px 24px; border-right: 0; border-bottom: 1px solid var(--border); }
-  .auth-message { padding: 32px 0 0; }
+  .auth-introduction { padding: 20px 16px 28px; }
+  .auth-message { padding: 28px 0 0; }
   .auth-message h1 { font-size: 2rem; }
-  .auth-message > p { font-size: 14px; margin-top: 16px; }
+  .auth-message > p { font-size: 15px; margin-top: 12px; }
+  .auth-form-heading h2 { font-size: 1.75rem; }
   .auth-workflow, .auth-caption { display: none; }
-  .auth-form-region { padding: 36px 24px 48px; }
+  .auth-form-region { padding: 32px 16px 48px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }

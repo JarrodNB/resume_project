@@ -36,8 +36,9 @@ module Interviews
           capture.update!(transcript: nil, status: capture.status == "completed" ? "completed" : "failed")
           AiTasks::UpdateTaskService.call(task: capture.ai_task, attributes: { status: "failed", error_message: "interview_abandoned", completed_at: Time.current }) if capture.ai_task && capture.status != "completed"
         end
+        @interview.career_references.update_all(references: [])
         @interview.clarifications.update_all(explanation: nil)
-        @interview.user.ai_tasks.where(subject: @interview, task_type: "interview_clarification").find_each do |task|
+        @interview.user.ai_tasks.where(subject: @interview, task_type: %w[interview_clarification interview_references]).find_each do |task|
           task.with_lock do
             AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil, status: task.finished? ? task.status : "failed",
               error_message: "interview_abandoned", completed_at: task.completed_at || Time.current })

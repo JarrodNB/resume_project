@@ -32,6 +32,7 @@ module Types
     field :submit_interview_turn, mutation: Mutations::Interviews::SubmitInterviewTurn
     field :skip_interview_question, mutation: Mutations::Interviews::SkipInterviewQuestion
     field :retry_interview_operation, mutation: Mutations::Interviews::RetryInterviewOperation
+    field :request_interview_references, mutation: Mutations::Interviews::RequestInterviewReferences
     field :request_interview_clarification, mutation: Mutations::Interviews::RequestInterviewClarification
     field :interview_playback, mutation: Mutations::Interviews::InterviewPlayback
 

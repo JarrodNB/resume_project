@@ -16,6 +16,7 @@ import './interviewRoom.css'
 import { useAuth } from '@/features/auth/useAuth'
 import { AvoidInterviewPromptButton } from './AvoidInterviewPromptButton'
 import { InterviewClarification } from './InterviewClarification'
+import { InterviewCareerReferences } from './InterviewCareerReferences'
 import { SkipInterviewQuestionButton } from './SkipInterviewQuestionButton'
 import { currentInterviewPrompt } from './currentInterviewPrompt'
 import { InterviewPreparation } from './InterviewPreparation'
@@ -286,6 +287,7 @@ function OwnedInterview({ id }: { id: string }) {
       </div>
       {!browserSpeech && (speech?.status === 'failed' || speech?.status === 'expired') && <div className="grid gap-2"><p role="alert">Speech unavailable: {speech.failureCode?.replaceAll('_', ' ') || 'speech failed'}. Saved dialogue is unchanged.</p>{speech.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(speech.id)}>Retry speech</Button> : <p className="text-sm">This speech cannot be retried. Its audio may have expired or reached the recovery limit.</p>}</div>}
     </div>}
+    {interview.status === 'active' && interview.executionMode === 'real' && (reply?.kind === 'opening' || reply?.kind === 'follow_up') && <InterviewCareerReferences key={`references:${reply.id}`} ownerId={user?.id ?? ''} interviewId={id} message={reply} disabled={turnActive || state.busy} />}
     {state.unresolved && !savingRecording && !state.busy && <div className="grid gap-3 border-t pt-5"><p role="alert">The submission response was not confirmed. Check saved status before retrying. If an unsaved answer cannot be recovered, you will need to type it again after reloading. Your reviewed text is never replaced by recording transcription.</p><div className="flex flex-wrap gap-3"><Button variant="outline" disabled={state.busy} onClick={() => void state.checkSavedStatus()}>Check saved status</Button><Button disabled={state.busy || state.loading || Boolean(state.loadError)} onClick={() => void state.checkSavedStatus(true)}>Retry same submission</Button></div></div>}
     {(currentTurn?.status === 'failed' || currentTurn?.status === 'expired') && <div className="grid gap-2"><p role="alert">Answer failed: {currentTurn.failureCode?.replaceAll('_', ' ') || 'execution failed'}.</p>{currentTurn.canRetry ? <Button className="justify-self-start" variant="outline" disabled={state.busy} onClick={() => void state.retryOperation(currentTurn.id)}>Retry answer processing</Button> : <p className="text-sm">Record a new answer to continue.</p>}</div>}
     {interview.status === 'active' && <div className="grid gap-4 border-t pt-5">
@@ -343,5 +345,5 @@ function OwnedInterview({ id }: { id: string }) {
 }
 
 function ProviderNotice() {
-  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete recording to OpenAI for transcription before you review and submit your answer. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. Provider requests incur charges; no coaching is provided.</p>
+  return <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Career details and your chosen focus go to TypeSafe for screening and OpenAI for interview preparation. Browser recognition may use your browser’s remote speech service. Streaming mode sends audio to OpenAI while you speak; recorded mode and recognition fallback send the complete recording to OpenAI for transcription before you review and submit your answer. Screened text goes to TypeSafe and OpenAI for interview replies. Interviewer text is read by your browser’s voice by default. When provider speech is enabled, saved text goes to OpenAI to generate audio. When career examples are enabled, saved details from your career library appear as optional answer guidance. Search text from the question and, for follow-ups, your accepted answer goes to OpenAI for retrieval embeddings. References are separate from the interviewer’s dialogue and never fill your answer. Provider requests incur charges; references do not generate answers or grade your performance.</p>
 }

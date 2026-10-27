@@ -109,7 +109,7 @@ def _execute_with_privacy(task, receive_count, result_queue, dependencies, task_
             ai_task_id=task.ai_task_id, status="failed", error_message=RUN_LIMIT_MESSAGE
         )
     except Exception as error:
-        if task.task_type != "interview_clarification" and is_retryable_error(error) and receive_count < dependencies.settings.max_task_attempts:
+        if task.task_type not in {"interview_clarification", "interview_references"} and is_retryable_error(error) and receive_count < dependencies.settings.max_task_attempts:
             logger.warning(
                 "Task %s hit a temporary error on attempt %d, leaving it for a retry",
                 task.ai_task_id,

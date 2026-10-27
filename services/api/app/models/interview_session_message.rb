@@ -5,6 +5,7 @@ class InterviewSessionMessage < ApplicationRecord
   ACKNOWLEDGEMENT_LIMIT = 280
   KINDS = %w[opening answer follow_up closing].freeze
   belongs_to :interview_session
+  has_one :career_references, class_name: "InterviewCareerReferences", foreign_key: :message_id, dependent: :destroy
   has_one :clarification, class_name: "InterviewClarification", foreign_key: :message_id, dependent: :destroy
   belongs_to :question, class_name: "InterviewSessionQuestion"
   enum :kind, KINDS.index_with(&:itself), validate: true

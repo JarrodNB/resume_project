@@ -63,11 +63,11 @@ module AiTasks
     # All result writes acquire the owner first. This preserves domain lock ordering and
     # serializes the outcome cursor through commit for reconnect recovery.
     def with_result_lock(ai_task, &block)
-      if ai_task.interview_clarification?
+      if ai_task.interview_clarification? || ai_task.interview_references?
         ai_task.user.with_lock do
           interview = ai_task.user.interview_sessions.find_by(id: ai_task.subject_id)
           interview&.lock!
-          interview&.clarifications&.find_by(ai_task_id: ai_task.id)&.lock!
+          (ai_task.interview_references? ? interview&.career_references : interview&.clarifications)&.find_by(ai_task_id: ai_task.id)&.lock!
           ai_task.with_lock(&block)
         end
       else
@@ -103,6 +103,10 @@ module AiTasks
       end
       if ai_task.review_library_section?
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
+      if ai_task.interview_references?
+        result = Interviews::ApplyReferencesService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
       end
       if ai_task.interview_clarification?

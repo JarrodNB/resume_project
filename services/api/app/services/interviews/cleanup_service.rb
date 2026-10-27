@@ -72,8 +72,9 @@ module Interviews
           state = operation.pending? || operation.running? ? "expired" : operation.status
           operation.update!(status: state, candidate_transcript: nil, accepted_result: {}, retry_at: nil, checkpoint: nil)
         end
+        interview.career_references.update_all(references: [])
         interview.clarifications.update_all(explanation: nil)
-        interview.user.ai_tasks.where(subject: interview, task_type: "interview_clarification").find_each do |task|
+        interview.user.ai_tasks.where(subject: interview, task_type: %w[interview_clarification interview_references]).find_each do |task|
           task.with_lock do
             AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil, status: task.finished? ? task.status : "failed",
               error_message: "interview_expired", completed_at: task.completed_at || Time.current })

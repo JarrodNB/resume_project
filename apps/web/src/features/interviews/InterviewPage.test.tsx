@@ -8,7 +8,7 @@ import { act, render, cleanup, fireEvent, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { renderPage } from '@/test/renderPage'
 import { InterviewPage } from './InterviewPage'
-import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK } from './interviewOperations'
+import { AVOID_INTERVIEW_PROMPT, REQUEST_INTERVIEW_CLARIFICATION, INTERVIEW_PLAYBACK, REQUEST_INTERVIEW_REFERENCES } from './interviewOperations'
 const { state, recorder, start } = vi.hoisted(() => ({
   state: { interview: null as unknown, loading: false, loadError: null as unknown, subscriptionError: null, busy: false, error: null, unresolved: null as unknown, transcribeRecording: vi.fn(), cancelTranscription: vi.fn(), answer: vi.fn(), answerText: vi.fn(), checkSavedStatus: vi.fn(), retryOperation: vi.fn(), beginInterview: vi.fn(), abandonInterview: vi.fn(), skipQuestion: vi.fn() },
   recorder: { candidateTranscript: null as string | null, transcript: '', effectiveMode: 'browser', fallbackReason: null as string | null, status: 'idle', recording: null as Blob | null, error: null, start: vi.fn(), stop: vi.fn(), reset: vi.fn(), refresh: (() => {}) as () => void },
@@ -25,7 +25,7 @@ const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
   id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
-  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.' }],
+  messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],
 }
 function renderInterview(url = '/interviews/session', mocks: MockLink.MockedResponse[] = []) { return renderPage({ path: '/interviews/:id?', url, mocks, element: <InterviewPage />, extraRoutes: [{ path: '/interview-prep', element: <p>Written practice</p> }] }) }
@@ -1149,4 +1149,31 @@ it('restores a saved prompt preference without changing the current question', (
   renderInterview()
   expect(screen.getByRole('button', { name: 'Question avoided' })).toBeDisabled()
   expect(within(screen.getByRole('region', { name: 'Current interview turn' })).getByText('Describe a project.')).toBeVisible()
+})
+
+it('automatically retrieves references by default without blocking the draft', async () => {
+  state.interview = { ...snapshot, messages: [{ ...snapshot.messages[0], careerReferences: null }] }
+  renderInterview('/interviews/session', [{ request: { query: REQUEST_INTERVIEW_REFERENCES,
+    variables: { input: { interviewId: 'session', messageId: 'opening', retryFailed: false } } }, delay: 30,
+    result: { data: { requestInterviewReferences: { __typename: 'RequestInterviewReferencesPayload', errors: [], careerReferences: {
+      __typename: 'InterviewCareerReferences', id: 'references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [],
+    } } } } }])
+  const answer = screen.getByRole('textbox', { name: 'Your answer' })
+  expect(answer).toBeEnabled()
+  fireEvent.change(answer, { target: { value: 'I kept my draft while examples loaded.' } })
+  expect(await screen.findByText('No relevant saved examples found for this question.')).toBeVisible()
+  expect(answer).toHaveValue('I kept my draft while examples loaded.')
+  expect(screen.getByRole('checkbox', { name: 'Blur reference text' })).toBeChecked()
+})
+
+it('shows saved reference headings and blur controls on the current follow-up', () => {
+  state.interview = { ...snapshot, messages: [...snapshot.messages, {
+    ...snapshot.messages[0], id: 'follow-up', kind: 'follow_up', content: 'What changed afterward?',
+    careerReferences: { id: 'references', status: 'completed', attemptCount: 1, aiTaskId: null, deadline: null,
+      references: [{ sourceType: 'Project', sourceId: 'project', title: 'Scheduling project', body: 'I reduced appointment waiting time.' }] },
+  }] }
+  renderInterview()
+  expect(screen.getByText('Scheduling project')).toBeVisible()
+  expect(screen.getByText('I reduced appointment waiting time.')).toHaveAttribute('aria-hidden', 'true')
+  expect(screen.getByRole('textbox', { name: 'Your answer' })).toBeEnabled()
 })

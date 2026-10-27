@@ -31,6 +31,25 @@ RSpec.describe "Spoken interview demo GraphQL" do
     expect(read.call).to be_nil
   end
 
+  it "requests owned career references and hides expired task content" do
+    current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
+    allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))
+    mutation = 'mutation($input: RequestInterviewReferencesInput!) { requestInterviewReferences(input: $input) { careerReferences { id status references { sourceType sourceId title body } attemptCount aiTaskId deadline } errors } }'
+    variables = { input: { interviewId: current.id, messageId: current.messages.first.id } }
+    expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")
+    result = execute_graphql(mutation, user: user, variables: variables)
+    expect(result["errors"]).to be_nil
+    record = current.career_references.first!
+    expect(result.dig("data", "requestInterviewReferences", "careerReferences", "aiTaskId")).to eq(record.ai_task_id)
+    query = "{ interviewSession(id: \"#{current.id}\") { messages { careerReferences { id status } } } }"
+    expect(execute_graphql(query, user: user).dig("data", "interviewSession", "messages", 0, "careerReferences", "id")).to eq(record.id)
+    Interviews::ClaimReferencesService.call(ai_task: record.ai_task)
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => record.ai_task_id, "status" => "completed", "result" => { "references" => [] } })
+    current.update!(expires_at: 1.second.ago)
+    task_query = "{ aiTask(id: \"#{record.ai_task_id}\") { input result } }"
+    expect(execute_graphql(task_query, user: user).dig("data", "aiTask")).to eq("input" => {}, "result" => nil)
+  end
+
   it "requests only an owned latest prompt and restores saved clarification metadata" do
     current = Interviews::CreateFixtureService.call(user: user, execution_mode: "real").value
     allow(Shoryuken::Client).to receive(:queues).and_return(double(send_message: true))

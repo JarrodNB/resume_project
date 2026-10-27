@@ -26,7 +26,7 @@ module Types
           description: "The job a completed scrape_job or parse_job_posting task saved, or the job an analyze_gaps task compares."
 
     def result
-      object.result unless unavailable_clarification? || unavailable_study_guide?
+      object.result unless unavailable_clarification? || unavailable_references? || unavailable_study_guide?
     end
 
     def study_guide_out_of_date
@@ -42,12 +42,18 @@ module Types
     end
 
     def input
-      return {} if unavailable_clarification? || unavailable_study_guide?
+      return {} if unavailable_clarification? || unavailable_references? || unavailable_study_guide?
       object.improve_library_entry? ? object.input.except("history") : object.input
     end
 
     def unavailable_study_guide?
       object.generate_study_guide? && (object.subject_type != "Job" || !context[:current_user].jobs.exists?(id: object.subject_id))
+    end
+
+    def unavailable_references?
+      return false unless object.interview_references?
+      record = object.user.interview_sessions.find_by(id: object.subject_id)&.career_references&.find_by(ai_task_id: object.id)
+      !record || !::Interviews::ClarificationPrompt.current?(record.interview_session, record.message)
     end
 
     def unavailable_clarification?

@@ -15,9 +15,9 @@
 #   - ai_task_outcomes: separate durable success/failure occurrences, including explicit retries
 class AiTask < ApplicationRecord
   TASK_TYPES = %w[rerank_job_listings improve_library_entry review_library_section parse_resume scrape_job parse_job_posting analyze_gaps tailor_resume
-                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification].freeze
+                  generate_study_guide generate_interview_questions regenerate_interview_question review_interview_answer interview_turn interview_speech interview_preparation interview_transcription interview_clarification interview_references].freeze
   STATUSES = %w[queued needs_user_input completed failed].freeze
-  SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification].freeze
+  SPOKEN_INTERVIEW_TASK_TYPES = %w[interview_preparation interview_turn interview_speech interview_transcription interview_clarification interview_references].freeze
 
   belongs_to :user
   belongs_to :subject, polymorphic: true, optional: true
@@ -52,7 +52,7 @@ class AiTask < ApplicationRecord
     root = hourly_admission_task
     unless root&.persisted? && root.hourly_admission_task_id.nil? && root.task_type == "interview_preparation" &&
         root.user_id == user_id && root.subject_type == "InterviewSession" && root.subject_id == subject_id &&
-        subject_type == "InterviewSession" && %w[interview_turn interview_speech interview_transcription interview_clarification].include?(task_type)
+        subject_type == "InterviewSession" && %w[interview_turn interview_speech interview_transcription interview_clarification interview_references].include?(task_type)
       errors.add(:hourly_admission_task, "must be this interview's owned preparation admission")
     end
   end

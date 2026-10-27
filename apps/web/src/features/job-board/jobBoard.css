@@ -10,7 +10,6 @@
 .board-search-submit { min-height: 48px; padding-inline: 20px; }
 .board-search-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
 .board-remote { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
-.board-remote:hover { background: var(--muted); }
 .board-remote[data-checked=true] { background: var(--secondary); border-color: var(--primary); color: var(--secondary-foreground); }
 .board-region { display: inline-flex; align-items: center; gap: 7px; color: var(--muted-foreground); font-size: 12px; }
 .board-introduction { display: grid; justify-items: center; text-align: center; padding: 56px 20px 48px; }
@@ -34,7 +33,6 @@
 .board-listing-meta .board-remote-tag { background: var(--secondary); color: var(--secondary-foreground); padding: 3px 8px; border-radius: 5px; }
 .board-listing-action { min-height: 38px; }
 .board-description-toggle { width: fit-content; min-height: 44px; margin-top: 12px; padding-right: 8px; color: var(--muted-foreground); font-size: 13px; }
-.board-description-toggle:hover { color: var(--foreground); background: var(--muted); }
 .board-description { max-width: 72ch; margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; }
 .board-description-missing { margin-top: 16px; color: var(--muted-foreground); font-size: 13px; }
 .board-results-footer { display: grid; justify-items: center; gap: 24px; padding-top: 24px; }
@@ -52,6 +50,7 @@
   .board-search { margin-top: 24px; padding: 16px; }
   .board-search-field { flex-direction: column; }
   .board-search-submit { width: 100%; }
+  .board-keyword input, .board-filter-grid select { font-size: 16px; }
   .board-search-options { flex-wrap: wrap; }
   .board-introduction { padding: 40px 4px; }
   .board-introduction h2, .board-no-results h2 { font-size: 20px; }
@@ -98,4 +97,9 @@
   .board-filter-grid { grid-template-columns: minmax(0, 1fr); }
   .board-results-heading { flex-wrap: wrap; }
   .board-result-controls { justify-items: start; }
+}
+/* Hover only for real pointers, so a tapped option does not look stuck on touch screens. */
+@media (hover: hover) and (pointer: fine) {
+  .board-remote:not([data-checked=true]):hover { background: var(--muted); }
+  .board-description-toggle:hover { color: var(--foreground); background: var(--muted); }
 }

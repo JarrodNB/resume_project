@@ -70,7 +70,7 @@ function ReviewSection({ title, description, sectionId, children }: {
     <h3>
       <button type="button" aria-label={title} aria-expanded={open} aria-controls={panelId} aria-describedby={description ? `${panelId}-question` : undefined}
         onClick={toggle} className="review-toggle flex w-full min-w-0 items-start gap-3 rounded-md px-2 py-3 text-left hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-        <ChevronRight aria-hidden className={`mt-1 size-4 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+        <ChevronRight aria-hidden className={`mt-1 size-4 shrink-0 text-muted-foreground transition-transform duration-200 ease-(--ease-out-strong) ${open ? 'rotate-90' : ''}`} />
         <span className="grid min-w-0 gap-1">
           <span className={description ? 'text-xs font-medium text-muted-foreground' : 'text-sm font-medium'}>{title}</span>
           {description && <span id={`${panelId}-question`} className="break-words text-sm font-medium leading-relaxed">{description}</span>}

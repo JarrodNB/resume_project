@@ -169,7 +169,7 @@ Authentication uses equal columns, with a 360px-wide form. Below 600px it stacks
 
 Depth comes mainly from surface color, fine rules, and the generated card's subtle foreground ring. Section cards explicitly remove shadows. Focus uses a three-pixel ring at half opacity of the ring color. Overlays retain the generated UI library's own treatments; this is not a global ban on shadows.
 
-Navigation and record hover transitions last 160ms. Disclosures rotate a chevron. Reduced-motion preference reduces transition and animation durations to 0.01ms.
+Navigation and record hover transitions last 160ms. Hover styles apply only to fine pointers; touch screens get the same surface while pressing. Buttons use a strong ease-out (`--ease-out-strong`) over 160ms and scale to 0.97 on press, except menu triggers. Disclosures rotate a chevron over 200ms with the same curve. Reduced-motion preference reduces transition and animation durations to 0.01ms; loading spinners instead turn slowly (2.4s) so they still show progress.
 
 ## Shapes
 
@@ -185,7 +185,7 @@ Password visibility sits inside the field as a quiet 44px touch target. Account-
 
 Account emails use the same paper, forest, and ruled separators in a fluid 520px layout with inline styles and system sans-serif fallbacks for email clients. One green action leads each email; expiry and ignore instructions sit below. Verification shows only the active task; signup reveals resend help on request. Completed verification and password recovery offer a prominent sign-in action.
 
-Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Account actions wrap rather than overflow the navigation spine. Public password recovery retains the authentication layout.
+Signed-in account security stays inside the workspace, with a 600px form column, the account email above a fine divider, and the sign-out consequence next to the password-change action. Password fields remain 44px tall. Below 600px, workspace fields use 16px text so phones do not zoom into them. Account actions wrap rather than overflow the navigation spine. Public password recovery retains the authentication layout.
 
 Secondary badges provide quiet section counts. Section cards have 20px header and content padding, a divider when open, an optional icon, and a count. A section id enables remembered disclosure; its body unmounts when closed. Add actions live inside the open content. Library entries use top rules and transparent backgrounds.
 

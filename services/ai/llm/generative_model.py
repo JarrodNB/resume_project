@@ -8,7 +8,7 @@ from pydantic_ai.models import Model
 from pydantic_ai.models.fallback import FallbackModel
 
 from conversation_logging import observe_fallback_model
-from worker.task_usage import accounted_model
+from llm.usage import accounted_model
 
 
 def generative_model(primary: str, fallback: str) -> Model | str:

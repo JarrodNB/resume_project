@@ -15,9 +15,9 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 
 from conversation_logging import Transcript
+from llm.generative_model import generative_model
 from tests.test_process_task_message import FakeResultQueue, build_task_body
 from worker import main
-from worker.generative_model import generative_model
 from worker.queue_messages import AiResultMessage
 
 
@@ -148,9 +148,9 @@ def test_process_appends_are_intact(tmp_path):
 def test_logging_failure_preserves_provider_exception(monkeypatch, tmp_path, broken):
     """The actual adapter rethrows the original provider object despite logging failures."""
     import conversation_logging
+    from llm.usage import collect_task_usage
     from worker.queue_messages import AiTaskMessage
     from worker.settings import WorkerSettings
-    from worker.task_usage import collect_task_usage
     monkeypatch.chdir(tmp_path)
     if broken == "disk":
         (tmp_path / "conversation_logs").write_text("blocked")

@@ -11,10 +11,10 @@ from uuid import uuid4
 import pytest
 from pydantic_ai.exceptions import ModelHTTPError, UsageLimitExceeded
 
+from llm.run_limits import RUN_LIMIT_MESSAGE
 from worker import main
 from worker.main import process_task_message
 from worker.queue_messages import AiResultMessage, AiTaskMessage
-from worker.run_limits import RUN_LIMIT_MESSAGE
 from worker.task_dependencies import TaskDependencies
 
 

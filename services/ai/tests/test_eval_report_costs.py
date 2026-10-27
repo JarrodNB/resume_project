@@ -17,7 +17,7 @@ from pydantic_evals.evaluators import LLMJudge
 
 from evals.report_capture import capture_run, report_span_processors
 from evals.report_cost_markdown import render_cost_comparison, render_costs
-from worker.tracing import configure_tracing
+from telemetry.tracing import configure_tracing
 
 
 class ProviderModel(FunctionModel):

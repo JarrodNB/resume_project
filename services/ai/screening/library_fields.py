@@ -10,10 +10,10 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from typing import Any
 
+from privacy.contact_mask import mask_outbound
 from schemas.gap_analysis_context import CareerLibrary
+from schemas.screening_receipts import LibraryScreening
 from screening.session import current_session
-from worker.contact_mask import mask_outbound
-from worker.queue_messages import LibraryScreening
 
 _RECORD_TYPES = {"experiences": "experience", "projects": "project", "educations": "education",
                  "certifications": "certification", "skills": "skill", "facts": "library_fact"}

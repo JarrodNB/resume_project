@@ -17,12 +17,12 @@ from agents.resume_parsing_agent import parse_resume_text
 from evals.report_capture import override_settings
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import evaluate_dataset
+from privacy.contact_mask import import_privacy_scope
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
 from screening.screen_user_text import screen_user_text
 from screening.session import screening_session
-from worker.contact_mask import import_privacy_scope
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "resume_parsing_cases.yaml"
 TRACE_NAME = "evals.resume_parsing"

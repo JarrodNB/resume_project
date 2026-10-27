@@ -13,14 +13,14 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
 from pii import PiiRestorationError, prepare_document
+from privacy.contact_mask import import_privacy_scope, install_contact_hooks, mask_outbound
+from privacy.known_contact import KnownContact
 from screening.screen_user_text import ScreenOutcome
 from tests import test_tracing
 from tests.fakes import build_docx_bytes
 from tests.test_process_task_message import FakeResultQueue
 from tests.test_task_handlers import FILE_KEY, build_parse_resume_task
 from worker import main
-from worker.contact_mask import import_privacy_scope, install_contact_hooks, mask_outbound
-from worker.known_contact import KnownContact
 from worker.parse_resume_handler import RESUME_PRIVACY_MESSAGE, handle_parse_resume_task
 
 SOURCE = "Jane Doe\njane@example.test\n+1 415-555-2671\nEngineer at Acme\nHelped Jane Doe ship Python services."
@@ -191,7 +191,7 @@ def test_profile_loader_failure_keeps_usage_and_retry(monkeypatch, task_dependen
     def unavailable(task):
         raise psycopg.OperationalError("Profile database unavailable")
 
-    monkeypatch.setattr("worker.contact_mask._load_known_contact", unavailable)
+    monkeypatch.setattr("worker.contact_context._load_known_contact", unavailable)
     queue = FakeResultQueue()
     assert not main.process_task_message(build_parse_resume_task().model_dump_json(), 1, queue, task_dependencies)
     assert [json.loads(body)["status"] for body in queue.sent_bodies] == ["usage", "usage"]

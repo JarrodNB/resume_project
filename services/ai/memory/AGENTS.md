@@ -20,7 +20,7 @@ compared with the career library embeddings Rails stores in `library_embeddings`
 ## Local Rules
 
 - Never call the OpenAI SDK directly; use Pydantic AI's `Embedder`.
-- The model and dimensions come from `WorkerSettings.embedding_model` / `embedding_dimensions`
+- The model and dimensions come from `AISettings.embedding_model` / `embedding_dimensions`
   and must match Rails' `CareerLibraryEmbeddings::MODEL` / `DIMENSIONS`. Searches filter by the
   stored model name, so a mismatch returns nothing rather than wrong neighbours.
 - The SQL side of a search lives in `database/library_embedding_search.py`. It loads the user's

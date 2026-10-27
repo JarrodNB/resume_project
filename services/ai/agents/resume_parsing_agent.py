@@ -18,11 +18,15 @@ from pydantic_ai_harness import InputBlocked, InputGuardrail
 
 from conversation_logging import ConversationLogging
 from documents.experience_source import ExperienceSource
+from llm.generative_model import generative_model
+from llm.model_prices import build_model_usage, reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.resume_parsing_instructions import (
     RESUME_PARSING_INSTRUCTIONS,
     RESUME_PARSING_PROMPT_VERSION,
     format_resume_group_instruction,
 )
+from schemas.model_usage import ModelUsage
 from schemas.parsed_resume import (
     ExperienceExtraction,
     ParsedResume,
@@ -33,12 +37,8 @@ from screening import prompt_guardrail
 from screening.prompt_guardrail import BLOCKED_MESSAGE, UNCHECKED_MESSAGE, screen_prompt
 from screening.screen_user_text import screen_user_text_async
 from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.model_prices import build_model_usage, reported_model_name
-from worker.queue_messages import ModelUsage
-from worker.run_limits import agent_usage_limits
-from worker.settings import load_settings
-from worker.tracing import record_prompt_version
+from settings import load_settings
+from telemetry.tracing import record_prompt_version
 
 # A resume can contain the fence tags, including a space or newline inside the tag.
 # Replacing "<" keeps the words and stops the tag closing.

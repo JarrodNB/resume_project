@@ -15,7 +15,7 @@ from typing import NamedTuple
 
 from pydantic_ai.usage import RunUsage
 
-from worker.queue_messages import ModelUsage
+from schemas.model_usage import ModelUsage
 
 
 class ModelPrice(NamedTuple):

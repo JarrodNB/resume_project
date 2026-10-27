@@ -18,14 +18,14 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from llm.generative_model import generative_model
+from llm.model_prices import reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.library_edit_instructions import LIBRARY_EDIT_INSTRUCTIONS, LIBRARY_EDIT_PROMPT_VERSION
 from schemas.library_edit import LibraryEditDraft
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout
-from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
-from worker.run_limits import agent_usage_limits
-from worker.tracing import record_prompt_version
+from telemetry.tracing import record_prompt_version
 
 
 @dataclass

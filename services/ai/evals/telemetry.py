@@ -13,8 +13,8 @@ import logfire
 from pydantic_evals.reporting import EvaluationReport
 
 from evals.report_capture import capture_metadata, capture_report, report_span_processors
-from worker.telemetry_privacy import telemetry_scope
-from worker.tracing import configure_tracing, flush_tracing
+from telemetry.privacy import telemetry_scope
+from telemetry.tracing import configure_tracing, flush_tracing
 
 
 def evaluate_dataset(

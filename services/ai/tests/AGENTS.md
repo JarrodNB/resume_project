@@ -6,6 +6,9 @@ pytest suite for the worker. Run with `docker compose run --rm ai pytest`.
 
 ## Contents
 
+- `test_shared_ai_support.py` — fresh-process checks keep HTTP/model helpers independent
+  of worker imports and queue-only configuration.
+
 - `test_screening_recovery.py` — real sync/async screening and queued required-input tasks:
   timeout cancellation, fallback decisions, deadlines, limits, and per-model retry costs.
 - `test_user_text_fallback_evals.py` — shared synthetic labels and outage handling through

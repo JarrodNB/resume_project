@@ -27,7 +27,7 @@ from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
 from memory.embed_search_query import embed_search_query
 from memory.hybrid_rank import RankedDocument, hybrid_order
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "library_retrieval_cases.yaml"
 TRACE_NAME = "evals.library_retrieval"

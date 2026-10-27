@@ -16,6 +16,9 @@ from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
 from job_postings.extract_job_posting import BulletSortingRun
+from llm.generative_model import generative_model
+from llm.model_prices import reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.job_requirements_sorting_instructions import (
     JOB_REQUIREMENTS_SORTING_INSTRUCTIONS,
     JOB_REQUIREMENTS_SORTING_PROMPT_VERSION,
@@ -23,11 +26,8 @@ from prompts.job_requirements_sorting_instructions import (
 from schemas.sorted_requirement_bullets import SortedRequirementBullets
 from screening.prompt_guardrail import screen_prompt
 from screening.session import bind_screened_prompt, remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
-from worker.run_limits import agent_usage_limits
-from worker.settings import load_settings
-from worker.tracing import record_prompt_version
+from settings import load_settings
+from telemetry.tracing import record_prompt_version
 
 job_requirements_sorting_agent = Agent(
     name="job_requirements_sorting_agent",

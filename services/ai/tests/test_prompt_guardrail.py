@@ -22,11 +22,11 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
 from agents.user_text_screen_agent import user_text_screen_agent
+from privacy.contact_mask import contact_scope, install_contact_hook
+from privacy.known_contact import KnownContact
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.prompt_guardrail import screen_prompt
 from text_limits import MAX_PROMPT_TEXT
-from worker.contact_mask import contact_scope, install_contact_hook
-from worker.known_contact import KnownContact
 
 pytestmark = pytest.mark.real_guardrail
 

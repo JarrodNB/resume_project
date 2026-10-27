@@ -10,7 +10,7 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RunUsage
 
 from agents.resume_parsing_agent import parse_resume_text
-from worker.generative_model import generative_model
+from llm.generative_model import generative_model
 
 
 def test_generative_model_uses_the_primary_when_names_match() -> None:

@@ -116,7 +116,7 @@ def _validation_event(part, *, exhausted=False):
         # Validation runs after response restoration; mask again at this capture boundary.
         from pydantic_ai.models import ModelRequestParameters
 
-        from worker.contact_mask import mask_outbound
+        from privacy.contact_mask import mask_outbound
         feedback = mask_outbound(render_messages([ModelRequest(parts=[part])], ModelRequestParameters()))
         label = "VALIDATION EXHAUSTED" if exhausted else "VALIDATION FAILURE / RETRY"
         transcript.append(f"### {label} — Attempt {transcript.attempt} — {_timestamp()}\n\n"

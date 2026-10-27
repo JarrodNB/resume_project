@@ -4,6 +4,7 @@ from pydantic_ai.capabilities import Hooks
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from privacy.contact_mask import _mask_request, _unmask_response
 from prompts.interview_preparation_instructions import (
     FICTIONAL_ROLE_PREPARATION_INSTRUCTIONS,
     INTERVIEW_PREPARATION_INSTRUCTIONS,
@@ -11,7 +12,6 @@ from prompts.interview_preparation_instructions import (
 )
 from schemas.interview_preparation import InterviewPreparation, SavedJobInterviewPreparation
 from schemas.interview_setup import InterviewSetup
-from worker.contact_mask import _mask_request, _unmask_response
 
 
 def make_preparer(guard, *, system_prompt="", question_count=9, question_format="mixed", saved_job=False):

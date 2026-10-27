@@ -7,7 +7,7 @@ from pydantic_ai import Agent, models
 from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from worker.task_usage import accounted_model, collect_task_usage
+from llm.usage import accounted_model, collect_task_usage
 
 
 def test_queued_luna_fixes_cache_lifetime_and_records_writes_and_response_identity():

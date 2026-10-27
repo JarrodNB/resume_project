@@ -10,10 +10,10 @@ import json
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
 
+from privacy.contact_mask import mask_outbound
 from schemas.gap_analysis_context import JobToAnalyze
+from schemas.screening_receipts import JobScreening
 from screening.session import current_session
-from worker.contact_mask import mask_outbound
-from worker.queue_messages import JobScreening
 
 JOB_FIELDS = ("title", "company", "requirements", "nice_to_haves")
 _LABELS = {"title": "Job title", "company": "Company", "requirements": "Requirements",

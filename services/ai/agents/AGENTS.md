@@ -54,11 +54,11 @@ instructions from `prompts/`.
 - Every agent also declares `ConversationLogging()` to observe validation feedback and
   exhaustion. Logging owns its state and presentation; agents keep their validation policy.
 - Create agents with `defer_model_check=True` and pass the model per run (from
-  `WorkerSettings`), so importing an agent never needs an API key and tests can override it
+  `AISettings`), so importing an agent never needs an API key and tests can override it
   with `agent.override(model=TestModel())`.
 - Expose a plain entry per agent that handlers and eval runners call; an async entry may
   share the same implementation with a sync wrapper for existing callers. It runs the agent
-  under an overall deadline (`WorkerSettings.llm_run_timeout_seconds`, below the `ai_tasks`
+  under an overall deadline (`AISettings.llm_run_timeout_seconds`, below the `ai_tasks`
   visibility timeout) and raises `TimeoutError`, which the worker treats as retryable. It also
   passes `agent_usage_limits` (request, tool-call, and token caps). `UsageLimitExceeded` fails
   the task on the first attempt. It returns the

@@ -14,11 +14,12 @@ from pydantic_ai.exceptions import UnexpectedModelBehavior
 from agents.parse_job_posting_agent import parse_job_posting
 from job_postings.find_parsed_job_problems import find_parsed_job_problems
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
+from llm.model_prices import build_model_usage
+from schemas.model_usage import ModelUsage
 from screening.screen_user_text import ScreenOutcome, screen_user_text
 from screening.session import within_screening_session
 from text_limits import SECTION_TOO_LONG_MESSAGE
-from worker.model_prices import build_model_usage
-from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 BLOCKED_AD_MESSAGE = "This text was deemed unsafe, so it wasn't used. Edit it and try again."

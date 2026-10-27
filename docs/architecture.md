@@ -54,6 +54,7 @@ Start with the module responsible for the behavior; read detailed docs only as n
 | UI behavior | `apps/web/src/features/<feature>/`; hooks call GraphQL, shared UI lives in `components/` |
 | Domain mutations | Rails `app/graphql/` authorizes and calls `app/services/<domain>/`; models hold persistence rules |
 | Queued AI work | Python `worker/` dispatches tasks and coordinates domain helpers, agents, and queue results |
+| Shared AI execution support | `settings.py`, `llm/`, `privacy/` and `telemetry/` serve HTTP execution and workers without queue startup dependencies |
 | Model behavior | `agents/` registers prompts, tools, and structured outputs; `prompts/` owns instructions |
 | Read-only retrieval | `database/` owns SQL scoped to the task user; `memory/` owns retrieval and query embeddings |
 | Shared AI data shapes | `schemas/` owns structured models and pure validation; Rails and web consumers mirror queue results |
@@ -65,7 +66,9 @@ and external validation libraries, but must not import other first-party AI modu
 including imports inside functions and type-checking blocks. It checks static imports;
 dynamic imports and runtime side effects require review. This lets workers, agents,
 retrieval, and offline evaluations share contracts without importing one another through
-the schemas. Other dependency directions above remain review rules, not automated checks.
+the schemas. `tests/test_shared_ai_support.py` also imports HTTP/model helpers in a fresh interpreter
+and verifies that they neither load worker modules nor validate queue-only settings.
+Other dependency directions above remain review rules, not automated checks.
 
 Prefer cohesive modules with small public interfaces. Split by responsibility or distinct
 dependencies rather than a fixed line limit. By default, give handwritten code files a short,

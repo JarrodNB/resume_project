@@ -58,9 +58,9 @@ def test_dispatch_reranks_with_one_batch_and_scopes_scorer_to_task_owner(
     from pydantic_ai import Embedder
     from pydantic_ai.embeddings import TestEmbeddingModel
 
+    from llm.usage import collect_task_usage
     from worker.queue_messages import AiTaskMessage
     from worker.task_handlers import handle_ai_task
-    from worker.task_usage import collect_task_usage
 
     ids = [str(uuid4()), str(uuid4())]
     task = AiTaskMessage(
@@ -130,9 +130,9 @@ def test_missing_library_fails_without_an_order(monkeypatch, task_dependencies):
 def test_failed_embedding_marks_missing_usage(monkeypatch, task_dependencies):
     from dataclasses import replace
 
+    from llm.usage import collect_task_usage
     from worker.queue_messages import AiTaskMessage
     from worker.task_handlers import handle_ai_task
-    from worker.task_usage import collect_task_usage
 
     task = AiTaskMessage(
         ai_task_id=uuid4(),
@@ -184,9 +184,9 @@ def test_embedding_deadline_cancels_provider_and_marks_usage_incomplete(
     import asyncio
     from dataclasses import replace
 
+    from llm.usage import collect_task_usage
     from worker.queue_messages import AiTaskMessage
     from worker.task_handlers import handle_ai_task
-    from worker.task_usage import collect_task_usage
 
     task = AiTaskMessage(
         ai_task_id=uuid4(),
@@ -217,9 +217,9 @@ def test_post_embedding_token_cap_retains_known_cost(monkeypatch, task_dependenc
     from pydantic_ai.embeddings import TestEmbeddingModel
     from pydantic_ai.exceptions import UsageLimitExceeded
 
+    from llm.usage import collect_task_usage
     from worker.queue_messages import AiTaskMessage
     from worker.task_handlers import handle_ai_task
-    from worker.task_usage import collect_task_usage
 
     task = AiTaskMessage(
         ai_task_id=uuid4(),

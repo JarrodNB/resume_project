@@ -20,7 +20,7 @@ from evals.telemetry import evaluate_dataset
 from job_postings.posting_from_parsed_job import posting_from_parsed_job
 from prompts.parse_job_posting_instructions import PARSE_JOB_POSTING_PROMPT_VERSION
 from schemas.scraped_job_posting import ScrapedJobPosting
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "job_posting_parse_cases.yaml"
 TRACE_NAME = "evals.job_posting_parse"

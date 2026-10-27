@@ -10,14 +10,14 @@ from uuid import UUID
 
 import text_limits
 from agents.resume_tailoring_agent import write_resume_section_async
+from llm.model_prices import build_model_usage
+from schemas.model_usage import ModelUsage
 from screening.session import remaining_timeout, screening_session
 from tailoring.labeled_sources import label_sources
 from tailoring.materialize_section import copy_library_section, materialize_section
 from tailoring.prepare_resume_draft import ResumePreparationError, prepare_resume_draft
 from tailoring.section_catalog import SECTION_ORDER, SECTION_TITLES
 from tailoring.tailor_resume_input import TailorResumeInput
-from worker.model_prices import build_model_usage
-from worker.queue_messages import ModelUsage
 from worker.task_dependencies import TaskDependencies
 
 

@@ -9,7 +9,7 @@ Index:
 import pytest
 from pydantic_ai.usage import RunUsage
 
-from worker.model_prices import (
+from llm.model_prices import (
     MODEL_PRICES,
     build_model_usage,
     estimate_cost_microdollars,

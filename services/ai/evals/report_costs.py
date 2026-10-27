@@ -12,7 +12,7 @@ from threading import Lock
 from opentelemetry.sdk.trace import SpanProcessor
 from pydantic_ai.usage import RunUsage
 
-from worker.model_prices import MODEL_PRICES, estimate_cost_microdollars
+from llm.model_prices import MODEL_PRICES, estimate_cost_microdollars
 
 
 def _priced_model(attributes):

@@ -295,9 +295,9 @@ def test_independent_writers_overlap_and_keep_privacy_usage_and_transcript_conte
     generation, offline_model_resolution, monkeypatch, tmp_path,
 ):
     from conversation_logging import conversation_scope
-    from worker.contact_mask import contact_scope, current_known_contact, install_contact_hook
-    from worker.known_contact import KnownContact
-    from worker.task_usage import collect_task_usage, current_task_usage
+    from llm.usage import collect_task_usage, current_task_usage
+    from privacy.contact_mask import contact_scope, current_known_contact, install_contact_hook
+    from privacy.known_contact import KnownContact
 
     dependencies, context, _, _ = generation
     context.career_library.summary = "Synthetic Candidate builds software."

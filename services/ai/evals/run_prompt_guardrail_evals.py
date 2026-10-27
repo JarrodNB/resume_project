@@ -17,7 +17,7 @@ from agents.resume_parsing_agent import format_resume_user_prompt
 from evals.run_resume_parsing_evals import load_resume_parsing_dataset
 from evals.telemetry import evaluate_dataset, record_score
 from screening.prompt_guardrail import BLOCKED_MESSAGE, screen_prompt
-from worker.settings import SCREEN_LLM_OPTION, load_settings
+from settings import SCREEN_LLM_OPTION, load_settings
 
 
 def load_prompt_guardrail_dataset() -> Dataset[str, bool, None]:

@@ -53,7 +53,7 @@ def create_app():
         from interviews.live_transcription import CaptureOwner
         from interviews.models import InterviewModels
         from interviews.real import RealInterviewExecutor
-        from worker.tracing import configure_tracing, flush_tracing
+        from telemetry.tracing import configure_tracing, flush_tracing
 
         configure_tracing()
         origin, storage_origins = configured

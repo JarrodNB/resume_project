@@ -9,7 +9,7 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `result_delivery.py` owns queue publication and safe production failure diagnostics.
   It forwards delivery outcomes to the optional local transcript hook.
 
-- `main.py` owns the narrow conversation lifecycle hook; `task_usage.py` delegates concrete
+- `main.py` owns the narrow conversation lifecycle hook; `../llm/usage.py` delegates concrete
   request observation to the independent `conversation_logging/` package. Settings gate
   this filesystem logging on `WORKER_ENVIRONMENT=local` and allow an explicit opt-out.
 
@@ -56,10 +56,6 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `tailor_resume_handler.py` — delegates one complete draft to the tailoring module and
   returns ordered sections and omission warnings. It copies no domain data back to the
   database and never pauses for section approval. Unexpected errors retain normal retries
-- `model_prices.py` — USD per 1M tokens per model (`MODEL_PRICES`), `estimate_cost_microdollars`,
-  `build_model_usage`; Rails sums the costs to enforce each user's monthly AI budget
-  Queued Luna fixes standard service and 30-minute cache writes; cache-write usage is
-  priced separately. Scheduled `script/check_ai_prices.py` detects catalogue drift.
 - `retryable_errors.py` — `is_retryable_error`: temporary failures (rate limits, 5xx, network,
   incl. job site fetches through httpx and database connection errors) are left for SQS to redeliver; anything else, or the
   last attempt, publishes `failed`
@@ -67,38 +63,17 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
 - `task_dependencies.py` — `TaskDependencies` (settings + file storage + `httpx.Client` for job
   sites + gap analysis context reader) passed to every handler; `build_http_client`
 - `s3_file_storage.py` — read-only download from the uploads bucket (S3Mock locally)
-- `tracing.py` — `configure_tracing` (Logfire + `Agent.instrument_all()` +
-  `Embedder.instrument_all()` + the contact mask on every agent), `trace_ai_task`,
-  `record_prompt_version` (stamps one prompt's version on that run's spans)
-  and optional caller-owned span processors for report-only usage capture
-- `telemetry_flush.py` — shares one daemon SDK flush with a five-second caller wait and
-  no queued work when an exporter stalls
-- `telemetry_privacy.py` — synchronously masks span/log attributes, names, events,
-  exceptions and status before asynchronous export; retains task privacy at span start,
-  including later detected import contact. Import task spans omit pre-detection input metadata
-- `generative_model.py` — `generative_model`: the primary OpenAI model, or a `FallbackModel`
-  when `generative_fallback_model` names a different model. Provider errors switch; output
-  validation retries do not. A logging-owned wrapper observes entry into the configured
-  fallback target without changing policy. Safety classifiers do not use it; screening owns a separate fallback policy
-- `known_contact.py` — `KnownContact`: the user's known name, contact email, and phone mapped
-  to «name», «email», and «phone»
-- `contact_mask.py` — adapts known-contact and opaque import privacy sessions on model requests, telemetry export, and
-  `mask_outbound` (search-query embeddings). The model response is restored before the app
-  sees it
-- `settings.py` — environment-based configuration (`WorkerSettings`, incl. model names, the
-  three supported screening choices, `user_text_screen_llm_model`,
-  `user_text_screen_timeout_seconds`,
-  `generative_fallback_model`, the
-  embedding model and dimensions (must match Rails' `CareerLibraryEmbeddings`), the
-  read-only database connection (`DB_*`), `llm_run_timeout_seconds` (must stay below the
-  `ai_tasks` visibility timeout), and the request, tool-call, and token caps
-- `run_limits.py` — `agent_usage_limits` and `RUN_LIMIT_MESSAGE`. A hit fails the task on the
-  first attempt. A timeout is still retried
+- `contact_context.py` — loads the queue task's owned profile and tailoring snapshot,
+  then enters shared `privacy/` masking; imports select the existing local PII session.
+- `task_tracing.py` — adds queue task identity, contact-safe input and incomplete-cost
+  state around shared `telemetry/` instrumentation and bounded final flushing.
+- `settings.py` — `WorkerSettings` adds queue, storage, retry and local transcript options
+  to the shared `AISettings` model/screening/read-only retrieval configuration.
 - `sqs_queue_client.py` — wrapper for one SQS queue (receive, delete, send)
 
 ## Local Rules
 
-- `task_usage.py` owns request-level accounting for one execution, independent of telemetry.
+- `../llm/usage.py` owns request-level accounting for one execution, independent of telemetry.
   Concrete generative/fallback and screening models use its adapter; query embeddings record
   their returned usage there. `main.py` publishes an unfinished usage marker before execution
   and a final report even when retrying. Never add handler aggregate usage to observed requests.

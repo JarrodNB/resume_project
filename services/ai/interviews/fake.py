@@ -14,7 +14,7 @@ from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai_harness import InputGuardrail
 
-from worker.contact_mask import _mask_request, _unmask_response
+from privacy.contact_mask import _mask_request, _unmask_response
 
 TRANSCRIPT = "I helped my team build a scheduling tool and checked the result with our users."
 FOLLOW_UP = "What changed for the team after you introduced the tool?"

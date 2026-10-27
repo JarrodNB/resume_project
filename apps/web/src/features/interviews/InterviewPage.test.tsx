@@ -927,6 +927,34 @@ it.each(['edit', 'discard', 'revision'])('fences late recorded text after %s', a
   expect(state.answerText).not.toHaveBeenCalled()
 })
 
+it.each(['edit', 'revision', 'cancel'])('fences a recorded upload receipt invalidated by %s before it arrives', async (action) => {
+  let complete!: (id: string) => void
+  state.transcribeRecording.mockReturnValueOnce(new Promise((resolve) => { complete = resolve }))
+  renderInterview()
+  fireEvent.click(screen.getByRole('button', { name: 'Record answer' }))
+  recorder.status = 'ready'; recorder.recording = new Blob(['audio']); recorder.effectiveMode = 'recorded'
+  act(() => recorder.refresh())
+  fireEvent.click(screen.getByRole('button', { name: 'Transcribe recording' }))
+  expect(screen.getByRole('button', { name: 'Transcribing recording…' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Re-record' })).toBeDisabled()
+  const editor = screen.getByRole('textbox', { name: 'Your answer' })
+  if (action === 'edit') fireEvent.change(editor, { target: { value: 'My replacement before the upload finished.' } })
+  if (action === 'revision') { state.interview = { ...snapshot, revision: 1 }; act(() => recorder.refresh()) }
+  if (action === 'cancel') {
+    state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'running', expectedRevision: 0 }] }
+    act(() => recorder.refresh())
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel transcription' }))
+  }
+  await act(async () => complete('capture'))
+  expect(state.cancelTranscription).toHaveBeenCalledWith('capture')
+  state.interview = { ...snapshot, revision: action === 'revision' ? 1 : 0, operations: [...snapshot.operations, {
+    id: 'capture', kind: 'transcription', status: 'accepted', expectedRevision: 0, reviewTranscript: 'Obsolete uploaded words.',
+  }] }
+  act(() => recorder.refresh())
+  expect(editor).toHaveValue(action === 'edit' ? 'My replacement before the upload finished.' : '')
+  expect(state.answerText).not.toHaveBeenCalled()
+})
+
 it('restores capture progress after reload without cancelling on passive disposal', async () => {
   state.interview = { ...snapshot, operations: [...snapshot.operations, { id: 'capture', kind: 'transcription', status: 'running', expectedRevision: 0 }] }
   const view = renderInterview()

@@ -13,6 +13,7 @@ when changing a contract or feature:
 | [Study guides](architecture/study-guides.md) | Job-description learning material, queued generation and retained results |
 | [Interview prep](architecture/interview-prep.md) | Sets, revisions, locking, feedback, saved Q&A embeddings |
 | [AI safety and usage](architecture/ai-safety-and-usage.md) | Screening, privacy, tracing, execution limits, cost accounting |
+| [AI cost accounting](architecture/ai-cost-accounting.md) | Combined spend, background embedding receipts, price checks, verified reconciliation |
 | [Career library](architecture/career-library.md) | Imports, merging, retrieval, embeddings, gap analysis, tailoring, job ingestion |
 
 Decision rationale lives beside the behavior it explains in these guides.

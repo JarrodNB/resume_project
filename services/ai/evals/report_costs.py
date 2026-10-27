@@ -93,12 +93,15 @@ class ReportCostProcessor(SpanProcessor):
             input_tokens = attributes.get("gen_ai.usage.input_tokens", 0)
             output_tokens = attributes.get("gen_ai.usage.output_tokens", 0)
             cached = attributes.get("gen_ai.usage.cache_read.input_tokens", 0)
+            writes = attributes.get("gen_ai.usage.cache_creation.input_tokens", 0)
             issue = None
             cost = None
             if not input_tokens and not output_tokens:
                 issue = "Provider usage unavailable"
             elif model not in MODEL_PRICES:
                 issue = f"Price unavailable: {model}"
+            elif writes:
+                issue = "Cache-write lifetime unavailable in telemetry"
             else:
                 try:
                     cost = estimate_cost_microdollars(model, RunUsage(input_tokens=input_tokens,

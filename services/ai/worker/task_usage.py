@@ -32,20 +32,21 @@ class TaskUsage:
     entries: list[ModelUsage] = field(default_factory=list)
     incomplete: bool = False
 
-    def record(self, model: str, usage: RequestUsage | RunUsage | None) -> None:
+    def record(self, model: str, usage: RequestUsage | RunUsage | None,
+               provider_response_id: str | None = None) -> None:
         """Prices received usage; unknown prices or absent usage stay explicitly incomplete."""
         if usage is None or not (usage.input_tokens or usage.output_tokens):
             self.incomplete = True
             return
-        try:
-            self.entries.append(build_model_usage(model, usage))
-        except KeyError:
+        if any(not isinstance(value, int) or value < 0 for value in (
+            usage.input_tokens, usage.output_tokens, usage.cache_read_tokens, usage.cache_write_tokens,
+        )):
             self.incomplete = True
-            self.entries.append(ModelUsage(
-                model=model, input_tokens=usage.input_tokens,
-                cached_input_tokens=usage.cache_read_tokens, output_tokens=usage.output_tokens,
-                cost_microdollars=None,
-            ))
+            return
+        entry = build_model_usage(model, usage)
+        entry.provider_response_id = provider_response_id
+        self.entries.append(entry)
+        self.incomplete |= entry.cost_microdollars is None
 
 
 _current: ContextVar[TaskUsage | None] = ContextVar("task_usage", default=None)
@@ -76,6 +77,11 @@ class AccountedModel(WrapperModel):
     ) -> ModelResponse:
         """Records each received response or flags a request whose usage never arrived."""
         usage = current_task_usage()
+        # The pinned SDK retains total cache writes but loses their lifetime split.
+        # Fix Luna to the priced 30-minute lifetime before issuing any request.
+        if reported_model_name(self.wrapped.model_name, self.wrapped.model_id) == "openai:gpt-6-luna":
+            model_settings = {**(model_settings or {}), "openai_service_tier": "default",
+                              "openai_prompt_cache_options": {"mode": "implicit", "ttl": "30m"}}
         try:
             response = await observe_request(self.wrapped, messages, model_settings, model_request_parameters)
         except BaseException:
@@ -84,7 +90,8 @@ class AccountedModel(WrapperModel):
             raise
         if usage is not None:
             configured = self.wrapped.model_id
-            usage.record(reported_model_name(response.model_name or configured, configured), response.usage)
+            usage.record(reported_model_name(response.model_name or configured, configured),
+                         response.usage, response.provider_response_id)
         return response
 
 

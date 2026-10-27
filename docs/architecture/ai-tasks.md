@@ -40,7 +40,8 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
   message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, library_screening, job_screening, gap_response_screening, interview_question_screening}`.
   `status` is `completed`, `needs_user_input`, `failed`, or `usage` (accounting only).
-  `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`
+  `usage` lists `{model, input_tokens, cached_input_tokens, output_tokens, cost_microdollars}`,
+  with additive `cache_write_tokens` and optional `provider_response_id` for current workers,
   per received provider response (`input_tokens` includes cached tokens; unknown prices are
   null). Each actual execution gets a fresh UUID, independent of SQS receive count.
   The worker publishes an unfinished, incomplete usage marker before

@@ -9,9 +9,9 @@
 module CareerLibrary
   class SyncLibraryEmbeddingsService < ApplicationService
     # @param embedding_client [#embed_texts, #model] Embeddings::OpenAiEmbeddingClient or a test double
-    def initialize(user:, embedding_client: Embeddings::OpenAiEmbeddingClient.new)
+    def initialize(user:, embedding_client: nil)
       @user = user
-      @embedding_client = embedding_client
+      @embedding_client = embedding_client || Embeddings::OpenAiEmbeddingClient.new(user: user, purpose: "career_library")
     end
 
     # Reads the library, embeds what changed, and deletes what's gone, inside one locked transaction.

@@ -9,7 +9,12 @@ Index:
 import pytest
 from pydantic_ai.usage import RunUsage
 
-from worker.model_prices import MODEL_PRICES, build_model_usage, estimate_cost_microdollars
+from worker.model_prices import (
+    MODEL_PRICES,
+    build_model_usage,
+    estimate_cost_microdollars,
+    reported_model_name,
+)
 from worker.settings import WorkerSettings
 
 
@@ -58,3 +63,30 @@ def test_build_model_usage_reports_tokens_and_cost() -> None:
     assert model_usage.cached_input_tokens == 500
     assert model_usage.output_tokens == 300
     assert model_usage.cost_microdollars == estimate_cost_microdollars("openai:gpt-5-mini", usage)
+
+
+def test_luna_cache_writes_use_the_30_minute_rate():
+    usage = RunUsage(input_tokens=10_000, cache_write_tokens=8_000, output_tokens=1_000)
+    entry = build_model_usage("openai:gpt-6-luna", usage)
+    assert entry.cost_microdollars == 1_700
+    assert entry.cache_write_tokens == 8_000
+
+
+@pytest.mark.parametrize("usage", [
+    RunUsage(input_tokens=10, cache_read_tokens=8, cache_write_tokens=8),
+    RunUsage(input_tokens=272_001),
+])
+def test_unsupported_luna_usage_cannot_be_reported_as_known(usage):
+    with pytest.raises(ValueError):
+        estimate_cost_microdollars("openai:gpt-6-luna", usage)
+
+
+def test_unknown_response_model_is_not_disguised_as_the_configured_model():
+    assert reported_model_name("other-model", "openai:gpt-6-luna") == "openai:other-model"
+    assert reported_model_name("gpt-5-mini-2025-08-07", "openai:gpt-5-mini") == "openai:gpt-5-mini"
+
+
+def test_unpriced_usage_preserves_tokens_without_failing_the_task():
+    entry = build_model_usage("openai:unknown-model", RunUsage(input_tokens=100))
+    assert entry.input_tokens == 100
+    assert entry.cost_microdollars is None

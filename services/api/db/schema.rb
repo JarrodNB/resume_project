@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_27_010000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_27_020100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -41,6 +41,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_010000) do
     t.uuid "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "ai_embedding_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "model", null: false
+    t.string "purpose", null: false
+    t.bigint "input_tokens"
+    t.bigint "cost_microdollars"
+    t.boolean "incomplete", default: true, null: false
+    t.boolean "finalized", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "created_at"], name: "index_ai_embedding_requests_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_ai_embedding_requests_on_user_id"
+    t.check_constraint "cost_microdollars IS NULL OR cost_microdollars >= 0", name: "embedding_cost_nonnegative"
+    t.check_constraint "input_tokens IS NULL OR input_tokens >= 0", name: "embedding_tokens_nonnegative"
   end
 
   create_table "ai_task_outcomes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -86,7 +102,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_010000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -99,6 +115,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_010000) do
     t.boolean "finalized", default: true, null: false
     t.index ["ai_task_id"], name: "index_ai_usage_attempts_on_ai_task_id"
     t.index ["attempt_id"], name: "index_ai_usage_attempts_on_attempt_id", unique: true
+  end
+
+  create_table "ai_usage_reconciliations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "receipt_reference", null: false
+    t.uuid "attempt_id", null: false
+    t.string "record_type", null: false
+    t.jsonb "previous_usage", default: [], null: false
+    t.jsonb "usage", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["receipt_reference"], name: "index_ai_usage_reconciliations_on_receipt_reference", unique: true
+    t.index ["record_type", "attempt_id"], name: "index_ai_usage_reconciliations_on_record_type_and_attempt_id", unique: true
   end
 
   create_table "avoided_interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -634,6 +662,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_010000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "ai_embedding_requests", "users", on_delete: :cascade
   add_foreign_key "ai_task_outcomes", "ai_tasks"
   add_foreign_key "ai_task_outcomes", "users"
   add_foreign_key "ai_tasks", "ai_tasks", column: "hourly_admission_task_id", on_delete: :nullify

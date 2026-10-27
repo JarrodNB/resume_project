@@ -101,7 +101,13 @@ All business logic, as service objects grouped by domain folder.
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
   per-user override columns apply only to general AI)
-- `ai_usage/summarize_monthly_ai_usage_service.rb` — this month's spend, budget, reset time
+- `ai_usage/summarize_monthly_ai_usage_service.rb` — combined monthly spend, summed allowances,
+  reset time and incomplete-attempt count, including background embedding receipts;
+  admission checks select `:general` or `:interview` scope
+- `ai_usage/embedding_accounting.rb` — commits each background embedding marker/receipt on
+  an independent connection so source/vector rollbacks cannot erase provider charges
+- `ai_usage/reconcile_receipt_service.rb` — operator-only verified receipt import with default
+  dry-run, owner scoping, idempotency and retained evidence; see `docs/architecture/ai-cost-accounting.md`
 - `resume_imports/start_resume_parsing_service.rb` — validates a PDF/DOCX upload (type from
   file bytes, 5 MB max) and the AI usage limits, stores it in S3, enqueues `parse_resume`
 - `resume_imports/import_parsed_resume_service.rb` — imports a reviewed `ParsedResume` into
@@ -146,7 +152,7 @@ All business logic, as service objects grouped by domain folder.
   Prepared sessions persist one preparation-task hourly admission before acknowledgment;
   `interviews/check_operation_allowance_service.rb` validates each bounded child's immutable
   root link. Interview monthly spend and in-flight checks include every spoken stage,
-  independently of general AI limits and the general public usage summary.
+  independently of general AI limits. The public usage summary combines both scopes' costs.
   `interviews/local_testing.rb` defines automatic development-only unmetered QA behavior:
   spend/start gates may be skipped, but cost records, general AI limits and resource caps remain.
 

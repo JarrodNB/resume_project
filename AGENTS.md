@@ -97,7 +97,8 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
  `CareerLibrary::SyncLibraryEmbeddingsJob` and `InterviewPrep::SyncQuestionEmbeddingJob`),
  because embeddings are derived data with no prompt and are too large to return over SQS. The
  AI service embeds search queries through Pydantic AI as usual. These independent Rails
- jobs are outside AI-task budgets/attempt reports and Logfire tracing; they still incur provider costs.
+ jobs retain separate durable embedding receipts included in per-user general/combined spend;
+ they create no AI-task hourly admission or concurrency slot and remain outside Logfire tracing.
 - Secrets come from environment variables; never commit them. Each service has its own
   `.env` (copied from its `.env.example`).
 

@@ -409,8 +409,9 @@ Spoken interviews have their own per-user limits: **$3/month**, **30 session sta
 `INTERVIEW_SESSIONS_PER_HOUR`, and `INTERVIEW_MAX_IN_FLIGHT_OPERATIONS`. General AI usage and
 its per-user override columns do not consume or change these limits. Conversely, spoken
 interview preparation/turn/speech costs, hourly starts and in-flight tasks do not consume
-general AI allowances or appear in the general `me { aiUsage }` summary. Written interview
-question practice remains in the general bucket. No bills or unknown markers are removed.
+general AI allowances. The `me { aiUsage }` summary combines general AI and every spoken
+interview stage's known cost, with both monthly allowances summed for its budget. Written
+interview question practice remains in the general allowance. No bills or unknown markers are removed.
 
 Only hourly admission groups interview stages: interview monthly spend sums every spoken
 stage task, and interview concurrency counts every recently queued spoken task. A claim

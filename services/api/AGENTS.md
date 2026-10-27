@@ -105,7 +105,8 @@ without it the sync is skipped.
 
 Future successful nonblank interview answer saves enqueue `InterviewPrep::SyncQuestionEmbeddingJob`
 after commit. Vectors remain separate from the career library and AI reader grants. Rails embedding
-jobs incur provider costs outside queued-task budgets/attempt reports and Logfire tracing.
+jobs retain separate embedding receipts included in per-user general/combined spend, without
+queued-task hourly admissions or concurrency slots. They remain outside Logfire tracing.
 
 Resume tailoring mutations support start, save, section updates, and owned deletion.
 Deletion removes saved sections while keeping the job, library, and accepted task history.

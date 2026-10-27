@@ -10,6 +10,7 @@ Index:
 """
 
 import math
+import re
 from typing import NamedTuple
 
 from pydantic_ai.usage import RunUsage
@@ -23,14 +24,15 @@ class ModelPrice(NamedTuple):
     input: float
     cached_input: float
     output: float
+    cache_write: float | None = None
 
 
 # Standard (non-batch) rates from https://developers.openai.com/api/docs/pricing, checked
-# 2026-10-02. A model missing here fails the task loudly instead of being recorded as free.
+# 2026-10-02. Missing or unsupported pricing remains unknown rather than free.
 MODEL_PRICES: dict[str, ModelPrice] = {
     "openai:gpt-5-mini": ModelPrice(input=0.25, cached_input=0.025, output=2.00),
     # Standard rates from https://developers.openai.com/api/docs/pricing, checked 2026-10-18.
-    "openai:gpt-6-luna": ModelPrice(input=0.10, cached_input=0.01, output=0.50),
+    "openai:gpt-6-luna": ModelPrice(input=0.10, cached_input=0.01, output=0.50, cache_write=0.125),
     "openai:gpt-5": ModelPrice(input=1.25, cached_input=0.125, output=10.00),
     "openai:gpt-5-nano": ModelPrice(input=0.05, cached_input=0.005, output=0.40),
     # Embeddings bill input tokens only.
@@ -43,14 +45,26 @@ MODEL_PRICES: dict[str, ModelPrice] = {
     "typesafe:jev-latest": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
     "typesafe:jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
     "jev-1.13.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
+    # The current latest alias reports this version; rates checked 2026-10-27.
+    "typesafe:jev-1.14.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
+    "jev-1.14.0": ModelPrice(input=0.042, cached_input=0.042, output=0.0),
 }
 
 
 def reported_model_name(response_model_name: str, configured_model: str) -> str:
-    """Bills the version the API named when that name has a price; otherwise the setting."""
+    """Normalize provider names and dated snapshots without disguising an unknown model."""
+    if not response_model_name:
+        return configured_model
     if response_model_name in MODEL_PRICES:
         return response_model_name
-    return configured_model
+    provider = configured_model.split(":", 1)[0] if ":" in configured_model else ""
+    name = response_model_name
+    if ":" not in name and provider:
+        name = f"{provider}:{name}"
+    if name in MODEL_PRICES:
+        return name
+    snapshot_base = re.sub(r"-\d{4}-\d{2}-\d{2}$", "", name)
+    return snapshot_base if snapshot_base in MODEL_PRICES else name
 
 
 def estimate_cost_microdollars(model: str, usage: RunUsage) -> int:
@@ -58,22 +72,37 @@ def estimate_cost_microdollars(model: str, usage: RunUsage) -> int:
     without a price."""
     price = MODEL_PRICES[model]
     cached_input_tokens = usage.cache_read_tokens
-    uncached_input_tokens = max(usage.input_tokens - cached_input_tokens, 0)
+    writes = usage.cache_write_tokens
+    if min(usage.input_tokens, cached_input_tokens, writes, usage.output_tokens) < 0 or (
+        cached_input_tokens + writes > usage.input_tokens
+    ):
+        raise ValueError("Invalid provider token counts")
+    if writes and price.cache_write is None:
+        raise ValueError("Cache-write price is unknown")
+    if model == "openai:gpt-6-luna" and usage.input_tokens > 272_000:
+        raise ValueError("Long-context pricing is unsupported")
+    uncached_input_tokens = usage.input_tokens - cached_input_tokens - writes
     # USD per 1M tokens times tokens is exactly micro-dollars.
     cost = (
         uncached_input_tokens * price.input
         + cached_input_tokens * price.cached_input
         + usage.output_tokens * price.output
+        + writes * (price.cache_write or 0)
     )
     return math.ceil(cost)
 
 
 def build_model_usage(model: str, usage: RunUsage) -> ModelUsage:
-    """Converts one agent run's usage into the token counts and cost sent to Rails."""
+    """Retains usage when pricing is unavailable, without failing otherwise valid work."""
+    try:
+        cost = estimate_cost_microdollars(model, usage)
+    except (KeyError, ValueError):
+        cost = None
     return ModelUsage(
         model=model,
         input_tokens=usage.input_tokens,
         cached_input_tokens=usage.cache_read_tokens,
+        cache_write_tokens=usage.cache_write_tokens,
         output_tokens=usage.output_tokens,
-        cost_microdollars=estimate_cost_microdollars(model, usage),
+        cost_microdollars=cost,
     )

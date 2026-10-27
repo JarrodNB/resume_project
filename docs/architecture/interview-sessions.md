@@ -597,6 +597,15 @@ identity and reload when connection delivery is uncertain.
 
 The React entrypoint is `/practice/interviews` (and `/practice/interviews/:id` for reloads); old
 `/interviews` links redirect there.
+Setup there has two steps. Step 1 asks who the interview is for: a practice role (fictional,
+built from the career library; the default) or any saved job that is not rejected. A job
+continues to that job's Interview tab; the practice role shows round setup on the same page,
+with a "Change role" button back to step 1. "Practice again" (navigation state
+`practiceSetup`) starts at round setup. While a session is active and loaded, the page turns
+on the workspace's focus mode: navigation is replaced by a slim bar whose "Leave interview
+room" link returns to `/practice/interviews`. Only the surrounding chrome changes, so the
+interview page and any recording are not remounted. Leaving does not end the session; the
+usual unsaved-recording warning still applies.
 The normal Compose stack starts the real runtime with credentials from the ignored
 `services/ai/.env` and a shared private service secret from the ignored root `.env`.
 Written practice lives at `/practice/questions`.

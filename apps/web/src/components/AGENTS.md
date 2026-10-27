@@ -8,7 +8,12 @@ Shared UI used by more than one feature.
 
 - `AppLayout.tsx` — signed-in layout: fixed desktop sidebar with the three sections and the
   account menu; a top bar with the current section's tabs and the task bell; and the routed page.
-  Below 900px the sidebar becomes a sticky header and the tab row scrolls sideways
+  Below 900px the sidebar becomes a sticky header and the tab row scrolls sideways. It also holds
+  the focus-mode flag: while on, the sidebar and top bar give way to a slim bar with "Leave
+  interview room". Only the chrome swaps; `<main>` and the routed page keep their place in the
+  tree, so a live interview (and its recording) is never remounted
+- `focusModeContext.ts` / `useFocusMode.ts` — let a page turn focus mode on while some condition
+  is true (`useFocusMode(active)`); it turns off again when the page unmounts
 - `workspaceSections.ts` — the sections (Home, Jobs, Library, Practice) and their tabs; a
   one-page section shows its name instead of tabs. A page selects
   the tab whose path is its longest prefix (`/jobs/42/resume` → Saved jobs). Find jobs is shared

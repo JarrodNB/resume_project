@@ -240,6 +240,26 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .page-heading p { margin-top: 10px; max-width: 65ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
 .page-heading-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .library-sections { display: grid; gap: 12px; min-width: 0; }
+/* Focus mode: during a live interview the spine and tabs give way to one slim bar. */
+.workspace.is-focused .workspace-body { margin-left: 0; }
+.workspace.is-focused .workspace-content { max-width: 1180px; padding-top: 32px; }
+.workspace.is-focused .page-heading { padding-bottom: 16px; }
+.workspace.is-focused .page-heading p { display: none; }
+.focus-bar { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 56px; padding: 0 44px; border-bottom: 1px solid var(--border); background: var(--background); }
+.focus-bar-exit { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--muted-foreground); font-size: 14px; font-weight: 500; transition: color 160ms; }
+.focus-bar-exit svg { width: 16px; height: 16px; }
+.focus-bar-exit:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
+.focus-bar-brand { color: var(--muted-foreground); font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+@media (hover: hover) and (pointer: fine) {
+  .focus-bar-exit:hover { color: var(--foreground); }
+}
+@media (max-width: 899px) {
+  .focus-bar { padding: 0 24px; }
+}
+@media (max-width: 599px) {
+  .focus-bar { padding: 0 16px; }
+}
+
 /* Home: stage board or list of saved jobs, each with one suggested next step. */
 .home-page { display: grid; gap: 28px; min-width: 0; }
 .home-running { display: grid; gap: 10px; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }

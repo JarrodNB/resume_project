@@ -93,6 +93,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.rerank_job_listings?
+        result = JobBoard::ValidateRerankingResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+      end
       if ai_task.generate_study_guide?
         result = StudyGuides::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }

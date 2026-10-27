@@ -3,7 +3,7 @@
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
-      "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
+      "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
       "review_interview_answer" => "Answer feedback", "review_library_section" => "Library review",
@@ -27,6 +27,8 @@ module AiTasks
 
     def destination
       case @outcome.task_type
+      when "rerank_job_listings"
+        "/job-board"
       when "parse_resume"
         "/import/#{@task.id}"
       when "scrape_job", "parse_job_posting"

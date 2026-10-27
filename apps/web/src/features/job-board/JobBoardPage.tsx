@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
+import { useJobBoardReranking } from './useJobBoardReranking'
 import './jobBoard.css'
 
 const experienceLevelOptions: { value: JobBoardExperienceLevel; label: string }[] = [
@@ -32,6 +33,8 @@ export function JobBoardPage() {
   const [experienceLevels, setExperienceLevels] = useState<JobBoardExperienceLevel[]>([])
   const keywordInput = useRef<HTMLInputElement>(null)
   const board = useJobBoardSearch()
+  const [rerankingEnabled, setRerankingEnabled] = useState(false)
+  const reranking = useJobBoardReranking(rerankingEnabled, submittedSearch.keyword, board.listings, board.resultVersion)
   const importer = useImportJobBoardListing()
   const navigate = useNavigate()
 
@@ -75,6 +78,12 @@ export function JobBoardPage() {
             </Label>)}
           </div>
         </fieldset>
+        <div className="board-reranking-options">
+          <Label className="board-remote" data-checked={rerankingEnabled}>
+            <Checkbox aria-describedby="board-reranking-help" checked={rerankingEnabled} onCheckedChange={(checked) => setRerankingEnabled(checked === true)} />Rerank using my career library
+          </Label>
+          <p id="board-reranking-help">Combines your search terms with related career experience. Applies to loaded roles.</p>
+        </div>
       </form>
 
       {!board.hasSearched && <div className="board-introduction">
@@ -97,10 +106,19 @@ export function JobBoardPage() {
         <ErrorAlert title="Couldn't load jobs" messages={board.errors} />
         <Button variant="outline" className="justify-self-start" onClick={() => board.retry()} disabled={board.loading}>Try again</Button>
       </div>}
+      {reranking.busy && <p role="status" className="board-ranking-status">Reranking loaded roles… Showing provider order while we work.</p>}
+      {reranking.ranked && <p role="status" className="board-ranking-status">Loaded roles ranked using your career library.</p>}
+      {reranking.limitReached && <p role="status" className="board-ranking-status">Reranking supports up to 100 loaded roles. Narrow your search to rerank these results. Showing provider order.</p>}
+      {reranking.subscriptionError && <p role="status" className="board-ranking-status">{reranking.subscriptionError}</p>}
+      {reranking.error && <div className="grid gap-3">
+        <ErrorAlert title="Couldn't rerank jobs" messages={[reranking.error]} />
+        <p className="board-ranking-status">Showing provider order.</p>
+        <Button type="button" variant="outline" className="justify-self-start" onClick={reranking.retry}>Retry reranking</Button>
+      </div>}
       <ErrorAlert title="Couldn't create this job" messages={importer.errors} />
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><Search size={26} strokeWidth={1.4} aria-hidden /><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {board.listings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {board.listings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
+        {reranking.listings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {board.nextCursor && <Button variant="outline" disabled={board.loading} onClick={board.loadMore}>Load more</Button>}

@@ -50,6 +50,7 @@ module Types
 
     field :update_profile, mutation: Mutations::Users::UpdateProfile
 
+    field :rerank_job_board_listings, mutation: Mutations::JobBoard::RerankJobBoardListings
     field :import_job_board_listing, mutation: Mutations::JobBoard::ImportListing
 
     field :generate_study_guide, mutation: Mutations::StudyGuides::GenerateStudyGuide

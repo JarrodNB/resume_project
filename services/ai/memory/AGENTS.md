@@ -27,3 +27,7 @@ compared with the career library embeddings Rails stores in `library_embeddings`
   rows in cosine order; `hybrid_order` fuses that with BM25. The user and model filters stay in
   SQL, before either rank.
 - Tests use `TestEmbeddingModel`; `ALLOW_MODEL_REQUESTS = False` also blocks real embedding calls.
+
+- `rerank_job_listings.py` — equal RRF (k=60) fuses career-library similarity order with
+  BM25 over the submitted search keyword and listing excerpts. Returns only candidate IDs,
+  keeping semantic/provider order on ties; no fit percentage or qualification inference.

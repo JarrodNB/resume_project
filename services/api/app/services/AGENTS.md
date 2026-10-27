@@ -36,6 +36,10 @@ All business logic, as service objects grouped by domain folder.
   sorted listing upserts prevent overlap deadlocks. Failed refreshes preserve old pages.
   Catalogue payloads contain only the provider client's normalized fields; JSON avoids
   duplicating its optional field schema, and UUIDs remain separate from provider IDs.
+- `job_board/start_reranking_service.rb` — optional owner-scoped AI task for 1–100 shared listing IDs;
+  snapshots bounded plain-text excerpts and the submitted keyword. Existing matching queued work
+  is reused; normal AI allowance checks apply. `validate_reranking_result_service.rb` accepts only
+  exact permutations of the frozen candidate IDs.
 - `job_board/saved_job_lookup.rb` — read-only owner-scoped source/URL matching shared by search and import.
 - `job_board/import_listing_service.rb` — copies a shared listing into an owned Job under
   the user's row lock. Returns `{ job:, warnings: }`; repeat listing IDs or application URLs

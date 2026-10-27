@@ -57,3 +57,6 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - General generation uses `introduction`, `collaboration`, `problem_solving`, `learning_adaptation`, and `initiative_judgment`. Standard behavioral invitations need background relevance, not evidence that an invited event occurred; specific personal assertions still need evidence. Rails additionally accepts complete legacy general outputs during rolling deployment.
 
 - `interview_feedback.py` — strengths, improvements, scope-aware example descriptions, evidence quotes, and trusted source context; results use `interview_feedback`. Knowledge examples may correct subject facts without personal-fact placeholders; all scopes forbid invented personal experience.
+
+- `job_listing_reranking.py` — bounded Rails-owned snapshots (keyword and 1–100 unique
+  listing excerpts, max6000 bytes each/max200000 serialized UTF8 bytes) and ordered IDs.

@@ -1,17 +1,15 @@
 """
-Description: Deterministic interview structure checks and synthetic evaluation inputs.
-Index:
-    - QuestionEvalInput / FeedbackEvalInput: synthetic agent inputs
-    - FeedbackEvalLabels: trusted expectations separate from agent input
-    - QuestionStructure / FeedbackStructure: deterministic scores
-    - question_context / feedback_context: production-shaped prompts
+Check interview output structure against synthetic evaluation inputs.
+
+Question cases use the production context builder so prompt text and citation evidence
+stay aligned. Evaluation labels remain separate from model-facing inputs.
 """
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
-from model_inputs.interview import format_feedback_prompt, format_interview_question_input
+from model_inputs.interview import build_interview_question_context, format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.gap_analysis_context import CareerLibrary, LibraryFact
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
@@ -54,10 +52,9 @@ class FeedbackEvalLabels(BaseModel):
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
     library = CareerLibrary(summary=case.library, facts=case.facts)
-    text, evidence_by_id = format_interview_question_input(library, case.excluded, case.count, case.set_type,
-                                                         recent_questions=case.recent_questions)
-    return InterviewQuestionContext(text, interview_career_evidence(library)[1], case.count,
-                                    tuple(case.excluded), case.set_type, evidence_by_id)
+    return build_interview_question_context(
+        library, case.excluded, case.count, case.set_type, recent_questions=case.recent_questions,
+    )
 
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:

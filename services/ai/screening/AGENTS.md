@@ -55,6 +55,9 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 
 - `library_inputs.py` — cohesive optional library entry selection and reconstruction from
   checked source values for interviews, reusing saved field checks through `library_fields.py`.
+- `interview_question_inputs.py` — reconstructs the checked library and generated history
+  inside exact prompt binding, returning the same complete question context used by evals.
+  Source approval and generated-text provenance remain the caller's responsibility.
 - `library_fields.py` — reuse database field approvals and report new successful checks over
   final task results. Callers choose used fields and keep complete-source limits. Metadata
   stays outside prompt serialization; only Rails persists approvals and clears edited fields.

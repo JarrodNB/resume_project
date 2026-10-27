@@ -15,7 +15,11 @@ and queue messages remain the canonical data; rendering does not change or appro
 Keep one renderer per workflow input, as functions unless it needs state. Shared helpers
 should handle mechanics only; they must not silently choose fields for multiple
 workflows. `interview.py` assembles question and feedback inputs from the shared career
-evidence projection in `model_inputs/interview_evidence.py`. `tailoring.py` renders a cohesive section input assembled from values selected by
+evidence projection in `model_inputs/interview_evidence.py`. Its question builder returns
+prompt text, evidence IDs, and quote coverage together for both workers and offline evals.
+`screening/interview_question_inputs.py` reconstructs that context from checked sources
+inside exact prompt binding; the worker verifies generated history provenance first.
+`tailoring.py` renders a cohesive section input assembled from values selected by
 `tailoring/build_section_prompt.py`; that domain builder
 still owns source labels, provenance, screening, and expiry context. `safety.py` quotes
 fallback classifier input. `judge.py` renders rubrics and case data for evals.

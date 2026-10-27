@@ -1,7 +1,7 @@
 """
-Description: Interview generation dispatch, sparse context, validation, limits, and screening.
-Index:
-    - test_*: isolated worker behavior with fake readers and TestModel
+Exercise written question generation and replacement with offline model and reader fakes.
+
+Checks readable evidence, source screening, citation validation, limits, and usage.
 """
 import json
 from dataclasses import replace
@@ -16,6 +16,7 @@ from pydantic_ai.models.test import TestModel
 
 import text_limits
 from agents.interview_questions_agent import interview_questions_agent
+from model_inputs.interview import build_interview_question_context
 from schemas.gap_analysis_context import (
     CareerLibrary,
     LibraryCertification,
@@ -374,9 +375,9 @@ def test_question_boundary_retries_marker_found_in_source(monkeypatch, history):
     candidates = iter(["deadbeefcafe", "0123456789ab"])
     monkeypatch.setattr(interview_evidence, "sha256",
                         lambda *_: SimpleNamespace(hexdigest=lambda: next(candidates)))
-    prompt = interview_questions_handler.format_interview_question_prompt(
+    prompt = build_interview_question_context(
         CareerLibrary(summary="Python" if history else "--deadbeef"), [], 5, "general",
-        recent_questions=["A question with --deadbeef inside?"] if history else [])
+        recent_questions=["A question with --deadbeef inside?"] if history else []).text
     assert "--01234567" in prompt
     assert prompt.endswith("--01234567")
 
@@ -385,15 +386,15 @@ def test_sparse_question_prompt_stays_below_old_json_size():
     """Readable labels should not cost more than the sparse serialized payload they replace."""
     library = CareerLibrary(summary="Synthetic: retail assistant who helped customers and restocked shelves.")
     excluded = ["Tell me about your retail background?", "How did you help customers?"]
-    prompt = interview_questions_handler.format_interview_question_prompt(library, excluded, 1, "general")
+    prompt = build_interview_question_context(library, excluded, 1, "general").text
     assert len(prompt) < 340
 
 
 def test_same_question_sources_produce_same_prompt():
     """A repeat eval or retry receives the same source framing."""
     library = CareerLibrary(summary="Python")
-    first = interview_questions_handler.format_interview_question_prompt(library, [], 5, "general")
-    second = interview_questions_handler.format_interview_question_prompt(library, [], 5, "general")
+    first = build_interview_question_context(library, [], 5, "general").text
+    second = build_interview_question_context(library, [], 5, "general").text
     assert first == second
 
 
@@ -444,7 +445,7 @@ def test_question_prompt_retains_relevant_career_context():
             credential_id="verified-123", credential_url="https://credentials.example/verified-123")],
         skills=[LibrarySkill(id="s", name="AWS", category="Cloud security")],
     )
-    prompt = interview_questions_handler.format_interview_question_prompt(library, [], 5, "technical")
+    prompt = build_interview_question_context(library, [], 5, "technical").text
     for detail in ("Manila", "2022", "2024", "2023", "2020", "Issued: 2021", "Expires: 2027",
                    "verified-123", "https://credentials.example/verified-123", "AWS", "Cloud security"):
         assert detail in prompt

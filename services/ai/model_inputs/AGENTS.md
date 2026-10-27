@@ -7,8 +7,9 @@ screened by callers. See `README.md` for the boundary and existing domain builde
 
 ## Contents
 
-- `interview.py` — complete question and feedback inputs; question evidence uses temporary IDs
-  resolved through `interview_evidence.py`, including the delimiter test seam.
+- `interview.py` — complete question context shared by workers and evals, plus feedback
+  framing. Question text, citation IDs, and quote coverage come from one evidence projection
+  in `interview_evidence.py`, including the delimiter test seam.
 - `tailoring.py` — cohesive section input and final text from approved values and stable source labels.
 - `safety.py` — quoted user text for the outage fallback classifier.
 - `judge.py` — readable rubric, case input, and output for the interview eval judge.

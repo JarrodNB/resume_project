@@ -4,6 +4,35 @@ Run commands from the checkout being changed. All application tools run in Docke
 Choose checks for the behavior you touched; documentation-only edits need link and diff
 checks, not the full application suite.
 
+## Reusable development accounts
+
+Create the browser QA accounts in the local development database:
+
+```bash
+docker compose exec -T api bin/rails db:seed
+```
+
+Sign in at [the local app](http://localhost:5173/sign-in):
+
+| Name | Email | Initial password |
+| --- | --- | --- |
+| QA Primary | `qa.primary@example.test` | `local cedar lantern harbor 2026` |
+| QA Secondary | `qa.secondary@example.test` | `local cedar lantern harbor 2026` |
+
+These are public, synthetic fixture credentials for development only. Both accounts
+start confirmed with empty career libraries; no verification email or paid AI call
+is needed to create them. Use Primary for normal browser checks and Secondary to
+check that private data stays within its account. Use separate browser profiles
+for simultaneous sessions, since tabs in one profile share the session cookie.
+Use synthetic career and job information when adding data.
+
+`db:seed` only creates missing accounts in `RAILS_ENV=development`; it does nothing
+in test or production. Rerunning it preserves existing passwords, confirmation
+state, and saved work. If a password test changes a QA password, restore the initial
+password through Account security afterward. If the password is unknown, request
+a reset and open [the local email inbox](http://localhost:3000/letter_opener).
+Automated specs continue to use isolated FactoryBot users rather than these accounts.
+
 ## Focused checks
 
 | Change | Command |

@@ -11,7 +11,7 @@ Database migrations and the generated schema.
 - `migrate/` — ordered migrations; explain non-obvious data changes
 - `schema.rb` — generated; never edit by hand
 - `cache_schema.rb`, `queue_schema.rb`, `cable_schema.rb` — generated Solid* schemas (production only)
-- `seeds.rb` — seed data (empty)
+- `seeds.rb` — development-only confirmed QA accounts; credentials and usage in `docs/testing.md`
 
 ## Local Rules
 

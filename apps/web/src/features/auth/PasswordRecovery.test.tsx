@@ -1,5 +1,5 @@
 /** Exercises password recovery and change through real auth state and router transitions. */
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createMemoryRouter } from 'react-router'
 import { RouterProvider } from 'react-router/dom'
@@ -88,15 +88,17 @@ it('shows current-password and policy errors, blocks duplicate submits and allow
   await user.dblClick(screen.getByRole('button', { name: 'Change password' }))
   expect(fetcher).toHaveBeenCalledTimes(2)
   expect(screen.getByRole('button', { name: 'Saving…' })).toBeDisabled()
+  // The workspace also has an empty AI-task alert region; target the password form's errors.
+  const passwordSection = within(screen.getByRole('region', { name: 'Change your password' }))
   complete(new Response(JSON.stringify({ errors: ['Too many requests. Try again later.'] }), { status: 429 }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Too many requests')
+  expect(await passwordSection.findByRole('alert')).toHaveTextContent('Too many requests')
   await user.click(screen.getByRole('button', { name: 'Change password' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Could not reach the server')
+  expect(await passwordSection.findByRole('alert')).toHaveTextContent('Could not reach the server')
   await user.click(screen.getByRole('button', { name: 'Change password' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Current password is invalid')
+  expect(await passwordSection.findByRole('alert')).toHaveTextContent('Current password is invalid')
   expect(screen.getByLabelText('Current password')).toHaveAttribute('aria-invalid', 'true')
   expect(screen.getByLabelText('Confirm new password')).toHaveAttribute('aria-invalid', 'true')
-  expect(screen.getByRole('alert').parentElement).toHaveFocus()
+  expect(passwordSection.getByRole('alert').parentElement).toHaveFocus()
   expect(screen.getByLabelText('New password')).toHaveAttribute('autocomplete', 'new-password')
   expect(screen.getByLabelText('New password')).not.toHaveAttribute('maxlength')
 })

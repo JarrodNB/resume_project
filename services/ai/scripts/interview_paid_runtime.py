@@ -7,7 +7,7 @@ import os
 
 import uvicorn
 
-from interviews import real_app
+import app as http_app
 from interviews.runtime import RecoveryRuntime
 
 
@@ -28,8 +28,8 @@ class StopAfterFailureRuntime(RecoveryRuntime):
 def main():
     if os.getenv("INTERVIEW_PAID_VERIFICATION") != "true":
         raise RuntimeError("Explicit paid verification opt-in required")
-    real_app.RecoveryRuntime = StopAfterFailureRuntime
-    uvicorn.run(real_app.app, host="0.0.0.0", port=8000)
+    http_app.RecoveryRuntime = StopAfterFailureRuntime
+    uvicorn.run(http_app.app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

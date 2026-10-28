@@ -20,7 +20,7 @@ it('speaks the exact saved text and releases recording when speech ends', () => 
   expect(changed).toHaveBeenLastCalledWith(true, 'q')
   act(() => utterance.onend())
   expect(changed).toHaveBeenLastCalledWith(false, 'q')
-  expect(screen.getByRole('button', { name: 'Replay interviewer audio' })).toBeEnabled()
+  expect(screen.queryByRole('button', { name: /interviewer audio/ })).not.toBeInTheDocument()
 })
 it('stops on mute, recording, another speaker and unmount without accepting stale callbacks', () => {
   const changed = vi.fn()
@@ -205,7 +205,7 @@ it('uses the English fallback if voice discovery throws', async () => {
     await act(async () => vi.advanceTimersByTimeAsync(300))
     expect(speak.mock.calls[0][0].lang).toBe('en-US')
     act(() => speak.mock.calls[0][0].onend())
-    expect(screen.getByRole('button', { name: 'Replay interviewer audio' })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /interviewer audio/ })).not.toBeInTheDocument()
   } finally { vi.useRealTimers() }
 })
 
@@ -221,14 +221,11 @@ it('cancels remaining sentences when microphone capture starts', () => {
   expect(screen.getByRole('button', { name: 'Play interviewer audio' })).toBeDisabled()
 })
 
-it('uses one playback control for play, stop and replay after the turn ends', () => {
+it('uses one playback control to play and stop, then hides it after the turn ends', () => {
   render(<BrowserInterviewSpeech messageId="q" text="One question." />)
   fireEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
   expect(screen.getAllByRole('button')).toHaveLength(1)
   expect(screen.getByRole('button', { name: 'Stop interviewer audio' })).toBeEnabled()
   act(() => speak.mock.calls[0][0].onend())
-  expect(screen.getAllByRole('button')).toHaveLength(1)
-  fireEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
-  expect(speak.mock.calls[1][0].text).toBe('One question.')
-  expect(screen.getByRole('button', { name: 'Stop interviewer audio' })).toBeEnabled()
+  expect(screen.queryByRole('button')).not.toBeInTheDocument()
 })

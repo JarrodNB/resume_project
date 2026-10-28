@@ -167,16 +167,16 @@ for (const view of ['Board', 'List']) {
       },
     ] })
     await screen.findByText('5 saved jobs')
-    await user.click(screen.getByRole('button', { name: view, exact: true }))
+    await user.click(screen.getByRole('button', { name: view }))
     await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('Your answers, resumes, and interview history are kept.')
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
-    expect(screen.getByRole('link', { name: 'Platform Engineer', exact: true })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Platform Engineer' })).toBeVisible()
     await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive', exact: true }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
     expect(await screen.findByText('4 saved jobs')).toBeVisible()
-    expect(screen.queryByRole('link', { name: 'Platform Engineer', exact: true })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Data Analyst', exact: true })).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Platform Engineer' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Data Analyst' })).toBeVisible()
   })
 }
 
@@ -191,9 +191,9 @@ it('keeps a Home tile visible when archiving fails', async () => {
     },
   ] })
   await user.click(await screen.findByRole('button', { name: 'Archive Platform Engineer' }))
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive', exact: true }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
   expect(await screen.findByText('Archive unavailable')).toBeVisible()
   await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
   expect(screen.getByText('5 saved jobs')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Platform Engineer', exact: true })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Platform Engineer' })).toBeInTheDocument()
 })

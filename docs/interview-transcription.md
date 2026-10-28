@@ -20,6 +20,16 @@ untrusted candidate input and goes through the same newest-answer screening and 
 turn acceptance as a transcribed recording. Failed recognition does not create a second
 turn. Microphone denial cannot fall back without captured audio.
 
+## Microphone capture
+
+Answer capture requests mono audio with echo cancellation, noise suppression, and
+automatic gain control as preferred constraints. Browsers negotiate these preferences
+with the device; unsupported preferences do not prevent recording. MediaRecorder
+targets 128 kbps to avoid relying on browser encoding defaults. The same captured
+stream feeds streaming transcription and the complete recording. Browser speech
+recognition manages its own microphone input, so these settings do not control it.
+Real-device listening checks are still needed to assess noise, distortion, and volume.
+
 ## Microphone timing
 
 The interview lives at `/practice/interviews` (the Mock interview tab); older `/interviews` links redirect there.

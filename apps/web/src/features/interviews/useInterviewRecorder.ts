@@ -1,6 +1,7 @@
 /** Capture one complete recording for explicit answer submission, with optional live recognition.
  * Recording and recognition finish independently; review waits for both. Tracks are released
  * on every exit, including a permission prompt that resolves after the page has gone away.
+ * Speech processing and mono capture are preferences; the browser negotiates device support.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { startBrowserTranscription, type TranscriptionCallbacks, type TranscriptionCapture, type TranscriptionMode } from './transcriptionCapture'
@@ -59,9 +60,14 @@ export function useInterviewRecorder({ mode = 'recorded', startStreaming }: { mo
       }
       const format = FORMATS.find((type) => MediaRecorder.isTypeSupported(type))
       if (!format) throw new Error('This browser has no supported recording format.')
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: {
+        channelCount: { ideal: 1 },
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+      } })
       if (generation.current !== request) { release(stream); return }
-      const recorder = new MediaRecorder(stream, { mimeType: format })
+      const recorder = new MediaRecorder(stream, { mimeType: format, audioBitsPerSecond: 128_000 })
       const current: Capture = { recorder, stream, chunks: [], bytes: 0, discard: false }
       capture.current = current
       const fail = (message: string) => {

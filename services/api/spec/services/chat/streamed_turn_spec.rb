@@ -166,4 +166,15 @@ RSpec.describe "Chat streamed turns" do
     expect(operation.ai_task.reload).to be_failed
   end
 
+  it "rejects oversized canonical context before creating a provider attempt or unbounded claim response" do
+    text = "🙂" * 60001
+    chat.messages.create!(role: "user", position: 1, content: text, screened_sha256: Digest::SHA256.hexdigest(text))
+    chat.messages.create!(role: "assistant", position: 2, content: text)
+    operation = start
+    result = Chat::ClaimOperationService.call(operation: operation)
+    expect(result).not_to be_success
+    expect(operation.reload.failure_code).to eq("context_limit")
+    expect(operation.execution_attempts).to be_empty
+  end
+
 end

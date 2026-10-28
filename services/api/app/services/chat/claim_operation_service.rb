@@ -25,6 +25,10 @@ module Chat
           fail_execution("ai_usage_limit_reached", retryable: false)
           next allowance
         end
+        if conversation.messages.sum("char_length(content)") + @operation.message.length > 120_000
+          fail_execution("context_limit", retryable: false)
+          next failure("Chat context exceeds the safe input limit")
+        end
         history = conversation.messages.reorder(:position).to_a
         unless history.all? { |message| message.assistant? || message.screened_sha256 == Digest::SHA256.hexdigest(message.content) }
           fail_execution("screening_unavailable", retryable: false)

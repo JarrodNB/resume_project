@@ -25,6 +25,7 @@ import { ImportSummaryNotice } from './ImportSummaryNotice'
 import { ProfileSection } from './ProfileSection'
 import { ProjectSection } from './ProjectSection'
 import { SkillsSection } from './SkillsSection'
+import { libraryHasContent } from './libraryHasContent'
 import { useCareerLibrary } from './useCareerLibrary'
 import { useLibraryDragHandlers } from './useLibraryDragHandlers'
 import { useLibraryReordering } from './useLibraryReordering'
@@ -44,6 +45,14 @@ export function CareerLibraryPage() {
       {error && <ErrorAlert title="Couldn't load your library" messages={[requestErrorMessage(error, error.message)]} />}
       <ErrorAlert title="Couldn't save that change" messages={reordering.errors} />
       {!library && loading && <p className="text-muted-foreground">Loading…</p>}
+      {library && !libraryHasContent(library) && (
+        <div className="empty-records">
+          <FileUp size={30} strokeWidth={1.4} aria-hidden />
+          <h2>Start with your resume</h2>
+          <p>Import a PDF or Word resume and review what it finds before anything is saved, or add your roles and skills by hand below. Jobs are compared against this library, so the more real detail it holds, the better the comparisons.</p>
+          <Button asChild><Link to="/library/import">Import a resume</Link></Button>
+        </div>
+      )}
       {library && (
         <LibraryWorkspace library={library} movingHighlight={reordering.movingHighlight}>
         <div className="library-workspace-layout">

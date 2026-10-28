@@ -1,4 +1,4 @@
-# Exercises audio deletion retries and dialogue expiry while keeping billing records.
+# Exercises audio deletion retries and dialogue expiry while keeping billing records and independent career context copies.
 require "rails_helper"
 
 RSpec.describe Interviews::CleanupService do
@@ -120,5 +120,22 @@ RSpec.describe Interviews::CleanupService do
     expect(task.ai_usage_attempts.count).to eq(1)
     expect(operation.execution_attempts.count).to eq(1)
     expect(described_class.call(storage: storage).value[:purged_sessions]).to eq(0)
+  end
+
+  it "preserves an independently saved answer in career context after its interview expires" do
+    question = interview.questions.first
+    original_question = question.content
+    answer = interview.messages.create!(question: question, kind: "answer", position: 1,
+      semantic_key: "saved-career-answer", content: "Migrated the release pipeline and reduced delays.")
+    saved = CareerContexts::CreateCareerContextService.call(user: interview.user,
+      attributes: { requirement: question.content, response: answer.content })
+    expect(saved).to be_success
+    context = saved.value
+    interview.update!(expires_at: 1.second.ago)
+
+    expect(described_class.call(storage: storage).value[:purged_sessions]).to eq(1)
+    expect(answer.reload.content).to eq("[expired]")
+    expect(context.reload).to have_attributes(user_id: interview.user_id, requirement: original_question,
+      response: "Migrated the release pipeline and reduced delays.")
   end
 end

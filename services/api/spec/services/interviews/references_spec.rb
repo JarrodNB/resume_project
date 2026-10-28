@@ -72,6 +72,30 @@ RSpec.describe "Interview question references" do
     expect(interview.messages.answer.count).to eq(0)
   end
 
+  it "leaves existing references unchanged after saving an answer and accepts its copy for a later prompt" do
+    existing = request_references
+    Interviews::CurrentPromptWork::References.new.claim(ai_task: existing.ai_task)
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => existing.ai_task_id,
+      "status" => "completed", "result" => { "references" => [] } })
+    answer = interview.messages.create!(question: prompt.question, kind: "answer", position: 1,
+      semantic_key: "copied-answer", content: "Migrated the release pipeline and reduced delays.")
+    context = CareerContexts::CreateCareerContextService.call(user: interview.user,
+      attributes: { requirement: prompt.content, response: answer.content }).value
+    expect(existing.reload.references).to eq([])
+    expect(existing.ai_task.reload).to be_completed
+
+    follow_up = interview.messages.create!(question: prompt.question, kind: "follow_up", position: 2,
+      semantic_key: "after-career-save", content: "How did the migration reduce delays?")
+    later = Interviews::CurrentPromptWork::References.new.request(interview: interview, message_id: follow_up.id).value
+    Interviews::CurrentPromptWork::References.new.claim(ai_task: later.ai_task)
+    entry = { "source_type" => "CareerContext", "source_id" => context.id,
+      "title" => "Saved career context", "body" => context.response }
+    expect(AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => later.ai_task_id,
+      "status" => "completed", "result" => { "references" => [ entry ] } })).to be_success
+    expect(later.reload.references).to eq([ entry ])
+    expect(existing.reload.references).to eq([])
+  end
+
   it "fences a stale result while retaining its usage" do
     references = request_references
     task = references.ai_task

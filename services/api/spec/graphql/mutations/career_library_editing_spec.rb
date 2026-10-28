@@ -168,6 +168,33 @@ RSpec.describe "Career library editing mutations" do
     )
   end
 
+  it "creates an owned context copy, queues embeddings, and rejects duplicate topics without overwriting" do
+    other = create(:career_context, requirement: "Describe an improvement.", response: "Another user's answer")
+    mutation = <<~GQL
+      mutation($attributes: CareerContextAttributesInput!) {
+        createCareerContext(input: { attributes: $attributes }) { careerContext { id requirement response } errors }
+      }
+    GQL
+    variables = { attributes: { requirement: "Describe an improvement.", response: "Reduced processing time." } }
+    created = nil
+    expect {
+      created = execute_graphql(mutation, user: user, variables: variables)
+    }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).with(user.id)
+    payload = created.dig("data", "createCareerContext")
+    expect(payload["errors"]).to eq([])
+    saved = user.career_contexts.find(payload.dig("careerContext", "id"))
+    expect(saved.response).to eq("Reduced processing time.")
+    expect(other.reload.response).to eq("Another user's answer")
+
+    expect {
+      duplicate = execute_graphql(mutation, user: user,
+        variables: { attributes: variables[:attributes].merge(response: "Replacement answer") })
+      expect(duplicate.dig("data", "createCareerContext", "errors")).to include("Requirement has already been taken")
+    }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+    expect(saved.reload.response).to eq("Reduced processing time.")
+    expect(user.career_contexts.count).to eq(1)
+  end
+
   it "cannot update another user's library context" do
     theirs = create(:career_context)
 

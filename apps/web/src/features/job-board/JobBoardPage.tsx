@@ -3,14 +3,15 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { ArrowRight, Search } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
-import { describeSearch } from './searchFilters'
+import { boardPageSize, describeSearch } from './searchFilters'
+import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
@@ -34,6 +35,19 @@ export function JobBoardPage() {
 
   const visibleListings = board.listings.filter((listing) => !hideSaved || !listing.savedJob)
   const hiddenCount = board.listings.length - visibleListings.length
+  // The wanted page belongs to one submitted search; a new search starts back at page 1.
+  const [pageChoice, setPageChoice] = useState<{ search: unknown; page: number }>({ search: null, page: 0 })
+  const totalPages = Math.max(1, Math.ceil(visibleListings.length / boardPageSize))
+  const wantedPage = pageChoice.search === submittedSearch ? pageChoice.page : 0
+  // Asking for the page after the last loaded one waits here until Load fetches it.
+  const page = Math.min(wantedPage, totalPages - 1)
+  const pageListings = visibleListings.slice(page * boardPageSize, (page + 1) * boardPageSize)
+
+  function goToPage(next: number) {
+    if (next > page && page >= totalPages - 1) board.loadMore()
+    setPageChoice({ search: submittedSearch, page: next })
+    document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
+  }
 
   return (
     <div className="job-board">
@@ -48,7 +62,6 @@ export function JobBoardPage() {
       </JobBoardSearchForm>
 
       {!submittedSearch && <div className="board-introduction">
-        <div className="board-introduction-icon"><Search size={27} strokeWidth={1.5} aria-hidden /></div>
         <h2>Find a role worth your next step.</h2>
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
         <div className="board-search-ideas" aria-label="Search ideas">
@@ -56,7 +69,7 @@ export function JobBoardPage() {
         </div>
       </div>}
 
-      {submittedSearch && <div className="board-results-heading">
+      {submittedSearch && <div id="job-board-results" className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
           {board.listings.length > 0 && <span className="board-results-count">{visibleListings.length} shown · {board.listings.length} loaded{hiddenCount > 0 && ` · ${hiddenCount} saved hidden`}</span>}</div>
@@ -68,7 +81,7 @@ export function JobBoardPage() {
         <ErrorAlert title="Couldn't load jobs" messages={board.errors} />
         <Button variant="outline" className="justify-self-start" onClick={() => board.retry()} disabled={board.loading}>Try again</Button>
       </div>}
-      {reranking.busy && <p role="status" className="board-ranking-status">Reranking loaded roles… Showing provider order while we work.</p>}
+      {reranking.busy && <p role="status" className="board-ranking-status"><span className="signal-dot is-ai" aria-hidden />Reranking loaded roles… Showing provider order while we work.</p>}
       {reranking.ranked && <p role="status" className="board-ranking-status">Loaded roles ranked using your career library.</p>}
       {reranking.limitReached && <p role="status" className="board-ranking-status">Reranking supports up to 100 loaded roles. Narrow your search to rerank these results. Showing provider order.</p>}
       {reranking.subscriptionError && <p role="status" className="board-ranking-status">{reranking.subscriptionError}</p>}
@@ -78,13 +91,13 @@ export function JobBoardPage() {
         <Button type="button" variant="outline" className="justify-self-start" onClick={reranking.retry}>Retry reranking</Button>
       </div>}
       <ErrorAlert title="Couldn't create this job" messages={importer.errors} />
-      {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><Search size={26} strokeWidth={1.4} aria-hidden /><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
-      {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Load more to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
+      {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
+      {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Go to the next page to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
       {visibleListings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {visibleListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
-        {board.nextCursor && <Button variant="outline" disabled={board.loading} onClick={board.loadMore}>Load more</Button>}
+        {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}
         <div className="board-retrieval">{board.pages.map((page, index) => <div key={page.cursor ?? 'first'} className="grid gap-2">
           <p>{index > 0 && `Page ${index + 1} · `}{page.stale && 'Showing older results · '}Retrieved <time dateTime={page.retrievedAt}>{new Date(page.retrievedAt).toLocaleString()}</time></p>
           {page.stale && <><ErrorAlert title="Couldn't refresh these results" messages={page.errors} /><Button variant="outline" className="justify-self-start" disabled={board.loading} onClick={() => board.retry(page.cursor)}>Retry results</Button></>}

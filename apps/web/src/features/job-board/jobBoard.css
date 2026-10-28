@@ -1,98 +1,119 @@
-/* Job board layout within the career folio workspace. Search stays prominent,
-   while ruled results and compact metadata support comparing roles on any screen. */
+/* Find jobs page in the Transit Line workspace. The search panel is an ink-ruled
+   form, results are ruled rows you can compare quickly, and the only color is
+   the blue "AI working" dot while reranking runs. */
 .job-board { max-width: 1040px; margin: 0 auto; min-width: 0; }
-.board-search { margin-top: 28px; padding: 24px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
-.board-search > label { margin-bottom: 12px; }
+.board-search { margin-top: 28px; padding: 24px; border: 1.5px solid var(--rule-strong); border-radius: 6px; background: var(--card); }
+.board-search > label { margin-bottom: 10px; font-size: 14px; font-weight: 700; }
 .board-search-field { display: flex; gap: 12px; }
 .board-keyword { position: relative; flex: 1; min-width: 0; }
-.board-keyword > svg { position: absolute; left: 14px; top: 15px; color: var(--muted-foreground); pointer-events: none; }
-.board-keyword input { height: 48px; padding-left: 42px; background: var(--background); font-size: 14px; caret-color: var(--primary); }
-.board-search-submit { min-height: 48px; padding-inline: 20px; }
-.board-search-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
-.board-remote { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 7px; cursor: pointer; transition: background-color 160ms, border-color 160ms; }
-.board-remote[data-checked=true] { background: var(--secondary); border-color: var(--primary); color: var(--secondary-foreground); }
-.board-region { display: inline-flex; align-items: center; gap: 7px; color: var(--muted-foreground); font-size: 12px; }
-.board-introduction { display: grid; justify-items: center; text-align: center; padding: 56px 20px 48px; }
-.board-introduction-icon { color: var(--primary); margin-bottom: 18px; }
-.board-introduction h2, .board-no-results h2 { font-size: 22px; font-weight: 500; line-height: 1.35; letter-spacing: -0.025em; }
-.board-introduction > p { max-width: 49ch; margin-top: 12px; font-size: 14px; line-height: 1.7; color: var(--muted-foreground); }
-.board-search-ideas { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; }
-.board-search-ideas button { gap: 10px; min-height: 36px; font-weight: 400; }
-.board-results-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 36px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-.board-results-title { font-size: 16px; font-weight: 600; }
-.board-results-query { margin-top: 5px; font-size: 13px; color: var(--muted-foreground); overflow-wrap: anywhere; }
-.board-results-count { flex-shrink: 0; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.board-keyword > svg { position: absolute; left: 14px; top: 15px; color: var(--foreground); pointer-events: none; }
+.board-keyword input { height: 48px; padding-left: 42px; border-width: 1.5px; border-color: var(--rule-strong); background: var(--background); font-size: 16px; caret-color: var(--foreground); }
+.board-search-submit { min-height: 48px; padding-inline: 22px; font-size: 15px; font-weight: 700; }
+.board-search-options { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+.board-region { display: inline-flex; align-items: center; gap: 7px; color: var(--muted-foreground); font-size: 13px; }
+
+/* Choice chips: checked ones fill with ink, so the active filters read at a glance. */
+.board-remote { min-height: 40px; padding: 8px 14px; border: 1.5px solid var(--input); border-radius: 4px; font-weight: 600; cursor: pointer; transition: background-color 160ms, border-color 160ms, color 160ms; }
+.board-remote[data-checked=true] { background: var(--rule-strong); border-color: var(--rule-strong); color: var(--background); }
+.board-remote:has(:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
+.board-remote[data-checked=true] button[role=checkbox] { border-color: var(--background); }
+
+.board-introduction { display: grid; justify-items: start; padding: 48px 0 40px; }
+.board-introduction h2, .board-no-results h2 { max-width: 24ch; font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
+.board-introduction > p { max-width: 52ch; margin-top: 12px; font-size: 16px; line-height: 1.55; color: var(--muted-foreground); }
+.board-search-ideas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.board-search-ideas button { gap: 10px; min-height: 40px; border-width: 1.5px; border-color: var(--rule-strong); font-weight: 600; }
+
+.board-results-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 32px; padding-bottom: 14px; border-bottom: 2px solid var(--rule-strong); }
+.board-results-title { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.board-results-query { margin-top: 4px; font-size: 14px; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.board-results-count { flex-shrink: 0; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+
 .board-listings { min-width: 0; }
-.board-listing { padding: 26px 0; border-bottom: 1px solid var(--border); }
+.board-listing { padding: 22px 0; border-bottom: 1px solid var(--border); }
 .board-listing-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
 .board-listing-identity { min-width: 0; flex: 1; }
-.board-listing-title { font-size: 19px; font-weight: 550; line-height: 1.4; letter-spacing: -0.02em; overflow-wrap: anywhere; }
-.board-listing-company { margin-top: 4px; font-size: 14px; color: var(--muted-foreground); overflow-wrap: anywhere; }
-.board-listing-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 12px; font-size: 12px; color: var(--muted-foreground); }
-.board-listing-meta > span { display: inline-flex; align-items: center; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
-.board-listing-meta .board-remote-tag { background: var(--secondary); color: var(--secondary-foreground); padding: 3px 8px; border-radius: 5px; }
-.board-listing-action { min-height: 38px; }
-.board-description-toggle { width: fit-content; min-height: 44px; margin-top: 12px; padding-right: 8px; color: var(--muted-foreground); font-size: 13px; }
-.board-description { max-width: 72ch; margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.8; }
-.board-description-missing { margin-top: 16px; color: var(--muted-foreground); font-size: 13px; }
-.board-results-footer { display: grid; justify-items: center; gap: 24px; padding-top: 24px; }
-.board-retrieval { width: 100%; display: grid; gap: 12px; color: var(--muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
-.board-no-results { display: grid; justify-items: center; gap: 12px; padding: 48px 16px; text-align: center; }
-.board-no-results > svg { color: var(--muted-foreground); }
+.board-listing-title { font-size: 20px; font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.board-listing-company { margin-top: 4px; font-size: 15px; font-weight: 600; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.board-listing-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin-top: 12px; font-size: 14px; color: var(--foreground); font-variant-numeric: tabular-nums; }
+.board-listing-meta > span { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
+.board-listing-meta svg { color: var(--muted-foreground); }
+.board-listing-meta .board-remote-tag { padding: 1px 8px; border: 1px solid var(--rule-strong); border-radius: 3px; font-size: 12px; font-weight: 600; }
+.board-listing-action { min-height: 40px; border-width: 1.5px; border-color: var(--rule-strong); font-weight: 700; }
+.board-listing[data-saved=true] .board-listing-action { background: var(--muted); }
+.board-description-toggle { width: fit-content; min-height: 44px; margin-top: 8px; padding-right: 8px; color: var(--muted-foreground); font-size: 14px; font-weight: 600; }
+.board-description { max-width: 72ch; margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.7; }
+.board-description-missing { margin-top: 14px; color: var(--muted-foreground); font-size: 14px; }
+
+.board-results-footer { display: grid; justify-items: start; gap: 24px; padding-top: 24px; }
+.board-pager { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.board-pager button { min-height: 44px; }
+.board-pager ol { display: flex; align-items: center; gap: 4px; }
+.board-pager ol button { min-width: 44px; padding: 0 8px; border: 1.5px solid transparent; border-radius: 4px; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; }
+.board-pager ol button[aria-current=page] { background: var(--rule-strong); border-color: var(--rule-strong); color: var(--background); }
+.board-pager ol button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.board-pager-gap { min-width: 20px; text-align: center; color: var(--muted-foreground); }
+.board-retrieval { width: 100%; display: grid; gap: 12px; color: var(--muted-foreground); font-size: 13px; font-variant-numeric: tabular-nums; }
+.board-no-results { display: grid; justify-items: start; gap: 12px; padding: 40px 0; }
 .board-no-results p, .board-loading { font-size: 14px; color: var(--muted-foreground); }
 .board-loading { padding-block: 18px; }
-.board-skeleton { padding: 24px 0; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
-.board-skeleton span { display: block; height: 14px; width: 34%; background: var(--muted); border-radius: 4px; }
+.board-skeleton { padding: 22px 0; border-bottom: 1px solid var(--border); display: grid; gap: 12px; }
+.board-skeleton span { display: block; height: 14px; width: 34%; background: var(--muted); border-radius: 3px; }
 .board-skeleton span:first-child { height: 22px; width: 56%; }
 .board-skeleton span:last-child { width: 24%; }
-.job-board ::selection { background: var(--secondary); color: var(--secondary-foreground); }
-@media (max-width: 599px) {
-  .board-search { margin-top: 24px; padding: 16px; }
-  .board-search-field { flex-direction: column; }
-  .board-search-submit { width: 100%; }
-  .board-keyword input, .board-filter-grid select { font-size: 16px; }
-  .board-search-options { flex-wrap: wrap; }
-  .board-introduction { padding: 40px 4px; }
-  .board-introduction h2, .board-no-results h2 { font-size: 20px; }
-  .board-search-ideas { gap: 8px; }
-  .board-listing-header { flex-direction: column; gap: 16px; }
-  .board-listing-action { width: 100%; }
-  .board-listing { padding-block: 22px; }
-  .board-results-heading { align-items: flex-start; }
-}
+.job-board ::selection { background: var(--rule-strong); color: var(--background); }
 
-.board-experience-levels { margin-top: 20px; min-width: 0; }
-.board-experience-levels legend { font-size: 14px; font-weight: 500; }
-.board-experience-levels > p { margin-top: 6px; font-size: 12px; color: var(--muted-foreground); }
+.board-experience-levels { margin-top: 24px; min-width: 0; }
+.board-experience-levels legend { font-size: 14px; font-weight: 700; }
+.board-experience-levels > p { margin-top: 4px; font-size: 13px; color: var(--muted-foreground); }
 .board-level-options { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .board-level-options .board-remote { min-height: 44px; }
 
-.board-reranking-options { display: grid; justify-items: start; gap: 8px; margin-top: 20px; }
-.board-reranking-options > p, .board-ranking-status { color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
+.board-reranking-options { display: grid; justify-items: start; gap: 8px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+.board-reranking-options > p { color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
 .board-reranking-options .board-remote { min-height: 44px; }
-.board-ranking-status { margin-top: 16px; }
+.board-ranking-status { display: flex; align-items: center; gap: 10px; margin-top: 16px; color: var(--foreground); font-size: 14px; line-height: 1.6; }
+
 /* Preferences follow the workspace controls and collapse to one column on mobile. */
-.board-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 20px; }
+.board-filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 24px; }
 .board-filter-grid > div { min-width: 0; }
-.board-filter-grid label { margin-bottom: 8px; }
+.board-filter-grid label { margin-bottom: 8px; font-weight: 700; }
 .board-filter-grid input, .board-filter-grid select { min-height: 44px; }
-.board-filter-grid select { width: 100%; min-width: 0; border: 1px solid var(--input); border-radius: var(--radius-lg); padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
+.board-filter-grid select { width: 100%; min-width: 0; border: 1.5px solid var(--input); border-radius: 4px; padding: 8px 10px; background: var(--background); color: var(--foreground); font: inherit; font-size: 14px; }
 .board-filter-grid select:focus-visible, .board-location-choices input:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .board-location-field { display: flex; gap: 8px; }
 .board-location-field input { min-width: 0; }
 .board-location-field button { min-height: 44px; flex-shrink: 0; }
-.board-filter-help { margin-top: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.board-filter-help { margin-top: 8px; color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
 .board-location-choices { margin-top: 12px; }
-.board-location-choices legend { font-size: 13px; font-weight: 500; }
-.board-location-choices label { display: flex; align-items: center; gap: 10px; padding: 10px 0; font-size: 13px; cursor: pointer; }
-.board-location-choices input { min-height: auto; accent-color: var(--primary); }
-.board-location-choices span { color: var(--muted-foreground); margin-left: auto; }
-.board-advanced { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border); }
-.board-advanced > button { min-height: 44px; font-size: 14px; }
+.board-location-choices legend { font-size: 13px; font-weight: 700; }
+.board-location-choices label { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 400; cursor: pointer; }
+.board-location-choices input { min-height: auto; accent-color: var(--rule-strong); }
+.board-location-choices span { color: var(--muted-foreground); margin-left: auto; font-size: 12px; }
+.board-advanced { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); }
+.board-advanced > button { min-height: 44px; font-size: 14px; font-weight: 700; }
 .board-undisclosed { margin-top: 12px; min-height: 44px; }
-.board-result-controls { display: grid; justify-items: end; gap: 8px; }
-.board-hide-saved { min-height: 44px; white-space: nowrap; }
+.board-result-controls { display: grid; justify-items: end; gap: 4px; }
+.board-hide-saved { min-height: 44px; white-space: nowrap; font-weight: 600; }
 .board-saved-empty { padding: 32px 0; color: var(--muted-foreground); font-size: 14px; line-height: 1.7; }
+
+/* Wide screens: date, remote and sort share a row; the location picker gets a wider row below. */
+@media (min-width: 900px) {
+  .board-search > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .board-search > .board-filter-grid > .board-location-picker { grid-column: span 2; order: 1; }
+}
+@media (max-width: 599px) {
+  .board-search { padding: 16px; }
+  .board-search-field { flex-direction: column; }
+  .board-search-submit { width: 100%; }
+  .board-filter-grid select { font-size: 16px; }
+  .board-search-options { flex-wrap: wrap; }
+  .board-introduction { padding: 36px 0; }
+  .board-introduction h2, .board-no-results h2 { font-size: 24px; }
+  .board-listing-header { flex-direction: column; gap: 16px; }
+  .board-listing-action { width: 100%; }
+  .board-results-heading { align-items: flex-start; }
+}
 @media (max-width: 699px) {
   .board-filter-grid { grid-template-columns: minmax(0, 1fr); }
   .board-results-heading { flex-wrap: wrap; }
@@ -100,6 +121,7 @@
 }
 /* Hover only for real pointers, so a tapped option does not look stuck on touch screens. */
 @media (hover: hover) and (pointer: fine) {
-  .board-remote:not([data-checked=true]):hover { background: var(--muted); }
+  .board-remote:not([data-checked=true]):hover { background: var(--muted); border-color: var(--rule-strong); }
+  .board-pager ol button:not([aria-current=page]):hover { background: var(--muted); border-color: var(--rule-strong); }
   .board-description-toggle:hover { color: var(--foreground); background: var(--muted); }
 }

@@ -20,7 +20,7 @@ Source of the web app, organized by feature.
   handles it, AI work in progress, and three starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
-- `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, results shown as numbered pages of 20 over the loaded roles ("Next page" on the last one fetches the next provider page), and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching
+- `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, a collapsible, remembered Filters panel (closed by default, with an active-filter count), plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, results shown as numbered pages of 20 over the loaded roles ("Next page" on the last one fetches the next provider page), and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   and the job workspace (`/jobs/:id`: header with stage, edit, and delete, plus Fit, Resume,
   Study, Interview, and Posting tabs)

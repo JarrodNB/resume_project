@@ -52,6 +52,13 @@ export function JobBoardPage() {
   return (
     <div className="job-board">
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
+      {!submittedSearch && <div className="board-introduction">
+        <h2>Find a role worth your next step.</h2>
+        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
+        <div className="board-search-ideas" aria-label="Search ideas">
+          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
+        </div>
+      </div>}
       <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
@@ -60,14 +67,6 @@ export function JobBoardPage() {
           <p id="board-reranking-help">Combines your search terms with related career experience. Applies to loaded roles.</p>
         </div>
       </JobBoardSearchForm>
-
-      {!submittedSearch && <div className="board-introduction">
-        <h2>Find a role worth your next step.</h2>
-        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
-        <div className="board-search-ideas" aria-label="Search ideas">
-          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
-        </div>
-      </div>}
 
       {submittedSearch && <div id="job-board-results" className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>

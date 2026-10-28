@@ -8,6 +8,7 @@ import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 import type { MockLink } from '@apollo/client/testing'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, JOB_BOARD_LOCATIONS_QUERY } from './jobBoardOperations'
 import { renderPage } from '@/test/renderPage'
+import { setSectionOpen } from '@/lib/openSections'
 import type { BoardListing } from './useJobBoardSearch'
 import { JobBoardPage } from './JobBoardPage'
 
@@ -112,8 +113,24 @@ function searchVariables(keyword = 'engineer', remoteOnly = false, cursor: strin
   return { keyword, remoteOnly, cursor, experienceLevels }
 }
 function renderBoard(mocks: MockLink.MockedResponse[] = []) {
+  setSectionOpen('job-board:filters', true)
   return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }] })
 }
+it('collapses filters, remembers the choice, and keeps their values and count', async () => {
+  const user = userEvent.setup()
+  renderBoard()
+  setSectionOpen('job-board:filters', false)
+  const toggle = await screen.findByRole('button', { name: /^Filters/ })
+  await user.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '7d')
+  await user.click(toggle)
+  expect(toggle).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByRole('combobox', { name: 'Date posted' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Filters (1)' })).toBeInTheDocument()
+  await user.click(toggle)
+  expect(screen.getByRole('combobox', { name: 'Date posted' })).toHaveValue('7d')
+})
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {
   const input = screen.getByRole('textbox', { name: 'Keyword or job title' })
   await user.clear(input)

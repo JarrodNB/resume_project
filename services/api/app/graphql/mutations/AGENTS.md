@@ -6,6 +6,9 @@ GraphQL mutations grouped by domain, including interview_prep/.
 
 ## Contents
 
+- `authorize_ai_execution_stream.rb` — session/CSRF-authenticated read-only output capability;
+  it uses the server session context and never starts or retries model execution.
+
 - `.keep`
 - `base_mutation.rb`
 - `career_library` — subfolder; inherits these rules unless overridden locally.

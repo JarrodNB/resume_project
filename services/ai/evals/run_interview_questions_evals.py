@@ -1,6 +1,6 @@
 """
 Description: Evaluates real interview generation/replacement with synthetic evidence.
-Run: docker compose run --rm ai python -m evals.run_interview_questions_evals
+Run: docker compose run --rm ai-worker python -m evals.run_interview_questions_evals
 Index:
     - load_interview_questions_dataset: loads synthetic cases and deterministic checks
     - run_interview_questions_evals: runs agent and quality judges, reports to Logfire
@@ -15,7 +15,7 @@ from evals.interview_evaluators import QuestionEvalInput, QuestionStructure, que
 from evals.report_capture import override_settings
 from prompts.interview_question_instructions import INTERVIEW_QUESTIONS_PROMPT_VERSION
 from schemas.interview_questions import InterviewQuestions
-from worker.settings import load_settings
+from settings import load_settings
 
 RUBRICS = {
     "recent_practice_variety": "When recent_questions is empty, score 1. Otherwise assess whether the full set explores fresh concrete focuses instead of merely rephrasing recent practice. This is a soft preference: allow a recurring general introduction, required categories, and reasonable overlap for sparse libraries. Historical repetition is practice, not a structural failure; distinguish these recent questions from hard exclusions.",

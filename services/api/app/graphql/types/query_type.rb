@@ -7,35 +7,35 @@
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
 #   - experiences, projects, educations, certifications, skills, library_facts (career library)
-#   - jobs(stage:), job(id:)
+#   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
 #   - resumes, resume(id:)
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
-    field :interview_demo_enabled, Boolean, null: false
+    field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :unfinished_interview_session, Types::InterviewSessionType, null: true
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
     end
 
-    def interview_demo_enabled
-      !!context[:current_user] && Interviews::DemoAccess.enabled?
+    def interviews_enabled
+      !!context[:current_user] && Interviews::Access.enabled?
     end
 
     def interview_session(id:)
-      Interviews::DemoAccess.find!(context[:current_user], id)
+      Interviews::Access.find!(context[:current_user], id)
     end
 
     def recent_interview_sessions
-      Interviews::DemoAccess.check!(context[:current_user])
+      Interviews::Access.check!(context[:current_user])
       context[:current_user].interview_sessions.where(execution_mode: "real",
         status: %w[preparing ready active completed]).where("expires_at > ?", Time.current)
         .order(created_at: :desc, id: :desc).limit(20)
     end
 
     def unfinished_interview_session
-      Interviews::DemoAccess.check!(current_user)
+      Interviews::Access.check!(current_user)
       current_user.interview_sessions.blocking_new_preparation.order(created_at: :desc, id: :desc).first
     end
 
@@ -97,6 +97,11 @@ module Types
     field :job, Types::JobType, null: false do
       argument :id, ID, required: true
     end
+    field :job_pipeline, [ Types::JobPipelineEntryType ], null: false,
+          description: "The signed-in user's jobs, newest first, each with its one suggested next step."
+
+    field :running_ai_tasks, [ Types::RunningAiTaskType ], null: false,
+          description: "The signed-in user's AI work still in progress, newest first (live interview work excluded)."
 
     field :resumes, [ Types::ResumeType ], null: false
     field :resume, Types::ResumeType, null: false do
@@ -157,6 +162,17 @@ module Types
 
     # Returns one of the user's jobs.
     def job(id:) = current_user.jobs.find(id)
+
+    # Returns the user's jobs with their suggested next steps, in a fixed number of queries.
+    def job_pipeline
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      Jobs::BuildPipelineService.call(user: current_user).value
+    end
+
+    def running_ai_tasks
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+      AiTasks::ListRunningTasksService.call(user: current_user).value
+    end
 
     # Returns the user's resumes, most recently updated first.
     def resumes = current_user.resumes.includes(:job, :sections).order(updated_at: :desc)

@@ -46,6 +46,13 @@ uses the browser cookie, not a URL token. The channel checks validity before eac
 operation and private transmission. The regular Cable heartbeat closes invalid
 connections; delivery checks block private updates before that heartbeat runs.
 
+Optional AI output streams use a separate, read-only capability issued through the
+session/CSRF-authenticated GraphQL API. It is scoped to one saved attempt, expires in
+60 seconds, and does not authenticate general browser requests or start execution.
+Their one-second read-authorization lease bounds logout/revocation delay without a
+database transaction per token; expiry is checked before each frame. This does not
+change Cable's per-delivery session checks. See [AI streaming](ai-streaming.md).
+
 ## Origins and deployment
 
 Set `CORS_ORIGINS` to explicit HTTP(S) web origins separated by commas; the default
@@ -140,12 +147,13 @@ Action Mailer and Devise provide delivery. Development uses the development-only
 `http://localhost:3000/letter_opener`. Messages are saved to
 `services/api/tmp/letter_opener` without SMTP or opening a browser inside Docker;
 delete captured emails from the inbox after testing. The inbox route is absent
-outside development. Delivery uses the in-process async queue. Synthetic previews are at
+outside development. Synthetic previews are at
 `http://localhost:3000/rails/mailers/account_mailer/confirmation_instructions`.
-Restarting development can lose pending mail; resend recovers. Tests use Rails' test
-queue/delivery adapters. Production uses existing Solid Queue in the separate Rails
-queue database: prepare its schema and run `bin/jobs` alongside the API. Monitor queue
-age and failed `AccountMailDeliveryJob` records. Each SMTP attempt has 5-second open/read
+Development and production delivery use Solid Queue in the primary application
+database; normal migrations prepare its tables and a supervised `bin/jobs` process
+runs alongside the API. See [background jobs](background-jobs.md) for setup and
+queue migration. Tests use Rails' test queue/delivery adapters. Monitor queue age
+and failed `AccountMailDeliveryJob` records. Each SMTP attempt has 5-second open/read
 timeouts, required STARTTLS, and at most three attempts with Rails polynomial backoff.
 Resend retries a failed or lost request; duplicates are safe, but the latest requested
 link is the usable one. This mail never enters AI/SQS queues or Logfire.

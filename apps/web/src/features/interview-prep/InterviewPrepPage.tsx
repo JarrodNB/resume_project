@@ -33,10 +33,10 @@ export function InterviewPrepPage() {
   /** Opens the persistent set as soon as generation is queued. */
   async function generate() {
     const id = await generation.generate(setType)
-    if (id) void navigate(`/interview-prep/${id}`)
+    if (id) void navigate(`/practice/questions/${id}`)
   }
   return <div className="mx-auto grid max-w-3xl gap-6">
-    <PageHeading title="Interview prep" description="Turn your experience into a conversation you’re ready for." />
+    <PageHeading title="Practice questions" description="Practice answering five interview questions built from your career library." />
     <div className="grid gap-5 rounded-xl border bg-card p-6">
       <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">Practice five personalized interview questions based on your career library. Choose general career questions, technical questions about your practical work, or knowledge questions that test your understanding of subjects in your field. Saved sets stay as they are when your library changes.</p>
       <RadioGroup aria-label="Question type" className="flex flex-wrap gap-5" value={setType} disabled={generation.loading} onValueChange={(value) => setSetType(value as InterviewQuestionSetTypeEnum)}>
@@ -49,7 +49,7 @@ export function InterviewPrepPage() {
         {libraryLoading ? <p>Checking your career library…</p> : <>
           <p>Add career details before generating interview questions.</p>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            <Link className="font-medium text-foreground underline underline-offset-4" to="/import">Import a resume</Link>
+            <Link className="font-medium text-foreground underline underline-offset-4" to="/library/import">Import a resume</Link>
             <Link className="font-medium text-foreground underline underline-offset-4" to="/library">Add details in your career library</Link>
           </div>
         </>}
@@ -63,7 +63,7 @@ export function InterviewPrepPage() {
     <ul className="grid gap-3">
       {sets?.map((set) => <li key={set.id}><Card><CardContent className="grid gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link className="font-medium underline underline-offset-4" to={`/interview-prep/${set.id}`}>Set {set.number} · {interviewSetTypeLabel(set.setType)} · {interviewSetDate(set.createdAt)}</Link>
+          <Link className="font-medium underline underline-offset-4" to={`/practice/questions/${set.id}`}>Set {set.number} · {interviewSetTypeLabel(set.setType)} · {interviewSetDate(set.createdAt)}</Link>
           <DeleteInterviewSetButton id={set.id} number={set.number} onDeleted={refetch} />
         </div>
         {set.latestTask && <InterviewTaskStatus key={set.latestTask.id} task={set.latestTask} onFinished={refetch} />}

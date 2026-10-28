@@ -371,7 +371,7 @@ def test_prefetched_chunks_are_traced_after_early_block(monkeypatch):
 
     monkeypatch.setattr(local_llama, "classify_chunk", classify)
     monkeypatch.setenv("LOGFIRE_TOKEN", "offline-placeholder")
-    monkeypatch.setattr("worker.tracing.flush_tracing", flushed.set)
+    monkeypatch.setattr("telemetry.tracing.flush_tracing", flushed.set)
     spans = []
     monkeypatch.setattr("screening.screen_user_text.logfire.span", lambda name, **attrs: (
         spans.append((name, attrs)) or nullcontext()

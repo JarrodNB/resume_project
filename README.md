@@ -76,11 +76,13 @@ tracks model usage, and enforces per-user AI budgets and task limits.
 ## Architecture
 
 The application uses React and TypeScript for the frontend, a Rails GraphQL API for
-authentication and domain data, and Python workers for asynchronous AI tasks.
+authentication and domain data, and a shared Python codebase for HTTP execution and queued AI tasks.
 
 Rails publishes tasks to an SQS queue. Python workers process them and return results
 through a separate queue, while GraphQL subscriptions deliver updates to the frontend.
 PostgreSQL stores application data and pgvector supports career library retrieval.
+Interactive interviews run through the `ai-http` FastAPI app; queued tasks run through
+`ai-worker`. Both use the agents and model/privacy/telemetry modules in `services/ai`.
 AI workflows use Pydantic AI, with tracing through Logfire.
 
 | Directory | Purpose |
@@ -88,7 +90,7 @@ AI workflows use Pydantic AI, with tracing through Logfire.
 | `apps/web/` | React application with Apollo GraphQL client |
 | `apps/landing/` | Marketing landing page |
 | `services/api/` | Rails API, authentication, and domain services |
-| `services/ai/` | Python workers, AI agents, and evaluations |
+| `services/ai/` | Shared FastAPI app, queue workers, AI agents, and evaluations |
 | `infra/` | Infrastructure configuration and local service emulators |
 | `docs/` | Architecture and technical documentation |
 
@@ -141,9 +143,9 @@ The AI worker and API results worker consume queues and do not expose HTTP endpo
 Run a model evaluation, for example retrieval or input screening:
 
 ```bash
-docker compose run --rm ai python -m evals.run_library_retrieval_evals
-docker compose run --rm ai python -m evals.run_user_text_screen_evals
-docker compose run --rm ai python -m evals.run_prompt_guardrail_evals
+docker compose run --rm ai-worker python -m evals.run_library_retrieval_evals
+docker compose run --rm ai-worker python -m evals.run_user_text_screen_evals
+docker compose run --rm ai-worker python -m evals.run_prompt_guardrail_evals
 ```
 
 Evaluations call external model APIs and incur usage charges; unit tests use test doubles.
@@ -165,7 +167,7 @@ worker needs `docker compose restart api-results-worker` after Ruby code changes
 | Follow service logs | `docker compose logs -f <service>` |
 | Rebuild after dependency changes | `docker compose up --build -V` |
 | Run API tests | `docker compose run --rm api bundle exec rspec` |
-| Run AI worker tests | `docker compose run --rm ai pytest` |
+| Run AI worker tests | `docker compose run --rm ai-worker pytest` |
 | Run frontend tests | `docker compose exec web npm test` |
 | Check frontend types | `docker compose exec web npm run typecheck` |
 | Lint the frontend | `docker compose exec web npm run lint` |
@@ -178,7 +180,7 @@ After GraphQL changes, export the schema and regenerate frontend types. Restart 
 workers after changing code they load:
 
 ```bash
-docker compose restart api-results-worker ai
+docker compose restart api-results-worker ai-worker
 ```
 
 To remove local database data and other named volumes, run `docker compose down -v`.

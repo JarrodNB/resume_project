@@ -11,8 +11,8 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.resume_parsing_agent import parse_resume_text
+from llm.run_limits import agent_usage_limits
 from screening.screen_user_text import screen_user_text
-from worker.run_limits import agent_usage_limits
 from worker.settings import WorkerSettings
 
 

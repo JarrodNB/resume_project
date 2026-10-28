@@ -55,8 +55,6 @@ RSpec.describe "Internal interview media", type: :request do
     post "#{path}/reserve_audio", params: { content_type: "audio/wav", user_id: user.id }, as: :json
     expect(response).to have_http_status(:unauthorized)
     expect(InterviewSessionMedia.where(interview_session: interview)).not_to exist
-    post "/internal/interviews/cleanup", as: :json
-    expect(response).to have_http_status(:unauthorized)
   end
 
   it "rejects a media identity belonging to another operation" do

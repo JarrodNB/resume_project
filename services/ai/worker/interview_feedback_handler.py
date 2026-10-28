@@ -14,6 +14,7 @@ from pydantic_ai.usage import RunUsage
 
 import text_limits
 from agents.interview_feedback_agent import generate_interview_feedback
+from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.interview import format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
@@ -22,7 +23,6 @@ from screening.interview_question_fields import screen_interview_field
 from screening.library_inputs import rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
-from worker.model_prices import build_model_usage, reported_model_name
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 

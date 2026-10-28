@@ -27,26 +27,26 @@ function listMock(sets = [setFixture(1), setFixture(2)]) {
 }
 
 it('orders saved numbered sets newest first with detail links', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock()] })
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock()] })
   const newest = await screen.findByRole('link', { name: /Set 2/ })
-  expect(newest).toHaveAttribute('href', '/interview-prep/set-2')
+  expect(newest).toHaveAttribute('href', '/practice/questions/set-2')
   expect(newest).toHaveTextContent('Technical')
   expect(screen.getByRole('link', { name: /Set 1/ })).toHaveTextContent('General')
   expect(screen.getAllByRole('link').map((link) => link.textContent)).toEqual([expect.stringContaining('Set 2'), expect.stringContaining('Set 1')])
 })
 
 it('opens the persistent set immediately after queuing generation', async () => {
-  const { router } = renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Queued set</p> }], mocks: [libraryMock(), listMock([]), {
+  const { router } = renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, extraRoutes: [{ path: '/practice/questions/:id', element: <p>Queued set</p> }], mocks: [libraryMock(), listMock([]), {
     request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'task-1', input: { question_set_id: 'set-3' } } } } },
   }] })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Generate questions' })).toBeEnabled())
   fireEvent.click(screen.getByRole('button', { name: 'Generate questions' }))
   expect(await screen.findByText('Queued set')).toBeInTheDocument()
-  expect(router.state.location.pathname).toBe('/interview-prep/set-3')
+  expect(router.state.location.pathname).toBe('/practice/questions/set-3')
 })
 
 it('shows usage-limit errors and leaves the saved list available', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), {
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), {
     request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'GENERAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: ['Monthly AI usage limit reached.'], aiTask: null } } },
   }] })
   await waitFor(() => expect(screen.getByRole('button', { name: 'Generate questions' })).toBeEnabled())
@@ -56,7 +56,7 @@ it('shows usage-limit errors and leaves the saved list available', async () => {
 })
 
 it('deliberately selects technical practice and submits that type', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Technical set queued</p> }], mocks: [libraryMock(), listMock([]), {
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, extraRoutes: [{ path: '/practice/questions/:id', element: <p>Technical set queued</p> }], mocks: [libraryMock(), listMock([]), {
     request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'TECHNICAL' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'technical-task', input: { question_set_id: 'technical-set', set_type: 'technical' } } } } },
   }] })
   expect(screen.getByRole('radio', { name: 'General' })).toBeChecked()
@@ -68,7 +68,7 @@ it('deliberately selects technical practice and submits that type', async () => 
 })
 
 it('selects knowledge practice and submits its persisted scope', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, extraRoutes: [{ path: '/interview-prep/:id', element: <p>Knowledge set queued</p> }], mocks: [libraryMock(), listMock([]), {
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, extraRoutes: [{ path: '/practice/questions/:id', element: <p>Knowledge set queued</p> }], mocks: [libraryMock(), listMock([]), {
     request: { query: GENERATE_INTERVIEW_SET, variables: { setType: 'KNOWLEDGE' } }, result: { data: { generateInterviewQuestionSet: { __typename: 'GenerateInterviewQuestionSetPayload', errors: [], aiTask: { __typename: 'AiTask', id: 'knowledge-task', input: { question_set_id: 'knowledge-set', set_type: 'knowledge' } } } } },
   }] })
   fireEvent.click(screen.getByRole('radio', { name: 'Knowledge' }))
@@ -79,14 +79,14 @@ it('selects knowledge practice and submits its persisted scope', async () => {
 })
 
 it('labels reloaded knowledge sets independently of the generation selector', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock([{ ...setFixture(3), setType: 'KNOWLEDGE' }])] })
-  expect(await screen.findByRole('link', { name: /Set 3 · Knowledge/ })).toHaveAttribute('href', '/interview-prep/set-3')
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock([{ ...setFixture(3), setType: 'KNOWLEDGE' }])] })
+  expect(await screen.findByRole('link', { name: /Set 3 · Knowledge/ })).toHaveAttribute('href', '/practice/questions/set-3')
   expect(screen.getByRole('radio', { name: 'General' })).toBeChecked()
 })
 
 it('requires confirmation, cancels safely, and retains a set when deletion fails', async () => {
   const result = vi.fn(() => ({ data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: ['Please try again.'] } } }))
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), { request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }] })
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), { request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } }, result }] })
   fireEvent.click(await screen.findByRole('button', { name: 'Delete set 2' }))
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
   expect(result).not.toHaveBeenCalled()
@@ -99,7 +99,7 @@ it('requires confirmation, cancels safely, and retains a set when deletion fails
 })
 
 it('removes a set from the persistent list after confirmed deletion succeeds', async () => {
-  renderPage({ path: '/interview-prep', url: '/interview-prep', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), {
+  renderPage({ path: '/practice/questions', url: '/practice/questions', element: <InterviewPrepPage />, mocks: [libraryMock(), listMock(), {
     request: { query: DELETE_INTERVIEW_SET, variables: { id: 'set-2' } },
     result: { data: { deleteInterviewQuestionSet: { __typename: 'DeleteInterviewQuestionSetPayload', errors: [] } } },
   }, listMock([setFixture(1)])] })

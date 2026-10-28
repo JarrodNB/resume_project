@@ -1,25 +1,27 @@
-"""Run local paid verification and halt discovery before saving any failed execution.
+"""Run bounded paid verification while refusing new work after the first failure.
 
-Only this check entrypoint disables automatic retries. Provider transports, durable
-admission, lease heartbeats and ordinary application recovery remain unchanged.
+Only this explicitly opted-in harness pauses admission before reporting failure.
+The shared runner still completes admitted execution/accounting; ordinary app
+recovery, provider transports and lease fencing retain their normal behavior.
 """
 import os
 
 import uvicorn
 
-from interviews import real_app
-from interviews.runtime import RecoveryRuntime
+import app as http_app
+from execution.runner import ExecutionRunner
 
 
-class StopAfterFailureRuntime(RecoveryRuntime):
-    """Stop discovering work on failure, before Rails can schedule its next attempt."""
+class StopAfterFailureRunner(ExecutionRunner):
+    """Pause the same execution runner before Rails can schedule another attempt."""
 
-    def __init__(self, client, executor):
-        super().__init__(client, executor)
+    def __init__(self, adapters, **options):
+        super().__init__(adapters, **options)
+        client = adapters["interviews"].client
         original_fail = client.fail
 
         async def stop_and_fail(*args, **kwargs):
-            self._stopping = True
+            self.pause()
             return await original_fail(*args, **kwargs)
 
         client.fail = stop_and_fail
@@ -28,8 +30,8 @@ class StopAfterFailureRuntime(RecoveryRuntime):
 def main():
     if os.getenv("INTERVIEW_PAID_VERIFICATION") != "true":
         raise RuntimeError("Explicit paid verification opt-in required")
-    real_app.RecoveryRuntime = StopAfterFailureRuntime
-    uvicorn.run(real_app.app, host="0.0.0.0", port=8000)
+    http_app.ExecutionRunner = StopAfterFailureRunner
+    uvicorn.run(http_app.app, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

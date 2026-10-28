@@ -51,7 +51,7 @@ module Interviews
 
     def reject_allowance(expiry:)
       # No new dispatch began. Preserve valid media for an explicit retry, while
-      # releasing the task slot and preventing lease-based automatic rediscovery.
+      # releasing the task slot and preventing automatic execution retries.
       @operation.update!(status: "failed", failure_code: "ai_usage_limit_reached", retry_at: nil,
         retry_expires_at: @operation.retry_expires_at || expiry)
       AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: "failed", completed_at: Time.current, error_message: "ai_usage_limit_reached" }) if @operation.ai_task
@@ -62,6 +62,7 @@ module Interviews
         @operation.retry_expires_at > Time.current
       @operation.update!(status: automatic ? "pending" : "failed", failure_code: code,
         retry_at: automatic ? Time.current + BACKOFF.fetch(@operation.cycle_execution_count - 1).seconds : nil)
+      ScheduleOperationService.call(operation: @operation) if automatic
       AiTasks::UpdateTaskService.call(task: @operation.ai_task, attributes: { status: automatic ? "queued" : "failed", completed_at: automatic ? nil : Time.current,
         error_message: code }) if @operation.ai_task
       if (@operation.turn? || @operation.transcription?) && (!retryable || @operation.execution_count >= 6)

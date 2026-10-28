@@ -1,0 +1,165 @@
+# Isolated fake interview stack. No .env files, provider credentials, or host ports.
+# Run with project cg-interview-06; add the QA overlay only for human browser checks.
+name: cg-interview-06
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: interview-local-only
+    volumes:
+      - interview_db:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  s3:
+    image: adobe/s3mock
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: careergrind-uploads
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /s3mockroot
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    volumes:
+      - interview_s3:/s3mockroot
+
+  api:
+    image: cg-interview-qa-api
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile.dev
+    environment: &interview-rails-environment
+      RAILS_ENV: development
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: interview-local-only
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_EC2_METADATA_DISABLED: "true"
+      S3_ENDPOINT_URL: http://s3:9090
+      S3_UPLOADS_BUCKET: careergrind-uploads
+      INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
+      AI_HTTP_ORIGIN: http://ai-http:8000
+      INTERVIEW_BROWSER_STORAGE_ORIGIN: http://s3:9090
+      BOOTSNAP_CACHE_DIR: /bootsnap
+      OPENAI_API_KEY: ""
+      CLEANJOBDATA_API_KEY: ""
+    volumes:
+      - ../services/api:/rails
+      - interview_bootsnap:/bootsnap
+    depends_on:
+      db:
+        condition: service_healthy
+      s3:
+        condition: service_started
+    healthcheck:
+      test: [CMD, ruby, -rnet/http, -e, "exit(Net::HTTP.get_response(URI('http://localhost:3000/up')).is_a?(Net::HTTPSuccess) ? 0 : 1)"]
+      interval: 3s
+      timeout: 5s
+      retries: 60
+
+  api-jobs-worker:
+    image: cg-interview-qa-api
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile.dev
+    command: bundle exec ruby bin/jobs
+    init: true
+    restart: on-failure
+    environment:
+      <<: *interview-rails-environment
+    volumes:
+      - ../services/api:/rails
+      - interview_bootsnap:/bootsnap
+    depends_on:
+      api:
+        condition: service_healthy
+
+  storage-setup:
+    profiles: [checks]
+    build:
+      context: ../services/api
+      dockerfile: Dockerfile.dev
+    # S3Mock has global permissive CORS, not an S3 bucket-CORS API. Verify the
+    # browser's real preflight instead of pretending bucket policy is installed.
+    entrypoint: [ruby, -rnet/http, -e]
+    command:
+      - |
+        uri = URI("http://s3:9090/careergrind-uploads/cors-probe")
+        origin = "http://127.0.0.2:15176"
+        headers = %w[content-type content-md5 content-length]
+        30.times do |attempt|
+          begin
+            %w[PUT GET HEAD].each do |method|
+              request = Net::HTTP::Options.new(uri)
+              request["Origin"] = origin
+              request["Access-Control-Request-Method"] = method
+              request["Access-Control-Request-Headers"] = headers.join(",")
+              response = Net::HTTP.start(uri.host, uri.port,
+                open_timeout: 2, read_timeout: 2) { |http| http.request(request) }
+              allowed_headers = response["access-control-allow-headers"].to_s.downcase.split(/,\s*/)
+              allowed_methods = response["access-control-allow-methods"].to_s.split(/,\s*/)
+              raise "S3Mock browser preflight failed" unless response.is_a?(Net::HTTPSuccess) &&
+                [origin, "*"].include?(response["access-control-allow-origin"]) &&
+                allowed_methods.include?(method) &&
+                (allowed_headers.include?("*") || (headers - allowed_headers).empty?)
+            end
+            puts "S3Mock browser preflight passed for PUT/GET/HEAD"
+            exit 0
+          rescue StandardError
+            raise if attempt == 29
+            sleep 1
+          end
+        end
+    depends_on:
+      s3:
+        condition: service_started
+
+  ai-http:
+    build:
+      context: ../services/ai
+      dockerfile: Dockerfile.dev
+    command: uvicorn interviews.fixture_app:app --host 0.0.0.0 --port 8000
+    init: true
+    environment:
+      INTERVIEW_FAKE_RUNTIME_ENABLED: "true"
+      INTERVIEW_PROVIDER_MODE: fake
+      INTERVIEW_RAILS_ORIGIN: http://api:3000
+      INTERVIEW_SERVICE_SECRET: interview-local-fixture-only-not-a-production-secret
+      INTERVIEW_STORAGE_ORIGINS: http://s3:9090
+      INTERVIEW_FAKE_SCENARIO: normal
+      LOGFIRE_SEND_TO_LOGFIRE: "false"
+      OTEL_SDK_DISABLED: "true"
+    volumes:
+      - ../services/ai:/app
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  web:
+    profiles: [qa]
+    build:
+      context: ../apps/web
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: http://127.0.0.2:13006
+    volumes:
+      - ../apps/web:/app
+      - interview_node_modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  interview_db:
+  interview_s3:
+  interview_bootsnap:
+  interview_node_modules:

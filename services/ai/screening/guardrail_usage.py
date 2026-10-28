@@ -11,8 +11,8 @@ from contextvars import ContextVar
 
 from pydantic_ai.usage import RunUsage
 
-from worker.model_prices import build_model_usage, reported_model_name
-from worker.queue_messages import ModelUsage
+from llm.model_prices import build_model_usage, reported_model_name
+from schemas.model_usage import ModelUsage
 
 _current: ContextVar[list[ModelUsage] | None] = ContextVar("guardrail_usage", default=None)
 

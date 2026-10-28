@@ -4,7 +4,7 @@ set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 run_id="$(date -u +%Y%m%d%H%M%S)-$RANDOM"
 project="cg-interview-18-synthetic-$run_id"
-compose=(docker compose -p "$project" -f "$root/docs/interview-demo.compose.yml" -f "$root/docs/interview-full-check.compose.yml")
+compose=(docker compose -p "$project" -f "$root/docs/interview-recovery.compose.yml" -f "$root/docs/interview-full-check.compose.yml")
 probe="$project-probe"
 rails() {
   "${compose[@]}" run --rm --no-deps -e CHECK_RUN_ID="$run_id" -e CHECK_PHASE="$1" -e CHECK_CASE="${case_name:-fault-turn}" -e CHECK_HISTORY_SHA="${history_sha:-}" api bundle exec rails runner script/interview_full_session_check.rb
@@ -13,12 +13,12 @@ cleanup() { docker rm -f "$probe" >/dev/null 2>&1 || true; "${compose[@]}" stop 
 trap cleanup EXIT
 "${compose[@]}" up -d db s3
 "${compose[@]}" run --rm api bundle exec rails db:prepare
-"${compose[@]}" up -d --no-build --wait api interview-runtime
+"${compose[@]}" up -d --no-build --wait api api-jobs-worker ai-http
 "${compose[@]}" run --rm --no-deps storage-setup
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 start_probe() {
   "${compose[@]}" run -d --no-deps --name "$probe" -e CHECK_OPERATION_ID="$operation_id" \
-    -e CHECK_PAUSE="$1" interview-runtime python -m scripts.interview_full_restart_probe >/dev/null
+    -e CHECK_PAUSE="$1" ai-http python -m scripts.interview_full_restart_probe >/dev/null
 }
 wait_barrier() {
   for ((attempt=0; attempt<150; attempt++)); do
@@ -36,13 +36,13 @@ operation_id=$(rails setup | sed -n 's/^OPERATION_ID=//p')
 start_probe before_accept
 wait_barrier before_accept
 kill_probe
-"${compose[@]}" up -d --no-build --wait interview-runtime
+"${compose[@]}" up -d --no-build --wait ai-http
 rails ready
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 rails begin
-"${compose[@]}" up -d --no-build --wait interview-runtime
+"${compose[@]}" up -d --no-build --wait ai-http
 rails opening
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 operation_id=$(rails submit | sed -n 's/^OPERATION_ID=//p')
 start_probe lost_receipt
 code=$(docker wait "$probe")
@@ -51,18 +51,18 @@ docker rm "$probe" >/dev/null
 [[ "$code" == 0 ]]
 # The turn committed despite the lost receipt. Its independent speech is still pending.
 history_sha=$(rails retry-prepare | sed -n 's/^HISTORY_SHA=//p')
-"${compose[@]}" up -d --no-build --wait interview-runtime
+"${compose[@]}" up -d --no-build --wait ai-http
 rails retry-verify
 rails recovered
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 case_name=after-accept
 operation_id=$(rails submit | sed -n 's/^OPERATION_ID=//p')
 start_probe after_accept
 wait_barrier after_accept
 kill_probe
-"${compose[@]}" up -d --no-build --wait interview-runtime
+"${compose[@]}" up -d --no-build --wait ai-http
 rails full
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 rails abandon-setup
 "${compose[@]}" up -d --force-recreate --wait s3
 "${compose[@]}" run --rm --no-deps storage-setup

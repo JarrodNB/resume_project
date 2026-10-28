@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Gap analysis on the job page: compare one saved job with the user's career library
+Gap analysis on the job workspace's Fit tab: compare one saved job with the user's career library
 (`analyzeJobGaps`, followed live with `aiTaskUpdated`) and show each requirement's verdict with
 the library entries cited as evidence. The user can respond to a gap or partial match in the same
 view (`saveGapResponse`); a saved answer stays visible if a later run marks the requirement met.
@@ -11,7 +11,7 @@ Adding it to the career library creates a library fact, listed on the career lib
 ## Contents
 
 - `GapAnalysisCard.tsx` — "How you match" card: run button, live progress, failure with retry,
-  completed result, using shared lifecycle state from the job page
+  completed result, using shared lifecycle state from the job workspace
 - `GapAnalysisResultView.tsx` — summary, verdict counts, "Requirements" and "Nice to have" lists
 - `RequirementAssessmentItem.tsx` — `VerdictBadge` and one requirement with its evidence and,
   for a gap or partial match, `GapResponseForm.tsx` (`useSaveGapResponse.ts`). The row starts

@@ -66,13 +66,13 @@ def fake_known_contact(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureR
     """Keeps ordinary worker tests independent of PostgreSQL while retaining trace hooks."""
     if request.node.get_closest_marker("db"):
         return
-    from worker.known_contact import KnownContact
+    from privacy.known_contact import KnownContact
 
     def empty_contact(_task: object) -> KnownContact:
         """Returns no profile contact without a database connection."""
         return KnownContact()
 
-    monkeypatch.setattr("worker.contact_mask._load_known_contact", empty_contact)
+    monkeypatch.setattr("worker.contact_context._load_known_contact", empty_contact)
 
 
 @pytest.fixture(autouse=True)

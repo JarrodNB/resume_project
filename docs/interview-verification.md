@@ -138,9 +138,9 @@ real-only browser path.
 Verification commands were run from the retained checkout:
 
 ```bash
-docker compose -p cg-interview-13 -f docs/interview-demo.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps api bundle exec rspec
-docker run --rm --network none -e OPENAI_API_KEY=synthetic-offline -e TYPESAFE_API_KEY=synthetic-offline -v "$PWD/services/ai:/app" -w /app cg-interview-qa-interview-runtime pytest -m 'not db'
-docker compose -p cg-interview-13 -f docs/interview-demo.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps -e VITE_API_URL=http://localhost:3000 web npm test -- --maxWorkers=1
+docker compose -p cg-interview-13 -f docs/interview-recovery.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps api bundle exec rspec
+docker run --rm --network none -e OPENAI_API_KEY=synthetic-offline -e TYPESAFE_API_KEY=synthetic-offline -v "$PWD/services/ai:/app" -w /app cg-interview-qa-ai-http pytest -m 'not db'
+docker compose -p cg-interview-13 -f docs/interview-recovery.compose.yml -f /tmp/interview13.compose.yml run --rm --no-deps -e VITE_API_URL=http://localhost:3000 web npm test -- --maxWorkers=1
 bash script/interview_full_session_check.sh
 ```
 
@@ -148,7 +148,7 @@ The Rails suite passed **821 examples, zero failures**, with two existing opt-in
 storage checks pending. The full offline AI suite passed **923 tests**, with nine database
 tests deselected and four upstream deprecation warnings. Synthetic keys are setup values;
 provider networking is unavailable in the AI unit-test container. Initial AI setup omitted
-those keys and was corrected. The demo Compose browser origin also needs the explicit
+those keys and was corrected. The recovery Compose browser origin also needs the explicit
 localhost override above for the existing Apollo socket test.
 
 The full frontend suite passed **272 tests in 51 files** with the localhost override above.
@@ -320,7 +320,7 @@ Focused checks: 79 offline Python tests passed (audio adapters, real executor, p
 strict media); 19 Rails accounting examples passed; focused Ruff and RuboCop passed.
 The SSE regression failed before the parser repair. Browser microphone/playback QA, full
 two-answer live completion, production rollout, and enabling real mode in the fake QA
-database remain outside this fix. The retained fake demo is unchanged.
+database remain outside this fix. The retained fake fixture is unchanged.
 
 The offline candidate is retained at
 `/home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi`.
@@ -362,25 +362,25 @@ Its fixed isolated project is `cg-interview-06`; it retains volumes and removes 
 successful disposable fixtures. Stop the whole project after checking:
 
 ```bash
-docker compose -p cg-interview-06 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml stop
+docker compose -p cg-interview-06 -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml stop
 ```
 
 Repeat the extra failure check in a separate synthetic project (no real credentials):
 
 ```bash
 export INTERVIEW_CHECK_AUDIO_FAILURE=true
-docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d db s3
-docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm api bundle exec rails db:prepare
-docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d --no-build --wait api interview-runtime
-docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm --no-deps api bundle exec rails runner script/interview_provider_failure_check.rb
-docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml stop
+docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d db s3
+docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm api bundle exec rails db:prepare
+docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml up -d --no-build --wait api ai-http
+docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-real-check.compose.yml run --rm --no-deps api bundle exec rails runner script/interview_provider_failure_check.rb
+docker compose -p cg-interview-12-failure -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml stop
 unset INTERVIEW_CHECK_AUDIO_FAILURE
 ```
 
 This check deliberately retains one anonymous unknown reservation and its synthetic session.
 Repeat it only after inspecting/removing that disposable project's data; do not reset or reuse
 the paid verification database for synthetic checks. The successful smoke uses the default
-false value and a separate project, as described in the demo guide.
+false value and a separate project, as described in the recovery guide.
 
 ## Live evidence: stopped after the first unknown charge
 
@@ -426,7 +426,7 @@ reservations and actual reconciliation, not a provider-side guaranteed ceiling.
 
 Use [the real browser QA guide](interview-real-qa.md) for authorized manual testing on
 `cg-interview-12-paid`. Public scripted sessions are retired. Offline deterministic recovery
-checks remain available through [the recovery guide](interview-demo.md).
+checks remain available through [the recovery guide](interview-recovery.md).
 
 The original unknown observation remains counted at its reserved estimate and is the only
 human-reviewed admission exception. Any new unknown observation stops further paid calls.

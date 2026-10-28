@@ -1,4 +1,4 @@
-# Synthetic spoken demo fixtures
+# Synthetic spoken interview fixtures
 
 The four WAV files were generated offline using Debian eSpeak at 155 words per minute.
 They contain the fictional `SPEECH_TEXTS` in `interviews/fake.py`, in index order.

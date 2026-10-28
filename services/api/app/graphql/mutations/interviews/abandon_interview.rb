@@ -1,7 +1,7 @@
 # Ends only the current owner's unfinished session; accounting and saved receipts survive.
 module Mutations
   module Interviews
-    class AbandonInterview < BaseDemoMutation
+    class AbandonInterview < BaseInterviewMutation
       argument :interview_id, ID, required: true
       field :interview, Types::InterviewSessionType, null: true
 

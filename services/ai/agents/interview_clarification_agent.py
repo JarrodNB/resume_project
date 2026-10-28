@@ -7,6 +7,7 @@ from pydantic_ai.usage import UsageLimits
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from llm.generative_model import generative_model
 from prompts.interview_clarification_instructions import (
     INTERVIEW_CLARIFICATION_INSTRUCTIONS,
     INTERVIEW_CLARIFICATION_PROMPT_VERSION,
@@ -14,8 +15,7 @@ from prompts.interview_clarification_instructions import (
 from schemas.interview_clarification import InterviewClarification
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout
-from worker.generative_model import generative_model
-from worker.tracing import record_prompt_version
+from telemetry.tracing import record_prompt_version
 
 interview_clarification_agent = Agent(name="interview_clarification_agent", output_type=InterviewClarification,
     instructions=INTERVIEW_CLARIFICATION_INSTRUCTIONS, retries=0, defer_model_check=True,

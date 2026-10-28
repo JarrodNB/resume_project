@@ -1,7 +1,7 @@
 """
 Description: Runs the Jev user-text screen evals and reports average scores to Logfire.
 The task is the Jev call itself (screen_user_message), not the phrase list in front of it.
-Run: docker compose run --rm ai python -m evals.run_user_text_screen_evals
+Run: docker compose run --rm ai-worker python -m evals.run_user_text_screen_evals
 Index:
     - load_user_text_screen_dataset: reads the YAML cases
     - run_user_text_screen_evals: evaluates every case
@@ -21,7 +21,7 @@ from evals.user_text_screen_evaluators import (
     UserTextScreenEvalOutput,
 )
 from prompts.user_text_screen_instructions import USER_TEXT_SCREEN_PROMPT_VERSION
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "user_text_screen_cases.yaml"
 TRACE_NAME = "evals.user_text_screen"

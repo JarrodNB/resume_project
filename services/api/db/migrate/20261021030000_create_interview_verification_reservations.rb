@@ -1,4 +1,4 @@
-# Keep the one verification allowance durable even after a demo or account is deleted.
+# Keep the one verification allowance durable even after an interview or account is deleted.
 # No audio, dialogue, credentials or user identifiers belong in this ledger.
 class CreateInterviewVerificationReservations < ActiveRecord::Migration[8.1]
   def change

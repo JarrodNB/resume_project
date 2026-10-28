@@ -125,16 +125,16 @@ docker compose run --rm api bundle exec rspec   Rails specs
 docker compose run --rm api bin/rubocop         Rails lint
 docker compose run --rm api bin/rails db:migrate
 docker compose run --rm --no-deps api bundle add <gem>   (gems live in api_bundle volume)
-docker compose run --rm ai uv add <package>     then: docker compose up --build -V ai
+docker compose run --rm ai-worker uv add <package>     then: docker compose up --build -V ai-worker
 docker compose down -v                          reset local DB (re-runs infra/postgres init)
 docker compose run --rm api bin/rails graphql:schema:dump   after any GraphQL change
 docker compose run --rm api bin/rails career_library:sync_embeddings   backfill library embeddings
 docker compose exec web npm run codegen         then regenerate web GraphQL types
 docker compose exec web npm test                web tests (also: npm run typecheck, npm run lint)
-docker compose run --rm ai python -m evals.run_job_posting_extraction_evals   job scraping evals
-docker compose run --rm ai python -m evals.run_gap_analysis_evals             gap analysis evals
-docker compose run --rm ai python -m evals.run_user_text_screen_evals         Jev screen evals
-docker compose restart ai api-results-worker    after Python or result-handling Rails changes
+docker compose run --rm ai-worker python -m evals.run_job_posting_extraction_evals   job scraping evals
+docker compose run --rm ai-worker python -m evals.run_gap_analysis_evals             gap analysis evals
+docker compose run --rm ai-worker python -m evals.run_user_text_screen_evals         Jev screen evals
+docker compose restart ai-worker api-results-worker    after Python or result-handling Rails changes
 docker compose run --rm --no-deps web npm install <pkg>   then: docker compose up --build -V -d web
 
 ==========================================================================================
@@ -157,7 +157,7 @@ GOTCHAS LEARNED
   services/api/bin need `chmod +x` and `git add --chmod=+x`, or the api container fails with
   "Permission denied".
 - `uv add` in a `run --rm` container only updates pyproject/uv.lock; rebuild the ai image
-  (`docker compose build ai`) before the new package is importable.
+  (`docker compose build ai-worker`) before the new package is importable.
 - S3Mock runs as uid 1000: don't mount a named volume as its store root (root-owned, every
   request then fails with a generic S3 InternalError).
 - Langfuse Cloud (new orgs): legacy read APIs return 410. Read data via
@@ -173,7 +173,7 @@ GOTCHAS LEARNED
   Runtime.evaluate (location.pathname, DOM reads) before assuming an app bug.
 - The first aiTaskUpdated result takes ~2-4s while the cable connects ("Loading..." shows).
 - __pycache__ folders in services/ai are root-owned (written by the container): delete them
-  with `docker compose run --rm --no-deps ai rm -rf <dir>`, not from the host.
+  with `docker compose run --rm --no-deps ai-worker rm -rf <dir>`, not from the host.
 - The ai worker doesn't reload code; restart it after Python edits.
 - ai_reader grants are applied after db:migrate. If you edit lib/ai_reader_access.rb without a
   migration, run `docker compose run --rm api bin/rails db:grant_ai_reader_access`, or the

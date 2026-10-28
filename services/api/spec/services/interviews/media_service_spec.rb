@@ -54,7 +54,7 @@ RSpec.describe "Interview private media" do
     expect(Interviews::RegisterMediaService.call(media: media, **identity, checksum: media.checksum,
       byte_size: media.byte_size, storage: storage)).not_to be_success
     expect(Interviews::ReserveSpeechMediaService.call(operation: operation, **identity, content_type: "audio/wav", storage: storage)).not_to be_success
-    expect(Interviews::DiscoverOperationsService.call.value).not_to include(operation.id)
+    expect(Interviews::DeliveryStateService.call(operation: operation).value[:delivered]).to be(true)
     expect(reserve).not_to be_success
   end
 

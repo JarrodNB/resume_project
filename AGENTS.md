@@ -17,7 +17,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 | `apps/web/`          | React (Vite + TypeScript) app, Apollo GraphQL client           |
 | `apps/landing/`      | Marketing landing page that redirects into the app             |
 | `services/api/`      | Rails API: GraphQL, auth, core domain, service objects         |
-| `services/ai/`       | Python SQS workers: OpenAI calls, scraping, memory, Logfire   |
+| `services/ai/`       | Python HTTP execution and SQS workers: models, memory, Logfire   |
 | `infra/`             | Terraform (AWS), Kubernetes manifests, local ElasticMQ config  |
 | `docs/`              | Architecture, MVP plan, decisions                              |
 | `GLOSSARY.md`        | Shared domain terms                                            |
@@ -113,7 +113,7 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
   `/home/jarrod/Desktop/resume_project`. Use Linux commands and Docker Engine with the
   Docker Compose plugin; run commands from the checkout being changed.
 - Local dev uses the root `docker-compose.yml`. Run commands inside containers, e.g.
-  `docker compose run --rm api bin/rails db:migrate` or `docker compose run --rm ai pytest`.
+  `docker compose run --rm api bin/rails db:migrate` or `docker compose run --rm ai-worker pytest`.
 - Each app/service has a `Dockerfile.dev` for local dev (source is bind-mounted, so code
   changes apply without rebuilding). Production images use a separate `Dockerfile` and
   are what gets deployed to Kubernetes.

@@ -14,6 +14,9 @@ from pydantic_ai.usage import RunUsage
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from llm.generative_model import generative_model
+from llm.model_prices import reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.interview_question_instructions import (
     INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS,
     INTERVIEW_QUESTIONS_PROMPT_VERSION,
@@ -29,11 +32,8 @@ from schemas.interview_questions import (
 )
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
-from worker.run_limits import agent_usage_limits
-from worker.settings import load_settings
-from worker.tracing import record_prompt_version
+from settings import load_settings
+from telemetry.tracing import record_prompt_version
 
 interview_questions_agent = Agent(
     name="interview_questions_agent",

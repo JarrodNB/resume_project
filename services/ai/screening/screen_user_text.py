@@ -26,16 +26,16 @@ from pydantic_ai.usage import RunUsage
 from agents.user_text_fallback_agent import screen_fallback_message, screen_fallback_message_async
 from agents.user_text_screen_agent import JEV_REQUEST_TIMEOUT_SECONDS, screen_user_message
 from conversation_logging import fallback_execution
+from llm.model_prices import build_model_usage, reported_model_name
+from privacy.contact_mask import mask_outbound
+from schemas.model_usage import ModelUsage
 from screening import local_llama
 from screening.guardrail_usage import record_guardrail_usage
 from screening.obvious_instruction_override import has_obvious_instruction_override
 from screening.session import current_session
 from screening.yes_confidence import blocks_on_yes_confidence
+from settings import DEFAULT_SCREEN_LLM_MODEL, SCREEN_LLM_OPTION, load_settings
 from text_limits import MAX_SCREENED_TEXT
-from worker.contact_mask import mask_outbound
-from worker.model_prices import build_model_usage, reported_model_name
-from worker.queue_messages import ModelUsage
-from worker.settings import DEFAULT_SCREEN_LLM_MODEL, SCREEN_LLM_OPTION, load_settings
 
 logger = logging.getLogger(__name__)
 _local_inference_lock = threading.Lock()
@@ -491,7 +491,7 @@ def _local_screen(text, model, timeout_seconds, check_phrases, max_characters,
                         finally:
                             _local_chunk_slots.release()
                             if decision_returned.is_set() and os.getenv("LOGFIRE_TOKEN"):
-                                from worker.tracing import flush_tracing
+                                from telemetry.tracing import flush_tracing
                                 flush_tracing()
 
                     try:

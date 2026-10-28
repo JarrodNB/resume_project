@@ -17,14 +17,14 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 
 from memory.embed_search_query import embed_search_query
-from worker.contact_mask import (
+from privacy.contact_mask import (
     _map_strings,
     contact_scope,
     current_known_contact,
     install_contact_hook,
     mask_outbound,
 )
-from worker.known_contact import KnownContact
+from privacy.known_contact import KnownContact
 
 
 def _contact() -> KnownContact:

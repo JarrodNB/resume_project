@@ -14,7 +14,7 @@ runs. The real runtime exports privacy-filtered traces using `LOGFIRE_TOKEN` fro
 the original AI environment file, labeled `development`; fake and isolated paid
 probes continue to disable remote export.
 
-Open [Spoken interview](http://127.0.0.2:15176/interviews). The launcher starts a real
+Open [Spoken interview](http://127.0.0.2:15176/practice/interviews). The launcher starts a real
 session prepared from owned career details, with a fictional role and nine typed questions.
 Optionally enter a short career focus, then review the role and explicitly choose **Begin interview**; each question permits up to three
 saved responses, and the interviewer may advance earlier.
@@ -41,7 +41,7 @@ recovery harness remain for offline tests only.
 
 This browser URL uses the same Rails app for career-library uploads and spoken interviews.
 The real QA overlay now starts local ElasticMQ (`sqs`), the Python `ai` worker and the Rails
-`api-results-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
+`api-results-worker` and the durable `api-jobs-worker` alongside the interview runtime. The API publishes to `http://sqs:9324`;
 it must not send local development credentials to AWS SQS. The launcher provisions the
 standard local read-only `ai_reader` role and applies the repository table grants. Resume
 processing uses the original AI environment file and the general AI allowance. The existing
@@ -71,7 +71,7 @@ See [accounting](architecture/interview-provider-accounting.md).
 
 Run from the retained checkout. Credentials stay in the original ignored environment file;
 the commands pass its path, never its contents. The launcher uses existing local images
-`cg-interview-qa-api`, `cg-interview-qa-web` and `cg-interview-qa-interview-runtime`.
+`cg-interview-qa-api`, `cg-interview-qa-web` and `cg-interview-qa-ai-http`.
 Rebuild them from this checkout if dependencies change.
 
 ```bash
@@ -83,7 +83,7 @@ The original fake QA stack must be stopped first because it uses the same loopba
 Its volumes are preserved by this command:
 
 ```bash
-docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-demo.compose.yml --profile qa stop
+docker compose -p cg-interview-qa -f /home/jarrod/Desktop/resume_project/.worktrees/basic-interview-fastapi/docs/interview-recovery.compose.yml --profile qa stop
 ```
 
 The real launcher keeps an existing runtime running, refuses a missing retained ledger,

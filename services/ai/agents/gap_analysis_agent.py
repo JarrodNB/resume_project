@@ -20,15 +20,15 @@ from pydantic_ai_harness import InputGuardrail
 from conversation_logging import ConversationLogging
 from gap_analysis.build_gap_analysis_prompt import GapAnalysisPrompt
 from gap_analysis.find_gap_analysis_problems import find_gap_analysis_problems
+from llm.generative_model import generative_model
+from llm.model_prices import reported_model_name
+from llm.run_limits import agent_usage_limits
 from prompts.gap_analysis_instructions import GAP_ANALYSIS_INSTRUCTIONS, GAP_ANALYSIS_PROMPT_VERSION
 from schemas.gap_analysis import GapAnalysis
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.model_prices import reported_model_name
-from worker.run_limits import agent_usage_limits
-from worker.settings import load_settings
-from worker.tracing import record_prompt_version
+from settings import load_settings
+from telemetry.tracing import record_prompt_version
 
 gap_analysis_agent = Agent(
     name="gap_analysis_agent",

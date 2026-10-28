@@ -7,6 +7,7 @@ Authorized GraphQL query specs.
 ## Contents
 
 - `interview_prep_spec.rb`
+- `job_pipeline_spec.rb`
 - `scoping_spec.rb`
 
 ## Local Rules

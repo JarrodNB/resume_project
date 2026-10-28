@@ -37,8 +37,6 @@ RSpec.describe "Interview execution modes", type: :service do
     Interviews::FailOperationService.call(operation: turn, attempt_id: turn.attempt_id,
       claim_generation: turn.claim_generation, code: "dependency_unavailable", retryable: true)
     travel 3.seconds
-    expect(Interviews::DiscoverOperationsService.call.value).not_to include(turn.id)
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "real").value).to include(turn.id)
     expect(Interviews::ClaimOperationService.call(operation: turn)).not_to be_success
     expect(turn.reload.execution_count).to eq(1)
     expect(Interviews::ClaimOperationService.call(operation: turn, execution_mode: "real")).to be_success
@@ -52,19 +50,15 @@ RSpec.describe "Interview execution modes", type: :service do
     expect(Interviews::ClaimOperationService.call(operation: speech, execution_mode: "real")).to be_success
   end
 
-  it "filters discovery and fences claims before any recovery or accounting mutation" do
+  it "fences claims by saved mode before any recovery or accounting mutation" do
     fake_operation = fake.operations.first
     real_operation = real.operations.first
-    expect(Interviews::DiscoverOperationsService.call.value).to include(fake_operation.id)
-    expect(Interviews::DiscoverOperationsService.call.value).not_to include(real_operation.id)
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "real").value).to eq([ real_operation.id ])
     expect(Interviews::ClaimOperationService.call(operation: real_operation)).not_to be_success
     expect(real_operation.reload.execution_count).to eq(0)
     expect(Interviews::ClaimOperationService.call(operation: real_operation, execution_mode: "real").value[:execution_config]).to eq(real.execution_config)
     travel 31.seconds
     expect(Interviews::ClaimOperationService.call(operation: real_operation)).not_to be_success
     expect(real_operation.reload).to have_attributes(status: "running", execution_count: 1)
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "unknown")).not_to be_success
     expect(Interviews::ClaimOperationService.call(operation: fake_operation, execution_mode: "real")).not_to be_success
     expect(fake_operation.reload.execution_count).to eq(0)
   end

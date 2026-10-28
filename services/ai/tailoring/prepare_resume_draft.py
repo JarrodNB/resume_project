@@ -14,6 +14,7 @@ import text_limits
 from agents.user_text_screen_agent import screen_user_message_async
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext
 from schemas.gap_response import GapResponseSnapshot
+from schemas.model_usage import ModelUsage
 from screening.gap_response_fields import screen_gap_response_fields
 from screening.guardrail_usage import collect_guardrail_usage
 from screening.job_fields import screen_job_fields_async
@@ -25,12 +26,11 @@ from screening.session import (
     screening_session,
     trust_generated_source,
 )
+from settings import AISettings
 from tailoring.build_section_prompt import SectionPrompt, build_section_prompt, job_context_text
 from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import SourceRecord, label_sources
 from text_limits import MAX_SCREENED_TEXT
-from worker.queue_messages import ModelUsage
-from worker.settings import WorkerSettings
 from worker.task_dependencies import TaskDependencies
 
 
@@ -83,7 +83,7 @@ class PreparedResumeDraft:
 
     context: GapAnalysisContext
     prompts: dict[str, SectionPrompt]
-    _settings: WorkerSettings = field(repr=False)
+    _settings: AISettings = field(repr=False)
     _gap_responses: list[GapResponseSnapshot | dict] = field(repr=False)
     _gap_analysis: dict[str, object] | None = field(repr=False)
     _decisions: dict[str, ScreenOutcome] = field(repr=False)

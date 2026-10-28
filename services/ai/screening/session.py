@@ -13,7 +13,7 @@ from functools import wraps
 from time import monotonic
 from typing import Any
 
-from worker.contact_mask import mask_outbound
+from privacy.contact_mask import mask_outbound
 
 
 @dataclass
@@ -66,7 +66,7 @@ def within_screening_session(function):
     """Keep standalone synchronous entry points isolated while reusing a worker scope."""
     @wraps(function)
     def wrapped(*args, **kwargs):
-        from worker.settings import load_settings
+        from settings import load_settings
 
         with screening_session(load_settings().llm_run_timeout_seconds, reuse=True):
             return function(*args, **kwargs)

@@ -3,7 +3,6 @@ require "rails_helper"
 
 RSpec.describe "Account mail queue privacy" do
   it "stores delivery arguments in the restricted queue without printing them in debug SQL" do
-    load Rails.root.join("db/queue_schema.rb")
     user = create(:user)
     token = Devise.friendly_token
     output = StringIO.new

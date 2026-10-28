@@ -94,7 +94,7 @@ def test_error_and_redirect_bodies_are_not_exposed(status):
         "http://api:3000", "secret", transport=httpx.MockTransport(respond)
     )
     with pytest.raises(RailsClientError) as error:
-        run(client.discover())
+        run(client.status("op"))
     assert error.value.status_code == status
     assert "transcript" not in str(error.value)
     assert len(requests) == 1
@@ -109,7 +109,7 @@ def test_oversized_or_malformed_receipts_fail_closed(body):
         transport=httpx.MockTransport(lambda _: httpx.Response(200, content=body)),
     )
     with pytest.raises(RailsTransportError):
-        run(client.discover())
+        run(client.status("op"))
 
 
 @pytest.mark.parametrize(
@@ -209,7 +209,7 @@ def test_usage_accepts_boolean_ledger_receipts(receipt):
     run(check())
 
 
-@pytest.mark.parametrize("action", ["heartbeat", "recording", "cleanup", "discover"])
+@pytest.mark.parametrize("action", ["heartbeat", "recording", "status"])
 @pytest.mark.parametrize("receipt", [True, False])
 def test_other_endpoints_reject_boolean_receipts(action, receipt):
     async def check():
@@ -219,8 +219,8 @@ def test_other_endpoints_reject_boolean_receipts(action, receipt):
             transport=httpx.MockTransport(lambda _: httpx.Response(200, json=receipt)),
         ) as client:
             with pytest.raises(RailsTransportError):
-                if action in {"cleanup", "discover"}:
-                    await getattr(client, action)()
+                if action == "status":
+                    await client.status("op")
                 else:
                     await getattr(client, action)(Claim.model_validate(CLAIM))
 
@@ -232,16 +232,12 @@ def test_runtime_requests_mode_and_rejects_mismatched_claim():
 
     def respond(request):
         requests.append(request)
-        if request.method == "GET":
-            assert request.url.params["execution_mode"] == "real"
-            return httpx.Response(200, json={"operation_ids": ["op"]})
         assert json.loads(request.content)["execution_mode"] == "real"
         return httpx.Response(200, json={**CLAIM, "execution_mode": "fake"})
 
     async def check():
         async with RailsInterviewClient("http://api:3000", "secret", execution_mode="real",
                                        transport=httpx.MockTransport(respond)) as client:
-            assert await client.discover() == ["op"]
             with pytest.raises(RailsTransportError, match="Invalid claim"):
                 await client.claim("op")
     run(check())

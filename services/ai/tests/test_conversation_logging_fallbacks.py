@@ -9,12 +9,12 @@ from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
 from conversation_logging import ConversationLogging, conversation_scope
+from llm.generative_model import generative_model
+from llm.usage import collect_task_usage
 from tests.test_process_task_message import build_task_body
 from tests.test_tracing import exporters  # noqa: F401 - shared in-memory trace fixture
-from worker.generative_model import generative_model
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
-from worker.task_usage import collect_task_usage
 
 
 def scope(settings):

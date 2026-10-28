@@ -12,9 +12,9 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 
 from conversation_logging import conversation_scope
+from llm.generative_model import generative_model
 from tests.test_process_task_message import FakeResultQueue, build_task_body
 from worker import main
-from worker.generative_model import generative_model
 from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.settings import WorkerSettings
 
@@ -112,9 +112,9 @@ def test_masked_exchange_and_nonfatal_write_failure(monkeypatch, task_dependenci
     """Capture sits after outbound masking and before restoration; disk errors leave results intact."""
     import json
 
-    from worker import contact_mask
-    from worker.contact_mask import contact_scope, install_contact_hook
-    from worker.known_contact import KnownContact
+    from privacy import contact_mask
+    from privacy.contact_mask import contact_scope, install_contact_hook
+    from privacy.known_contact import KnownContact
     monkeypatch.chdir(tmp_path)
     # The production registry retains numeric IDs; keep synthetic agent IDs test-local.
     monkeypatch.setattr(contact_mask, "_installed", set())

@@ -4,8 +4,8 @@ require "rails_helper"
 RSpec.describe "Spoken interview preparation" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   before do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 
   it "snapshots shared avoided questions once for preparation and later claims" do
@@ -14,12 +14,12 @@ RSpec.describe "Spoken interview preparation" do
     InterviewPreferences::SaveAvoidedQuestionService.call(user: user, question_text: "A later preference?")
     claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
     expect(claim).to be_success
-    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq(["Describe an old challenge."])
-    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq(["Describe an old challenge."])
+    expect(claim.value.fetch(:payload).fetch(:frozen_context).fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
+    expect(interview.reload.frozen_context.fetch("avoided_questions")).to eq([ "Describe an old challenge." ])
   end
 
   it "starts durable preparation instead of a fixture question and never starts speech" do
-    result = Interviews::StartDemoService.call(user: user)
+    result = Interviews::StartSessionService.call(user: user)
     expect(result).to be_success
     interview = result.value
     expect(interview.status).to eq("preparing")
@@ -44,7 +44,7 @@ RSpec.describe "Preparation execution" do
   end
   it "discovers and claims frozen preparation without a question or recording" do
     operation
-    expect(Interviews::DiscoverOperationsService.call(execution_mode: "real").value).to include(operation.id)
+    expect(operation.reload.delivery_job_id).to be_present
     result = claim
     expect(result).to be_success
     expect(result.value.fetch(:payload).fetch(:frozen_context).fetch("career_focus")).to eq("laboratory")

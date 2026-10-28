@@ -1,6 +1,6 @@
 """
 Description: Evaluates real coaching and grounded examples on synthetic saved answers.
-Run: docker compose run --rm ai python -m evals.run_interview_feedback_evals
+Run: docker compose run --rm ai-worker python -m evals.run_interview_feedback_evals
 Index:
     - load_interview_feedback_dataset: loads cases and deterministic checks
     - run_interview_feedback_evals: runs agent and judges, reports to Logfire
@@ -23,7 +23,7 @@ from evals.interview_evaluators import (
 from evals.report_capture import override_settings
 from prompts.interview_feedback_instructions import INTERVIEW_FEEDBACK_PROMPT_VERSION
 from schemas.interview_feedback import InterviewFeedback
-from worker.settings import load_settings
+from settings import load_settings
 
 RUBRICS = {
     "requested_scope": "Honor inputs.set_type (default general) and the actual question. Technical coaching prioritizes practical approach and reasoning in any occupation without demanding technology experience or turning into a quiz. General coaching retains career/behavioral scope. Knowledge coaching assesses subject understanding, accuracy, omissions and reasoning and supplies a corrected subject explanation from general knowledge, not a personal-experience scaffold.",

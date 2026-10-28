@@ -44,7 +44,7 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     task = create(:ai_task, user: user, task_type: "generate_study_guide", subject: job)
     %w[completed failed].each do |status|
       expect(describe_outcome(task, status: status)).to eq(
-        title: "Study guide #{status}", destination: "/jobs/#{job.id}")
+        title: "Study guide #{status}", destination: "/jobs/#{job.id}/study")
     end
     job.destroy!
     expect(describe_outcome(task.reload)[:destination]).to eq("/jobs")
@@ -64,4 +64,15 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     end
   end
 
+  it "links search, resume import, practice, and job workspace results to their current web pages" do
+    user = create(:user)
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "rerank_job_listings"))[:destination]).to eq("/jobs/find")
+    import_task = create(:ai_task, user: user, task_type: "parse_resume")
+    expect(describe_outcome(import_task)[:destination]).to eq("/library/import/#{import_task.id}")
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "generate_interview_questions"))[:destination]).to eq("/practice/questions")
+    expect(describe_outcome(build(:ai_task, user: user, task_type: "interview_turn"))[:destination]).to eq("/practice/interviews")
+    job = create(:job, user: user)
+    expect(describe_outcome(create(:ai_task, user: user, task_type: "tailor_resume", subject: job))[:destination]).to eq("/jobs/#{job.id}/resume")
+    expect(describe_outcome(create(:ai_task, user: user, task_type: "analyze_gaps", subject: job))[:destination]).to eq("/jobs/#{job.id}")
+  end
 end

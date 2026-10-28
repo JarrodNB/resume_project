@@ -11,9 +11,9 @@ from pydantic_ai.messages import ModelResponse, TextPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
+from llm.generative_model import generative_model
 from tests.test_process_task_message import FakeResultQueue, build_task_body
 from worker import main
-from worker.generative_model import generative_model
 
 
 def test_completed_request_cost_survives_later_run_limit(monkeypatch, task_dependencies):

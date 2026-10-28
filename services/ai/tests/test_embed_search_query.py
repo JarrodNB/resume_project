@@ -22,10 +22,10 @@ def test_async_embedding_keeps_privacy_and_accounting() -> None:
     """The async provider path returns the same vector contract and attempt usage."""
     import asyncio
 
+    from llm.usage import collect_task_usage
     from memory.embed_search_query import embed_search_query_async
-    from worker.contact_mask import contact_scope
-    from worker.known_contact import KnownContact
-    from worker.task_usage import collect_task_usage
+    from privacy.contact_mask import contact_scope
+    from privacy.known_contact import KnownContact
 
     async def run():
         model = TestEmbeddingModel(dimensions=16)

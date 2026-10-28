@@ -21,8 +21,8 @@ describe('RecentInterviews', () => {
     expect(screen.getByText('Sample Labs')).toBeVisible()
     expect(screen.getByText('Research coordinator')).toBeVisible()
     expect(screen.getByText('Unknown company')).toBeVisible()
-    expect(screen.getByRole('link', { name: /resume interview for laboratory technician/i })).toHaveAttribute('href', '/interviews/active')
-    expect(screen.getByRole('link', { name: /review interview for research coordinator/i })).toHaveAttribute('href', '/interviews/completed')
+    expect(screen.getByRole('link', { name: /resume interview for laboratory technician/i })).toHaveAttribute('href', '/practice/interviews/active')
+    expect(screen.getByRole('link', { name: /review interview for research coordinator/i })).toHaveAttribute('href', '/practice/interviews/completed')
   })
   it('shows saved dates, statuses and question progress with resume and review links', async () => {
     renderPage({ path: '/', url: '/', element: <RecentInterviews /> })
@@ -37,8 +37,8 @@ describe('RecentInterviews', () => {
     expect(screen.getByText('Core question 3 of 9')).toBeVisible()
     expect(screen.getAllByRole('time')).toHaveLength(6)
     expect(screen.getAllByRole('link', { name: /resume interview/i }).map((link) => link.getAttribute('href'))).toEqual([
-      '/interviews/preparing', '/interviews/ready', '/interviews/active',
+      '/practice/interviews/preparing', '/practice/interviews/ready', '/practice/interviews/active',
     ])
-    expect(screen.getByRole('link', { name: /review interview/i })).toHaveAttribute('href', '/interviews/completed')
+    expect(screen.getByRole('link', { name: /review interview/i })).toHaveAttribute('href', '/practice/interviews/completed')
   })
 })

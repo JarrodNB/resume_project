@@ -47,7 +47,8 @@ Configuration must work in Docker development and production. Preserve owned dat
 - `app/controllers/` — GraphQL endpoint and REST auth controllers
 - `app/channels/` — ActionCable: cookie-authenticated WebSocket at `/cable`, GraphQL channel
 - `app/workers/` — Shoryuken workers (run by the `api-results-worker` compose service)
-- `app/jobs/` — Active Job background jobs (career-library and question-specific interview embedding sync)
+- `app/jobs/` — durable Solid Queue jobs on the primary database (career-library and
+  question-specific interview embedding sync, account email); run `bin/jobs` separately
 - `db/` — migrations and schema (UUID primary keys)
 - `spec/` — RSpec specs and FactoryBot factories
 - `config/routes.rb` — `/auth/*` (REST, cookie sessions), `/graphql`, `/up`
@@ -77,7 +78,8 @@ Configuration must work in Docker development and production. Preserve owned dat
   `db:schema:load` (schema.rb doesn't keep grants) and skips if the role doesn't exist. A table
   the AI worker must read needs to be added there; `job_gap_responses` is deliberately absent.
   `spec/lib/ai_reader_access_spec.rb` checks what the role can and can't see
-- `schema.graphql` — GraphQL SDL dump read by `apps/web` codegen. Regenerate after any
+- `graphql_schema/schema.graphql` — GraphQL SDL dump read by `apps/web` codegen (in its own
+  folder so the web container mounts the folder and always sees the latest dump). Regenerate after any
   GraphQL change with `docker compose run --rm api bin/rails graphql:schema:dump`
   (`lib/tasks/graphql_schema.rake`); `spec/graphql/schema_dump_spec.rb` fails if it's stale
 - `Dockerfile.dev` — local dev image; `Dockerfile` — generated production image

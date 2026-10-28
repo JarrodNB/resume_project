@@ -30,12 +30,12 @@ def test_paid_mode_reports_embedding_usage_and_label_metrics_at_fake_provider_se
 
     from pydantic_ai.usage import RequestUsage
 
+    from llm.usage import current_task_usage
     from memory.embed_search_query import QueryEmbedding
-    from worker.task_usage import current_task_usage
 
     monkeypatch.setattr("worker.settings.load_settings", lambda: SimpleNamespace(
         embedding_model="openai:text-embedding-3-small", embedding_dimensions=2))
-    monkeypatch.setattr("worker.tracing.configure_tracing", lambda: None)
+    monkeypatch.setattr("telemetry.tracing.configure_tracing", lambda: None)
     monkeypatch.setattr("evals.telemetry.eval_run", lambda *args, **kwargs: nullcontext())
     monkeypatch.setattr("evals.telemetry.record_score", lambda *args: None)
 

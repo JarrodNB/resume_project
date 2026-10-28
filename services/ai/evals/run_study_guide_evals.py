@@ -19,8 +19,8 @@ from evals.study_guide_evaluators import (
 from evals.telemetry import evaluate_dataset
 from prompts.study_guide_instructions import STUDY_GUIDE_PROMPT_VERSION
 from schemas.study_guide import StudyGuide
+from settings import load_settings
 from worker.queue_messages import AiTaskMessage
-from worker.settings import load_settings
 from worker.study_guide_handler import handle_study_guide_task
 
 

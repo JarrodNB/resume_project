@@ -10,7 +10,7 @@ Index:
 
 from schemas.user_text_screen import UserTextScreen
 
-# Starting bar, recorded so it can be tuned. The screen model is pinned in WorkerSettings.
+# Starting bar, recorded so it can be tuned. The screen model is pinned in AISettings.
 YES_CONFIDENCE_THRESHOLD = 0.7
 _FIELDS = ("prompt_injection",)
 

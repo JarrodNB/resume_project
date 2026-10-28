@@ -13,10 +13,10 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
 from agents.user_text_screen_agent import screen_user_message
+from llm.generative_model import generative_model
 from memory.embed_search_query import embed_search_query
 from tests.test_process_task_message import FakeResultQueue, build_task_body
 from worker import main
-from worker.generative_model import generative_model
 from worker.queue_messages import AiResultMessage
 
 

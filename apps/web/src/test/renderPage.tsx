@@ -2,7 +2,8 @@
  * Description: Test helper that renders a page inside a memory router and Apollo's MockedProvider.
  * Index:
  *   - renderPage: renders `element` at `url`, plus any extra routes to navigate to.
- *     `historyState` is the location state for that first entry.
+ *     `historyState` is the location state for that first entry. `children` nests routes under
+ *     `element` (for layouts that render an `<Outlet>`, like the job workspace).
  */
 import type { ReactElement } from 'react'
 import type { MockLink } from '@apollo/client/testing'
@@ -17,11 +18,12 @@ interface RenderPageOptions {
   mocks?: MockLink.MockedResponse[]
   extraRoutes?: RouteObject[]
   historyState?: unknown
+  children?: RouteObject[]
 }
 
 /** Renders a routed page with mocked GraphQL responses; returns the router for location checks. */
-export function renderPage({ path, url, element, mocks = [], extraRoutes = [], historyState }: RenderPageOptions) {
-  const router = createMemoryRouter([{ path, element }, ...extraRoutes], {
+export function renderPage({ path, url, element, mocks = [], extraRoutes = [], historyState, children }: RenderPageOptions) {
+  const router = createMemoryRouter([{ path, element, children }, ...extraRoutes], {
     initialEntries: [historyState === undefined ? url : { pathname: url, state: historyState }],
   })
   const rendered = render(

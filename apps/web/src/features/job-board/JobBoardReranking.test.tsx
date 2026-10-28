@@ -30,7 +30,7 @@ function rankMock(keyword = 'engineer', ids = ['first', 'second'], order = ['sec
   }
 }
 function renderBoard(mocks: MockLink.MockedResponse[]) {
-  return renderPage({ path: '/job-board', url: '/job-board', element: <JobBoardPage />, mocks })
+  return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks })
 }
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {
   await user.clear(screen.getByRole('textbox', { name: 'Keyword or job title' }))

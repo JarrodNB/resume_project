@@ -24,8 +24,8 @@ from evals.run_interview_questions_evals import (
     load_interview_questions_dataset,
 )
 from schemas.interview_questions import InterviewQuestionDraft, InterviewQuestions
+from telemetry.tracing import configure_tracing
 from worker.settings import WorkerSettings
-from worker.tracing import configure_tracing
 
 
 def test_judge_environment_override_is_independent(monkeypatch):

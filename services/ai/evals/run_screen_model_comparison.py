@@ -20,7 +20,7 @@ from evals.run_screen_chunk_comparison import build_resume_cases
 from evals.telemetry import eval_run, record_score
 from screening import local_llama
 from screening.session import screening_session
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "user_text_screen_cases.yaml"
 MODELS = ("jev", "llama")

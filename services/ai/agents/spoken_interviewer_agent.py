@@ -9,9 +9,9 @@ from pydantic_ai.capabilities import Hooks
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from privacy.contact_mask import _mask_request, _unmask_response
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_INSTRUCTIONS
 from schemas.spoken_interview import SpokenInterviewReply
-from worker.contact_mask import _mask_request, _unmask_response
 
 
 def make_interviewer(guard, *, system_prompt=""):

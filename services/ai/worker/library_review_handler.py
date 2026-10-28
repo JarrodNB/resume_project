@@ -1,6 +1,7 @@
 """Screen one saved section and return grades and optional questions without changing facts."""
 
 from agents.library_review_agent import review_library_section
+from llm.model_prices import build_model_usage
 from model_inputs.blocks import source_block
 from schemas.library_review import LibraryReviewInput
 from screening.library_fields import screen_library_fields
@@ -8,7 +9,6 @@ from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHEC
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
-from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage
 
 

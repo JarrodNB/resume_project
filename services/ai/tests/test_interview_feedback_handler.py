@@ -386,8 +386,8 @@ def test_feedback_agent_masks_contact_and_restores_evidence(dependencies, monkey
     from pydantic_ai.messages import ModelResponse, ToolCallPart
     from pydantic_ai.models.function import FunctionModel
 
-    from worker.contact_mask import contact_scope, install_contact_hooks
-    from worker.known_contact import KnownContact
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
 
     seen = []
     def answer(messages, info):

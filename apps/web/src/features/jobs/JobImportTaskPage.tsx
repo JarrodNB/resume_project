@@ -55,14 +55,14 @@ export function JobImportTaskPage({
 
   return (
     <StatusCard
-      icon={<CircleCheck className="size-10 text-emerald-600" />}
+      icon={<CircleCheck className="size-10 text-signal-done-text" />}
       title="Job saved"
       body="A few things to check before you rely on it:"
     >
       <ul className="grid max-w-md gap-2 text-left text-sm">
         {warnings.map((warning) => (
           <li key={warning} className="flex gap-2">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-amber-600" aria-hidden />
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
             {warning}
           </li>
         ))}

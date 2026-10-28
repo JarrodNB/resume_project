@@ -6,9 +6,10 @@ result or an expected input failure; unexpected errors retain the worker's retry
 
 import asyncio
 
+from schemas.model_usage import ModelUsage
 from tailoring.generate_resume_draft import ResumeDraftInputError, generate_resume_draft
 from tailoring.tailor_resume_input import TailorResumeInput
-from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 JOB_NOT_FOUND_MESSAGE = "This job no longer exists."

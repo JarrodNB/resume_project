@@ -6,6 +6,7 @@
  *   - ProfileSection: profile card with an empty state and an edit button
  */
 import { useState } from 'react'
+import { ReviewQuestionsBadge } from './ReviewQuestionsBadge'
 import { LibrarySectionReview } from './LibrarySectionReview'
 import { LibraryDetail } from './LibraryDetail'
 import { SectionCard } from '@/components/SectionCard'
@@ -22,7 +23,7 @@ export function ProfileSection({ profile }: { profile: Profile }) {
   const isEmpty = !profile.name && !contactLine && profile.links.length === 0 && !profile.summary
 
   return (
-    <SectionCard sectionId="library.profile" tone="contact" title="Profile" contentClassName="grid gap-2">
+    <SectionCard sectionId="library.profile" tone="contact" title="Profile" badge={<ReviewQuestionsBadge section="summary" />} contentClassName="grid gap-2">
       <div className="flex justify-end">
         <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
           Edit profile

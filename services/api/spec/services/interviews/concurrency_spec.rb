@@ -127,7 +127,7 @@ RSpec.describe "Basic Interview concurrency" do
       reply: "What changed?", history_version: 1, model_history: [])
     expect(replay.success?).to eq(results.last.success?)
     expect(@interview.messages.count).to eq(count)
-    expect(Interviews::DiscoverOperationsService.call.value).to be_empty
+    expect(@interview.operations.where(status: %w[pending running])).to be_empty
   end
 
   it "serializes abandon against provider starts and retains any admitted unknown charge" do

@@ -1,9 +1,9 @@
-# Description: Python project definition for the AI worker service (dependencies and tooling).
+# Description: Python project definition shared by the AI HTTP app and queue workers (dependencies and tooling).
 # Index: runtime dependencies, development dependencies, uv, Ruff, and pytest configuration.
 [project]
-name = "ai-worker"
+name = "careergrind-ai"
 version = "0.1.0"
-description = "SQS workers that run all LLM work for Throughline."
+description = "Shared AI execution for Careergrind HTTP endpoints and queue workers."
 requires-python = ">=3.13"
 dependencies = [
     "beautifulsoup4>=4.15.0",
@@ -22,6 +22,7 @@ dependencies = [
     "pydantic-settings",
     "pypdf>=6.19.0",
     "python-docx>=1.2.0",
+    "redis>=6,<9",
     "spacy==3.8.11",
     "torch>=2.7,<3",
     "transformers>=4.51,<5",

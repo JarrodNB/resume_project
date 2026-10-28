@@ -2,13 +2,14 @@
 # the serialized user and password salt; the timestamp limits authentication to one day.
 module BrowserSessions
   class ResolveSessionIdentityService < ApplicationService
-    def initialize(session_id:)
-      @session_id = session_id
+    # Only server-owned observer grants supply a stored digest; browsers never do.
+    def initialize(session_id: nil, private_id: nil)
+      @private_id = session_id&.private_id || private_id
     end
 
     def call
-      return failure([ "Signed out" ]) unless @session_id
-      record = ActiveRecord::SessionStore::Session.find_by_session_id(@session_id.private_id)
+      return failure([ "Signed out" ]) unless @private_id.is_a?(String) && @private_id.present?
+      record = ActiveRecord::SessionStore::Session.find_by_session_id(@private_id)
       data = record&.data || {}
       authenticated_at = data["authenticated_at"]
       key = data["warden.user.user.key"]

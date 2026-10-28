@@ -1,6 +1,6 @@
 /**
- * Description: The job page's resume action. A saved resume opens directly. A finished
- * comparison goes straight to tailoring. Otherwise a dialog recommends comparing first. Active comparisons disable writing.
+ * Description: The job workspace's resume action. A saved resume opens the Resume tab. A finished
+ * comparison goes straight to writing. Otherwise a dialog recommends comparing first. Active comparisons disable writing.
  * Index:
  *   - WriteResumeAction: the header button
  */
@@ -25,7 +25,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
   if (resumeId) {
     return (
       <Button asChild size="sm">
-        <Link to={`/resumes/${resumeId}`} state={{ fromJobId: jobId }}>
+        <Link to={`/jobs/${jobId}/resume`}>
           Open resume
         </Link>
       </Button>
@@ -35,7 +35,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
   if (comparisonFinished && !comparisonBusy) {
     return (
       <Button asChild size="sm">
-        <Link to={`/jobs/${jobId}/tailor`}>Write resume</Link>
+        <Link to={`/jobs/${jobId}/resume/write`}>Write resume</Link>
       </Button>
     )
   }
@@ -55,7 +55,7 @@ export function WriteResumeAction({ jobId, resumeId, comparisonFinished, compari
           onCompare()
         }}
         onWriteAnyway={() => {
-          if (!comparisonBusy) navigate(`/jobs/${jobId}/tailor`)
+          if (!comparisonBusy) navigate(`/jobs/${jobId}/resume/write`)
         }}
       />
     </>

@@ -68,7 +68,7 @@ done <<< "$source_mounts"
 running_services=$(docker ps --filter "label=com.docker.compose.project=$target_project" --format '{{.Label "com.docker.compose.service"}}')
 while IFS= read -r service; do
   case "$service" in
-    api|api-results-worker|ai|interview-real-runtime) fail "Stop review app/worker services before copying ($service running)." ;;
+    api|api-results-worker|api-jobs-worker|ai-worker|ai-http) fail "Stop review app/worker services before copying ($service running)." ;;
   esac
 done <<< "$running_services"
 

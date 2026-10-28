@@ -38,9 +38,9 @@ Automated specs continue to use isolated FactoryBot users rather than these acco
 | Change | Command |
 | --- | --- |
 | Rails behavior | `docker compose run --rm api bundle exec rspec spec/path/to_spec.rb` |
-| AI worker behavior (offline) | `docker compose run --rm ai pytest -m "not db" tests/test_example.py` |
-| AI schema dependency direction | `docker compose run --rm ai pytest tests/test_schema_dependencies.py` |
-| AI lint | `docker compose run --rm ai ruff check .` |
+| AI worker behavior (offline) | `docker compose run --rm ai-worker pytest -m "not db" tests/test_example.py` |
+| AI schema dependency direction | `docker compose run --rm ai-worker pytest tests/test_schema_dependencies.py` |
+| AI lint | `docker compose run --rm ai-worker ruff check .` |
 | Frontend behavior | `docker compose run --rm --no-deps web npm test -- src/path/Thing.test.tsx` |
 | Frontend types | `docker compose run --rm --no-deps web npm run typecheck` |
 | Frontend lint | `docker compose run --rm --no-deps web npm run lint` |
@@ -69,8 +69,8 @@ Run the relevant `services/ai/evals/run_*_evals.py` runner after prompt, model, 
 or agent behavior changes, for example:
 
 ```bash
-docker compose run --rm ai python -m evals.run_library_retrieval_evals
-docker compose run --rm ai python -m evals.run_interview_questions_evals
+docker compose run --rm ai-worker python -m evals.run_library_retrieval_evals
+docker compose run --rm ai-worker python -m evals.run_interview_questions_evals
 ```
 
 These evaluations call external providers and incur charges. Configure credentials in
@@ -91,7 +91,7 @@ explicitly; no database, queue, or environment file is needed:
 
 ```bash
 docker run --rm --network none -v "$PWD/services/ai:/app" -w /app \
-  resume_project-ai:latest pytest -m "not db" tests/test_schema_dependencies.py
+  resume_project-ai-worker:latest pytest -m "not db" tests/test_schema_dependencies.py
 ```
 
 Rebuild the image if its dependencies differ from the checkout's lockfile.
@@ -103,7 +103,7 @@ Use a dummy value with networking disabled rather than supplying a real credenti
 
 ```bash
 docker run --rm --network none -e OPENAI_API_KEY=offline-test-placeholder \
-  -v "$PWD/services/ai:/app" -w /app resume_project-ai:latest \
+  -v "$PWD/services/ai:/app" -w /app resume_project-ai-worker:latest \
   pytest -m "not db" tests/test_scrape_job_handler.py
 ```
 
@@ -112,10 +112,10 @@ offline test fakes in place; it cannot authenticate a real provider request.
 
 ## Offline spoken interview recovery
 
-See [the isolated recovery guide](interview-demo.md) for deterministic process recovery
+See [the isolated recovery guide](interview-recovery.md) for deterministic process recovery
 without paid providers. [Real browser QA](interview-real-qa.md) uses the original paid
 ledger and `127.0.0.2`, keeping cookies separate from a main stack on `localhost`.
 
 For a bounded, no-network timing probe of spoken turn completion → dependent
 speech claim, see [interview latency measurements](interview-latency.md). It uses
-the actual recovery scheduler with synthetic work, not real providers or browser QA.
+the actual shared execution runner with synthetic work, not real providers or browser QA.

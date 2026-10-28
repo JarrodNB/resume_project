@@ -19,9 +19,9 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
   const skippedCount = interview.questions.filter((question) => question.skipped && !answered(question)).length
   const followUpsSkipped = interview.questions.filter((question) => question.skipped && answered(question)).length
   return <div className="interview-review grid min-w-0 gap-4">
-    <nav aria-label="Review actions" className="flex flex-wrap gap-4"><Link className="text-sm underline underline-offset-4" to="/interviews">Back to interviews</Link>
+    <nav aria-label="Review actions" className="flex flex-wrap gap-4"><Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>
     {job && !job.id ? <Link className="text-sm underline underline-offset-4" to="/jobs">Choose another job</Link>
-      : <Link className="justify-self-start text-sm underline underline-offset-4" to={job ? `/jobs/${job.id}/interview` : '/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link>}
+      : <Link className="justify-self-start text-sm underline underline-offset-4" to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link>}
     {job?.id && <Link className="text-sm underline underline-offset-4" to={`/jobs/${job.id}`}>Back to job</Link>}</nav>
     <header className="grid gap-2 border-b pb-4">
       <h2 className="text-2xl font-semibold">Interview complete</h2>

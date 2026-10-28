@@ -406,7 +406,7 @@ it('keeps writing disabled when following an active comparison fails', async () 
 it.each(['validation', 'network'])('enables writing and retry after a %s start failure', async kind => {
   const user = userEvent.setup()
   const failure = kind === 'validation'
-    ? { result: { data: { analyzeJobGaps: { __typename: 'AnalyzeJobGapsPayload', aiTask: null, errors: ['Add library facts first'] } } } }
+    ? { result: { data: { analyzeJobGaps: { __typename: 'AnalyzeJobGapsPayload', aiTask: null, errors: ['Add career context first'] } } } }
     : { error: new Error('Offline') }
   renderLiveJob(job(), [
     { request: { query: ANALYZE_JOB_GAPS_MUTATION, variables: { jobId: 'job-1' } }, ...failure },
@@ -416,7 +416,7 @@ it.each(['validation', 'network'])('enables writing and retry after a %s start f
   ])
   await user.click(await screen.findByRole('button', { name: 'Write resume' }))
   await user.click(screen.getByRole('button', { name: 'Compare first' }))
-  expect(await screen.findByText(kind === 'validation' ? 'Add library facts first' : /Couldn't reach the server/)).toBeInTheDocument()
+  expect(await screen.findByText(kind === 'validation' ? 'Add career context first' : /Couldn't reach the server/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Write resume' })).toBeEnabled()
   await user.click(screen.getByRole('button', { name: 'Compare with my career library' }))
   await screen.findByText(/Comparing this job/)

@@ -12,7 +12,7 @@ _VALUES = {
     "kind": {"fact": "career_context", "library_fact": "career_context"},
     "type": {"library_facts": "career_contexts"},
     "source_type": {"LibraryFact": "CareerContext"},
-    "record_type": {"LibraryFact": "CareerContext"},
+    "record_type": {"LibraryFact": "CareerContext", "library_fact": "career_context"},
 }
 
 

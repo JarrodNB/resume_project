@@ -30,7 +30,7 @@ screening and returns text together with the label maps needed for validation. P
 their existing agents own those wrappers. JSON used for queue transport,
 screening reconstruction, reports, and structured model outputs is outside this layer.
 
-Interview fact requirements are separately labeled context for interpreting the response.
+Interview career context requirements are separately labeled context for interpreting the response.
 They receive no evidence IDs or quote coverage; only the candidate's response supplies personal
 evidence. Callers screen both fields or reuse their saved approvals before rendering them.
 

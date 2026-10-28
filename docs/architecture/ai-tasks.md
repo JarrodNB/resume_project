@@ -288,7 +288,7 @@ The worker retries through SQS redelivery instead of in-process loops:
 ### Career library review
 
 `review_library_section` takes `{section, library, targets}`: a Rails-owned snapshot of one selected
-section (`summary`, `experience`, `projects`, or `facts`) with saved field-check metadata and short-label target identities/context digests.
+section (`summary`, `experience`, `projects`, or `career_contexts`) with saved field-check metadata and short-label target identities/context digests.
 It returns `{assessments: [{kind, record_id, field, source_digest, color, reason, questions, question}]}`.
 The ordered `questions` list contains zero to three distinct, nonblank questions, each at most
 500 characters. `question` mirrors its first item or null for legacy scalar consumers; old results

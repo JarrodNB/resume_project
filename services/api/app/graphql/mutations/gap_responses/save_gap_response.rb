@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 # Description: Saves the signed-in user's answer to one requirement of one job. A blank body
-# clears it. addToLibrary also stores a career-library fact.
+# clears it. addToLibrary also stores a career context entry.
 module Mutations
   module GapResponses
     class SaveGapResponse < Mutations::BaseMutation

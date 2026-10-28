@@ -56,7 +56,9 @@ class RenameLibraryFactsToCareerContexts < ActiveRecord::Migration[8.1]
             IF jsonb_typeof(entry.value) = 'string' THEN
               IF entry.key IN ('source_type', 'record_type') THEN
                 IF NOT reverse AND entry.value = '"LibraryFact"'::jsonb THEN new_value := '"CareerContext"'::jsonb;
-                ELSIF reverse AND entry.value = '"CareerContext"'::jsonb THEN new_value := '"LibraryFact"'::jsonb; END IF;
+                ELSIF reverse AND entry.value = '"CareerContext"'::jsonb THEN new_value := '"LibraryFact"'::jsonb;
+                ELSIF NOT reverse AND entry.key = 'record_type' AND entry.value = '"library_fact"'::jsonb THEN new_value := '"career_context"'::jsonb;
+                ELSIF reverse AND entry.key = 'record_type' AND entry.value = '"career_context"'::jsonb THEN new_value := '"library_fact"'::jsonb; END IF;
               ELSIF entry.key = 'section' THEN
                 IF NOT reverse AND entry.value = '"facts"'::jsonb THEN new_value := '"career_contexts"'::jsonb;
                 ELSIF reverse AND entry.value = '"career_contexts"'::jsonb THEN new_value := '"facts"'::jsonb; END IF;

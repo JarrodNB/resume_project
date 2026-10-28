@@ -27,6 +27,7 @@ RSpec.describe RenameLibraryFactsToCareerContexts do
     legacy_input = {
       "section" => "facts", "library" => { "facts" => [ { "id" => context.id, "response" => context.response } ] },
       "target" => { "kind" => "library_fact", "record_id" => context.id, "source_digest" => "unchanged" },
+      "receipt" => { "record_type" => "library_fact" },
       "feedback" => "facts", "history" => [ { "content" => 'library_fact facts LibraryFact' } ]
     }
     task = create(:ai_task, user: user, task_type: "improve_library_entry", input: legacy_input,
@@ -42,6 +43,7 @@ RSpec.describe RenameLibraryFactsToCareerContexts do
     expect(embedding.reload.source_type).to eq("CareerContext")
     expect(connection.select_value("SELECT embedding::text FROM library_embeddings WHERE id = '#{embedding.id}'")).to eq(original_vector)
     input = task.reload.input
+    expect(input.dig("receipt", "record_type")).to eq("career_context")
     expect(input["section"]).to eq("career_contexts")
     expect(input.dig("library", "career_contexts", 0, "id")).to eq(context.id)
     expect(input["target"]).to eq(legacy_input["target"].merge("kind" => "career_context"))

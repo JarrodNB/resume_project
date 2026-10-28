@@ -13,7 +13,7 @@ Index:
 
 from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-GAP_ANALYSIS_PROMPT_VERSION = "8"
+GAP_ANALYSIS_PROMPT_VERSION = "9"
 
 GAP_ANALYSIS_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """\
 You compare a job with a candidate's career library and report, for every requirement
@@ -58,7 +58,7 @@ Evidence:
   and do not treat it as evidence. A requirement is supported only by a labeled entry.
 - Treat obvious synonyms and spellings as the same thing (Postgres = PostgreSQL, JS = JavaScript,
   K8s = Kubernetes). A degree requirement is met by an equivalent degree in the education section.
-- Facts (F1, F2, ...) are statements the candidate wrote themselves. They count as evidence the
+- Career context entries (F1, F2, ...) are statements the candidate wrote themselves. They count as evidence the
   same way a highlight does.
 
 `explanation`: one or two plain sentences, naming what the library shows and, for partial or

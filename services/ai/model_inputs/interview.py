@@ -22,7 +22,7 @@ def build_interview_question_context(
     """Keep displayed evidence and its citation rules together for workers and evals.
 
     Only saved strings assigned an evidence ID are eligible quotes. Formatted dates,
-    saved fact requirement context, exclusions, and recent practice are not evidence.
+    saved career context requirement context, exclusions, and recent practice are not evidence.
     """
     # A fresh marker outside every source prevents a pasted closing line from ending its own data block.
     evidence_text, evidence_by_id = interview_question_evidence(library)

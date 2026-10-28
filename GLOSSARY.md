@@ -7,7 +7,7 @@ Index: language and shared domain terms.
 
 **Library proposal**:
 A suggested replacement for one career-library narrative detail, such as a summary, achievement,
-project description, or saved fact response. It changes the saved detail only
+project description, or saved career context response. It changes the saved detail only
 when the user accepts it; feedback and follow-up answers can refine it first.
 
 **Avoided question**:

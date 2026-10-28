@@ -31,8 +31,8 @@ def test_queued_edit_uses_canonical_context_and_preserves_prose_and_identity():
 def test_queued_gap_evidence_and_screening_sources_use_canonical_discriminators():
     raw = {"gap_analysis": {"evidence": [{"kind": "fact", "text": "facts"}]},
            "source": {"source_type": "LibraryFact"},
-           "receipt": {"record_type": "LibraryFact"}}
+           "receipt": {"record_type": "library_fact"}}
     task = AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume", input=raw)
     assert task.input["gap_analysis"]["evidence"] == [{"kind": "career_context", "text": "facts"}]
     assert task.input["source"]["source_type"] == "CareerContext"
-    assert task.input["receipt"]["record_type"] == "CareerContext"
+    assert task.input["receipt"]["record_type"] == "career_context"

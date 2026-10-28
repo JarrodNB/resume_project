@@ -4,9 +4,13 @@ module Internal
   class InterviewsController < ActionController::API
     before_action :authenticate_service
     around_action :bound_database_waits
-    before_action :find_operation, except: [ :claim_clarification, :claim_references ]
+    before_action :find_operation, except: [ :claim_clarification, :claim_references, :claim_feedback ]
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: [ "Record not found" ] }, status: :not_found }
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
+
+    def claim_feedback
+      respond Interviews::SessionFeedback.new.claim(ai_task: AiTask.find(params.require(:id)))
+    end
 
     def claim_references
       respond Interviews::CurrentPromptWork::References.new.claim(ai_task: AiTask.find(params.require(:id)))

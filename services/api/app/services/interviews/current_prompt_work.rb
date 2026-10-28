@@ -4,6 +4,7 @@
 module Interviews
   class CurrentPromptWork
     def self.for_task(task)
+      return SessionFeedback.new if task.interview_session_feedback?
       return Clarification.new if task.interview_clarification?
       References.new if task.interview_references?
     end

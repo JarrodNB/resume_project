@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -131,7 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -326,6 +326,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
     t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
+  end
+
+  create_table "interview_session_feedbacks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "interview_session_id", null: false
+    t.uuid "ai_task_id"
+    t.integer "attempt_count", default: 0, null: false
+    t.integer "expected_revision", null: false
+    t.datetime "claimed_at"
+    t.datetime "deadline"
+    t.jsonb "content", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_task_id"], name: "index_interview_session_feedbacks_on_ai_task_id"
+    t.index ["interview_session_id"], name: "index_interview_session_feedbacks_on_interview_session_id", unique: true
+    t.check_constraint "attempt_count >= 0 AND attempt_count <= 2 AND jsonb_typeof(content) = 'object'::text", name: "interview_session_feedback_bounds"
   end
 
   create_table "interview_session_media", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -869,6 +884,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
   add_foreign_key "interview_question_embeddings", "interview_questions", on_delete: :cascade
   add_foreign_key "interview_question_sets", "users"
   add_foreign_key "interview_questions", "interview_question_sets"
+  add_foreign_key "interview_session_feedbacks", "ai_tasks", on_delete: :nullify
+  add_foreign_key "interview_session_feedbacks", "interview_sessions"
   add_foreign_key "interview_session_media", "interview_session_messages", column: "message_id"
   add_foreign_key "interview_session_media", "interview_session_messages", column: ["interview_session_id", "question_id", "message_id"], primary_key: ["interview_session_id", "question_id", "id"], name: "interview_media_owned_message"
   add_foreign_key "interview_session_media", "interview_session_operations", column: "operation_id"

@@ -1,15 +1,15 @@
 /**
- * Description: The two drag-and-drop pieces of Home's board: a job tile that can be picked up by
- * its grip, and a stage column that jobs can be dropped onto. They only handle the dragging;
+ * Description: The two drag-and-drop pieces of Home's board: a job tile that can be picked up
+ * anywhere, and a stage column that jobs can be dropped onto. They only handle the dragging;
  * HomePage decides what a drop does (it saves the job's new stage).
  * Index:
  *   - JOB_DRAG_TYPE, stageDropId, stageFromDropId: ids that link tiles to columns
- *   - DraggableJobTile: list item with a drag handle
+ *   - DraggableJobTile: list item you can grab anywhere
  *   - StageDropColumn: board column that lights up while a job is over it
  */
 import type { ReactNode } from 'react'
 import { useDraggable, useDroppable } from '@dnd-kit/react'
-import { DragHandle } from '@/components/dnd/DragHandle'
+import { GripVertical } from 'lucide-react'
 import type { JobStage } from '@/features/jobs/jobStageLabels'
 import { cn } from '@/lib/utils'
 
@@ -34,12 +34,20 @@ interface DraggableJobTileProps {
   children: ReactNode
 }
 
-/** A job tile; only its grip starts a drag, so the links inside keep working. */
+/** A job tile; grab it anywhere to drag. A plain click on a link inside still follows the link.
+ * The role and tab stop are set here so dnd-kit does not make the tile a "button", which would hide its links from screen readers. */
 export function DraggableJobTile({ jobId, label, className, children }: DraggableJobTileProps) {
-  const { ref, handleRef, isDragging } = useDraggable({ id: jobId, type: JOB_DRAG_TYPE })
+  const { ref, isDragging } = useDraggable({ id: jobId, type: JOB_DRAG_TYPE })
   return (
-    <li ref={ref} className={cn(className, 'is-draggable', isDragging && 'is-dragging')}>
-      <DragHandle handleRef={handleRef} label={label} className="job-tile-grip" />
+    <li
+      ref={ref}
+      role="group"
+      tabIndex={0}
+      aria-label={`${label}, draggable`}
+      aria-roledescription="draggable job"
+      className={cn(className, 'is-draggable', isDragging && 'is-dragging')}
+    >
+      <GripVertical className="job-tile-grip" aria-hidden />
       {children}
     </li>
   )

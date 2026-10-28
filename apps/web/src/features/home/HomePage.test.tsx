@@ -115,12 +115,13 @@ it('marks an offer in green words and says when no AI work is running', async ()
   expect(within(screen.getByRole('list', { name: 'Signal colors' })).getByText('Needs you')).toBeInTheDocument()
 })
 
-it('gives every board tile a grip to drag it to another stage, but not list rows', async () => {
+it('lets every board tile be dragged to another stage, but not list rows', async () => {
   const user = userEvent.setup()
   renderHome(pipeline)
   const notApplied = await screen.findByRole('region', { name: /Not applied/ })
-  expect(within(notApplied).getByRole('button', { name: 'Drag Platform Engineer at Synthetic Co' })).toBeInTheDocument()
-  expect(screen.getAllByRole('button', { name: /^Drag / })).toHaveLength(pipeline.length)
+  expect(within(notApplied).getByRole('group', { name: 'Platform Engineer at Synthetic Co, draggable' })).toBeInTheDocument()
+  expect(within(notApplied).getByRole('link', { name: 'Platform Engineer' })).toBeInTheDocument()
+  expect(screen.getAllByRole('group', { name: /, draggable$/ })).toHaveLength(pipeline.length)
   await user.click(screen.getByRole('button', { name: 'List' }))
-  expect(screen.queryByRole('button', { name: /^Drag / })).not.toBeInTheDocument()
+  expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
 })

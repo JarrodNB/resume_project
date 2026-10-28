@@ -467,7 +467,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .view-switch button:focus-visible { outline: 2px solid var(--ring); outline-offset: -5px; }
 .view-switch button[aria-pressed=true]:focus-visible { outline-color: var(--background); }
 
-.pipeline-board { display: grid; grid-template-columns: repeat(5, minmax(210px, 1fr)); align-items: start; gap: 16px; margin-top: 22px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: var(--input) transparent; }
+.pipeline-board { display: grid; grid-template-columns: repeat(5, minmax(210px, 1fr)); align-items: stretch; gap: 16px; margin-top: 22px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: var(--input) transparent; }
 .pipeline-column { display: grid; align-content: start; gap: 12px; min-width: 0; }
 .station { position: relative; display: grid; align-content: start; justify-items: center; gap: 10px; min-height: 104px; padding-bottom: 14px; border-bottom: 1px solid var(--border); text-align: center; }
 .station h2 { font-size: 16px; font-weight: 700; }
@@ -486,10 +486,14 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .pipeline-column ul { display: grid; gap: 12px; }
 .job-tile { padding: 16px 16px 14px; border: 1.5px solid var(--rule-strong); border-radius: 6px; background: var(--card); }
 .job-tile.is-draggable { position: relative; }
-.job-tile-grip { position: absolute; top: 8px; right: 6px; }
+.job-tile-grip { position: absolute; top: 12px; right: 10px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.job-tile.is-draggable { cursor: grab; touch-action: none; }
+.job-tile.is-dragging { cursor: grabbing; }
 .job-tile.is-draggable .pipeline-job { padding-right: 24px; }
 .job-tile.is-dragging { z-index: 10; opacity: 0.85; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
-.pipeline-column.is-drop-target { border-radius: 6px; background: color-mix(in oklab, var(--primary) 6%, transparent); outline: 1.5px dashed var(--primary); outline-offset: 4px; }
+/* Columns stretch to one tall pillar each, so there is a big target to drop on. */
+.pipeline-column { min-height: min(70vh, 640px); }
+.pipeline-column.is-drop-target { border-radius: 10px; background: color-mix(in oklab, var(--primary) 8%, transparent); outline: 2px dashed var(--primary); outline-offset: 8px; }
 .job-tile.is-closed { border-color: var(--border); color: var(--muted-foreground); }
 .pipeline-job { min-width: 0; }
 .pipeline-job h3 { font-size: 16px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
@@ -543,6 +547,7 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 @media (max-width: 639px) {
   .pipeline-board { grid-template-columns: minmax(0, 1fr); gap: 24px; overflow: visible; }
+  .pipeline-column { min-height: 0; }
   .station { min-height: 0; grid-template-columns: auto minmax(0, 1fr); justify-items: start; align-items: center; gap: 4px 12px; text-align: left; }
   .station::before, .station::after { display: none; }
   .station-note { grid-column: 2; margin: 0; }

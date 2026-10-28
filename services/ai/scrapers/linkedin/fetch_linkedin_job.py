@@ -1,7 +1,7 @@
 """
 Description: Fetches one job's public page from LinkedIn's guest jobs endpoint (no login), the
-HTML LinkedIn shows signed-out visitors. Response bytes are bounded before parsing,
-including content expanded by HTTP decompression.
+HTML LinkedIn shows signed-out visitors. Reject redirects and compressed responses,
+and bound response bytes before parsing so fetches stay on the public endpoint.
 Index:
     - fetch_linkedin_job_html: the page's HTML; raises JobPostingNotFoundError for a 404
 """
@@ -19,7 +19,9 @@ def fetch_linkedin_job_html(job_id: str, http_client: httpx.Client) -> str:
     """GETs the guest job page. Other HTTP errors raise httpx.HTTPStatusError and network errors
     raise httpx.TransportError (retryable for 429, 5xx including LinkedIn's 999, and network)."""
     url = GUEST_JOB_URL.format(job_id=job_id)
-    with http_client.stream("GET", url, headers={"Accept-Encoding": "identity"}) as response:
+    with http_client.stream(
+        "GET", url, headers={"Accept-Encoding": "identity"}, follow_redirects=False
+    ) as response:
         if response.status_code == httpx.codes.NOT_FOUND:
             raise JobPostingNotFoundError(url)
         response.raise_for_status()

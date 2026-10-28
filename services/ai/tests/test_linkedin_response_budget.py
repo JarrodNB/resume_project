@@ -23,9 +23,11 @@ class EndlessPage(httpx.SyncByteStream):
 
 def test_stops_reading_and_closes_oversized_response():
     page = EndlessPage()
-    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=page))) as client:
-        with pytest.raises(JobPageUnreadableError):
-            fetch_linkedin_job_html("123", client)
+    with (
+httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=page))) as client,
+pytest.raises(JobPageUnreadableError),
+    ):
+        fetch_linkedin_job_html("123", client)
     assert page.chunks == MAX_JOB_PAGE_BYTES // 65536 + 1
     assert page.closed
 
@@ -41,8 +43,10 @@ def test_rejects_compressed_response_before_decompression():
     def respond(request):
         assert request.headers["accept-encoding"] == "identity"
         return httpx.Response(200, headers={"content-encoding": "gzip"}, stream=page)
-    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
-        with pytest.raises(JobPageUnreadableError):
-            fetch_linkedin_job_html("123", client)
+    with (
+httpx.Client(transport=httpx.MockTransport(respond)) as client,
+pytest.raises(JobPageUnreadableError),
+    ):
+        fetch_linkedin_job_html("123", client)
     assert page.chunks == 0
     assert page.closed

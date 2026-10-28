@@ -4,6 +4,8 @@ Guidance for LLM agents (and humans) working anywhere in this monorepo.
 Read applicable ancestor `AGENTS.md` files and any local instructions before editing.
 Add nested instructions only where a module needs rules beyond its parent.
 
+Before planning or implementing, fetch origin and compare HEAD with origin/master. Report stale code before making architectural recommendations.
+
 ## Project Summary
 
 **Careergrind**. A job search assistant. The AI collaborates with the user to write tailored resumes

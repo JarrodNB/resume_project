@@ -118,11 +118,48 @@ it('shows streamed text provisionally then restores the canonical reply after a 
     const socket = OutputSocket.current!
     socket.onopen?.()
     expect(JSON.parse(socket.sent[0])).toMatchObject({ type: 'authorize', token: 'observer-capability' })
-    socket.onmessage?.({ data: JSON.stringify({ version: 1, type: 'delta', feature: 'chat', operation_id: 'op-1', attempt_id: 'attempt-1', claim_generation: 1, cursor: '1-0', text: 'A provisional suggestion.' }) })
+    expect(screen.getByRole('status')).toHaveTextContent('Preparing your reply')
+    socket.onmessage?.({ data: JSON.stringify({ version: 1, type: 'delta', feature: 'chat', operation_id: 'op-1', attempt_id: 'attempt-1', claim_generation: 1, cursor: '1-0', text: 'A provisional' }) })
+    expect(await screen.findByText('A provisional')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Writing reply')
+    socket.onmessage?.({ data: JSON.stringify({ version: 1, type: 'delta', feature: 'chat', operation_id: 'op-1', attempt_id: 'attempt-1', claim_generation: 1, cursor: '2-0', text: ' suggestion.' }) })
     expect(await screen.findByText('A provisional suggestion.')).toBeInTheDocument()
     socket.onmessage?.({ data: JSON.stringify({ type: 'reset', code: 'saved_state_required' }) })
     await waitFor(() => expect(accepted).toHaveBeenCalledTimes(1))
     expect(screen.queryByText('A provisional suggestion.')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox')).toBeEnabled()
+  } finally { vi.unstubAllGlobals() }
+})
+
+it('keeps streamed text in the conversation while saved history is loading', async () => {
+  class OutputSocket {
+    static current: OutputSocket | null = null
+    onopen: (() => void) | null = null
+    onmessage: ((event: { data: string }) => void) | null = null
+    onclose: (() => void) | null = null
+    onerror: (() => void) | null = null
+    constructor() { OutputSocket.current = this }
+    send() {}
+    close() {}
+  }
+  vi.stubGlobal('WebSocket', OutputSocket)
+  let finishRefresh!: () => void
+  const refresh = vi.fn(() => new Promise<void>((resolve) => { finishRefresh = resolve }))
+  try {
+    const running = operation('running', { attemptId: 'attempt-1', claimGeneration: 1 })
+    const accepted = operation('accepted', { attemptId: 'attempt-1', claimGeneration: 1, updatedAt: '2026-10-28T00:01:00Z' })
+    renderPage({ path: '/chat/:id', url: '/chat/chat-1', element: <ChatTurn conversationId="chat-1" maxCharacters={10000} onAccepted={refresh} />, mocks: [
+      query(running), { ...subscription(accepted), delay: 300 },
+      { request: { query: AUTHORIZE_CHAT_OUTPUT, variables: { input: { feature: 'chat', operationId: 'op-1' } } }, result: { data: { authorizeAiExecutionStream: { __typename: 'AuthorizeAiExecutionStreamPayload', token: 'token', expiresAt: '2026-10-28T00:01:00Z', errors: [] } } } },
+    ] })
+    await waitFor(() => expect(OutputSocket.current).not.toBeNull())
+    OutputSocket.current!.onmessage?.({ data: JSON.stringify({ type: 'delta', feature: 'chat', operation_id: 'op-1', attempt_id: 'attempt-1', claim_generation: 1, cursor: '1-0', text: 'A streamed reply.' }) })
+    const reply = await screen.findByText('A streamed reply.')
+    expect(reply.closest('ol')).not.toBeNull()
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+    expect(screen.getByText('A streamed reply.')).toBeInTheDocument()
+    expect(screen.getByText('Help me prepare.')).toBeInTheDocument()
+    finishRefresh()
+    await waitFor(() => expect(screen.queryByText('A streamed reply.')).not.toBeInTheDocument())
   } finally { vi.unstubAllGlobals() }
 })

@@ -72,7 +72,7 @@ services:
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
       AI_EXECUTION_SERVICE_SECRET: ${AI_EXECUTION_SERVICE_SECRET:-}
       INTERVIEW_ADMISSION_ENABLED: ${INTERVIEW_ADMISSION_ENABLED:-true}
-      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-true}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
@@ -232,7 +232,7 @@ services:
         required: false
     environment:
       AI_HTTP_ENABLED: ${AI_HTTP_ENABLED:-true}
-      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-true}
       AI_STREAM_REDIS_URL: ${AI_STREAM_REDIS_URL:-redis://redis:6379/0}
       AI_BROWSER_ORIGINS: http://localhost:5173
       INTERVIEW_PREPARATION_THINKING: ${INTERVIEW_PREPARATION_THINKING:-false}
@@ -250,12 +250,13 @@ services:
         condition: service_started
       s3:
         condition: service_started
+      redis:
+        condition: service_started
 
   redis:
     image: redis:8.10.2-alpine
-    profiles: [streaming]
     command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
-    # No published port; this is an optional ephemeral output buffer, never job storage.
+    # No published port; this is an ephemeral output buffer, never job storage.
     restart: unless-stopped
 
 volumes:

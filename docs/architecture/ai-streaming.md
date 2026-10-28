@@ -78,9 +78,8 @@ and `AI_STREAMING_ENABLED=true` are both required. Configure that flag on Rails 
 FastAPI, an explicit `AI_STREAM_REDIS_URL`, and exact `AI_BROWSER_ORIGINS` (which defaults
 to the existing interview browser origins).
 
-Local Compose offers Redis only in the `streaming` profile. For a release with an
-opted-in adapter, start it with `AI_STREAMING_ENABLED=true docker compose --profile
-streaming up`. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
+Local Compose starts Redis and enables streaming by default. Set `AI_STREAMING_ENABLED=false`
+to use final-only delivery. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
 so exhausted memory produces a safe buffer outage rather than unbounded growth.
 PostgreSQL remains the source of truth for jobs, accepted results and accounting;
 Redis persistence is disabled because this history is replaceable.

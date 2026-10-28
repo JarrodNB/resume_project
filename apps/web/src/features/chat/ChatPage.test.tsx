@@ -24,7 +24,7 @@ function workspaceMock(conversations = [conversation('chat-1', 'Preparing for in
 }
 function historyMock(id: string, messages: { id: string; role: string; content: string; position: number; thumbsDown?: boolean }[] = [], nextCursor: string | null = null, cursor: string | null = null) {
   return { request: { query: CHAT_CONVERSATION_QUERY, variables: { id, cursor } }, result: { data: {
-    chatConversation: { ...conversation(id, id === 'chat-1' ? 'Preparing for interviews' : 'New chat'), messages: { __typename: 'ChatMessagePage', messages: messages.map((message) => ({ __typename: 'ChatMessage', thumbsDown: false, ...message, createdAt: '2026-10-28T00:00:00Z' })), nextCursor, errors: [] } },
+    chatConversation: { ...conversation(id, id === 'chat-1' ? 'Preparing for interviews' : 'New chat'), messages: { __typename: 'ChatMessagePage', messages: messages.map((message) => ({ __typename: 'ChatMessage', thumbsDown: false, thumbsUp: false, ...message, createdAt: '2026-10-28T00:00:00Z' })), nextCursor, errors: [] } },
   } } }
 }
 

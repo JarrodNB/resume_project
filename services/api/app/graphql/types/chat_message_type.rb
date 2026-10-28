@@ -3,6 +3,7 @@ module Types
   class ChatMessageType < Types::BaseObject
     field :id, ID, null: false
     field :thumbs_down, Boolean, null: false
+    field :thumbs_up, Boolean, null: false
     field :role, String, null: false
     field :content, String, null: false
     field :position, Integer, null: false

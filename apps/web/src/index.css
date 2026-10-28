@@ -349,6 +349,28 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 /* The one moving thing on Home: AI work breathes so it reads as live, not as a status. */
 .signal-dot.is-ai::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--signal-ai); opacity: 0; animation: signal-breathe 2.4s var(--ease-out-strong) infinite; }
 @keyframes signal-breathe { 0% { transform: scale(0.6); opacity: 0.7; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* The live reply marker stays visible between uneven provider chunks. */
+.chat-writing-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  animation: chat-writing-pulse 1.4s ease-in-out infinite;
+}
+.chat-writing-cursor {
+  display: inline-block;
+  width: 0.12em;
+  height: 1em;
+  margin-inline-start: 0.12em;
+  vertical-align: -0.1em;
+  background: var(--signal-ai);
+  animation: chat-writing-pulse 1.4s ease-in-out infinite;
+}
+@keyframes chat-writing-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .chat-writing-dot, .chat-writing-cursor { animation: none; }
+}
 .signal-legend .signal-dot.is-ai::after { display: none; }
 .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 28px; }
 .home-toolbar h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }

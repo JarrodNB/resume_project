@@ -1,3 +1,18 @@
 {
-  "buildPath": "code"
+  "buildPath": "code",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "apps/web/src/index.css"
+        ],
+        "createdAt": "2026-10-28T13:14:17.149Z",
+        "reason": "Approved surface brief specifies a 4px underline for active navigation; this rule targets a navigation link, not a rounded card."
+      }
+    ]
+  }
 }

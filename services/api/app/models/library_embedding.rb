@@ -6,7 +6,7 @@
 #   - SOURCE_TYPES: the library models that get embeddings
 #   - embedding: 1536-dimension vector (nearest_neighbors via neighbor)
 class LibraryEmbedding < ApplicationRecord
-  SOURCE_TYPES = %w[Experience ExperienceHighlight Project Education Certification Skill LibraryFact].freeze
+  SOURCE_TYPES = %w[Experience ExperienceHighlight Project Education Certification Skill CareerContext].freeze
 
   belongs_to :user
 

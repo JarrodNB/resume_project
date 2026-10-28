@@ -30,7 +30,7 @@ export const SAVE_GAP_RESPONSE_MUTATION = graphql(`
         id
         requirement
         body
-        libraryFact {
+        careerContext {
           id
         }
       }

@@ -1,5 +1,5 @@
 # Description: Career library create and update mutations: profile, projects, education, skills,
-# and facts, including validation errors and ownership.
+# and career context entries, including validation errors and ownership.
 require "rails_helper"
 
 RSpec.describe "Career library editing mutations" do
@@ -143,37 +143,37 @@ RSpec.describe "Career library editing mutations" do
     expect(denied["errors"].first["message"]).to eq("Record not found")
   end
 
-  it "creates and updates a library fact" do
+  it "creates and updates a library context" do
     created = execute_graphql(<<~GQL, user: user)
       mutation {
-        createLibraryFact(input: { attributes: { requirement: "Kubernetes", response: "Used it at Acme" } }) {
-          libraryFact { id requirement response }
+        createCareerContext(input: { attributes: { requirement: "Kubernetes", response: "Used it at Acme" } }) {
+          careerContext { id requirement response }
           errors
         }
       }
     GQL
-    fact = created.dig("data", "createLibraryFact", "libraryFact")
-    expect(created.dig("data", "createLibraryFact", "errors")).to eq([])
+    context = created.dig("data", "createCareerContext", "careerContext")
+    expect(created.dig("data", "createCareerContext", "errors")).to eq([])
 
-    updated = execute_graphql(<<~GQL, user: user, variables: { id: fact["id"] })
+    updated = execute_graphql(<<~GQL, user: user, variables: { id: context["id"] })
       mutation($id: ID!) {
-        updateLibraryFact(input: { id: $id, attributes: { response: "Used it for two years" } }) {
-          libraryFact { requirement response }
+        updateCareerContext(input: { id: $id, attributes: { response: "Used it for two years" } }) {
+          careerContext { requirement response }
           errors
         }
       }
     GQL
-    expect(updated.dig("data", "updateLibraryFact", "libraryFact")).to eq(
+    expect(updated.dig("data", "updateCareerContext", "careerContext")).to eq(
       "requirement" => "Kubernetes", "response" => "Used it for two years"
     )
   end
 
-  it "cannot update another user's library fact" do
-    theirs = create(:library_fact)
+  it "cannot update another user's library context" do
+    theirs = create(:career_context)
 
     result = execute_graphql(<<~GQL, user: user, variables: { id: theirs.id })
       mutation($id: ID!) {
-        updateLibraryFact(input: { id: $id, attributes: { response: "Mine" } }) { libraryFact { id } errors }
+        updateCareerContext(input: { id: $id, attributes: { response: "Mine" } }) { careerContext { id } errors }
       }
     GQL
 

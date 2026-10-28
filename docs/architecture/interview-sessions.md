@@ -202,7 +202,7 @@ are preserved; the fixture service remains available to deterministic tests.
 
 Seven-day expiry retires preparation and scrubs frozen sources and generated role along with
 dialogue/history, retaining the existing accounting markers. Preparation does not create
-career-library facts, saved jobs, coaching or assessment. Automated interview-quality
+career-career context entries, saved jobs, coaching or assessment. Automated interview-quality
 evaluators remain deferred; offline tests establish contracts rather than generated quality.
 
 ### Begin and active-turn interfaces
@@ -971,7 +971,7 @@ prefers narrative evidence to bare skills, and rejects distant vector candidates
 initial cosine-distance cutoff is 0.35, not calibrated confidence. Keyword matching covers the complete supported saved corpus, including unindexed sources.
 At selection time, vector candidates must match the current normalized index text; stale
 index wording is not reused to rank newly edited evidence. This is a one-time source
-compatibility check rather than ongoing library monitoring. Fact requirement labels can help ranking; only saved fact
+compatibility check rather than ongoing library monitoring. Career context requirement labels can help ranking; only saved career context
 responses are displayed as evidence. Written practice Q&A vectors, job-only gap answers,
 profile summary and historical spoken answers are not additional indexed sources.
 

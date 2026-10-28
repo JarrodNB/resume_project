@@ -2,7 +2,7 @@
 # context, so edits or moving a highlight cannot leave an old grade looking current.
 module CareerLibrary
   class ReviewSnapshot
-    SECTIONS = %w[experience summary projects facts].freeze
+    SECTIONS = %w[experience summary projects career_contexts].freeze
     MAX_TARGETS = 250
     MAX_SOURCE_BYTES = 80_000
 
@@ -49,12 +49,12 @@ module CareerLibrary
         values = records.map { |record| record.attributes.slice("id", "name", "role", "start_date", "end_date", "description", "screened_fields") }
         values.each { |record| targets << narrative_target("project", record, "description") if record["description"].present? }
         { "projects" => values }
-      when "facts"
-        records = user.library_facts.where(nil)
+      when "career_contexts"
+        records = user.career_contexts.where(nil)
         records = records.where(id: record_id) if record_id
         values = records.map { |record| record.attributes.slice("id", "requirement", "response", "screened_fields") }
-        values.each { |record| targets << narrative_target("library_fact", record, "response") }
-        { "facts" => values }
+        values.each { |record| targets << narrative_target("career_context", record, "response") }
+        { "career_contexts" => values }
       end
       targets.each_with_index { |target, index| target["label"] = "T#{index + 1}" }
       { "section" => section, "library" => library, "targets" => targets }

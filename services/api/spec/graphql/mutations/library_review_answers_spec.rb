@@ -130,9 +130,9 @@ RSpec.describe "Career library review answers" do
   it "regenerates each supported narrative while accepting only its selected field" do
     user.update!(summary: "Engineer with migration experience")
     project = create(:project, user: user, description: "Helped with a stock sheet")
-    fact = create(:library_fact, user: user, requirement: "Inventory", response: "I maintained stock records")
+    context = create(:career_context, user: user, requirement: "Inventory", response: "I maintained stock records")
     [["user", user, "summary", "summary"], ["experience", role, "experience", "description"],
-      ["project", project, "projects", "description"], ["library_fact", fact, "facts", "response"]].each do |kind, record, section, field|
+      ["project", project, "projects", "description"], ["career_context", context, "career_contexts", "response"]].each do |kind, record, section, field|
       source = CareerLibrary::ReviewSnapshot.build(user: user, section: section)
       grades = source["targets"].map { |target| target.except("label").merge("color" => "yellow", "reason" => "Add detail", "question" => "What did you personally do?") }
       origin = create(:ai_task, user: user, task_type: "review_library_section", input: source, status: "completed", result: { "assessments" => grades })

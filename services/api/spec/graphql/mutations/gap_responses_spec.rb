@@ -1,4 +1,4 @@
-# Description: saveGapResponse and deleteLibraryFact, including ownership.
+# Description: saveGapResponse and deleteCareerContext, including ownership.
 require "rails_helper"
 
 RSpec.describe "Gap response mutations" do
@@ -12,7 +12,7 @@ RSpec.describe "Gap response mutations" do
     execute_graphql(<<~GQL, user: as, variables: { jobId: job_id, requirement: requirement, body: body, addToLibrary: add_to_library })
       mutation($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {
         saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {
-          jobGapResponse { id requirement body libraryFact { id response } }
+          jobGapResponse { id requirement body careerContext { id response } }
           errors
         }
       }
@@ -25,18 +25,18 @@ RSpec.describe "Gap response mutations" do
     response = job.gap_responses.sole
     expect(result.dig("data", "saveGapResponse")).to eq(
       "jobGapResponse" => {
-        "id" => response.id, "requirement" => requirement, "body" => "Used it at Acme", "libraryFact" => nil
+        "id" => response.id, "requirement" => requirement, "body" => "Used it at Acme", "careerContext" => nil
       },
       "errors" => []
     )
   end
 
-  it "returns the library fact when the answer is added to the career library" do
+  it "returns the library context when the answer is added to the career library" do
     result = save_response(body: "Used it at Acme", add_to_library: true)
 
-    fact = user.library_facts.sole
-    expect(result.dig("data", "saveGapResponse", "jobGapResponse", "libraryFact")).to eq(
-      "id" => fact.id, "response" => "Used it at Acme"
+    context = user.career_contexts.sole
+    expect(result.dig("data", "saveGapResponse", "jobGapResponse", "careerContext")).to eq(
+      "id" => context.id, "response" => "Used it at Acme"
     )
   end
 
@@ -57,38 +57,38 @@ RSpec.describe "Gap response mutations" do
     expect(result.dig("data", "job", "gapResponses")).to eq([ { "id" => response.id, "body" => "Used it at Acme" } ])
   end
 
-  it "deleteLibraryFact removes the fact, keeps the job answer, and queues an embedding sync" do
-    fact = create(:library_fact, user: user, requirement: requirement, response: "Used it at Acme")
-    response = create(:job_gap_response, job: job, requirement: requirement, library_fact: fact)
+  it "deleteCareerContext removes the context, keeps the job answer, and queues an embedding sync" do
+    context = create(:career_context, user: user, requirement: requirement, response: "Used it at Acme")
+    response = create(:job_gap_response, job: job, requirement: requirement, career_context: context)
 
     expect {
-      result = execute_graphql(<<~GQL, user: user, variables: { id: fact.id })
-        mutation($id: ID!) { deleteLibraryFact(input: { id: $id }) { errors } }
+      result = execute_graphql(<<~GQL, user: user, variables: { id: context.id })
+        mutation($id: ID!) { deleteCareerContext(input: { id: $id }) { errors } }
       GQL
-      expect(result.dig("data", "deleteLibraryFact")).to eq("errors" => [])
+      expect(result.dig("data", "deleteCareerContext")).to eq("errors" => [])
     }.to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob).with(user.id)
 
-    expect(LibraryFact.exists?(fact.id)).to be(false)
-    expect(response.reload.library_fact_id).to be_nil
+    expect(CareerContext.exists?(context.id)).to be(false)
+    expect(response.reload.career_context_id).to be_nil
   end
 
-  it "can't delete another user's fact" do
-    fact = create(:library_fact)
+  it "can't delete another user's context" do
+    context = create(:career_context)
 
-    result = execute_graphql(<<~GQL, user: user, variables: { id: fact.id })
-      mutation($id: ID!) { deleteLibraryFact(input: { id: $id }) { errors } }
+    result = execute_graphql(<<~GQL, user: user, variables: { id: context.id })
+      mutation($id: ID!) { deleteCareerContext(input: { id: $id }) { errors } }
     GQL
 
     expect(result["errors"].first["message"]).to eq("Record not found")
-    expect(LibraryFact.exists?(fact.id)).to be(true)
+    expect(CareerContext.exists?(context.id)).to be(true)
   end
 
-  it "libraryFacts lists the user's facts" do
-    fact = create(:library_fact, user: user)
-    create(:library_fact)
+  it "careerContexts lists the user's career_contexts" do
+    context = create(:career_context, user: user)
+    create(:career_context)
 
-    result = execute_graphql("{ libraryFacts { id requirement } }", user: user)
+    result = execute_graphql("{ careerContexts { id requirement } }", user: user)
 
-    expect(result.dig("data", "libraryFacts")).to eq([ { "id" => fact.id, "requirement" => fact.requirement } ])
+    expect(result.dig("data", "careerContexts")).to eq([ { "id" => context.id, "requirement" => context.requirement } ])
   end
 end

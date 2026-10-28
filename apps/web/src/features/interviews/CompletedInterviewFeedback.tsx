@@ -9,7 +9,7 @@ type Props = { interviewId: string; saved: SavedSessionFeedback; hasAnswers: boo
 
 export function CompletedInterviewFeedback({ interviewId, saved, hasAnswers, questions }: Props) {
   const feedback = useInterviewSessionFeedback(interviewId, saved)
-  return <SectionCard tone="facts" title="Interview feedback" sectionId={`spoken:review:${interviewId}:feedback`} contentClassName="grid gap-4"
+  return <SectionCard tone="career_contexts" title="Interview feedback" sectionId={`spoken:review:${interviewId}:feedback`} contentClassName="grid gap-4"
     description="Generate coaching from your saved answers when you are ready.">
     {!hasAnswers ? <p className="text-sm text-muted-foreground">No answers were submitted. Complete another interview to get feedback.</p> : <>
       {!feedback.content && !feedback.pending && !feedback.failed && <Button className="justify-self-start" onClick={() => void feedback.generate()}>Generate feedback</Button>}

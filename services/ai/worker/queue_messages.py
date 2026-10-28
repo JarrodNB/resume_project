@@ -10,7 +10,7 @@ Index:
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from schemas.model_usage import ModelUsage
 from schemas.screening_receipts import (
@@ -19,6 +19,7 @@ from schemas.screening_receipts import (
     JobScreening,
     LibraryScreening,
 )
+from worker.legacy_career_context import normalize_legacy_career_context
 
 TaskType = Literal[
     "rerank_job_listings",
@@ -35,6 +36,13 @@ class AiTaskMessage(BaseModel):
     user_id: UUID
     task_type: TaskType
     input: dict[str, Any] = Field(default_factory=dict)
+
+
+    @field_validator("input", mode="before")
+    @classmethod
+    def read_queued_legacy_context(cls, value):
+        """Already-published queue bodies must match migrated Rails snapshots."""
+        return normalize_legacy_career_context(value)
 
 
 class AiResultMessage(BaseModel):

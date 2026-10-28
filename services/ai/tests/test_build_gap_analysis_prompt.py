@@ -7,7 +7,7 @@ Index:
 from datetime import date
 
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt, format_date_range
-from schemas.gap_analysis_context import LibraryFact
+from schemas.gap_analysis_context import CareerContext
 from tests.fakes import build_gap_analysis_context
 
 TODAY = date(2026, 10, 4)
@@ -80,20 +80,20 @@ def test_excludes_responsibilities_from_qualification_prompt() -> None:
     assert "Responsibilities" not in prompt.text
 
 
-def test_labels_library_facts() -> None:
+def test_labels_career_contexts() -> None:
     """A fact the user added to the library is F1, with the answer as its text."""
     context = build_gap_analysis_context()
-    context.career_library.facts = [
-        LibraryFact(
+    context.career_library.career_contexts = [
+        CareerContext(
             id="fact-1", requirement="Kubernetes", response="Ran it at Northwind for two years"
         )
     ]
 
     prompt = build_gap_analysis_prompt(context, TODAY)
 
-    fact = prompt.evidence["F1"]
-    assert (fact.kind, fact.id, fact.text, fact.context) == (
-        "fact",
+    context = prompt.evidence["F1"]
+    assert (context.kind, context.id, context.text, context.context) == (
+        "career_context",
         "fact-1",
         "Ran it at Northwind for two years",
         "Kubernetes",

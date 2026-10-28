@@ -8,7 +8,7 @@ export const emptyExperienceReviewMock = {
 }
 
 /** Every supported section has independent review state. */
-export const emptyLibraryReviewMocks = ['experience', 'summary', 'projects', 'facts'].map((section) => ({
+export const emptyLibraryReviewMocks = ['experience', 'summary', 'projects', 'career_contexts'].map((section) => ({
   ...emptyExperienceReviewMock,
   request: { query: LIBRARY_REVIEW_QUERY, variables: { section } },
 }))
@@ -16,5 +16,5 @@ export const emptyLibraryReviewMocks = ['experience', 'summary', 'projects', 'fa
 /** Minimal Rails-shaped library for workspace integration tests. */
 export const emptyReviewLibrary = {
   me: { id: 'user-1', name: 'Jane', contactEmail: null, phone: null, location: null, links: [], summary: null },
-  experiences: [], projects: [], educations: [], certifications: [], skills: [], libraryFacts: [],
+  experiences: [], projects: [], educations: [], certifications: [], skills: [], careerContexts: [],
 }

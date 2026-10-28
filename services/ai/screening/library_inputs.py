@@ -15,7 +15,7 @@ from screening.library_fields import screen_library_fields
 from text_limits import MAX_SCREENED_TEXT, NOTE_TOO_LONG_WARNING
 
 LIBRARY_INPUT_OMITTED_WARNING = "One of your career library entries was left out."
-_ENTRY_FIELDS = ("experiences", "projects", "educations", "certifications", "skills", "facts")
+_ENTRY_FIELDS = ("experiences", "projects", "educations", "certifications", "skills", "career_contexts")
 
 
 @dataclass(frozen=True)
@@ -42,7 +42,7 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
             content["summary"] = source
         elif field in _ENTRY_FIELDS:
             item = json.loads(source)
-            if field == "facts":
+            if field == "career_contexts":
                 item.setdefault("requirement", "")
             content[field].append(item)
         else:
@@ -52,7 +52,7 @@ def rebuild_library(sources: Sequence[str], fields: Sequence[str]) -> CareerLibr
 
 def screen_library_inputs(
     library: CareerLibrary, allow_text: Callable[[str], object], *,
-    include_fact_requirements: bool = True,
+    include_context_requirements: bool = True,
 ) -> ScreenedLibrary:
     """Omit rejected optional entries and retain exact strings for prompt coverage binding."""
     sources = []
@@ -65,7 +65,7 @@ def screen_library_inputs(
             too_long = True
             return
         decision = screen_library_fields(
-            snapshot, allow_text, include_fact_requirements=include_fact_requirements,
+            snapshot, allow_text, include_context_requirements=include_context_requirements,
             approved_sources=(text,),
         )
         allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
@@ -84,7 +84,7 @@ def screen_library_inputs(
         ))
     for field in _ENTRY_FIELDS:
         for entry in getattr(library, field):
-            exclude = {"requirement"} if field == "facts" and not include_fact_requirements else None
+            exclude = {"requirement"} if field == "career_contexts" and not include_context_requirements else None
             keep(field, entry.model_dump_json(exclude_none=True, exclude=exclude),
                  CareerLibrary(**{field: [entry]}))
     warnings = []

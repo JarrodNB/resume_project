@@ -75,4 +75,13 @@ RSpec.describe AiTasks::DescribeTaskOutcomeService do
     expect(describe_outcome(create(:ai_task, user: user, task_type: "tailor_resume", subject: job))[:destination]).to eq("/jobs/#{job.id}/resume")
     expect(describe_outcome(create(:ai_task, user: user, task_type: "analyze_gaps", subject: job))[:destination]).to eq("/jobs/#{job.id}")
   end
+  it "labels chat work and links only to the task owner's saved conversation" do
+    user = create(:user)
+    chat = user.chat_conversations.create!
+    task = create(:ai_task, user: user, task_type: "chat_reply", subject: chat)
+    expect(describe_outcome(task)).to eq(title: "Chat reply completed", destination: "/chat/#{chat.id}")
+    task.update!(subject: create(:user).chat_conversations.create!)
+    expect(describe_outcome(task)[:destination]).to eq("/chat")
+  end
+
 end

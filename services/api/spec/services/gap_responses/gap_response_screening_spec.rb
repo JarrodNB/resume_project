@@ -48,7 +48,7 @@ RSpec.describe "Saved gap response screening" do
     stale = report
     task # freeze the queued snapshot before the edit
     response.update!(body: "Edited after queueing")
-    stale["fields"]["library_fact_id"] = Digest::SHA256.hexdigest(JSON.generate(response.library_fact_id))
+    stale["fields"]["career_context_id"] = Digest::SHA256.hexdigest(JSON.generate(response.career_context_id))
     malformed = [ nil, {}, { "response_id" => response.id, "fields" => [] },
       { "response_id" => response.id, "fields" => { "body" => nil } },
       { "response_id" => "bad-uuid", "fields" => {} } ]
@@ -101,7 +101,7 @@ RSpec.describe "Saved gap response screening" do
     expect(GapResponses::SaveGapResponseService.call(job: job, requirement: response.requirement,
       body: response.body, add_to_library: true)).to be_success
     expect(response.reload.screened_fields).to match_array(%w[requirement body])
-    expect(response.library_fact.screened_fields).to be_empty
+    expect(response.career_context.screened_fields).to be_empty
     expect(GapResponses::SaveGapResponseService.call(job: job, requirement: response.requirement,
       body: "Changed answer", add_to_library: false)).to be_success
     expect(response.reload.screened_fields).to eq([ "requirement" ])

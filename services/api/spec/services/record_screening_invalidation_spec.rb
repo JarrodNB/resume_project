@@ -11,7 +11,7 @@ RSpec.describe "Career library screening state" do
       [ :education, Educations::UpdateEducationService, :education, :institution, :degree ],
       [ :certification, Certifications::UpdateCertificationService, :certification, :name, :issuer ],
       [ :skill, Skills::UpdateSkillService, :skill, :name, :category ],
-      [ :library_fact, LibraryFacts::UpdateLibraryFactService, :library_fact, :response, :requirement ]
+      [ :career_context, CareerContexts::UpdateCareerContextService, :career_context, :response, :requirement ]
     ].each do |factory, service, argument, changed, retained|
       record = create(factory, user: user, screened_fields: [ changed.to_s, retained.to_s ])
       result = service.call(**{ argument => record }, attributes: { changed => "New text" })
@@ -61,11 +61,11 @@ RSpec.describe "Career library screening state" do
   end
 
   it "forgets an updated library response saved through a job gap" do
-    fact = create(:library_fact, user: user, screened_fields: %w[requirement response])
+    context = create(:career_context, user: user, screened_fields: %w[requirement response])
     job = create(:job, user: user)
-    result = GapResponses::SaveGapResponseService.call(job: job, requirement: fact.requirement,
+    result = GapResponses::SaveGapResponseService.call(job: job, requirement: context.requirement,
                                                       body: "New response", add_to_library: true)
     expect(result).to be_success
-    expect(fact.reload.screened_fields).to eq([ "requirement" ])
+    expect(context.reload.screened_fields).to eq([ "requirement" ])
   end
 end

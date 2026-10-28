@@ -60,13 +60,13 @@ RSpec.describe GapAnalysis::StartGapAnalysisService do
     expect(described_class.call(user: user, job: job)).to be_success
   end
 
-  it "counts a library fact, but not a gap response that stays on the job" do
+  it "counts a library context, but not a gap response that stays on the job" do
     user.skills.destroy_all
     create(:job_gap_response, job: job)
 
     expect(described_class.call(user: user, job: job).errors).to eq([ described_class::EMPTY_LIBRARY_MESSAGE ])
 
-    create(:library_fact, user: user)
+    create(:career_context, user: user)
     expect(described_class.call(user: user, job: job)).to be_success
   end
 

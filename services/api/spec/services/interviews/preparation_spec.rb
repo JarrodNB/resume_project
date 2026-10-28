@@ -95,11 +95,11 @@ end
 
 RSpec.describe "Preparation evidence and retention" do
   before { freeze_time }
-  it "uses sparse owned project roles and excludes job-derived fact requirements" do
+  it "uses sparse owned project roles and excludes job-derived context requirements" do
     owner = create(:user)
     other = create(:user, summary: "Private other career")
     create(:project, user: owner, name: "Laboratory rota", role: "Technician")
-    create(:library_fact, user: owner, response: "Maintained equipment", requirement: "Lead a hospital department")
+    create(:career_context, user: owner, response: "Maintained equipment", requirement: "Lead a hospital department")
     result = Interviews::StartPreparationService.call(user: owner)
     expect(result).to be_success
     text = result.value.frozen_context.to_json

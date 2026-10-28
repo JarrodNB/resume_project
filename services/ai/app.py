@@ -1,4 +1,4 @@
-"""Serve interactive AI endpoints and supervise interview execution.
+"""Serve interactive AI endpoints and supervise chat and interview execution.
 
 No provider client is constructed until service enablement and credentials pass.
 Readiness exposes stable setup reasons, never credentials or exception contents.
@@ -11,10 +11,11 @@ import httpx
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from chat import ChatExecutionAdapter
 from execution.runner import ExecutionRunner
 from execution.stream_runtime import optional_streaming
-from routes.executions import execution_service_secret
 from interviews.execution_adapter import InterviewExecutionAdapter
+from routes.executions import execution_service_secret
 
 
 def configuration():
@@ -49,6 +50,8 @@ def create_app():
         if configured is None:
             yield
             return
+        from chat.client import RailsChatClient
+        from chat.models import ChatModels
         from interviews.audio_providers import AudioProviders
         from interviews.client import RailsInterviewClient
         from interviews.live_transcription import CaptureOwner
@@ -62,12 +65,15 @@ def create_app():
             RailsInterviewClient(origin, os.environ["INTERVIEW_SERVICE_SECRET"], execution_mode="real") as rails,
             AudioProviders(rails, api_key=os.environ["OPENAI_API_KEY"]) as audio,
             InterviewModels(openai_key=os.environ["OPENAI_API_KEY"], typesafe_key=os.environ["TYPESAFE_API_KEY"]) as models,
+            RailsChatClient(origin, execution_service_secret()) as chat_rails,
+            ChatModels(openai_key=os.environ["OPENAI_API_KEY"], typesafe_key=os.environ["TYPESAFE_API_KEY"]) as chat_models,
         ):
             app.state.capture_owner = CaptureOwner(rails)
             with httpx.Client(trust_env=False, timeout=15, follow_redirects=False) as storage:
                 executor = RealInterviewExecutor(rails, audio=audio, models=models,
                     storage_client=storage, allowed_origins=storage_origins, allow_http=True)
-                runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor)})
+                runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(rails, executor),
+                                          "chat": ChatExecutionAdapter(chat_rails, chat_models)})
                 app.state.execution_runner = runner
                 async with optional_streaming(app, runner,
                         enabled=os.getenv("AI_STREAMING_ENABLED") == "true",
@@ -81,7 +87,8 @@ def create_app():
                         flush_tracing()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
-                  telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
+                  telemetry={"exclude": lambda scope: scope.get("path") in {
+                      "/ready", "/health", "/internal/executions", "/ai/executions/stream"}})
     from routes.executions import install_execution_routes
     install_execution_routes(app, secret=execution_service_secret)
     from routes.execution_streams import install_output_stream

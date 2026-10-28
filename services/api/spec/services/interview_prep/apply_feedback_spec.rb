@@ -63,7 +63,7 @@ RSpec.describe "Applying interview answer feedback" do
       expect(task.reload).to have_attributes(status: "completed", cost_microdollars: 30)
       expect(question.reload).to have_attributes(answer_text: original_answer, answer_revision: 1,
         feedback: feedback, feedback_answer_revision: 1, feedback_question_revision: 1)
-      expect(user.library_facts).to be_empty
+      expect(user.career_contexts).to be_empty
       expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: task.id }, task).once
     end
   end

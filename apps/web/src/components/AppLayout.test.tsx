@@ -121,3 +121,10 @@ it('restores navigation after leaving the focused page', async () => {
   expect(screen.getByRole('navigation', { name: 'Practice pages' })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Leave interview room' })).not.toBeInTheDocument()
 })
+
+it('keeps a saved chat under the Chat navigation section', () => {
+  renderWorkspace('/chat/saved-chat')
+  const main = screen.getByRole('navigation', { name: 'Main navigation' })
+  expect(within(main).getByRole('link', { name: 'Chat' })).toHaveAttribute('aria-current', 'page')
+  expect(within(main).getByRole('link', { name: 'Chat' })).toHaveAttribute('href', '/chat')
+})

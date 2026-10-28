@@ -29,7 +29,7 @@ _SOURCE_TYPES = frozenset(
         "Education",
         "Certification",
         "Skill",
-        "LibraryFact",
+        "CareerContext",
     }
 )
 

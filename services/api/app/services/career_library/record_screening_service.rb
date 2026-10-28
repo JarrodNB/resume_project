@@ -11,7 +11,7 @@ module CareerLibrary
       "Education" => %w[institution degree field_of_study description],
       "Certification" => %w[name issuer credential_id credential_url description],
       "Skill" => %w[name category],
-      "LibraryFact" => %w[requirement response]
+      "CareerContext" => %w[requirement response]
     }.freeze
 
     # Call under the record row lock after assigning edits and before saving.

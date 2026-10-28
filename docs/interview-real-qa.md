@@ -179,7 +179,7 @@ from `services/ai`) and its limits. Offline fixture distances do not establish s
 usefulness. The optional `--paid` run measures embedding-based label agreement and incurs
 provider charges.
 
-Use a library containing a role with several highlights, a project, and a saved fact.
+Use a library containing a role with several highlights, a project, and a saved career context entry.
 Check that openings and context-dependent follow-ups show relevant, distinct saved pieces,
 with fact responses presented without their requirement labels. Check a question with no
 useful saved evidence as well. Verify the displayed text against the library.

@@ -6,7 +6,7 @@ Gap analysis on the job workspace's Fit tab: compare one saved job with the user
 (`analyzeJobGaps`, followed live with `aiTaskUpdated`) and show each requirement's verdict with
 the library entries cited as evidence. The user can respond to a gap or partial match in the same
 view (`saveGapResponse`); a saved answer stays visible if a later run marks the requirement met.
-Adding it to the career library creates a library fact, listed on the career library page.
+Adding it to the career library creates a career context entry, listed on the career library page.
 
 ## Contents
 

@@ -38,12 +38,12 @@ RSpec.describe CareerLibrary::BuildEmbeddingTextsService do
     )
   end
 
-  it "embeds library facts and skips gap responses that stay on the job" do
-    fact = create(:library_fact, user: user, requirement: "Kubernetes", response: "Used it at Acme for two years")
+  it "embeds library career_contexts and skips gap responses that stay on the job" do
+    context = create(:career_context, user: user, requirement: "Kubernetes", response: "Used it at Acme for two years")
     create(:job_gap_response, job: create(:job, user: user), requirement: "Python", body: "Five years")
 
     expect(described_class.call(user: user).value).to eq(
-      [ { source_type: "LibraryFact", source_id: fact.id, content: "Fact: Kubernetes: Used it at Acme for two years" } ]
+      [ { source_type: "CareerContext", source_id: context.id, content: "Fact: Kubernetes: Used it at Acme for two years" } ]
     )
   end
 

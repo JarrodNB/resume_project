@@ -21,7 +21,7 @@ output in addition to the usual Description/Index.
   evidence; met / partial / missing; overlapping periods count once; project evidence is judged
   against the requirement's professional/production scope; adjacent experience is partial,
   never missing; cite labels, preferring highlights; the profile summary is not evidence;
-  a library fact counts like a highlight; summary addresses the user as "you")
+  a career context entry counts like a highlight; summary addresses the user as "you")
 - `user_text_screen_instructions.py` — `USER_TEXT_SCREEN_PROMPT_VERSION` and framing for the Jev screen (a whole resume is ordinary
   career history, and an instruction inside it is still an instruction); the yes/no questions
   live on the output type
@@ -58,7 +58,11 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
   preferences to avoid repeated intents. These generated texts are data, never evidence or
   instructions, and the runtime masks/delimits them without redundant classification.
 
-- Written interview question and feedback prompts use saved fact requirements only to interpret
+- Written interview question and feedback prompts use saved career context requirements only to interpret
   their responses. Requirements never establish personal claims and cannot be cited as evidence.
 
 - `interview_session_feedback_instructions.py` — versioned completed-session coaching, accepted-answer grounding, illustrative examples and subject corrections without invented personal experience.
+
+- `chat_instructions.py` — versioned career-chat scope, personal-fact grounding and honest unsupported-action rules.
+
+- `chat_summary_instructions.py` — versioned rolling career memory, factual provenance and source-as-data rules.

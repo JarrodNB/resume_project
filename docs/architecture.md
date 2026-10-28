@@ -7,6 +7,7 @@ when changing a contract or feature:
 | Guide | Read when changing |
 | --- | --- |
 | [Authentication](architecture/authentication.md) | Browser sessions, CSRF, login/logout, live connection security |
+| [Career chat](architecture/chat.md) | Saved conversations, guarded streaming replies, rolling context and feedback |
 | [AI streaming](architecture/ai-streaming.md) | Optional public output, observer capabilities and cross-replica replay |
 | [AI tasks](architecture/ai-tasks.md) | Task lifecycle, queue payloads, duplicate handling, retries, uploads |
 | [Rails background jobs](architecture/background-jobs.md) | Durable job storage, transactional enqueue and queue-worker operations |
@@ -23,10 +24,12 @@ Decision rationale lives beside the behavior it explains in these guides.
 ## Core rules
 
 - Rails owns domain writes. AI workers read through the restricted `ai_reader` role and return results over SQS
-  (Basic Interview uses the scoped Rails acceptance interface described below).
-- Long-running AI work goes through queues. Basic Interview is a scoped exception: a separate
-  AI-service runtime claims durable Rails operations over internal HTTP; browser requests
-  do not wait for execution. Both transports must tolerate repeated work and results.
+  (interactive interviews and chat use their scoped Rails acceptance interfaces).
+- Long-running AI work goes through queues. Interactive interviews and chat are scoped exceptions: the shared
+  FastAPI runtime claims durable Rails operations over internal HTTP; browser requests
+  do not wait for execution. Both features use the same execution runner and durable
+  fallback/recovery layer; chat enables its optional streaming output. Both transports
+  must tolerate repeated work and results.
 - LLM calls run in the AI service and are traced in Logfire. Rails background jobs embed career-library entries and saved interview Q&A as an explicit exception; see [embedding ownership](architecture/career-library.md#decisions).
 - Secrets come from per-service environment variables.
 

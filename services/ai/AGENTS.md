@@ -180,3 +180,5 @@ skip it. Export indexes are not required.
   (add one with `docker compose run --rm ai-worker uv add <package>`, then rebuild)
 - `Dockerfile.dev` — local dev image (virtualenv at `/opt/venv`)
 - `.env.example` — secrets template
+
+- `chat/` — authenticated accepted-history chat adapter on the same shared execution runner; fixed Jev newest-message screening, general AI allowance/accounting, bounded tool-free text replies and optional public streaming. It uses no saved career/job facts. `CHAT_MODEL` and the configured generative fallback support Luna/Nano.

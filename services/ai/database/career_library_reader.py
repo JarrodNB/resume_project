@@ -20,13 +20,13 @@ from psycopg.rows import DictRow
 
 from database.open_read_only_connection import open_read_only_connection
 from schemas.gap_analysis_context import (
+    CareerContext,
     CareerLibrary,
     GapAnalysisContext,
     JobToAnalyze,
     LibraryCertification,
     LibraryEducation,
     LibraryExperience,
-    LibraryFact,
     LibraryHighlight,
     LibraryProject,
     LibrarySkill,
@@ -74,8 +74,8 @@ SKILLS_QUERY = """
     SELECT id::text, name, category, screened_fields FROM skills WHERE user_id = %(user_id)s
     ORDER BY position, name
 """
-FACTS_QUERY = """
-    SELECT id::text, requirement, response, screened_fields FROM library_facts WHERE user_id = %(user_id)s
+CAREER_CONTEXTS_QUERY = """
+    SELECT id::text, requirement, response, screened_fields FROM career_contexts WHERE user_id = %(user_id)s
     ORDER BY created_at
 """
 
@@ -104,7 +104,7 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
     education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
     certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
     skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
-    fact_rows = cursor.execute(FACTS_QUERY, params).fetchall()
+    career_context_rows = cursor.execute(CAREER_CONTEXTS_QUERY, params).fetchall()
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(
@@ -123,7 +123,7 @@ def _read_library(cursor, params: dict) -> CareerLibrary:
         educations=[LibraryEducation(**row) for row in education_rows],
         certifications=[LibraryCertification(**row) for row in certification_rows],
         skills=[LibrarySkill(**row) for row in skill_rows],
-        facts=[LibraryFact(**row) for row in fact_rows],
+        career_contexts=[CareerContext(**row) for row in career_context_rows],
     )
     return library
 

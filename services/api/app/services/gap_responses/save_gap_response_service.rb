@@ -1,9 +1,9 @@
-# Locks the owner before answers and facts, matching career-library clear and result writes.
+# Locks the owner before answers and career context entries, matching career-library clear and result writes.
 # Reloads saved answers before editing and invalidating checks. Savepoints roll back
-# handled failures inside the owner transaction, including earlier answer/fact writes.
+# handled failures inside the owner transaction, including earlier answer/context writes.
 # Description: Saves the user's answer to one requirement of a job. A blank answer removes it.
-# "Add to career library" upserts a library fact (requirement plus answer) and links it; leaving
-# it unchecked keeps the answer on the job only. Embedding sync runs only when a fact is
+# "Add to career library" upserts a career context (requirement plus answer) and links it; leaving
+# it unchecked keeps the answer on the job only. Embedding sync runs only when a context is
 # created, updated, or deleted.
 # Index:
 #   - call: saves, updates, or clears the response and returns it (nil when cleared)
@@ -32,17 +32,17 @@ module GapResponses
 
     private
 
-    # Removes the job's answer and the fact it was the last link to.
+    # Removes the job's answer and the context it was the last link to.
     def clear(response)
       return success(nil) if response.nil?
 
       cleared = false
       ApplicationRecord.transaction(requires_new: true) do
         response.lock!
-        fact = response.library_fact
+        context = response.career_context
         raise ActiveRecord::Rollback unless response.destroy
 
-        unlink_fact(fact)
+        unlink_context(context)
         cleared = true
       end
       return failure(response.errors) unless cleared
@@ -50,57 +50,57 @@ module GapResponses
       success(nil)
     end
 
-    # Upserts the answer and, when asked, the library fact.
+    # Upserts the answer and, when asked, the career context.
     def save(response)
-      fact_changed = false
+      context_changed = false
       errors = nil
       saved = false
       ApplicationRecord.transaction(requires_new: true) do
         response.lock! if response.persisted?
-        previous_fact = response.library_fact
+        previous_context = response.career_context
         response.body = @body
         RecordScreeningService.discard_changed_fields(response: response)
         if @add_to_library
-          fact, fact_changed = upsert_fact
-          unless fact.persisted?
-            errors = fact.errors
+          context, context_changed = upsert_context
+          unless context.persisted?
+            errors = context.errors
             raise ActiveRecord::Rollback
           end
-          response.library_fact = fact
+          response.career_context = context
         else
-          response.library_fact = nil
+          response.career_context = nil
         end
         unless response.save
           errors = response.errors
           raise ActiveRecord::Rollback
         end
-        unlink_fact(previous_fact)
+        unlink_context(previous_context)
         saved = true
       end
       return failure(errors || [ "Couldn't save that response" ]) unless saved
 
-      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@job.user_id) if fact_changed
+      CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@job.user_id) if context_changed
       success(response)
     end
 
-    # Finds the user's fact for this requirement and updates its text when it changed.
-    # Returns the fact and whether its text changed.
-    def upsert_fact
-      fact = @job.user.library_facts.find_or_initialize_by(requirement: @requirement)
-      fact.lock! if fact.persisted?
-      return [ fact, false ] if fact.persisted? && fact.response == @body
+    # Finds the user's context for this requirement and updates its text when it changed.
+    # Returns the context and whether its text changed.
+    def upsert_context
+      context = @job.user.career_contexts.find_or_initialize_by(requirement: @requirement)
+      context.lock! if context.persisted?
+      return [ context, false ] if context.persisted? && context.response == @body
 
-      fact.response = @body
-      CareerLibrary::RecordScreeningService.discard_changed_fields(record: fact)
-      fact.save
-      [ fact, fact.persisted? ]
+      context.response = @body
+      CareerLibrary::RecordScreeningService.discard_changed_fields(record: context)
+      context.save
+      [ context, context.persisted? ]
     end
 
-    # Deletes a fact no response still points at. DestroyRecordService queues the embedding sync.
-    def unlink_fact(fact)
-      return if fact.nil? || fact.job_gap_responses.exists?
+    # Deletes a context no response still points at. DestroyRecordService queues the embedding sync.
+    def unlink_context(context)
+      return if context.nil? || context.job_gap_responses.exists?
 
-      result = Records::DestroyRecordService.call(record: fact)
+      result = Records::DestroyRecordService.call(record: context)
       raise ActiveRecord::Rollback unless result.success?
     end
   end

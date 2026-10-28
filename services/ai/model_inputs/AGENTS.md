@@ -23,3 +23,5 @@ Preserve source wording and ordering. Change prompt versions and run the affecte
 if model-facing text changes.
 
 - `interview_session_feedback.py` — readable role and accepted core-question/follow-up dialogue blocks for completed-session coaching.
+
+- `chat.py` — readable labeled previous summary and accepted exchange prefix; selection/checkpoints remain with Rails and the chat executor.

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -131,7 +131,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text, 'interview_session_feedback'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -169,6 +169,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
     t.check_constraint "char_length(question_text) >= 1 AND char_length(question_text) <= 2000", name: "avoided_question_text_length"
   end
 
+  create_table "career_contexts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.text "requirement", null: false
+    t.text "response", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "screened_fields", default: [], null: false, array: true
+    t.index ["user_id", "requirement"], name: "index_career_contexts_on_user_id_and_requirement", unique: true
+    t.index ["user_id"], name: "index_career_contexts_on_user_id"
+  end
+
   create_table "certifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "name", null: false
@@ -185,6 +196,95 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
     t.string "expiry_date_precision", default: "day", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.index ["user_id"], name: "index_certifications_on_user_id"
+  end
+
+  create_table "chat_conversations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "title", default: "New chat", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "summary_text", default: "", null: false
+    t.integer "summary_version", default: 0, null: false
+    t.integer "summary_through_position", default: 0, null: false
+    t.index ["user_id", "created_at", "id"], name: "index_chat_conversations_on_owner_history"
+    t.index ["user_id"], name: "index_chat_conversations_on_user_id"
+    t.check_constraint "char_length(summary_text) <= 8000 AND summary_version >= 0 AND summary_through_position >= 0 AND (summary_through_position % 2) = 0", name: "chat_summary_bounds"
+    t.check_constraint "summary_version = 0 AND summary_through_position = 0 AND summary_text = ''::text OR summary_version > 0 AND summary_through_position > 0 AND char_length(summary_text) > 0", name: "chat_summary_checkpoint"
+  end
+
+  create_table "chat_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_operation_id", null: false
+    t.uuid "attempt_id", null: false
+    t.integer "claim_generation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["attempt_id"], name: "index_chat_execution_attempts_on_attempt_id", unique: true
+    t.index ["chat_operation_id"], name: "index_chat_execution_attempts_on_chat_operation_id"
+  end
+
+  create_table "chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_conversation_id", null: false
+    t.integer "position", null: false
+    t.string "role", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "screened_sha256"
+    t.boolean "thumbs_down", default: false, null: false
+    t.boolean "thumbs_up", default: false, null: false
+    t.index ["chat_conversation_id", "position"], name: "index_chat_messages_on_chat_conversation_id_and_position", unique: true
+    t.index ["chat_conversation_id"], name: "index_chat_messages_on_chat_conversation_id"
+    t.check_constraint "NOT (thumbs_up AND thumbs_down)", name: "chat_feedback_one_choice"
+    t.check_constraint "\"position\" > 0", name: "chat_message_positive_position"
+    t.check_constraint "length(content) > 0", name: "chat_message_content_present"
+    t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
+    t.check_constraint "role::text = 'assistant'::text OR thumbs_up = false", name: "chat_positive_feedback_assistant_only"
+    t.check_constraint "role::text = ANY (ARRAY['user'::character varying, 'assistant'::character varying]::text[])", name: "chat_message_role"
+  end
+
+  create_table "chat_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_conversation_id", null: false
+    t.uuid "ai_task_id", null: false
+    t.string "idempotency_key", null: false
+    t.text "message", null: false
+    t.string "status", default: "pending", null: false
+    t.uuid "attempt_id"
+    t.integer "claim_generation", default: 0, null: false
+    t.integer "execution_count", default: 0, null: false
+    t.integer "cycle_execution_count", default: 0, null: false
+    t.integer "expected_position", default: 0, null: false
+    t.datetime "lease_expires_at"
+    t.datetime "execution_deadline"
+    t.datetime "retry_at"
+    t.datetime "retry_expires_at", null: false
+    t.string "failure_code"
+    t.string "delivery_job_id"
+    t.string "recovery_job_id"
+    t.string "result_fingerprint"
+    t.jsonb "accepted_result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "summary_base_version", default: 0, null: false
+    t.jsonb "summary_plan", default: {}, null: false
+    t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
+    t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
+    t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.check_constraint "length(message) > 0", name: "chat_operation_message"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying]::text[])", name: "chat_operation_status"
+    t.check_constraint "summary_base_version >= 0 AND jsonb_typeof(summary_plan) = 'object'::text", name: "chat_operation_summary_snapshot"
+  end
+
+  create_table "chat_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_execution_attempt_id", null: false
+    t.uuid "observation_id", null: false
+    t.string "stage", null: false
+    t.string "provider", null: false
+    t.string "model", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_execution_attempt_id"], name: "index_chat_provider_attempts_on_chat_execution_attempt_id"
+    t.index ["observation_id"], name: "index_chat_provider_attempts_on_observation_id", unique: true
   end
 
   create_table "educations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -555,13 +655,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
     t.uuid "job_id", null: false
     t.text "requirement", null: false
     t.text "body", null: false
-    t.uuid "library_fact_id"
+    t.uuid "career_context_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
+    t.index ["career_context_id"], name: "index_job_gap_responses_on_career_context_id"
     t.index ["job_id", "requirement"], name: "index_job_gap_responses_on_job_id_and_requirement", unique: true
     t.index ["job_id"], name: "index_job_gap_responses_on_job_id"
-    t.index ["library_fact_id"], name: "index_job_gap_responses_on_library_fact_id"
   end
 
   create_table "jobs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -608,17 +708,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
     t.index ["embedding"], name: "index_library_embeddings_on_embedding", opclass: :vector_cosine_ops, using: :hnsw
     t.index ["source_type", "source_id"], name: "index_library_embeddings_on_source_type_and_source_id", unique: true
     t.index ["user_id"], name: "index_library_embeddings_on_user_id"
-  end
-
-  create_table "library_facts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.uuid "user_id", null: false
-    t.text "requirement", null: false
-    t.text "response", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.text "screened_fields", default: [], null: false, array: true
-    t.index ["user_id", "requirement"], name: "index_library_facts_on_user_id_and_requirement", unique: true
-    t.index ["user_id"], name: "index_library_facts_on_user_id"
   end
 
   create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -868,7 +957,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
   add_foreign_key "ai_tasks", "users"
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "avoided_interview_questions", "users"
+  add_foreign_key "career_contexts", "users"
   add_foreign_key "certifications", "users"
+  add_foreign_key "chat_conversations", "users"
+  add_foreign_key "chat_execution_attempts", "chat_operations"
+  add_foreign_key "chat_messages", "chat_conversations"
+  add_foreign_key "chat_operations", "ai_tasks"
+  add_foreign_key "chat_operations", "chat_conversations"
+  add_foreign_key "chat_provider_attempts", "chat_execution_attempts"
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"
@@ -908,12 +1004,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_050000) do
   add_foreign_key "interview_transcription_captures", "ai_tasks"
   add_foreign_key "interview_transcription_captures", "interview_session_questions", column: "question_id"
   add_foreign_key "interview_transcription_captures", "interview_sessions"
+  add_foreign_key "job_gap_responses", "career_contexts", on_delete: :nullify
   add_foreign_key "job_gap_responses", "jobs"
-  add_foreign_key "job_gap_responses", "library_facts", on_delete: :nullify
   add_foreign_key "jobs", "job_board_listings", on_delete: :nullify
   add_foreign_key "jobs", "users"
   add_foreign_key "library_embeddings", "users", on_delete: :cascade
-  add_foreign_key "library_facts", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "resume_sections", "resumes", on_delete: :cascade
   add_foreign_key "resumes", "jobs", on_delete: :nullify

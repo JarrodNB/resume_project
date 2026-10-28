@@ -11,7 +11,7 @@ from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from model_inputs.interview import build_interview_question_context, format_feedback_prompt
 from model_inputs.interview_evidence import interview_career_evidence
-from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+from schemas.gap_analysis_context import CareerContext, CareerLibrary
 from schemas.interview_feedback import InterviewFeedback, InterviewFeedbackContext
 from schemas.interview_questions import (
     QUESTION_CATEGORIES,
@@ -26,7 +26,7 @@ class QuestionEvalInput(BaseModel):
     """Synthetic library, hard exclusions, and optional soft recent-practice context."""
 
     library: str = ""
-    facts: list[LibraryFact] = Field(default_factory=list)
+    career_contexts: list[CareerContext] = Field(default_factory=list)
     set_type: InterviewSetType = "general"
     count: int = Field(default=5, ge=1, le=5)
     excluded: list[str] = Field(default_factory=list)
@@ -40,7 +40,7 @@ class FeedbackEvalInput(BaseModel):
     set_type: InterviewSetType = "general"
     answer: str
     library: str = ""
-    facts: list[LibraryFact] = Field(default_factory=list)
+    career_contexts: list[CareerContext] = Field(default_factory=list)
 
 
 class FeedbackEvalLabels(BaseModel):
@@ -51,7 +51,7 @@ class FeedbackEvalLabels(BaseModel):
 
 def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
     """Uses the worker's question prompt shape with trusted synthetic evidence."""
-    library = CareerLibrary(summary=case.library, facts=case.facts)
+    library = CareerLibrary(summary=case.library, career_contexts=case.career_contexts)
     return build_interview_question_context(
         library, case.excluded, case.count, case.set_type, recent_questions=case.recent_questions,
     )
@@ -59,7 +59,7 @@ def question_context(case: QuestionEvalInput) -> InterviewQuestionContext:
 
 def feedback_context(case: FeedbackEvalInput) -> InterviewFeedbackContext:
     """Uses the worker's feedback prompt shape without test-only labels."""
-    library = CareerLibrary(summary=case.library or None, facts=case.facts)
+    library = CareerLibrary(summary=case.library or None, career_contexts=case.career_contexts)
     text = format_feedback_prompt(case.set_type, case.question, case.answer, library)
     return InterviewFeedbackContext(text, case.answer + "\n" + interview_career_evidence(library)[1], case.set_type)
 

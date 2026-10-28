@@ -3,7 +3,7 @@
     "name": "technical fact with response-only display",
     "query": "Describe your Kubernetes incident recovery.",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -65,7 +65,7 @@
     "name": "HR motivation no evidence",
     "query": "Why do you want to join this company?",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -121,7 +121,7 @@
     "name": "follow-up with accepted context",
     "query": "Core question: Describe Kubernetes migrations.\nAccepted answer: I restored Kubernetes workloads.\nFollow-up: What changed afterward?",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -138,7 +138,7 @@
     "name": "weak vector without keywords rejected",
     "query": "How did you mentor trainees?",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -148,7 +148,7 @@
     },
     "matches": [
       {
-        "source_type": "LibraryFact",
+        "source_type": "CareerContext",
         "source_id": "00000000-0000-0000-0000-000000000001",
         "content": "Fact: Kubernetes incident recovery: I restored Kubernetes workloads after a failed migration.",
         "distance": 0.9,
@@ -161,7 +161,7 @@
     "name": "strong vector supports paraphrase",
     "query": "Describe a time you recovered a service.",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -171,7 +171,7 @@
     },
     "matches": [
       {
-        "source_type": "LibraryFact",
+        "source_type": "CareerContext",
         "source_id": "00000000-0000-0000-0000-000000000001",
         "content": "Fact: Kubernetes incident recovery: I restored Kubernetes workloads after a failed migration.",
         "distance": 0.2,
@@ -186,7 +186,7 @@
     "name": "duplicate saved text grouped",
     "query": "Describe recovering a failed migration.",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Kubernetes incident recovery",
@@ -238,7 +238,7 @@
     "name": "stale Kubernetes vector cannot select current finance fact",
     "query": "Describe Kubernetes deployments",
     "library": {
-      "facts": [
+      "career_contexts": [
         {
           "id": "00000000-0000-0000-0000-000000000001",
           "requirement": "Finance",
@@ -248,7 +248,7 @@
     },
     "matches": [
       {
-        "source_type": "LibraryFact",
+        "source_type": "CareerContext",
         "source_id": "00000000-0000-0000-0000-000000000001",
         "content": "Fact: Kubernetes: Maintained clusters.",
         "distance": 0.1,

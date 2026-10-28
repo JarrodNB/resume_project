@@ -298,7 +298,7 @@ cases:
         - requirement: Tableau
           verdict: missing
 
-  - name: fact_closes_a_gap
+  - name: context_closes_a_gap
     inputs:
       job:
         id: job-8
@@ -316,7 +316,7 @@ cases:
             highlights:
               - id: hl-1
                 content: Built internal tools in Python
-        facts:
+        career_contexts:
           - id: fact-1
             requirement: Experience running production Kubernetes
             response: I ran production Kubernetes at Northwind for two years, including cluster upgrades.

@@ -6,7 +6,12 @@ Exercise the pure context and its screening-aware preparation without provider c
 import pytest
 
 from model_inputs.interview import build_interview_question_context
-from schemas.gap_analysis_context import CareerLibrary, LibraryExperience, LibraryFact, LibrarySkill
+from schemas.gap_analysis_context import (
+    CareerContext,
+    CareerLibrary,
+    LibraryExperience,
+    LibrarySkill,
+)
 from screening.interview_question_inputs import prepare_interview_question_context
 from screening.library_inputs import screen_library_inputs
 from screening.screen_user_text import ScreenOutcome
@@ -21,7 +26,7 @@ def test_question_context_keeps_visible_evidence_and_citations_together(set_type
             id="private-role", title="Analyst", company="Example", start_date="2022-01-01",
         )],
         skills=[LibrarySkill(id="private-skill", name="Python", category="Analysis")],
-        facts=[LibraryFact(id="private-fact", requirement="Leadership", response="Led a study group.")],
+        career_contexts=[CareerContext(id="private-fact", requirement="Leadership", response="Led a study group.")],
     )
     context = build_interview_question_context(
         library, ["Old question?"], 1, set_type, recent_questions=["Recent question?"],
@@ -71,8 +76,8 @@ def test_preparation_requires_approval_for_every_prompt_source(trust_history):
 def test_preparation_omits_rejected_sources_from_both_prompt_and_citations():
     with screening_session():
         selected = screen_library_inputs(
-            CareerLibrary(summary="Kept evidence", facts=[
-                LibraryFact(id="rejected", requirement="Secret context", response="Rejected evidence"),
+            CareerLibrary(summary="Kept evidence", career_contexts=[
+                CareerContext(id="rejected", requirement="Secret context", response="Rejected evidence"),
             ]),
             lambda text: ScreenOutcome(allowed="Rejected evidence" not in text),
         )

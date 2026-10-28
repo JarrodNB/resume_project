@@ -61,7 +61,7 @@ score attached, so runs can be compared across prompt and model changes.
   builder): `docker compose run --rm ai-worker python -m evals.run_job_posting_parse_evals`
 - `datasets/gap_analysis_cases.yaml` — 9 synthetic job + career library pairs (strong match,
   obvious gaps, adjacent skills are partial, requirement shown only by a project, synonyms and
-  equivalent degree, fewer years than asked, near-empty library, a library fact that closes a
+  equivalent degree, fewer years than asked, near-empty library, a career context entry that closes a
   gap) with hand-labelled verdicts (plus acceptable alternatives) and key evidence ids
 - `gap_analysis_evaluators.py` — `Coverage`, `EvidenceValidity`, `VerdictAccuracy`
   (incl. met agreement), `GapRecall`, `EvidenceRecall`
@@ -119,7 +119,7 @@ score attached, so runs can be compared across prompt and model changes.
   uncertain/negative outcomes, introductions, and legacy goals/development questions.
   Knowledge cases cover Python, nontechnology food safety, sparse historical source comparison,
   distinct replacement intents, incorrect answer correction, and accurate but incomplete answers.
-  Structured saved-fact cases preserve requirement context without treating it as personal evidence.
+  Structured saved-career-context cases preserve requirement context without treating it as personal evidence.
   The knowledge accuracy judge checks corrections; scope-aware example grounding permits subject facts while forbidding invented experience.
 - `interview_evaluators.py` — deterministic structure, evidence, and placeholder checks.
   Recent-practice cases cover full sets across all three types, including sparse context.
@@ -183,3 +183,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   supply vector distances; they do not measure semantic similarity. Explicit `--paid` uses
   real synthetic-data embeddings and records usage/label agreement, with no dialogue judge.
   Prints JSON; only `--output PATH` saves a report. Evaluation does not change interview behavior.
+
+- `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.

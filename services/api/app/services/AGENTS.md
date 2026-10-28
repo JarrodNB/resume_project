@@ -6,6 +6,8 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
+- `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
+
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;
@@ -67,13 +69,13 @@ All business logic, as service objects grouped by domain folder.
   window), then enqueues `analyze_gaps` with the job as task `subject`; the result stays on the
   AiTask (`Job#latest_gap_analysis`)
 - `gap_responses/save_gap_response_service.rb` — saves an answer on a job by requirement text;
-  optionally creates a library fact (see `gap_responses/AGENTS.md`)
+  optionally creates a career context entry (see `gap_responses/AGENTS.md`)
 - `users/update_profile_service.rb` — name, contact details, links, and summary; blank strings
   are cleared; does not queue an embedding sync (the summary is read live)
 - `experiences/` — `create_experience_service.rb`, `update_experience_service.rb`,
   `move_highlight_service.rb` (moves a highlight within or between roles, keeping its id, and
   renumbers positions in both roles)
-- `projects/`, `educations/`, `library_facts/` — create and update services; each queues an
+- `projects/`, `educations/`, `career_contexts/` — create and update services; each queues an
   embedding sync
 - `skills/create_skill_service.rb`, `update_skill_service.rb` — a new skill is placed after
   the user's current highest position; update leaves position alone
@@ -122,6 +124,8 @@ All business logic, as service objects grouped by domain folder.
 - `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
   structure the import can't walk (wrong object/list types) with error messages, not a 500
 
+- `chat/` owns general-allowance admission, exact source-approved history, atomic message acceptance, per-request usage receipts, and feature policy behind shared AiExecutions jobs/runner/stream grants. Lock owner, conversation, operation and task; keep network I/O outside transactions.
+
 ## Local Rules
 
 - `ai_executions/` coordinates fixed-origin nudges and bounded recovery of known
@@ -136,7 +140,7 @@ All business logic, as service objects grouped by domain folder.
 - Multi-record changes run in a transaction (see `UpdateExperienceService`).
 - A service that changes career library text enqueues `CareerLibrary::SyncLibraryEmbeddingsJob`
   for the user (import, merge, experience create/update, highlight moved to another role,
-  library deletes, and project, education, skill, and library-fact create/update do today).
+  library deletes, and project, education, skill, and career-context create/update do today).
   Profile updates do not: the summary is read from `users`, not from embeddings.
 
 - `certifications/` — create/update credentials and enqueue embedding synchronization.

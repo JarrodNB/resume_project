@@ -6,7 +6,7 @@ import { useRecentInterviews } from './useRecentInterviews'
 
 export function RecentInterviews() {
   const { interviews, loading, error, refresh } = useRecentInterviews()
-  return <SectionCard title="Recent interviews" tone="facts" sectionId="spoken:recent-interviews">
+  return <SectionCard title="Recent interviews" tone="career_contexts" sectionId="spoken:recent-interviews">
     <p className="max-w-prose text-sm text-muted-foreground">Your latest 20 saved interviews appear here until their text expires. Open an unfinished interview to continue, or review a completed one.</p>
     {loading && <p role="status">Loading saved interviews…</p>}
     {error && <div className="grid gap-3"><p role="alert">Could not load saved interviews. Try again when connected.</p><Button className="justify-self-start" variant="outline" onClick={() => void refresh()}>Try again</Button></div>}

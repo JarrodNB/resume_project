@@ -97,7 +97,7 @@ async def generate_resume_draft(
                 selected_labels.add("SUMMARY")
             if not selected_labels:
                 selected_labels.update(label for label, record in prepared.prompts["summary"].sources.records.items()
-                    if record.kind in {"summary", "fact", "gap_response"})
+                    if record.kind in {"summary", "career_context", "gap_response"})
             # The selected labels already point to screened library evidence. Passing
             # assembled sections here would screen that same evidence a second time.
             summary = await prepared.summary_prompt([], selected_labels=selected_labels)

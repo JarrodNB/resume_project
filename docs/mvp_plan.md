@@ -21,7 +21,7 @@ over feature breadth or market positioning.
    **Gap responses** (done): in the same view, the user can respond to any gap or partial match
    (e.g. "I used Kubernetes at Acme for two years"). Responses are saved per job and
    requirement, so they survive re-running the comparison. Checking "Add to career library"
-   stores a library fact (the requirement plus the answer); only that fact is embedded and
+   stores a career context entry (the requirement plus the answer); only that fact is embedded and
    visible to the next comparison. No AI questions: the user writes what they want.
 5. **Tailored resume** — generate a job-specific version from the career library, the gap
    analysis, and the user's gap responses; the user edits and approves it.

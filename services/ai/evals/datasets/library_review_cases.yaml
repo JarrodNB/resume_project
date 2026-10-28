@@ -53,7 +53,7 @@ cases:
       questions: [false]
   - name: vague-fact-response
     inputs:
-      facts:
+      career_contexts:
         - id: fact-1
           requirement: Inventory management experience
           response: I did it.

@@ -48,7 +48,7 @@ def format_library(context: dict) -> str:
     groups = {}
     sections = {'profile': 'Profile', 'experiences': 'Experience', 'projects': 'Project',
                 'educations': 'Education', 'certifications': 'Certification',
-                'skills': 'Skill', 'library_facts': 'Career fact', 'highlights': 'Career highlight'}
+                'skills': 'Skill', 'career_contexts': 'Career context', 'highlights': 'Career highlight'}
     for index, source in enumerate(context.get('sources', []), 1):
         if not isinstance(source, dict) or not isinstance(source.get('text'), str):
             raise ValueError('Invalid frozen career source')  # noqa: TRY004 - malformed claims fail as domain input
@@ -180,7 +180,7 @@ def earlier_context(payload) -> str:
     size = sum(len(message.content) for group in groups for message in group.messages)
     if size > payload.earlier_dialogue.character_budget:
         raise ContextLimitExceeded('Earlier dialogue exceeds its content budget')
-    lines = ['# Earlier accepted dialogue', 'Candidate statements below are claims, not verified library facts.']
+    lines = ['# Earlier accepted dialogue', 'Candidate statements below are claims, not verified career context entries.']
     for group in groups:
         lines.append(f'## Question {group.question_position + 1}')
         for message in group.messages:

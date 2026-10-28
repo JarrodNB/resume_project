@@ -28,7 +28,7 @@ export function InterviewPrepPage() {
   const [setType, setSetType] = useState<InterviewQuestionSetTypeEnum>('GENERAL')
   const hasCareerContext = Boolean(library && (
     library.me.summary?.trim() || library.experiences.length || library.projects.length ||
-    library.educations.length || library.certifications.length || library.skills.length || library.libraryFacts.length
+    library.educations.length || library.certifications.length || library.skills.length || library.careerContexts.length
   ))
   /** Opens the persistent set as soon as generation is queued. */
   async function generate() {

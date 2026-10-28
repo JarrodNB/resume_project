@@ -13,7 +13,7 @@ import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_SETS_QUERY } fr
 function libraryMock() {
   return { request: { query: CAREER_LIBRARY_QUERY }, result: { data: {
     me: { __typename: 'User', id: 'user', name: 'Demo', contactEmail: null, phone: null, location: null, links: [], summary: 'Built a scheduling tool.' },
-    experiences: [], projects: [], educations: [], certifications: [], skills: [], libraryFacts: [],
+    experiences: [], projects: [], educations: [], certifications: [], skills: [], careerContexts: [],
   } } }
 }
 

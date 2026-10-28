@@ -337,6 +337,12 @@ Solid and square-shouldered, like a sign you can press.
 ### View Switch
 - Two joined buttons (Board, List) inside a 2px ink border with 4px corners. The selected one is filled ink with white text.
 
+### Chat Desk
+- Three columns on wide screens: saved chats (15rem), the conversation, and an "About this chat" notes panel (16.5rem), each divided by a 1px hairline. Under 1180px the panel drops and its text sits as a small note under the message box. Under 900px the saved chats become a row of tiles you swipe sideways.
+- The conversation scrolls on its own above a message box that stays pinned; it follows new words unless the reader scrolled up. The box is a 1.5px ink-bordered, 6px-cornered field with the counter and Send inside it.
+- Your messages are right-aligned tiles on `secondary` with a hairline border. Replies are plain text with a small ringed bullet beside "Careergrind"; the bullet turns blue (AI working) while a reply is being written.
+- Saved chats are a list of stops: a hollow bullet per chat, filled ink for the open one, with the date under the title.
+
 ### First-Run Line
 - With no jobs saved, Home shows three starting steps on a short line of their own: numbered 34px ringed bullets on a 6px ink track. It runs across on desktop and turns vertical under 900px.
 

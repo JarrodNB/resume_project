@@ -192,9 +192,12 @@ class RailsInterviewClient:
     """Fixed-origin HTTP with finite waits and byte-identical bounded retries."""
 
     def __init__(self, origin: str, secret: str, *, transport=None, max_body_bytes=512_000,
-                 execution_mode: Literal["fake", "real"] = "fake"):
+                 execution_mode: Literal["fake", "real"] = "fake", namespace="interviews"):
         if execution_mode not in {"fake", "real"}:
             raise ValueError("Invalid interview execution mode")
+        if namespace not in {"interviews", "chat"}:
+            raise ValueError("Unknown execution namespace")
+        self._namespace = namespace
         self._execution_mode = execution_mode
         parsed = urlsplit(origin)
         if (
@@ -261,7 +264,7 @@ class RailsInterviewClient:
             try:
                 async with self._client.stream(
                     method,
-                    self._origin + "/internal/interviews/" + path,
+                    self._origin + "/internal/" + self._namespace + "/" + path,
                     content=body,
                     headers={"Content-Type": "application/json"},
                 ) as response:

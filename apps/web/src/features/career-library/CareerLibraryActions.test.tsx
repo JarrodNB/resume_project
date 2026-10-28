@@ -10,7 +10,7 @@ import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
 import { CLEAR_CAREER_LIBRARY_MUTATION, DELETE_SKILL_MUTATION, MERGE_EXPERIENCES_MUTATION } from './careerLibraryMutations'
-import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_LIBRARY_FACT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
+import { CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION, CREATE_EXPERIENCE_MUTATION, CREATE_SKILL_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION, UPDATE_PROFILE_MUTATION, UPDATE_PROJECT_MUTATION } from './careerLibrarySaveMutations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { emptyLibraryReviewMocks } from './libraryReviewTestFixtures'
 import { CareerLibraryPage } from './CareerLibraryPage'
@@ -52,7 +52,7 @@ const libraryMock = {
       certifications: [],
       educations: [],
       skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 0 }],
-      libraryFacts: [],
+      careerContexts: [],
     },
   },
 }
@@ -247,31 +247,31 @@ it('keeps a validation error in the skill dialog', async () => {
   expect(screen.getByRole('dialog', { name: 'Add skill' })).toBeInTheDocument()
 })
 
-it('edits a fact', async () => {
+it('edits a context', async () => {
   const user = userEvent.setup()
   const library = {
     ...libraryMock,
     result: {
       data: {
         ...libraryMock.result.data,
-        libraryFacts: [{ __typename: 'LibraryFact', id: 'fact-1', requirement: 'Kubernetes', response: 'Used it at Acme' }],
+        careerContexts: [{ __typename: 'CareerContext', id: 'context-1', requirement: 'Kubernetes', response: 'Used it at Acme' }],
       },
     },
   }
   renderLibrary(
     {
       request: {
-        query: UPDATE_LIBRARY_FACT_MUTATION,
-        variables: { id: 'fact-1', attributes: { requirement: 'Kubernetes', response: 'Used it for two years' } },
+        query: UPDATE_CAREER_CONTEXT_MUTATION,
+        variables: { id: 'context-1', attributes: { requirement: 'Kubernetes', response: 'Used it for two years' } },
       },
-      result: { data: { updateLibraryFact: { __typename: 'UpdateLibraryFactPayload', errors: [] } } },
+      result: { data: { updateCareerContext: { __typename: 'UpdateCareerContextPayload', errors: [] } } },
     },
-    ['library.facts'],
+    ['library.career_contexts'],
     library,
   )
 
   await user.click(await screen.findByRole('button', { name: 'Edit Kubernetes' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Edit fact' })
+  const dialog = await screen.findByRole('dialog', { name: 'Edit career context' })
   await user.clear(within(dialog).getByLabelText('Response'))
   await user.type(within(dialog).getByLabelText('Response'), 'Used it for two years')
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))

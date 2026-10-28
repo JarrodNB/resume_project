@@ -6,16 +6,20 @@
  * blue means AI is working, yellow means waiting, green means an offer. All AI work still
  * running is listed in the strip at the top (see AiWorkStrip), which keeps itself current and
  * reloads the board when work finishes. With no saved jobs yet, Home shows the three steps
- * that start a search instead.
+ * that start a search instead. On the board, dragging a tile to another column moves the job to
+ * that stage (saved right away, like the stage picker on the job page).
  */
 import { useCallback, useState } from 'react'
 import { useQuery } from '@apollo/client/react'
+import { DragDropProvider } from '@dnd-kit/react'
 import { Link } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { Button } from '@/components/ui/button'
 import { JobStopLine } from '@/features/jobs/JobStopLine'
+import { MOVE_JOB_TO_STAGE_MUTATION } from '@/features/jobs/jobsOperations'
+import { useSaveJob } from '@/features/jobs/useSaveJob'
 import { JOB_STAGE_LABELS, JOB_STAGE_ORDER, type JobStage } from '@/features/jobs/jobStageLabels'
 import type { JobPipelineQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
@@ -24,6 +28,7 @@ import { JOB_PIPELINE_QUERY } from './homeOperations'
 import { readHomeView, rememberHomeView, type HomeView } from './homeView'
 import { AiWorkStrip } from './AiWorkStrip'
 import { NextStep } from './NextStepSignal'
+import { DraggableJobTile, StageDropColumn, stageFromDropId } from './PipelineDragParts'
 
 type PipelineEntry = JobPipelineQuery['jobPipeline'][number]
 
@@ -91,31 +96,58 @@ function StageHeading({ id, stage, count }: { id: string; stage: JobStage; count
   </>
 }
 
-/** One column per stage under its station, scrolling sideways when the screen is narrow. */
+/** One column per stage under its station, scrolling sideways when the screen is narrow.
+ * A dropped tile shows in its new column while the stage saves, and snaps back if the save fails. */
 function PipelineBoard({ entries }: { entries: PipelineEntry[] }) {
+  const { save, busy, errors, clearErrors } = useSaveJob()
+  const [movingTo, setMovingTo] = useState<Record<string, JobStage>>({})
+  const shown = entries.map((entry) => (movingTo[entry.job.id] ? { ...entry, job: { ...entry.job, stage: movingTo[entry.job.id] } } : entry))
+
+  async function moveJob(jobId: string, stage: JobStage) {
+    setMovingTo((current) => ({ ...current, [jobId]: stage }))
+    await save(MOVE_JOB_TO_STAGE_MUTATION, { id: jobId, stage }, [JOB_PIPELINE_QUERY])
+    setMovingTo(({ [jobId]: _settled, ...rest }) => rest)
+  }
+
   return (
-    <div className="pipeline-board">
-      {JOB_STAGE_ORDER.map((stage) => {
-        const inStage = entriesInStage(entries, stage)
-        const headingId = `pipeline-${stage.toLowerCase()}`
-        return (
-          <section key={stage} className={cn('pipeline-column', stageClass(stage))} aria-labelledby={headingId}>
-            <div className="station"><StageHeading id={headingId} stage={stage} count={inStage.length} /></div>
-            {inStage.length > 0 ? (
-              <ul>
-                {inStage.map((entry) => (
-                  <li key={entry.job.id} className={cn('job-tile', stage === 'REJECTED' && 'is-closed')}>
-                    <JobName entry={entry} />
-                    <JobStopLine stage={stage} />
-                    <div className="next-step-row"><NextStep entry={entry} /></div>
-                  </li>
-                ))}
-              </ul>
-            ) : <p className="pipeline-empty">No jobs</p>}
-          </section>
-        )
-      })}
-    </div>
+    <DragDropProvider
+      onDragStart={clearErrors}
+      onDragEnd={(event) => {
+        const stage = stageFromDropId(event.operation.target?.id)
+        const jobId = String(event.operation.source?.id ?? '')
+        const current = shown.find((entry) => entry.job.id === jobId)?.job.stage
+        if (!event.canceled && stage && current && stage !== current && !busy) void moveJob(jobId, stage)
+      }}
+    >
+      <ErrorAlert title="Couldn't move that job" messages={errors} />
+      <div className="pipeline-board">
+        {JOB_STAGE_ORDER.map((stage) => {
+          const inStage = entriesInStage(shown, stage)
+          const headingId = `pipeline-${stage.toLowerCase()}`
+          return (
+            <StageDropColumn key={stage} stage={stage} className={cn('pipeline-column', stageClass(stage))} aria-labelledby={headingId}>
+              <div className="station"><StageHeading id={headingId} stage={stage} count={inStage.length} /></div>
+              {inStage.length > 0 ? (
+                <ul>
+                  {inStage.map((entry) => (
+                    <DraggableJobTile
+                      key={entry.job.id}
+                      jobId={entry.job.id}
+                      label={`${entry.job.title} at ${entry.job.company ?? 'an unknown company'}`}
+                      className={cn('job-tile', stage === 'REJECTED' && 'is-closed')}
+                    >
+                      <JobName entry={entry} />
+                      <JobStopLine stage={stage} />
+                      <div className="next-step-row"><NextStep entry={entry} /></div>
+                    </DraggableJobTile>
+                  ))}
+                </ul>
+              ) : <p className="pipeline-empty">No jobs</p>}
+            </StageDropColumn>
+          )
+        })}
+      </div>
+    </DragDropProvider>
   )
 }
 

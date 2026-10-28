@@ -99,8 +99,8 @@ RSpec.describe "Interview question references" do
       task = retry_result.value.ai_task
       expect(task.id).not_to eq(old_task.id)
       expect(Interviews::CurrentPromptWork::References.new.claim(ai_task: old_task).value).to eq({ allowed: false })
-      fact = create(:library_fact, user: interview.user)
-      entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Old evidence", "body" => fact.response }
+      context = create(:career_context, user: interview.user)
+      entry = { "source_type" => "CareerContext", "source_id" => context.id, "title" => "Old evidence", "body" => context.response }
       late_result = { "ai_task_id" => old_task.id, "status" => "completed", "result" => { "references" => [ entry ] },
         "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 13 } ] }
       2.times { expect(AiTasks::ApplyAiResultService.call(message: late_result)).to be_success }
@@ -209,12 +209,12 @@ RSpec.describe "Interview question references" do
     expect(fake.career_references.reload).to be_empty
     expect(queue).not_to have_received(:send_message)
   end
-  it "persists exact owned fact responses and rejects another owner's source" do
+  it "persists exact owned context responses and rejects another owner's source" do
     reference = request_references
     task = reference.ai_task
     Interviews::CurrentPromptWork::References.new.claim(ai_task: task)
-    fact = create(:library_fact, user: interview.user)
-    entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved career fact", "body" => fact.response }
+    context = create(:career_context, user: interview.user)
+    entry = { "source_type" => "CareerContext", "source_id" => context.id, "title" => "Saved career context", "body" => context.response }
     message = { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [ entry ] } }
     expect(AiTasks::ApplyAiResultService.call(message: message)).to be_success
     expect(reference.reload.references).to eq([ entry ])
@@ -226,8 +226,8 @@ RSpec.describe "Interview question references" do
     reference = request_references
     task = reference.ai_task
     Interviews::CurrentPromptWork::References.new.claim(ai_task: task)
-    fact = create(:library_fact)
-    entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved career fact", "body" => fact.response }
+    context = create(:career_context)
+    entry = { "source_type" => "CareerContext", "source_id" => context.id, "title" => "Saved career context", "body" => context.response }
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [ entry ] } })
     expect(reference.reload.references).to eq([])
     expect(task.reload).to be_failed
@@ -238,8 +238,8 @@ RSpec.describe "Interview question references" do
     reference = request_references
     task = reference.ai_task
     Interviews::CurrentPromptWork::References.new.claim(ai_task: task)
-    fact = create(:library_fact, user: interview.user, response: "Coordinated a service migration.")
-    entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved fact", "body" => "Led every service migration." }
+    context = create(:career_context, user: interview.user, response: "Coordinated a service migration.")
+    entry = { "source_type" => "CareerContext", "source_id" => context.id, "title" => "Saved context", "body" => "Led every service migration." }
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [ entry ] },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 9 } ] })
     expect(task.reload).to have_attributes(status: "failed", error_message: "Invalid career references", cost_microdollars: 9)
@@ -268,8 +268,8 @@ RSpec.describe "Interview question references" do
     reference = request_references
     task = reference.ai_task
     Interviews::CurrentPromptWork::References.new.claim(ai_task: task)
-    fact = create(:library_fact, user: interview.user, response: "Unique reference-only career detail")
-    entry = { "source_type" => "LibraryFact", "source_id" => fact.id, "title" => "Saved fact", "body" => fact.response }
+    context = create(:career_context, user: interview.user, response: "Unique reference-only career detail")
+    entry = { "source_type" => "CareerContext", "source_id" => context.id, "title" => "Saved context", "body" => context.response }
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "references" => [ entry ] },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "cost_microdollars" => 29 } ] })
     turn = Interviews::SubmitTurnService.call(interview: interview, question_id: prompt.question_id, expected_revision: interview.revision,
@@ -277,7 +277,7 @@ RSpec.describe "Interview question references" do
     expect(turn).to be_success
     claim = Interviews::ClaimOperationService.call(operation: turn.value, execution_mode: "real")
     expect(claim).to be_success
-    expect(JSON.generate(claim.value)).not_to include(fact.response, reference.id)
+    expect(JSON.generate(claim.value)).not_to include(context.response, reference.id)
     expect(task.reload.cost_microdollars).to eq(29)
     expect(reference.reload.references).to eq([ entry ])
   end

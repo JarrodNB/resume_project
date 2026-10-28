@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Description: Deletes one of the signed-in user's jobs (tailored resumes are kept, unlinked).
+# Description: Legacy archive action for older clients; retains the job and all linked records.
 module Mutations
   module Jobs
     class DeleteJob < Mutations::BaseMutation
@@ -8,10 +8,10 @@ module Mutations
 
       field :job, Types::JobType
 
-      # Calls Records::DestroyRecordService.
+      # Archives rather than deleting saved data.
       def resolve(id:)
         job = current_user.jobs.find(id)
-        payload_from(::Records::DestroyRecordService.call(record: job), :job)
+        payload_from(::Jobs::ArchiveJobService.call(job: job), :job)
       end
     end
   end

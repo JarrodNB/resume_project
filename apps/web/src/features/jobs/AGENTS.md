@@ -6,7 +6,7 @@ Saved jobs: add one from a job posting link (`scrapeJob`), from a pasted adverti
 (`parseJobPosting`), or by hand (`createJob`), list them, and view one. Both AI paths are
 followed live with `aiTaskUpdated`. Rails saves the job itself when the task completes; there
 is no review step. A saved job opens as a workspace with tabs for the work on that job. It can
-be edited, moved between application stages, and deleted.
+be edited, moved between application stages, and archived.
 
 ## Contents
 
@@ -24,7 +24,7 @@ be edited, moved between application stages, and deleted.
   (`useGapAnalysis`), shared with every tab. The header shows title, company · location, the
   applied date once set, `JobStageSelect` (`moveJobToStage`), `WriteResumeAction` (only when the
   job has no resume and the Resume tab isn't open), and `JobActionsMenu.tsx` ("More job actions":
-  Edit job, Visit website when a URL is saved, Delete job). Visit website opens a new tab and does
+  Edit job, Visit website when a URL is saved, Archive job). Visit website opens a new tab and does
   not change the stage. Below it, the "Job sections" tabs:
   Fit (`/jobs/:id`), Resume (`/jobs/:id/resume`, `features/resume-tailoring/`), Study
   (`/jobs/:id/study`), Interview (`/jobs/:id/interview`, `features/interviews/`), and Posting
@@ -40,16 +40,16 @@ be edited, moved between application stages, and deleted.
   "Compare first" starts the shared comparison, and "Write resume anyway" continues without it.
 - `JobFormDialog.tsx`, `StringListField.tsx`, `jobFormValues.ts`, `useSaveJob.ts` — the shared
   add and edit form; every field is sent, and a blank optional string is stored as null
-- `JobStageSelect.tsx`, `DeleteJobDialog.tsx`, `JobDetailCards.tsx` — stage control, delete
+- `JobStageSelect.tsx`, `ArchiveJobDialog.tsx`, `JobDetailCards.tsx` — stage control, archive
   confirmation, and the collapsible card for the full description
 - `jobsOperations.ts` — `JOBS_QUERY`, `JOB_QUERY` (includes `latestGapAnalysis`,
   `gapResponses`, `resume`, `notes`, and `appliedAt`),
   `SCRAPE_JOB_MUTATION`, `PARSE_JOB_POSTING_MUTATION`, `CREATE_JOB_MUTATION`,
-  `UPDATE_JOB_MUTATION`, `MOVE_JOB_TO_STAGE_MUTATION`, `DELETE_JOB_MUTATION`; hooks `useJobs.ts`
+  `UPDATE_JOB_MUTATION`, `MOVE_JOB_TO_STAGE_MUTATION`, `ARCHIVE_JOB_MUTATION`; hooks `useJobs.ts`
   (`useJobs`, `useJob`), `useScrapeJob.ts`, `useParseJobPosting.ts`
 - `jobStageLabels.ts` — stage labels; `scrapedJobWarnings.ts` — warnings from
   `result.scraped_job` (mirror of `services/ai/schemas/scraped_job_posting.py`)
-- `*.test.tsx` — list, manual add, workspace header and tabs, edit, stage, delete, URL form, task page states
+- `*.test.tsx` — list, manual add, workspace header and tabs, edit, stage, archive, URL form, task page states
 
 ## Local Rules
 
@@ -57,6 +57,6 @@ be edited, moved between application stages, and deleted.
   leaves Not applied. Editing a requirement's wording does not rewrite saved answers.
 - A job requires a title. Company is nullable: show **Unknown company** in saved-job labels,
   leave its edit input empty, and send null when the field is cleared.
-- Deleting a job removes its answers. A tailored resume written for it stays, unlinked.
+- Archiving hides a job from saved jobs and Home; answers, resumes, interviews, and AI history stay linked.
 - A tab's main content stays open; only long extras (the full description) collapse.
 - The task page must work on reload: the subscription sends the task's current state first.

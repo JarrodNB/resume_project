@@ -185,7 +185,7 @@ module Types
 
     # Returns the user's jobs, newest first, optionally filtered by stage.
     def jobs(stage: nil)
-      scope = current_user.jobs.order(created_at: :desc)
+      scope = current_user.jobs.active.order(created_at: :desc)
       stage ? scope.where(stage: stage) : scope
     end
 

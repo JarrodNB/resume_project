@@ -1,5 +1,5 @@
 /**
- * Checks the saved-job workspace: the header (edit, stage, delete, visit website, applied date,
+ * Checks the saved-job workspace: the header (edit, stage, archive, visit website, applied date,
  * the write-resume flow and its compare-first dialog), the tab links, the import notice, and the
  * Fit and Posting tabs. The Resume, Study, and Interview tabs are stand-ins here; their own tests
  * cover them.
@@ -15,7 +15,7 @@ import { ANALYZE_JOB_GAPS_MUTATION } from '@/features/gap-analysis/gapAnalysisOp
 import { renderPage } from '@/test/renderPage'
 import { JobFitTab, JobPostingTab } from './JobWorkspaceTabs'
 import { JobWorkspaceLayout } from './JobWorkspaceLayout'
-import { DELETE_JOB_MUTATION, JOB_QUERY, MOVE_JOB_TO_STAGE_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
+import { ARCHIVE_JOB_MUTATION, JOB_QUERY, MOVE_JOB_TO_STAGE_MUTATION, UPDATE_JOB_MUTATION } from './jobsOperations'
 
 function job(overrides: Record<string, unknown> = {}) {
   return {
@@ -266,7 +266,7 @@ it('moves the job to a new stage', async () => {
   expect(screen.getByText(/Applied \d/)).toBeInTheDocument()
 })
 
-it('deletes the job from any tab after confirmation and returns to the jobs list', async () => {
+it('archives the job from any tab after confirmation and returns to the jobs list', async () => {
   const user = userEvent.setup()
   const { router } = renderWorkspace({
     url: '/jobs/job-1/posting',
@@ -274,18 +274,35 @@ it('deletes the job from any tab after confirmation and returns to the jobs list
     mocks: [
       jobQuery(job()),
       {
-        request: { query: DELETE_JOB_MUTATION, variables: { id: 'job-1' } },
-        result: { data: { deleteJob: { __typename: 'DeleteJobPayload', errors: [] } } },
+        request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
+        result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: [] } } },
       },
     ],
   })
 
   await openActionsMenu(user)
-  await user.click(screen.getByRole('menuitem', { name: 'Delete job' }))
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+  await user.click(screen.getByRole('menuitem', { name: 'Archive job' }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs'))
   expect(screen.getByText('Jobs list')).toBeVisible()
+})
+
+it('keeps the workspace open and shows an archive failure', async () => {
+  const user = userEvent.setup()
+  const { router } = renderWorkspace({ mocks: [
+    jobQuery(job()),
+    {
+      request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
+      result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: ['Could not archive this job'] } } },
+    },
+  ] })
+  await openActionsMenu(user)
+  await user.click(screen.getByRole('menuitem', { name: 'Archive job' }))
+  expect(screen.getByText(/Your answers, resumes, and interview history are kept/)).toBeVisible()
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
+  expect(await screen.findByText('Could not archive this job')).toBeVisible()
+  expect(router.state.location.pathname).toBe('/jobs/job-1')
 })
 
 it('starts the comparison from the dialog and blocks writing during the request', async () => {

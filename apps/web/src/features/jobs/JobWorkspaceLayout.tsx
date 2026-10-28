@@ -1,7 +1,7 @@
 /** The workspace for one saved job (/jobs/:id and its tabs).
  *
  * A fixed header shows the job, its application stage, the resume action, and a menu to edit,
- * visit, or delete it. Tabs below split the work for this job: Fit (how the career library
+ * visit, or archive it. Tabs below split the work for this job: Fit (how the career library
  * matches), Resume, Study, Interview, and Posting. The header and tabs share one loaded job and
  * one live comparison, handed to each tab through `useJobWorkspace`.
  */
@@ -13,12 +13,12 @@ import { Button } from '@/components/ui/button'
 import { useGapAnalysis } from '@/features/gap-analysis/useGapAnalysis'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { cn } from '@/lib/utils'
-import { DeleteJobDialog } from './DeleteJobDialog'
+import { ArchiveJobDialog } from './ArchiveJobDialog'
 import { JobActionsMenu } from './JobActionsMenu'
 import { JobBoardImportNotice } from './JobBoardImportNotice'
 import { JobFormDialog } from './JobFormDialog'
 import { JobStageSelect } from './JobStageSelect'
-import { DELETE_JOB_MUTATION } from './jobsOperations'
+import { ARCHIVE_JOB_MUTATION } from './jobsOperations'
 import { useJob } from './useJobs'
 import { useSaveJob } from './useSaveJob'
 import type { JobWorkspaceContext } from './useJobWorkspace'
@@ -47,14 +47,14 @@ function JobWorkspace({ id }: { id: string }) {
   const comparison = useGapAnalysis(id, job?.latestGapAnalysis ?? null)
   const { save, busy, errors, clearErrors } = useSaveJob()
   const [editing, setEditing] = useState(false)
-  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [confirmingArchive, setConfirmingArchive] = useState(false)
   const base = `/jobs/${id}`
   const currentTab = pathname.slice(base.length + 1).split('/')[0]
 
-  /** Removes the job and returns to the list. The open job is not refetched: it is already gone. */
-  async function removeJob() {
+  /** Hides the job from cached lists and returns to saved jobs. */
+  async function archiveJob() {
     if (!job) return
-    const result = await save(DELETE_JOB_MUTATION, { id: job.id }, [])
+    const result = await save(ARCHIVE_JOB_MUTATION, { id: job.id }, [])
     if (!result.ok) return
     client.cache.modify({
       fields: {
@@ -64,6 +64,7 @@ function JobWorkspace({ id }: { id: string }) {
         },
       },
     })
+    client.cache.evict({ id: 'ROOT_QUERY', fieldName: 'jobPipeline' })
     navigate('/jobs')
   }
 
@@ -104,9 +105,9 @@ function JobWorkspace({ id }: { id: string }) {
           <JobActionsMenu
             url={job.url}
             onEdit={() => setEditing(true)}
-            onDelete={() => {
+            onArchive={() => {
               clearErrors()
-              setConfirmingDelete(true)
+              setConfirmingArchive(true)
             }}
           />
         </div>
@@ -127,11 +128,11 @@ function JobWorkspace({ id }: { id: string }) {
         })}
       </nav>
       <JobFormDialog open={editing} job={job} onOpenChange={setEditing} />
-      <DeleteJobDialog
-        open={confirmingDelete}
-        onOpenChange={setConfirmingDelete}
+      <ArchiveJobDialog
+        open={confirmingArchive}
+        onOpenChange={setConfirmingArchive}
         jobTitle={job.title}
-        onConfirm={() => void removeJob()}
+        onConfirm={() => void archiveJob()}
         busy={busy}
         errors={errors}
       />

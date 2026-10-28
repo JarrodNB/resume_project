@@ -1,9 +1,9 @@
-/** The job header's "More" menu: edit the job, open the saved posting website, or delete the job. */
-import { ExternalLink, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+/** The job header's "More" menu: edit the job, open the saved posting website, or archive the job. */
+import { ExternalLink, MoreHorizontal, Pencil, Archive } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
-export function JobActionsMenu({ url, onEdit, onDelete }: { url: string | null; onEdit: () => void; onDelete: () => void }) {
+export function JobActionsMenu({ url, onEdit, onArchive }: { url: string | null; onEdit: () => void; onArchive: () => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -17,7 +17,7 @@ export function JobActionsMenu({ url, onEdit, onDelete }: { url: string | null; 
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={onDelete}><Trash2 aria-hidden /> Delete job</DropdownMenuItem>
+        <DropdownMenuItem onSelect={onArchive}><Archive aria-hidden /> Archive job</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

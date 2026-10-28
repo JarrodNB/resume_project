@@ -23,7 +23,7 @@ module Jobs
 
     # @return [ServiceResult] value is an array of { job: Job, next_step: String }
     def call
-      jobs = @user.jobs.order(created_at: :desc, id: :desc).to_a
+      jobs = @user.jobs.active.order(created_at: :desc, id: :desc).to_a
       return success([]) if jobs.empty?
 
       job_ids = jobs.map(&:id)

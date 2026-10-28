@@ -72,5 +72,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // Slow UI tests take 1-3s alone but pass 5s when many jsdom workers run at once.
+    testTimeout: 15_000,
   },
 })

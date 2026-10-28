@@ -1,5 +1,5 @@
 /** Speak saved interviewer text with the browser's voice engine.
- * One control plays, stops or replays the turn; recording, navigation and errors
+ * One control plays or stops the turn, then disappears once it finishes; recording, navigation and errors
  * release its disposable playback.
  * Browser voices may use device or network services; this never requests provider audio.
  */
@@ -144,7 +144,7 @@ function BrowserSpeech({ messageId, text, automatic = false, muted = false, disa
   if (!supported) return <p className="text-sm text-muted-foreground">Browser speech is unavailable. Read the question and record your answer.</p>
   return <div className="grid gap-2">
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={muted || disabled || !text.trim()} onClick={() => playing ? stop() : play()}>{playing ? 'Stop interviewer audio' : ended ? 'Replay interviewer audio' : 'Play interviewer audio'}</Button>
+      {!ended && <Button variant="outline" disabled={muted || disabled || !text.trim()} onClick={() => playing ? stop() : play()}>{playing ? 'Stop interviewer audio' : 'Play interviewer audio'}</Button>}
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </div>

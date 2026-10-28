@@ -1,5 +1,5 @@
 /** Load owner-bound saved speech and manage its playback lifetime.
- * One control pauses/resumes or replays a completed turn. Autoplay is attempted once
+ * One control pauses/resumes a turn, then disappears once it finishes. Autoplay is attempted once
  * for a new turn; playback failure never regenerates speech.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -65,7 +65,7 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
     }
   }, [notify])
 
-  const play = useCallback(async (replay = false) => {
+  const play = useCallback(async () => {
     if (!permitted.current) return
     const identity = ++generation.current
     setError(null)
@@ -85,7 +85,6 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
       const element = audio.current
       if (!element || identity !== generation.current || !permitted.current) return
       if (element.getAttribute('src') !== source) element.src = source
-      if (replay) element.currentTime = 0
       try { await element.play() }
       catch {
         if (identity === generation.current && permitted.current) setError('Audio did not start. Press Play interviewer audio to try again.')
@@ -130,7 +129,7 @@ function SavedInterviewAudio({ interviewId, messageId, automatic = false, muted 
   return <div className="grid gap-2">
     <audio ref={audio} preload="none" src={url ?? undefined} muted={muted} aria-label="Saved interviewer speech" onPlay={() => { if (permitted.current) { setLoading(false); setPlaying(true); notify(true) } else audio.current?.pause() }} onEnded={() => { stop(); setEnded(true) }} onPause={() => { setPlaying(false); notify(false) }} onError={audioFailed} />
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" disabled={disabled || muted || loading} aria-busy={loading} onClick={() => playing ? stop() : void play(ended)}>{loading ? 'Loading audio…' : playing ? 'Pause interviewer audio' : ended ? 'Replay interviewer audio' : 'Play interviewer audio'}</Button>
+      {!ended && <Button variant="outline" disabled={disabled || muted || loading} aria-busy={loading} onClick={() => playing ? stop() : void play()}>{loading ? 'Loading audio…' : playing ? 'Pause interviewer audio' : 'Play interviewer audio'}</Button>}
     </div>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
   </div>

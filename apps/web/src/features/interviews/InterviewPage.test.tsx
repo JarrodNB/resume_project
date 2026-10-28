@@ -87,6 +87,16 @@ describe('InterviewPage', () => {
     expect(router.state.location.pathname).toBe('/jobs/job-1/interview')
     expect(router.state.location.state).toEqual({ practiceSetup: snapshot.setup })
   })
+  it('returns an abandoned job interview to that job’s Interview tab', async () => {
+    state.interview = { ...snapshot, jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
+    state.abandonInterview.mockResolvedValue(true)
+    const { router } = renderPage({ path: '/practice/interviews/:id', url: '/practice/interviews/session', element: <InterviewPage />,
+      extraRoutes: [{ path: '/jobs/:jobId/interview', element: <p>Job practice setup</p> }] })
+    await userEvent.click(screen.getByRole('button', { name: 'Abandon interview' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Confirm abandonment' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/interview'))
+    expect(router.state.location.state).toEqual({ interviewEnded: 'abandoned' })
+  })
   it('reviews the saved job snapshot without labelling it as a fictional role', async () => {
     state.interview = { ...snapshot, status: 'ready', preparedRole: { title: 'Laboratory technician', requirements: [], responsibilities: [] },
       jobContext: { id: 'job-1', title: 'Laboratory technician', company: 'Sample Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }

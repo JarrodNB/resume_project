@@ -438,6 +438,7 @@ def test_health_recovers_when_a_stuck_cleanup_tail_finishes_but_a_closed_runner_
 
     asyncio.run(scenario())
 
+
 def test_execution_secret_prefers_generic_credential_and_falls_back_to_interview(monkeypatch):
     from routes.executions import execution_service_secret
 

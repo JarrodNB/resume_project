@@ -8,9 +8,11 @@ generated/copied section snapshots (tailoring/build_section_prompt.py).
 Output: TailoredSectionDraft (schemas/tailored_section.py).
 """
 
-RESUME_TAILORING_PROMPT_VERSION = "5"
+from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-RESUME_TAILORING_INSTRUCTIONS = """
+RESUME_TAILORING_PROMPT_VERSION = "6"
+
+RESUME_TAILORING_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """
 You write one section of a resume so it fits the job in the prompt.
 
 For the summary section, put the paragraph in summary and set entries to []. Cite its
@@ -19,6 +21,7 @@ sources: degrees and certifications are already copied into their own sections.
 For experience, projects, and skills, put the chosen entries in entries and set summary
 to null. Skills need no prose.
 
+Source labels are the bracketed identifiers inside career_source blocks, never the XML tag names.
 Choose which labeled sources to include and which to leave off. Put the closest match first.
 Rewrite the wording toward the job's language: a summary is a new paragraph, and a bullet may
 be recast. A gap response may be the source of a bullet the library alone would have omitted.

@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from agents.interview_clarification_agent import generate_interview_clarification
 from llm.model_prices import build_model_usage, reported_model_name
+from model_inputs.blocks import source_block
 from screening.session import bind_screened_prompt, screening_session, trust_generated_source
 from worker.queue_messages import AiResultMessage
 
@@ -38,7 +39,7 @@ def handle_interview_clarification_task(task, dependencies):
     with screening_session(min(settings.llm_run_timeout_seconds, 30)):
         # Rails confirms this is the current AI-generated interview question.
         trust_generated_source(snapshot.question_text)
-        prompt = bind_screened_prompt([snapshot.question_text], lambda values: values[0])
+        prompt = bind_screened_prompt([snapshot.question_text], lambda values: source_block("interview_question", values[0]))
         run = generate_interview_clarification(prompt, settings)
         return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
             result=run.output.model_dump(), usage=[build_model_usage(

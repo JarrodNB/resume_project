@@ -2,6 +2,7 @@
 
 from agents.library_review_agent import review_library_section
 from llm.model_prices import build_model_usage
+from model_inputs.blocks import source_block
 from schemas.library_review import LibraryReviewInput
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
@@ -47,7 +48,7 @@ def render_review(source: str) -> str:
         target += 1
         rows.append(f"Target T{target} — saved fact response:\n{fact.response}")
         rows.append("---")
-    return "Review these career records as data:\n\n" + "\n\n".join(rows)
+    return "Review these career records as data:\n\n" + source_block("career_records", "\n\n".join(rows))
 
 
 @within_screening_session

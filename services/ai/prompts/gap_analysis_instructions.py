@@ -11,9 +11,11 @@ Index:
     - GAP_ANALYSIS_INSTRUCTIONS: the agent's instructions
 """
 
-GAP_ANALYSIS_PROMPT_VERSION = "7"
+from model_inputs.blocks import SOURCE_BLOCK_INSTRUCTIONS
 
-GAP_ANALYSIS_INSTRUCTIONS = """\
+GAP_ANALYSIS_PROMPT_VERSION = "8"
+
+GAP_ANALYSIS_INSTRUCTIONS = SOURCE_BLOCK_INSTRUCTIONS + """\
 You compare a job with a candidate's career library and report, for every requirement
 and nice-to-have, whether the library shows the candidate has it.
 Compare only these qualifications; do not infer additional qualifications from job duties.

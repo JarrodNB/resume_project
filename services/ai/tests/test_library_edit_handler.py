@@ -3,7 +3,7 @@
 from uuid import uuid4
 
 import pytest
-from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.messages import ModelResponse, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 
@@ -61,6 +61,9 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     def proposal(messages, info):
         rendered = str(messages)
         assert "I did not lead the team" in rendered
+        answer = next(part.content for message in messages for part in message.parts
+                      if isinstance(part, ToolReturnPart) and part.tool_name == "ask_user")
+        assert answer == "<user_answer>\nI migrated the billing API; I did not lead the team.\n</user_answer>"
         return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
             "text": "Migrated the billing API as part of the platform team.", "color": "yellow", "reason": "Add an outcome if known.",
         })])

@@ -14,6 +14,7 @@ from pydantic_ai.messages import (
 
 from agents.library_edit_agent import LibraryEditDeps, improve_library_entry
 from llm.model_prices import build_model_usage
+from model_inputs.blocks import source_block
 from privacy.contact_mask import mask_outbound
 from schemas.library_edit import LibraryEditInput
 from screening.library_fields import screen_library_fields
@@ -85,14 +86,14 @@ def handle_library_edit_task(task, dependencies):
     if history:
         cover_saved_history(history)
         if snapshot.question_id:
-            answer = SKIP_NOTE if snapshot.skip else feedback
+            answer = source_block("user_answer", SKIP_NOTE if snapshot.skip else feedback)
             # Only this newest user answer was checked above; the exact serialized
             # tool return receives coverage, not arbitrary history supplied by a caller.
             current_session().prompts.add(mask_outbound(json.dumps(answer, ensure_ascii=False)))
             deferred = DeferredToolResults(calls={snapshot.question_id: answer})
             prompt = None
         else:
-            prompt = bind_screened_prompt([feedback], lambda values: "User feedback:\n" + values[0])
+            prompt = bind_screened_prompt([feedback], lambda values: "User feedback:\n" + source_block("user_feedback", values[0]))
     else:
         source = snapshot.library.model_dump_json(exclude_none=True)
         outcome = screen_library_fields(snapshot.library, check)
@@ -114,9 +115,9 @@ def handle_library_edit_task(task, dependencies):
             def render_batch(values):
                 rows = [render_review(values[0]), f"Improve only target {label}."]
                 for position, number in enumerate(indices):
-                    rows.extend([f"Review question {number} (generated guidance, not a statement of fact):\n" + values[2 + position * 2],
-                                 f"User answer {number}:\n" + values[3 + position * 2]])
-                rows.extend(["Additional editing guidance:\n" + values[1],
+                    rows.extend([f"Review question {number} (generated guidance, not a statement of fact):\n" + source_block("review_question", values[2 + position * 2]),
+                                 f"User answer {number}:\n" + source_block("user_answer", values[3 + position * 2])])
+                rows.extend(["Additional editing guidance:\n" + source_block("user_feedback", values[1]),
                              ("Further questions are disabled. Use all answered facts to generate one proposal. "
                               "Unanswered questions supply no facts; do not invent answers or append disclaimers about absent details. Preserve explicitly supplied qualifications.")])
                 return "\n\n".join(rows)
@@ -127,13 +128,13 @@ def handle_library_edit_task(task, dependencies):
             trust_generated_source(question)
             prompt = bind_screened_prompt([source, question, feedback], lambda values:
                 render_review(values[0]) + f"\n\nImprove only target {label}."
-                + "\nReview question (generated guidance, not a statement of fact):\n" + values[1]
-                + "\nUser answer:\n" + values[2]
+                + "\nReview question (generated guidance, not a statement of fact):\n" + source_block("review_question", values[1])
+                + "\nUser answer:\n" + source_block("user_answer", values[2])
                 + "\nFurther questions are disabled. Generate a proposal from known facts and this answer."
                 + " Preserve explicitly supplied qualifications; do not add disclaimers about absent details.")
         else:
             prompt = bind_screened_prompt([source, feedback], lambda values:
-                render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + values[1])
+                render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + source_block("user_feedback", values[1]))
     deps = LibraryEditDeps(1000 if snapshot.target.kind == "experience_highlight" else 4000,
                            allow_question=snapshot.review_question is None and not snapshot.skip and snapshot.turn < 8)
     run = improve_library_entry(prompt, history, deferred, deps, dependencies.settings)

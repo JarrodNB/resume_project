@@ -86,7 +86,7 @@ def test_provider_receives_fixed_instruction_and_exact_question_only(task_depend
     with interview_clarification_agent.override(model=FunctionModel(respond)):
         assert handle_ai_task(task, deps).status == "completed"
     prompts = [part.content for message in observed for part in message.parts if part.part_kind == "user-prompt"]
-    assert prompts == [question]
+    assert prompts == [f"<interview_question>\n{question}\n</interview_question>"]
     assert observed[0].instructions == INTERVIEW_CLARIFICATION_INSTRUCTIONS
 
 

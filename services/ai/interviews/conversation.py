@@ -185,7 +185,7 @@ def earlier_context(payload) -> str:
         lines.append(f'## Question {group.question_position + 1}')
         for message in group.messages:
             label = 'Candidate' if message.kind == 'answer' else 'Interviewer'
-            lines.append(f'{label}: {escape(mask_outbound(message.content), quote=False)}')
+            lines.append(f'{label}:\n{data_block("earlier_utterance", message.content)}')
     if payload.earlier_dialogue.omitted_question_positions:
         lines.append('Some earlier question groups are unavailable; do not infer their answers.')
     return mask_outbound('\n\n'.join(lines))

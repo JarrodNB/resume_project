@@ -53,7 +53,7 @@ def test_prompt_uses_only_the_snapshot_and_output_failures_are_recoverable(task_
         raise UnexpectedModelBehavior("bad shape")
     monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", reject)
     result = handle_ai_task(task("Frozen description with stock reconciliation."), task_dependencies)
-    assert seen == ["Create study material for this job description (source data):\n\nFrozen description with stock reconciliation."]
+    assert seen == ["Create study material for this job description (source data):\n\n<job_description>\nFrozen description with stock reconciliation.\n</job_description>"]
     assert result.status == "failed"
     assert "valid study guide" in result.error_message
 

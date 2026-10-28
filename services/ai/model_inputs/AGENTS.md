@@ -7,6 +7,8 @@ screened by callers. See `README.md` for the boundary and existing domain builde
 
 ## Contents
 
+- `blocks.py` — source-preserving XML-style data boundaries that avoid pasted tag collisions.
+
 - `interview.py` — complete question context shared by workers and evals, plus feedback
   framing. Question text, citation IDs, and quote coverage come from one evidence projection
   in `interview_evidence.py`, including the delimiter test seam.

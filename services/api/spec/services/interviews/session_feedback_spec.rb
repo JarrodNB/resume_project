@@ -234,9 +234,11 @@ RSpec.describe "Completed interview feedback" do
     expect(interview.user.ai_tasks.spoken_interview.hourly_admissions.count).to eq(1)
     stub_const("DEFAULT_INTERVIEW_MONTHLY_BUDGET_MICRODOLLARS", 20)
     create(:ai_task, user: interview.user, task_type: "interview_session_feedback", status: "completed", cost_microdollars: 20)
+    allow(ApiSchema.subscriptions).to receive(:trigger)
     expect(service.claim(ai_task: record.ai_task).value).to eq(allowed: false)
     expect(record.ai_task.reload).to be_failed
     expect(record.ai_task.error_message).to include("month's interview usage limit")
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: record.ai_task_id }, record.ai_task)
     expect(service.request(interview: interview, retry_failed: true)).not_to be_success
     expect(record.reload.attempt_count).to eq(1)
   end

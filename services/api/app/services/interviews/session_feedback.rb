@@ -42,7 +42,7 @@ module Interviews
     # A duplicate delivery never obtains transcript text or permission for provider work.
     def claim(ai_task:)
       return success(allowed: false) unless ai_task.interview_session_feedback?
-      with_result_lock(ai_task: ai_task) do |interview, record|
+      result = with_result_lock(ai_task: ai_task) do |interview, record|
         next success(allowed: false) if ai_task.finished? || !record
         unless available?(interview, record, ai_task)
           fail_task(ai_task, "Interview feedback is no longer available")
@@ -63,6 +63,9 @@ module Interviews
         success(allowed: true, questions: questions, role: interview.frozen_context["job"] || interview.prepared_role,
           setup: SetupConfiguration.for(interview))
       end
+      # A rejected claim produces no final worker result, so publish its saved failure here.
+      ApiSchema.subscriptions.trigger(:ai_task_updated, { id: ai_task.id }, ai_task) if ai_task.failed?
+      result
     end
 
     # Result accounting and domain acceptance share owner/session/task locks in that order.

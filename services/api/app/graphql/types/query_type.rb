@@ -111,6 +111,17 @@ module Types
       ::CareerLibrary::ReviewStateService.call(user: current_user, section: section).value
     end
 
+    field :summary_generation, Types::SummaryGenerationType, null: false do
+      argument :target_kind, String, required: true
+      argument :target_id, ID, required: false
+    end
+
+    def summary_generation(**arguments)
+      result = ::SummaryGeneration::ReadStateService.call(user: current_user, **arguments)
+      raise GraphQL::ExecutionError, result.errors.join(", ") unless result.success?
+      result.value
+    end
+
     field :library_edit, Types::LibraryEditType, null: false do
       argument :kind, String, required: true
       argument :record_id, ID, required: true

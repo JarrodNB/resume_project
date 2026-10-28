@@ -110,3 +110,5 @@ their category.
   Matching saved review-origin tasks restore queued/proposal state after reload; failed
   generations offer Retry revision as a linked turn. All answers remain editable on
   mutation errors. Failed batch retries reuse their saved pairs without inventing new feedback. Accept/discard refetch assessments; stale questions cannot submit.
+
+- An empty profile summary exposes `SummaryGenerationPanel`: explicit generation from saved career facts, editable proposal, accept/discard, retry and reload recovery. It is separate from existing single-detail improvement.

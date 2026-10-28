@@ -120,6 +120,10 @@ type Documents = {
     "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": typeof types.StudyGuideForJobDocument,
     "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": typeof types.StudyGuideContentDocument,
     "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": typeof types.GenerateStudyGuideDocument,
+    "\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n": typeof types.SummaryGenerationDocument,
+    "\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.StartSummaryGenerationDocument,
+    "\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.AcceptSummaryGenerationDocument,
+    "\n  mutation DiscardSummaryGeneration($aiTaskId: ID!) {\n    discardSummaryGeneration(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.DiscardSummaryGenerationDocument,
 };
 const documents: Documents = {
     "\n  subscription AiTaskUpdated($id: ID!) {\n    aiTaskUpdated(id: $id) {\n      id\n      taskType\n      status\n      result\n      input\n      pendingQuestions\n      errorMessage\n      acceptedAt\n      createdAt\n      job {\n        id\n      }\n    }\n  }\n": types.AiTaskUpdatedDocument,
@@ -228,6 +232,10 @@ const documents: Documents = {
     "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": types.StudyGuideForJobDocument,
     "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": types.StudyGuideContentDocument,
     "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": types.GenerateStudyGuideDocument,
+    "\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n": types.SummaryGenerationDocument,
+    "\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.StartSummaryGenerationDocument,
+    "\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.AcceptSummaryGenerationDocument,
+    "\n  mutation DiscardSummaryGeneration($aiTaskId: ID!) {\n    discardSummaryGeneration(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.DiscardSummaryGenerationDocument,
 };
 
 /**
@@ -668,6 +676,22 @@ export function graphql(source: "\n  query StudyGuideContent($jobId: ID!, $guide
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n"): (typeof documents)["\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DiscardSummaryGeneration($aiTaskId: ID!) {\n    discardSummaryGeneration(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DiscardSummaryGeneration($aiTaskId: ID!) {\n    discardSummaryGeneration(input: {aiTaskId: $aiTaskId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

@@ -158,3 +158,5 @@ unknown expiration within partially stated periods.
 - `test_chat_execution.py` — guarded tool-free streaming, real blocking policy, contact masking, context limits, shared client contract, cancellation/known-versus-unknown bills, stream outage and ambiguous acceptance readback.
 
 - `test_chat_evaluators.py` — offline synthetic dataset labels, evaluator failures and production rolling-adapter routing; quality runs remain separate from deterministic correctness.
+
+- `test_summary_generation.py` and `test_summary_generation_evaluators.py` — frozen-source dispatch, screening reuse/rejection, citation repairs, failure usage, contact masking and synthetic evaluator failures.

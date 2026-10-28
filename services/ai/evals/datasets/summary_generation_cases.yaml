@@ -1,0 +1,25 @@
+# Synthetic career evidence; no real candidate or employer data.
+cases:
+  - name: backend_evidence
+    inputs:
+      sources:
+        - label: EXPERIENCES_1_TITLE
+          text: Backend engineer
+        - label: EXPERIENCES_1_DESCRIPTION
+          text: Built Python billing APIs and tested PostgreSQL query changes.
+  - name: education_only
+    inputs:
+      sources:
+        - label: EDUCATIONS_1_DEGREE
+          text: Bachelor of Science
+        - label: EDUCATIONS_1_FIELD_OF_STUDY
+          text: Environmental science
+  - name: negative_context_is_not_qualification
+    inputs:
+      sources:
+        - label: SKILLS_1_NAME
+          text: Python
+        - label: CAREER_CONTEXTS_1_RESPONSE
+          text: I have never used Rails.
+evaluators:
+  - SummaryCitationValidity

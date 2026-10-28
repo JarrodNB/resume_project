@@ -21,6 +21,9 @@
 #   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
+    field :start_summary_generation, mutation: Mutations::SummaryGeneration::StartSummaryGeneration
+    field :accept_summary_generation, mutation: Mutations::SummaryGeneration::AcceptSummaryGeneration
+    field :discard_summary_generation, mutation: Mutations::SummaryGeneration::DiscardSummaryGeneration
     field :send_chat_message, mutation: Mutations::Chat::SendMessage
     field :retry_chat_message, mutation: Mutations::Chat::RetryMessage
     field :set_chat_message_feedback, mutation: Mutations::Chat::SetMessageFeedback

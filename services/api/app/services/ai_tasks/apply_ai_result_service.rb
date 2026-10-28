@@ -40,7 +40,9 @@ module AiTasks
         Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
         GapResponses::RecordScreeningService.call(ai_task: ai_task, reports: @message["gap_response_screening"])
 
-        if ai_task.review_library_section? || ai_task.improve_library_entry?
+        if ai_task.generate_summary?
+          # Summary snapshots keep screening execution-local; never approve changed live facts.
+        elsif ai_task.review_library_section? || ai_task.improve_library_entry?
           CareerLibrary::ApplyReviewService.record_screening(ai_task: ai_task, reports: @message["library_screening"])
         else
           CareerLibrary::RecordScreeningService.call(user: ai_task.user, reports: @message["library_screening"])
@@ -90,6 +92,10 @@ module AiTasks
 
     # Saves completed job/interview results in the task transaction; invalid domain output fails the task.
     def domain_record_attributes(ai_task)
+      if ai_task.generate_summary?
+        result = SummaryGeneration::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : failed_attributes(result.errors)
+      end
       if ai_task.rerank_job_listings?
         result = JobBoard::ValidateRerankingResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)

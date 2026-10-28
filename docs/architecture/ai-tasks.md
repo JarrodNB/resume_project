@@ -23,6 +23,23 @@ Task execution and the contracts between Rails and Python workers.
 6. When the user answers, Rails publishes a distinct follow-up task with the owned stored
    message history and newest answer. The worker resumes with `DeferredToolResults`.
 
+Missing-summary generation uses `generate_summary`. The user explicitly requests a profile
+summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
+a substantive source digest. Career-context requirements are context, not qualification
+evidence, so only responses are supplied. The worker batches unknown fields for screening,
+reuses exact saved approvals, renders readable source blocks, and returns cited text as a
+proposal. Screening earned by frozen snapshots stays execution-local rather than approving
+possibly changed live fields. Generation does not write profile text.
+
+`summaryGeneration` restores the latest task and freshness. Start reuses matching pending
+work or unaccepted proposals; failed/discarded/stale work can start anew. Accept/discard are
+explicit owned mutations. Acceptance locks owner, source rows, then task, requires the latest
+valid completed proposal and unchanged evidence with a still-empty summary, and is replay-safe.
+The accepted text may be edited during review; only exact unmodified generated text earns
+screening provenance. Inclusion preferences do not change source freshness and are never
+changed by generation or acceptance. Existing task allowance, post-commit queue publication,
+subscriptions, terminal-result fencing and independently deduplicated late usage apply.
+
 Individual library editing uses `improve_library_entry`. Input captures one owned summary, role description/highlight, project description, or fact-response target,
 its role context and digest, feedback, root/previous task IDs, turn, and private saved history.
 The browser sends only target/previous IDs and new feedback or a skip; it cannot supply history.

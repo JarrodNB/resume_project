@@ -180,3 +180,5 @@ All business logic, as service objects grouped by domain folder.
 - `study_guides/` — snapshots an owned job description under owner/job locks, queues guide generation, validates completed learning material before persistence, and pages successful guide summaries with signed job-bound keyset cursors.
 
 - `interviews/session_feedback.rb` — explicit completed-session coaching admission, one-time queue claims and validated result acceptance. Like `CurrentPromptWork`, exposes a cohesive request/claim/apply interface shared by thin GraphQL/internal/result adapters; the queue carries identities, not dialogue.
+
+- `summary_generation/` — explicit missing-summary snapshots, enqueue/recovery, cited-result validation and replay-safe reviewed acceptance/discard. Frozen screening checks stay execution-local.

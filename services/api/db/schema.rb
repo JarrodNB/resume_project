@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -192,8 +192,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
     t.string "title", default: "New chat", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "summary_text", default: "", null: false
+    t.integer "summary_version", default: 0, null: false
+    t.integer "summary_through_position", default: 0, null: false
     t.index ["user_id", "created_at", "id"], name: "index_chat_conversations_on_owner_history"
     t.index ["user_id"], name: "index_chat_conversations_on_user_id"
+    t.check_constraint "char_length(summary_text) <= 8000 AND summary_version >= 0 AND summary_through_position >= 0 AND (summary_through_position % 2) = 0", name: "chat_summary_bounds"
+    t.check_constraint "summary_version = 0 AND summary_through_position = 0 AND summary_text = ''::text OR summary_version > 0 AND summary_through_position > 0 AND char_length(summary_text) > 0", name: "chat_summary_checkpoint"
   end
 
   create_table "chat_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -243,12 +248,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
     t.jsonb "accepted_result", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "summary_base_version", default: 0, null: false
+    t.jsonb "summary_plan", default: {}, null: false
     t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
     t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
-    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.check_constraint "length(message) > 0", name: "chat_operation_message"
-    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying]::text[])", name: "chat_operation_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text])", name: "chat_operation_status"
+    t.check_constraint "summary_base_version >= 0 AND jsonb_typeof(summary_plan) = 'object'::text", name: "chat_operation_summary_snapshot"
   end
 
   create_table "chat_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -8,7 +8,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - `chat_operation.rb`, `chat_execution_attempt.rb` and `chat_provider_attempt.rb` — logical chat submissions, fenced execution/provider identities and shared general-allowance accounting receipts. Accepted messages remain separate from pending or failed output.
 
-- `chat_conversation.rb` and `chat_message.rb` — owner-scoped saved chats and ordered accepted public messages, separate from provisional output and failed attempts.
+- `chat_conversation.rb` and `chat_message.rb` — owner-scoped saved chats and ordered accepted public messages, separate from provisional output and failed attempts. Conversations retain one bounded summary with a versioned covered-position checkpoint; full visible history stays saved.
 
 - `ai_execution_stream_grant.rb` — short-lived, single-use observer capability digests,
   bound to a persisted browser session and saved operation/attempt/generation; never execution authority.

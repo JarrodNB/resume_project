@@ -4,7 +4,7 @@
 # Index:
 #   - TextLimits: the caps, the section and request messages, and plain_text / section_too_long?
 #   - MaxRequestBody: middleware that answers a body over the cap with a JSON 413
-#   - BoundedInput: counts bytes actually read, including a chunked body with no length
+#   - BoundedInput: bounds each underlying read, including a chunked body with no length
 module TextLimits
   SHORT = 200
   BULLET = 1_000
@@ -85,9 +85,11 @@ class BoundedInput
     @read = 0
   end
 
-  # Reads like IO#read, then counts the bytes.
+  # Read only the remaining allowance plus one byte to detect overflow.
   def read(length = nil, buffer = nil)
-    chunk = length.nil? ? @io.read : @io.read(length)
+    maximum = @limit - @read + 1
+    chunk = @io.read(length.nil? ? maximum : [ length, maximum ].min)
+    chunk = "" if length.nil? && chunk.nil?
     account(chunk)
     return chunk if buffer.nil?
 
@@ -95,17 +97,24 @@ class BoundedInput
     chunk.nil? ? nil : buffer
   end
 
-  # Reads one line, then counts the bytes.
-  def gets(...)
-    line = @io.gets(...)
+  # Bound line reads too: a body can contain a single arbitrarily long line.
+  def gets(*args, **options)
+    maximum = @limit - @read + 1
+    if args.last.is_a?(Integer)
+      args[-1] = [ args.last, maximum ].min
+    else
+      args << maximum
+    end
+    line = @io.gets(*args, **options)
     account(line)
     line
   end
 
   # Yields each line, counting as it goes.
   def each
-    @io.each do |line|
-      account(line)
+    return enum_for(:each) unless block_given?
+
+    while (line = gets)
       yield line
     end
   end

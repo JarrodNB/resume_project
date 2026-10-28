@@ -14,7 +14,9 @@ def test_rejects_redirect_without_requesting_target(target):
         requests.append(str(request.url))
         return httpx.Response(302, headers={"Location": target})
 
-    with httpx.Client(transport=httpx.MockTransport(respond), follow_redirects=True) as client:
-        with pytest.raises(httpx.HTTPStatusError):
-            fetch_linkedin_job_html("123", client)
+    with (
+httpx.Client(transport=httpx.MockTransport(respond), follow_redirects=True) as client,
+pytest.raises(httpx.HTTPStatusError),
+    ):
+        fetch_linkedin_job_html("123", client)
     assert requests == ["https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/123"]

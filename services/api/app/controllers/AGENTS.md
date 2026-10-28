@@ -31,3 +31,5 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
   browser capability issuance remains a session-authenticated GraphQL mutation.
 - `internal/execution_streams_controller.rb` redeems/rechecks observer capabilities only.
   Issuance uses session/CSRF-authenticated GraphQL; attachment never starts execution.
+
+- `internal/chat_controller.rb` resolves persisted ChatOperation owners for bounded machine callbacks authenticated by the generic AI execution secret (interview-secret fallback). Browser chat still uses session/CSRF GraphQL; it cannot invoke private callbacks.

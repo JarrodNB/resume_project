@@ -124,6 +124,8 @@ All business logic, as service objects grouped by domain folder.
 - `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
   structure the import can't walk (wrong object/list types) with error messages, not a 500
 
+- `chat/` owns general-allowance admission, exact source-approved history, atomic message acceptance, per-request usage receipts, and feature policy behind shared AiExecutions jobs/runner/stream grants. Lock owner, conversation, operation and task; keep network I/O outside transactions.
+
 ## Local Rules
 
 - `ai_executions/` coordinates fixed-origin nudges and bounded recovery of known

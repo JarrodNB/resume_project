@@ -87,7 +87,7 @@ function workspaceJobMock(resume: Record<string, unknown> | null = null) {
     result: { data: { job: {
       __typename: 'Job', id: 'job-1', title: 'Engineer', company: 'Acme', location: null, stage: 'UNAPPLIED', url: null,
       description: null, notes: null, appliedAt: null, requirements: [], responsibilities: [], niceToHaves: [],
-      gapResponses: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', id: resume.id },
+      gapResponses: [], latestGapAnalysis: null, resume: resume && { __typename: 'Resume', includeSummary: true, id: resume.id },
     } } },
   }
 }
@@ -139,7 +139,7 @@ it('follows a draft already being written when the Resume tab opens', async () =
 })
 
 it('sends the write route to the Resume tab when a resume is already saved', async () => {
-  const resume = { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', sections: [] }
+  const resume = { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme', sections: [] }
   const { router } = renderResume([jobMock(null, resume)], { resume })
 
   await waitFor(() => expect(router.state.location.pathname).toBe('/jobs/job-1/resume'))
@@ -238,11 +238,11 @@ it('saves the finished draft and returns to the Resume tab', async () => {
     {
       request: {
         query: SAVE_TAILORED_RESUME_MUTATION,
-        variables: { aiTaskId: 'task-1', sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } }] },
+        variables: { aiTaskId: 'task-1', includeSummary: true, sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } }] },
       },
-      result: { data: { saveTailoredResume: { __typename: 'SaveTailoredResumePayload', resume: { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme' }, errors: [] } } },
+      result: { data: { saveTailoredResume: { __typename: 'SaveTailoredResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme' }, errors: [] } } },
     },
-    jobMock(null, { __typename: 'Resume', id: 'resume-1', title: 'Engineer at Acme', sections: [] }),
+    jobMock(null, { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Engineer at Acme', sections: [] }),
   ])
 
   const { router } = renderTailorSaved
@@ -255,7 +255,7 @@ it('edits a resume that was already saved and shows the preview', async () => {
   const user = userEvent.setup()
   renderResume([
     jobMock(task({ status: 'COMPLETED', acceptedAt: CREATED_AT }), {
-      __typename: 'Resume',
+      __typename: 'Resume', includeSummary: true,
       id: 'resume-1',
       title: 'Engineer at Acme',
       sections: [
@@ -265,14 +265,14 @@ it('edits a resume that was already saved and shows the preview', async () => {
     {
       request: {
         query: UPDATE_RESUME_MUTATION,
-        variables: { id: 'resume-1', sections: [{ id: 'section-1', content: { text: 'Backend engineer and writer.' } }] },
+        variables: { id: 'resume-1', includeSummary: true, sections: [{ id: 'section-1', content: { text: 'Backend engineer and writer.' } }] },
       },
       result: {
         data: {
           updateResume: {
             __typename: 'UpdateResumePayload',
             resume: {
-              __typename: 'Resume',
+              __typename: 'Resume', includeSummary: true,
               id: 'resume-1',
               title: 'Engineer at Acme',
               sections: [
@@ -329,7 +329,7 @@ it('sends only edited included sections and keeps the draft when saving fails', 
     {
       request: {
         query: SAVE_TAILORED_RESUME_MUTATION,
-        variables: { aiTaskId: 'task-1', sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Edited summary.' } }] },
+        variables: { aiTaskId: 'task-1', includeSummary: true, sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Edited summary.' } }] },
       },
       result: saveResult,
     },
@@ -431,10 +431,10 @@ it('allows retry when starting after accepted history fails', async () => {
 it('deletes an edited resume and returns to the Resume tab without another discard warning or generation', async () => {
   const user = userEvent.setup()
   const start = vi.fn(() => ({ data: { startResumeTailoring: { __typename: 'StartResumeTailoringPayload', aiTask: null, errors: ['Unexpected generation'] } } }))
-  const { router } = renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: null, result: { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old generated draft.' } }] } }), { __typename: 'Resume', id: 'resume-1', title: 'Saved resume', sections: [
+  const { router } = renderResume([jobMock(task({ status: 'COMPLETED', acceptedAt: null, result: { sections: [{ section_type: 'summary', title: 'Summary', content: { text: 'Old generated draft.' } }] } }), { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: 'Saved resume', sections: [
       { __typename: 'ResumeSection', id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'Original summary.' } },
     ] }),
-      { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } },
+      { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1' }, errors: [] } } } },
       startMock(start)], { url: '/jobs/job-1/resume', resume: { id: 'resume-1' } })
   await user.click(await screen.findByRole('button', { name: 'Edit sections' }))
   await user.click(await screen.findByRole('button', { name: 'Summary' }))

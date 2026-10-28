@@ -330,3 +330,23 @@ it('clears certification dates using valid default precision', async () => {
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
 })
+
+it('saves the library summary default without changing summary text', async () => {
+  const user = userEvent.setup()
+  const initial = structuredClone(libraryMock)
+  Object.assign(initial.result.data.me, { summary: 'Retained profile summary.', includeSummary: true })
+  const after = structuredClone(initial)
+  Object.assign(after.result.data.me, { includeSummary: false })
+  setSectionOpen('library.profile', true)
+  renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [
+    ...emptyLibraryReviewMocks, initial,
+    { request: { query: UPDATE_PROFILE_MUTATION, variables: { attributes: { includeSummary: false } } },
+      result: { data: { updateProfile: { __typename: 'UpdateProfilePayload', errors: [] } } } },
+    after,
+  ] })
+  const toggle = await screen.findByRole('checkbox', { name: 'Include summary' })
+  expect(toggle).toBeChecked()
+  await user.click(toggle)
+  await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked())
+  expect(screen.getByText('Retained profile summary.')).toBeInTheDocument()
+})

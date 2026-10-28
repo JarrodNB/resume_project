@@ -2433,6 +2433,7 @@ type ParseResumePayload {
 
 input ProfileAttributesInput {
   contactEmail: String
+  includeSummary: Boolean
   links: [ProfileLinkAttributesInput!]
   location: String
   name: String
@@ -2747,6 +2748,7 @@ type RerankJobBoardListingsPayload {
 
 type Resume {
   id: ID!
+  includeSummary: Boolean!
 
   """
   The job this resume is tailored to (null if the job was deleted).
@@ -2952,6 +2954,7 @@ input SaveTailoredResumeInput {
   A unique identifier for the client performing the mutation.
   """
   clientMutationId: String
+  includeSummary: Boolean
   sections: JSON
 }
 
@@ -3503,6 +3506,7 @@ input UpdateResumeInput {
   """
   clientMutationId: String
   id: ID!
+  includeSummary: Boolean
 
   """
   Sections to update, as a list of { id, content }.
@@ -3566,6 +3570,7 @@ type User {
   contactEmail: String
   email: String!
   id: ID!
+  includeSummary: Boolean!
   links: [ProfileLink!]!
   location: String
   name: String

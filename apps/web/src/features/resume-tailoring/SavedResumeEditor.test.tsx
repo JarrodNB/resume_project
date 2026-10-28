@@ -18,7 +18,7 @@ const sections = [{ id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', p
 
 function updateMock(text: string, errors: string[] = [], delay = 10) {
   return {
-    request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume-1', sections: [{ id: 'section-1', content: { text } }] } },
+    request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume-1', includeSummary: true, sections: [{ id: 'section-1', content: { text } }] } },
     delay,
     result: { data: { updateResume: {
       __typename: 'UpdateResumePayload', errors,
@@ -180,4 +180,33 @@ it('starts with the saved preview and preserves unsaved edits when switching vie
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Original summary. My edit.')
+})
+
+it('saves a summary inclusion round trip without losing its text', async () => {
+  const user = userEvent.setup()
+  const hidden = updateMock('Original summary.')
+  hidden.request.variables.includeSummary = false
+  const shown = updateMock('Original summary.')
+  renderEditor([hidden, shown])
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('Original summary.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).toHaveTextContent('Original summary.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+})
+
+it('keeps the summary choice editable on a resume with no summary section', async () => {
+  const user = userEvent.setup()
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume-1" sections={[]} includeSummary={false} onDeleted={vi.fn()} /> })
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
 })

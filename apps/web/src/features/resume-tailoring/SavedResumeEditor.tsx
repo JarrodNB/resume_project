@@ -19,6 +19,7 @@ import { ResumePdfPreview } from './ResumePdfPreview'
 import { buildResumePdfModel } from './resumePdfModel'
 import { asSectionType, SECTION_TITLES } from './sectionOrder'
 import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } from './tailorDraft'
+import { SummaryInclusionControl } from './SummaryInclusionControl'
 import { useUpdateResume } from './useUpdateResume'
 
 interface SavedResumeSection {
@@ -30,16 +31,17 @@ interface SavedResumeSection {
 }
 
 /** Edits one saved resume. Preview shows the current draft at actual size. */
-export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDeleted }: { resumeId: string; title?: string; sections: SavedResumeSection[]; jobId?: string; onDeleted: () => void }) {
+export function SavedResumeEditor({ resumeId, title = '', sections, includeSummary = true, jobId, onDeleted }: { resumeId: string; title?: string; sections: SavedResumeSection[]; includeSummary?: boolean; jobId?: string; onDeleted: () => void }) {
   const editable = useMemo(() => editableSections(sections), [sections])
   const [drafts, setDrafts] = useState<SectionDraft[]>(() => editable.map((section) => sectionDraftFromContent(section.sectionType, section.content)))
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(drafts))
-  const [savedModel, setSavedModel] = useState(() => buildResumePdfModel(editable))
+  const [summaryIncluded, setSummaryIncluded] = useState(includeSummary)
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify({ drafts, summaryIncluded }))
+  const [savedModel, setSavedModel] = useState(() => buildResumePdfModel(editable, summaryIncluded))
   const deleted = useRef(false)
   const exporting = useRef(false)
   const [exportPending, setExportPending] = useState<'PDF' | 'DOCX' | null>(null)
   const [exportError, setExportError] = useState<string[]>([])
-  const snapshot = JSON.stringify(drafts)
+  const snapshot = JSON.stringify({ drafts, summaryIncluded })
   const dirty = snapshot !== savedSnapshot
   const [editing, setEditing] = useState(false)
   const { saveSections, errors, pending } = useUpdateResume(resumeId)
@@ -58,11 +60,12 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
       title: section.title,
       content: contentFromSectionDraft(drafts[index] ?? sectionDraftFromContent(section.sectionType, section.content)),
     })),
+    summaryIncluded,
   )
 
   async function save() {
     if (pending) return
-    if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })))) {
+    if (await saveSections(editable.map((section, index) => ({ id: section.id, content: contentFromSectionDraft(drafts[index]) })), summaryIncluded)) {
       setSavedSnapshot(snapshot)
       setSavedModel(model)
     }
@@ -97,6 +100,7 @@ export function SavedResumeEditor({ resumeId, title = '', sections, jobId, onDel
       {dirty && <p className="text-sm text-muted-foreground">Save your changes to download</p>}
       <ErrorAlert messages={exportError} title="Couldn't download this resume" />
       <DeleteResumeDialog open={deleteOpen} onOpenChange={setDeleteOpen} onConfirm={() => void confirmDelete()} pending={deletion.pending} errors={deletion.errors} />
+      {editing && <SummaryInclusionControl checked={summaryIncluded} onChange={setSummaryIncluded} disabled={pending || deletion.pending || !!exportPending} />}
       {editing && <div className="resume-section-list">{editable.map((section, index) => (
         <SectionCard key={section.id} tone={section.sectionType} title={section.title} sectionId={`saved-resume.${resumeId}.${section.id}`}>
           <SectionFields

@@ -56,7 +56,7 @@ function JobResume({ autoStart }: { autoStart: boolean }) {
         </p>
       )}
       {job?.resume && <h2 className="text-lg font-medium break-words">{job.resume.title}</h2>}
-      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(resumeTab)} />}
+      {job?.resume && <SavedResumeEditor key={job.resume.id} resumeId={job.resume.id} title={job.resume.title} includeSummary={job.resume.includeSummary} sections={job.resume.sections} jobId={id} onDeleted={() => void navigate(resumeTab)} />}
       {job && !job.resume && task?.status === 'FAILED' && (
         <Card>
           <CardContent className="grid gap-4">
@@ -117,6 +117,7 @@ function TailorProgress({
         key={task.id}
         jobId={jobId}
         sections={sections}
+        includeSummary={typeof task.input === 'object' && task.input !== null && 'include_summary' in task.input ? task.input.include_summary !== false : true}
         warnings={warningsFromResult(task.result)}
         pending={actions.pending}
         errors={actions.errors}

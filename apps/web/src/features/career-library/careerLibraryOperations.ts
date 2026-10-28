@@ -18,6 +18,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
         url
       }
       summary
+      includeSummary
     }
     experiences {
       id

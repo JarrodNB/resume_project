@@ -16,7 +16,7 @@ import { LIBRARY_REVIEW_QUERY } from './libraryReviewOperations'
 const cases = [
   { section: 'summary', title: 'Summary', sectionId: 'library.profile', kind: 'user', field: 'summary', id: 'user-1',
     library: { ...emptyReviewLibrary, me: { ...emptyReviewLibrary.me, name: 'Jane', summary: 'I build useful tools.' } },
-    element: <ProfileSection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], summary: 'I build useful tools.' }} /> },
+    element: <ProfileSection profile={{ id: 'user-1', name: 'Jane', contactEmail: 'jane@example.com', phone: null, location: null, links: [], includeSummary: true, summary: 'I build useful tools.' }} /> },
   { section: 'projects', title: 'Projects', sectionId: 'library.projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },

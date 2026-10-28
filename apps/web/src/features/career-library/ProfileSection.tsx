@@ -5,6 +5,10 @@
  * Index:
  *   - ProfileSection: profile card with an empty state and an edit button
  */
+import { SummaryInclusionControl } from '@/features/resume-tailoring/SummaryInclusionControl'
+import { ErrorAlert } from '@/components/ErrorAlert'
+import { useSaveLibraryRecord } from './useSaveLibraryRecord'
+import { UPDATE_PROFILE_MUTATION } from './careerLibrarySaveMutations'
 import { useState } from 'react'
 import { ReviewQuestionsBadge } from './ReviewQuestionsBadge'
 import { LibrarySectionReview } from './LibrarySectionReview'
@@ -18,6 +22,7 @@ type Profile = CareerLibraryQuery['me']
 
 /** Shows the profile and opens the form that edits it. */
 export function ProfileSection({ profile }: { profile: Profile }) {
+  const preference = useSaveLibraryRecord()
   const [editing, setEditing] = useState(false)
   const contactLine = [profile.contactEmail, profile.phone, profile.location].filter(Boolean).join(' · ')
   const isEmpty = !profile.name && !contactLine && profile.links.length === 0 && !profile.summary
@@ -29,6 +34,8 @@ export function ProfileSection({ profile }: { profile: Profile }) {
           Edit profile
         </Button>
       </div>
+      <SummaryInclusionControl checked={profile.includeSummary !== false} disabled={preference.busy} description="Default for new resumes. Existing resumes keep their own setting." onChange={(checked) => void preference.save(UPDATE_PROFILE_MUTATION, { attributes: { includeSummary: checked } })} />
+      <ErrorAlert messages={preference.errors} title="Couldn't save your summary preference" />
       {isEmpty ? (
         <p className="text-sm text-muted-foreground">Add your contact details and summary, or import a resume.</p>
       ) : (

@@ -14,11 +14,11 @@ export function useUpdateResume(resumeId: string) {
   const [errors, setErrors] = useState<string[]>([])
   const [pending, setPending] = useState(false)
 
-  async function saveSections(sections: { id: string; content: unknown }[]) {
+  async function saveSections(sections: { id: string; content: unknown }[], includeSummary?: boolean) {
     setErrors([])
     setPending(true)
     try {
-      const { data } = await update({ variables: { id: resumeId, sections } })
+      const { data } = await update({ variables: { id: resumeId, sections, ...(includeSummary === undefined ? {} : { includeSummary }) } })
       const payload = data?.updateResume
       if (payload?.resume && payload.errors.length === 0) return true
       setErrors(payload?.errors.length ? payload.errors : ["Couldn't save this resume. Please try again."])

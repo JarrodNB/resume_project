@@ -18,7 +18,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   `/jobs/:id/tailor` redirects to the Resume tab, so old links never start generation
 - `FinalResumeEditor.tsx` — edit, exclude/restore, preview, and save the finished sections; each
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
-  in the editor; preview and save use the same included content in draft order
+  in the editor. Preview uses included content in draft order; save also retains an excluded summary so it can be restored later
 - `SavedResumeEditor.tsx` — saved sections use quiet ruled rows with section icons and remembered collapse IDs
   (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
   Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
@@ -66,7 +66,8 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   task rather than showing an empty editor. Rails uses the same rule.
 - The first save is once (`saveTailoredResume`). A later visit edits `Job.resume` with
   `updateResume`. Preview shows the current included draft, including unsaved edits.
-- Excluded sections keep their edits and can be restored before saving. Empty selection
+- The library Include summary preference is snapshotted when tailoring starts. Both editors expose a separate summary inclusion control, even with no summary text. Saved resumes persist that choice independently of text and never follow later library changes.
+- Excluded summary text survives first save and reload. Preview/PDF/DOCX omit it through the shared output model. Other excluded sections keep their edits and can be restored before saving. Empty selection
   disables preview and save; sections retain their original draft order.
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential
   ID/URL, and description.

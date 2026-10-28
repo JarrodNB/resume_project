@@ -1,14 +1,16 @@
-# Description: Replaces the JSON content of sections on a saved resume. Section type, title,
+# Replaces saved section content and optionally the independent summary inclusion choice.
+# Hidden summary text stays stored. Section type, title,
 # and order stay as they are. Editing a resume never changes the career library.
 # Index:
-#   - call: writes the given section content, or returns an error
+#   - call: writes section content and summary inclusion atomically, or returns an error
 module ResumeTailoring
   class UpdateResumeSectionsService < ApplicationService
     UNKNOWN_SECTION = "That section isn't on this resume.".freeze
 
-    def initialize(resume:, sections:)
+    def initialize(resume:, sections:, include_summary: nil)
       @resume = resume
       @sections = sections
+      @include_summary = include_summary
     end
 
     # Updates each listed section. Sending the same content again succeeds.
@@ -16,10 +18,13 @@ module ResumeTailoring
       updates = parsed_sections
       return failure([ updates ]) if updates.is_a?(String)
 
+      return failure([ "Include summary must be true or false." ]) unless @include_summary.nil? || [ true, false ].include?(@include_summary)
+
       known = @resume.sections.index_by(&:id)
       return failure([ UNKNOWN_SECTION ]) if updates.any? { |update| !known.key?(update[:id]) }
 
       Resume.transaction do
+        @resume.update!(include_summary: @include_summary) unless @include_summary.nil?
         updates.each { |update| known[update[:id]].update!(content: update[:content]) }
       end
       success(@resume.reload)

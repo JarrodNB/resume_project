@@ -39,7 +39,7 @@ export interface ResumePdfSourceSection {
 }
 
 /** The header and body blocks for one resume, in the order the sections are stored. */
-export function buildResumePdfModel(sections: ResumePdfSourceSection[]): ResumePdfModel {
+export function buildResumePdfModel(sections: ResumePdfSourceSection[], includeSummary = true): ResumePdfModel {
   const contact = sections.find((section) => section.sectionType === 'contact')
   const record = isRecord(contact?.content) ? contact.content : {}
   return {
@@ -47,6 +47,7 @@ export function buildResumePdfModel(sections: ResumePdfSourceSection[]): ResumeP
     contactLine: [record.email, record.phone, record.location].map(text).filter(Boolean).join(' · '),
     links: parsedLinks(record.links),
     blocks: sections.flatMap((section) => {
+      if (section.sectionType === 'summary' && !includeSummary) return []
       const block = blockFrom(section)
       return block ? [block] : []
     }),

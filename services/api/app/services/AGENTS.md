@@ -100,11 +100,11 @@ All business logic, as service objects grouped by domain folder.
   into the task input
 - `resume_tailoring/save_tailored_resume_service.rb` — creates the Resume and sections once
   (`accepted_at`), under owner-then-task locks, blocking another saved resume for the job;
-  uses the supplied edited/included sections in order. An explicit empty
+  uses the supplied edited sections in order and persists summary inclusion independently so hidden summary text can be retained. An explicit empty
   selection is rejected; omitting the argument uses the original draft. Deleting the job
   keeps the resume
 - `resume_tailoring/update_resume_sections_service.rb` — replaces section `content` on a saved
-  resume (`updateResume`); type, title, and order stay put
+  resume (`updateResume`) and optionally changes summary inclusion; type, title, and order stay put
 - `ai_usage/check_ai_task_allowance_service.rb` — monthly budget, tasks per hour, tasks in
   flight within separate general/spoken-interview buckets (`config/initializers/ai_usage_limits.rb`;
   per-user override columns apply only to general AI)

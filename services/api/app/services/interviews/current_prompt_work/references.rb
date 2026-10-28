@@ -5,7 +5,7 @@ module Interviews
   class CurrentPromptWork
     class References < CurrentPromptWork
       SOURCES = { "Experience" => :experiences, "Project" => :projects, "Education" => :educations,
-        "Certification" => :certifications, "Skill" => :skills, "LibraryFact" => :library_facts }.freeze
+        "Certification" => :certifications, "Skill" => :skills, "CareerContext" => :career_contexts }.freeze
 
       private
 
@@ -51,7 +51,7 @@ module Interviews
         end
         return false unless source
         # Acceptance checks provenance once; saved references do not monitor future edits.
-        fields = entry["source_type"] == "LibraryFact" ? %w[response] : %w[content description name degree field_of_study]
+        fields = entry["source_type"] == "CareerContext" ? %w[response] : %w[content description name degree field_of_study]
         fields.any? { |field| source.has_attribute?(field) && source[field] == entry["body"] }
       end
     end

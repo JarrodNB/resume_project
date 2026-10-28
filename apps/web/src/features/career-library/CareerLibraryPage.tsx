@@ -20,7 +20,7 @@ import { ClearLibraryButton } from './ClearLibraryButton'
 import { CertificationSection } from './CertificationSection'
 import { EducationSection } from './EducationSection'
 import { ExperienceSection } from './ExperienceSection'
-import { FactsSection } from './FactsSection'
+import { CareerContextSection } from './CareerContextSection'
 import { ImportSummaryNotice } from './ImportSummaryNotice'
 import { ProfileSection } from './ProfileSection'
 import { ProjectSection } from './ProjectSection'
@@ -29,7 +29,7 @@ import { useCareerLibrary } from './useCareerLibrary'
 import { useLibraryDragHandlers } from './useLibraryDragHandlers'
 import { useLibraryReordering } from './useLibraryReordering'
 
-/** Shows the profile, experiences, projects, education, skills, and facts. */
+/** Shows the profile, experiences, projects, education, skills, and career context. */
 export function CareerLibraryPage() {
   const { library, loading, error } = useCareerLibrary()
   const reordering = useLibraryReordering()
@@ -55,7 +55,7 @@ export function CareerLibraryPage() {
               <EducationSection educations={library.educations} />
               <CertificationSection certifications={library.certifications} />
               <SkillsSection skills={library.skills} />
-              <FactsSection facts={library.libraryFacts} />
+              <CareerContextSection careerContexts={library.careerContexts} />
             </DragDropProvider>
             <div className="mt-4 flex justify-end border-t pt-4"><ClearLibraryButton /></div>
           </div>

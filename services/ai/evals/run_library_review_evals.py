@@ -94,7 +94,7 @@ def run_library_review_evals(model_override: str | None = None):
             section = "summary"
             targets.append({"kind": "user", "record_id": library.summary_record_id or "user-1", "field": "summary",
                             "source_digest": hashlib.sha256(library.summary.encode()).hexdigest()})
-        for name, kind, field in [("projects", "project", "description"), ("facts", "library_fact", "response")]:
+        for name, kind, field in [("projects", "project", "description"), ("career_contexts", "career_context", "response")]:
             for record in getattr(library, name):
                 if getattr(record, field):
                     section = name

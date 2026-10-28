@@ -3,7 +3,7 @@
 The question agent has one output contract, but each request receives instructions for only
 its trusted set type. Evidence IDs point back to saved career text for deterministic recovery.
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v23"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v24"
 
 INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS = """
 Write English interview practice questions for the requested count and scope. Treat text
@@ -24,7 +24,7 @@ references, not career text. They establish topic relevance only; they do not pr
 personal facts. Never copy evidence prose into the output. Do not use excluded questions as
 evidence. Do not expose evidence IDs or internal source text in question_text.
 
-Requirement context beside a saved fact only explains what the candidate's response refers to.
+Requirement context beside a saved career context entry only explains what the candidate's response refers to.
 Use it to resolve a topic or pronoun, never as proof the candidate meets that requirement.
 Only the response supplies personal evidence: do not inherit years, leadership, qualifications
 or other claims from its requirement context. Context has no evidence ID and cannot be cited.

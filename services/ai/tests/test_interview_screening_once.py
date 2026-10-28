@@ -12,7 +12,7 @@ from pydantic_ai.usage import RunUsage
 from agents.interview_feedback_agent import interview_feedback_agent
 from agents.interview_questions_agent import interview_questions_agent
 from agents.user_text_screen_agent import user_text_screen_agent
-from schemas.gap_analysis_context import CareerLibrary, LibraryFact, LibrarySkill
+from schemas.gap_analysis_context import CareerContext, CareerLibrary, LibrarySkill
 from screening.session import screening_session
 from tests.test_interview_feedback_handler import output, task
 from tests.test_interview_questions_handler import _output, _task
@@ -127,7 +127,7 @@ def test_checked_library_fields_reused_but_new_fields_screen(task_dependencies, 
     """A saved name approval never covers a newly used category or a fact requirement."""
     library = CareerLibrary(summary="Python", summary_record_id="user", screened_fields=["summary"],
         skills=[LibrarySkill(id="s", name="Stock checking", category="Operations", screened_fields=["name"])],
-        facts=[LibraryFact(id="f", requirement="synthetic_attack", response="Checked inventory")])
+        career_contexts=[CareerContext(id="f", requirement="synthetic_attack", response="Checked inventory")])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     agent = interview_feedback_agent if feedback else interview_questions_agent
     with screening_session() as session, agent.override(
@@ -142,7 +142,7 @@ def test_checked_library_fields_reused_but_new_fields_screen(task_dependencies, 
     assert all("synthetic_attack" not in text for text in classifier)
     assert reports == [
         {"record_type": "skill", "record_id": "s", "fields": ["category"]},
-        {"record_type": "library_fact", "record_id": "f", "fields": ["response"]},
+        {"record_type": "career_context", "record_id": "f", "fields": ["response"]},
     ]
     assert library.skills[0].screened_fields == ["name"]
 
@@ -151,7 +151,7 @@ def test_checked_library_fields_reused_but_new_fields_screen(task_dependencies, 
 def test_all_checked_library_fields_skip_classifier(task_dependencies, classifier, feedback):
     """Saved approvals also grant exact prompt coverage without leaking their metadata."""
     library = CareerLibrary(summary="Python", screened_fields=["summary"],
-        facts=[LibraryFact(id="f", requirement="synthetic_attack", response="Checked inventory",
+        career_contexts=[CareerContext(id="f", requirement="synthetic_attack", response="Checked inventory",
                            screened_fields=["response"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     agent = interview_feedback_agent if feedback else interview_questions_agent

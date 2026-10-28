@@ -5,7 +5,7 @@ module Interviews
     SOURCE_FIELDS = {
       experiences: %w[title company description], projects: %w[name role description],
       educations: %w[institution degree field_of_study description], certifications: %w[name issuer description],
-      skills: %w[name], library_facts: %w[response]
+      skills: %w[name], career_contexts: %w[response]
     }.freeze
     MAX_CONTEXT_BYTES = 40_000
 

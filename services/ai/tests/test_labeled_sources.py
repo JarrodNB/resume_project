@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from schemas.gap_analysis_context import LibraryCertification, LibraryFact
+from schemas.gap_analysis_context import CareerContext, LibraryCertification
 from tailoring.labeled_sources import label_sources
 from tests.fakes import build_gap_analysis_context
 
@@ -19,7 +19,7 @@ def test_complete_library_supplies_all_entry_types() -> None:
 def test_saved_evidence_keeps_its_rendered_field_provenance():
     """Every saved source can be screened without searching the library again."""
     context = build_gap_analysis_context()
-    context.career_library.facts.append(LibraryFact(
+    context.career_library.career_contexts.append(CareerContext(
         id="fact-1", requirement="Cloud deployments", response="Shipped to AWS"
     ))
     sources = label_sources(context, [], [])

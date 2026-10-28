@@ -9,7 +9,7 @@ from pydantic_ai.usage import UsageLimits
 from agents.user_text_screen_agent import user_text_screen_agent
 from gap_analysis.build_gap_analysis_prompt import build_gap_analysis_prompt
 from gap_analysis.prepare_gap_analysis import prepare_gap_analysis
-from schemas.gap_analysis_context import LibraryCertification, LibraryFact
+from schemas.gap_analysis_context import CareerContext, LibraryCertification
 from screening.session import prompt_is_covered, screening_session
 from tests.fakes import build_gap_analysis_context
 from tests.test_gap_context_screening import jev_model
@@ -27,7 +27,7 @@ def test_every_library_value_is_screened_and_preserved():
         id="certification", name="Credential", issuer="Issuer", description="Description",
         credential_url="https://example.test/credential", issued_date=date(2020, 1, 1),
     )]
-    context.career_library.facts = [LibraryFact(id="fact", requirement="On call", response="Weekly")]
+    context.career_library.career_contexts = [CareerContext(id="career_context", requirement="On call", response="Weekly")]
     requests = []
     expected = build_gap_analysis_prompt(context, TODAY)
     with screening_session() as session, user_text_screen_agent.override(model=jev_model(requests)):

@@ -12,7 +12,7 @@ export function LibraryWorkspace({ library, movingHighlight = false, children }:
   const summary = useLibraryReview('summary', library.me.summary ?? '')
   const experience = useLibraryReview('experience', JSON.stringify(library.experiences))
   const projects = useLibraryReview('projects', JSON.stringify(library.projects))
-  const facts = useLibraryReview('facts', JSON.stringify(library.libraryFacts))
+  const careerContexts = useLibraryReview('career_contexts', JSON.stringify(library.careerContexts))
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [mode, setMode] = useState<'improve' | 'review'>('improve')
   const opener = useRef<HTMLElement | null>(null)
@@ -32,6 +32,6 @@ export function LibraryWorkspace({ library, movingHighlight = false, children }:
     setSelectedKey(null)
     requestAnimationFrame(() => { if (opener.current?.isConnected) opener.current.focus({ preventScroll: true }) })
   }
-  const reviews = { summary, experience: { ...experience, assessments: experience.assessments.map((item) => movingHighlight ? { ...item, stale: true } : item) }, projects, facts }
+  const reviews = { summary, experience: { ...experience, assessments: experience.assessments.map((item) => movingHighlight ? { ...item, stale: true } : item) }, projects, career_contexts: careerContexts }
   return <LibraryWorkspaceContext value={{ targets, reviews, selectedKey, mode, mobileOpen: selectedKey !== null, movingHighlight, selectTarget, close }}>{children}</LibraryWorkspaceContext>
 }

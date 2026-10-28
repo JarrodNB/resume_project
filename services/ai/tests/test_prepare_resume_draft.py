@@ -363,7 +363,7 @@ def test_saved_field_checks_reused_and_only_consumed_fields_reported(preparation
         records = {("user", str(user)): library}
         for collection, kind in (("experiences", "experience"), ("projects", "project"),
                                  ("educations", "education"), ("certifications", "certification"),
-                                 ("skills", "skill"), ("facts", "library_fact")):
+                                 ("skills", "skill"), ("career_contexts", "career_context")):
             records.update({(kind, row.id): row for row in getattr(library, collection)})
         for experience in library.experiences:
             records.update({("experience_highlight", row.id): row for row in experience.highlights})
@@ -419,7 +419,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
 
     dependencies, context, _, calls, user, job = preparation
     ids = {kind: str(uuid4()) for kind in (
-        "experience", "highlight", "project", "education", "certification", "skill", "fact")}
+        "experience", "highlight", "project", "education", "certification", "skill", "career_context")}
     context.career_library = CareerLibrary.model_validate({
         "summary_record_id": str(user), "summary": "Profile evidence",
         "experiences": [{
@@ -440,7 +440,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
             "expiry_date_precision": "month",
         }],
         "skills": [{"id": ids["skill"], "name": "Skill evidence", "category": "Omitted category"}],
-        "facts": [{"id": ids["fact"], "requirement": "Fact requirement", "response": "Fact evidence"}],
+        "career_contexts": [{"id": ids["career_context"], "requirement": "Fact requirement", "response": "Fact evidence"}],
     })
     expected = {
         ("user", str(user)): {"summary": "Profile evidence"},
@@ -455,7 +455,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
             "name": "Credential evidence", "issuer": "Issuer evidence", "credential_id": "Credential identifier",
             "credential_url": "https://credential.example", "description": "Credential description"},
         ("skill", ids["skill"]): {"name": "Skill evidence"},
-        ("library_fact", ids["fact"]): {"requirement": "Fact requirement", "response": "Fact evidence"},
+        ("career_context", ids["career_context"]): {"requirement": "Fact requirement", "response": "Fact evidence"},
     }
     sources = label_sources(context, [], [])
     assert sources.records["C1"].text == (
@@ -463,7 +463,7 @@ def test_every_saved_evidence_kind_screens_only_rendered_text(preparation):
         "Credential identifier, https://credential.example, Credential description")
     # The public source interface exposes provenance for every saved kind.
     assert {record.kind for record in sources.records.values() if record.provenance} == {
-        "summary", "experience", "highlight", "project", "education", "certification", "skill", "fact"}
+        "summary", "experience", "highlight", "project", "education", "certification", "skill", "career_context"}
 
     async def run():
         with screening_session() as session:
@@ -549,8 +549,8 @@ def test_identical_saved_skills_keep_each_identity_and_reuse_field_checks(prepar
 def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation):
     """One checked rendered value cannot approve another record's different field split."""
     from schemas.gap_analysis_context import (
+        CareerContext,
         CareerLibrary,
-        LibraryFact,
         LibraryProject,
         LibrarySkill,
     )
@@ -565,7 +565,7 @@ def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation)
             LibraryProject(id="split-project", name="Shared", description="detail", role="Unused role"),
         ],
         skills=[LibrarySkill(id="skill", name=shared, screened_fields=["name"], category="Unused category")],
-        facts=[LibraryFact(id="fact", requirement="Shared", response="detail")],
+        career_contexts=[CareerContext(id="career_context", requirement="Shared", response="detail")],
     )
 
     async def run():
@@ -575,7 +575,7 @@ def test_equal_rendered_sources_check_each_kinds_actual_used_fields(preparation)
                     for report in session.library_screening} == {
                         ("user", str(user), ("summary",)),
                         ("project", "split-project", ("name", "description")),
-                        ("library_fact", "fact", ("requirement", "response")),
+                        ("career_context", "career_context", ("requirement", "response")),
                     }
             summary = await prepared.summary_prompt([])
             assert {"SUMMARY", "P1", "P2", "S1", "F1"} == summary.sources.records.keys()
@@ -770,11 +770,11 @@ def test_gap_partial_approval_and_legacy_summary_subset_reuse(preparation):
 
 @pytest.mark.parametrize("blocked", [False, True])
 def test_gap_library_text_collision_preserves_each_provenance(preparation, blocked):
-    from schemas.gap_analysis_context import LibraryFact
+    from schemas.gap_analysis_context import CareerContext
     from tailoring.prepare_resume_draft import prepare_resume_draft
 
     dependencies, context, _, calls, user, job = preparation
-    context.career_library.facts = [LibraryFact(id="fact-collision", requirement="Equal requirement",
+    context.career_library.career_contexts = [CareerContext(id="fact-collision", requirement="Equal requirement",
         response="attack" if blocked else "Equal answer", screened_fields=["requirement", "response"])]
     responses = [{"id": str(uuid4()), "requirement": "Equal requirement",
                   "body": "attack" if blocked else "Equal answer"}]

@@ -120,9 +120,9 @@ def test_reads_the_job_and_library_in_rails_order(
     other_user = _insert_user(admin_connection)
     _insert(admin_connection, "certifications", user_id=other_user, name="Other credential", position=0)
     _insert(admin_connection, "skills", user_id=user_id, name="Python")
-    fact_id = _insert(
+    context_id = _insert(
         admin_connection,
-        "library_facts",
+        "career_contexts",
         user_id=user_id,
         requirement="Kubernetes",
         response="Ran production Kubernetes at Northwind",
@@ -168,8 +168,8 @@ def test_reads_the_job_and_library_in_rails_order(
     assert certification.credential_url == "https://example.com/credential"
     assert certification.expiry_date.isoformat() == "2027-03-01"
     assert [skill.name for skill in library.skills] == ["Python"]
-    assert [(fact.id, fact.requirement, fact.response) for fact in library.facts] == [
-        (str(fact_id), "Kubernetes", "Ran production Kubernetes at Northwind")
+    assert [(context.id, context.requirement, context.response) for context in library.career_contexts] == [
+        (str(context_id), "Kubernetes", "Ran production Kubernetes at Northwind")
     ]
 
 

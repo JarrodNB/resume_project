@@ -66,8 +66,8 @@
     --color-section-certifications-accent: var(--section-certifications-accent);
     --color-section-skills: var(--section-skills);
     --color-section-skills-accent: var(--section-skills-accent);
-    --color-section-facts: var(--section-facts);
-    --color-section-facts-accent: var(--section-facts-accent);
+    --color-section-career-context: var(--section-career-context);
+    --color-section-career-context-accent: var(--section-career-context-accent);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -148,8 +148,8 @@
     --section-certifications-accent: #3a4048;
     --section-skills: #f4f5f6;
     --section-skills-accent: #3a4048;
-    --section-facts: #f4f5f6;
-    --section-facts-accent: #3a4048;
+    --section-career-context: #f4f5f6;
+    --section-career-context-accent: #3a4048;
 }
 
 /* Dark keeps the same map: a deep ink ground, the band one step darker, and signals
@@ -219,8 +219,8 @@
     --section-certifications-accent: #c7ccd2;
     --section-skills: #1c2025;
     --section-skills-accent: #c7ccd2;
-    --section-facts: #1c2025;
-    --section-facts-accent: #c7ccd2;
+    --section-career-context: #1c2025;
+    --section-career-context-accent: #c7ccd2;
 }
 
 @layer base {

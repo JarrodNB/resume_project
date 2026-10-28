@@ -76,6 +76,6 @@ RSpec.describe InterviewPrep::SyncQuestionEmbeddingService do
     CareerLibrary::SyncLibraryEmbeddingsService.call(user: user, embedding_client: client)
     expect(untouched.reload.embedding).to be_nil
     expect(user.library_embeddings).to be_empty
-    expect(user.library_facts).to be_empty
+    expect(user.career_contexts).to be_empty
   end
 end

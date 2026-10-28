@@ -1,8 +1,8 @@
 # Reloads the owner before clearing so concurrent summary approvals are invalidated atomically.
 # Description: Empties one user's career library so a later resume import starts fresh.
-# Removes roles (and their bullets), projects, education, certifications, skills, and facts, and clears the
+# Removes roles (and their bullets), projects, education, certifications, skills, and career context entries, and clears the
 # profile fields an import fills (name, contact, links, summary). The sign-in email, saved
-# jobs, and tailored resumes stay. Job answers that pointed at a fact stay, unlinked.
+# jobs, and tailored resumes stay. Job answers that pointed at a context stay, unlinked.
 # Queues one embedding sync when any entry was removed. Running it twice changes nothing.
 # Index:
 #   - PROFILE_FIELDS: user columns the import fills, cleared here
@@ -28,9 +28,9 @@ module CareerLibrary
 
     private
 
-    # Deletes the user's library rows. Highlight rows and fact links are handled by foreign keys.
+    # Deletes the user's library rows. Highlight rows and context links are handled by foreign keys.
     def delete_entries
-      removed = [ Experience, Project, Education, Certification, Skill, LibraryFact ].sum do |model|
+      removed = [ Experience, Project, Education, Certification, Skill, CareerContext ].sum do |model|
         model.where(user_id: @user.id).delete_all
       end
       removed.positive?

@@ -5,7 +5,7 @@ Saved field approvals are internal metadata and never enter model serialization.
 A saved job may have no company; career-library employers remain required.
 Index:
     - LibraryHighlight / LibraryExperience / LibraryProject / LibraryEducation / LibraryCertification / LibrarySkill /
-      LibraryFact: career library entries, each with its database id
+      CareerContext: career library entries, each with its database id
     - CareerLibrary: everything in the user's library, plus the profile summary
     - JobToAnalyze: the job's title, company, requirements, responsibilities, and nice-to-haves
     - GapAnalysisContext: the job and the library together
@@ -90,7 +90,7 @@ class LibrarySkill(LibraryRecord):
     category: str | None = None
 
 
-class LibraryFact(LibraryRecord):
+class CareerContext(LibraryRecord):
     """A requirement the user answered and added to the career library."""
 
     id: str
@@ -109,12 +109,12 @@ class CareerLibrary(BaseModel):
     educations: list[LibraryEducation] = Field(default_factory=list)
     certifications: list[LibraryCertification] = Field(default_factory=list)
     skills: list[LibrarySkill] = Field(default_factory=list)
-    facts: list[LibraryFact] = Field(default_factory=list)
+    career_contexts: list[CareerContext] = Field(default_factory=list)
 
     def is_empty(self) -> bool:
         """True when there are no entries at all (a summary alone doesn't count)."""
         return not (
-            self.experiences or self.projects or self.educations or self.certifications or self.skills or self.facts
+            self.experiences or self.projects or self.educations or self.certifications or self.skills or self.career_contexts
         )
 
 

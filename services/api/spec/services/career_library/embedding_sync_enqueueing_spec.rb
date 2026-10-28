@@ -22,7 +22,7 @@ RSpec.describe "Career library embedding sync enqueueing" do
       .not_to have_enqueued_job(sync_job)
   end
 
-  it "queues a sync when a project, education, skill, or fact is created or updated" do
+  it "queues a sync when a project, education, skill, or context is created or updated" do
     expect { Projects::CreateProjectService.call(user: user, attributes: { name: "CLI" }) }
       .to have_enqueued_job(sync_job).with(user.id)
     project = user.projects.sole
@@ -41,10 +41,10 @@ RSpec.describe "Career library embedding sync enqueueing" do
     expect { Skills::UpdateSkillService.call(skill: skill, attributes: { category: "Languages" }) }
       .to have_enqueued_job(sync_job).with(user.id)
 
-    expect { LibraryFacts::CreateLibraryFactService.call(user: user, attributes: { requirement: "K8s", response: "Yes" }) }
+    expect { CareerContexts::CreateCareerContextService.call(user: user, attributes: { requirement: "K8s", response: "Yes" }) }
       .to have_enqueued_job(sync_job).with(user.id)
-    fact = user.library_facts.sole
-    expect { LibraryFacts::UpdateLibraryFactService.call(library_fact: fact, attributes: { response: "Two years" }) }
+    context = user.career_contexts.sole
+    expect { CareerContexts::UpdateCareerContextService.call(career_context: context, attributes: { response: "Two years" }) }
       .to have_enqueued_job(sync_job).with(user.id)
   end
 

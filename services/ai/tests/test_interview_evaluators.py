@@ -119,13 +119,13 @@ def test_feedback_structure() -> None:
             assert not FeedbackStructure().evaluate(context)["missing_fact_placeholder"]
 
 
-def test_fact_context_clarifies_eval_inputs_but_cannot_validate_quotes() -> None:
+def test_context_context_clarifies_eval_inputs_but_cannot_validate_quotes() -> None:
     """Both real eval inputs preserve context while evidence checks reject context-only quotes."""
     question_case = next(case.inputs for case in load_interview_questions_dataset().cases
                          if case.name == "technical-fact-response-keeps-topic-without-inheriting-requirements")
     feedback_case = next(case.inputs for case in load_interview_feedback_dataset().cases
                          if case.name == "fact-context-is-not-personal-evidence")
-    requirement = question_case.facts[0].requirement
+    requirement = question_case.career_contexts[0].requirement
     question_prompt = question_context(question_case)
     feedback_prompt = feedback_context(feedback_case)
     for prompt, source in ((question_prompt.text, question_prompt.library_text),

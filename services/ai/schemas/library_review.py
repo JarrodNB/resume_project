@@ -11,7 +11,7 @@ class LibraryReviewTarget(BaseModel):
     """Identity stays outside the prompt; a short label stands in for each saved field."""
 
     label: str
-    kind: Literal["experience", "experience_highlight", "user", "project", "library_fact"]
+    kind: Literal["experience", "experience_highlight", "user", "project", "career_context"]
     record_id: str
     field: Literal["description", "content", "summary", "response"]
     source_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
@@ -20,7 +20,7 @@ class LibraryReviewTarget(BaseModel):
 class LibraryReviewInput(BaseModel):
     """An immutable, Rails-owned snapshot of only the requested library section."""
 
-    section: Literal["experience", "summary", "projects", "facts"]
+    section: Literal["experience", "summary", "projects", "career_contexts"]
     library: CareerLibrary
     targets: list[LibraryReviewTarget] = Field(min_length=1, max_length=250)
 
@@ -33,8 +33,8 @@ class LibraryReviewInput(BaseModel):
 
 def validate_section_library(section: str, library: CareerLibrary) -> None:
     """Reject unrelated section material before screening or rendering a prompt."""
-    allowed = {"experience": "experiences", "summary": "summary", "projects": "projects", "facts": "facts"}[section]
-    fields = ("summary", "experiences", "projects", "facts", "educations", "certifications", "skills")
+    allowed = {"experience": "experiences", "summary": "summary", "projects": "projects", "career_contexts": "career_contexts"}[section]
+    fields = ("summary", "experiences", "projects", "career_contexts", "educations", "certifications", "skills")
     if any(getattr(library, field) for field in fields if field != allowed):
         raise ValueError("A library task must contain only its selected section")
 

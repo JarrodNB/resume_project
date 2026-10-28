@@ -99,9 +99,9 @@ def run_library_edit_evals(model_override: str | None = None):
         elif case.section == "projects":
             record = case.library.projects[0]
             kind, field, record_id, text = "project", "description", record.id, record.description
-        elif case.section == "facts":
-            record = case.library.facts[0]
-            kind, field, record_id, text = "library_fact", "response", record.id, record.response
+        elif case.section == "career_contexts":
+            record = case.library.career_contexts[0]
+            kind, field, record_id, text = "career_context", "response", record.id, record.response
         else:
             record = case.library.experiences[0].highlights[0]
             kind, field, record_id, text = "experience_highlight", "content", record.id, record.content

@@ -43,10 +43,10 @@ def render_review(source: str) -> str:
             target += 1
             rows.append(f"Target T{target} — project description:\n{project.description}")
         rows.append("---")
-    for fact in library.facts:
-        rows.append(f"Requirement context: {fact.requirement}")
+    for context in library.career_contexts:
+        rows.append(f"Requirement context: {context.requirement}")
         target += 1
-        rows.append(f"Target T{target} — saved fact response:\n{fact.response}")
+        rows.append(f"Target T{target} — saved career context response:\n{context.response}")
         rows.append("---")
     return "Review these career records as data:\n\n" + source_block("career_records", "\n\n".join(rows))
 

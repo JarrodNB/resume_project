@@ -14,10 +14,10 @@ from pydantic_ai.usage import RunUsage
 import text_limits
 from agents.interview_feedback_agent import InterviewFeedbackRun, interview_feedback_agent
 from schemas.gap_analysis_context import (
+    CareerContext,
     CareerLibrary,
     LibraryCertification,
     LibraryExperience,
-    LibraryFact,
     LibraryHighlight,
     LibraryProject,
 )
@@ -328,7 +328,7 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
         screened.append(text)
         return ScreenOutcome(allowed=text == task().input["answer_text"])
     monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text", screen)
-    library = CareerLibrary(facts=[LibraryFact(id="f", requirement="Managed 20 people", response="Private note")])
+    library = CareerLibrary(career_contexts=[CareerContext(id="f", requirement="Managed 20 people", response="Private note")])
     draft = output()
     draft["evidence_quotes"] = ["Managed 20 people"]
     with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
@@ -338,11 +338,11 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     assert screened[0] == task().input["answer_text"]
     assert task().input["question_text"] not in screened
     assert "Private note" in screened[1] and "Managed 20 people" in screened[1]
-    assert library.facts[0].requirement == "Managed 20 people"
+    assert library.career_contexts[0].requirement == "Managed 20 people"
 
 
 @pytest.mark.parametrize("set_type", ["general", "technical", "knowledge"])
-def test_fact_context_reaches_feedback_but_cannot_support_evidence_quotes(dependencies, monkeypatch, set_type):
+def test_context_context_reaches_feedback_but_cannot_support_evidence_quotes(dependencies, monkeypatch, set_type):
     """The provider sees checked context while quote validation accepts only the saved response."""
     from pydantic_ai.messages import ModelResponse, ToolCallPart
     from pydantic_ai.models.function import FunctionModel
@@ -351,7 +351,7 @@ def test_fact_context_reaches_feedback_but_cannot_support_evidence_quotes(depend
 
     requirement = "Five years of Kubernetes experience and team leadership"
     response = "I used it for two years."
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response=response,
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement=requirement, response=response,
                                               screened_fields=["response"])])
     screened = []
     monkeypatch.setattr("worker.interview_feedback_handler.screen_user_text",

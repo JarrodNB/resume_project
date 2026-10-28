@@ -1,7 +1,7 @@
 /**
  * Description: GraphQL operations for the career library (typed by GraphQL Code Generator).
  * Index:
- *   - CAREER_LIBRARY_QUERY: profile, experiences, projects, educations, certifications, skills, and library facts
+ *   - CAREER_LIBRARY_QUERY: profile, experiences, projects, educations, certifications, skills, and library career context entries
  */
 import { graphql } from '@/graphql/generated'
 
@@ -69,7 +69,7 @@ export const CAREER_LIBRARY_QUERY = graphql(`
       category
       position
     }
-    libraryFacts {
+    careerContexts {
       id
       requirement
       response

@@ -38,7 +38,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     experience = create(:experience, user: user)
     records = [ user, experience, create(:experience_highlight, experience: experience),
                create(:project, user: user), create(:education, user: user),
-               create(:certification, user: user), create(:skill, user: user), create(:library_fact, user: user) ]
+               create(:certification, user: user), create(:skill, user: user), create(:career_context, user: user) ]
     reports = records.map do |record|
       { "record_type" => record.class.name.underscore, "record_id" => record.id,
         "fields" => CareerLibrary::RecordScreeningService::FIELDS.fetch(record.class.name) }

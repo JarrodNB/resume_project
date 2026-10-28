@@ -10,7 +10,7 @@ this folder only reads what an AI task needs.
 - `open_read_only_connection.py` — `open_read_only_connection(settings)`: psycopg connection
   with `default_transaction_read_only=on` and dict rows
 - `career_library_reader.py` — `read_gap_analysis_context(connection, user_id, job_id)`: the job
-  and the user's career library, including certifications and library facts, in one REPEATABLE READ transaction
+  and the user's career library, including certifications and career context entries, in one REPEATABLE READ transaction
   (None when the job isn't the user's). Job-only gap responses are not read.
   `build_database_context_reader(settings)`: the per-task reader handlers call (one
   connection per task)

@@ -20,7 +20,7 @@ const cases = [
   { section: 'projects', title: 'Projects', sectionId: 'library.projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },
-  { section: 'facts', title: 'Facts', sectionId: 'library.facts', kind: 'library_fact', field: 'response', id: 'fact-1',
+  { section: 'facts', title: 'Career context', sectionId: 'library.facts', kind: 'library_fact', field: 'response', id: 'fact-1',
     library: { ...emptyReviewLibrary, libraryFacts: [{ id: 'fact-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }] },
     element: <FactsSection facts={[{ id: 'fact-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }]} /> },
 ]

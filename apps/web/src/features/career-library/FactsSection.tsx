@@ -16,7 +16,7 @@ export function FactsSection({ facts }: { facts: LibraryFact[] }) {
 
   return (
     <>
-      <LibrarySection sectionId="library.facts" tone="facts" title="Facts" count={facts.length} emptyText="No facts yet." addLabel="Add fact" onAdd={() => setEditing('new')}
+      <LibrarySection sectionId="library.facts" tone="facts" title="Career context" count={facts.length} emptyText="No career context yet." addLabel="Add career context" onAdd={() => setEditing('new')}
         reviewActions={<LibrarySectionReview section="facts" />} reviewSection="facts">
 
         <FactList facts={facts} onEdit={setEditing} />

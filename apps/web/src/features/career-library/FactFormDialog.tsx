@@ -42,7 +42,7 @@ function FactForm({ fact, onClose }: { fact: LibraryFact | null; onClose: () => 
     <EntryFormDialog
       open
       onOpenChange={(next) => !next && onClose()}
-      title={fact ? 'Edit fact' : 'Add fact'}
+      title={fact ? 'Edit career context' : 'Add career context'}
       description="A requirement and your answer. Later comparisons can use this."
       onSubmit={submit}
       busy={busy}

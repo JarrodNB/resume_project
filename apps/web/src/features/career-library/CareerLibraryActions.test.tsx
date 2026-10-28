@@ -271,7 +271,7 @@ it('edits a fact', async () => {
   )
 
   await user.click(await screen.findByRole('button', { name: 'Edit Kubernetes' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Edit fact' })
+  const dialog = await screen.findByRole('dialog', { name: 'Edit career context' })
   await user.clear(within(dialog).getByLabelText('Response'))
   await user.type(within(dialog).getByLabelText('Response'), 'Used it for two years')
   await user.click(within(dialog).getByRole('button', { name: 'Save' }))

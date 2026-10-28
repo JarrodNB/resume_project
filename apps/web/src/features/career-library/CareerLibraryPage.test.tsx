@@ -116,7 +116,7 @@ it('shows the imported library', async () => {
   expect(screen.getByText('Backend engineer.')).toBeInTheDocument()
   expect(screen.getByText('Ruby')).toBeInTheDocument()
   expect(screen.getByText('No projects yet.')).toBeInTheDocument()
-  expect(screen.getByText('No facts yet.')).toBeInTheDocument()
+  expect(screen.getByText('No career context yet.')).toBeInTheDocument()
 })
 
 it('shows certifications in their own section with credential metadata', async () => {

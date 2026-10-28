@@ -14,7 +14,7 @@ export interface LibraryReviewTarget {
   text: string
   sourceRevision: string
 }
-export const REVIEW_SECTIONS: Record<ReviewSection, string> = { summary: 'Summary', experience: 'Experience', projects: 'Projects', facts: 'Facts' }
+export const REVIEW_SECTIONS: Record<ReviewSection, string> = { summary: 'Summary', experience: 'Experience', projects: 'Projects', facts: 'Career context' }
 export const targetKey = (target: { kind: string; recordId: string }) => `${target.kind}:${target.recordId}`
 export const targetElementId = (target: { kind: string; recordId: string }) => `library-detail-${targetKey(target)}`
 

@@ -30,13 +30,7 @@ module AiTasks
       return result unless result.success?
       return result if @resolved_existing
 
-      ai_task = result.value
-      publish(ai_task)
-      success(ai_task)
-    rescue *QUEUE_ERRORS => error
-      Rails.logger.error("Could not publish AiTask #{ai_task.id}: #{error.message}")
-      UpdateTaskService.call(task: ai_task, attributes: { status: "failed", error_message: "Could not queue the task", completed_at: Time.current })
-      failure([ "Could not queue the AI task, please try again" ])
+      publish_or_fail(result.value)
     end
 
     private
@@ -60,6 +54,16 @@ module AiTasks
         ai_task.source_file.attach(@source_file) if @source_file
         ai_task.save ? success(ai_task) : failure(ai_task.errors)
       end
+    end
+
+    # Publishes the saved task; if the queue is unreachable, marks the task failed instead.
+    def publish_or_fail(ai_task)
+      publish(ai_task)
+      success(ai_task)
+    rescue *QUEUE_ERRORS => error
+      Rails.logger.error("Could not publish AiTask #{ai_task.id}: #{error.message}")
+      UpdateTaskService.call(task: ai_task, attributes: { status: "failed", error_message: "Could not queue the task", completed_at: Time.current })
+      failure([ "Could not queue the AI task, please try again" ])
     end
 
     # Sends the task message to the ai_tasks queue.

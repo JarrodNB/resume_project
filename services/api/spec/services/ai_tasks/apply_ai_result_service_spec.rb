@@ -120,6 +120,17 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: ai_task.id }, ai_task).once
   end
 
+  it "notifies subscribers when a late usage report changes a finished task's cost" do
+    ai_task.update!(status: "completed", completed_at: Time.current)
+    usage = [ { "model" => "openai:gpt-5-mini", "input_tokens" => 10, "cached_input_tokens" => 0, "output_tokens" => 2, "cost_microdollars" => 15 } ]
+    message = result_message("usage", attempt_id: SecureRandom.uuid, usage: usage)
+
+    2.times { described_class.call(message: message) }
+
+    expect(ai_task.reload.cost_microdollars).to eq(15)
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: ai_task.id }, ai_task).once
+  end
+
   it "keeps the tailoring snapshots when generation fails without a partial draft" do
     input = { "contact" => { "full_name" => "Synthetic Person" }, "gap_responses" => [] }
     ai_task.update!(task_type: "tailor_resume", input: input)
@@ -209,6 +220,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
 
       expect(ai_task.reload).to be_failed
       expect(ai_task.error_message).to eq("We couldn't save this job: Title can't be blank")
+      expect(ai_task.result).to be_nil
       expect(ai_task.user.jobs).to be_empty
     end
   end

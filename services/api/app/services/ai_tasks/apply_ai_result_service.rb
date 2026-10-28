@@ -29,10 +29,12 @@ module AiTasks
       return failure([ "AI task not found: #{@message['ai_task_id'].inspect}" ]) unless ai_task
 
       applied = with_result_lock(ai_task) do
+        usage_recorded = false
         if @message["attempt_id"].present?
-          RecordAttemptUsageService.call(ai_task: ai_task, message: @message)
+          usage_recorded = RecordAttemptUsageService.call(ai_task: ai_task, message: @message).value
         end
-        next false if status == "usage" || ai_task.finished? || (ai_task.improve_library_entry? && !ai_task.queued?)
+        # Late usage still changes the task's cost totals, so subscribers need to hear about it.
+        next usage_recorded if status == "usage" || ai_task.finished? || (ai_task.improve_library_entry? && !ai_task.queued?)
 
         InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
         Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
@@ -90,26 +92,24 @@ module AiTasks
     def domain_record_attributes(ai_task)
       if ai_task.rerank_job_listings?
         result = JobBoard::ValidateRerankingResultService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+        return result.success? ? {} : failed_attributes(result.errors)
       end
       if ai_task.generate_study_guide?
         result = StudyGuides::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+        return result.success? ? {} : failed_attributes(result.errors)
       end
       if ai_task.review_library_section?
         result = CareerLibrary::ApplyReviewService.call(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+        return result.success? ? {} : failed_attributes(result.errors)
       end
       if (prompt_work = Interviews::CurrentPromptWork.for_task(ai_task))
         result = prompt_work.apply(ai_task: ai_task, result: @message["result"])
-        return result.success? ? {} : { status: "failed", result: nil, error_message: result.errors.join(", ") }
+        return result.success? ? {} : failed_attributes(result.errors)
       end
       if ai_task.generate_interview_questions? || ai_task.regenerate_interview_question? || ai_task.review_interview_answer?
         service = ai_task.review_interview_answer? ? InterviewPrep::ApplyFeedbackService : InterviewPrep::ApplyQuestionsService
         result = service.call(ai_task: ai_task, result: @message["result"])
-        return {} if result.success?
-
-        return { status: "failed", result: nil, error_message: result.errors.join(", ") }
+        return result.success? ? {} : failed_attributes(result.errors)
       end
       return {} unless ai_task.scrape_job? || ai_task.parse_job_posting?
 
@@ -117,7 +117,13 @@ module AiTasks
       result = Jobs::CreateJobFromPostingService.call(ai_task: ai_task, scraped_job: scraped_job)
       return { subject: result.value } if result.success?
 
-      { status: "failed", error_message: "We couldn't save this job: #{result.errors.join(', ')}" }
+      failed_attributes([ "We couldn't save this job: #{result.errors.join(', ')}" ])
+    end
+
+    # Attributes for a result that arrived as "completed" but could not be saved: drop the
+    # unusable result so the task reads as a plain failure.
+    def failed_attributes(errors)
+      { status: "failed", result: nil, pending_questions: [], error_message: errors.join(", ") }
     end
 
     # Messages without execution identity assign totals; finished-task checks above keep

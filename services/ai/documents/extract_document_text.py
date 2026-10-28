@@ -232,7 +232,11 @@ def _docx_paragraph_is_numbered(paragraph: Any) -> bool:
     """Resolve numbering overrides before styles; numId zero explicitly removes a list."""
     properties = [paragraph._p.pPr]
     style = paragraph.style
+    seen_styles = set()
     while style is not None:
+        if style._element in seen_styles:
+            raise UnsupportedDocumentError("The DOCX contains cyclic paragraph styles")
+        seen_styles.add(style._element)
         properties.append(style._element.pPr)
         style = style.base_style
     for paragraph_properties in properties:

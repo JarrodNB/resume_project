@@ -17,7 +17,7 @@ Source of the web app, organized by feature.
 - `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?`; generation and streaming use separate execution state
 - `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
   localStorage), each with the next step Rails suggests (`jobPipeline`) linked to the job tab that
-  handles it, AI work in progress, and three starting steps before any job is saved
+  handles it, AI work in progress, and three starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, paginated results, and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching

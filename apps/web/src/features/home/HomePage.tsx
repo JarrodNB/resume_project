@@ -6,7 +6,8 @@
  * blue means AI is working, yellow means waiting, green means an offer. All AI work still
  * running is listed in the strip at the top (see AiWorkStrip), which keeps itself current and
  * reloads the board when work finishes. With no saved jobs yet, Home shows the three steps
- * that start a search instead. On the board, dragging a tile to another column moves the job to
+ * that start a search instead, marking the career library step done once the library has content.
+ * With jobs but an empty library, a red note says comparisons have nothing to compare yet. On the board, dragging a tile to another column moves the job to
  * that stage (saved right away, like the stage picker on the job page).
  */
 import { useCallback, useState } from 'react'
@@ -24,10 +25,12 @@ import { JOB_STAGE_LABELS, JOB_STAGE_ORDER, type JobStage } from '@/features/job
 import type { JobPipelineQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { cn } from '@/lib/utils'
+import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
+import { libraryHasContent } from '@/features/career-library/libraryHasContent'
 import { JOB_PIPELINE_QUERY } from './homeOperations'
 import { readHomeView, rememberHomeView, type HomeView } from './homeView'
 import { AiWorkStrip } from './AiWorkStrip'
-import { NextStep } from './NextStepSignal'
+import { NextStep, SignalDot } from './NextStepSignal'
 import { DraggableJobTile, StageDropColumn, stageFromDropId } from './PipelineDragParts'
 
 type PipelineEntry = JobPipelineQuery['jobPipeline'][number]
@@ -35,6 +38,9 @@ type PipelineEntry = JobPipelineQuery['jobPipeline'][number]
 export function HomePage() {
   const { data, loading, error, refetch } = useQuery(JOB_PIPELINE_QUERY, { fetchPolicy: 'cache-and-network' })
   const [view, setView] = useState<HomeView>(readHomeView)
+  // The library only shapes the first-run guidance; Home still works if it fails or is slow.
+  const { data: libraryData } = useQuery(CAREER_LIBRARY_QUERY, { fetchPolicy: 'cache-and-network' })
+  const libraryStarted = libraryData ? libraryHasContent(libraryData) : null
   const entries = data?.jobPipeline ?? []
   const reloadBoard = useCallback(() => { void refetch().catch(() => { /* The query error stays on screen. */ }) }, [refetch])
 
@@ -60,9 +66,10 @@ export function HomePage() {
         </div>
       )}
       {!data && loading && <p role="status" className="text-muted-foreground">Loading your jobs…</p>}
-      {data && entries.length === 0 && <FirstRun />}
+      {data && entries.length === 0 && <FirstRun libraryStarted={libraryStarted} />}
       {entries.length > 0 && (
         <>
+          {libraryStarted === false && <EmptyLibraryNote />}
           <AiWorkStrip onWorkFinished={reloadBoard} />
           <div className="home-toolbar">
             <h2>{entries.length === 1 ? '1 saved job' : `${entries.length} saved jobs`}</h2>
@@ -187,23 +194,45 @@ function JobName({ entry }: { entry: PipelineEntry }) {
   )
 }
 
-/** The three steps that start a search, shown before any job is saved. */
-function FirstRun() {
+/** Shown when jobs exist but the library is empty: comparing and tailoring need career evidence. */
+function EmptyLibraryNote() {
+  return (
+    <aside className="library-note" aria-label="Your career library is empty">
+      <SignalDot signal="action" />
+      <p><strong>Your career library is empty.</strong> Comparisons and resumes are built from it, so they have nothing to use yet.</p>
+      <Link to="/library/import">Import a resume <ArrowRight aria-hidden /></Link>
+    </aside>
+  )
+}
+
+/** The three steps that start a search, shown before any job is saved. Step 1 is marked done once
+ * the library has content; the first unfinished step is the one to do now. */
+function FirstRun({ libraryStarted }: { libraryStarted: boolean | null }) {
   return (
     <section className="home-first-run" aria-labelledby="first-run-heading">
       <h2 id="first-run-heading">Start your search in three steps</h2>
+      <p className="first-run-time">Do these in order. The first comparison of a job against your library is where it starts to pay off.</p>
       <ol>
-        <li>
-          <h3>Fill your career library</h3>
-          <p>Import a PDF or Word resume, or add details by hand. Everything you write later comes from here.</p>
-          <Link to="/library/import">Import a resume <ArrowRight aria-hidden /></Link>
+        <li data-state={libraryStarted ? 'done' : 'now'} aria-current={libraryStarted ? undefined : 'step'}>
+          <h3>Fill your career library{libraryStarted && <span className="sr-only"> (done)</span>}</h3>
+          {libraryStarted ? (
+            <>
+              <p>Your library has content. Everything you write later comes from here.</p>
+              <Link to="/library">Review your library <ArrowRight aria-hidden /></Link>
+            </>
+          ) : (
+            <>
+              <p>Import a PDF or Word resume, or add details by hand. Everything you write later comes from here.</p>
+              <Link to="/library/import">Import a resume <ArrowRight aria-hidden /></Link>
+            </>
+          )}
         </li>
-        <li>
+        <li data-state={libraryStarted ? 'now' : 'next'} aria-current={libraryStarted ? 'step' : undefined}>
           <h3>Save a job you want</h3>
           <p>Search current listings, paste a job ad, or add a posting link.</p>
           <Link to="/jobs/find">Find jobs <ArrowRight aria-hidden /></Link>
         </li>
-        <li>
+        <li data-state="next">
           <h3>Compare, then write</h3>
           <p>Open a saved job to see how your library matches it, answer gaps, and write a tailored resume.</p>
         </li>

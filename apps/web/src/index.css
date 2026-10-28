@@ -526,11 +526,23 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .home-first-run li { position: relative; display: grid; align-content: start; gap: 8px; counter-increment: first-run-step; }
 .home-first-run li::before { content: counter(first-run-step); position: relative; display: grid; place-items: center; width: 34px; height: 34px; margin-bottom: 8px; border: 5px solid var(--rule-strong); border-radius: 50%; background: var(--background); font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
 .home-first-run h3 { font-size: 17px; font-weight: 700; }
+.home-first-run .first-run-time { max-width: 65ch; margin-top: -12px; font-size: 14px; }
+/* Done stops fill with ink and show a check; the stop to do now keeps the ring gap used for a job's current stop. */
+.home-first-run li[data-state=done]::before { content: "\2713"; background: var(--rule-strong); color: var(--background); }
+.home-first-run li[data-state=now]::before { box-shadow: 0 0 0 3px var(--background), 0 0 0 4.5px var(--rule-strong); }
+.home-first-run li[data-state=next]::before { border-color: var(--stop-off); color: var(--muted-foreground); }
+.home-first-run li[data-state=next] h3 { color: var(--muted-foreground); }
+/* Jobs saved but nothing in the library: a red "needs you" note, since the next move is the user's. */
+.library-note { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 24px; padding: 14px 16px; border: 1.5px solid var(--signal-action); border-radius: 6px; font-size: 14px; }
+.library-note p { flex: 1 1 28ch; max-width: 65ch; line-height: 1.5; }
+.library-note a { display: inline-flex; align-items: center; gap: 9px; min-height: 32px; color: var(--foreground); font-weight: 700; text-underline-offset: 4px; }
+.library-note a svg { width: 15px; }
+.library-note a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; border-radius: 4px; }
 .home-first-run p { max-width: 40ch; color: var(--muted-foreground); font-size: 14px; line-height: 1.6; }
 .home-first-run a { display: inline-flex; align-items: center; gap: 9px; width: fit-content; min-height: 32px; color: var(--foreground); font-size: 14px; font-weight: 700; text-underline-offset: 4px; }
 .home-first-run a svg { width: 15px; }
 @media (hover: hover) and (pointer: fine) {
-  .pipeline-job a:hover, .next-step:is(a):hover, .home-first-run a:hover { text-decoration: underline; }
+  .pipeline-job a:hover, .next-step:is(a):hover, .home-first-run a:hover, .library-note a:hover { text-decoration: underline; }
   .view-switch button[aria-pressed=false]:hover { background: var(--muted); }
 }
 @media (max-width: 899px) {

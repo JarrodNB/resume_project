@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperations'
+import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
 import { HomePage } from './HomePage'
 
@@ -36,10 +37,16 @@ function taskUpdate(id: string, status: string) {
   } } } }
 }
 
-function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = []) {
+function libraryMock(skills: unknown[]) {
+  const me = { __typename: 'User' as const, id: 'user-1', name: 'Jane', contactEmail: null, phone: null, location: null, links: [], summary: null }
+  return { request: { query: CAREER_LIBRARY_QUERY }, result: { data: { me, experiences: [], projects: [], educations: [], certifications: [], skills, careerContexts: [] } } }
+}
+
+function renderHome(jobPipeline: unknown[], runningAiTasks: unknown[] = [], skills: unknown[] = [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: null, position: 1 }]) {
   return renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
     { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline } } },
     runningMock(runningAiTasks),
+    libraryMock(skills),
   ] })
 }
 
@@ -94,11 +101,32 @@ it('switches to a list that skips empty stages, and remembers the choice', async
 })
 
 it('shows the three starting steps before any job is saved', async () => {
-  renderHome([])
+  renderHome([], [], [])
   const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
   expect(within(firstRun).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library/import')
   expect(within(firstRun).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
   expect(screen.queryByRole('group', { name: 'Show jobs as' })).not.toBeInTheDocument()
+})
+
+it('marks the library step done and points at saving a job once the library has content', async () => {
+  renderHome([])
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
+  expect(await within(firstRun).findByRole('link', { name: 'Review your library' })).toHaveAttribute('href', '/library')
+  expect(within(firstRun).queryByRole('link', { name: 'Import a resume' })).not.toBeInTheDocument()
+  expect(within(firstRun).getByRole('heading', { name: 'Save a job you want' }).closest('li')).toHaveAttribute('aria-current', 'step')
+})
+
+it('keeps the import step current while the library is empty', async () => {
+  renderHome([], [], [])
+  const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
+  expect(await within(firstRun).findByRole('link', { name: 'Import a resume' })).toBeInTheDocument()
+  expect(within(firstRun).getByRole('heading', { name: 'Fill your career library' }).closest('li')).toHaveAttribute('aria-current', 'step')
+})
+
+it('tells a user with saved jobs and an empty library to fill the library first', async () => {
+  renderHome(pipeline, [], [])
+  const note = await screen.findByRole('complementary', { name: 'Your career library is empty' })
+  expect(within(note).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library/import')
 })
 
 it('explains a load failure and offers to try again', async () => {

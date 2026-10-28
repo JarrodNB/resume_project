@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-27T14:50:45.781754+00:00",
+  "generatedAt": "2026-10-28T14:18:58.184345+00:00",
   "title": "Design System: Careergrind web workspace",
   "extensions": {
     "colorMeta": {
@@ -928,6 +928,13 @@
       "description": "Board/List toggle in a 2px ink frame; the selected half is filled ink.",
       "html": "<div class=\"ds-switch\"><button aria-pressed=\"true\">Board</button><button aria-pressed=\"false\">List</button></div>",
       "css": ".ds-switch { display:inline-flex; border:2px solid var(--rule-strong,#111418); border-radius:4px; overflow:hidden; } .ds-switch button { min-height:34px; padding:0 18px; border:0; background:var(--background,#fff); color:var(--foreground,#111418); font:700 13px \"Archivo Variable\",Arial,sans-serif; cursor:pointer; transition:background-color 160ms, color 160ms; } .ds-switch button[aria-pressed=false]:hover { background:var(--muted,#f4f5f6); } .ds-switch button[aria-pressed=true] { background:var(--rule-strong,#111418); color:var(--background,#fff); } .ds-switch button:focus-visible { outline:2px solid var(--ring,#111418); outline-offset:-5px; }"
+    },
+    {
+      "name": "First-run line",
+      "kind": "custom",
+      "description": "Home before any job is saved: three starting steps on a short line. Done stops are filled ink with a check, the stop to do now carries the gap-and-ring, later stops are hollow gray.",
+      "html": "<ol class=\"ds-fr\"><li data-n=\"1\" data-state=\"done\"><b>Fill your career library</b><a href=\"#\">Review your library</a></li><li data-n=\"2\" data-state=\"now\"><b>Save a job you want</b><a href=\"#\">Find jobs</a></li><li data-n=\"3\" data-state=\"next\"><b>Compare, then write</b></li></ol>",
+      "css": ".ds-fr{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative;list-style:none;margin:0;padding:0;font-family:inherit;width:520px}\n.ds-fr::before{content:\"\";position:absolute;top:15px;left:17px;right:calc((100% - 48px)/3 - 17px);height:6px;margin-top:-3px;background:var(--foreground,#111418)}\n.ds-fr li{position:relative;display:grid;gap:6px;align-content:start;font-size:13px}\n.ds-fr li::before{content:attr(data-n);position:relative;display:grid;place-items:center;width:34px;height:34px;margin-bottom:8px;border:5px solid #111418;border-radius:50%;background:#fff;font-size:13px;font-weight:800}\n.ds-fr li[data-state=done]::before{content:\"\\2713\";background:#111418;color:#fff}\n.ds-fr li[data-state=now]::before{box-shadow:0 0 0 3px #fff,0 0 0 4.5px #111418}\n.ds-fr li[data-state=next]::before{border-color:#b9bec4;color:#5b6168}\n.ds-fr li[data-state=next] b{color:#5b6168}\n.ds-fr b{font-size:15px;font-weight:700}\n.ds-fr a{color:#111418;font-weight:700;font-size:13px;text-underline-offset:4px}"
     }
   ],
   "narrative": {

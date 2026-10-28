@@ -37,7 +37,7 @@ it('lists saved chats and opens a newly saved empty conversation', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/chat/chat-2'))
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
-  expect(screen.getByText(/cannot read your saved career details or take actions/)).toBeInTheDocument()
+  expect(screen.getAllByText(/cannot read your saved career details or take actions/).length).toBeGreaterThan(0)
   expect(screen.getByRole('textbox', { name: 'Your message' })).toBeInTheDocument()
 })
 
@@ -85,18 +85,8 @@ it('offers recovery when a bookmarked chat cannot be loaded', async () => {
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
 })
 
-it('keeps the chosen design option in the address and carries it into saved-chat links', async () => {
-  renderPage({ path: '/chat/:id?', url: '/chat?layout=desk', element: <ChatPage />, mocks: [workspaceMock()] })
-  expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('href', '/chat/chat-1?layout=desk')
-  expect(screen.getByRole('complementary', { name: 'About this chat' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Desk' })).toHaveAttribute('aria-pressed', 'true')
-})
-
-it('folds saved chats into a menu in The Line option and switches option from the page', async () => {
-  const { router } = renderPage({ path: '/chat/:id?', url: '/chat?layout=line', element: <ChatPage />, mocks: [workspaceMock()] })
-  expect(await screen.findByRole('button', { name: /Saved chats/ })).toBeInTheDocument()
-  expect(screen.queryByRole('link', { name: /Preparing for interviews/ })).not.toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Timetable' }))
-  await waitFor(() => expect(router.state.location.search).toBe('?layout=timetable'))
-  expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toBeInTheDocument()
+it('shows the notes panel beside the conversation', async () => {
+  renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock()] })
+  expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('href', '/chat/chat-1')
+  expect(screen.getByRole('complementary', { name: 'About this chat' })).toHaveTextContent('Messages can contain up to 10,000 characters.')
 })

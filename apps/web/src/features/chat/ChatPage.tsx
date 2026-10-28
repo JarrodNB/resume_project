@@ -1,8 +1,8 @@
 /**
  * A saved career-chat workspace. The URL selects a conversation so refresh and bookmarks reopen it.
  *
- * Three design options share this page's data and behavior; `?layout=` picks which one is drawn
- * (see chatLayouts.ts). Each option's look lives in the `.chat-*` rules in index.css.
+ * Three columns: saved chats, the conversation with its pinned message box, and a plain notes
+ * panel. Its look lives in the `.chat-*` rules in index.css.
  */
 import { useNavigate, useParams } from 'react-router'
 import { Plus } from 'lucide-react'
@@ -13,42 +13,35 @@ import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useChatConversation, useChatWorkspace } from './useChatWorkspace'
 import { ChatTurn } from './ChatTurn'
 import { ChatConversationList } from './ChatConversationList'
-import { ChatLayoutSwitch } from './ChatLayoutSwitch'
-import { useChatLayout } from './chatLayouts'
 
 export function ChatPage() {
   const { id } = useParams<{ id: string }>()
   const workspace = useChatWorkspace()
   const navigate = useNavigate()
-  const { layout, search, choose } = useChatLayout()
   const maxCharacters = workspace.settings?.maxInputCharacters ?? 10000
 
   async function createChat() {
     const createdId = await workspace.createChat()
-    if (createdId) void navigate({ pathname: `/chat/${createdId}`, search })
+    if (createdId) void navigate(`/chat/${createdId}`)
   }
 
   const newChat = <Button disabled={workspace.creating} onClick={() => void createChat()}><Plus aria-hidden />{workspace.creating ? 'Starting…' : 'New chat'}</Button>
-  const list = <ChatConversationList workspace={workspace} activeId={id} layout={layout} search={search} />
+  const list = <ChatConversationList workspace={workspace} activeId={id} />
   const scope = <>
     <p>Careergrind can discuss your career and job search using what you share in chat.</p>
     <p>It cannot read your saved career details or take actions in the app yet.</p>
   </>
 
-  return <div className="chat-page" data-layout={layout}>
+  return <div className="chat-page">
     <PageHeading title="Chat" description="Talk through your next career move. Your conversations stay saved here."
-      actions={<>
-        {layout === 'line' && list}
-        {newChat}
-      </>} />
-    <ChatLayoutSwitch layout={layout} onChoose={choose} />
+      actions={newChat} />
     <ErrorAlert title="Couldn't update your chats" messages={workspace.errors} />
     {workspace.error && <div className="grid justify-items-start gap-2">
       <ErrorAlert title="Couldn't load your chats" messages={[requestErrorMessage(workspace.error, 'Try loading your chats again.')]} />
       <Button variant="outline" onClick={() => void workspace.refetch().catch(() => undefined)}>Retry loading chats</Button>
     </div>}
     <div className="chat-body">
-      {layout !== 'line' && list}
+      {list}
       <div className="chat-main">
         {id ? <SavedConversation key={id} id={id} maxCharacters={maxCharacters} /> : <div className="chat-start">
           <h2>Make room for your next step</h2>
@@ -56,11 +49,11 @@ export function ChatPage() {
         </div>}
         <div className="chat-notice">{scope}<p>Messages can contain up to {maxCharacters.toLocaleString()} characters.</p></div>
       </div>
-      {layout === 'desk' && <aside aria-label="About this chat" className="chat-about">
+      <aside aria-label="About this chat" className="chat-about">
         <h2>About this chat</h2>
         {scope}
         <p>Messages can contain up to {maxCharacters.toLocaleString()} characters.</p>
-      </aside>}
+      </aside>
     </div>
   </div>
 }

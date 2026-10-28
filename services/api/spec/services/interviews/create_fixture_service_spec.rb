@@ -26,7 +26,7 @@ RSpec.describe "Basic Interview fixture creation" do
     expect(user.interview_sessions.count).to eq(0)
   end
 
-  it "only permits the one-question demo or the two-question verification fixture" do
+  it "only permits the one-question fixture or the two-question verification fixture" do
     expect(Interviews::CreateFixtureService.call(user: create(:user), question_count: 3)).not_to be_success
   end
 end

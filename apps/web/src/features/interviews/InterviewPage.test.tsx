@@ -513,7 +513,7 @@ describe('InterviewPage', () => {
   it('starts real interviews without offering a scripted mode', async () => {
     await renderPracticeRoleSetup()
     expect(screen.queryByRole('combobox', { name: /execution mode/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/offline scripted demo/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/offline scripted/i)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Prepare interview' }))
     expect(start).toHaveBeenCalledWith('', { questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] })
   })
@@ -662,7 +662,7 @@ describe('InterviewPage', () => {
     expect(screen.getByRole('alert')).not.toHaveTextContent('response slot')
     expect(screen.getByRole('button', { name: 'Record answer' })).toBeEnabled()
   })
-  it('shows the interview setup without the old demo flag', async () => {
+  it('shows the integrated interview setup', async () => {
     await renderPracticeRoleSetup()
     expect(screen.getByRole('button', { name: 'Prepare interview' })).toBeVisible()
   })

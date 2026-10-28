@@ -17,8 +17,8 @@ from evals.tailoring_evaluators import TAILORING_EVALUATORS, TailorEvalInput, Ta
 from evals.telemetry import evaluate_dataset
 from prompts.resume_tailoring_instructions import RESUME_TAILORING_PROMPT_VERSION
 from schemas.tailored_section import TailoredSectionDraft
+from settings import load_settings
 from tailoring.build_section_prompt import build_section_prompt
-from worker.settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "tailoring_cases.yaml"
 TRACE_NAME = "evals.tailoring"

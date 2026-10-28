@@ -1,7 +1,7 @@
 # Starts the first spoken opening only after the owner reviews the prepared role.
 module Mutations
   module Interviews
-    class BeginInterview < BaseDemoMutation
+    class BeginInterview < BaseInterviewMutation
       argument :interview_id, ID, required: true
       field :interview, Types::InterviewSessionType, null: true
 

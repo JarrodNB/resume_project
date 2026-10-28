@@ -6,6 +6,13 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `ai_execution_stream_grant.rb` — short-lived, single-use observer capability digests,
+  bound to a persisted browser session and saved operation/attempt/generation; never execution authority.
+
+- `ai_job_recovery.rb` retains a bounded infrastructure retry count independent of
+  Active Job counters. These receipts contain queue identities and safe error names,
+  never model prompts or results.
+
 - `interview_question_embedding.rb` — one current derived vector per interview question, with original Q&A, masked content digest, model, and source revisions; cascades on question deletion and has no retrieval interface.
 
 - `ai_usage_attempt.rb` — per-execution accounting reports and durable unknown-cost markers;
@@ -68,7 +75,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 - Interview task types: `generate_interview_questions`, `regenerate_interview_question`, and `review_interview_answer`; Python handlers return structured results, and `InterviewPrep` services apply them through `AiTasks::ApplyAiResultService`.
 
-- `interview_session*` — separate spoken demo sessions, prepared questions, accepted
+- `interview_session*` — separate spoken interview sessions, prepared questions, accepted
   dialogue and durable turn/speech work. Composite foreign keys keep linked records in
   one interview. Lifecycle policy stays in `Interviews` services. `InterviewExecutionAttempt`
   and `InterviewProviderAttempt` bind durable execution/provider identities to shared

@@ -212,8 +212,8 @@ def test_rejected_library_fields_never_report_approval(task_dependencies, classi
 
 def test_saved_generated_exclusions_reach_provider_masked_without_reclassification(task_dependencies, classifier):
     """Owned generated text stays data, reuses trust, and receives the normal contact hook."""
-    from worker.contact_mask import contact_scope, install_contact_hook
-    from worker.known_contact import KnownContact
+    from privacy.contact_mask import contact_scope, install_contact_hook
+    from privacy.known_contact import KnownContact
 
     request = _task()
     request.input["avoided_questions"] = ["What did Avery Example learn about Python?\n--copied-boundary"]

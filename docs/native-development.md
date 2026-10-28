@@ -78,7 +78,7 @@ browser audio storage URLs, and Rails/Vite development host allowances.
 Publish/forward ports 5173, 3000, and 9090 through
 your environment's supported mechanism. Microphone access requires HTTPS or
 localhost. Port 5174 serves the optional landing page. Rails, web, landing, and
-the interview server bind to all interfaces; the database and emulator bind to
+the AI HTTP server bind to all interfaces; the database and emulator bind to
 loopback. Do not expose the unauthenticated emulator publicly beyond your trusted
 development preview.
 
@@ -90,6 +90,13 @@ Once workers run, queued work or user actions can invoke configured providers.
 
 ## Differences from Compose
 
+Optional future streaming features use `AI_STREAMING_ENABLED=true` exported before
+install/start. Native setup then installs Redis under `.native/bin` if needed and
+manages its loopback port 56379. An explicit external `AI_STREAM_REDIS_URL` is preserved
+and starts no local buffer. The default final-result interview setup needs no Redis;
+see [optional streaming](architecture/ai-streaming.md) for its separate output capability
+on the same executor and protocol/latency checks.
+
 - **Moto replaces ElasticMQ and S3Mock**, serving SQS and S3 at
   `http://127.0.0.1:9090`. Queue visibility times, dead-letter queues, and the
   uploads bucket are created before workers start. This is a development
@@ -100,7 +107,12 @@ Once workers run, queued work or user actions can invoke configured providers.
   A persistent S3 service is needed if durable uploads are required.
 - PostgreSQL uses an isolated local cluster, generated development passwords,
   and the same read-only AI role/grant task as Compose. Rails prepares its primary
-  and cable databases before any application worker starts.
+  and cable databases before any application worker starts. Its `db:prepare` step also idempotently adopts
+  saved legacy interview delivery/watchdogs through `interviews:adopt_delivery`,
+  without nudging the HTTP process before it starts. Solid Queue tables live
+  in the primary database; the `jobs` process runs `bundle exec ruby bin/jobs` for
+  durable Rails background work and scheduled maintenance. Its log is
+  `.native/logs/jobs.log`.
 - Services run as background process groups, with logs in `.native/logs`.
   `stop` targets this checkout's recorded process groups and PostgreSQL cluster.
   There is no automatic restart policy; inspect logs and restart after crashes.
@@ -109,9 +121,15 @@ Once workers run, queued work or user actions can invoke configured providers.
 - The frontend's Docker-only example-resume mount is unavailable. Upload a
   repository example manually to test resume import.
 
-`check` checks Rails health, both frontend HTTP endpoints, and local database,
-emulator, and interview ports. It does not validate every product flow, provider
+`check` checks Rails health, both frontend HTTP endpoints, local database,
+emulator and AI HTTP ports, and the recorded jobs-supervisor process identity.
+It does not validate every job delivery, product flow, provider
 credential, subscription, or browser audio path. Inspect worker logs as well.
+
+Durable jobs survive application/worker restarts because PostgreSQL persists their
+queue records. This does not make Moto's uploads or SQS messages persistent. See
+[Rails background jobs](architecture/background-jobs.md) for the transaction
+contract, operation commands, and safe migration from a separate production queue.
 
 For syntax and basic command checks without installing anything:
 

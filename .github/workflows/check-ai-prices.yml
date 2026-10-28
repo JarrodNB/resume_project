@@ -6,7 +6,7 @@ on:
     - cron: '0 2 * * 1'
   pull_request:
     paths:
-      - 'services/ai/worker/model_prices.py'
+      - 'services/ai/llm/model_prices.py'
       - 'services/api/config/ai_embedding_prices.json'
       - 'script/check_ai_prices.py'
       - '.github/workflows/check-ai-prices.yml'

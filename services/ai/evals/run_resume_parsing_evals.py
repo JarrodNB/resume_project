@@ -1,7 +1,7 @@
 """
 Description: Runs the resume parsing evals against the real model and reports the average of
 each score to Logfire (one trace per run, agent calls nested inside).
-Run: docker compose run --rm ai python -m evals.run_resume_parsing_evals
+Run: docker compose run --rm ai-worker python -m evals.run_resume_parsing_evals
 Index:
     - load_resume_parsing_dataset: reads the YAML cases with the custom evaluators
     - run_resume_parsing_evals: evaluates allowed parsing cases, prints and scores the report
@@ -17,12 +17,12 @@ from agents.resume_parsing_agent import parse_resume_text
 from evals.report_capture import override_settings
 from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
 from evals.telemetry import evaluate_dataset
+from privacy.contact_mask import import_privacy_scope
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
 from schemas.parsed_resume import ParsedResume
 from screening.screen_user_text import screen_user_text
 from screening.session import screening_session
-from worker.contact_mask import import_privacy_scope
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "resume_parsing_cases.yaml"
 TRACE_NAME = "evals.resume_parsing"

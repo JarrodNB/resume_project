@@ -9,9 +9,9 @@ import os
 
 import httpx
 
-from interviews.app import RuntimeSettings, isolate_fake_process
 from interviews.client import RailsInterviewClient, RailsTransportError
 from interviews.executor import InterviewExecutor
+from interviews.fixture_app import RuntimeSettings, isolate_fake_process
 
 
 class AcceptanceProbe(RailsInterviewClient):

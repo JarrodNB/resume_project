@@ -30,7 +30,7 @@ function startMock(setup = defaultSetup, result = vi.fn()): MockLink.MockedRespo
   return { request: { query: START_INTERVIEW, variables: { careerFocus: null, setup, jobId: job.id } }, result }
 }
 function started() {
-  return { data: { startInterviewDemo: { __typename: 'StartInterviewDemoPayload', errors: [], interview: {
+  return { data: { startInterview: { __typename: 'StartInterviewPayload', errors: [], interview: {
     __typename: 'InterviewSession', id: 'new-session', status: 'preparing', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'browser',
     preparedRole: {}, revision: 0, answerCap: 3, currentQuestionPosition: 0, expiresAt: '2026-11-01T00:00:00Z',
     jobContext: { ...job, __typename: 'InterviewJobContext' }, setup: { ...defaultSetup, __typename: 'InterviewSetup' }, questions: [], messages: [], operations: [],
@@ -116,7 +116,7 @@ it('keeps the blocker and choices when abandonment is rejected', async () => {
 })
 
 it('keeps choices and allows another try when the selected job is deleted after setup has loaded', async () => {
-  const reject = vi.fn(() => ({ data: { startInterviewDemo: { __typename: 'StartInterviewDemoPayload', interview: null, errors: ['Record not found'] } } }))
+  const reject = vi.fn(() => ({ data: { startInterview: { __typename: 'StartInterviewPayload', interview: null, errors: ['Record not found'] } } }))
   renderPage({ path: '/jobs/:id', url: '/jobs/selected-job/interview', element: <JobWorkspaceLayout />,
     children: [{ path: 'interview', element: <JobInterviewTab /> }],
     mocks: [

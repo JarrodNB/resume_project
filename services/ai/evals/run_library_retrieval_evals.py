@@ -3,7 +3,7 @@ Description: Ranks synthetic library texts with the production hybrid ranker and
 average retrieval scores to Logfire. Documents are embedded the way Rails stores them;
 each case supplies an explicit search query. Cosine order is fused with BM25
 the same way database/library_embedding_search.py does (no Postgres).
-Run: docker compose run --rm ai python -m evals.run_library_retrieval_evals
+Run: docker compose run --rm ai-worker python -m evals.run_library_retrieval_evals
 Index:
     - load_library_retrieval_dataset: reads the YAML cases
     - rank_library: hybrid-ranked document ids for one case
@@ -27,7 +27,7 @@ from evals.report_capture import override_settings
 from evals.telemetry import evaluate_dataset
 from memory.embed_search_query import embed_search_query
 from memory.hybrid_rank import RankedDocument, hybrid_order
-from worker.settings import load_settings
+from settings import load_settings
 
 DATASET_PATH = Path(__file__).parent / "datasets" / "library_retrieval_cases.yaml"
 TRACE_NAME = "evals.library_retrieval"

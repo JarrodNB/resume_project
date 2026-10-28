@@ -8,10 +8,10 @@ Index:
 import psycopg
 from psycopg.rows import DictRow, dict_row
 
-from worker.settings import WorkerSettings
+from settings import AISettings
 
 
-def open_read_only_connection(settings: WorkerSettings) -> psycopg.Connection[DictRow]:
+def open_read_only_connection(settings: AISettings) -> psycopg.Connection[DictRow]:
     """Connects with the settings' ai_reader credentials; every transaction is read-only."""
     return psycopg.connect(
         host=settings.db_host,

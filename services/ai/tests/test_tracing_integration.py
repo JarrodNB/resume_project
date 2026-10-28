@@ -14,7 +14,7 @@ from pydantic_ai.embeddings import TestEmbeddingModel
 from pydantic_ai.models.test import TestModel
 
 from evals.telemetry import eval_run, record_score
-from worker.known_contact import KnownContact
+from privacy.known_contact import KnownContact
 
 
 def test_production_task_and_synthetic_dataset(monkeypatch):
@@ -22,8 +22,10 @@ def test_production_task_and_synthetic_dataset(monkeypatch):
     from pydantic_evals import Case, Dataset
     from pydantic_evals.evaluators import Evaluator
 
-    from worker import contact_mask, tracing
+    from telemetry import tracing
+    from worker import contact_context as contact_mask
     from worker.queue_messages import AiTaskMessage
+    from worker.task_tracing import trace_ai_task
 
     class SyntheticScore(Evaluator):
         """Scores deterministic synthetic outputs without a provider."""
@@ -54,7 +56,7 @@ def test_production_task_and_synthetic_dataset(monkeypatch):
         entries=[],
         incomplete=False,
     )
-    with tracing.trace_ai_task(task, task_usage=task_usage), eval_run(
+    with trace_ai_task(task, task_usage=task_usage), eval_run(
         "synthetic-dataset", metadata={"model": "test"}
     ):
         dataset = Dataset(
@@ -79,6 +81,6 @@ def test_production_task_and_synthetic_dataset(monkeypatch):
     assert any(span.attributes.get("score_value") == 1.0 for span in finished)
     calls = []
     monkeypatch.setattr(logfire, "force_flush", lambda **kwargs: calls.append(kwargs))
-    with pytest.raises(ValueError), tracing.trace_ai_task(task):
+    with pytest.raises(ValueError), trace_ai_task(task):
         raise ValueError("synthetic failure")
     assert calls == [{"timeout_millis": 5000}]

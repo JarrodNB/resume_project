@@ -11,4 +11,7 @@ Non-browser Active Job checks with external providers stubbed.
 
 ## Local Rules
 
-Follow spec rules. Never call OpenAI; use FakeEmbeddingClient and the test queue adapter.
+Follow spec rules. Never call OpenAI; use FakeEmbeddingClient and the test queue adapter
+for ordinary job behavior. Queue persistence/privacy specs explicitly use the real
+adapter against migrated primary tables in the isolated test database; never reload
+the destructive standalone queue schema inside an example.

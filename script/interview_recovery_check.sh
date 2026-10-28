@@ -3,7 +3,7 @@
 # Uses only the isolated cg-interview-06 stack; retains volumes for inspection.
 set -euo pipefail
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-compose=(docker compose -p cg-interview-06 -f "$root/docs/interview-demo.compose.yml")
+compose=(docker compose -p cg-interview-06 -f "$root/docs/interview-recovery.compose.yml")
 run_id="$(date -u +%Y%m%d%H%M%S)-$RANDOM"
 probe="cg-interview-06-probe"
 rails() {
@@ -13,7 +13,7 @@ rails() {
 cleanup() {
   result=$?
   docker rm -f "$probe" >/dev/null 2>&1 || true
-  "${compose[@]}" stop interview-runtime >/dev/null 2>&1 || true
+  "${compose[@]}" stop ai-http api-jobs-worker >/dev/null 2>&1 || true
   if [[ ${fixtures_created:-false} == true && "$result" == 0 ]]; then
     rails cleanup || true
   elif [[ ${fixtures_created:-false} == true ]]; then
@@ -22,21 +22,21 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-"${compose[@]}" build api interview-runtime
+"${compose[@]}" build api ai-http
 "${compose[@]}" up -d db s3
 "${compose[@]}" run --rm api bundle exec rails db:prepare
-"${compose[@]}" up -d --wait api
+"${compose[@]}" up -d --wait api api-jobs-worker
 "${compose[@]}" run --rm --no-deps storage-setup
 rails setup
 fixtures_created=true
-"${compose[@]}" up -d --wait interview-runtime
+"${compose[@]}" up -d --wait ai-http
 rails opening
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 
 start_probe() {
   "${compose[@]}" run -d --no-deps --name "$probe" -e CHECK_OPERATION_ID="$operation_id" \
     -e CHECK_PAUSE="$1" -e INTERVIEW_FAKE_SCENARIO="${scenario:-normal}" \
-    interview-runtime python -m scripts.interview_restart_probe >/dev/null
+    ai-http python -m scripts.interview_restart_probe >/dev/null
 }
 wait_barrier() {
   for ((attempt=0; attempt<100; attempt++)); do
@@ -58,18 +58,18 @@ start_probe before_accept
 wait_barrier before_accept
 docker kill --signal KILL "$probe" >/dev/null
 docker rm "$probe" >/dev/null
-"${compose[@]}" up -d --wait interview-runtime
+"${compose[@]}" up -d --wait ai-http
 rails verify-first
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 operation_id=$(rails submit-second | sed -n 's/^OPERATION_ID=//p')
 start_probe after_accept
 wait_barrier after_accept
 docker kill --signal KILL "$probe" >/dev/null
 docker rm "$probe" >/dev/null
 rails verify-accepted
-"${compose[@]}" up -d --wait interview-runtime
+"${compose[@]}" up -d --wait ai-http
 rails verify-complete
-"${compose[@]}" stop interview-runtime
+"${compose[@]}" stop ai-http
 rails contracts
 
 for case_name in lost-receipt blocked unavailable oversized invalid; do

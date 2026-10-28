@@ -9,12 +9,23 @@ resume tailoring, interview questions and answer coaching, and long-term user me
 
 Python SQS workers (ElasticMQ locally), boto3, Pydantic, Pydantic AI
 (agents, tools, structured outputs) on OpenAI models, Pydantic Evals, Logfire, pgvector for memory
-retrieval. Existing queue workers use exec health probes. Basic Interview has an approved
-separate development-only FastAPI runtimes for fake and explicitly enabled real providers. Its lifespan supervises durable
-Rails claims and cleanup; private audio helpers validate sealed capabilities and decode
-audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
+retrieval. Existing queue workers use exec health probes. The shared FastAPI app starts at
+`app.py` and runs integrated interview execution using explicitly configured providers.
+Its lifespan supervises directly dispatched Rails claims; Rails jobs own retry/recovery
+and cleanup. Private audio helpers validate sealed
+capabilities and decode audio offline. `interviews/fixture_app.py` is isolated offline
+test support. See docs/architecture/interview-sessions.md.
 
 ## Local Rules
+
+- `execution/runner.py` is the shared bounded execution/lease supervisor. Feature
+  adapters own claims, provider calls and Rails acceptance. Its optional output sink
+  does not create a second scheduling or accounting lifecycle. `/internal/executions`
+  receipts acknowledge a nudge only; Rails owns durable delivery and watchdog jobs.
+- Streaming is an opt-in output sink on that runner, never another lifecycle.
+  Interviews remain final-only. `execution/stream_runtime.py` creates no Redis client
+  when only final-only adapters are registered; observer sockets never start work.
+  See docs/architecture/ai-streaming.md for capability, replay and latency contracts.
 
 - Workers consume task messages from SQS and publish results to the `ai_results` queue.
   Basic Interview is the scoped exception: a separate FastAPI process claims durable
@@ -109,10 +120,10 @@ audio offline. See `interviews/` and docs/architecture/interview-sessions.md.
     checks (relevance, question quality, faithfulness).
   - Test data is synthetic or anonymized. Never commit real user resumes.
   - Report results to Logfire. Run evals after any prompt, model, or agent change:
-    `docker compose run --rm ai python -m evals.run_tailoring_evals` (Jev screen:
-    `docker compose run --rm ai python -m evals.run_user_text_screen_evals`).
-    Interview agents: `docker compose run --rm ai python -m evals.run_interview_questions_evals`
-    and `docker compose run --rm ai python -m evals.run_interview_feedback_evals`.
+    `docker compose run --rm ai-worker python -m evals.run_tailoring_evals` (Jev screen:
+    `docker compose run --rm ai-worker python -m evals.run_user_text_screen_evals`).
+    Interview agents: `docker compose run --rm ai-worker python -m evals.run_interview_questions_evals`
+    and `docker compose run --rm ai-worker python -m evals.run_interview_feedback_evals`.
 
 ## Documentation
 
@@ -127,8 +138,15 @@ skip it. Export indexes are not required.
 - `conversation_logging/` — local-only readable Markdown exchanges grouped by user and
   individual AI task, with redeliveries appended to that task file; concrete requests are captured after masking.
 
-- `worker/` — polling loop, message models, task dispatch and handlers, settings, SQS and S3
-  clients, Logfire tracing (see `worker/AGENTS.md`)
+- `app.py` — shared FastAPI startup and interactive AI HTTP service composition
+- `worker/` — queue polling, envelopes, task dispatch/handlers, SQS/S3 clients and task-only
+  profile/tracing adapters (see `worker/AGENTS.md`)
+- `settings.py` — `AISettings` for reusable model, screening, limits and read-only retrieval
+  options; `worker/settings.py` extends it with queue/storage delivery settings
+- `llm/` — generative model selection, per-request usage accounting, pricing and run limits
+- `privacy/` — explicit known-contact/import masking for model input, output and embeddings
+- `telemetry/` — process-independent Logfire instrumentation, privacy processors, prompt
+  labels and bounded export flushing
 - `agents/` — Pydantic AI agents (`resume_parsing_agent.py`, `parse_job_posting_agent.py`,
   `job_requirements_sorting_agent.py`,
   `gap_analysis_agent.py`, `user_text_screen_agent.py`, `resume_tailoring_agent.py`,
@@ -157,8 +175,8 @@ skip it. Export indexes are not required.
 - `job_postings/` — job description to plain text and requirement bullets (headings first,
   sorting agent as fallback)
 - `evals/` — Pydantic Evals datasets, evaluators, and runners
-- `tests/` — pytest suite (`docker compose run --rm ai pytest`)
+- `tests/` — pytest suite (`docker compose run --rm ai-worker pytest`)
 - `pyproject.toml` / `uv.lock` — dependencies, managed with `uv`
-  (add one with `docker compose run --rm ai uv add <package>`, then rebuild)
+  (add one with `docker compose run --rm ai-worker uv add <package>`, then rebuild)
 - `Dockerfile.dev` — local dev image (virtualenv at `/opt/venv`)
 - `.env.example` — secrets template

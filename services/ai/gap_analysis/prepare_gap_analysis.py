@@ -16,12 +16,12 @@ from gap_analysis.build_gap_analysis_prompt import (
     gap_job_screening_text,
 )
 from schemas.gap_analysis_context import CareerLibrary, GapAnalysisContext, JobToAnalyze
+from schemas.model_usage import ModelUsage
 from screening.job_fields import screen_job_fields
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt
-from worker.queue_messages import ModelUsage
 
 
 @dataclass(frozen=True)

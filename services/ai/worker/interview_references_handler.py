@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from database.career_library_reader import build_database_library_reader
 from interviews.references import SELECTION_POLICY_VERSION, retrieve_references
-from worker.model_prices import build_model_usage
+from llm.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage
 
 

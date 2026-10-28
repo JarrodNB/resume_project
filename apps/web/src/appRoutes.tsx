@@ -85,7 +85,6 @@ export const appRoutes: RouteObject[] = [
           { path: '/job-board', element: <RedirectToPath to="/jobs/find" /> },
           { path: '/import/:aiTaskId?', element: <RedirectToPath to="/library/import/:aiTaskId?" /> },
           { path: '/interview-prep/:id?', element: <RedirectToPath to="/practice/questions/:id?" /> },
-          { path: '/interviews/demo/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
           { path: '/interviews/:id?', element: <RedirectToPath to="/practice/interviews/:id?" /> },
         ],
       },

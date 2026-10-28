@@ -5,19 +5,19 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
   let(:user) { create(:user, summary: "I maintain laboratory equipment.") }
   let(:job) { create(:job, user: user, title: "Laboratory technician", company: nil, description: "Maintain instruments.") }
   let(:mutation) do
-    'mutation($jobId: ID!) { startInterviewDemo(input: {jobId: $jobId}) { interview { id jobContext { id title company description requirements responsibilities niceToHaves } } errors } }'
+    'mutation($jobId: ID!) { startInterview(input: {jobId: $jobId}) { interview { id jobContext { id title company description requirements responsibilities niceToHaves } } errors } }'
   end
 
   before do
-    allow(Interviews::DemoAccess).to receive(:real_enabled?).and_return(true)
-    allow(Interviews::RealRuntimeReadiness).to receive(:ready?).and_return(true)
+    allow(Interviews::Access).to receive(:admission_enabled?).and_return(true)
+    allow(Interviews::RuntimeReadiness).to receive(:ready?).and_return(true)
   end
 
   it "starts owned job practice and exposes only its safe saved job context" do
     result = execute_graphql(mutation, user: user, variables: { jobId: job.id })
     expect(result["errors"]).to be_nil
-    expect(result.dig("data", "startInterviewDemo", "errors")).to eq([])
-    expect(result.dig("data", "startInterviewDemo", "interview", "jobContext")).to include(
+    expect(result.dig("data", "startInterview", "errors")).to eq([])
+    expect(result.dig("data", "startInterview", "interview", "jobContext")).to include(
       "id" => job.id, "title" => job.title, "company" => nil, "description" => job.description)
     expect(Types::InterviewSessionType.fields).not_to include("frozenContext")
   end

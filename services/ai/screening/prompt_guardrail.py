@@ -13,11 +13,11 @@ from pydantic_ai import RunContext
 from pydantic_ai.messages import ModelRequest, ToolReturnPart, UserPromptPart
 from pydantic_ai_harness import InputBlocked
 
+from privacy.contact_mask import covered_prompt_length
 from screening.screen_user_text import screen_user_text_async
 from screening.session import prompt_is_covered, screening_session
+from settings import load_settings
 from text_limits import MAX_PROMPT_TEXT
-from worker.contact_mask import covered_prompt_length
-from worker.settings import load_settings
 
 BLOCKED_MESSAGE = "This content could not pass the input safety check. Revise it and try again."
 UNCHECKED_MESSAGE = "Input safety screening is unavailable. Please try again later."

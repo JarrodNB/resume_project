@@ -1,7 +1,7 @@
 # Queues owned private audio for transcription without submitting an interview answer.
 module Mutations
   module Interviews
-    class StartRecordedTranscription < BaseDemoMutation
+    class StartRecordedTranscription < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :question_id, ID, required: true
       argument :recording_id, ID, required: true

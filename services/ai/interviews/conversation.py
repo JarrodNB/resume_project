@@ -15,8 +15,8 @@ from pydantic_ai.messages import (
 )
 
 from interviews.history import restore_history
+from privacy.contact_mask import mask_outbound
 from text_limits import MAX_PROMPT_TEXT
-from worker.contact_mask import mask_outbound
 
 
 def data_block(label: str, text: str) -> str:

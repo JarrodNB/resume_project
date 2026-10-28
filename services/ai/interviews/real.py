@@ -33,17 +33,17 @@ from interviews.executor import MAX_TRANSCRIPT_CHARACTERS, InterviewExecutor, Sc
 from interviews.history import serialize_history
 from interviews.media import download_audio
 from interviews.settings import InterviewThinkingSettings
+from privacy.contact_mask import contact_scope, mask_outbound
+from privacy.known_contact import KnownContact
 from prompts.interview_preparation_instructions import INTERVIEW_PREPARATION_PROMPT_VERSION
 from prompts.interview_style import interview_style
 from prompts.spoken_interviewer_instructions import SPOKEN_INTERVIEW_PROMPT_VERSION
 from screening.conversation import screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
 from screening.session import screening_session
+from telemetry.privacy import telemetry_scope
+from telemetry.tracing import record_prompt_version
 from text_limits import MAX_PROMPT_TEXT, MAX_SCREENED_TEXT
-from worker.contact_mask import contact_scope, mask_outbound
-from worker.known_contact import KnownContact
-from worker.telemetry_privacy import telemetry_scope
-from worker.tracing import record_prompt_version
 
 
 class RealInterviewExecutor(InterviewExecutor):
@@ -66,14 +66,15 @@ class RealInterviewExecutor(InterviewExecutor):
         ):
             yield
 
-    async def execute(self, claim):
+    async def execute(self, claim, *, deadline_managed=False):
+        """Standalone calls own their timeout; the shared runner supplies it otherwise."""
         if claim.execution_mode != "real":
             raise ValueError("Real executor requires a real claim")
         try:
             remaining = min((claim.execution_deadline - datetime.now(UTC)).total_seconds(), 120)
             if remaining <= 0:
                 raise TimeoutError
-            async with asyncio.timeout(remaining):
+            async with asyncio.timeout(None if deadline_managed else remaining):
                 version = INTERVIEW_PREPARATION_PROMPT_VERSION if claim.kind == "preparation" else SPOKEN_INTERVIEW_PROMPT_VERSION
                 with self._trace(claim), record_prompt_version(version):
                     await super().execute(claim)

@@ -6,6 +6,9 @@ Authentication, queue wiring, usage limits, text caps, and middleware initialize
 
 ## Contents
 
+- `ai_execution_recovery.rb` — standard queue process-failure notifications and
+  startup reconciliation; recurring failed-row checks close notification crash gaps.
+
 - `ai_usage_limits.rb`
 - `career_library_embeddings.rb`
 - `cors.rb`

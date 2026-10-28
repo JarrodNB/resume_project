@@ -9,13 +9,13 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai_harness import InputBlocked, InputGuardrail
 
+from privacy.contact_mask import import_privacy_scope, install_contact_hooks
 from screening.prompt_guardrail import TOO_LONG_MESSAGE, screen_prompt
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, screening_session
 from tests.fakes import build_docx_bytes
 from tests.test_task_handlers import FILE_KEY, build_parse_resume_task
 from text_limits import MAX_PROMPT_TEXT, MAX_RESUME_TEXT
-from worker.contact_mask import import_privacy_scope, install_contact_hooks
 from worker.parse_resume_handler import handle_parse_resume_task
 
 pytestmark = pytest.mark.real_guardrail

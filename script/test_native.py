@@ -40,7 +40,8 @@ class NativeSetupTests(unittest.TestCase):
                     "NATIVE_WEB_ORIGIN": "https://web.example"}
         with patch.dict(os.environ, supplied, clear=True):
             api = native.app_env("api")
-            ai = native.app_env("ai")
+            ai = native.app_env("ai-worker")
+            http = native.app_env("ai-http")
         self.assertEqual(api["OPENAI_API_KEY"], "test-only")
         self.assertEqual(api["HTTP_PROXY"], "http://session-proxy")
         self.assertIn("internal.example", api["NO_PROXY"])
@@ -53,13 +54,16 @@ class NativeSetupTests(unittest.TestCase):
         self.assertEqual(api["AWS_DEFAULT_REGION"], "us-east-1")
         self.assertEqual(api["UV_CACHE_DIR"], str(self.state / "cache/uv"))
         self.assertEqual(api["npm_config_cache"], str(self.state / "cache/npm"))
+        self.assertEqual(http["DB_USERNAME"], "ai_reader")
+        self.assertEqual(http["DATABASE_URL"], ai["DATABASE_URL"])
+        self.assertEqual(http["AI_HTTP_ENABLED"], "true")
         self.assertEqual(ai["DB_USERNAME"], "ai_reader")
         self.assertTrue(ai["DATABASE_URL"].startswith("postgresql://ai_reader:"))
         self.assertEqual(ai["PGPASSWORD"], ai["DB_PASSWORD"])
         self.assertNotIn("CABLE_DATABASE_URL", ai)
         self.assertEqual(api["INTERVIEW_SERVICE_SECRET"], ai["INTERVIEW_SERVICE_SECRET"])
-        self.assertEqual(api["INTERVIEW_REAL_ADMISSION_ENABLED"], "true")
-        self.assertEqual(api["INTERVIEW_REAL_RUNTIME_ORIGIN"], "http://127.0.0.1:8000")
+        self.assertEqual(api["INTERVIEW_ADMISSION_ENABLED"], "true")
+        self.assertEqual(api["AI_HTTP_ORIGIN"], "http://127.0.0.1:8000")
         self.assertNotEqual(api["DB_PASSWORD"], ai["DB_PASSWORD"])
 
     def test_local_services_do_not_inherit_cloud_aws_profiles(self):
@@ -127,6 +131,77 @@ class NativeSetupTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Run stop first"):
                 native.start()
             stop.assert_not_called()
+
+    def test_start_runs_a_durable_jobs_worker_after_database_preparation(self):
+        (self.state / "emulators/bin").mkdir(parents=True)
+        (self.state / "emulators/bin/moto_server").touch()
+        events = []
+
+        def spawn(name, args, cwd, env):
+            events.append((name, args))
+            return type("Process", (), {"poll": lambda self: None})()
+
+        with patch.object(native, "spawn", side_effect=spawn), \
+                patch.object(native, "prepare_database", side_effect=lambda env: events.append(("prepared", []))), \
+                patch.object(native, "run"), patch.object(native, "wait_port"), \
+                patch.object(native, "check"), patch.object(native.time, "sleep"), \
+                patch("socket.socket"):
+            native.start()
+
+        names = [name for name, _ in events]
+        self.assertIn("jobs", names)
+        self.assertLess(names.index("prepared"), names.index("jobs"))
+        self.assertEqual(dict(events)["jobs"], ["bundle", "exec", "ruby", "bin/jobs"])
+        self.assertIn("ai-worker", names)
+        self.assertIn("ai-http", names)
+        self.assertIn("app:app", dict(events)["ai-http"])
+        self.assertNotIn("interview", names)
+
+    def test_check_rejects_a_missing_or_stale_jobs_supervisor(self):
+        self.state.mkdir()
+        with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                native.check()
+            (self.state / "jobs.pid").write_text(json.dumps({"pid": os.getpid(), "started": "stale"}))
+            with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                native.check()
+            (self.state / "jobs.pid").write_text(json.dumps({"pid": os.getpid(), "started": None}))
+            with patch.object(native, "process_start", return_value=None):
+                with self.assertRaisesRegex(RuntimeError, "Durable jobs worker is not running"):
+                    native.check()
+
+    def test_streaming_redis_is_opt_in_and_external_redis_is_not_started(self):
+        (self.state / "emulators/bin").mkdir(parents=True)
+        (self.state / "emulators/bin/moto_server").touch()
+        for enabled, redis_url, expected in [("false", "", False), ("true", "", True),
+                ("true", "redis://external:6379/0", False)]:
+            started = []
+            with patch.dict(os.environ, {"AI_STREAMING_ENABLED": enabled, "AI_STREAM_REDIS_URL": redis_url}), \
+                    patch.object(native, "spawn", side_effect=lambda name, *args, started=started: (
+                        started.append(name) or type("Process", (), {"poll": lambda self: None})())), \
+                    patch.object(native, "require_tools"), patch.object(native, "prepare_database"), \
+                    patch.object(native, "run"), patch.object(native, "wait_port"), \
+                    patch.object(native, "check"), patch.object(native.time, "sleep"), patch("socket.socket"):
+                native.start()
+            self.assertEqual("redis" in started, expected)
+
+    def test_check_accepts_the_recorded_jobs_process_identity(self):
+        self.state.mkdir()
+        (self.state / "jobs.pid").write_text(json.dumps({
+            "pid": os.getpid(), "started": native.process_start(os.getpid())}))
+        with patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            native.check()
+
+    def test_optional_redis_check_requires_its_recorded_process_identity(self):
+        self.state.mkdir()
+        identity = {"pid": os.getpid(), "started": native.process_start(os.getpid())}
+        (self.state / "jobs.pid").write_text(json.dumps(identity))
+        with patch.dict(os.environ, {"AI_STREAMING_ENABLED": "true", "AI_STREAM_REDIS_URL": ""}), \
+                patch.object(native.urllib.request, "build_opener"), patch.object(native, "wait_port"):
+            with self.assertRaisesRegex(RuntimeError, "Optional stream buffer is not running"):
+                native.check()
+            (self.state / "redis.pid").write_text(json.dumps(identity))
+            native.check()
 
     def test_background_process_starts_and_stops(self):
         self.state.mkdir()

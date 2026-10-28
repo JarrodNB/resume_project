@@ -15,8 +15,8 @@ import httpx2
 import uvicorn
 from pydantic_ai.models.wrapper import WrapperModel
 
+from app import app
 from interviews import audio_providers, models
-from interviews.real_app import app
 from schemas.interview_setup import InterviewSetup
 
 _preparation_setup = ContextVar("mock_preparation_setup", default=None)

@@ -12,11 +12,11 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.usage import RequestUsage
 
 from conversation_logging import conversation_scope
+from llm.generative_model import generative_model
+from llm.usage import collect_task_usage
 from tests.test_process_task_message import build_task_body
-from worker.generative_model import generative_model
 from worker.queue_messages import AiTaskMessage
 from worker.settings import WorkerSettings
-from worker.task_usage import collect_task_usage
 
 
 @pytest.mark.parametrize("recover", [True, False])
@@ -114,8 +114,8 @@ def test_validator_feedback_masked_and_logging_nonfatal(monkeypatch, tmp_path, b
     """Custom validation exhaustion masks restored contact and survives render errors."""
     import conversation_logging
     from conversation_logging import ConversationLogging
-    from worker.contact_mask import contact_scope, install_contact_hook
-    from worker.known_contact import KnownContact
+    from privacy.contact_mask import contact_scope, install_contact_hook
+    from privacy.known_contact import KnownContact
     monkeypatch.chdir(tmp_path)
     task = AiTaskMessage.model_validate_json(build_task_body())
     error = ModelRetry("Do not use Synthetic Person")

@@ -12,6 +12,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from schemas.model_usage import ModelUsage
+from schemas.screening_receipts import (
+    GapResponseScreening,
+    InterviewQuestionScreening,
+    JobScreening,
+    LibraryScreening,
+)
+
 TaskType = Literal[
     "rerank_job_listings",
     "improve_library_entry",
@@ -27,50 +35,6 @@ class AiTaskMessage(BaseModel):
     user_id: UUID
     task_type: TaskType
     input: dict[str, Any] = Field(default_factory=dict)
-
-
-class ModelUsage(BaseModel):
-    """One response's token counts and estimated cost; None means its price is unknown.
-    `input_tokens` includes cached tokens."""
-
-    model: str
-    input_tokens: int = Field(ge=0)
-    cached_input_tokens: int = Field(ge=0)
-    cache_write_tokens: int = Field(default=0, ge=0)
-    output_tokens: int = Field(ge=0)
-    cost_microdollars: int | None = Field(default=None, ge=0)
-    provider_response_id: str | None = None
-
-
-class LibraryScreening(BaseModel):
-    """Successful field checks to add to a saved record owned by the task user."""
-
-    record_type: str
-    record_id: str
-    fields: list[str]
-
-
-class JobScreening(BaseModel):
-    """Checked saved-job fields mapped to canonical typed-value SHA-256 fingerprints."""
-
-    job_id: str
-    fields: dict[str, str]
-
-
-class GapResponseScreening(BaseModel):
-    """Checked answer fields mapped to exact typed-value fingerprints."""
-
-    response_id: str
-    fields: dict[str, str]
-
-
-class InterviewQuestionScreening(BaseModel):
-    """Exact practice fields checked at their queued question/answer revisions."""
-
-    question_id: str
-    question_revision: int
-    answer_revision: int | None = None
-    fields: dict[str, str]
 
 
 class AiResultMessage(BaseModel):

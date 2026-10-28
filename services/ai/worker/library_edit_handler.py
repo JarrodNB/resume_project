@@ -13,6 +13,8 @@ from pydantic_ai.messages import (
 )
 
 from agents.library_edit_agent import LibraryEditDeps, improve_library_entry
+from llm.model_prices import build_model_usage
+from privacy.contact_mask import mask_outbound
 from schemas.library_edit import LibraryEditInput
 from screening.library_fields import screen_library_fields
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
@@ -23,9 +25,7 @@ from screening.session import (
     trust_generated_source,
     within_screening_session,
 )
-from worker.contact_mask import mask_outbound
 from worker.library_review_handler import render_review
-from worker.model_prices import build_model_usage
 from worker.queue_messages import AiResultMessage
 
 SKIP_NOTE = "The user skipped this question. Do not invent the missing fact or ask it again; propose wording from known facts."

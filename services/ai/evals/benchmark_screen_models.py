@@ -22,7 +22,7 @@ from screening.screen_user_text import (
     screen_user_text,
 )
 from screening.session import screening_session
-from worker.settings import load_settings
+from settings import load_settings
 
 SIZES = (160, 1600, 5000, 12000)
 MODELS = {"jev": "typesafe:jev-1.13.0", "llama": local_llama.MODEL}

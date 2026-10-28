@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 STATE = ROOT / ".native"
 RUBY = "3.4.11"
 PORT = "55432"
+REDIS_PORT = 56379
+LOCAL_REDIS = f"redis://127.0.0.1:{REDIS_PORT}/0"
 PACKAGES = [
     "build-essential", "git", "curl", "ca-certificates", "pkg-config",
     "libssl-dev", "libyaml-dev", "libreadline-dev", "zlib1g-dev", "libffi-dev",
@@ -36,7 +38,7 @@ def run(args, cwd=ROOT, env=None, **kwargs):
 
 def environment():
     env = os.environ.copy()
-    env["PATH"] = (f"{STATE}/ruby/bin:{STATE}/pgsql/bin:"
+    env["PATH"] = (f"{STATE}/bin:{STATE}/ruby/bin:{STATE}/pgsql/bin:"
                    "/usr/lib/postgresql/17/bin:" + env.get("PATH", os.defpath))
     env["BUNDLE_PATH"] = str(STATE / "bundle")
     env["UV_PROJECT_ENVIRONMENT"] = str(ROOT / "services/ai/.venv")
@@ -105,17 +107,20 @@ def app_env(service):
         "__VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS": urlsplit(web_origin).hostname or "localhost",
         "INTERVIEW_SERVICE_SECRET": cfg["interview_secret"],
         "INTERVIEW_RAILS_ORIGIN": "http://127.0.0.1:3000",
-        "INTERVIEW_REAL_RUNTIME_ENABLED": "true",
-        "INTERVIEW_REAL_ADMISSION_ENABLED": "true",
-        "INTERVIEW_REAL_RUNTIME_ORIGIN": "http://127.0.0.1:8000",
-        "INTERVIEW_ENVIRONMENT": "development",
+        "AI_HTTP_ENABLED": "true",
+        "INTERVIEW_ADMISSION_ENABLED": "true",
+        "AI_HTTP_ORIGIN": "http://127.0.0.1:8000",
         "INTERVIEW_BROWSER_ORIGINS": web_origin,
         "INTERVIEW_STORAGE_ORIGINS": "http://127.0.0.1:9090",
         "INTERVIEW_BROWSER_STORAGE_ORIGIN": env.get(
             "NATIVE_STORAGE_ORIGIN", "http://localhost:9090"),
         "INTERVIEW_TRANSCRIPTION_TARGET": "http://127.0.0.1:8000",
+        "AI_HTTP_TARGET": "http://127.0.0.1:8000",
     })
-    if service == "ai":
+    env.setdefault("AI_STREAMING_ENABLED", "false")
+    if env["AI_STREAMING_ENABLED"] == "true" and not env.get("AI_STREAM_REDIS_URL"):
+        env["AI_STREAM_REDIS_URL"] = LOCAL_REDIS
+    if service in {"ai", "ai-worker", "ai-http"}:
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
                    PGPASSWORD=cfg["reader_password"],
                    DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
@@ -139,6 +144,8 @@ def install():
     if not (Path(shared) / "extension/vector.control").is_file():
         raise RuntimeError("Install the PostgreSQL 17 pgvector extension first.")
     config()
+    if local_redis(env):
+        install_redis(env)
     for service in ("api", "ai"):
         target = ROOT / f"services/{service}/.env"
         if not target.exists():
@@ -181,6 +188,34 @@ def install():
             modules.rmdir()
         run(["npm", "ci"], cwd=ROOT / f"apps/{app}", env=env)
     print("Installed. Run: python3 script/native.py start")
+
+
+def local_redis(env):
+    """Only the explicitly enabled default stream buffer belongs to this stack."""
+    return env.get("AI_STREAMING_ENABLED") == "true" and env.get("AI_STREAM_REDIS_URL", "") in {"", LOCAL_REDIS}
+
+
+def install_redis(env):
+    """Build optional Redis into ignored native state without system privileges."""
+    if shutil.which("redis-server", path=env["PATH"]):
+        return
+    import tarfile
+
+    version = "8.10.2"
+    sources = STATE / "sources"
+    sources.mkdir(parents=True, exist_ok=True)
+    archive = sources / f"redis-{version}.tar.gz"
+    source = sources / f"redis-{version}"
+    if not archive.exists():
+        run(["curl", "-fsSL", f"https://download.redis.io/releases/redis-{version}.tar.gz", "-o", archive], env=env)
+    if not source.exists():
+        with tarfile.open(archive) as bundle:
+            bundle.extractall(sources, filter="data")
+    run(["make", "-C", source, "-j2", "BUILD_TLS=no", "MALLOC=libc", "redis-server", "redis-cli"], env=env)
+    binaries = STATE / "bin"
+    binaries.mkdir(exist_ok=True)
+    for name in ("redis-server", "redis-cli"):
+        shutil.copy2(source / "src" / name, binaries / name)
 
 
 def wait_port(port, timeout=60):
@@ -241,15 +276,24 @@ def start():
         raise RuntimeError("Native services have PID files. Run stop first.")
     # Refuse occupied ports instead of accidentally using another stack's database/storage.
     import socket
-    for port in (int(PORT), 9090, 3000, 8000, 5173, 5174):
+    env = app_env("api")
+    ports = [int(PORT), 9090, 3000, 8000, 5173, 5174]
+    if local_redis(env):
+        require_tools(env, ["redis-server"])
+        ports.append(REDIS_PORT)
+    for port in ports:
         with socket.socket() as sock:
             # Closed connections can remain in TIME_WAIT after a clean stop.
             # Reuse those addresses while still refusing active listeners.
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(("127.0.0.1", port))
-    env = app_env("api")
     (STATE / "logs").mkdir(exist_ok=True)
     try:
+        if local_redis(env):
+            spawn("redis", ["redis-server", "--bind", "127.0.0.1", "--port", str(REDIS_PORT),
+                  "--save", "", "--appendonly", "no", "--maxmemory", "256mb",
+                  "--maxmemory-policy", "noeviction"], ROOT, env)
+            wait_port(REDIS_PORT)
         spawn("emulators", [STATE / "emulators/bin/moto_server", "-H", "127.0.0.1",
                             "-p", "9090"], ROOT, env)
         wait_port(9090)
@@ -274,9 +318,10 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
         prepare_database(env)
         commands = {
             "api": (["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"], "services/api", env),
+            "jobs": (["bundle", "exec", "ruby", "bin/jobs"], "services/api", env),
             "results": (["bundle", "exec", "shoryuken", "-R", "-C", "config/shoryuken.yml"], "services/api", env),
-            "ai": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai")),
-            "interview": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "interviews.real_app:app", "--host", "0.0.0.0", "--port", "8000"], "services/ai", app_env("ai")),
+            "ai-worker": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai-worker")),
+            "ai-http": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--ws-max-size", "65536"], "services/ai", app_env("ai-http")),
             "web": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/web", env),
             "landing": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/landing", env),
         }
@@ -356,6 +401,20 @@ def check():
     for port in (9090, 8000, int(PORT)):
         wait_port(port, timeout=2)
         print(f"Port {port}: reachable")
+    jobs_pid = STATE / "jobs.pid"
+    record = json.loads(jobs_pid.read_text()) if jobs_pid.exists() else None
+    started = process_start(record["pid"]) if record else None
+    if not started or started != record["started"]:
+        raise RuntimeError("Durable jobs worker is not running; inspect .native/logs/jobs.log")
+    print("Durable jobs supervisor: running")
+    if local_redis(app_env("api")):
+        redis_pid = STATE / "redis.pid"
+        record = json.loads(redis_pid.read_text()) if redis_pid.exists() else None
+        started = process_start(record["pid"]) if record else None
+        if not started or started != record["started"]:
+            raise RuntimeError("Optional stream buffer is not running; inspect .native/logs/redis.log")
+        wait_port(REDIS_PORT, timeout=2)
+        print("Optional stream buffer: reachable")
 
 
 def doctor():

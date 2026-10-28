@@ -1,7 +1,7 @@
 # Authorize the spoken session before saving its visible prompt as a shared preference.
 module Mutations
   module Interviews
-    class AvoidInterviewPrompt < BaseDemoMutation
+    class AvoidInterviewPrompt < BaseInterviewMutation
       argument :interview_id, ID, required: true
       argument :message_id, ID, required: true
       field :saved, Boolean, null: false

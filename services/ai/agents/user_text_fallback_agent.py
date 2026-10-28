@@ -12,16 +12,16 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai.usage import RunUsage
 
 from conversation_logging import ConversationLogging
+from llm.run_limits import agent_usage_limits
+from llm.usage import accounted_model
 from model_inputs.safety import format_fallback_input
 from prompts.user_text_fallback_instructions import (
     USER_TEXT_FALLBACK_INSTRUCTIONS,
     USER_TEXT_FALLBACK_PROMPT_VERSION,
 )
 from schemas.user_text_fallback import UserTextFallbackScreen
-from worker.run_limits import agent_usage_limits
-from worker.settings import load_settings
-from worker.task_usage import accounted_model
-from worker.tracing import record_prompt_version
+from settings import load_settings
+from telemetry.tracing import record_prompt_version
 
 user_text_fallback_agent = Agent(
     name="user_text_fallback_agent", output_type=UserTextFallbackScreen,

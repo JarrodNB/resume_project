@@ -61,6 +61,7 @@ module Interviews
           retry_expires_at: @operation.retry_expires_at || expiry,
           failure_code: nil, checkpoint: nil)
         @operation.execution_attempts.create!(attempt_id: attempt_id, claim_generation: @operation.claim_generation)
+        ScheduleRecoveryService.call(operation: @operation)
         AiTasks::RecordAttemptUsageService.call(ai_task: @operation.ai_task,
           message: { "attempt_id" => attempt_id, "attempt_finished" => false })
         @operation.ai_task.update!(status: "queued", completed_at: nil, error_message: nil)

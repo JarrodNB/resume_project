@@ -5,8 +5,9 @@
 #   - s3: Adobe S3Mock, local S3 emulator for uploaded files (port 9090)
 #   - api: Rails GraphQL API (port 3000; GraphQL subscriptions over WebSocket at /cable)
 #   - api-results-worker: Shoryuken consumer of ai_results (same image and code as api)
-#   - ai: Python SQS worker
-#   - interview-real-runtime: spoken interview worker
+#   - api-jobs-worker: durable Rails jobs (same image, primary database, and code as api)
+#   - ai-worker: Python SQS worker
+#   - ai-http: FastAPI app for interactive AI execution
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
 
@@ -69,7 +70,9 @@ services:
     environment:
       <<: [*local-aws, *api-bootsnap]
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
-      INTERVIEW_REAL_ADMISSION_ENABLED: ${INTERVIEW_REAL_ADMISSION_ENABLED:-true}
+      AI_EXECUTION_SERVICE_SECRET: ${AI_EXECUTION_SERVICE_SECRET:-}
+      INTERVIEW_ADMISSION_ENABLED: ${INTERVIEW_ADMISSION_ENABLED:-true}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
       INTERVIEW_BROWSER_STORAGE_ORIGIN: ${INTERVIEW_BROWSER_STORAGE_ORIGIN:-http://localhost:9090}
       DB_HOST: db
       DB_USERNAME: postgres
@@ -115,7 +118,36 @@ services:
       api:
         condition: service_started
 
-  ai:
+  api-jobs-worker:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile.dev
+    command: bundle exec ruby bin/jobs
+    init: true
+    # First boot can race api's db:prepare; keep retrying until storage exists.
+    restart: on-failure
+    stop_grace_period: 30s
+    env_file:
+      - path: ./services/api/.env
+        required: false
+    environment:
+      <<: [*local-aws, *api-bootsnap]
+      DB_HOST: db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+      AI_EXECUTION_SERVICE_SECRET: ${AI_EXECUTION_SERVICE_SECRET:-}
+    volumes:
+      - ./services/api:/rails
+      - api_bundle:/usr/local/bundle
+      - api_bootsnap:/bootsnap
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+
+  ai-worker:
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
@@ -165,7 +197,7 @@ services:
 
   web:
     environment:
-      INTERVIEW_TRANSCRIPTION_TARGET: http://interview-real-runtime:8000
+      INTERVIEW_TRANSCRIPTION_TARGET: http://ai-http:8000
     build:
       context: ./apps/web
       dockerfile: Dockerfile.dev
@@ -188,23 +220,26 @@ services:
       - ./apps/landing:/app
       - /app/node_modules
 
-  interview-real-runtime:
+  ai-http:
     # Uses the same provider credentials as the local AI worker.
     build:
       context: ./services/ai
       dockerfile: Dockerfile.dev
-    command: uvicorn interviews.real_app:app --host 0.0.0.0 --port 8000
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --ws-max-size 65536
     init: true
     env_file:
       - path: ./services/ai/.env
         required: false
     environment:
-      INTERVIEW_REAL_RUNTIME_ENABLED: ${INTERVIEW_REAL_RUNTIME_ENABLED:-true}
+      AI_HTTP_ENABLED: ${AI_HTTP_ENABLED:-true}
+      AI_STREAMING_ENABLED: ${AI_STREAMING_ENABLED:-false}
+      AI_STREAM_REDIS_URL: ${AI_STREAM_REDIS_URL:-redis://redis:6379/0}
+      AI_BROWSER_ORIGINS: http://localhost:5173
       INTERVIEW_PREPARATION_THINKING: ${INTERVIEW_PREPARATION_THINKING:-false}
       INTERVIEW_DIALOGUE_THINKING: ${INTERVIEW_DIALOGUE_THINKING:-false}
-      INTERVIEW_ENVIRONMENT: development
       INTERVIEW_RAILS_ORIGIN: http://api:3000
       INTERVIEW_SERVICE_SECRET: ${INTERVIEW_SERVICE_SECRET:-}
+      AI_EXECUTION_SERVICE_SECRET: ${AI_EXECUTION_SERVICE_SECRET:-}
       INTERVIEW_STORAGE_ORIGINS: http://s3:9090
       INTERVIEW_BROWSER_ORIGINS: http://localhost:5173
       LOGFIRE_ENVIRONMENT: interview-development
@@ -215,6 +250,13 @@ services:
         condition: service_started
       s3:
         condition: service_started
+
+  redis:
+    image: redis:8.10.2-alpine
+    profiles: [streaming]
+    command: redis-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction
+    # No published port; this is an optional ephemeral output buffer, never job storage.
+    restart: unless-stopped
 
 volumes:
   s3_data:

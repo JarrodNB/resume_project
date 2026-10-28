@@ -12,7 +12,7 @@ General AI limits exclude spoken interview preparation, turns and speech:
 
 - **Monthly budget** (fallback $3.00, `AI_MONTHLY_BUDGET_USD`): known general AI task costs plus
   background embedding request costs created this calendar month (UTC). The worker estimates each request's cost from its
-  token usage and a per-model price table (`services/ai/worker/model_prices.py`) and reports it
+  token usage and a per-model price table (`services/ai/llm/model_prices.py`) and reports it
   with attempt reports, including unsuccessful attempts. Missing provider usage or prices
   makes accounting incomplete; unknown costs do not block tasks below their known-spend budget.
 - **Tasks per hour** (fallback 30, `AI_TASKS_PER_HOUR`): tasks created in the last rolling hour.

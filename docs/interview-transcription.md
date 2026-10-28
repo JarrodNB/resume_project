@@ -22,8 +22,7 @@ turn. Microphone denial cannot fall back without captured audio.
 
 ## Microphone timing
 
-The interview lives at `/practice/interviews` (the Mock interview tab); older `/interviews` and
-`/interviews/demo` links redirect there.
+The interview lives at `/practice/interviews` (the Mock interview tab); older `/interviews` links redirect there.
 Interview settings contain transcription mode, automatic microphone capture, and a
 thinking pause of 0, 3, 5, or 10 seconds. Turning automatic capture off also sets
 the thinking pause to Off and disables its selector. Automatic capture starts off

@@ -12,30 +12,30 @@
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
-    field :interview_demo_enabled, Boolean, null: false
+    field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :unfinished_interview_session, Types::InterviewSessionType, null: true
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
     end
 
-    def interview_demo_enabled
-      !!context[:current_user] && Interviews::DemoAccess.enabled?
+    def interviews_enabled
+      !!context[:current_user] && Interviews::Access.enabled?
     end
 
     def interview_session(id:)
-      Interviews::DemoAccess.find!(context[:current_user], id)
+      Interviews::Access.find!(context[:current_user], id)
     end
 
     def recent_interview_sessions
-      Interviews::DemoAccess.check!(context[:current_user])
+      Interviews::Access.check!(context[:current_user])
       context[:current_user].interview_sessions.where(execution_mode: "real",
         status: %w[preparing ready active completed]).where("expires_at > ?", Time.current)
         .order(created_at: :desc, id: :desc).limit(20)
     end
 
     def unfinished_interview_session
-      Interviews::DemoAccess.check!(current_user)
+      Interviews::Access.check!(current_user)
       current_user.interview_sessions.blocking_new_preparation.order(created_at: :desc, id: :desc).first
     end
 

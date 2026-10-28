@@ -2,7 +2,7 @@
 Description: Integration tests for the career library reader against the compose Postgres. Seeds
 rows as the admin role inside a transaction that always rolls back, then reads them as ai_reader
 (SET LOCAL ROLE), so the real grants are exercised. Skipped when the database isn't reachable.
-Run only these with `docker compose run --rm ai pytest -m db`.
+Run only these with `docker compose run --rm ai-worker pytest -m db`.
 Index:
     - admin_connection: a postgres connection inside a rolled-back transaction
     - test_reads_the_job_and_library_in_rails_order

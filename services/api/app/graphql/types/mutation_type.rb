@@ -21,7 +21,8 @@
 #   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
-    field :start_interview_demo, mutation: Mutations::Interviews::StartInterviewDemo
+    field :authorize_ai_execution_stream, mutation: Mutations::AuthorizeAiExecutionStream
+    field :start_interview, mutation: Mutations::Interviews::StartInterview
     field :begin_interview, mutation: Mutations::Interviews::BeginInterview
     field :abandon_interview, mutation: Mutations::Interviews::AbandonInterview
     field :authorize_interview_recording, mutation: Mutations::Interviews::AuthorizeInterviewRecording

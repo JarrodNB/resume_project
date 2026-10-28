@@ -19,6 +19,8 @@ from agents.job_requirements_sorting_agent import (
     sort_job_requirement_bullets,
 )
 from job_postings.extract_job_posting import BulletSortingRun, extract_job_posting
+from llm.model_prices import build_model_usage
+from schemas.model_usage import ModelUsage
 from scrapers.job_page import (
     JobPageUnreadableError,
     JobPostingNotFoundError,
@@ -28,8 +30,7 @@ from scrapers.job_site_registry import find_job_site_scraper
 from screening.prompt_guardrail import BLOCKED_MESSAGE, TOO_LONG_MESSAGE, UNCHECKED_MESSAGE
 from screening.screen_user_text import screen_user_text
 from screening.session import within_screening_session
-from worker.model_prices import build_model_usage
-from worker.queue_messages import AiResultMessage, AiTaskMessage, ModelUsage
+from worker.queue_messages import AiResultMessage, AiTaskMessage
 from worker.task_dependencies import TaskDependencies
 
 UNSUPPORTED_URL_MESSAGE = (

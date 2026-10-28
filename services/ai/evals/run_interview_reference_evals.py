@@ -70,9 +70,9 @@ def run_evaluation(*, paid=False):
     usage = None
     if paid:
         from evals.telemetry import eval_run, record_score
-        from worker.settings import load_settings
-        from worker.task_usage import collect_task_usage
-        from worker.tracing import configure_tracing
+        from llm.usage import collect_task_usage
+        from settings import load_settings
+        from telemetry.tracing import configure_tracing
 
         settings = load_settings()
         configure_tracing()

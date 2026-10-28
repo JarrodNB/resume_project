@@ -5,7 +5,7 @@ RSpec.describe "Skip interview question GraphQL" do
   let(:interview) { Interviews::CreateFixtureService.call(user: user).value }
   let(:mutation) { 'mutation($input: SkipInterviewQuestionInput!) { skipInterviewQuestion(input: $input) { interview { status revision questions { skipped acceptedAnswerCount } } errors } }' }
   let(:variables) { { input: { interviewId: interview.id, questionId: interview.questions.first.id, expectedRevision: 0, submissionKey: "graphql-skip" } } }
-  before { allow(Interviews::DemoAccess).to receive(:enabled?).and_return(true) }
+  before { allow(Interviews::Access).to receive(:enabled?).and_return(true) }
 
   it "hides another owner's interview and returns the owned saved skip" do
     expect(execute_graphql(mutation, user: create(:user), variables: variables).dig("errors", 0, "message")).to eq("Record not found")

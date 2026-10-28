@@ -6,12 +6,12 @@ Generated question text is trusted by its task-specific Rails-owned caller.
 
 from collections.abc import Callable
 
+from privacy.contact_mask import mask_outbound
+from schemas.screening_receipts import InterviewQuestionScreening
 from screening.job_fields import field_fingerprint
 from screening.screen_user_text import ScreenOutcome
 from screening.session import current_session
 from text_limits import MAX_SCREENED_TEXT
-from worker.contact_mask import mask_outbound
-from worker.queue_messages import InterviewQuestionScreening
 
 
 def screen_interview_field(snapshot: dict | None, field: str, text: str,

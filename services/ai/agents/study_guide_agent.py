@@ -6,13 +6,13 @@ from pydantic_ai.settings import ModelSettings
 from pydantic_ai_harness import InputGuardrail
 
 from conversation_logging import ConversationLogging
+from llm.generative_model import generative_model
+from llm.run_limits import agent_usage_limits
 from prompts.study_guide_instructions import STUDY_GUIDE_INSTRUCTIONS, STUDY_GUIDE_PROMPT_VERSION
 from schemas.study_guide import StudyGuide
 from screening.prompt_guardrail import screen_prompt
 from screening.session import remaining_timeout, within_screening_session
-from worker.generative_model import generative_model
-from worker.run_limits import agent_usage_limits
-from worker.tracing import record_prompt_version
+from telemetry.tracing import record_prompt_version
 
 study_guide_agent = Agent(name="study_guide_agent", output_type=StudyGuide,
     instructions=STUDY_GUIDE_INSTRUCTIONS, retries=2, defer_model_check=True,

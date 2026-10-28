@@ -14,7 +14,7 @@ RSpec.describe "Typed interview answers" do
     expect(result).to be_success
     operation = result.value
     expect(operation.recording_id).to be_nil
-    expect(Interviews::DiscoverOperationsService.call.value).to include(operation.id)
+    expect(operation.reload.delivery_job_id).to be_present
     claim = Interviews::ClaimOperationService.call(operation: operation)
     expect(claim).to be_success
     expect(claim.value.fetch(:payload)).to include(candidate_transcript: text, recording_id: nil, transcription_mode: "typed")
@@ -79,10 +79,10 @@ RSpec.describe "Typed interview answers" do
     expect(Interviews::FailOperationService.call(operation: operation, **claim.slice(:attempt_id, :claim_generation),
       code: "dependency_unavailable", retryable: true)).to be_success
     travel 3.seconds
-    expect(Interviews::DiscoverOperationsService.call.value).to include(operation.id)
+    expect(operation.reload.delivery_job_id).to be_present
     expect(Interviews::ClaimOperationService.call(operation: operation)).to be_success
     travel 1.hour
-    expect(Interviews::DiscoverOperationsService.call.value).not_to include(operation.id)
+    Interviews::CleanupService.call(storage: instance_double(Interviews::MediaStorage, delete: nil))
     expect(operation.reload).to be_expired
     expect(operation.ai_task.ai_task_outcomes.pluck(:status)).to eq([ "failed" ])
   end

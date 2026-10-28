@@ -125,22 +125,27 @@ RSpec.describe "Internal interview callbacks", type: :request do
     expect(turn.ai_task.cost_microdollars).to eq(0)
   end
 
-  it "rolls back partial dialogue when a speech write fails inside the callback transaction" do
-    post "#{path}/claim", headers: headers, as: :json
-    claim = response.parsed_body.slice("attempt_id", "claim_generation")
-    allow_any_instance_of(InterviewSessionOperation).to receive(:save!).and_wrap_original do |save, *args|
-      record = save.receiver
-      if record.speech?
-        record.errors.add(:base, "injected speech write failure")
-        raise ActiveRecord::RecordInvalid, record
+  # Speech is only queued while the interview continues, so this needs a second question.
+  context "with a second question to move on to" do
+    let(:interview) { Interviews::CreateFixtureService.call(user: create(:user), question_count: 2).value }
+
+    it "rolls back partial dialogue when a speech write fails inside the callback transaction" do
+      post "#{path}/claim", headers: headers, as: :json
+      claim = response.parsed_body.slice("attempt_id", "claim_generation")
+      allow_any_instance_of(InterviewSessionOperation).to receive(:save!).and_wrap_original do |save, *args|
+        record = save.receiver
+        if record.speech?
+          record.errors.add(:base, "injected speech write failure")
+          raise ActiveRecord::RecordInvalid, record
+        end
+        save.call(*args)
       end
-      save.call(*args)
+      post "#{path}/accept", params: claim.merge(transcript: "Answer", decision: "advance", history_version: 1, model_history: []), headers: headers, as: :json
+      expect(response).to have_http_status(:conflict)
+      expect(interview.reload).to have_attributes(revision: 0, status: "active")
+      expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
+      expect(turn.reload.ai_task).to be_queued
     end
-    post "#{path}/accept", params: claim.merge(transcript: "Answer", decision: "advance", history_version: 1, model_history: []), headers: headers, as: :json
-    expect(response).to have_http_status(:conflict)
-    expect(interview.reload).to have_attributes(revision: 0, status: "active")
-    expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
-    expect(turn.reload.ai_task).to be_queued
   end
 
   it "does not treat a signed-in browser session as internal authentication" do

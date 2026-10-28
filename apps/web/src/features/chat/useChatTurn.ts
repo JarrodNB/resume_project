@@ -29,7 +29,7 @@ const failureMessages: Record<string, string> = {
 }
 export const chatFailureMessage = (code: string | null) => failureMessages[code ?? ''] ?? 'Careergrind could not finish the reply. You can try again.'
 
-export function useChatTurn(conversationId: string, onAccepted: () => void) {
+export function useChatTurn(conversationId: string, onAccepted: (operationId: string) => void) {
   const query = useQuery(CHAT_OPERATION_QUERY, { variables: { id: conversationId }, fetchPolicy: 'no-cache' })
   const [latest, setLatest] = useState<ChatOperation | null>(null)
   const saved = query.data?.chatConversation.latestOperation ?? null
@@ -57,7 +57,7 @@ export function useChatTurn(conversationId: string, onAccepted: () => void) {
     if (operation?.status !== 'accepted' || acceptedId.current === operation.id) return
     acceptedId.current = operation.id
     retained.current = null
-    notifyAccepted()
+    notifyAccepted(operation.id)
   }, [operation])
 
   const running = operation?.status === 'running'

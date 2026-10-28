@@ -77,7 +77,8 @@ unknown rather than becoming zero. See [AI safety and usage](ai-safety-and-usage
 
 ## Feedback
 
-An owner can set or clear thumbs down on an accepted assistant reply. The desired-state
+An owner can set or clear thumbs up or thumbs down on an accepted assistant reply. These
+choices are mutually exclusive. The desired-state
 mutation is idempotent and persists across refresh. User messages and provisional
 output cannot receive feedback. Feedback does not change accepted history, model context,
 summary cadence, or usage, and does not trigger another provider request.

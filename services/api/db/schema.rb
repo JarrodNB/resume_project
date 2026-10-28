@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_140000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -220,11 +220,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_140000) do
     t.datetime "updated_at", null: false
     t.string "screened_sha256"
     t.boolean "thumbs_down", default: false, null: false
+    t.boolean "thumbs_up", default: false, null: false
     t.index ["chat_conversation_id", "position"], name: "index_chat_messages_on_chat_conversation_id_and_position", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_messages_on_chat_conversation_id"
+    t.check_constraint "NOT (thumbs_up AND thumbs_down)", name: "chat_feedback_one_choice"
     t.check_constraint "\"position\" > 0", name: "chat_message_positive_position"
     t.check_constraint "length(content) > 0", name: "chat_message_content_present"
     t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
+    t.check_constraint "role::text = 'assistant'::text OR thumbs_up = false", name: "chat_positive_feedback_assistant_only"
     t.check_constraint "role::text = ANY (ARRAY['user'::character varying::text, 'assistant'::character varying::text])", name: "chat_message_role"
   end
 

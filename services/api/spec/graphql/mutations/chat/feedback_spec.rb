@@ -23,6 +23,16 @@ RSpec.describe "Chat reply feedback" do
     expect(feedback(false).dig("data", "setChatMessageFeedback", "message", "thumbsDown")).to be(false)
     expect(reply.reload.thumbs_down).to be(false)
   end
+  it "saves positive feedback and replaces the opposite choice" do
+    feedback(true)
+    query = 'mutation($conversationId: ID!, $messageId: ID!) { setChatMessageFeedback(input: { conversationId: $conversationId, messageId: $messageId, thumbsUp: true }) { message { thumbsUp thumbsDown } errors } }'
+    response = execute_graphql(query, user: user, variables: { conversationId: conversation.id, messageId: reply.id })
+    expect(response.dig("data", "setChatMessageFeedback", "message")).to eq({ "thumbsUp" => true, "thumbsDown" => false })
+    expect(reply.reload.thumbs_up).to be(true)
+    feedback(true)
+    expect(reply.reload.attributes.values_at("thumbs_up", "thumbs_down")).to eq([ false, true ])
+  end
+
   it "exposes persisted feedback when accepted history is reopened" do
     feedback(true)
     query = 'query($id: ID!) { chatConversation(id: $id) { messages { messages { id thumbsDown } } } }'
@@ -46,10 +56,10 @@ RSpec.describe "Chat reply feedback" do
 
   it "requires authentication and preserves message text, history and accounting" do
     expect(feedback(true, owner: nil)["errors"].first["message"]).to eq("Authentication required")
-    before_message = reply.attributes.except("thumbs_down", "updated_at")
+    before_message = reply.attributes.except("thumbs_down", "thumbs_up", "updated_at")
     before_conversation = conversation.attributes
     expect { feedback(true) }.not_to change { [ user.ai_tasks.count, AiUsageAttempt.count, ChatOperation.count, conversation.messages.count ] }
-    expect(reply.reload.attributes.except("thumbs_down", "updated_at")).to eq(before_message)
+    expect(reply.reload.attributes.except("thumbs_down", "thumbs_up", "updated_at")).to eq(before_message)
     expect(conversation.reload.attributes).to eq(before_conversation)
   end
 

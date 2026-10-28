@@ -87,7 +87,8 @@ def create_app():
                         flush_tracing()
 
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None,
-                  telemetry={"exclude": lambda scope: scope.get("path") in {"/ready", "/health"}})
+                  telemetry={"exclude": lambda scope: scope.get("path") in {
+                      "/ready", "/health", "/internal/executions", "/ai/executions/stream"}})
     from routes.executions import install_execution_routes
     install_execution_routes(app, secret=execution_service_secret)
     from routes.execution_streams import install_output_stream

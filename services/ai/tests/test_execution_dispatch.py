@@ -50,14 +50,34 @@ def test_start_receipt_does_not_wait_for_claim_and_capacity_is_shared():
     asyncio.run(scenario())
 
 
+def test_stream_observer_websocket_does_not_create_transport_spans(monkeypatch):
+    """A rejected observer still exercises FastAPI's WebSocket instrumentation."""
+    from fastapi.testclient import TestClient
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+    from starlette.websockets import WebSocketDisconnect
+
+    from app import create_app
+    from telemetry.tracing import configure_tracing
+
+    monkeypatch.setenv("AI_HTTP_ENABLED", "false")
+    spans = InMemorySpanExporter()
+    configure_tracing([SimpleSpanProcessor(spans)])
+    with TestClient(create_app()) as client:
+        with pytest.raises(WebSocketDisconnect), client.websocket_connect("/ai/executions/stream"):
+            pass
+    assert not spans.get_finished_spans()
+
+
 def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(monkeypatch):
-    """Real HTTP telemetry must finish independently of the claimed operation's cost."""
+    """The receipt is untraced while the claimed operation retains its own priced trace."""
     from contextvars import ContextVar
 
     from opentelemetry.sdk.trace.export import SimpleSpanProcessor
     from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
     from pydantic_ai import Agent
 
+    from app import create_app
     from execution.runner import ExecutionRunner
     from interviews.execution_adapter import InterviewExecutionAdapter
     from interviews.real import RealInterviewExecutor
@@ -103,9 +123,9 @@ def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(mo
         owner = Client()
         executor = Executor(owner, audio=None, models=None, storage_client=None, allowed_origins=set())
         runner = ExecutionRunner({"interviews": InterviewExecutionAdapter(owner, executor)})
-        app = FastAPI()
+        app = create_app()
         app.state.execution_runner = runner
-        install_execution_routes(app, secret=lambda: "private-service-secret")
+        monkeypatch.setenv("AI_EXECUTION_SERVICE_SECRET", "private-service-secret")
         try:
             async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
                 token = marker.set("inherited execution setting")
@@ -117,8 +137,7 @@ def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(mo
                 finally:
                     marker.reset(token)
                 assert response.status_code == 202
-                request = next(s for s in spans.get_finished_spans() if s.name == "POST /internal/executions")
-                assert request.attributes["operation.cost"] == 0
+                assert not spans.get_finished_spans()
                 assert not any(s.name == "interview.operation" for s in spans.get_finished_spans())
                 task = runner.active[("interviews", identity)]
                 release_claim.set()
@@ -132,8 +151,8 @@ def test_http_execution_owns_priced_trace_after_receipt_and_preserves_context(mo
         assert model.attributes["operation.cost"] == pytest.approx(0.000056)
         assert operation.attributes.get("operation.cost") == pytest.approx(model.attributes["operation.cost"])
         assert operation.parent is None
-        assert model.context.trace_id == operation.context.trace_id != request.context.trace_id
-        assert request.end_time < operation.start_time < model.start_time < operation.end_time
+        assert model.context.trace_id == operation.context.trace_id
+        assert operation.start_time < model.start_time < operation.end_time
         assert costs._cost_by_trace == {}
 
     asyncio.run(scenario())

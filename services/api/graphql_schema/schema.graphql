@@ -497,6 +497,7 @@ type ChatMessage {
   position: Int!
   role: String!
   thumbsDown: Boolean!
+  thumbsUp: Boolean!
 }
 
 type ChatMessagePage {
@@ -2994,7 +2995,8 @@ input SetMessageFeedbackInput {
   clientMutationId: String
   conversationId: ID!
   messageId: ID!
-  thumbsDown: Boolean!
+  thumbsDown: Boolean
+  thumbsUp: Boolean
 }
 
 """

@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useChatConversation, useChatWorkspace } from './useChatWorkspace'
 import { ChatTurn } from './ChatTurn'
-import { ChatReplyFeedback } from './ChatReplyFeedback'
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
@@ -75,14 +74,8 @@ function SavedConversation({ id, maxCharacters }: { id: string; maxCharacters: n
       {history.conversation.messages.nextCursor && <Button variant="outline" className="justify-self-start" disabled={history.loadingMore} onClick={() => void history.loadOlder()}>
         {history.loadingMore ? 'Loading…' : 'Load earlier messages'}
       </Button>}
-      {history.conversation.messages.messages.length === 0 ? <p className="py-8 text-muted-foreground">This chat is ready for your first message.</p> : <ol className="grid gap-6">
-        {history.conversation.messages.messages.map((message) => <li key={message.id} className="grid gap-2 border-b pb-6 last:border-0">
-          <p className="text-sm font-bold">{message.role === 'user' ? 'You' : 'Careergrind'}</p>
-          <p className="max-w-prose whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
-          {message.role === 'assistant' && <ChatReplyFeedback conversationId={id} messageId={message.id} thumbsDown={message.thumbsDown} />}
-        </li>)}
-      </ol>}
-      <ChatTurn conversationId={id} maxCharacters={maxCharacters} onAccepted={() => { void history.refetch().catch(() => undefined) }} />
+      <ChatTurn conversationId={id} maxCharacters={maxCharacters} messages={history.conversation.messages.messages}
+        onAccepted={() => history.refetch().then(() => undefined)} />
     </>}
   </section>
 }

@@ -413,10 +413,6 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .chat-rail-name { display: grid; gap: 2px; min-width: 0; }
 .chat-rail-title-text { font-size: 15px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
 
-: chats as a departures board, replies as table rows. */
-
-
-
 .chat-body { grid-template-columns: 15rem minmax(0, 1fr) 16.5rem; }
 .chat-rail { padding-right: 12px; border-right: 1px solid var(--border); }
 .chat-rail-title { padding: 0 8px 8px; font-size: 13px; font-weight: 700; }

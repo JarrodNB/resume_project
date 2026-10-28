@@ -69,10 +69,11 @@ def _analyzer():
 class MaskingSession:
     """Opaque reversible replacements for one import; safe to retain through span export."""
 
-    __slots__ = ("__folded", "__pattern", "__replacements")
+    __slots__ = ("__folded", "__originals", "__pattern", "__replacements")
 
     def __init__(self, replacements: dict[str, str]):
         self.__replacements = replacements
+        self.__originals = {token: value for value, token in replacements.items()}
         self.__folded = {value.casefold(): token for value, token in replacements.items()}
         self.__pattern = (
             re.compile(_TOKEN.pattern + "|" + "|".join(
@@ -106,7 +107,7 @@ class MaskingSession:
         """Restore one string, rejecting unknown generated placeholders."""
         if "«pii:" in _TOKEN.sub("", text).casefold():
             raise PiiRestorationError("Result contains an unresolved privacy placeholder")
-        originals = {token: value for value, token in self.__replacements.items()}
+        originals = self.__originals
 
         def original(match):
             token = match.group()

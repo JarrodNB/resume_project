@@ -20,18 +20,18 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
   const skippedCount = interview.questions.filter((question) => question.skipped && !answered(question)).length
   const followUpsSkipped = interview.questions.filter((question) => question.skipped && answered(question)).length
   return <div className="interview-review grid min-w-0 gap-4">
-    <nav aria-label="Review actions" className="flex flex-wrap items-center gap-3">
-      {job?.id && <Button asChild><Link to={`/jobs/${job.id}`}>Back to job</Link></Button>}
-      {job && !job.id ? <Button asChild><Link to="/jobs">Choose another job</Link></Button>
-        : <Button asChild variant={job?.id ? 'outline' : 'default'}><Link to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link></Button>}
-      <Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>
-    </nav>
     <header className="grid gap-2 border-b pb-4">
       <h2 className="text-2xl font-semibold">Interview complete</h2>
       <p className="max-w-prose text-sm text-muted-foreground">Review your saved questions and answers. Saved text lasts 7 days; this review does not require audio.</p>
       <p className="text-sm">{typeOptions.find((item) => item.value === interview.setup.questionFormat)?.label ?? 'Interview'} · {difficultyOptions.find((item) => item.value === interview.setup.difficulty)?.label ?? interview.setup.difficulty} · {interviewerOptions.find((item) => item.value === interview.setup.interviewer)?.label ?? interview.setup.interviewer} · {interview.questions.length} core questions</p>
     <p className="text-sm">{answeredCount} answered · {skippedCount} skipped without an answer · Remaining follow-ups skipped on {followUpsSkipped} {followUpsSkipped === 1 ? 'question' : 'questions'}</p>
     </header>
+    <nav aria-label="Review actions" className="review-actions">
+      {job?.id && <Button asChild><Link to={`/jobs/${job.id}`}>Back to job</Link></Button>}
+      {job && !job.id ? <Button asChild><Link to="/jobs">Choose another job</Link></Button>
+        : <Button asChild variant={job?.id ? 'outline' : 'default'}><Link to={job ? `/jobs/${job.id}/interview` : '/practice/interviews'} state={{ practiceSetup: interview.setup }}>Practice again</Link></Button>}
+      <Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link>
+    </nav>
     {job && !job.id && <p className="text-sm text-muted-foreground">The original job was deleted. This interview keeps the saved job details from preparation.</p>}
     {job ? <InterviewJobContext job={job} sectionId={`spoken:review:${interview.id}:job`} /> : <ReviewSection title="Fictional role" sectionId={`spoken:review:${interview.id}:role`}>
       {typeof role?.title === 'string' ? <div className="grid gap-4 text-sm">

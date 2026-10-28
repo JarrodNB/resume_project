@@ -22,3 +22,18 @@
     padding-left: 8px;
   }
 }
+
+/* The way back to the job comes right after the summary, so finishing leads somewhere. */
+.interview-review .review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+@media (max-width: 599px) {
+  .interview-review .review-actions > a:not([class*="underline"]) {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

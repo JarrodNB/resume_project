@@ -398,6 +398,11 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .is-rejected .station-bullet { border-color: var(--stop-closed); color: var(--muted-foreground); }
 .pipeline-column ul { display: grid; gap: 12px; }
 .job-tile { padding: 16px 16px 14px; border: 1.5px solid var(--rule-strong); border-radius: 6px; background: var(--card); }
+.job-tile.is-draggable { position: relative; }
+.job-tile-grip { position: absolute; top: 8px; right: 6px; }
+.job-tile.is-draggable .pipeline-job { padding-right: 24px; }
+.job-tile.is-dragging { z-index: 10; opacity: 0.85; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+.pipeline-column.is-drop-target { border-radius: 6px; background: color-mix(in oklab, var(--primary) 6%, transparent); outline: 1.5px dashed var(--primary); outline-offset: 4px; }
 .job-tile.is-closed { border-color: var(--border); color: var(--muted-foreground); }
 .pipeline-job { min-width: 0; }
 .pipeline-job h3 { font-size: 16px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }

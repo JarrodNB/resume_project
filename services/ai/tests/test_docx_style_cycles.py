@@ -6,7 +6,11 @@ import pytest
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
 
-from documents.extract_document_text import DOCX_CONTENT_TYPE, UnsupportedDocumentError, extract_document_text
+from documents.extract_document_text import (
+    DOCX_CONTENT_TYPE,
+    UnsupportedDocumentError,
+    extract_document_text,
+)
 
 
 @pytest.mark.parametrize("self_cycle", [True, False])

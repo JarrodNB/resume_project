@@ -104,3 +104,22 @@ def test_enabled_http_configuration_is_not_limited_to_development(monkeypatch):
     configured, reason = configuration()
     assert reason is None
     assert configured == ("https://api.example.test", {"https://storage.example.test"})
+
+
+def test_chat_and_interview_share_one_enabled_execution_runner(monkeypatch):
+    monkeypatch.setenv("AI_HTTP_ENABLED", "true")
+    monkeypatch.setenv("AI_STREAMING_ENABLED", "false")
+    monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "synthetic-service")
+    monkeypatch.setenv("OPENAI_API_KEY", "synthetic-provider")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-screening")
+    monkeypatch.setenv("INTERVIEW_RAILS_ORIGIN", "http://rails.test")
+    monkeypatch.setenv("INTERVIEW_STORAGE_ORIGINS", "http://storage.test")
+    app = create_app()
+    with TestClient(app) as client:
+        assert client.get("/ready").status_code == 200
+        runner = app.state.execution_runner
+        assert set(runner.adapters) == {"interviews", "chat"}
+        assert runner.adapters["chat"].stream_output is True
+        assert not getattr(runner.adapters["interviews"], "stream_output", False)
+        assert app.state.execution_streams is None
+    assert runner.ready is False

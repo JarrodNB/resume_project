@@ -11,9 +11,11 @@ Synthetic YAML cases for the agent evaluation runners in the parent folder.
 - Existing resume, job posting, gap analysis, tailoring, retrieval, and screening cases.
 - `interview_questions_cases.yaml` — general/technical/knowledge full sets, sparse evidence and replacement exclusions, including nontechnology subjects.
 - `interview_feedback_cases.yaml` — personal-answer coaching plus knowledge misconceptions and omissions needing corrected subject examples without invented experience.
-  Both written interview datasets support saved fact responses with separately interpreted requirement context.
+  Both written interview datasets support saved career context responses with separately interpreted requirement context.
 
 ## Local Rules
 
 - Use synthetic career details only; never include real user data.
 - Keep labels and evaluation-only flags out of model prompts.
+
+- `chat_cases.yaml` — synthetic prior-summary continuity, rolling compaction, unsupported action and injection cases; evaluator metadata is not generation input.

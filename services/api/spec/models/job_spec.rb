@@ -11,14 +11,14 @@ RSpec.describe Job do
     expect(ai_task.reload).to have_attributes(subject_id: nil, subject_type: nil, cost_microdollars: 1_500)
   end
 
-  it "deletes its gap responses and keeps library facts" do
+  it "deletes its gap responses and keeps library career_contexts" do
     job = create(:job)
-    fact = create(:library_fact, user: job.user)
-    create(:job_gap_response, job: job, library_fact: fact)
+    context = create(:career_context, user: job.user)
+    create(:job_gap_response, job: job, career_context: context)
 
     job.destroy!
 
     expect(JobGapResponse.count).to eq(0)
-    expect(LibraryFact.exists?(fact.id)).to be(true)
+    expect(CareerContext.exists?(context.id)).to be(true)
   end
 end

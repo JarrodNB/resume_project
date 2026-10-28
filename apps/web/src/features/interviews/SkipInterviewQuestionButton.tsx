@@ -20,7 +20,7 @@ export function SkipInterviewQuestionButton({ pending = false, dirty, disabled, 
     } finally { confirming.current = false }
   }
   return <>
-    <Button variant="ghost" className="min-h-11 justify-self-start" disabled={disabled || busy} onClick={() => {
+    <Button variant="outline" disabled={disabled || busy} onClick={() => {
       if (dirty) changeOpen(true)
       else void confirm()
     }}>{pending ? 'Retry skip' : 'Skip question'}</Button>

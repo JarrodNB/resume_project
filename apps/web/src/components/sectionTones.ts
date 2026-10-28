@@ -7,7 +7,7 @@
  */
 import { Award, Briefcase, FileText, FolderKanban, GraduationCap, MessageSquareText, Sparkles, UserRound, type LucideIcon } from 'lucide-react'
 
-export type SectionTone = 'contact' | 'summary' | 'experience' | 'projects' | 'education' | 'certifications' | 'skills' | 'facts'
+export type SectionTone = 'contact' | 'summary' | 'experience' | 'projects' | 'education' | 'certifications' | 'skills' | 'career_contexts'
 
 interface SectionToneStyle {
   card: string
@@ -67,10 +67,10 @@ export const SECTION_TONES: Record<SectionTone, SectionToneStyle> = {
     entry: 'border-border bg-transparent',
     Icon: Sparkles,
   },
-  facts: {
+  career_contexts: {
     card: 'border-border',
     header: 'bg-card',
-    icon: 'text-section-facts-accent',
+    icon: 'text-section-career-context-accent',
     entry: 'border-border bg-transparent',
     Icon: MessageSquareText,
   },

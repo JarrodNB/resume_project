@@ -24,12 +24,12 @@ The GraphQL API used by `apps/web`. Every request is authenticated by `GraphqlCo
   and `Job.resume` are the newest tailor task and the newest saved resume; `AiTask.input` stores
   the request snapshots; tailoring returns its complete editable draft in `AiTask.result`;
   `mutations/gap_responses/save_gap_response.rb` (`saveGapResponse`) saves an answer on that job,
-  and `Job.gapResponses` lists them; `mutations/library_facts/delete_library_fact.rb`
-  (`deleteLibraryFact`) removes a fact (`libraryFacts` on the root query);
+  and `Job.gapResponses` lists them; `mutations/career_contexts/delete_career_context.rb`
+  (`deleteCareerContext`) removes a career context entry (`careerContexts` on the root query);
   career library entries have create and update (`create*` / `update*` for projects,
-  educations, skills, and library facts; experiences already had both; `updateProfile` edits
+  educations, skills, and career context entries; experiences already had both; `updateProfile` edits
   name, contact details, links, and summary), `delete*` (experiences, projects, educations,
-  skills, library facts), `clearCareerLibrary` (empties entries and the import-filled profile),
+  skills, career context entries), `clearCareerLibrary` (empties entries and the import-filled profile),
   and `merge*(targetId, sourceId)` (experiences, projects, educations;
   both ids are looked up through `current_user`); drag-and-drop uses `mutations/skills/reorder_skills.rb`
   (`reorderSkills(orderedIds)`) and `mutations/experiences/move_experience_highlight.rb`

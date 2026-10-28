@@ -31,18 +31,18 @@ def test_denied_reference_claim_does_no_search(task_dependencies):
     assert result.result is None and not result.usage
 
 
-def test_claimed_search_returns_exact_saved_fact_without_requirement(task_dependencies, monkeypatch):
+def test_claimed_search_returns_exact_saved_context_without_requirement(task_dependencies, monkeypatch):
     from contextlib import nullcontext
     from unittest.mock import Mock
 
     from pydantic_ai.usage import RequestUsage
 
     from memory.embed_search_query import QueryEmbedding
-    from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+    from schemas.gap_analysis_context import CareerContext, CareerLibrary
     from schemas.library_search_match import LibrarySearchMatch
 
     source_id = str(uuid4())
-    library = CareerLibrary(facts=[LibraryFact(id=source_id, requirement="REQUIREMENT NOT EVIDENCE",
+    library = CareerLibrary(career_contexts=[CareerContext(id=source_id, requirement="REQUIREMENT NOT EVIDENCE",
         response="I maintained Kubernetes clusters.\nExact saved detail.")])
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
     # These are true external seams: embeddings and database I/O. Saved evidence projection is real.
@@ -50,17 +50,17 @@ def test_claimed_search_returns_exact_saved_fact_without_requirement(task_depend
         return QueryEmbedding([1.0], RequestUsage(input_tokens=8))
     monkeypatch.setattr("interviews.references.embed_search_query_async", embed)
     monkeypatch.setattr("interviews.references.open_read_only_connection", lambda _: nullcontext(object()))
-    search = Mock(return_value=[LibrarySearchMatch(source_type="LibraryFact", source_id=source_id,
+    search = Mock(return_value=[LibrarySearchMatch(source_type="CareerContext", source_id=source_id,
         content="Stale index text must not be displayed", distance=0.2, score=0.03)])
     monkeypatch.setattr("interviews.references.search_career_library", search)
     task = reference_task()
     result = handle_ai_task(task, deps)
     assert result.status == "completed"
-    assert result.result == {"selection_policy_version": "interview-references-v3", "references": [{"source_type": "LibraryFact", "source_id": source_id,
-        "title": "Saved career fact", "body": library.facts[0].response}]}
+    assert result.result == {"selection_policy_version": "interview-references-v3", "references": [{"source_type": "CareerContext", "source_id": source_id,
+        "title": "Saved career context", "body": library.career_contexts[0].response}]}
     assert result.usage[0].input_tokens == 8
     assert search.call_args.args[1] == task.user_id
-    assert "LibraryFact" in search.call_args.kwargs["source_types"]
+    assert "CareerContext" in search.call_args.kwargs["source_types"]
 
 
 def test_mismatched_prompt_never_searches(task_dependencies):
@@ -141,7 +141,7 @@ def test_embedding_charge_survives_later_search_failure(task_dependencies, monke
     from pydantic_ai.embeddings import TestEmbeddingModel
 
     from memory.embed_search_query import embed_search_query_async
-    from schemas.gap_analysis_context import CareerLibrary, LibraryFact
+    from schemas.gap_analysis_context import CareerContext, CareerLibrary
     from tests.test_process_task_message import FakeResultQueue
     from worker.main import process_task_message
     from worker.queue_messages import AiResultMessage
@@ -154,7 +154,7 @@ def test_embedding_charge_survives_later_search_failure(task_dependencies, monke
     def search(*args, **kwargs):
         raise TimeoutError("database search timeout")
     monkeypatch.setattr("interviews.references.search_career_library", search)
-    library = CareerLibrary(facts=[LibraryFact(id=str(uuid4()), requirement="Kubernetes", response="Maintained clusters")])
+    library = CareerLibrary(career_contexts=[CareerContext(id=str(uuid4()), requirement="Kubernetes", response="Maintained clusters")])
     deps = replace(claimed_dependencies(task_dependencies), read_career_library=lambda _: library)
     queue = FakeResultQueue()
     assert process_task_message(reference_task().model_dump_json(), 1, queue, deps)

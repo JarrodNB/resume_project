@@ -17,10 +17,14 @@
 #   - resume tailoring: startResumeTailoring, saveTailoredResume,
 #     updateResume
 #   - gap responses: saveGapResponse
-#   - library facts: createLibraryFact, updateLibraryFact, deleteLibraryFact
+#   - career context entries: createCareerContext, updateCareerContext, deleteCareerContext
 #   - career library: clearCareerLibrary
 module Types
   class MutationType < Types::BaseObject
+    field :send_chat_message, mutation: Mutations::Chat::SendMessage
+    field :retry_chat_message, mutation: Mutations::Chat::RetryMessage
+    field :set_chat_message_feedback, mutation: Mutations::Chat::SetMessageFeedback
+    field :create_chat_conversation, mutation: Mutations::Chat::CreateConversation
     field :authorize_ai_execution_stream, mutation: Mutations::AuthorizeAiExecutionStream
     field :start_interview, mutation: Mutations::Interviews::StartInterview
     field :begin_interview, mutation: Mutations::Interviews::BeginInterview
@@ -107,8 +111,8 @@ module Types
     field :discard_library_edit, mutation: Mutations::CareerLibrary::DiscardLibraryEdit
     field :clear_career_library, mutation: Mutations::CareerLibrary::ClearCareerLibrary
 
-    field :create_library_fact, mutation: Mutations::LibraryFacts::CreateLibraryFact
-    field :update_library_fact, mutation: Mutations::LibraryFacts::UpdateLibraryFact
-    field :delete_library_fact, mutation: Mutations::LibraryFacts::DeleteLibraryFact
+    field :create_career_context, mutation: Mutations::CareerContexts::CreateCareerContext
+    field :update_career_context, mutation: Mutations::CareerContexts::UpdateCareerContext
+    field :delete_career_context, mutation: Mutations::CareerContexts::DeleteCareerContext
   end
 end

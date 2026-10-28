@@ -26,7 +26,7 @@ module CareerLibrary
       sources = roles.map { |role| [ "experience", role ] } + roles.flat_map { |role| Array(role["highlights"]).map { |item| [ "experience_highlight", item ] } }
       library = ai_task.input.fetch("library", {})
       sources += Array(library["projects"]).map { |record| [ "project", record ] }
-      sources += Array(library["facts"]).map { |record| [ "library_fact", record ] }
+      sources += Array(library["career_contexts"]).map { |record| [ "career_context", record ] }
       if library["summary_record_id"]
         sources << [ "user", { "id" => library["summary_record_id"], "summary" => library["summary"] } ]
       end

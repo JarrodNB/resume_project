@@ -3,7 +3,7 @@
  * Code Generator).
  * Index:
  *   - DELETE_EXPERIENCE_MUTATION, DELETE_PROJECT_MUTATION, DELETE_EDUCATION_MUTATION,
- *     DELETE_SKILL_MUTATION, DELETE_LIBRARY_FACT_MUTATION
+ *     DELETE_SKILL_MUTATION, DELETE_CAREER_CONTEXT_MUTATION
  *   - DELETE_CERTIFICATION_MUTATION, MERGE_CERTIFICATIONS_MUTATION
  *   - CLEAR_CAREER_LIBRARY_MUTATION
  *   - MERGE_EXPERIENCES_MUTATION, MERGE_PROJECTS_MUTATION, MERGE_EDUCATIONS_MUTATION
@@ -42,9 +42,9 @@ export const DELETE_SKILL_MUTATION = graphql(`
   }
 `)
 
-export const DELETE_LIBRARY_FACT_MUTATION = graphql(`
-  mutation DeleteLibraryFact($id: ID!) {
-    deleteLibraryFact(input: { id: $id }) {
+export const DELETE_CAREER_CONTEXT_MUTATION = graphql(`
+  mutation DeleteCareerContext($id: ID!) {
+    deleteCareerContext(input: { id: $id }) {
       errors
     }
   }

@@ -20,15 +20,15 @@ def narrative_input(section):
                                   "description": "Created a shared inventory sheet.", "screened_fields": ["name", "role", "description"]}]}
         kind, field, content, record_id = "project", "description", library["projects"][0]["description"], "project-1"
     else:
-        library = {"facts": [{"id": "fact-1", "requirement": "Inventory experience", "response": "I maintained the count sheet.",
+        library = {"career_contexts": [{"id": "fact-1", "requirement": "Inventory experience", "response": "I maintained the count sheet.",
                               "screened_fields": ["requirement", "response"]}]}
-        kind, field, content, record_id = "library_fact", "response", library["facts"][0]["response"], "fact-1"
+        kind, field, content, record_id = "career_context", "response", library["career_contexts"][0]["response"], "fact-1"
     target = {"kind": kind, "field": field, "record_id": record_id, "source_digest": "a" * 64, "label": "T1"}
     return {"section": section, "library": library, "targets": [target], "target": target,
             "original_text": content, "feedback": "Keep the facts and clarify the wording", "turn": 1}
 
 
-@pytest.mark.parametrize("section", ["summary", "projects", "facts"])
+@pytest.mark.parametrize("section", ["summary", "projects", "career_contexts"])
 def test_section_review_and_individual_proposal_reuse_coverage(section, task_dependencies, monkeypatch):
     from agents.library_edit_agent import library_edit_agent
     from agents.library_review_agent import library_review_agent
@@ -61,7 +61,7 @@ def test_section_review_and_individual_proposal_reuse_coverage(section, task_dep
     assert screened == [payload["feedback"]]
 
 
-@pytest.mark.parametrize("section", ["summary", "projects", "facts"])
+@pytest.mark.parametrize("section", ["summary", "projects", "career_contexts"])
 def test_other_sections_cannot_hitchhike_into_narrative_review(section, task_dependencies):
     payload = narrative_input(section)
     payload["library"]["skills"] = [{"id": "skill-1", "name": "Unrelated text"}]

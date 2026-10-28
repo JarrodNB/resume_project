@@ -25,11 +25,11 @@ export function GapResponseForm({ jobId, requirement, response }: GapResponseFor
   const checkboxId = useId()
   const { save, saving, errors } = useSaveGapResponse(jobId)
   const [body, setBody] = useState(response?.body ?? '')
-  const [addToLibrary, setAddToLibrary] = useState(Boolean(response?.libraryFact))
+  const [addToLibrary, setAddToLibrary] = useState(Boolean(response?.careerContext))
   const [saved, setSaved] = useState(response)
 
   const trimmed = body.trim()
-  const unchanged = trimmed === (saved?.body ?? '') && addToLibrary === Boolean(saved?.libraryFact)
+  const unchanged = trimmed === (saved?.body ?? '') && addToLibrary === Boolean(saved?.careerContext)
   const nothingToClear = trimmed === '' && !saved
 
   /** Saves the current text. An empty box removes the stored answer. */
@@ -38,7 +38,7 @@ export function GapResponseForm({ jobId, requirement, response }: GapResponseFor
     if (stored === undefined) return
     setSaved(stored)
     setBody(stored?.body ?? '')
-    setAddToLibrary(Boolean(stored?.libraryFact))
+    setAddToLibrary(Boolean(stored?.careerContext))
   }
 
   return (

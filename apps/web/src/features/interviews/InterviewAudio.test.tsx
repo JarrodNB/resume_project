@@ -37,7 +37,7 @@ it('renews an expired playback grant for the same saved message', async () => {
   expect(screen.getByLabelText('Saved interviewer speech')).toHaveAttribute('src', 'https://storage.test/renewed')
 })
 
-it('offers manual Play after blocked autoplay and reuses the grant for replay', async () => {
+it('offers manual Play after blocked autoplay and hides the control once the turn ends', async () => {
   vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValueOnce(new DOMException('Blocked', 'NotAllowedError'))
   const result = vi.fn(() => grant('https://storage.test/first'))
   mount([mock(undefined, { result })], { automatic: true })
@@ -46,8 +46,8 @@ it('offers manual Play after blocked autoplay and reuses the grant for replay', 
   await userEvent.click(screen.getByRole('button', { name: 'Play interviewer audio' }))
   await screen.findByRole('button', { name: 'Pause interviewer audio' })
   fireEvent.ended(screen.getByLabelText('Saved interviewer speech'))
-  await userEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
-  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(3)
+  expect(screen.queryByRole('button', { name: /interviewer audio/ })).not.toBeInTheDocument()
+  expect(HTMLMediaElement.prototype.play).toHaveBeenCalledTimes(2)
   expect(result).toHaveBeenCalledOnce()
 })
 
@@ -125,7 +125,7 @@ it('does not let a stale play promise pause a newer resumed play', async () => {
   expect(screen.getByRole('button', { name: 'Pause interviewer audio' })).toBeEnabled()
 })
 
-it('uses one playback control to pause, resume and replay a finished saved turn', async () => {
+it('uses one playback control to pause and resume a saved turn, then hide after it ends', async () => {
   const result = vi.fn(() => grant('https://storage.test/first'))
   mount([mock(undefined, { result })], { automatic: true })
   await screen.findByRole('button', { name: 'Pause interviewer audio' })
@@ -137,10 +137,7 @@ it('uses one playback control to pause, resume and replay a finished saved turn'
   await screen.findByRole('button', { name: 'Pause interviewer audio' })
   expect(element.currentTime).toBe(8)
   fireEvent.ended(element)
-  await userEvent.click(screen.getByRole('button', { name: 'Replay interviewer audio' }))
-  await screen.findByRole('button', { name: 'Pause interviewer audio' })
-  expect(element.currentTime).toBe(0)
-  expect(screen.getAllByRole('button')).toHaveLength(1)
+  expect(screen.queryByRole('button')).not.toBeInTheDocument()
   expect(result).toHaveBeenCalledOnce()
 })
 

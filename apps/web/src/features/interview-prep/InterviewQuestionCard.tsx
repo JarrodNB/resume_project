@@ -70,7 +70,7 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { q
   }
   return <>
     {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
-    <SectionCard tone="facts" title={`Question ${question.position}`} sectionId={`interview.${setId}.${question.id}`}>
+    <SectionCard tone="career_contexts" title={`Question ${question.position}`} sectionId={`interview.${setId}.${question.id}`}>
       <p className="mb-4 whitespace-pre-wrap">{question.questionText}</p>
       <div className="mb-4 grid justify-items-start gap-2">
         <Button variant="outline" disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onClick={() => void avoidance.save()}>

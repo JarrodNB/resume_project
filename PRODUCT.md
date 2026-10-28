@@ -40,7 +40,7 @@ mass-generated, mass-sent resumes.
 - Users save jobs from posting URLs or enter them manually, then track application
   stages: unapplied, applied, interviewing, rejected, and offer.
 - Gap analysis compares career evidence with job requirements. Users can answer
-  gaps and partial matches and choose to save those answers as library facts.
+  gaps and partial matches and choose to save those answers as career context entries.
 - Users review and edit job-specific resumes and export them as PDFs.
 - Interview preparation supports job-specific questions, saved answers, and feedback.
 

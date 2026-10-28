@@ -1,17 +1,46 @@
 # frozen_string_literal: true
 
-# Root queries keep private records owner-scoped. Authenticated Job Board search
+# Root queries keep private records, including saved chat history, owner-scoped. Authenticated Job Board search
 # reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
 #   - interview_session, recent_interview_sessions, unfinished_interview_session
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
-#   - experiences, projects, educations, certifications, skills, library_facts (career library)
+#   - experiences, projects, educations, certifications, skills, career_contexts (career library)
 #   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
 #   - resumes, resume(id:)
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
+    field :chat_settings, Types::ChatSettingsType, null: false
+    field :chat_conversations, Types::ChatConversationPageType, null: false do
+      argument :cursor, String, required: false
+    end
+
+    def chat_conversations(cursor: nil)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      result = ::Chat::ListConversationsService.call(user: current_user, cursor: cursor)
+      result.value || { conversations: [], next_cursor: nil, errors: result.errors }
+    end
+
+    field :chat_conversation, Types::ChatConversationType, null: false do
+      argument :id, ID, required: true
+    end
+
+    def chat_settings
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      { max_input_characters: ChatLimits::MAX_INPUT_CHARACTERS,
+        summarize_every_user_messages: ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES }
+    end
+
+    def chat_conversation(id:)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      current_user.chat_conversations.find(id)
+    end
+
     field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :unfinished_interview_session, Types::InterviewSessionType, null: true
@@ -73,7 +102,7 @@ module Types
     field :educations, [ Types::EducationType ], null: false
     field :certifications, [ Types::CertificationType ], null: false
     field :skills, [ Types::SkillType ], null: false
-    field :library_facts, [ Types::LibraryFactType ], null: false
+    field :career_contexts, [ Types::CareerContextType ], null: false
     field :library_review, Types::LibraryReviewType, null: false do
       argument :section, String, required: true
     end
@@ -151,8 +180,8 @@ module Types
     # Returns the user's skills.
     def skills = current_user.skills
 
-    # Returns facts the user added from gap responses.
-    def library_facts = current_user.library_facts
+    # Returns career context the user added from gap responses.
+    def career_contexts = current_user.career_contexts
 
     # Returns the user's jobs, newest first, optionally filtered by stage.
     def jobs(stage: nil)

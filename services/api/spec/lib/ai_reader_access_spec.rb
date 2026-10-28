@@ -31,12 +31,12 @@ RSpec.describe AiReaderAccess do
     expect(select_as_ai_reader("SELECT content FROM experience_highlights").size).to eq(1)
   end
 
-  it "reads career library embeddings and library facts" do
+  it "reads career library embeddings and career context entries" do
     embedding = create(:library_embedding)
-    fact = create(:library_fact)
+    context = create(:career_context)
 
     expect(select_as_ai_reader("SELECT id FROM library_embeddings")).to eq([ { "id" => embedding.id } ])
-    expect(select_as_ai_reader("SELECT id FROM library_facts")).to eq([ { "id" => fact.id } ])
+    expect(select_as_ai_reader("SELECT id FROM career_contexts")).to eq([ { "id" => context.id } ])
   end
 
   it "reads the profile name, contact email, and phone, and not the sign-in email or password" do

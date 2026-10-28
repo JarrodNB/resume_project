@@ -12,7 +12,7 @@ module CareerLibrary
       when "experience", "experience_highlight" then "experience"
       when "user" then "summary"
       when "project" then "projects"
-      when "library_fact" then "facts"
+      when "career_context" then "career_contexts"
       end
       snapshot = if section == "experience"
         role_id = kind == "experience" ? record.id : record.experience_id
@@ -35,7 +35,7 @@ module CareerLibrary
         raise ActiveRecord::RecordNotFound unless record_id.to_s == user.id.to_s
         User.find(user.id)
       when "project" then user.projects.find(record_id)
-      when "library_fact" then user.library_facts.find(record_id)
+      when "career_context" then user.career_contexts.find(record_id)
       else raise ActiveRecord::RecordNotFound
       end
     end

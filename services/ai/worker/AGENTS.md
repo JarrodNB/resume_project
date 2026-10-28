@@ -105,20 +105,20 @@ name, issuer, issued/expiry dates, credential ID/URL, and description. Older par
 payloads may omit `certifications`. Tailored resumes use a separate Certifications section.
 
 
-- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Saved facts include screened requirement context to clarify responses. Only responses receive evidence IDs or quote coverage; requirements cannot establish personal qualifications.
+- `interview_questions_handler.py` — handles generation and regeneration from the current library with screened notes, limits, usage, and structured drafts. Rails-owned generated question text is trusted when reused as exclusions. Saved career context includes screened requirement context to clarify responses. Only responses receive evidence IDs or quote coverage; requirements cannot establish personal qualifications.
   Queue snapshots accept immutable general, technical, and knowledge scopes through the shared schema type.
   Replacement exclusions come from the Rails-owned question-set snapshot; legacy sibling
   metadata is retained for compatibility but is not needed to trust generated question text.
 
 - `interview_feedback_handler.py` — reuses saved question/answer checks or screens pending
   answer checks before model use, trusts the Rails-owned generated question, screens library
-  notes and fact requirement context, and reports coaching plus usage without writes.
+  notes and career context requirement context, and reports coaching plus usage without writes.
   Requirement context clarifies a response but cannot support personal claims or evidence quotes.
   Knowledge snapshots allow corrected subject examples while preserving the original answer and source-only optional evidence.
 - `model_inputs/interview_evidence.py` — readable career-library field projection and exact quote sources shared by question generation and feedback; `model_inputs/interview.py` owns their task-specific framing.
 
 - `library_review_handler.py` — screens only unchecked fields of a Rails-owned selected-section
-  snapshot (Summary, Experience, Projects, or Facts), renders plain labeled records, maps assessment labels back to target identities,
+  snapshot (Summary, Experience, Projects, or Career context), renders plain labeled records, maps assessment labels back to target identities,
   and leaves all saved career facts unchanged. The whole section must fit the source cap.
 - `library_edit_handler.py` — screens new feedback/answers, restores exact coverage for owned
   prior messages, and resumes Pydantic AI deferred questions. Generated history and proposals
@@ -141,3 +141,7 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   prompts or seniority inference. Embedding requests have deadline/request/token limits,
   known charges and incomplete-usage accounting; missing indexed evidence fails clearly.
 - `interview_references_handler.py` claims one owned prompt before query embedding/search. Returns exact saved career references for the candidate UI, never interviewer context. Duplicate claims perform no paid work; failures use explicit bounded retry like clarification. Selection/projection lives in `interviews/references.py`.
+
+- `legacy_career_context.py` normalizes structural identifiers in task envelopes published
+  before the database rename. User prose, history strings and source digests remain exact;
+  ordinary handlers and schemas use only canonical career-context names.

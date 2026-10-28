@@ -29,6 +29,10 @@ Rails.application.routes.draw do
   end
 
   namespace :internal do
+    get "chat/operations/:id", to: "chat#status"
+    %w[claim heartbeat start_provider usage accept fail].each do |callback|
+      post "chat/operations/:id/#{callback}", to: "chat##{callback}"
+    end
     post "execution_streams/:action_name", to: "execution_streams#update", constraints: { action_name: /redeem|check/ }
     post "interviews/transcriptions/:action_name", to: "interview_transcriptions#update", constraints: { action_name: /redeem|finish|fail/ }
     post "interviews/references/:id/claim", to: "interviews#claim_references"

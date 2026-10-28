@@ -4,7 +4,7 @@ instructions only say what the text is.
 Index:
     - USER_TEXT_SCREEN_PROMPT_VERSION: the version recorded on traces
     - USER_TEXT_SCREEN_INSTRUCTIONS: framing for the injection question
-Input: one user-written string (a library fact, a gap response, an edited resume section,
+Input: one user-written string (a career context entry, a gap response, an edited resume section,
 or an uploaded resume).
 Output: UserTextScreen (schemas/user_text_screen.py). Code applies the yes-confidence bar.
 """

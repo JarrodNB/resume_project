@@ -121,7 +121,7 @@ def _add_simple(
     sources: LabeledSources,
     library: CareerLibrary,
 ) -> None:
-    """Labels projects, education, certifications, skills, and library facts."""
+    """Labels projects, education, certifications, skills, and career context entries."""
     for number, project in enumerate(library.projects, start=1):
         provenance = SourceProvenance()
         values = provenance.select("projects", "project", project, "name", "description")
@@ -157,11 +157,11 @@ def _add_simple(
         values = provenance.select("skills", "skill", skill, "name")
         sources.records[f"S{number}"] = SourceRecord(
             f"S{number}", "skill", values["name"], skill.id, "Skill", provenance)
-    for number, fact in enumerate(library.facts, start=1):
+    for number, context in enumerate(library.career_contexts, start=1):
         provenance = SourceProvenance()
-        values = provenance.select("facts", "library_fact", fact, "requirement", "response")
+        values = provenance.select("career_contexts", "career_context", context, "requirement", "response")
         sources.records[f"F{number}"] = SourceRecord(
-            f"F{number}", "fact", f"{values['requirement']}: {values['response']}", fact.id, "LibraryFact", provenance
+            f"F{number}", "career_context", f"{values['requirement']}: {values['response']}", context.id, "CareerContext", provenance
         )
 
 

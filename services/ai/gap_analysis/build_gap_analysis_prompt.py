@@ -194,12 +194,12 @@ def _library_lines(prompt: GapAnalysisPrompt, context: GapAnalysisContext) -> li
         category = f" ({skill.category})" if skill.category else ""
         lines.append(f"[{_add_evidence(prompt, f'S{number}', item)}] {skill.name}{category}")
 
-    if library.facts:
-        lines += ["", "## Facts"]
-    for number, fact in enumerate(library.facts, start=1):
-        item = EvidenceItem(kind="fact", id=fact.id, text=fact.response, context=fact.requirement)
+    if library.career_contexts:
+        lines += ["", "## Career context"]
+    for number, career_context in enumerate(library.career_contexts, start=1):
+        item = EvidenceItem(kind="career_context", id=career_context.id, text=career_context.response, context=career_context.requirement)
         ref = _add_evidence(prompt, f"F{number}", item)
-        lines.append(f"[{ref}] {fact.requirement}: {fact.response}")
+        lines.append(f"[{ref}] {career_context.requirement}: {career_context.response}")
 
     if not lines:
         lines.append("(empty)")

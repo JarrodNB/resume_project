@@ -1,5 +1,5 @@
 # Committed records and real connections verify answer work can overlap library clearing.
-# Pausing after a real response lock makes the opposing fact/FK locks deterministic.
+# Pausing after a real response lock makes the opposing context/FK locks deterministic.
 require "rails_helper"
 require "timeout"
 
@@ -25,9 +25,9 @@ RSpec.describe "Gap answer screening lock order" do
     it "finishes #{operation} and career-library clearing without a lock cycle" do
       user = create(:user, summary: "Saved summary")
       job = create(:job, user: user)
-      fact = create(:library_fact, user: user, requirement: "Shared requirement", response: "Before")
-      response = create(:job_gap_response, job: job, library_fact: fact,
-        requirement: fact.requirement, body: fact.response)
+      context = create(:career_context, user: user, requirement: "Shared requirement", response: "Before")
+      response = create(:job_gap_response, job: job, career_context: context,
+        requirement: context.requirement, body: context.response)
       task = create(:ai_task, user: user, subject: job, task_type: "tailor_resume", input: {
         "gap_responses" => [ response.attributes.slice("id", "requirement", "body") ]
       })
@@ -47,7 +47,7 @@ RSpec.describe "Gap answer screening lock order" do
             "library_screening" => [ { "record_type" => "user", "record_id" => user.id, "fields" => [ "summary" ] } ]
           })
         else
-          GapResponses::SaveGapResponseService.call(job: Job.find(job.id), requirement: fact.requirement,
+          GapResponses::SaveGapResponseService.call(job: Job.find(job.id), requirement: context.requirement,
             body: operation == :save ? "After" : "", add_to_library: true)
         end
       end
@@ -68,13 +68,13 @@ RSpec.describe "Gap answer screening lock order" do
       results = Timeout.timeout(10) { [ first.value, clearer.value ] }
       expect(results).to all(be_a(ServiceResult))
       expect(results).to all(be_success)
-      expect(user.reload.library_facts).to be_empty
+      expect(user.reload.career_contexts).to be_empty
       expect(user.summary).to be_nil
       expect(user.screened_fields).not_to include("summary")
       if operation == :clear_answer
         expect(job.gap_responses).to be_empty
       else
-        expect(response.reload.library_fact_id).to be_nil
+        expect(response.reload.career_context_id).to be_nil
         expect(response.body).to eq(operation == :save ? "After" : "Before")
         expect(response.screened_fields).to include("body") if operation == :apply_result
       end

@@ -18,7 +18,7 @@ the `result` sent to Rails, so changes must be mirrored there.
   `Jobs::CreateJobFromPostingService`
 - `sorted_requirement_bullets.py` — `SortedRequirementBullets`, the job requirements sorting
   agent's output (1-based bullet numbers for requirements, responsibilities, and nice-to-haves)
-- `gap_analysis_context.py` — `GapAnalysisContext` (job + `CareerLibrary`, including library facts),
+- `gap_analysis_context.py` — `GapAnalysisContext` (job + `CareerLibrary`, including career context entries),
   read from the database by `database/career_library_reader.py`; the gap analysis input, not an
   LLM output
 - `library_search_match.py` — `LibrarySearchMatch` (source type and id, embedded text, cosine
@@ -29,7 +29,7 @@ the `result` sent to Rails, so changes must be mirrored there.
   entries, cited prose). Identity fields are copied by code, not emitted by the model
 - `gap_analysis.py` — `GapAnalysis` (agent output: verdicts citing short labels) and
   `GapAnalysisResult`, the `analyze_gaps` result (`result["gap_analysis"]`) with evidence text
-  copied from the library (kind `fact` is a library fact); mirrored by
+  copied from the library (kind `career_context` is a career context entry); mirrored by
   `apps/web/src/features/gap-analysis/parseGapAnalysisResult.ts`
 
 - `user_text_fallback.py` — strict boolean prompt-injection answer; `blocked` owns the fallback

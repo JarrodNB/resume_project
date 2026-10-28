@@ -44,7 +44,7 @@ export const JOB_QUERY = graphql(`
         id
         requirement
         body
-        libraryFact {
+        careerContext {
           id
         }
       }

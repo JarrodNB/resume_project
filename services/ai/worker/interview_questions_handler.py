@@ -79,7 +79,7 @@ def handle_interview_questions_task(
             (library.projects, ("name", "description")),
             (library.educations, ("institution", "degree", "field_of_study")),
             (library.certifications, ("name",)), (library.skills, ("name",)),
-            (library.facts, ("response",)),
+            (library.career_contexts, ("response",)),
         ) for row in rows for field in fields
         if isinstance(value := getattr(row, field), str)
     )

@@ -12,6 +12,7 @@ Project-level documentation that spans services.
 - `architecture.md` — service overview, dependency directions, and links to focused guides in `architecture/`
 - `architecture/background-jobs.md` — primary-database Solid Queue, transactional enqueue,
   dedicated worker operation and old production queue draining
+- `architecture/chat.md` — private career chat, shared execution/streaming, rolling context and feedback
 - `architecture/ai-streaming.md` — optional public output on the shared runner, scoped
   observer capabilities, Redis replay, outage behavior and local latency probes
 - `testing.md` — focused Docker checks, schema generation, offline tests, and paid evals

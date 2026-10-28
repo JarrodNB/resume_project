@@ -14,7 +14,9 @@
 .interview-status { font-size: 14px; font-weight: 500; color: var(--muted-foreground); }
 .interview-question { font-size: clamp(20px, 2vw, 26px); line-height: 1.5; font-weight: 500; text-wrap: pretty; }
 .interview-stage .flex, .interview-stage .interview-question-actions { display: flex; flex-wrap: wrap; align-items: start; justify-content: center; gap: 8px; }
-.interview-question-actions button { min-height: 44px; }
+
+.interview-question-actions button { min-height: 44px; font-size: 14px; }
+.interview-question-actions button[aria-pressed] { margin-inline-start: 4px; }
 .interview-record-controls { justify-content: center; }
 .interview-stage .justify-self-start { justify-self: center; }
 .interview-stage audio { width: 100%; max-width: 100%; }

@@ -4,13 +4,13 @@ import asyncio
 
 import pytest
 
-from schemas.gap_analysis_context import CareerLibrary, LibraryExperience, LibraryFact
+from schemas.gap_analysis_context import CareerContext, CareerLibrary, LibraryExperience
 from screening.library_fields import screen_library_fields, screen_library_fields_async
 from screening.session import current_session, screening_session
 
 
 def test_checks_only_unapproved_used_fields_and_reports_success():
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="On call", response="Weekly",
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="On call", response="Weekly",
                                              screened_fields=["response"])])
     requests = []
     with screening_session():
@@ -23,16 +23,16 @@ def test_checks_only_unapproved_used_fields_and_reports_success():
 
 
 def test_unused_fields_are_not_checked_and_reuse_does_not_call_classifier():
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="On call", response="Weekly",
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="On call", response="Weekly",
                                              screened_fields=["response"])])
     with screening_session():
         assert screen_library_fields(library, lambda _: pytest.fail("unexpected check"),
-                                     include_fact_requirements=False)
+                                     include_context_requirements=False)
         assert not current_session().library_screening
 
 
 def test_rejected_batch_does_not_approve_partial_fields():
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="On call", response="Weekly")])
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="On call", response="Weekly")])
     with screening_session():
         assert not screen_library_fields(library, lambda _: False)
         assert not current_session().library_screening
@@ -40,10 +40,10 @@ def test_rejected_batch_does_not_approve_partial_fields():
 
 def test_projected_approval_does_not_cover_full_library_with_unchecked_fields():
     from screening.session import current_session
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="On call", response="Weekly")])
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="On call", response="Weekly")])
     with screening_session():
         assert screen_library_fields(library, lambda _: True,
-                                     used_fields={"library_fact": {"response"}})
+                                     used_fields={"career_context": {"response"}})
         assert not current_session().allowed_sources
         assert current_session().library_screening[0].fields == ["response"]
 
@@ -53,14 +53,14 @@ def test_unchecked_fields_are_plain_text_with_distinct_field_boundaries():
         id="secret-record-id", company="Acme", title="Engineer",
         description="Built a parser.\nHandled quoted \"inputs\".",
         screened_fields=["company"],
-    )], facts=[LibraryFact(id="secret-fact-id", requirement="On call", response="Weekly")])
+    )], career_contexts=[CareerContext(id="secret-fact-id", requirement="On call", response="Weekly")])
     requests = []
 
     with screening_session():
         assert screen_library_fields(library, lambda text: requests.append(text) or True)
         assert [(report.record_type, report.fields) for report in current_session().library_screening] == [
             ("experience", ["title", "description"]),
-            ("library_fact", ["requirement", "response"]),
+            ("career_context", ["requirement", "response"]),
         ]
 
     prompt = requests[0]
@@ -74,7 +74,7 @@ def test_unchecked_fields_are_plain_text_with_distinct_field_boundaries():
 
 
 def test_async_screening_uses_same_readable_input_and_keeps_fail_closed():
-    library = CareerLibrary(facts=[LibraryFact(id="fact-id", requirement="On call", response="Weekly")])
+    library = CareerLibrary(career_contexts=[CareerContext(id="fact-id", requirement="On call", response="Weekly")])
     requests = []
 
     async def reject(text):

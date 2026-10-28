@@ -19,7 +19,7 @@ module TextLimits
   MAX_EDUCATIONS = 20
   MAX_CERTIFICATIONS = 40
   MAX_SKILLS = 80
-  MAX_LIBRARY_FACTS = 100
+  MAX_CAREER_CONTEXTS = 100
   MAX_LINKS = 20
 
   SECTION_TOO_LONG = "This section is too long. Shorten it and try again.".freeze

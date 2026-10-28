@@ -10,8 +10,8 @@ User facts are stored as rows with embeddings in pgvector for tasks that need se
 search. Complete-draft tailoring reads the owned library once and uses its entries directly.
 
 - **What's embedded:** every career library entry: experiences, highlights, projects,
-  educations, skills, and saved library facts. Each is embedded as one text with enough context to stand alone
-  ("Senior Engineer at Acme: Cut deploy time 40%"). A gap response is embedded only when saved to the library as a `LibraryFact`.
+  educations, skills, and saved career context entries. Each is embedded as one text with enough context to stand alone
+  ("Senior Engineer at Acme: Cut deploy time 40%"). A gap response is embedded only when saved to the library as a `CareerContext`.
 - **Storage:** `library_embeddings` (`source_type` + `source_id`, `content`, `content_digest`,
   `model`, `embedding vector(1536)`), HNSW index with cosine distance, in the same Postgres.
 - **Model:** OpenAI `text-embedding-3-small` at 1536 dimensions (Rails
@@ -115,7 +115,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
 - **Gaps are answered in the comparison view, not by an AI asking questions.** The user can
   write a response under any gap or partial match. Responses are saved in Rails per job and
   requirement (keyed by the requirement text, not the analysis run), so re-running the
-  comparison keeps them, and each can optionally be added to the career library as a `LibraryFact`
+  comparison keeps them, and each can optionally be added to the career library as a `CareerContext`
   (the requirement plus the answer). Only that fact is embedded and read by later gap analysis;
   an answer left on the job is not. Tailoring
   reads the gap analysis and the responses as inputs. A deferred `ask_user` flow was considered
@@ -144,7 +144,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   user-written gap responses reuse saved requirement/body checks and receive one grouped
   decision for pending fields before entering prompts. Queued snapshots retain every
   record identity even when rendered text is identical. Metadata never enters prompts;
-  job-only answer approvals remain independent of linked LibraryFact approvals.
+  job-only answer approvals remain independent of linked CareerContext approvals.
   Complete-source limits still apply to already-approved answers.
   The model selects, orders, and rewrites toward the job without inventing employers,
   titles, tools, dates, metrics, or responsibilities. The model is instructed to cite
@@ -162,7 +162,7 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
   sources render the same text. Classification can reuse an exact checked field payload,
   but each record earns reports only for its own checked fields; equal display text alone
   cannot approve a different field selection.
-  Interviews exclude fact requirements. Edits remove only changed field names; reordering
+  Interviews exclude career context requirements. Edits remove only changed field names; reordering
   preserves checks. Text editors reload the locked record before assigning changes, so
   an approval earned after an editor loaded cannot remain attached to edited text.
   Profile imports and clearing lock the owner first; merges then lock persisted rows
@@ -239,9 +239,9 @@ search. Complete-draft tailoring reads the owned library once and uses its entri
 
 ## AI section review
 
-Summary, Experience, Projects, and Facts each have an explicit section review action.
+Summary, Experience, Projects, and Career context each have an explicit section review action.
 They return individual red/yellow/green assessments with short reasons for the summary, role
-descriptions/highlights, project descriptions, or saved fact responses without changing career facts.
+descriptions/highlights, project descriptions, or saved career context responses without changing career facts.
 Each may also include up to three focused, distinct questions about missing contribution, context,
 method, or outcome, in priority order. Complete evidence and wording-only improvements need no questions, and
 questions never require metrics. These independent questions are stored with the completed
@@ -251,7 +251,7 @@ The canonical ordered `questions` list is empty when no question is useful. Lega
 questions become one-item lists; the scalar `question` remains the first question for older clients.
 Each question is bounded at 500 characters. Repeated questions, including casing/whitespace variants,
 are rejected rather than offered as separate gaps. Accepted/discarded answers retire the whole set.
-Contact details, credentials, skill names, and fact requirement labels stay outside AI edits.
+Contact details, credentials, skill names, and career context requirement labels stay outside AI edits.
 Snapshots and results live on the existing `review_library_section` AI task; there is no
 separate assessment table. Only the selected section reaches screening and generation.
 The snapshot includes existing field checks, and unchecked used fields are screened before
@@ -262,7 +262,7 @@ move, or entries merge. Deleted targets disappear from current assessments. Resu
 validates exact target coverage, and late screening reports can only approve fields whose saved
 values still match the snapshot under a record lock. Live progress uses existing task subscriptions.
 
-Individual edits use only the selected record context. Accepting a project or fact revision
+Individual edits use only the selected record context. Accepting a project or career context revision
 queues the existing embedding sync; the profile summary is read live and needs no embedding job.
 Exact accepted generated text reuses field coverage until a manual edit changes that text.
 Reviews and revisions grade the career evidence, not the polish added by the writer. A
@@ -308,3 +308,25 @@ batch can replay with no new feedback; completed ordinary edits still require fe
 Accepted answers retire their question through the accepted assessment overlay, including
 when the accepted wording is unchanged. Discarded answers also hide that review question;
 a fresh explicit section review can offer a new question. Closing a workspace preserves work.
+
+
+### Career context naming and deployment
+
+Saved requirement/response pairs use `CareerContext`, the `career_contexts` table and
+association, GraphQL `careerContexts` and `createCareerContext` / `updateCareerContext` /
+`deleteCareerContext`, and the `career_context` evidence/edit discriminator. Python library
+snapshots use `career_contexts`. The frontend section uses `library.career_contexts`.
+
+Migration `20261028090000` renames the existing table and job-answer foreign-key column,
+preserving UUIDs, ownership, uniqueness, nullification, screening checks and vector rows.
+It changes structural identifiers in saved AI review/edit/gap-analysis snapshots, frozen
+interview sources and references. It does not replace words inside user text or message
+history. Existing embedding text keeps its `Fact:` prefix to avoid unnecessary provider
+calls; new source identities and all domain interfaces use `CareerContext`.
+
+For deployment, stop accepting new requests, let active AI executions finish and drain
+their result queue, then pause consumers. Run the migration and deploy Rails, AI workers
+and the frontend together before resuming requests and consumers. Already-published task
+bodies are normalized at the Python queue boundary to match migrated Rails snapshots.
+The GraphQL rename requires the matching frontend; old clients must reload. Rollback
+requires the same coordinated pause and the migration’s `down` before restoring old code.

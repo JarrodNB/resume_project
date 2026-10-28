@@ -16,7 +16,7 @@ module InterviewPrep
       return failure([ "Unknown interview question set type" ]) unless InterviewQuestionSet::SET_TYPES.include?(@set_type)
 
       associations = [ @user.experiences, @user.projects, @user.educations,
-                       @user.certifications, @user.skills, @user.library_facts ]
+                       @user.certifications, @user.skills, @user.career_contexts ]
       if @user.summary.blank? && associations.none?(&:exists?)
         return failure([ "Your career library is empty. Add career details before generating questions." ])
       end

@@ -20,7 +20,7 @@ RSpec.describe "Interview approval and career edit interleaving" do
     [ :education, Educations::UpdateEducationService, :education, :institution, :degree ],
     [ :certification, Certifications::UpdateCertificationService, :certification, :name, :issuer ],
     [ :skill, Skills::UpdateSkillService, :skill, :name, :category ],
-    [ :library_fact, LibraryFacts::UpdateLibraryFactService, :library_fact, :response, :requirement ]
+    [ :career_context, CareerContexts::UpdateCareerContextService, :career_context, :response, :requirement ]
   ].each do |factory, service, argument, changed, retained|
     it "invalidates newly approved #{factory} text even when its editor loaded earlier" do
       record = create(factory, user: user, screened_fields: [ retained.to_s ])
@@ -85,23 +85,23 @@ RSpec.describe "Interview approval and career edit interleaving" do
     expect(target.screened_fields).to include("description")
   end
 
-  it "invalidates a fact approval earned between gap-response lookup and assignment" do
-    fact = create(:library_fact, user: user)
-    stale_fact = LibraryFact.find(fact.id)
+  it "invalidates a context approval earned between gap-response lookup and assignment" do
+    context = create(:career_context, user: user)
+    stale_context = CareerContext.find(context.id)
     job = create(:job, user: user)
     interview = Interviews::StartPreparationService.call(user: user).value
-    index = interview.frozen_context.fetch("sources").index { |item| item["id"] == fact.id && item["field"] == "response" }
-    facts = job.user.library_facts
-    allow(job.user).to receive(:library_facts).and_return(facts)
-    allow(facts).to receive(:find_or_initialize_by).with(requirement: fact.requirement) do
+    index = interview.frozen_context.fetch("sources").index { |item| item["id"] == context.id && item["field"] == "response" }
+    career_contexts = job.user.career_contexts
+    allow(job.user).to receive(:career_contexts).and_return(career_contexts)
+    allow(career_contexts).to receive(:find_or_initialize_by).with(requirement: context.requirement) do
       approve_sources(interview, [ index ])
-      stale_fact
+      stale_context
     end
-    result = GapResponses::SaveGapResponseService.call(job: job, requirement: fact.requirement,
+    result = GapResponses::SaveGapResponseService.call(job: job, requirement: context.requirement,
       body: "A new gap answer", add_to_library: true)
     expect(result).to be_success
-    expect(fact.reload.response).to eq("A new gap answer")
-    expect(fact.screened_fields).not_to include("response")
+    expect(context.reload.response).to eq("A new gap answer")
+    expect(context.screened_fields).not_to include("response")
   end
 
   it "retains an unchanged field approval earned after the editor loaded" do

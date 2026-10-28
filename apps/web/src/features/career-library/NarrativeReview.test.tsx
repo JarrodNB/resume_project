@@ -7,7 +7,7 @@ import { renderPage } from '@/test/renderPage'
 import { LibraryWorkspace } from './LibraryWorkspace'
 import { LibraryAiWorkspace } from './LibraryAiWorkspace'
 import { emptyLibraryReviewMocks, emptyReviewLibrary } from './libraryReviewTestFixtures'
-import { FactsSection } from './FactsSection'
+import { CareerContextSection } from './CareerContextSection'
 import { ProfileSection } from './ProfileSection'
 import { ProjectSection } from './ProjectSection'
 import { LIBRARY_EDIT_QUERY } from './libraryEditOperations'
@@ -20,9 +20,9 @@ const cases = [
   { section: 'projects', title: 'Projects', sectionId: 'library.projects', kind: 'project', field: 'description', id: 'project-1',
     library: { ...emptyReviewLibrary, projects: [{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }] },
     element: <ProjectSection projects={[{ id: 'project-1', name: 'Stock sheet', role: 'Contributor', url: null, startDate: null, endDate: null, description: 'Built a shared inventory sheet.' }]} /> },
-  { section: 'facts', title: 'Facts', sectionId: 'library.facts', kind: 'library_fact', field: 'response', id: 'fact-1',
-    library: { ...emptyReviewLibrary, libraryFacts: [{ id: 'fact-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }] },
-    element: <FactsSection facts={[{ id: 'fact-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }]} /> },
+  { section: 'career_contexts', title: 'Career context', sectionId: 'library.career_contexts', kind: 'career_context', field: 'response', id: 'context-1',
+    library: { ...emptyReviewLibrary, careerContexts: [{ id: 'context-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }] },
+    element: <CareerContextSection careerContexts={[{ id: 'context-1', requirement: 'Inventory experience', response: 'Maintained the count sheet.' }]} /> },
 ]
 
 for (const item of cases) {

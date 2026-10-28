@@ -6,7 +6,7 @@ import { INTERVIEW_FIELDS } from './interviewOperations'
 
 it.each(['interviewSession', 'interviewSessionUpdated', 'submitInterviewTurn'])('preserves newer progress for %s responses', async key => {
   const cache = new InMemoryCache()
-  const current = { __typename: 'InterviewSession', id: 'session', revision: 2, status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'browser', preparedRole: {}, jobContext: null, answerCap: 3, currentQuestionPosition: 1, expiresAt: '2026-10-30', setup: { __typename: 'InterviewSetup', questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, questions: [], messages: [], operations: [] }
+  const current = { __typename: 'InterviewSession', feedback: null, id: 'session', revision: 2, status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'browser', preparedRole: {}, jobContext: null, answerCap: 3, currentQuestionPosition: 1, expiresAt: '2026-10-30', setup: { __typename: 'InterviewSetup', questionCount: 8, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] }, questions: [], messages: [], operations: [] }
   cache.writeFragment({ id: 'InterviewSession:session', fragment: INTERVIEW_FIELDS, data: current })
   const stale = { ...current, revision: 1, currentQuestionPosition: 0 }
   const nested = key === 'submitInterviewTurn'

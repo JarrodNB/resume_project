@@ -142,6 +142,8 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   known charges and incomplete-usage accounting; missing indexed evidence fails clearly.
 - `interview_references_handler.py` claims one owned prompt before query embedding/search. Returns exact saved career references for the candidate UI, never interviewer context. Duplicate claims perform no paid work; failures use explicit bounded retry like clarification. Selection/projection lives in `interviews/references.py`.
 
+- `interview_session_feedback_handler.py` — once-only completed-session claims, approved saved dialogue reuse, bounded coaching and usage through the results queue.
+
 - `legacy_career_context.py` normalizes structural identifiers in task envelopes published
   before the database rename. User prose, history strings and source digests remain exact;
   ordinary handlers and schemas use only canonical career-context names.

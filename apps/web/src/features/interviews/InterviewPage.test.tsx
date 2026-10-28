@@ -24,7 +24,7 @@ vi.mock('./RecentInterviews', () => ({ RecentInterviews: () => <p>Recent saved i
 vi.mock('@/features/auth/useAuth', () => ({ useAuth: () => ({ user: { id: 'owner' } }) }))
 const snapshot = {
   setup: { questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
-  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2026-10-27',
+  id: 'session', status: 'active', interviewType: 'basic', executionMode: 'real', speechPlaybackMode: 'provider', revision: 0, answerCap: 2, currentQuestionPosition: 1, expiresAt: '2099-10-27',
   questions: [{ id: 'question', content: 'Describe a project.', position: 1, acceptedAnswerCount: 0 }],
   messages: [{ id: 'opening', questionId: 'question', kind: 'opening', position: 1, content: 'Describe a project.', careerReferences: { id: 'saved-references', status: 'empty', attemptCount: 1, aiTaskId: null, deadline: null, references: [] } }],
   operations: [{ id: 'speech', questionId: 'question', messageId: 'opening', kind: 'speech', status: 'accepted', failureCode: null, checkpoint: null, submissionKey: null, canRetry: true }],

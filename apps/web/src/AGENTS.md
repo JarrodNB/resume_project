@@ -58,3 +58,5 @@ Source of the web app, organized by feature.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
 - `lib/formatCertificationDates.ts` formats explicit issue and expiry labels.
+
+- Completed interview reviews include explicit on-demand coaching through `CompletedInterviewFeedback` and `useInterviewSessionFeedback`; opening the review/section never starts model work.

@@ -4,6 +4,7 @@ import { graphql } from '@/graphql/generated'
 export const INTERVIEW_FIELDS = graphql(`
   fragment InterviewSnapshot on InterviewSession {
     id status interviewType executionMode speechPlaybackMode preparedRole revision answerCap currentQuestionPosition expiresAt
+    feedback { id status content attemptCount aiTaskId deadline }
     setup { questionCount questionFormat difficulty interviewer focusAreas }
     jobContext { id title company description requirements responsibilities niceToHaves }
     questions { id content questionType position acceptedAnswerCount skipped }
@@ -110,6 +111,15 @@ export const REQUEST_INTERVIEW_REFERENCES = graphql(`
   mutation RequestInterviewReferences($input: RequestInterviewReferencesInput!) {
     requestInterviewReferences(input: $input) {
       careerReferences { id status attemptCount aiTaskId deadline references { sourceType sourceId title body } }
+      errors
+    }
+  }
+`)
+
+export const REQUEST_INTERVIEW_SESSION_FEEDBACK = graphql(`
+  mutation RequestInterviewSessionFeedback($input: RequestInterviewSessionFeedbackInput!) {
+    requestInterviewSessionFeedback(input: $input) {
+      feedback { id status content attemptCount aiTaskId deadline }
       errors
     }
   }

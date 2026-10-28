@@ -8,7 +8,7 @@ import { useInterviewSession, useStartInterview } from './useInterviewSession'
 import { loadPendingSubmission, savePendingSubmission } from './pendingSubmission'
 import { ABANDON_INTERVIEW, AUTHORIZE_RECORDING, BEGIN_INTERVIEW, INTERVIEW_QUERY, INTERVIEW_UPDATED, REGISTER_RECORDING, SUBMIT_TURN, START_RECORDED_TRANSCRIPTION, START_INTERVIEW, SKIP_QUESTION } from './interviewOperations'
 const snapshot = {
-  jobContext: null,
+  feedback: null, jobContext: null,
   setup: { __typename: 'InterviewSetup' as const, questionCount: 9, questionFormat: 'mixed', difficulty: 'realistic', interviewer: 'daniel', focusAreas: [] },
   __typename: 'InterviewSession' as const, id: 'session', status: 'active', interviewType: 'basic', executionMode: 'fake', speechPlaybackMode: 'provider', preparedRole: {}, revision: 0, answerCap: 2, currentQuestionPosition: 0, expiresAt: '2026-10-27T00:00:00Z',
   questions: [{ __typename: 'InterviewSessionQuestion', id: 'question', content: 'Question', questionType: 'behavioral', position: 0, acceptedAnswerCount: 0, skipped: false }],

@@ -61,6 +61,8 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 - Written interview question and feedback prompts use saved career context requirements only to interpret
   their responses. Requirements never establish personal claims and cannot be cited as evidence.
 
+- `interview_session_feedback_instructions.py` — versioned completed-session coaching, accepted-answer grounding, illustrative examples and subject corrections without invented personal experience.
+
 - `chat_instructions.py` — versioned career-chat scope, personal-fact grounding and honest unsupported-action rules.
 
 - `chat_summary_instructions.py` — versioned rolling career memory, factual provenance and source-as-data rules.

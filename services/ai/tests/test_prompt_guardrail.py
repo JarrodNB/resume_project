@@ -62,7 +62,7 @@ def providers(monkeypatch: pytest.MonkeyPatch):
 
 @pytest.mark.parametrize("name", [
     "resume_parsing", "parse_job_posting", "job_requirements_sorting", "gap_analysis",
-    "resume_tailoring", "interview_questions", "interview_feedback", "study_guide",
+    "resume_tailoring", "interview_questions", "interview_feedback", "interview_session_feedback", "study_guide",
 ])
 def test_every_generative_agent_blocks_before_provider_call(name, providers) -> None:
     """Direct agent calls cannot bypass capability checks, even with a model override."""

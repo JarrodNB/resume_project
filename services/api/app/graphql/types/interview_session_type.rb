@@ -1,6 +1,7 @@
 # Public interview output intentionally excludes execution claims, storage keys, and model history.
 module Types
   class InterviewSessionType < Types::BaseObject
+    field :feedback, Types::InterviewSessionFeedbackType, null: true
     field :id, ID, null: false
     field :status, String, null: false
     field :execution_mode, String, null: false
@@ -17,6 +18,10 @@ module Types
     field :questions, [ Types::InterviewSessionQuestionType ], null: false
     field :messages, [ Types::InterviewSessionMessageType ], null: false
     field :operations, [ Types::InterviewSessionOperationType ], null: false
+
+    def feedback
+      object.feedback if object.completed? && object.expires_at > Time.current && !object.content_purged_at
+    end
 
     def speech_playback_mode
       Interviews::SpeechPlayback.mode(object)

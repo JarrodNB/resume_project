@@ -1007,3 +1007,54 @@ agreement and accounted usage; no dialogue model or database is required. It use
 query/latency benchmark. `--output PATH`
 saves the report only when requested. Errors and mismatched labels fail visibly. Evaluation does not change interview behavior. No paid semantic run or human relevance
 assessment was performed during the initial implementation.
+
+
+## Completed interview coaching
+
+Completed interviews keep their read-only questions and accepted dialogue. Coaching starts
+only when the owner chooses **Generate feedback** in the completed review; completion itself
+never starts feedback. Older retained completed interviews are eligible too. A session with no
+accepted answers explains why feedback is unavailable. No audio is required.
+
+The owner receives a qualitative overall summary and strengths, improvements, and an
+illustrative better answer for each answered core question. Follow-up questions and accepted
+answers belong to that core question. An unanswered skipped question is excluded, while an
+answered question whose remaining follow-ups were skipped remains eligible. Examples must
+not invent personal experience; role requirements describe the practice role, not the candidate.
+
+Rails stores one `InterviewSessionFeedback` per session and owns admission, its latest task,
+claim deadline and validated saved result. `interview_session_feedback` uses the existing SQS
+worker/result path, independent of the active-turn HTTP executor. The queue input contains
+only the feedback record identity. The authenticated internal feedback claim returns retained
+server-owned role/setup context and accepted dialogue once; duplicate claims perform no
+provider work. Preparation-backed sessions reuse their root hourly admission and all feedback
+usage belongs to the independent interview allowance.
+
+The result envelope is `interview_session_feedback: {summary, questions}`; each question has
+its saved `question_id`, `strengths`, `improvements`, and `example_answer`. Rails validates exact
+answered-question coverage and bounded nonblank wording before saving it under owner,
+session, feedback and task locks. Results cannot change dialogue or progress. Task subscriptions
+and interview snapshots expose progress and retained coaching; execution claims stay private.
+Coaching is available only while the original session text remains retained.
+
+
+Feedback attempts have a five-minute deadline and at most two explicitly requested attempts.
+A failed queue publication returns the saved failed record alongside its error, so the review
+can immediately offer **Retry feedback**. Provider failures and expired claims also require an
+explicit retry; SQS redelivery never authorizes a second provider run. Concurrent requests or
+retries reuse the same latest task. A late result from an older attempt cannot replace current
+coaching, but its independently deduplicated usage still counts. Saved successful coaching is
+reused and cannot be regenerated.
+
+The completed review stops displaying transcript and coaching at the session's retention
+deadline, including when an already-open browser resumes after suspended timers. Server
+request, claim, result and read paths enforce the same retention independently. Scheduled
+cleanup scrubs the domain coaching plus input/result payloads on all feedback attempts, marks
+unfinished tasks failed, and preserves billing/outcome records. Session deletion performs the
+same feedback scrubbing before dependent records disappear.
+
+Manual QA: finish an interview, open Interview feedback, and confirm that opening alone does
+not generate coaching. Choose Generate feedback, reopen the session during generation, and
+read saved summary and per-question coaching. Confirm unanswered skipped questions are not
+assessed. For a failed attempt, choose Retry feedback and verify progress returns without
+changing the transcript. An all-skipped interview explains why coaching is unavailable.

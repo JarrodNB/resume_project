@@ -10,8 +10,12 @@ import { useOpenSection } from '@/components/useOpenSection'
 import './completedInterviewReview.css'
 import { difficultyOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { InterviewJobContext } from './InterviewJobContext'
+import { CompletedInterviewFeedback } from './CompletedInterviewFeedback'
+import { useInterviewDeadline } from './useInterviewDeadline'
 
 export function CompletedInterviewReview({ interview }: { interview: InterviewSnapshotFragment }) {
+  const expired = useInterviewDeadline(interview.expiresAt)
+  if (expired) return <div className="grid gap-3"><h2 className="text-xl font-semibold">Interview expired</h2><p className="text-sm">The saved questions, answers, and feedback are no longer available.</p><Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link></div>
   const job = interview.jobContext
   const role = interview.preparedRole && typeof interview.preparedRole === 'object' && !Array.isArray(interview.preparedRole)
     ? interview.preparedRole as Record<string, unknown> : null
@@ -42,6 +46,7 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
         </div>)}
       </div> : <p className="text-sm text-muted-foreground">Role details were not saved for this interview.</p>}
     </ReviewSection>}
+    <CompletedInterviewFeedback interviewId={interview.id} saved={interview.feedback} questions={interview.questions} hasAnswers={answeredCount > 0} />
     <div className="divide-y border-y" aria-label="Saved questions and answers">
       {interview.questions.toSorted((a, b) => a.position - b.position).map((question) => {
         const dialogue = interview.messages.filter((message) => message.questionId === question.id && ['answer', 'follow_up'].includes(message.kind)).toSorted((a, b) => a.position - b.position)

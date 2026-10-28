@@ -221,9 +221,7 @@ def test_trim_between_preflight_and_blocking_read_returns_a_reset(redis_url):
     asyncio.run(scenario())
 
 
-def test_new_generation_fences_old_writer_and_private_fields_are_rejected(redis_url):
-    from pydantic import ValidationError
-
+def test_new_generation_fences_old_writer(redis_url):
     from execution.streaming import StreamBuffer, StreamGap
 
     async def scenario():
@@ -237,11 +235,30 @@ def test_new_generation_fences_old_writer_and_private_fields_are_rejected(redis_
         assert not await first.emit("delta", text="obsolete")
         with pytest.raises(StreamGap):
             await buffer.read(old, "0-0", block_ms=1)
-        with pytest.raises(ValidationError):
-            await second.emit("delta", text="public", tool_arguments={"secret": "private"})
-        with pytest.raises(ValidationError):
-            await second.emit("completed", text="unaccepted draft")
         assert [event[1]["text"] for event in await buffer.read(newer, "0-0", block_ms=1)] == ["replacement"]
+        await buffer.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(("kind", "payload"), [
+    pytest.param("delta", {"text": "public", "tool_arguments": {"secret": "private"}}, id="private-fields"),
+    pytest.param("completed", {"text": "unaccepted draft"}, id="unaccepted-completed-text"),
+])
+def test_rejected_event_disables_sink_and_preserves_public_history(redis_url, kind, payload):
+    from execution.streaming import StreamBuffer
+
+    async def scenario():
+        buffer = StreamBuffer(redis_url)
+        metadata = identity()
+        sink = buffer.sink(**metadata)
+        assert await sink.emit("delta", text="accepted public text")
+        history = await buffer.read(metadata, "0-0", block_ms=1)
+
+        assert not await sink.emit(kind, **payload)
+        assert not sink.available
+        assert not await sink.emit("delta", text="later valid text")
+        assert await buffer.read(metadata, "0-0", block_ms=1) == history
         await buffer.close()
 
     asyncio.run(scenario())

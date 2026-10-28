@@ -11,6 +11,8 @@
 #   - latest_gap_analysis: the most recent analyze_gaps task
 #   - latest_tailoring: the most recent tailor_resume task
 class Job < ApplicationRecord
+  scope :active, -> { where(archived_at: nil) }
+
   STAGES = %w[unapplied applied interviewing rejected offer].freeze
 
   belongs_to :user

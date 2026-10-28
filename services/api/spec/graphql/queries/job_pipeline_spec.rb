@@ -11,6 +11,7 @@ RSpec.describe "jobPipeline query" do
     create(:ai_task, user: user, subject: comparing, task_type: "analyze_gaps", status: "queued")
     create(:job, user: create(:user), title: "Theirs")
 
+    create(:job, user: user, archived_at: Time.current)
     result = execute_graphql(query, user: user)
 
     expect(result["errors"]).to be_nil

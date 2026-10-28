@@ -9,6 +9,7 @@ RSpec.describe "Query scoping" do
     create(:job, user: user, title: "Mine", stage: "applied")
     create(:job, user: user, title: "Mine too")
     create(:job, user: other_user, title: "Theirs")
+    create(:job, user: user, title: "Archived", stage: "applied", archived_at: Time.current)
 
     all_jobs = execute_graphql("{ jobs { title } }", user: user)
     applied_jobs = execute_graphql("{ jobs(stage: APPLIED) { title } }", user: user)

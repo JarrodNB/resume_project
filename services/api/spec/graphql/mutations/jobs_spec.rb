@@ -1,4 +1,4 @@
-# Description: Job mutations: create, move stage, delete (tailored resumes survive), ownership
+# Description: Job mutations: create, move stage, archive (all linked records survive), ownership
 # checks, validation errors.
 require "rails_helper"
 
@@ -97,27 +97,39 @@ RSpec.describe "Job mutations" do
     expect(result.dig("data", "moveJobToStage", "job", "appliedAt")).to be_present
   end
 
-  it "keeps the job's tailored resumes editable after deleting it" do
-    resume = create(:resume, user: user)
+  %w[archiveJob deleteJob].each do |operation|
+    it "#{operation} retains the job and all linked data on repeated requests" do
+      resume = create(:resume, user: user)
+      job = resume.job
+      job.update!(stage: "applied", applied_at: 1.day.ago)
+      answer = create(:job_gap_response, job: job)
+      task = create(:ai_task, user: user, subject: job)
+      applied_at = job.applied_at
+      query = "mutation($id: ID!) { #{operation}(input: { id: $id }) { job { id } errors } }"
 
-    result = execute_graphql(<<~GQL, user: user, variables: { id: resume.job_id })
-      mutation($id: ID!) { deleteJob(input: { id: $id }) { job { id } errors } }
-    GQL
+      result = execute_graphql(query, user: user, variables: { id: job.id })
+      expect(result.dig("data", operation, "errors")).to eq([])
+      archived_at = job.reload.archived_at
+      expect(archived_at).to be_present
+      expect(job.stage).to eq("applied")
+      expect(job.applied_at).to eq(applied_at)
+      expect(resume.reload.job_id).to eq(job.id)
+      expect(answer.reload.job_id).to eq(job.id)
+      expect(task.reload.subject).to eq(job)
 
-    expect(result.dig("data", "deleteJob", "errors")).to eq([])
-    resume.reload
-    expect(resume.job).to be_nil
-    expect(resume.update(title: "Renamed")).to be(true)
-  end
+      travel_to(1.hour.from_now) do
+        expect(execute_graphql(query, user: user, variables: { id: job.id }).dig("data", operation, "errors")).to eq([])
+      end
+      expect(job.reload.archived_at).to eq(archived_at)
+    end
 
-  it "cannot delete another user's job" do
-    their_job = create(:job)
-
-    result = execute_graphql(<<~GQL, user: user, variables: { id: their_job.id })
-      mutation($id: ID!) { deleteJob(input: { id: $id }) { job { id } errors } }
-    GQL
-
-    expect(result["errors"].first["message"]).to eq("Record not found")
-    expect(Job.exists?(their_job.id)).to be(true)
+    it "#{operation} cannot archive another user's job or a missing job" do
+      their_job = create(:job)
+      [their_job.id, SecureRandom.uuid].each do |id|
+        result = execute_graphql("mutation($id: ID!) { #{operation}(input: { id: $id }) { errors } }", user: user, variables: { id: id })
+        expect(result.dig("errors", 0, "message")).to eq("Record not found")
+      end
+      expect(their_job.reload.archived_at).to be_nil
+    end
   end
 end

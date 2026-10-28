@@ -15,6 +15,12 @@ as a supervised process using the same release, primary database and application
 configuration as Rails. The queue scheduler runs the development/production tasks
 from `config/recurring.yml`.
 
+`config/queue.yml` runs two workers on the primary database connection: one with 2 threads
+only for `ai_executions` (dispatch and recovery), and one with 3 threads for `default`,
+`maintenance`, and `ai_maintenance`. Slow cleanup or embedding jobs therefore cannot
+delay AI execution jobs. Solid Queue cannot exclude a queue, so a job on a new queue name
+needs that name added to the second worker's list or it never runs.
+
 New queue tables are installed by the normal application migrations. Do not load
 the old standalone `db/queue_schema.rb` into an existing database: its generated
 schema uses destructive table creation. Normal application schema dumps now include

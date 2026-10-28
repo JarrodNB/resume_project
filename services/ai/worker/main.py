@@ -69,9 +69,13 @@ def process_task_message(
     """
     try:
         task = AiTaskMessage.model_validate_json(message_body)
-    except ValidationError:
-        logger.exception(
-            "Invalid task message, leaving it for the dead-letter queue: %s", message_body
+    except ValidationError as error:
+        # The body can hold resume text and interview answers, and pydantic's message echoes
+        # input values, so log only where the message is wrong, never what it said.
+        problems = [(".".join(str(part) for part in item["loc"]), item["type"]) for item in error.errors()]
+        logger.error(
+            "Invalid task message (%d characters), leaving it for the dead-letter queue: %s",
+            len(message_body), problems,
         )
         return False
 

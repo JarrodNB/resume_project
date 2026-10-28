@@ -101,6 +101,21 @@ def test_invalid_message_is_not_deleted_and_publishes_nothing(
     assert result_queue.sent_bodies == []
 
 
+def test_invalid_message_log_does_not_contain_the_message_body(
+    task_dependencies: TaskDependencies, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Task bodies carry resume text and answers, so the dead-letter log must not repeat them."""
+    body = build_task_body(task_type="write_poem")
+    secret = json.loads(body)["ai_task_id"]
+
+    with caplog.at_level("ERROR"):
+        assert process_task_message(body, 1, FakeResultQueue(), task_dependencies) is False
+
+    assert "task_type" in caplog.text
+    assert secret not in caplog.text
+    assert "write_poem" not in caplog.text
+
+
 def test_handler_error_publishes_failed_result(
     monkeypatch: pytest.MonkeyPatch, task_dependencies: TaskDependencies
 ) -> None:

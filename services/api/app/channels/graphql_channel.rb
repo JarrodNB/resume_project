@@ -1,4 +1,4 @@
-# Description: ActionCable channel that runs GraphQL operations (mainly subscriptions) for the
+# Description: ActionCable channel that runs only GraphQL subscriptions for the
 # connected user. Task-outcome baselines wait for actual pubsub readiness, then refresh
 # their cursor so a completion during registration cannot fall through the gap. Follows the graphql-ruby ActionCableSubscriptions protocol used by Apollo.
 # Index:
@@ -13,9 +13,14 @@ class GraphqlChannel < ApplicationCable::Channel
     @outcome_handshake_mutex = Mutex.new
   end
 
-  # Runs a GraphQL operation as the connected user and transmits the result.
+  # HTTP owns queries and mutations, including their CSRF and rate-limit checks.
   def execute(data)
     return connection.check_session unless connection.session_valid?
+    operation = GraphQL::Query.new(ApiSchema, data["query"], operation_name: data["operationName"]) if data["query"].is_a?(String)
+    unless operation&.subscription?
+      transmit({ result: { errors: [ { message: "Cable accepts subscriptions only" } ] }, more: false })
+      return
+    end
     result = ApiSchema.execute(
       data["query"],
       variables: data["variables"] || {},

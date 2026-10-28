@@ -24,17 +24,28 @@ Task execution and the contracts between Rails and Python workers.
    message history and newest answer. The worker resumes with `DeferredToolResults`.
 
 Missing-summary generation uses `generate_summary`. The user explicitly requests a profile
-summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
+or saved-resume summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
 a substantive source digest. Career-context requirements are context, not qualification
 evidence, so only responses are supplied. The worker batches unknown fields for screening,
 reuses exact saved approvals, renders readable source blocks, and returns cited text as a
 proposal. Screening earned by frozen snapshots stays execution-local rather than approving
-possibly changed live fields. Generation does not write profile text.
+possibly changed live fields. Generation does not write profile or resume text.
+Saved-resume evidence comes only from its own non-contact, non-summary career sections,
+independent of the current library and any deleted job. Only exact generated highlights
+and project prose in owned accepted tailoring results skip screening; copied fields and
+unknown or edited text remain subject to screening. SQL selects matching generated values
+without loading historical task bodies into application memory.
 
 `summaryGeneration` restores the latest task and freshness. Start reuses matching pending
 work or unaccepted proposals; failed/discarded/stale work can start anew. Accept/discard are
 explicit owned mutations. Acceptance locks owner, source rows, then task, requires the latest
 valid completed proposal and unchanged evidence with a still-empty summary, and is replay-safe.
+For saved resumes the lock order is owner, resume, source sections, task. Resume edits and
+deletion use the same owner-first serialization. Acceptance reuses a blank summary section
+or inserts one after contact while preserving section order and inclusion. The editor
+reconciles refreshed sections by ID so an insertion cannot shift unsaved edits onto another
+section. Generation and acceptance pause while the resume has unsaved changes, is saving,
+is being deleted, or is exporting; queued proposal completion never replaces those edits.
 The accepted text may be edited during review; only exact unmodified generated text earns
 screening provenance. Inclusion preferences do not change source freshness and are never
 changed by generation or acceptance. Existing task allowance, post-commit queue publication,

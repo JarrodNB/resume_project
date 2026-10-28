@@ -35,4 +35,30 @@ RSpec.describe "Summary generation mutations" do
     expect(result.fetch("errors").first.fetch("message")).to eq("Record not found")
   end
 
+  it "generates and accepts an orphan saved resume without modifying the profile" do
+    resume = create(:resume, user: user, include_summary: false)
+    create(:resume_section, resume: resume, section_type: "skills", content: {"items" => [{"name" => "Ruby"}]})
+    resume.job.destroy!
+    result = execute_graphql(%(mutation { startSummaryGeneration(input: {targetKind: "resume", targetId: "#{resume.id}"}) { aiTask { id } errors } }), user: user)
+    expect(result.dig("data", "startSummaryGeneration", "errors")).to eq([])
+    task = user.ai_tasks.find(result.dig("data", "startSummaryGeneration", "aiTask", "id"))
+    AiTasks::ApplyAiResultService.call(message: {"ai_task_id" => task.id, "status" => "completed", "result" => {"text" => "Ruby developer", "source_labels" => [task.input["sources"].first["label"]]}})
+    expect(AiTasks::DescribeTaskOutcomeService.destination_for(task: task, user: user, status: "completed")).to eq("/resumes/#{resume.id}")
+    accepted = execute_graphql(%(mutation { acceptSummaryGeneration(input: {aiTaskId: "#{task.id}", text: "Reviewed Ruby developer"}) { aiTask { acceptedAt } errors } }), user: user)
+    expect(accepted.dig("data", "acceptSummaryGeneration", "errors")).to eq([])
+    expect(resume.sections.summary.sole.content["text"]).to eq("Reviewed Ruby developer")
+    expect(resume.reload.include_summary).to be(false)
+    expect(user.reload.summary).to be_nil
+    Records::DestroyRecordService.call(record: resume)
+    expect(AiTasks::DescribeTaskOutcomeService.destination_for(task: task, user: user, status: "completed")).to eq("/resumes")
+  end
+
+  it "does not disclose foreign resume generation state" do
+    other = create(:resume)
+    result = execute_graphql(%({ summaryGeneration(targetKind: "resume", targetId: "#{other.id}") { aiTask { id } stale } }), user: user)
+    expect(result.fetch("errors").first.fetch("message")).to eq("Record not found")
+    rejected = execute_graphql(%(mutation { startSummaryGeneration(input: {targetKind: "resume", targetId: "#{other.id}"}) { errors } }), user: user)
+    expect(rejected.dig("data", "startSummaryGeneration", "errors")).to eq(["Record not found"])
+  end
+
 end

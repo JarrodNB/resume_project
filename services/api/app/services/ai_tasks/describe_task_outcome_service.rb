@@ -43,6 +43,10 @@ module AiTasks
       when "chat_reply"
         conversation = owned_subject("ChatConversation", @user.chat_conversations)
         conversation ? "/chat/#{conversation.id}" : "/chat"
+      when "generate_summary"
+        return "/library" unless @task.input["target_kind"] == "resume"
+        resume = @user.resumes.find_by(id: @task.input["target_id"])
+        resume ? (resume.job_id ? "/jobs/#{resume.job_id}/resume" : "/resumes/#{resume.id}") : "/resumes"
       when "rerank_job_listings"
         "/jobs/find"
       when "parse_resume"

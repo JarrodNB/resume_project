@@ -15,6 +15,6 @@ export function useResumes() {
 
 /** Fetches one of the user's resumes by id. */
 export function useResume(id: string) {
-  const { data, loading, error } = useQuery(RESUME_QUERY, { variables: { id } })
-  return { resume: data?.resume ?? null, loading, error }
+  const { data, loading, error, refetch } = useQuery(RESUME_QUERY, { variables: { id } })
+  return { resume: data?.resume ?? null, loading, error, refetch }
 }

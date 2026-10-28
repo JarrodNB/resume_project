@@ -11,7 +11,7 @@ class SummarySource(BaseModel):
 
 
 class SummaryGenerationInput(BaseModel):
-    target_kind: Literal["profile"]
+    target_kind: Literal["profile", "resume"]
     target_id: str
     source_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     sources: list[SummarySource] = Field(max_length=1000)

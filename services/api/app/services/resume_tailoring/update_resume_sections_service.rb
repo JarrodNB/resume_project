@@ -20,14 +20,16 @@ module ResumeTailoring
 
       return failure([ "Include summary must be true or false." ]) unless @include_summary.nil? || [ true, false ].include?(@include_summary)
 
-      known = @resume.sections.index_by(&:id)
-      return failure([ UNKNOWN_SECTION ]) if updates.any? { |update| !known.key?(update[:id]) }
-
-      Resume.transaction do
+      @resume.user.with_lock do
+        @resume.lock!
+        known = @resume.sections.index_by(&:id)
+        return failure([ UNKNOWN_SECTION ]) if updates.any? { |update| !known.key?(update[:id]) }
         @resume.update!(include_summary: @include_summary) unless @include_summary.nil?
         updates.each { |update| known[update[:id]].update!(content: update[:content]) }
       end
       success(@resume.reload)
+    rescue ActiveRecord::RecordNotFound
+      failure([ "Record not found" ])
     rescue ActiveRecord::RecordInvalid => error
       failure(error.record.errors)
     end

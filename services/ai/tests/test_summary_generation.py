@@ -137,3 +137,23 @@ def test_sparse_education_does_not_supply_a_completion_claim(task_dependencies):
     assert "A named degree does not prove graduation or completion" in prompt
     assert "An end date alone is not" in prompt
     assert "Bachelor of Science, environmental science" in prompt
+
+
+def test_saved_resume_target_uses_frozen_sources_and_screens_manual_edits(task_dependencies, monkeypatch):
+    from agents.summary_generation_agent import summary_generation_agent
+    from screening.screen_user_text import ScreenOutcome
+    calls = []
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text",
+        lambda text, **kwargs: (calls.append(text), ScreenOutcome(allowed=True))[1])
+    message = task([
+        {"label": "SECTION_1_ITEM_1_HIGHLIGHT_1", "text": "Previously generated billing APIs.", "screened": True},
+        {"label": "SECTION_1_ITEM_1_TITLE", "text": "Manual role title", "screened": False},
+    ])
+    message.input["target_kind"] = "resume"
+    with summary_generation_agent.override(model=TestModel(custom_output_args={
+        "text": "Engineer who built billing APIs.", "source_labels": ["SECTION_1_ITEM_1_HIGHLIGHT_1"]})):
+        result = handle_ai_task(message, task_dependencies)
+    assert result.status == "completed"
+    assert len(calls) == 1
+    assert "Manual role title" in calls[0]
+    assert "Previously generated billing APIs." not in calls[0]

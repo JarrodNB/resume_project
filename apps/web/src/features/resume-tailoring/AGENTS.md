@@ -20,7 +20,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   section starts collapsed (`resume.<jobId>.<sectionType>`). Edits and inclusion stay together
   in the editor. Preview uses included content in draft order; save also retains an excluded summary so it can be restored later
 - `SavedResumeEditor.tsx` — saved sections use quiet ruled rows with section icons and remembered collapse IDs
-  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels.
+  (`saved-resume.<resumeId>.<sectionId>`); drafts stay above collapsed panels and are keyed by section ID. Server refreshes reconcile clean fields while preserving unsaved edits.
   Both downloads capture saved content and are blocked while dirty, saving, deleting, or exporting. Confirmed
   deletion uses the resumes hook/dialog and the route's success destination.
 - `resumeDownload.tsx` — render PDF and lazily load DOCX generation, sanitize saved-title
@@ -45,6 +45,7 @@ Saved resumes download locally as PDF and editable DOCX after all edits save suc
   (write route only), follow `aiTaskUpdated`, and retry failures
 - `useTailorActions.ts` — save the reviewed resume the first time
 - `useUpdateResume.ts` — `updateResume` for a resume that is already saved
+- Missing or blank saved summaries show the shared `SummaryGenerationPanel` with target kind `resume`. Proposal completion never writes editor content; explicit acceptance refetches the owning job/resume query. Generation/acceptance pause for unsaved changes, save, delete, and export.
 - `resumePdfModel.ts` — sections to the shared content both formats draw (`ResumePdfDocument.tsx`);
   `ResumePdfPreview.tsx` builds the same PDF inline; `ResumePdfPages.tsx` uses a lazy
   PDF.js renderer to fit every page to the available width, expose readable text to assistive

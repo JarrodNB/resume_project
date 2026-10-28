@@ -13,6 +13,7 @@ module SummaryGeneration
     }.freeze
 
     def self.capture(user:, target_kind:, target_id: nil, lock_sources: false)
+      return ResumeSnapshot.capture(user: user, target_id: target_id, lock_sources: lock_sources) if target_kind == "resume"
       raise ActiveRecord::RecordNotFound unless target_kind == "profile" && (target_id.nil? || target_id.to_s == user.id.to_s)
       user.reload
       raise ArgumentError, "A summary already exists. Edit or improve it instead." if user.summary.present?
@@ -35,10 +36,14 @@ module SummaryGeneration
           end
         end
       end
+      build(target_kind: target_kind, target_id: user.id, sources: sources)
+    end
+
+    def self.build(target_kind:, target_id:, sources:)
       raise ArgumentError, EMPTY_MESSAGE if sources.empty?
-      snapshot = { "target_kind" => target_kind, "target_id" => user.id, "sources" => sources,
+      snapshot = { "target_kind" => target_kind, "target_id" => target_id, "sources" => sources,
         "source_digest" => Digest::SHA256.hexdigest(sources.map { |source| source.except("screened") }.to_json) }
-      raise ArgumentError, "This career library is too large to summarize. Reduce its text and try again." if sources.length > MAX_SOURCES || snapshot.to_json.bytesize > MAX_INPUT_BYTES
+      raise ArgumentError, "This career evidence is too large to summarize. Reduce its text and try again." if sources.length > MAX_SOURCES || snapshot.to_json.bytesize > MAX_INPUT_BYTES
       snapshot
     end
 

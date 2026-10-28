@@ -71,3 +71,14 @@ it('restores failure details with an explicit retry action', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Screening is unavailable.')
   expect(screen.getByRole('button', { name: 'Generate summary' })).toBeEnabled()
 })
+
+it('can generate again when an empty target restores previously accepted work', async () => {
+  const started = vi.fn(() => ({ data: { startSummaryGeneration: { __typename: 'StartSummaryGenerationPayload', errors: [], aiTask: { ...proposal, id: 'task-2', status: 'QUEUED', result: null } } } }))
+  render(<MockedProvider mocks={[
+    { request: { query: SUMMARY_GENERATION_QUERY, variables: { targetKind: 'resume', targetId: 'resume-1' } }, result: { data: { summaryGeneration: { __typename: 'SummaryGeneration', stale: false, aiTask: { ...proposal, acceptedAt: '2026-10-28T00:00:00Z' } } } } },
+    { request: { query: START_SUMMARY_GENERATION_MUTATION, variables: { targetKind: 'resume', targetId: 'resume-1' } }, result: started },
+  ]}><SummaryGenerationPanel targetKind="resume" targetId="resume-1" /></MockedProvider>)
+  await userEvent.click(await screen.findByRole('button', { name: 'Generate summary' }))
+  expect(await screen.findByText('Generating your summary…')).toBeInTheDocument()
+  expect(started).toHaveBeenCalledOnce()
+})

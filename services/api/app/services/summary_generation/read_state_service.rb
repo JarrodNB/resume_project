@@ -6,8 +6,14 @@ module SummaryGeneration
     end
 
     def call
-      raise ActiveRecord::RecordNotFound unless @kind == "profile" && (@id.nil? || @id.to_s == @user.id.to_s)
-      task = Snapshot.latest(user: @user, target_kind: @kind, target_id: @user.id)
+      target_id = if @kind == "resume"
+        @user.resumes.find(@id).id
+      elsif @kind == "profile" && (@id.nil? || @id.to_s == @user.id.to_s)
+        @user.id
+      else
+        raise ActiveRecord::RecordNotFound
+      end
+      task = Snapshot.latest(user: @user, target_kind: @kind, target_id: target_id)
       success({ ai_task: task, stale: !!task && !task.accepted? && Snapshot.stale?(user: @user, task: task) })
     rescue ActiveRecord::RecordNotFound
       failure([ "Record not found" ])

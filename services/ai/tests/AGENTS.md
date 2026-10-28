@@ -154,3 +154,5 @@ unknown expiration within partially stated periods.
   under ai_reader with owner/model isolation, nearest-three averaging and empty libraries.
 
 - `test_chat_execution.py` — guarded tool-free streaming, real blocking policy, contact masking, context limits, shared client contract, cancellation/known-versus-unknown bills, stream outage and ambiguous acceptance readback.
+
+- `test_chat_evaluators.py` — offline synthetic dataset labels, evaluator failures and production rolling-adapter routing; quality runs remain separate from deterministic correctness.

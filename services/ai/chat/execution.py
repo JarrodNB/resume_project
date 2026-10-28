@@ -16,18 +16,21 @@ from pydantic_ai.exceptions import (
 )
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
 from pydantic_ai.models.fallback import FallbackModel
-from pydantic_ai.usage import UsageLimits
+from pydantic_ai.usage import RunUsage, UsageLimits
 
 from agents.chat_agent import make_chat_agent
+from agents.chat_summary_agent import make_chat_summary_agent
 from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
 from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
 from interviews.client import RailsTransportError
 from model_inputs.blocks import source_block
+from model_inputs.chat import render_chat_summary, render_chat_summary_context
 from pii import PiiDetectionError, PiiRestorationError
 from privacy.contact_mask import contact_scope, import_privacy_scope, mask_outbound
 from privacy.known_contact import KnownContact
 from prompts.chat_instructions import CHAT_INSTRUCTIONS, CHAT_PROMPT_VERSION
-from screening.conversation import screen_conversation_turn
+from prompts.chat_summary_instructions import CHAT_SUMMARY_INSTRUCTIONS, CHAT_SUMMARY_PROMPT_VERSION
+from screening.conversation import ScreenedConversationTurn, screen_conversation_turn
 from screening.screen_user_text import screen_user_text_async
 from screening.session import screening_session
 from settings import load_settings
@@ -75,7 +78,14 @@ class ChatExecutionAdapter:
 
     async def execute(self, claim, output):
         # Bound local detection too; oversized source text never reaches expensive NLP.
-        if sum(len(m.content) for m in claim.payload.messages) + len(claim.payload.message) > MAX_PROMPT_TEXT:
+        source_characters = sum(len(m.content) for m in claim.payload.messages) + len(claim.payload.message) + len(claim.payload.summary.text)
+        early = claim.payload.summary_plan and not claim.payload.summary_plan.scheduled
+        minimum = [message for message in claim.payload.messages
+                   if not early or message.position > claim.payload.summary_plan.through_position]
+        minimum_characters = sum(len(message.content) for message in minimum) + len(claim.payload.message)
+        if not early:
+            minimum_characters += len(claim.payload.summary.text)
+        if source_characters > 200_000 or minimum_characters > MAX_PROMPT_TEXT:
             await self.client.fail(claim, "context_limit", False)
             await self.client.usage(claim, [], incomplete=False)
             if output:
@@ -90,7 +100,7 @@ class ChatExecutionAdapter:
                 async with asyncio.timeout(max(0, remaining)):
                     # Keep the same privacy object on spans before detection completes.
                     await asyncio.to_thread(privacy.prepare, "\n\n".join(
-                        [m.content for m in claim.payload.messages] + [claim.payload.message]))
+                        [claim.payload.summary.text] + [m.content for m in claim.payload.messages] + [claim.payload.message]))
                     await self._turn(claim, output, privacy)
             except ChatRejected as error:
                 await self.client.fail(claim, str(error), False)
@@ -117,60 +127,110 @@ class ChatExecutionAdapter:
                 await self.client.usage(claim, [], incomplete=False)
                 flush_tracing()
 
+    def _model(self, claim, stage):
+        model = self.models.accounted(self.client, claim, stage, self.model)
+        if self.fallback_model != self.model:
+            model = FallbackModel(model, self.models.accounted(self.client, claim, stage, self.fallback_model))
+        return model
+
+    async def _summarize(self, claim, privacy, usage):
+        payload = claim.payload
+        plan = payload.summary_plan
+        prefix = [message.model_copy(update={"content": mask_outbound(message.content)})
+                  for message in payload.messages if message.position <= plan.through_position]
+        prompt = render_chat_summary(mask_outbound(payload.summary.text), prefix)
+        if len(prompt) + len(CHAT_SUMMARY_INSTRUCTIONS) > MAX_PROMPT_TEXT:
+            raise ChatRejected("context_limit")
+        # Only server-owned accepted sources enter this exact guard. No new user
+        # material is included: the new message has its own prior screening pass.
+        guard = ScreenedConversationTurn(prompt).guard
+        with record_prompt_version(CHAT_SUMMARY_PROMPT_VERSION):
+            result = await make_chat_summary_agent(guard).run(prompt, model=self._model(claim, "summary"),
+                model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
+                usage_limits=UsageLimits(request_limit=8, tool_calls_limit=0, total_tokens_limit=128000))
+        summary = privacy.restore(result.output)
+        if not summary.strip() or len(summary) > 8000:
+            raise ChatRejected("execution_failed")
+        return {"text": summary, "expected_version": payload.summary.version,
+                "through_position": plan.through_position}
+
     async def _turn(self, claim, output, privacy):
         payload = claim.payload
-        history = []
-        rendered_characters = len(CHAT_INSTRUCTIONS)
-        for message in payload.messages:
-            content = mask_outbound(message.content)
-            rendered_characters += len(source_block("user_message", content) if message.role == "user" else content)
-            history.append(ModelRequest(parts=[UserPromptPart(source_block("user_message", content))])
-                if message.role == "user" else ModelResponse(parts=[TextPart(content)]))
-        if rendered_characters + len(source_block("user_message", mask_outbound(payload.message))) > MAX_PROMPT_TEXT:
-            raise ChatRejected("context_limit")
+        usage = RunUsage()
         with screening_session(120):
             turn = await screen_conversation_turn(payload.message,
                 screen=lambda text: self._screen(claim, text),
                 render=lambda text: source_block("user_message", text))
-            model = self.models.accounted(self.client, claim, "reply", self.model)
-            if self.fallback_model != self.model:
-                model = FallbackModel(model, self.models.accounted(self.client, claim, "reply", self.fallback_model))
-            agent = make_chat_agent(turn.guard)
-            if output:
-                await output.emit("started")
-            published = ""
-            async with agent.run_stream(turn.prompt, message_history=history, model=model,
-                    model_settings={"thinking": False, "max_tokens": 2400},
-                    usage_limits=UsageLimits(request_limit=4, tool_calls_limit=0, total_tokens_limit=128000)) as run:
-                async for text in run.stream_text(delta=False, debounce_by=0.05):
-                    if len(text) > 8000:
-                        raise ChatRejected("execution_failed")
-                    # Hold incomplete local privacy placeholders until a whole token arrives.
-                    stable = text
-                    if stable.rfind("«") > stable.rfind("»"):
-                        stable = stable[:stable.rfind("«")]
-                    restored = privacy.restore(stable)
-                    if restored.startswith(published) and output:
-                        await self._deltas(output, restored[len(published):])
-                        published = restored
-                reply = privacy.restore(await run.get_output())
-            if not reply.strip() or len(reply) > 8000:
-                raise ChatRejected("execution_failed")
-            if reply.startswith(published) and output:
-                await self._deltas(output, reply[len(published):])
-            await self._accept(claim, reply)
+            summary_update = None
+            summary = payload.summary.text
+            messages = payload.messages
+            if payload.summary_plan and not payload.summary_plan.scheduled:
+                summary_update = await self._summarize(claim, privacy, usage)
+                summary = summary_update["text"]
+                messages = [message for message in messages
+                            if message.position > summary_update["through_position"]]
+            history = []
+            rendered_characters = len(CHAT_INSTRUCTIONS) + len(turn.prompt)
+            if summary:
+                rendered = render_chat_summary_context(mask_outbound(summary))
+                history.append(ModelRequest(parts=[UserPromptPart(rendered)]))
+                rendered_characters += len(rendered)
+            for message in messages:
+                content = mask_outbound(message.content)
+                rendered = source_block("user_message", content) if message.role == "user" else content
+                rendered_characters += len(rendered)
+                history.append(ModelRequest(parts=[UserPromptPart(rendered)]) if message.role == "user"
+                               else ModelResponse(parts=[TextPart(content)]))
+            if rendered_characters > MAX_PROMPT_TEXT:
+                raise ChatRejected("context_limit")
+            reply = await self._reply(claim, output, privacy, turn, history, usage)
+            # Normal cadence compacts after the answer so the current model still
+            # sees all five preceding complete exchanges. Early pressure compacts
+            # before answering and leaves those five exchanges intact instead.
+            if payload.summary_plan and payload.summary_plan.scheduled:
+                summary_update = await self._summarize(claim, privacy, usage)
+            await self._accept(claim, reply, summary_update)
             if output:
                 await output.emit("completed")
+
+    async def _reply(self, claim, output, privacy, turn, history, usage):
+        agent = make_chat_agent(turn.guard)
+        if output:
+            await output.emit("started")
+        published = ""
+        async with agent.run_stream(turn.prompt, message_history=history, model=self._model(claim, "reply"),
+                model_settings={"thinking": False, "max_tokens": 2400}, usage=usage,
+                usage_limits=UsageLimits(request_limit=8, tool_calls_limit=0, total_tokens_limit=128000)) as run:
+            async for text in run.stream_text(delta=False, debounce_by=0.05):
+                if len(text) > 8000:
+                    raise ChatRejected("execution_failed")
+                # Hold incomplete local privacy placeholders until a whole token arrives.
+                stable = text
+                if stable.rfind("«") > stable.rfind("»"):
+                    stable = stable[:stable.rfind("«")]
+                restored = privacy.restore(stable)
+                if restored.startswith(published) and output:
+                    await self._deltas(output, restored[len(published):])
+                    published = restored
+            reply = privacy.restore(await run.get_output())
+        if not reply.strip() or len(reply) > 8000:
+            raise ChatRejected("execution_failed")
+        if reply.startswith(published) and output:
+            await self._deltas(output, reply[len(published):])
+        return reply
 
     @staticmethod
     async def _deltas(output, text):
         for start in range(0, len(text), 4096):
             await output.emit("delta", text=text[start:start + 4096])
 
-    async def _accept(self, claim, reply):
+    async def _accept(self, claim, reply, summary_update=None):
         digest = hashlib.sha256(claim.payload.message.encode()).hexdigest()
         try:
-            await self.client.accept(claim, reply=reply, screened_message_sha256=digest)
+            values = {"reply": reply, "screened_message_sha256": digest}
+            if summary_update is not None:
+                values["summary_update"] = summary_update
+            await self.client.accept(claim, **values)
         except RailsTransportError:
             # An ambiguous acceptance must be read back, never regenerated.
             status = await self.client.status(claim.operation_id)

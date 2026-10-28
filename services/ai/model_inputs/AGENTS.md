@@ -21,3 +21,5 @@ screened by callers. See `README.md` for the boundary and existing domain builde
 Do not screen, select records, query storage, run agents, or change output schemas here.
 Preserve source wording and ordering. Change prompt versions and run the affected evals
 if model-facing text changes.
+
+- `chat.py` — readable labeled previous summary and accepted exchange prefix; selection/checkpoints remain with Rails and the chat executor.

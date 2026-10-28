@@ -1,8 +1,15 @@
 # Redeem or revalidate one observer grant without starting or altering execution.
+#
+# A token is single-use for a second party, but the first redeem can be retried for a few
+# seconds (REDEEM_RETRY_WINDOW) so a lost response or failed "attached" send does not strand
+# the observer. A retry returns the same payload and still needs the grant to be unexpired,
+# the browser session valid, and the attempt current. After the window: "Capability already used".
 require "digest"
 
 module AiExecutions
   class StreamGrantService < ApplicationService
+    REDEEM_RETRY_WINDOW = 10.seconds
+
     def initialize(action:, token: nil, grant_id: nil)
       @action, @token, @grant_id = action, token, grant_id
     end
@@ -29,8 +36,11 @@ module AiExecutions
           authority.current?(operation, attempt_id: grant.attempt_id, claim_generation: grant.claim_generation)
         next failure("Stream unavailable") unless valid
         if @action == "redeem"
-          next failure("Capability already used") if grant.redeemed_at
-          grant.update!(redeemed_at: Time.current)
+          if grant.redeemed_at
+            next failure("Capability already used") if Time.current > grant.redeemed_at + REDEEM_RETRY_WINDOW
+          else
+            grant.update!(redeemed_at: Time.current)
+          end
         else
           next failure("Capability not redeemed") unless grant.redeemed_at
         end

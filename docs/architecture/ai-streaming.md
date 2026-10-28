@@ -26,7 +26,11 @@ It authorizes an owned current attempt and returns a 60-second, single-use obser
 capability. Rails stores its digest, session binding and fenced attempt identity. A
 browser may hold at most eight live capabilities; a scheduled job prunes expired rows
 in bounded batches and schedules another batch when needed. Ordinary interview admission
-does not issue these capabilities.
+does not issue these capabilities. A second party cannot reuse a token, but the first
+redeem may be retried with the same token for 10 seconds after `redeemed_at` (so a lost
+response or failed "attached" send does not strand the observer). A retry returns the
+same payload and still needs an unexpired grant, a valid session and a current attempt;
+later retries fail with "Capability already used".
 
 The browser connects to `/ai/executions/stream` through the same-origin reverse proxy,
 then sends the capability in its first JSON frame, never a URL parameter. Exact Origin

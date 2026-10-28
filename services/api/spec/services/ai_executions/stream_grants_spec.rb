@@ -50,10 +50,36 @@ RSpec.describe "AI execution stream grants" do
   it "redeems each capability once and permits a fresh read-only reconnect" do
     first = authorize.value.fetch(:token)
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: first).success?).to be(true)
-    expect(AiExecutions::StreamGrantService.call(action: "redeem", token: first).success?).to be(false)
+    travel_to(11.seconds.from_now) do
+      expect(AiExecutions::StreamGrantService.call(action: "redeem", token: first).success?).to be(false)
+    end
     second = authorize.value.fetch(:token)
     expect(AiExecutions::StreamGrantService.call(action: "redeem", token: second).success?).to be(true)
     expect(operation.reload.execution_count).to eq(1)
+  end
+
+  it "allows an idempotent retry of the same token only within the short window" do
+    token = authorize.value.fetch(:token)
+    first = AiExecutions::StreamGrantService.call(action: "redeem", token: token)
+    retry_receipt = AiExecutions::StreamGrantService.call(action: "redeem", token: token)
+    expect(retry_receipt.success?).to be(true)
+    expect(retry_receipt.value).to eq(first.value)
+    expect(AiExecutionStreamGrant.first.redeemed_at).to be_within(1.second).of(Time.current)
+    travel_to(9.seconds.from_now) do
+      expect(AiExecutions::StreamGrantService.call(action: "redeem", token: token).success?).to be(true)
+    end
+    travel_to(11.seconds.from_now) do
+      late = AiExecutions::StreamGrantService.call(action: "redeem", token: token)
+      expect(late.success?).to be(false)
+      expect(late.errors).to eq(["Capability already used"])
+    end
+  end
+
+  it "still rejects a retry inside the window after logout" do
+    token = authorize.value.fetch(:token)
+    AiExecutions::StreamGrantService.call(action: "redeem", token: token)
+    browser_session.destroy!
+    expect(AiExecutions::StreamGrantService.call(action: "redeem", token: token).success?).to be(false)
   end
 
   it "rechecks logout before redemption and every subsequent authorization check" do

@@ -6,6 +6,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `chat_conversation.rb` and `chat_message.rb` — owner-scoped saved chats and ordered accepted public messages, separate from provisional output and failed attempts.
+
 - `ai_execution_stream_grant.rb` — short-lived, single-use observer capability digests,
   bound to a persisted browser session and saved operation/attempt/generation; never execution authority.
 

@@ -6,6 +6,8 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
+- `chat/` — saved chat creation and owner/conversation-bound keyset pagination. These reads expose accepted public history only; no provider calls or execution admission.
+
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;

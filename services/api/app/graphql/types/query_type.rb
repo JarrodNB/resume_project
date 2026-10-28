@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Root queries keep private records owner-scoped. Authenticated Job Board search
+# Root queries keep private records, including saved chat history, owner-scoped. Authenticated Job Board search
 # reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
 #   - interview_session, recent_interview_sessions, unfinished_interview_session
@@ -12,6 +12,35 @@
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
+    field :chat_settings, Types::ChatSettingsType, null: false
+    field :chat_conversations, Types::ChatConversationPageType, null: false do
+      argument :cursor, String, required: false
+    end
+
+    def chat_conversations(cursor: nil)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      result = ::Chat::ListConversationsService.call(user: current_user, cursor: cursor)
+      result.value || { conversations: [], next_cursor: nil, errors: result.errors }
+    end
+
+    field :chat_conversation, Types::ChatConversationType, null: false do
+      argument :id, ID, required: true
+    end
+
+    def chat_settings
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      { max_input_characters: ChatLimits::MAX_INPUT_CHARACTERS,
+        summarize_every_user_messages: ChatLimits::SUMMARIZE_EVERY_USER_MESSAGES }
+    end
+
+    def chat_conversation(id:)
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      current_user.chat_conversations.find(id)
+    end
+
     field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
     field :unfinished_interview_session, Types::InterviewSessionType, null: true

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -185,6 +185,29 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
     t.string "expiry_date_precision", default: "day", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.index ["user_id"], name: "index_certifications_on_user_id"
+  end
+
+  create_table "chat_conversations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "title", default: "New chat", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "created_at", "id"], name: "index_chat_conversations_on_owner_history"
+    t.index ["user_id"], name: "index_chat_conversations_on_user_id"
+  end
+
+  create_table "chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_conversation_id", null: false
+    t.integer "position", null: false
+    t.string "role", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_conversation_id", "position"], name: "index_chat_messages_on_chat_conversation_id_and_position", unique: true
+    t.index ["chat_conversation_id"], name: "index_chat_messages_on_chat_conversation_id"
+    t.check_constraint "\"position\" > 0", name: "chat_message_positive_position"
+    t.check_constraint "length(content) > 0", name: "chat_message_content_present"
+    t.check_constraint "role::text = ANY (ARRAY['user'::character varying, 'assistant'::character varying]::text[])", name: "chat_message_role"
   end
 
   create_table "educations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -854,6 +877,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "avoided_interview_questions", "users"
   add_foreign_key "certifications", "users"
+  add_foreign_key "chat_conversations", "users"
+  add_foreign_key "chat_messages", "chat_conversations"
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"

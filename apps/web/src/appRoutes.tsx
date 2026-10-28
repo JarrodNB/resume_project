@@ -1,7 +1,7 @@
 /**
  * Description: Route table for the web app (shared by the browser router and tests).
  * Index:
- *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Jobs, Library, and Practice
+ *   - appRoutes: public auth pages, then signed-in pages inside AppLayout grouped as Chat, Jobs, Library, and Practice
  *     (one saved job is a workspace with Fit, Resume, Study, Interview, and Posting tabs),
  *     plus redirects that keep old bookmarks (`/job-board`, `/import`, `/interview-prep`, `/interviews`) working
  */
@@ -14,6 +14,7 @@ import { SignUpPage } from '@/features/auth/SignUpPage'
 import { VerifyEmailPage } from '@/features/auth/VerifyEmailPage'
 import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 import { PasswordUpdatePage, PasswordUpdatedPage } from '@/features/auth/PasswordUpdatePage'
+import { ChatPage } from '@/features/chat/ChatPage'
 import { HomePage } from '@/features/home/HomePage'
 import { CareerLibraryPage } from '@/features/career-library/CareerLibraryPage'
 import { AddJobFromTextPage } from '@/features/jobs/AddJobFromTextPage'
@@ -54,6 +55,7 @@ export const appRoutes: RouteObject[] = [
         children: [
           { path: '/account/security', element: <PasswordUpdatePage change /> },
           { index: true, element: <HomePage /> },
+          { path: '/chat/:id?', element: <ChatPage /> },
           { path: '/library', element: <CareerLibraryPage /> },
           { path: '/library/import', element: <ResumeUploadPage /> },
           { path: '/library/import/:aiTaskId', element: <ResumeImportTaskPage /> },

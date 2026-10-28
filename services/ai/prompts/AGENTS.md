@@ -60,3 +60,5 @@ formatting and expiry boundaries; tailoring prompts accept an injectable `today`
 
 - Written interview question and feedback prompts use saved fact requirements only to interpret
   their responses. Requirements never establish personal claims and cannot be cited as evidence.
+
+- `chat_instructions.py` — versioned career-chat scope, personal-fact grounding and honest unsupported-action rules.

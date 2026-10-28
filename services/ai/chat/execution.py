@@ -1,0 +1,178 @@
+"""Run one guarded career-chat turn on the shared execution supervisor.
+
+Rails owns accepted dialogue and all writes. Streaming is provisional and optional;
+Redis failure never restarts provider work or substitutes for canonical acceptance.
+"""
+import asyncio
+import hashlib
+from datetime import UTC, datetime
+
+import logfire
+from pydantic_ai.exceptions import (
+    FallbackExceptionGroup,
+    ModelAPIError,
+    UnexpectedModelBehavior,
+    UsageLimitExceeded,
+)
+from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.usage import UsageLimits
+
+from agents.chat_agent import make_chat_agent
+from agents.user_text_fallback_agent import screen_fallback_message_async, user_text_fallback_agent
+from agents.user_text_screen_agent import screen_user_message_async, user_text_screen_agent
+from interviews.client import RailsTransportError
+from model_inputs.blocks import source_block
+from pii import PiiDetectionError, PiiRestorationError
+from privacy.contact_mask import contact_scope, import_privacy_scope, mask_outbound
+from privacy.known_contact import KnownContact
+from prompts.chat_instructions import CHAT_INSTRUCTIONS, CHAT_PROMPT_VERSION
+from screening.conversation import screen_conversation_turn
+from screening.screen_user_text import screen_user_text_async
+from screening.session import screening_session
+from settings import load_settings
+from telemetry.privacy import telemetry_scope
+from telemetry.tracing import flush_tracing, record_prompt_version
+from text_limits import MAX_PROMPT_TEXT
+
+
+class ChatRejected(RuntimeError):
+    pass
+
+
+class ChatExecutionAdapter:
+    stream_output = True
+
+    def __init__(self, client, models, *, model=None, fallback_model=None):
+        self.client, self.models = client, models
+        settings = load_settings()
+        self.model = model or settings.chat_model
+        self.fallback_model = fallback_model or settings.generative_fallback_model
+        if any(value not in {"openai:gpt-6-luna", "openai:gpt-5-nano"}
+               for value in (self.model, self.fallback_model)):
+            raise ValueError("Chat models must be openai:gpt-6-luna or openai:gpt-5-nano")
+
+    async def claim(self, operation_id):
+        return await self.client.claim(operation_id)
+
+    async def heartbeat(self, claim):
+        return await self.client.heartbeat(claim)
+
+    async def _screen(self, claim, text):
+        async def primary(chunk, model, timeout):
+            with user_text_screen_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
+                return await screen_user_message_async(chunk, model, timeout)
+
+        async def fallback(chunk, model, timeout):
+            with user_text_fallback_agent.override(model=self.models.accounted(self.client, claim, "screening", model)):
+                return await screen_fallback_message_async(chunk, model, timeout)
+
+        decision = await screen_user_text_async(text, "typesafe:jev-1.13.0", 30,
+            classify=primary, classify_fallback=fallback, _fallback_model="openai:gpt-5-nano")
+        if not decision.allowed:
+            raise ChatRejected("context_limit" if decision.too_long else
+                               "screening_unavailable" if decision.unchecked else "screening_blocked")
+
+    async def execute(self, claim, output):
+        # Bound local detection too; oversized source text never reaches expensive NLP.
+        if sum(len(m.content) for m in claim.payload.messages) + len(claim.payload.message) > MAX_PROMPT_TEXT:
+            await self.client.fail(claim, "context_limit", False)
+            await self.client.usage(claim, [], incomplete=False)
+            if output:
+                await output.emit("failed")
+            return
+        contact = KnownContact.from_values(**claim.payload.contact.model_dump())
+        with (contact_scope(contact), import_privacy_scope() as privacy,
+              telemetry_scope(chat_operation_id=claim.operation_id, user_id=claim.payload.user_id),
+              logfire.span("chat.operation"), record_prompt_version(CHAT_PROMPT_VERSION)):
+            try:
+                remaining = (claim.execution_deadline - datetime.now(UTC)).total_seconds()
+                async with asyncio.timeout(max(0, remaining)):
+                    # Keep the same privacy object on spans before detection completes.
+                    await asyncio.to_thread(privacy.prepare, "\n\n".join(
+                        [m.content for m in claim.payload.messages] + [claim.payload.message]))
+                    await self._turn(claim, output, privacy)
+            except ChatRejected as error:
+                await self.client.fail(claim, str(error), False)
+                if output:
+                    await output.emit("failed")
+            except (UnexpectedModelBehavior, UsageLimitExceeded, PiiDetectionError, PiiRestorationError):
+                await self.client.fail(claim, "execution_failed", False)
+                if output:
+                    await output.emit("failed")
+            except (ModelAPIError, FallbackExceptionGroup):
+                await self.client.fail(claim, "dependency_unavailable", True)
+                if output:
+                    await output.emit("failed")
+            except TimeoutError:
+                await self.client.fail(claim, "execution_timeout", True)
+                if output:
+                    await output.emit("failed")
+            except asyncio.CancelledError:
+                if output:
+                    await output.emit("cancelled")
+                raise
+            finally:
+                # Per-request markers carry charges; the execution marker carries none.
+                await self.client.usage(claim, [], incomplete=False)
+                flush_tracing()
+
+    async def _turn(self, claim, output, privacy):
+        payload = claim.payload
+        history = []
+        rendered_characters = len(CHAT_INSTRUCTIONS)
+        for message in payload.messages:
+            content = mask_outbound(message.content)
+            rendered_characters += len(source_block("user_message", content) if message.role == "user" else content)
+            history.append(ModelRequest(parts=[UserPromptPart(source_block("user_message", content))])
+                if message.role == "user" else ModelResponse(parts=[TextPart(content)]))
+        if rendered_characters + len(source_block("user_message", mask_outbound(payload.message))) > MAX_PROMPT_TEXT:
+            raise ChatRejected("context_limit")
+        with screening_session(120):
+            turn = await screen_conversation_turn(payload.message,
+                screen=lambda text: self._screen(claim, text),
+                render=lambda text: source_block("user_message", text))
+            model = self.models.accounted(self.client, claim, "reply", self.model)
+            if self.fallback_model != self.model:
+                model = FallbackModel(model, self.models.accounted(self.client, claim, "reply", self.fallback_model))
+            agent = make_chat_agent(turn.guard)
+            if output:
+                await output.emit("started")
+            published = ""
+            async with agent.run_stream(turn.prompt, message_history=history, model=model,
+                    model_settings={"thinking": False, "max_tokens": 2400},
+                    usage_limits=UsageLimits(request_limit=4, tool_calls_limit=0, total_tokens_limit=128000)) as run:
+                async for text in run.stream_text(delta=False, debounce_by=0.05):
+                    if len(text) > 8000:
+                        raise ChatRejected("execution_failed")
+                    # Hold incomplete local privacy placeholders until a whole token arrives.
+                    stable = text
+                    if stable.rfind("«") > stable.rfind("»"):
+                        stable = stable[:stable.rfind("«")]
+                    restored = privacy.restore(stable)
+                    if restored.startswith(published) and output:
+                        await self._deltas(output, restored[len(published):])
+                        published = restored
+                reply = privacy.restore(await run.get_output())
+            if not reply.strip() or len(reply) > 8000:
+                raise ChatRejected("execution_failed")
+            if reply.startswith(published) and output:
+                await self._deltas(output, reply[len(published):])
+            await self._accept(claim, reply)
+            if output:
+                await output.emit("completed")
+
+    @staticmethod
+    async def _deltas(output, text):
+        for start in range(0, len(text), 4096):
+            await output.emit("delta", text=text[start:start + 4096])
+
+    async def _accept(self, claim, reply):
+        digest = hashlib.sha256(claim.payload.message.encode()).hexdigest()
+        try:
+            await self.client.accept(claim, reply=reply, screened_message_sha256=digest)
+        except RailsTransportError:
+            # An ambiguous acceptance must be read back, never regenerated.
+            status = await self.client.status(claim.operation_id)
+            if status.get("status") != "accepted":
+                raise

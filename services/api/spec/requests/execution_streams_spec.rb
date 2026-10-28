@@ -53,6 +53,16 @@ RSpec.describe "Execution stream authorization", type: :request do
     expect(response.parsed_body.fetch("operation_id")).to eq(operation.id)
   end
 
+  it "accepts the generic execution secret and ignores the interview fallback once it is set" do
+    allow(ENV).to receive(:[]).with("AI_EXECUTION_SERVICE_SECRET").and_return("generic-stream-secret")
+    post "/internal/execution_streams/check", params: { grant_id: "missing" }, as: :json,
+      headers: { "Authorization" => "Bearer stream-machine-secret" }
+    expect(response).to have_http_status(:unauthorized)
+    post "/internal/execution_streams/check", params: { grant_id: "missing" }, as: :json,
+      headers: { "Authorization" => "Bearer generic-stream-secret" }
+    expect(response).not_to have_http_status(:unauthorized)
+  end
+
   it "revokes an attached observer after logout without starting another execution" do
     issue
     token = response.parsed_body.dig("data", "authorizeAiExecutionStream", "token")

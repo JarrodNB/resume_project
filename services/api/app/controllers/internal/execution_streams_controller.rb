@@ -31,7 +31,7 @@ module Internal
     end
 
     def authenticate_service
-      expected = ENV["INTERVIEW_SERVICE_SECRET"]
+      expected = ENV["AI_EXECUTION_SERVICE_SECRET"].presence || ENV["INTERVIEW_SERVICE_SECRET"]
       authorization = request.headers["Authorization"].to_s
       supplied = authorization.delete_prefix("Bearer ")
       unless authorization.start_with?("Bearer ") && expected.present? && supplied.present? &&

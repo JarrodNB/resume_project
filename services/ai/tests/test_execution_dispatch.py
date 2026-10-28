@@ -437,3 +437,14 @@ def test_health_recovers_when_a_stuck_cleanup_tail_finishes_but_a_closed_runner_
         assert not runner.ready
 
     asyncio.run(scenario())
+
+def test_execution_secret_prefers_generic_credential_and_falls_back_to_interview(monkeypatch):
+    from routes.executions import execution_service_secret
+
+    monkeypatch.delenv("AI_EXECUTION_SERVICE_SECRET", raising=False)
+    monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "interview-secret")
+    assert execution_service_secret() == "interview-secret"
+    monkeypatch.setenv("AI_EXECUTION_SERVICE_SECRET", "  ")
+    assert execution_service_secret() == "interview-secret"
+    monkeypatch.setenv("AI_EXECUTION_SERVICE_SECRET", "generic-secret")
+    assert execution_service_secret() == "generic-secret"

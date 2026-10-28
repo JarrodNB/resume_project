@@ -157,3 +157,114 @@ def test_saved_resume_target_uses_frozen_sources_and_screens_manual_edits(task_d
     assert len(calls) == 1
     assert "Manual role title" in calls[0]
     assert "Previously generated billing APIs." not in calls[0]
+
+
+def large_summary_sources():
+    """Valid stored fields whose combined rendered input exceeds one screening call."""
+    return [{"label": f"PROJECTS_{index}_DESCRIPTION", "text": f"Project {index}: " + "x" * 3980, "screened": False}
+            for index in range(1, 22)]
+
+
+def test_valid_large_evidence_is_screened_in_bounded_batches(task_dependencies, monkeypatch):
+    from agents.summary_generation_agent import summary_generation_agent
+    from screening.screen_user_text import ScreenOutcome
+    from text_limits import MAX_SCREENED_TEXT
+
+    seen = []
+    def check(text, **kwargs):
+        seen.append(text)
+        return ScreenOutcome(allowed=len(text) <= MAX_SCREENED_TEXT, too_long=len(text) > MAX_SCREENED_TEXT)
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", check)
+    sources = large_summary_sources()
+    with summary_generation_agent.override(model=TestModel(custom_output_args={
+        "text": "Built the supplied projects.", "source_labels": [sources[0]["label"]]})):
+        result = handle_ai_task(task(sources), task_dependencies)
+    assert result.status == "completed"
+    assert len(seen) == 2
+    assert all(len(text) <= MAX_SCREENED_TEXT for text in seen)
+    assert all(source["text"] in "\n".join(seen) for source in sources)
+
+
+@pytest.mark.parametrize("unchecked", [False, True])
+def test_later_screening_batch_failure_keeps_usage_and_never_generates(task_dependencies, monkeypatch, unchecked):
+    from schemas.model_usage import ModelUsage
+    from screening.screen_user_text import ScreenOutcome
+    from text_limits import MAX_SCREENED_TEXT
+
+    calls = []
+    def check(text, **kwargs):
+        calls.append(text)
+        receipt = ModelUsage(model="openai:gpt-5-nano", input_tokens=len(text), cached_input_tokens=0,
+            output_tokens=1, cost_microdollars=len(calls))
+        return ScreenOutcome(allowed=len(calls) == 1, unchecked=unchecked and len(calls) == 2,
+            completed_usage=(receipt,))
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", check)
+    monkeypatch.setattr("worker.summary_generation_handler.generate_summary", lambda *args: (_ for _ in ()).throw(AssertionError("model called")))
+    result = handle_ai_task(task(large_summary_sources()), task_dependencies)
+    assert result.status == "failed"
+    assert len(calls) == 2
+    assert all(len(text) <= MAX_SCREENED_TEXT for text in calls)
+    assert [receipt.cost_microdollars for receipt in result.usage] == [1, 2]
+    assert ("unavailable" in result.error_message) if unchecked else ("safely" in result.error_message)
+
+
+@pytest.mark.parametrize("screened", [False, True])
+def test_oversized_generation_prompt_stops_before_any_provider(task_dependencies, monkeypatch, screened):
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("classifier called")))
+    monkeypatch.setattr("worker.summary_generation_handler.generate_summary", lambda *args: (_ for _ in ()).throw(AssertionError("model called")))
+    sources = [{"label": f"PROJECTS_{index}_DESCRIPTION", "text": "x" * 19_900, "screened": screened}
+               for index in range(7)]
+    result = handle_ai_task(task(sources), task_dependencies)
+    assert result.status == "failed"
+    assert "too long to summarize" in result.error_message
+    assert not result.usage
+
+
+def test_privacy_expansion_is_counted_before_screening_or_generation(task_dependencies, monkeypatch):
+    from privacy.contact_mask import contact_scope
+    from privacy.known_contact import KnownContact
+
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("classifier called")))
+    monkeypatch.setattr("worker.summary_generation_handler.generate_summary", lambda *args: (_ for _ in ()).throw(AssertionError("model called")))
+    sources = [{"label": f"PROJECTS_{index}_DESCRIPTION", "text": "Al " * 6500, "screened": False}
+               for index in range(3)]
+    with contact_scope(KnownContact.from_values(names=["Al"])):
+        result = handle_ai_task(task(sources), task_dependencies)
+    assert result.status == "failed"
+    assert "too long to summarize" in result.error_message
+    assert not result.usage
+
+
+def test_classifier_too_long_is_reported_as_a_limit_not_a_safety_rejection(task_dependencies, monkeypatch):
+    from screening.screen_user_text import ScreenOutcome
+
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", lambda *args, **kwargs: ScreenOutcome(allowed=False, too_long=True))
+    monkeypatch.setattr("worker.summary_generation_handler.generate_summary", lambda *args: (_ for _ in ()).throw(AssertionError("model called")))
+    result = handle_ai_task(task([{"label": "SKILLS_1_NAME", "text": "SQL", "screened": False}]), task_dependencies)
+    assert result.status == "failed"
+    assert "too long to screen" in result.error_message
+    assert "safely" not in result.error_message
+
+
+def test_screening_batches_count_privacy_expansion_without_exposing_contact(task_dependencies, monkeypatch):
+    from agents.summary_generation_agent import summary_generation_agent
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
+    from screening.screen_user_text import ScreenOutcome
+    from text_limits import MAX_SCREENED_TEXT
+
+    seen = []
+    def check(text, **kwargs):
+        seen.append(text)
+        return ScreenOutcome(allowed=len(text) <= MAX_SCREENED_TEXT, too_long=len(text) > MAX_SCREENED_TEXT)
+    monkeypatch.setattr("worker.summary_generation_handler.screen_user_text", check)
+    sources = [{"label": f"PROJECTS_{index}_DESCRIPTION", "text": "Al " * 6000, "screened": False}
+               for index in range(2)]
+    install_contact_hooks()
+    with contact_scope(KnownContact.from_values(names=["Al"])), summary_generation_agent.override(model=TestModel(custom_output_args={
+        "text": "Worked on the supplied projects.", "source_labels": [sources[0]["label"]]})):
+        result = handle_ai_task(task(sources), task_dependencies)
+    assert result.status == "completed"
+    assert len(seen) == 2
+    assert all(len(text) <= MAX_SCREENED_TEXT for text in seen)
+    assert all("Al " not in text and "«name»" in text for text in seen)

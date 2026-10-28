@@ -26,7 +26,12 @@ Task execution and the contracts between Rails and Python workers.
 Missing-summary generation uses `generate_summary`. The user explicitly requests a profile
 or saved-resume summary; Rails freezes owned labeled career fields under its enqueue owner lock and stores
 a substantive source digest. Career-context requirements are context, not qualification
-evidence, so only responses are supplied. The worker batches unknown fields for screening,
+evidence, so only responses are supplied. Before any provider call, the worker checks the
+fully rendered, privacy-masked generation prompt against the 120,000-character prompt cap.
+Unknown fields are rendered in complete-fact screening batches within the existing
+80,000-character per-call cap, counting labels, delimiters, and privacy expansion. A later
+batch rejection or outage prevents generation and retains usage from all attempted batches.
+Length failures are reported as limits rather than unsafe content. The worker
 reuses exact saved approvals, renders readable source blocks, and returns cited text as a
 proposal. Screening earned by frozen snapshots stays execution-local rather than approving
 possibly changed live fields. Generation does not write profile or resume text.

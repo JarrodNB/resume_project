@@ -6,14 +6,17 @@ leases and shutdown. Feature adapters retain Rails acceptance, screening and acc
 An optional output sink adds incremental public text. Interviews keep final-result
 execution and their existing GraphQL subscription updates.
 
-No production feature currently opts into incremental output. Enabling streaming
-configuration alone does not turn interviews into token streams. A future chat adapter
-registers with the same runner and declares `stream_output = True`; its Rails feature
-adapter supplies ownership/current-attempt checks. A feature streams end to end only
-when both halves exist: its AI adapter sets `stream_output`, and Rails registers its
-authority in `AiExecutions::Features::STREAM_AUTHORITIES` (a one-line addition).
-Missing either one means no stream; an unregistered feature raises `ArgumentError`. It does not add another dispatcher,
-claim store, retry policy, supervisor or accounting engine.
+Chat opts into incremental output using the same runner as interviews. Its AI adapter
+sets `stream_output = True`; its Rails adapter supplies ownership/current-attempt checks
+and canonical acceptance. Interviews retain final-result execution. Enabling streaming
+configuration alone does not turn interviews into token streams.
+
+A streaming feature needs both an opted-in AI adapter and its Rails authority in
+`AiExecutions::Features::STREAM_AUTHORITIES`. Lifecycle dispatch (operation lookup,
+delivery state, recovery and stop) must also resolve the feature explicitly through the
+fixed registry. Registration does not authorize arbitrary classes from request payloads.
+Missing either streaming half means no stream; unknown features are rejected. Chat does
+not add another dispatcher, claim store, retry policy, supervisor or accounting engine.
 
 ## Transport and authority
 
@@ -75,9 +78,8 @@ and `AI_STREAMING_ENABLED=true` are both required. Configure that flag on Rails 
 FastAPI, an explicit `AI_STREAM_REDIS_URL`, and exact `AI_BROWSER_ORIGINS` (which defaults
 to the existing interview browser origins).
 
-Local Compose offers Redis only in the `streaming` profile. For a release with an
-opted-in adapter, start it with `AI_STREAMING_ENABLED=true docker compose --profile
-streaming up`. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
+Local Compose starts Redis and enables streaming by default. Set `AI_STREAMING_ENABLED=false`
+to use final-only delivery. The Redis port is not published. Its 256 MiB limit uses `noeviction`,
 so exhausted memory produces a safe buffer outage rather than unbounded growth.
 PostgreSQL remains the source of truth for jobs, accepted results and accounting;
 Redis persistence is disabled because this history is replaceable.

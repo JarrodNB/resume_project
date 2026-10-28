@@ -17,3 +17,5 @@ Synthetic YAML cases for the agent evaluation runners in the parent folder.
 
 - Use synthetic career details only; never include real user data.
 - Keep labels and evaluation-only flags out of model prompts.
+
+- `chat_cases.yaml` — synthetic prior-summary continuity, rolling compaction, unsupported action and injection cases; evaluator metadata is not generation input.

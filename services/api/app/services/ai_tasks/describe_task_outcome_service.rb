@@ -4,6 +4,7 @@
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
+      "chat_reply" => "Chat reply",
       "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
@@ -39,6 +40,9 @@ module AiTasks
 
     def destination
       case @task_type
+      when "chat_reply"
+        conversation = owned_subject("ChatConversation", @user.chat_conversations)
+        conversation ? "/chat/#{conversation.id}" : "/chat"
       when "rerank_job_listings"
         "/jobs/find"
       when "parse_resume"

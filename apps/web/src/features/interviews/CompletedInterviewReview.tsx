@@ -1,4 +1,4 @@
-/** Presents the saved interview as a read-only record, grouped by core question.
+/** Presents retained interview dialogue grouped by core question, with editable copies to Career context.
  * It uses retained text only; completion never starts speech or exposes live answer controls.
  */
 import { Link } from 'react-router'
@@ -12,6 +12,7 @@ import { difficultyOptions, interviewerOptions, typeOptions } from './interviewS
 import { InterviewJobContext } from './InterviewJobContext'
 import { CompletedInterviewFeedback } from './CompletedInterviewFeedback'
 import { useInterviewDeadline } from './useInterviewDeadline'
+import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 
 export function CompletedInterviewReview({ interview }: { interview: InterviewSnapshotFragment }) {
   const expired = useInterviewDeadline(interview.expiresAt)
@@ -26,7 +27,7 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
   return <div className="interview-review grid min-w-0 gap-4">
     <header className="grid gap-2 border-b pb-4">
       <h2 className="text-2xl font-semibold">Interview complete</h2>
-      <p className="max-w-prose text-sm text-muted-foreground">Review your saved questions and answers. Saved text lasts 7 days; this review does not require audio.</p>
+      <p className="max-w-prose text-sm text-muted-foreground">Review your saved questions and answers. Interview text lasts 7 days. Answers you save to Career context stay in your library.</p>
       <p className="text-sm">{typeOptions.find((item) => item.value === interview.setup.questionFormat)?.label ?? 'Interview'} · {difficultyOptions.find((item) => item.value === interview.setup.difficulty)?.label ?? interview.setup.difficulty} · {interviewerOptions.find((item) => item.value === interview.setup.interviewer)?.label ?? interview.setup.interviewer} · {interview.questions.length} core questions</p>
     <p className="text-sm">{answeredCount} answered · {skippedCount} skipped without an answer · Remaining follow-ups skipped on {followUpsSkipped} {followUpsSkipped === 1 ? 'question' : 'questions'}</p>
     </header>
@@ -57,6 +58,7 @@ export function CompletedInterviewReview({ interview }: { interview: InterviewSn
             {dialogue.length ? <ol className="review-dialogue grid gap-3">{dialogue.map((message) => <li key={message.id} className="review-message grid gap-1 border-t pt-3 first:border-0 first:pt-0">
               <p className="text-xs font-medium text-muted-foreground">{message.kind === 'answer' ? 'Your answer' : 'Follow-up'}</p>
               <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content || 'Saved text is unavailable.'}</p>
+              <SaveInterviewAnswer interview={interview} message={message} />
             </li>)}</ol> : <p className="text-sm text-muted-foreground">No saved answer for this question.</p>}
           </div>
         </ReviewSection>

@@ -1153,7 +1153,7 @@ it('groups retained completed dialogue by core question and remembers expanded r
   await userEvent.click(screen.getByRole('button', { name: 'Core question 1 · Remaining follow-up skipped' }))
   expect(screen.getByText('Remaining follow-up skipped. Your earlier answers are saved below.')).toBeVisible()
   const group = screen.getByText('I built a scheduler.').closest('ol')!
-  expect(within(group).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+  expect(within(group).getAllByRole('listitem').map((item) => Array.from(item.querySelectorAll('p')).map((paragraph) => paragraph.textContent).join(''))).toEqual([
     'Your answerI built a scheduler.', 'Follow-upHow did you test it?', 'Your answerI wrote integration tests.',
   ])
   await userEvent.click(screen.getByRole('button', { name: 'Core question 2' }))

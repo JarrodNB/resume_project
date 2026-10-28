@@ -96,3 +96,7 @@ instructions from `prompts/`.
 - `library_edit_agent.py` — one-field revisions with a proposed assessment and a deferred
   `ask_user` tool for one missing fact. Saved questions/history are trusted server records;
   only new feedback/answers and unchecked used library fields are screened by its handler.
+
+- `chat_agent.py` — tool-free career discussion with the exact newest-message conversational guard, bounded plain-text reply and stream-safe request masking. Accepted public history is supplied only by Rails.
+
+- `chat_summary_agent.py` — bounded rolling memory of server-selected accepted dialogue; exact trusted prompt guard, no repeated screening, shared chat provider accounting.

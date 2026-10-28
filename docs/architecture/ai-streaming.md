@@ -6,14 +6,17 @@ leases and shutdown. Feature adapters retain Rails acceptance, screening and acc
 An optional output sink adds incremental public text. Interviews keep final-result
 execution and their existing GraphQL subscription updates.
 
-No production feature currently opts into incremental output. Enabling streaming
-configuration alone does not turn interviews into token streams. A future chat adapter
-registers with the same runner and declares `stream_output = True`; its Rails feature
-adapter supplies ownership/current-attempt checks. A feature streams end to end only
-when both halves exist: its AI adapter sets `stream_output`, and Rails registers its
-authority in `AiExecutions::Features::STREAM_AUTHORITIES` (a one-line addition).
-Missing either one means no stream; an unregistered feature raises `ArgumentError`. It does not add another dispatcher,
-claim store, retry policy, supervisor or accounting engine.
+Chat opts into incremental output using the same runner as interviews. Its AI adapter
+sets `stream_output = True`; its Rails adapter supplies ownership/current-attempt checks
+and canonical acceptance. Interviews retain final-result execution. Enabling streaming
+configuration alone does not turn interviews into token streams.
+
+A streaming feature needs both an opted-in AI adapter and its Rails authority in
+`AiExecutions::Features::STREAM_AUTHORITIES`. Lifecycle dispatch (operation lookup,
+delivery state, recovery and stop) must also resolve the feature explicitly through the
+fixed registry. Registration does not authorize arbitrary classes from request payloads.
+Missing either streaming half means no stream; unknown features are rejected. Chat does
+not add another dispatcher, claim store, retry policy, supervisor or accounting engine.
 
 ## Transport and authority
 

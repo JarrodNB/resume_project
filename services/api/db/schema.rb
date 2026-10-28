@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -185,6 +185,92 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
     t.string "expiry_date_precision", default: "day", null: false
     t.text "screened_fields", default: [], null: false, array: true
     t.index ["user_id"], name: "index_certifications_on_user_id"
+  end
+
+  create_table "chat_conversations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "title", default: "New chat", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "summary_text", default: "", null: false
+    t.integer "summary_version", default: 0, null: false
+    t.integer "summary_through_position", default: 0, null: false
+    t.index ["user_id", "created_at", "id"], name: "index_chat_conversations_on_owner_history"
+    t.index ["user_id"], name: "index_chat_conversations_on_user_id"
+    t.check_constraint "char_length(summary_text) <= 8000 AND summary_version >= 0 AND summary_through_position >= 0 AND (summary_through_position % 2) = 0", name: "chat_summary_bounds"
+    t.check_constraint "summary_version = 0 AND summary_through_position = 0 AND summary_text = ''::text OR summary_version > 0 AND summary_through_position > 0 AND char_length(summary_text) > 0", name: "chat_summary_checkpoint"
+  end
+
+  create_table "chat_execution_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_operation_id", null: false
+    t.uuid "attempt_id", null: false
+    t.integer "claim_generation", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["attempt_id"], name: "index_chat_execution_attempts_on_attempt_id", unique: true
+    t.index ["chat_operation_id"], name: "index_chat_execution_attempts_on_chat_operation_id"
+  end
+
+  create_table "chat_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_conversation_id", null: false
+    t.integer "position", null: false
+    t.string "role", null: false
+    t.text "content", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "screened_sha256"
+    t.boolean "thumbs_down", default: false, null: false
+    t.index ["chat_conversation_id", "position"], name: "index_chat_messages_on_chat_conversation_id_and_position", unique: true
+    t.index ["chat_conversation_id"], name: "index_chat_messages_on_chat_conversation_id"
+    t.check_constraint "\"position\" > 0", name: "chat_message_positive_position"
+    t.check_constraint "length(content) > 0", name: "chat_message_content_present"
+    t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
+    t.check_constraint "role::text = ANY (ARRAY['user'::character varying::text, 'assistant'::character varying::text])", name: "chat_message_role"
+  end
+
+  create_table "chat_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_conversation_id", null: false
+    t.uuid "ai_task_id", null: false
+    t.string "idempotency_key", null: false
+    t.text "message", null: false
+    t.string "status", default: "pending", null: false
+    t.uuid "attempt_id"
+    t.integer "claim_generation", default: 0, null: false
+    t.integer "execution_count", default: 0, null: false
+    t.integer "cycle_execution_count", default: 0, null: false
+    t.integer "expected_position", default: 0, null: false
+    t.datetime "lease_expires_at"
+    t.datetime "execution_deadline"
+    t.datetime "retry_at"
+    t.datetime "retry_expires_at", null: false
+    t.string "failure_code"
+    t.string "delivery_job_id"
+    t.string "recovery_job_id"
+    t.string "result_fingerprint"
+    t.jsonb "accepted_result", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "summary_base_version", default: 0, null: false
+    t.jsonb "summary_plan", default: {}, null: false
+    t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
+    t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
+    t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
+    t.check_constraint "length(message) > 0", name: "chat_operation_message"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text])", name: "chat_operation_status"
+    t.check_constraint "summary_base_version >= 0 AND jsonb_typeof(summary_plan) = 'object'::text", name: "chat_operation_summary_snapshot"
+  end
+
+  create_table "chat_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "chat_execution_attempt_id", null: false
+    t.uuid "observation_id", null: false
+    t.string "stage", null: false
+    t.string "provider", null: false
+    t.string "model", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["chat_execution_attempt_id"], name: "index_chat_provider_attempts_on_chat_execution_attempt_id"
+    t.index ["observation_id"], name: "index_chat_provider_attempts_on_observation_id", unique: true
   end
 
   create_table "educations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -854,6 +940,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_040000) do
   add_foreign_key "ai_usage_attempts", "ai_tasks"
   add_foreign_key "avoided_interview_questions", "users"
   add_foreign_key "certifications", "users"
+  add_foreign_key "chat_conversations", "users"
+  add_foreign_key "chat_execution_attempts", "chat_operations"
+  add_foreign_key "chat_messages", "chat_conversations"
+  add_foreign_key "chat_operations", "ai_tasks"
+  add_foreign_key "chat_operations", "chat_conversations"
+  add_foreign_key "chat_provider_attempts", "chat_execution_attempts"
   add_foreign_key "educations", "users"
   add_foreign_key "experience_highlights", "experiences", on_delete: :cascade
   add_foreign_key "experiences", "users"

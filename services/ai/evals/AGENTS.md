@@ -183,3 +183,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
   supply vector distances; they do not measure semantic similarity. Explicit `--paid` uses
   real synthetic-data embeddings and records usage/label agreement, with no dialogue judge.
   Prints JSON; only `--output PATH` saves a report. Evaluation does not change interview behavior.
+
+- `run_chat_evals.py` / `chat_evaluators.py` — synthetic career chat and rolling-memory cases through the production guarded adapter. Deterministic continuity/outcome/honesty signals; no Rails writes, actual synthetic provider receipts retained; paid runs are explicit.

@@ -6,6 +6,8 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
+- `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
+
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`
 - `records/destroy_record_service.rb` — generic destroy for an already-authorized record;
@@ -121,6 +123,8 @@ All business logic, as service objects grouped by domain folder.
   the counts in `result["import_summary"]`; creates no resume
 - `resume_imports/validate_parsed_resume_shape_service.rb` — rejects client JSON whose
   structure the import can't walk (wrong object/list types) with error messages, not a 500
+
+- `chat/` owns general-allowance admission, exact source-approved history, atomic message acceptance, per-request usage receipts, and feature policy behind shared AiExecutions jobs/runner/stream grants. Lock owner, conversation, operation and task; keep network I/O outside transactions.
 
 ## Local Rules
 

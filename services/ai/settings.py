@@ -17,6 +17,15 @@ DEFAULT_SCREEN_LLM_MODEL = "openai:gpt-5-nano"
 class AISettings(BaseSettings):
     """Shared options read from their corresponding upper-case environment variables."""
 
+    chat_model: str = "openai:gpt-6-luna"
+
+    @field_validator("chat_model")
+    @classmethod
+    def chat_model_candidate(cls, value: str) -> str:
+        if value not in {"openai:gpt-6-luna", "openai:gpt-5-nano"}:
+            raise ValueError("Chat supports openai:gpt-6-luna or openai:gpt-5-nano")
+        return value
+
     resume_parsing_model: str = "openai:gpt-6-luna"
     # Parsing is copying, not reasoning; the model's default effort spent most of each run's
     # time and output tokens on reasoning. Rerun the evals before raising or lowering it.

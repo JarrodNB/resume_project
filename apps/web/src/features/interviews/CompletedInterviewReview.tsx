@@ -10,8 +10,11 @@ import './completedInterviewReview.css'
 import { difficultyOptions, interviewerOptions, typeOptions } from './interviewSetupOptions'
 import { InterviewJobContext } from './InterviewJobContext'
 import { CompletedInterviewFeedback } from './CompletedInterviewFeedback'
+import { useInterviewDeadline } from './useInterviewDeadline'
 
 export function CompletedInterviewReview({ interview }: { interview: InterviewSnapshotFragment }) {
+  const expired = useInterviewDeadline(interview.expiresAt)
+  if (expired) return <div className="grid gap-3"><h2 className="text-xl font-semibold">Interview expired</h2><p className="text-sm">The saved questions, answers, and feedback are no longer available.</p><Link className="text-sm underline underline-offset-4" to="/practice/interviews">Back to interviews</Link></div>
   const job = interview.jobContext
   const role = interview.preparedRole && typeof interview.preparedRole === 'object' && !Array.isArray(interview.preparedRole)
     ? interview.preparedRole as Record<string, unknown> : null

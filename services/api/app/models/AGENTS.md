@@ -81,4 +81,4 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   and `InterviewProviderAttempt` bind durable execution/provider identities to shared
   AiUsageAttempt ledger entries; missing reports remain incomplete.
 
-- `interview_session_feedback.rb` — one retained coaching result and latest queue attempt per completed interview, separate from accepted dialogue.
+- `interview_session_feedback.rb` — one retained coaching result and latest queue attempt per completed interview, separate from accepted dialogue. Session destruction delegates feedback payload scrubbing before its dependent record disappears.

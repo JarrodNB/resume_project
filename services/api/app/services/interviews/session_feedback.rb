@@ -5,6 +5,7 @@ module Interviews
     # @return [ServiceResult<InterviewSessionFeedback>] existing work or a new bounded attempt
     def request(interview:, retry_failed: false)
       publish = nil
+      record = nil
       result = interview.user.with_lock do
         interview.lock!
         next failure("Feedback is available only for retained completed interviews") unless eligible?(interview)
@@ -33,7 +34,9 @@ module Interviews
       result
     rescue *AiTasks::EnqueueAiTaskService::QUEUE_ERRORS
       with_result_lock(ai_task: publish) { fail_task(publish, "Could not queue feedback. Please retry.") unless publish.finished? } if publish
-      failure("Could not queue feedback. Please retry.")
+      saved = interview.user.interview_sessions.find_by(id: interview.id)&.feedback
+      saved = nil unless eligible?(saved&.interview_session)
+      saved&.content.present? ? success(saved) : failure("Could not queue feedback. Please retry.", value: saved)
     end
 
     # A duplicate delivery never obtains transcript text or permission for provider work.
@@ -84,6 +87,23 @@ module Interviews
       success(record)
     end
 
+    # Removes retained coaching and every attempt's payload before expiry or deletion.
+    # Usage receipts and terminal outcomes survive; unfinished work becomes a safe failure.
+    def purge(interview:, reason: :expired)
+      interview.user.with_lock do
+        interview.lock!
+        interview.feedback&.update!(content: {})
+        interview.user.ai_tasks.where(subject: interview, task_type: "interview_session_feedback").order(:id).each do |task|
+          task.with_lock do
+            AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil,
+              status: task.finished? ? task.status : "failed", error_message: reason == :deleted ? "interview_deleted" : "interview_expired",
+              completed_at: task.completed_at || Time.current })
+          end
+        end
+      end
+      success(nil)
+    end
+
     private
 
     def eligible?(interview)
@@ -129,6 +149,6 @@ module Interviews
     end
 
     def success(value) = ServiceResult.new(success: true, value: value, errors: [])
-    def failure(errors) = ServiceResult.new(success: false, value: nil, errors: Array(errors))
+    def failure(errors, value: nil) = ServiceResult.new(success: false, value: value, errors: Array(errors))
   end
 end

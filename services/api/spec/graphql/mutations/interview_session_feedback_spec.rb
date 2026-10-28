@@ -25,4 +25,35 @@ RSpec.describe "Completed interview feedback GraphQL" do
     expect(result["errors"]).to be_present
     expect(interview.reload.feedback).to be_nil
   end
+
+  it "returns the saved failed attempt with a queue error so the owner can explicitly retry" do
+    allow(Shoryuken::Client).to receive(:queues).and_return(double.tap { |queue| allow(queue).to receive(:send_message).and_raise(Aws::SQS::Errors::ServiceError.new(nil, "offline")) })
+    result = execute_graphql(mutation, user: user, variables: { id: interview.id })
+    payload = result.dig("data", "requestInterviewSessionFeedback")
+    expect(payload["errors"].join).to include("Could not queue feedback")
+    expect(payload.dig("feedback", "status")).to eq("failed")
+  end
+
+
+  it "hides retained coaching at expiry before cleanup and rejects further generation" do
+    service = Interviews::SessionFeedback.new
+    record = service.request(interview: interview).value
+    task = record.ai_task
+    service.claim(ai_task: task)
+    coaching = { "summary" => "Explain the outcome.", "questions" => [ { "question_id" => interview.questions.first.id,
+      "strengths" => [ "Specific action" ], "improvements" => [ "Add the outcome" ], "example_answer" => "I built a scheduler." } ] }
+    AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "result" => { "interview_session_feedback" => coaching } })
+    interview.update!(expires_at: 1.second.ago)
+    expect(task.reload.result).to be_present
+    task_query = 'query($id: ID!) { aiTask(id: $id) { result input } }'
+    hidden = execute_graphql(task_query, user: user, variables: { id: task.id })
+    expect(hidden.dig("data", "aiTask")).to eq("result" => nil, "input" => {})
+    expired = execute_graphql('query($id: ID!) { interviewSession(id: $id) { feedback { content } } }', user: user, variables: { id: interview.id })
+    expect(expired["errors"]).to be_present
+    expect(execute_graphql(mutation, user: user, variables: { id: interview.id })["errors"]).to be_present
+    expect(user.ai_tasks.interview_session_feedback.count).to eq(1)
+    interview.destroy!
+    missing = execute_graphql(task_query, user: user, variables: { id: task.id })
+    expect(missing.dig("data", "aiTask")).to eq("result" => nil, "input" => {})
+  end
 end

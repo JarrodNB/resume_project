@@ -4,6 +4,7 @@ import { useMutation } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import type { InterviewSnapshotFragment } from '@/graphql/generated/graphql'
 import { REQUEST_INTERVIEW_SESSION_FEEDBACK } from './interviewOperations'
+import { useInterviewDeadline } from './useInterviewDeadline'
 
 export type SavedSessionFeedback = InterviewSnapshotFragment['feedback']
 export type SessionFeedbackContent = {
@@ -23,7 +24,8 @@ export function useInterviewSessionFeedback(interviewId: string, saved: SavedSes
   const stored = record?.content as SessionFeedbackContent | null
   const result = task?.result as { interview_session_feedback?: SessionFeedbackContent } | null
   const content = stored?.summary ? stored : task?.status === 'COMPLETED' ? result?.interview_session_feedback ?? null : null
-  const failed = !content && (record?.status === 'failed' || task?.status === 'FAILED')
+  const expired = useInterviewDeadline(record?.deadline)
+  const failed = !content && (expired || record?.status === 'failed' || task?.status === 'FAILED')
   const pending = !content && !failed && Boolean(record)
 
   async function generate(retryFailed = false) {
@@ -33,8 +35,8 @@ export function useInterviewSessionFeedback(interviewId: string, saved: SavedSes
     try {
       const response = await request({ variables: { input: { interviewId, retryFailed } } })
       const payload = response.data?.requestInterviewSessionFeedback
+      if (payload?.feedback) setLocal(payload.feedback)
       if (payload?.errors.length || !payload?.feedback) setError(payload?.errors.join('. ') || 'Could not request feedback. Please retry.')
-      else setLocal(payload.feedback)
     } catch {
       setError('Could not confirm feedback. Retry to check its saved status.')
     } finally { locked.current = false }

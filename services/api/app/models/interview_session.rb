@@ -3,6 +3,7 @@
 class InterviewSession < ApplicationRecord
   include PublishesInterviewSnapshot
   before_destroy -> { Interviews::DetachMediaService.call(interview: self) }, prepend: true
+  before_destroy -> { Interviews::SessionFeedback.new.purge(interview: self, reason: :deleted) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
   # Mirrors admission: only live sessions with durable prepared-source context block a new start.

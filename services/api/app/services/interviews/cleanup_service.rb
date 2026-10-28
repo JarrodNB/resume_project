@@ -88,6 +88,7 @@ module Interviews
         end
         interview.career_references.update_all(references: [])
         interview.clarifications.update_all(explanation: nil)
+        SessionFeedback.new.purge(interview: interview)
         interview.user.ai_tasks.where(subject: interview, task_type: %w[interview_clarification interview_references]).find_each do |task|
           task.with_lock do
             AiTasks::UpdateTaskService.call(task: task, attributes: { input: {}, result: nil, status: task.finished? ? task.status : "failed",

@@ -54,6 +54,11 @@ type Documents = {
     "\n  query ChatWorkspace($cursor: String) {\n    chatSettings { maxInputCharacters summarizeEveryUserMessages }\n    chatConversations(cursor: $cursor) {\n      conversations { id title createdAt updatedAt }\n      nextCursor errors\n    }\n  }\n": typeof types.ChatWorkspaceDocument,
     "\n  query ChatConversation($id: ID!, $cursor: String) {\n    chatConversation(id: $id) {\n      id title createdAt updatedAt\n      messages(cursor: $cursor) {\n        messages { id role content position createdAt }\n        nextCursor errors\n      }\n    }\n  }\n": typeof types.ChatConversationDocument,
     "\n  mutation CreateChatConversation {\n    createChatConversation(input: {}) {\n      conversation { id title createdAt updatedAt }\n      errors\n    }\n  }\n": typeof types.CreateChatConversationDocument,
+    "\n  query ChatOperation($id: ID!) {\n    chatConversation(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n": typeof types.ChatOperationDocument,
+    "\n  subscription ChatConversationUpdated($id: ID!) {\n    chatConversationUpdated(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n": typeof types.ChatConversationUpdatedDocument,
+    "\n  mutation SendChatMessage($input: SendMessageInput!) {\n    sendChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n": typeof types.SendChatMessageDocument,
+    "\n  mutation RetryChatMessage($input: RetryMessageInput!) {\n    retryChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n": typeof types.RetryChatMessageDocument,
+    "\n  mutation AuthorizeChatOutput($input: AuthorizeAiExecutionStreamInput!) {\n    authorizeAiExecutionStream(input: $input) { token expiresAt errors }\n  }\n": typeof types.AuthorizeChatOutputDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n": typeof types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": typeof types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": typeof types.JobPipelineDocument,
@@ -155,6 +160,11 @@ const documents: Documents = {
     "\n  query ChatWorkspace($cursor: String) {\n    chatSettings { maxInputCharacters summarizeEveryUserMessages }\n    chatConversations(cursor: $cursor) {\n      conversations { id title createdAt updatedAt }\n      nextCursor errors\n    }\n  }\n": types.ChatWorkspaceDocument,
     "\n  query ChatConversation($id: ID!, $cursor: String) {\n    chatConversation(id: $id) {\n      id title createdAt updatedAt\n      messages(cursor: $cursor) {\n        messages { id role content position createdAt }\n        nextCursor errors\n      }\n    }\n  }\n": types.ChatConversationDocument,
     "\n  mutation CreateChatConversation {\n    createChatConversation(input: {}) {\n      conversation { id title createdAt updatedAt }\n      errors\n    }\n  }\n": types.CreateChatConversationDocument,
+    "\n  query ChatOperation($id: ID!) {\n    chatConversation(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n": types.ChatOperationDocument,
+    "\n  subscription ChatConversationUpdated($id: ID!) {\n    chatConversationUpdated(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n": types.ChatConversationUpdatedDocument,
+    "\n  mutation SendChatMessage($input: SendMessageInput!) {\n    sendChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n": types.SendChatMessageDocument,
+    "\n  mutation RetryChatMessage($input: RetryMessageInput!) {\n    retryChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n": types.RetryChatMessageDocument,
+    "\n  mutation AuthorizeChatOutput($input: AuthorizeAiExecutionStreamInput!) {\n    authorizeAiExecutionStream(input: $input) { token expiresAt errors }\n  }\n": types.AuthorizeChatOutputDocument,
     "\n  mutation AnalyzeJobGaps($jobId: ID!) {\n    analyzeJobGaps(input: { jobId: $jobId }) {\n      aiTask {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      errors\n    }\n  }\n": types.AnalyzeJobGapsDocument,
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        libraryFact {\n          id\n        }\n      }\n      errors\n    }\n  }\n": types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": types.JobPipelineDocument,
@@ -390,6 +400,26 @@ export function graphql(source: "\n  query ChatConversation($id: ID!, $cursor: S
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateChatConversation {\n    createChatConversation(input: {}) {\n      conversation { id title createdAt updatedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation CreateChatConversation {\n    createChatConversation(input: {}) {\n      conversation { id title createdAt updatedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query ChatOperation($id: ID!) {\n    chatConversation(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n"): (typeof documents)["\n  query ChatOperation($id: ID!) {\n    chatConversation(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  subscription ChatConversationUpdated($id: ID!) {\n    chatConversationUpdated(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n"): (typeof documents)["\n  subscription ChatConversationUpdated($id: ID!) {\n    chatConversationUpdated(id: $id) {\n      id\n      latestOperation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation SendChatMessage($input: SendMessageInput!) {\n    sendChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation SendChatMessage($input: SendMessageInput!) {\n    sendChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation RetryChatMessage($input: RetryMessageInput!) {\n    retryChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation RetryChatMessage($input: RetryMessageInput!) {\n    retryChatMessage(input: $input) {\n      operation { id status message failureCode retryAt attemptId claimGeneration executionCount idempotencyKey updatedAt }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AuthorizeChatOutput($input: AuthorizeAiExecutionStreamInput!) {\n    authorizeAiExecutionStream(input: $input) { token expiresAt errors }\n  }\n"): (typeof documents)["\n  mutation AuthorizeChatOutput($input: AuthorizeAiExecutionStreamInput!) {\n    authorizeAiExecutionStream(input: $input) { token expiresAt errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { useChatConversation, useChatWorkspace } from './useChatWorkspace'
+import { ChatTurn } from './ChatTurn'
 
 const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 
@@ -47,7 +48,7 @@ export function ChatPage() {
         </Button>}
       </nav>
       <div className="min-w-0">
-        {id ? <SavedConversation key={id} id={id} /> : <div className="grid max-w-prose gap-3 py-8">
+        {id ? <SavedConversation key={id} id={id} maxCharacters={workspace.settings?.maxInputCharacters ?? 10000} /> : <div className="grid max-w-prose gap-3 py-8">
           <h2 className="text-2xl font-bold tracking-tight">Make room for your next step</h2>
           <p className="text-muted-foreground">Talk through applications, interview preparation, or a career decision. Start a new chat or reopen one from your saved chats.</p>
         </div>}
@@ -59,7 +60,7 @@ export function ChatPage() {
 }
 
 /** Reads accepted dialogue only; partial model output will use a separate live execution view. */
-function SavedConversation({ id }: { id: string }) {
+function SavedConversation({ id, maxCharacters }: { id: string; maxCharacters: number }) {
   const history = useChatConversation(id)
   return <section aria-label="Conversation" className="grid min-w-0 gap-4">
     {history.loading && !history.conversation && <p role="status">Loading conversation…</p>}
@@ -79,6 +80,7 @@ function SavedConversation({ id }: { id: string }) {
           <p className="max-w-prose whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
         </li>)}
       </ol>}
+      <ChatTurn conversationId={id} maxCharacters={maxCharacters} onAccepted={() => { void history.refetch().catch(() => undefined) }} />
     </>}
   </section>
 }

@@ -3,10 +3,18 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import { expect, it } from 'vitest'
 import { renderPage } from '@/test/renderPage'
 import { ChatPage } from './ChatPage'
+import { CHAT_OPERATION_QUERY, CHAT_CONVERSATION_UPDATED } from './chatTurnOperations'
 import { CHAT_CONVERSATION_QUERY, CHAT_WORKSPACE_QUERY, CREATE_CHAT_CONVERSATION } from './chatOperations'
 
 function conversation(id: string, title = 'New chat') {
   return { __typename: 'ChatConversation', id, title, createdAt: '2026-10-28T00:00:00Z', updatedAt: '2026-10-28T00:00:00Z' }
+}
+function operationMocks(id: string) {
+  const snapshot = { __typename: 'ChatConversation', id, latestOperation: null }
+  return [
+    { request: { query: CHAT_OPERATION_QUERY, variables: { id } }, result: { data: { chatConversation: snapshot } } },
+    { request: { query: CHAT_CONVERSATION_UPDATED, variables: { id } }, result: { data: { chatConversationUpdated: snapshot } } },
+  ]
 }
 function workspaceMock(conversations = [conversation('chat-1', 'Preparing for interviews')], nextCursor: string | null = null, cursor: string | null = null) {
   return { request: { query: CHAT_WORKSPACE_QUERY, variables: { cursor } }, result: { data: {
@@ -24,22 +32,22 @@ it('lists saved chats and opens a newly saved empty conversation', async () => {
   const created = conversation('chat-2')
   const { router } = renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(), {
     request: { query: CREATE_CHAT_CONVERSATION }, result: { data: { createChatConversation: { __typename: 'CreateConversationPayload', conversation: created, errors: [] } } },
-  }, workspaceMock([created, conversation('chat-1', 'Preparing for interviews')]), historyMock('chat-2')] })
+  }, workspaceMock([created, conversation('chat-1', 'Preparing for interviews')]), historyMock('chat-2'), ...operationMocks('chat-2')] })
   expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('href', '/chat/chat-1')
   fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
   await waitFor(() => expect(router.state.location.pathname).toBe('/chat/chat-2'))
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
   expect(screen.getByText(/cannot read your saved career details or take actions/)).toBeInTheDocument()
-  expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Your message' })).toBeInTheDocument()
 })
 
 it('reopens saved dialogue directly after refresh and prepends earlier history', async () => {
-  renderPage({ path: '/chat/:id?', url: '/chat/chat-1', element: <ChatPage />, mocks: [workspaceMock(),
+  renderPage({ path: '/chat/:id?', url: '/chat/chat-1', element: <ChatPage />, mocks: [workspaceMock(), ...operationMocks('chat-1'),
     historyMock('chat-1', [{ id: 'm3', role: 'user', content: 'How should I prepare?', position: 3 }, { id: 'm4', role: 'assistant', content: 'Start with the role requirements.', position: 4 }], 'older'),
     historyMock('chat-1', [{ id: 'm1', role: 'user', content: 'I have an interview.', position: 1 }, { id: 'm2', role: 'assistant', content: 'What role is it for?', position: 2 }], null, 'older'),
   ] })
   expect(await screen.findByText('Start with the role requirements.')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('aria-current', 'page')
+  expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('aria-current', 'page')
   fireEvent.click(screen.getByRole('button', { name: 'Load earlier messages' }))
   expect(await screen.findByText('I have an interview.')).toBeInTheDocument()
   const text = screen.getByRole('region', { name: 'Conversation' }).textContent ?? ''
@@ -70,7 +78,7 @@ it('retains saved chats and stays put when creating a chat fails', async () => {
 it('offers recovery when a bookmarked chat cannot be loaded', async () => {
   renderPage({ path: '/chat/:id?', url: '/chat/missing', element: <ChatPage />, mocks: [workspaceMock(), {
     request: { query: CHAT_CONVERSATION_QUERY, variables: { id: 'missing', cursor: null } }, error: new Error('Record not found'),
-  }, historyMock('missing')] })
+  }, historyMock('missing'), ...operationMocks('missing')] })
   expect(await screen.findByText("Couldn't open this chat")).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Retry loading conversation' }))
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()

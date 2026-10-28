@@ -16,12 +16,12 @@ from schemas.screening_receipts import LibraryScreening
 from screening.session import current_session
 
 _RECORD_TYPES = {"experiences": "experience", "projects": "project", "educations": "education",
-                 "certifications": "certification", "skills": "skill", "facts": "library_fact"}
+                 "certifications": "certification", "skills": "skill", "career_contexts": "career_context"}
 
 
 def screen_library_fields(
     library: CareerLibrary, allow_text: Callable[[str], Any], *,
-    include_fact_requirements: bool = True, used_fields: Mapping[str, AbstractSet[str]] | None = None,
+    include_context_requirements: bool = True, used_fields: Mapping[str, AbstractSet[str]] | None = None,
     approved_sources: Sequence[str] = (),
 ) -> Any:
     """Screen unchecked used text, returning the caller's decision (or True on reuse).
@@ -32,23 +32,23 @@ def screen_library_fields(
     approved_sources must contain only values from those fields and trusted formatting;
     callers must never pass additional user text or hidden record fields there.
     """
-    pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
+    pending, reports = _unchecked_fields(library, include_context_requirements, used_fields)
     decision = allow_text(_screening_text(pending)) if pending else True
-    return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
+    return _finish(library, decision, reports, approved_sources, used_fields, include_context_requirements)
 
 
 async def screen_library_fields_async(
     library: CareerLibrary, allow_text: Callable[[str], Awaitable[Any]], *,
-    include_fact_requirements: bool = True, used_fields: Mapping[str, AbstractSet[str]] | None = None,
+    include_context_requirements: bool = True, used_fields: Mapping[str, AbstractSet[str]] | None = None,
     approved_sources: Sequence[str] = (),
 ) -> Any:
     """Apply the same saved-field checks without blocking asynchronous consumers."""
-    pending, reports = _unchecked_fields(library, include_fact_requirements, used_fields)
+    pending, reports = _unchecked_fields(library, include_context_requirements, used_fields)
     decision = await allow_text(_screening_text(pending)) if pending else True
-    return _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements)
+    return _finish(library, decision, reports, approved_sources, used_fields, include_context_requirements)
 
 
-def _unchecked_fields(library, include_fact_requirements, used_fields):
+def _unchecked_fields(library, include_context_requirements, used_fields):
     pending = []
     reports = []
 
@@ -72,7 +72,7 @@ def _unchecked_fields(library, include_fact_requirements, used_fields):
     for name, record_type in _RECORD_TYPES.items():
         for record in getattr(library, name):
             values = record.model_dump(exclude={"id", "highlights"})
-            if name == "facts" and not include_fact_requirements:
+            if name == "career_contexts" and not include_context_requirements:
                 values.pop("requirement", None)
             collect(record_type, record.id, values, record.screened_fields)
             for highlight in getattr(record, "highlights", []):
@@ -91,12 +91,12 @@ def _screening_text(pending: list[dict[str, str]]) -> str:
     )
 
 
-def _finish(library, decision, reports, approved_sources, used_fields, include_fact_requirements):
+def _finish(library, decision, reports, approved_sources, used_fields, include_context_requirements):
     allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
     if allowed and (session := current_session()) is not None:
         session.library_screening.extend(reports)
         sources = approved_sources
-        if not sources and used_fields is None and include_fact_requirements:
+        if not sources and used_fields is None and include_context_requirements:
             sources = (library.model_dump_json(exclude_none=True),)
         session.allowed_sources.update(mask_outbound(source) for source in sources)
     return decision

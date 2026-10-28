@@ -1,11 +1,11 @@
 # Description: Validates the source types accepted for persisted career library embeddings.
 # Index:
-#   - source type examples: library facts are accepted and unrelated records are rejected
+#   - source type examples: career context entries are accepted and unrelated records are rejected
 require "rails_helper"
 
 RSpec.describe LibraryEmbedding do
-  it "accepts a library fact embedding" do
-    embedding = build(:library_embedding, source_type: "LibraryFact")
+  it "accepts a library context embedding" do
+    embedding = build(:library_embedding, source_type: "CareerContext")
 
     expect(embedding).to be_valid
   end

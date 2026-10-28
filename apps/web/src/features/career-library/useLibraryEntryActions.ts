@@ -16,7 +16,7 @@ import {
   MERGE_CERTIFICATIONS_MUTATION,
   DELETE_EDUCATION_MUTATION,
   DELETE_EXPERIENCE_MUTATION,
-  DELETE_LIBRARY_FACT_MUTATION,
+  DELETE_CAREER_CONTEXT_MUTATION,
   DELETE_PROJECT_MUTATION,
   DELETE_SKILL_MUTATION,
   MERGE_EDUCATIONS_MUTATION,
@@ -24,8 +24,8 @@ import {
   MERGE_PROJECTS_MUTATION,
 } from './careerLibraryMutations'
 
-export type LibraryEntryKind = 'experience' | 'project' | 'education' | 'certification' | 'skill' | 'fact'
-export type MergeableEntryKind = Exclude<LibraryEntryKind, 'skill' | 'fact'>
+export type LibraryEntryKind = 'experience' | 'project' | 'education' | 'certification' | 'skill' | 'career_context'
+export type MergeableEntryKind = Exclude<LibraryEntryKind, 'skill' | 'career_context'>
 
 const DELETE_MUTATIONS: Record<LibraryEntryKind, DocumentNode> = {
   experience: DELETE_EXPERIENCE_MUTATION,
@@ -33,7 +33,7 @@ const DELETE_MUTATIONS: Record<LibraryEntryKind, DocumentNode> = {
   education: DELETE_EDUCATION_MUTATION,
   certification: DELETE_CERTIFICATION_MUTATION,
   skill: DELETE_SKILL_MUTATION,
-  fact: DELETE_LIBRARY_FACT_MUTATION,
+  career_context: DELETE_CAREER_CONTEXT_MUTATION,
 }
 
 const MERGE_MUTATIONS: Record<MergeableEntryKind, DocumentNode> = {
@@ -78,9 +78,9 @@ export function useLibraryEntryActions(kind: LibraryEntryKind) {
     return run(DELETE_MUTATIONS[kind], { id })
   }
 
-  /** Merges the source entry into the target entry (skills and facts can't be merged). */
+  /** Merges the source entry into the target entry (skills and career context entries can't be merged). */
   function mergeEntries(targetId: string, sourceId: string) {
-    if (kind === 'skill' || kind === 'fact') return Promise.resolve(false)
+    if (kind === 'skill' || kind === 'career_context') return Promise.resolve(false)
     return run(MERGE_MUTATIONS[kind], { targetId, sourceId })
   }
 

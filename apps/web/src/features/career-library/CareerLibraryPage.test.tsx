@@ -41,12 +41,12 @@ const libraryMock = {
       certifications: [],
       educations: [],
       skills: [{ __typename: 'Skill', id: 'skill-1', name: 'Ruby', category: 'Languages', position: 0 }],
-      libraryFacts: [],
+      careerContexts: [],
     },
   },
 }
 
-const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.facts']
+const LIBRARY_SECTION_IDS = ['library.profile', 'library.experience', 'library.projects', 'library.education', 'library.certifications', 'library.skills', 'library.career_contexts']
 
 /** Opens every library section so a test can read what is inside. */
 function openLibrarySections() {
@@ -71,7 +71,7 @@ it('keeps a section collapsed until it is opened', async () => {
   expect(screen.getByRole('button', { name: /^Experience/ })).toHaveAttribute('aria-expanded', 'true')
 })
 
-it('shows a fact added from a gap response', async () => {
+it('shows a context added from a gap response', async () => {
   openLibrarySections()
   renderPage({
     path: '/library',
@@ -84,10 +84,10 @@ it('shows a fact added from a gap response', async () => {
         result: {
           data: {
             ...libraryMock.result.data,
-            libraryFacts: [
+            careerContexts: [
               {
-                __typename: 'LibraryFact',
-                id: 'fact-1',
+                __typename: 'CareerContext',
+                id: 'context-1',
                 requirement: 'Experience with Kubernetes',
                 response: 'I used Kubernetes at Acme for two years',
               },

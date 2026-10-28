@@ -15,9 +15,9 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
     create(:project, user: user)
     create(:education, user: user)
     create(:skill, user: user)
-    fact = create(:library_fact, user: user)
+    context = create(:career_context, user: user)
     job = create(:job, user: user)
-    response = create(:job_gap_response, job: job, library_fact: fact)
+    response = create(:job_gap_response, job: job, career_context: context)
     resume = create(:resume, user: user, job: job)
 
     result = described_class.call(user: user)
@@ -27,12 +27,12 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
     expect(user.projects).to be_empty
     expect(user.educations).to be_empty
     expect(user.skills).to be_empty
-    expect(user.library_facts).to be_empty
+    expect(user.career_contexts).to be_empty
     expect(ExperienceHighlight.exists?(experience_id: experience.id)).to be(false)
     expect(user.reload).to have_attributes(
       email: user.email, name: nil, contact_email: nil, phone: nil, location: nil, links: [], summary: nil
     )
-    expect(response.reload.library_fact_id).to be_nil
+    expect(response.reload.career_context_id).to be_nil
     expect(Job.exists?(job.id)).to be(true)
     expect(Resume.exists?(resume.id)).to be(true)
   end

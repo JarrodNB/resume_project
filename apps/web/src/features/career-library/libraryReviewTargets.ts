@@ -3,7 +3,7 @@
  */
 import type { CareerLibraryQuery } from '@/graphql/generated/graphql'
 
-export type ReviewSection = 'summary' | 'experience' | 'projects' | 'facts'
+export type ReviewSection = 'summary' | 'experience' | 'projects' | 'career_contexts'
 export interface LibraryReviewTarget {
   kind: string
   recordId: string
@@ -14,7 +14,7 @@ export interface LibraryReviewTarget {
   text: string
   sourceRevision: string
 }
-export const REVIEW_SECTIONS: Record<ReviewSection, string> = { summary: 'Summary', experience: 'Experience', projects: 'Projects', facts: 'Career context' }
+export const REVIEW_SECTIONS: Record<ReviewSection, string> = { summary: 'Summary', experience: 'Experience', projects: 'Projects', career_contexts: 'Career context' }
 export const targetKey = (target: { kind: string; recordId: string }) => `${target.kind}:${target.recordId}`
 export const targetElementId = (target: { kind: string; recordId: string }) => `library-detail-${targetKey(target)}`
 
@@ -27,6 +27,6 @@ export function libraryReviewTargets(library: CareerLibraryQuery): LibraryReview
     entry.highlights.forEach((highlight, index) => targets.push({ ...base, kind: 'experience_highlight', recordId: highlight.id, fieldLabel: `Highlight ${index + 1}`, text: highlight.content }))
   }
   for (const entry of library.projects) if (entry.description) targets.push({ kind: 'project', recordId: entry.id, section: 'projects', sectionId: 'library.projects', title: entry.name, fieldLabel: 'Project description', text: entry.description, sourceRevision: JSON.stringify(entry) })
-  for (const entry of library.libraryFacts) targets.push({ kind: 'library_fact', recordId: entry.id, section: 'facts', sectionId: 'library.facts', title: entry.requirement, fieldLabel: 'Saved response', text: entry.response, sourceRevision: JSON.stringify(entry) })
+  for (const entry of library.careerContexts) targets.push({ kind: 'career_context', recordId: entry.id, section: 'career_contexts', sectionId: 'library.career_contexts', title: entry.requirement, fieldLabel: 'Saved response', text: entry.response, sourceRevision: JSON.stringify(entry) })
   return targets
 }

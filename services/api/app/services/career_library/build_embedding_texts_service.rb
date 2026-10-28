@@ -3,7 +3,7 @@
 # ("Senior Engineer at Acme: Cut deploy time 40%"), a skill its category ("Languages: Ruby").
 # Index:
 #   - call: returns [{ source_type:, source_id:, content: }] for every experience, highlight,
-#     project, education, certification, skill, and library fact of the user. Job-only gap responses are not
+#     project, education, certification, skill, and career context of the user. Job-only gap responses are not
 #     embedded.
 module CareerLibrary
   class BuildEmbeddingTextsService < ApplicationService
@@ -20,7 +20,7 @@ module CareerLibrary
       entries += Education.where(user_id: @user.id).map { |education| entry(education, education_text(education)) }
       entries += Certification.where(user_id: @user.id).map { |certification| entry(certification, certification_text(certification)) }
       entries += Skill.where(user_id: @user.id).map { |skill| entry(skill, skill_text(skill)) }
-      entries += LibraryFact.where(user_id: @user.id).order(:created_at).map { |fact| entry(fact, fact_text(fact)) }
+      entries += CareerContext.where(user_id: @user.id).order(:created_at).map { |context| entry(context, career_context_text(context)) }
       success(entries)
     end
 
@@ -61,9 +61,10 @@ module CareerLibrary
       value.strftime({ "year" => "%Y", "month" => "%Y-%m", "day" => "%Y-%m-%d" }.fetch(certification["#{field}_precision"]))
     end
 
-    # "Fact: requirement: response", so a search can match either side.
-    def fact_text(fact)
-      "Fact: #{fact.requirement}: #{fact.response}"
+    # Keep the stored "Fact:" prefix so renaming the record does not invalidate existing vectors.
+    # Both requirement and response remain searchable career context.
+    def career_context_text(context)
+      "Fact: #{context.requirement}: #{context.response}"
     end
 
     # "Category: Name", or just the name.

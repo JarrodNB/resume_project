@@ -16,7 +16,7 @@ from screening.session import bind_screened_prompt
 from tailoring.format_gap_analysis import format_gap_analysis
 from tailoring.labeled_sources import LabeledSources, label_sources
 
-LIBRARY_FACT_OMITTED_WARNING = "One of your notes was left out."
+CAREER_CONTEXT_OMITTED_WARNING = "One of your notes was left out."
 
 @dataclass(frozen=True)
 class SectionPrompt:
@@ -106,7 +106,7 @@ def _allowed(text: str, allow_text: Callable[[str], object], warnings: list[str]
     if warnings is not None:
         import text_limits
 
-        warning = text_limits.NOTE_TOO_LONG_WARNING if getattr(outcome, "too_long", False) else LIBRARY_FACT_OMITTED_WARNING
+        warning = text_limits.NOTE_TOO_LONG_WARNING if getattr(outcome, "too_long", False) else CAREER_CONTEXT_OMITTED_WARNING
         if warning not in warnings:
             warnings.append(warning)
     return False

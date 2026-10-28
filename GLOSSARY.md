@@ -100,3 +100,8 @@ practice exercises, and self-check questions. It describes what to study, not th
 A saved career-library piece shown during interview practice to help the candidate recall
 relevant experience. It is optional guidance, separate from a generated answer, question
 clarification, assessment, or accepted answer.
+
+**Career context**:
+Reusable context about the user’s career, stored as a requirement or topic and their response.
+A `CareerContext` belongs to the user’s career library; a job-specific answer may link to it.
+The requirement explains the response and is not itself evidence of the user’s experience.

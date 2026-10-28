@@ -109,7 +109,7 @@ cases:
       set_type: technical
       question: What experience do you have with Kubernetes?
       answer: I used it for two years.
-      facts:
+      career_contexts:
         - id: fact-kubernetes
           requirement: Five years of Kubernetes experience and team leadership
           response: I used it for two years.

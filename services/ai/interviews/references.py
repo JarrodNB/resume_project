@@ -18,7 +18,7 @@ SELECTION_POLICY_VERSION = "interview-references-v3"
 MAX_VECTOR_DISTANCE = 0.35  # Conservative initial policy; semantic calibration remains unmeasured.
 _QUERY_BOILERPLATE = frozenset(["a", "an", "and", "are", "as", "at", "be", "by", "can", "could", "describe", "did", "do", "experience", "explain", "for", "from", "had", "have", "how", "i", "in", "is", "it", "me", "my", "of", "on", "or", "our", "please", "role", "tell", "that", "the", "their", "them", "there", "these", "they", "this", "to", "was", "were", "what", "when", "where", "which", "who", "why", "will", "with", "work", "would", "you", "your", "about", "example", "time", "situation"])
 
-SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "LibraryFact"})
+SOURCE_TYPES = frozenset({"Experience", "ExperienceHighlight", "Project", "Education", "Certification", "Skill", "CareerContext"})
 
 
 class CareerReference(BaseModel):
@@ -30,7 +30,7 @@ class CareerReference(BaseModel):
 
 
 def saved_reference_sources(library):
-    """Project owned library records into exact display bodies; exclude fact requirements."""
+    """Project owned library records into exact display bodies; exclude career context requirements."""
     sources = {}
 
     def add(kind, record, title, body):
@@ -52,8 +52,8 @@ def saved_reference_sources(library):
         add("Certification", certification, certification.name, certification.description or certification.name)
     for skill in library.skills:
         add("Skill", skill, skill.category or "Saved skill", skill.name)
-    for fact in library.facts:
-        add("LibraryFact", fact, "Saved career fact", fact.response)
+    for context in library.career_contexts:
+        add("CareerContext", context, "Saved career context", context.response)
     return sources
 
 
@@ -100,8 +100,9 @@ def reference_index_texts(library):
         add("Certification", certification, details(", ".join(fields), certification.description))
     for skill in library.skills:
         add("Skill", skill, f"{skill.category}: {skill.name}" if skill.category and skill.category.strip() else skill.name)
-    for fact in library.facts:
-        add("LibraryFact", fact, f"Fact: {fact.requirement}: {fact.response}")
+    # Match Rails’ retained embedding text prefix; source identity uses CareerContext.
+    for context in library.career_contexts:
+        add("CareerContext", context, f"Fact: {context.requirement}: {context.response}")
     return texts
 
 
@@ -132,7 +133,7 @@ def select_references(library, query_text, matches):
     Vectors must match current source text and meet a conservative cosine cutoff.
     This one-time compatibility check does not monitor later library changes.
     Keyword fallback uses substantive
-    query terms, including saved fact requirement labels for ranking only. This initial
+    query terms, including saved career context requirement labels for ranking only. This initial
     heuristic is versioned, not a calibrated confidence measure.
     """
     sources = saved_reference_sources(library)
@@ -141,10 +142,10 @@ def select_references(library, query_text, matches):
     for role in library.experiences:
         for highlight in role.highlights:
             groups[("ExperienceHighlight", highlight.id)] = ("Experience", role.id)
-    for fact in library.facts:
-        key = ("LibraryFact", fact.id)
+    for context in library.career_contexts:
+        key = ("CareerContext", context.id)
         if key in text:
-            text[key] = f"{fact.requirement} {text[key]}"
+            text[key] = f"{context.requirement} {text[key]}"
     meaningful_query = " ".join(term for term in re.findall(r"[a-z0-9]+", query_text.lower())
                                 if term not in _QUERY_BOILERPLATE)
     ids = {str(index): key for index, key in enumerate(sources)}
@@ -157,7 +158,7 @@ def select_references(library, query_text, matches):
     ordered = list(dict.fromkeys(vector_keys + keyword_keys))
     # Keep search rank within each class, but concrete highlights/narratives precede
     # role descriptions and bare skills; a role plus its bullets consumes one card.
-    priority = {"ExperienceHighlight": 0, "Project": 0, "LibraryFact": 0, "Experience": 1, "Skill": 2}
+    priority = {"ExperienceHighlight": 0, "Project": 0, "CareerContext": 0, "Experience": 1, "Skill": 2}
     ordered.sort(key=lambda key: priority.get(key[0], 1))
     selected, seen_groups, seen_bodies = [], set(), set()
     for key in ordered:

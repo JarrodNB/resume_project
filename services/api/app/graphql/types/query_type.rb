@@ -6,7 +6,7 @@
 #   - interview_session, recent_interview_sessions, unfinished_interview_session
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
-#   - experiences, projects, educations, certifications, skills, library_facts (career library)
+#   - experiences, projects, educations, certifications, skills, career_contexts (career library)
 #   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
 #   - resumes, resume(id:)
 #   - ai_task(id:)
@@ -73,7 +73,7 @@ module Types
     field :educations, [ Types::EducationType ], null: false
     field :certifications, [ Types::CertificationType ], null: false
     field :skills, [ Types::SkillType ], null: false
-    field :library_facts, [ Types::LibraryFactType ], null: false
+    field :career_contexts, [ Types::CareerContextType ], null: false
     field :library_review, Types::LibraryReviewType, null: false do
       argument :section, String, required: true
     end
@@ -151,8 +151,8 @@ module Types
     # Returns the user's skills.
     def skills = current_user.skills
 
-    # Returns facts the user added from gap responses.
-    def library_facts = current_user.library_facts
+    # Returns career context the user added from gap responses.
+    def career_contexts = current_user.career_contexts
 
     # Returns the user's jobs, newest first, optionally filtered by stage.
     def jobs(stage: nil)

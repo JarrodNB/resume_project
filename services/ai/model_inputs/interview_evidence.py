@@ -1,8 +1,8 @@
-"""Render screened career-library facts for interview question and feedback prompts.
+"""Render screened career context entries for interview question and feedback prompts.
 
 Both model inputs need the same saved evidence. Question prompts add temporary IDs so the
 model can select sources without copying; feedback still receives readable evidence text.
-Saved fact requirements explain their responses but never receive evidence IDs or quote coverage.
+Saved career context requirements explain their responses but never receive evidence IDs or quote coverage.
 """
 
 from hashlib import sha256
@@ -113,12 +113,12 @@ def _render_interview_career_evidence(library: CareerLibrary, with_ids: bool):
             if skill.category and skill.category.strip():
                 quotes.append(skill.category)
         evidence.append("\n".join(lines))
-    for fact in library.facts:
-        if fact.response.strip():
+    for context in library.career_contexts:
+        if context.response.strip():
             lines = []
-            if fact.requirement.strip():
-                lines.append(f"Requirement context (not personal evidence): {fact.requirement}")
-            show(lines, "Career fact", fact.response)
+            if context.requirement.strip():
+                lines.append(f"Requirement context (not personal evidence): {context.requirement}")
+            show(lines, "Career context", context.response)
             evidence.append("\n".join(lines))
     return evidence, quotes, evidence_by_id
 

@@ -2,9 +2,9 @@
 from uuid import uuid4
 
 from schemas.gap_analysis_context import (
+    CareerContext,
     CareerLibrary,
     LibraryExperience,
-    LibraryFact,
     LibraryHighlight,
     LibrarySkill,
 )
@@ -13,16 +13,16 @@ from schemas.library_search_match import LibrarySearchMatch
 
 def test_unrelated_index_match_is_not_a_reference():
     from interviews.references import select_references
-    fact = LibraryFact(id=str(uuid4()), requirement='Finance', response='Managed financial forecasts.')
-    match = LibrarySearchMatch(source_type='LibraryFact', source_id=fact.id, content=fact.response, distance=.8, score=.03)
-    assert select_references(CareerLibrary(facts=[fact]), 'Describe your Kubernetes deployments', [match]) == []
+    context = CareerContext(id=str(uuid4()), requirement='Finance', response='Managed financial forecasts.')
+    match = LibrarySearchMatch(source_type='CareerContext', source_id=context.id, content=context.response, distance=.8, score=.03)
+    assert select_references(CareerLibrary(career_contexts=[context]), 'Describe your Kubernetes deployments', [match]) == []
 
 
-def test_missing_vectors_use_saved_fact_requirement_for_keyword_ranking_only():
+def test_missing_vectors_use_saved_context_requirement_for_keyword_ranking_only():
     from interviews.references import select_references
-    fact = LibraryFact(id=str(uuid4()), requirement='Kubernetes', response='Maintained a production cluster.')
-    refs = select_references(CareerLibrary(facts=[fact]), 'Describe your Kubernetes experience', [])
-    assert len(refs) == 1 and refs[0].body == fact.response
+    context = CareerContext(id=str(uuid4()), requirement='Kubernetes', response='Maintained a production cluster.')
+    refs = select_references(CareerLibrary(career_contexts=[context]), 'Describe your Kubernetes experience', [])
+    assert len(refs) == 1 and refs[0].body == context.response
     assert 'Kubernetes' not in refs[0].body
 
 
@@ -43,13 +43,13 @@ def test_roles_and_highlights_share_one_slot_and_narratives_precede_skills():
 
 def test_boilerplate_question_words_do_not_create_keyword_matches():
     from interviews.references import select_references
-    library = CareerLibrary(facts=[LibraryFact(id=str(uuid4()), requirement='Experience', response='My work was in finance')])
+    library = CareerLibrary(career_contexts=[CareerContext(id=str(uuid4()), requirement='Experience', response='My work was in finance')])
     assert select_references(library, 'Tell me about your experience with Kubernetes', []) == []
 
 
 def test_duplicate_saved_text_is_shown_once():
     from interviews.references import select_references
-    library = CareerLibrary(facts=[LibraryFact(id=str(uuid4()), requirement='Kubernetes', response='Maintained clusters') for _ in range(2)])
+    library = CareerLibrary(career_contexts=[CareerContext(id=str(uuid4()), requirement='Kubernetes', response='Maintained clusters') for _ in range(2)])
     assert len(select_references(library, 'Kubernetes', [])) == 1
 
 
@@ -60,39 +60,39 @@ def test_all_question_formats_can_retrieve_unindexed_saved_facts():
     from interviews.references import select_references
     cases = json.loads((Path(__file__).parent / 'fixtures/interview_references/questions.json').read_text())
     for case in cases:
-        fact = LibraryFact(id=str(uuid4()), requirement=case['requirement'], response=case['response'])
-        references = select_references(CareerLibrary(facts=[fact]), case['question'], [])
+        context = CareerContext(id=str(uuid4()), requirement=case['requirement'], response=case['response'])
+        references = select_references(CareerLibrary(career_contexts=[context]), case['question'], [])
         assert [r.body for r in references] == [case['response']], case['format']
 
 
-def test_matching_fact_after_large_role_corpus_is_still_available():
+def test_matching_context_after_large_role_corpus_is_still_available():
     from interviews.references import select_references
     roles = [LibraryExperience(id=str(uuid4()), title='Coordinator', company='Example',
         highlights=[LibraryHighlight(id=str(uuid4()), content='Scheduled weekly meetings') for _ in range(40)])
         for _ in range(13)]
-    fact = LibraryFact(id=str(uuid4()), requirement='Kubernetes', response='Maintained a production cluster.')
-    refs = select_references(CareerLibrary(experiences=roles, facts=[fact]), 'Kubernetes', [])
-    assert [ref.body for ref in refs] == [fact.response]
+    context = CareerContext(id=str(uuid4()), requirement='Kubernetes', response='Maintained a production cluster.')
+    refs = select_references(CareerLibrary(experiences=roles, career_contexts=[context]), 'Kubernetes', [])
+    assert [ref.body for ref in refs] == [context.response]
 
 
-def test_old_kubernetes_vector_cannot_select_current_finance_fact():
+def test_old_kubernetes_vector_cannot_select_current_finance_context():
     from interviews.references import select_references
-    fact = LibraryFact(id=str(uuid4()), requirement='Finance', response='Managed financial forecasts.')
-    old = LibrarySearchMatch(source_type='LibraryFact', source_id=fact.id,
+    context = CareerContext(id=str(uuid4()), requirement='Finance', response='Managed financial forecasts.')
+    old = LibrarySearchMatch(source_type='CareerContext', source_id=context.id,
         content='Fact: Kubernetes: Maintained Kubernetes clusters.', distance=.1, score=.03)
-    library = CareerLibrary(facts=[fact])
+    library = CareerLibrary(career_contexts=[context])
     assert select_references(library, 'Describe Kubernetes deployments', [old]) == []
     # Current text remains available through lexical fallback even while its index lags.
-    assert [ref.body for ref in select_references(library, 'Financial forecasts', [old])] == [fact.response]
+    assert [ref.body for ref in select_references(library, 'Financial forecasts', [old])] == [context.response]
 
 
 def test_matching_current_index_can_supply_a_semantic_only_reference():
     from interviews.references import select_references
-    fact = LibraryFact(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
-    current = LibrarySearchMatch(source_type='LibraryFact', source_id=fact.id,
+    context = CareerContext(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
+    current = LibrarySearchMatch(source_type='CareerContext', source_id=context.id,
         content='Fact: Operations: Reduced deployment delays.', distance=.1, score=.03)
-    refs = select_references(CareerLibrary(facts=[fact]), 'Release throughput', [current])
-    assert [ref.body for ref in refs] == [fact.response]
+    refs = select_references(CareerLibrary(career_contexts=[context]), 'Release throughput', [current])
+    assert [ref.body for ref in refs] == [context.response]
 
 
 def test_fresh_rails_index_prose_matches_every_supported_source_without_changing_bodies():
@@ -112,9 +112,9 @@ def test_fresh_rails_index_prose_matches_every_supported_source_without_changing
         expiry_date_precision='month', credential_id='ABC', credential_url='https://example.test/ABC',
         description='Deployment qualification.')
     skill = LibrarySkill(id=str(uuid4()), name='Kubernetes', category='Infrastructure')
-    fact = LibraryFact(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
+    context = CareerContext(id=str(uuid4()), requirement='Operations', response='Reduced deployment delays.')
     library = CareerLibrary(experiences=[role], projects=[project], educations=[education],
-        certifications=[certification], skills=[skill], facts=[fact])
+        certifications=[certification], skills=[skill], career_contexts=[context])
     cases = [
         ('Experience', role.id, 'Engineer at Example (London): Maintained reliable releases.', role.description),
         ('ExperienceHighlight', role.highlights[0].id, 'Engineer at Example: Improved rollout checks.', role.highlights[0].content),
@@ -122,7 +122,7 @@ def test_fresh_rails_index_prose_matches_every_supported_source_without_changing
         ('Education', education.id, 'BSc in Computing, Example University: Studied reliability.', education.description),
         ('Certification', certification.id, 'Certification: Operations, Issuer: Example Institute, Issued date: 2024, Expiry date: 2027-05, Credential id: ABC, Credential url: https://example.test/ABC: Deployment qualification.', certification.description),
         ('Skill', skill.id, 'Infrastructure: Kubernetes', skill.name),
-        ('LibraryFact', fact.id, 'Fact: Operations: Reduced deployment delays.', fact.response),
+        ('CareerContext', context.id, 'Fact: Operations: Reduced deployment delays.', context.response),
     ]
     for kind, source_id, index_text, body in cases:
         current = LibrarySearchMatch(source_type=kind, source_id=source_id, content=index_text, distance=.1, score=.03)

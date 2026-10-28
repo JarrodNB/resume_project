@@ -45,7 +45,7 @@ class LibraryReviewQuestion(BaseModel):
 class LibraryEditInput(BaseModel):
     """Rails supplies owned snapshots/history; the browser supplies only the newest feedback."""
 
-    section: Literal["experience", "summary", "projects", "facts"]
+    section: Literal["experience", "summary", "projects", "career_contexts"]
     library: CareerLibrary
     target: LibraryReviewTarget
     original_text: str = Field(max_length=4000)
@@ -62,7 +62,7 @@ class LibraryEditInput(BaseModel):
     def only_selected_record(self):
         validate_section_library(self.section, self.library)
         if self.section != "summary":
-            field = {"experience": "experiences", "projects": "projects", "facts": "facts"}[self.section]
+            field = {"experience": "experiences", "projects": "projects", "career_contexts": "career_contexts"}[self.section]
             if len(getattr(self.library, field)) != 1:
                 raise ValueError("An individual edit needs only its selected record context")
         return self

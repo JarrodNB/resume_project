@@ -170,8 +170,8 @@ def test_filters_source_types_before_ranking(admin_connection: psycopg.Connectio
     project_id = _insert_embedding(
         admin_connection, user_id, "Portfolio", _axis_vector(2), source_type="Project"
     )
-    fact_id = _insert_embedding(
-        admin_connection, user_id, "Ruby knowledge", _axis_vector(3), source_type="LibraryFact"
+    context_id = _insert_embedding(
+        admin_connection, user_id, "Ruby knowledge", _axis_vector(3), source_type="CareerContext"
     )
     admin_connection.execute("SET LOCAL ROLE ai_reader")
 
@@ -192,9 +192,9 @@ def test_filters_source_types_before_ranking(admin_connection: psycopg.Connectio
         _axis_vector(1),
         "Ruby",
         MODEL,
-        source_types={"Project", "LibraryFact"},
+        source_types={"Project", "CareerContext"},
     )
-    assert {match.source_id for match in mixed} == {str(project_id), str(fact_id)}
+    assert {match.source_id for match in mixed} == {str(project_id), str(context_id)}
 
 
 def test_returns_empty_for_a_type_without_entries(

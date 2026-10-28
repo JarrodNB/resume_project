@@ -1,0 +1,57 @@
+# Exercises the real rename in both directions with linked records and resumable AI work.
+require "rails_helper"
+require Rails.root.join("db/migrate/20261028090000_rename_library_facts_to_career_contexts")
+
+RSpec.describe RenameLibraryFactsToCareerContexts do
+  let(:migration) { described_class.new }
+  let(:connection) { ActiveRecord::Base.connection }
+
+  def migrate(direction)
+    ActiveRecord::Migration.suppress_messages { migration.migrate(direction) }
+    connection.schema_cache.clear!
+  end
+
+  it "preserves identities, linked answers, vectors, approvals and exact prose through a round trip" do
+    user = create(:user)
+    context = create(:career_context, user: user, response: 'Facts and library_fact are my exact words.', screened_fields: %w[response])
+    answer = create(:job_gap_response, job: create(:job, user: user), career_context: context)
+    embedding = create(:library_embedding, user: user, source_type: "CareerContext", source_id: context.id)
+    interview = user.interview_sessions.create!(expires_at: 1.day.from_now,
+      frozen_context: { "sources" => [ { "type" => "career_contexts", "id" => context.id,
+        "field" => "response", "text" => context.response, "screened" => true } ] })
+    original_vector = connection.select_value("SELECT embedding::text FROM library_embeddings WHERE id = '#{embedding.id}'")
+    migrate(:down)
+    expect(connection.table_exists?(:library_facts)).to be(true)
+    expect(interview.reload.frozen_context.dig("sources", 0, "type")).to eq("library_facts")
+    expect(connection.select_value("SELECT library_fact_id FROM job_gap_responses WHERE id = '#{answer.id}'")).to eq(context.id)
+    legacy_input = {
+      "section" => "facts", "library" => { "facts" => [ { "id" => context.id, "response" => context.response } ] },
+      "target" => { "kind" => "library_fact", "record_id" => context.id, "source_digest" => "unchanged" },
+      "feedback" => "facts", "history" => [ { "content" => 'library_fact facts LibraryFact' } ]
+    }
+    task = create(:ai_task, user: user, task_type: "improve_library_entry", input: legacy_input,
+      result: { "evidence" => [ { "kind" => "fact", "id" => context.id, "text" => context.response } ] })
+    migrate(:up)
+    expect(connection.table_exists?(:library_facts)).to be(false)
+    expect(context.reload.response).to eq('Facts and library_fact are my exact words.')
+    expect(context.screened_fields).to eq(%w[response])
+    expect(answer.reload.career_context_id).to eq(context.id)
+    source = interview.reload.frozen_context.fetch("sources").first
+    expect(source).to include("type" => "career_contexts", "id" => context.id,
+      "text" => context.response, "screened" => true)
+    expect(embedding.reload.source_type).to eq("CareerContext")
+    expect(connection.select_value("SELECT embedding::text FROM library_embeddings WHERE id = '#{embedding.id}'")).to eq(original_vector)
+    input = task.reload.input
+    expect(input["section"]).to eq("career_contexts")
+    expect(input.dig("library", "career_contexts", 0, "id")).to eq(context.id)
+    expect(input["target"]).to eq(legacy_input["target"].merge("kind" => "career_context"))
+    expect(input.values_at("feedback", "history")).to eq(legacy_input.values_at("feedback", "history"))
+    expect(task.result.dig("evidence", 0, "kind")).to eq("career_context")
+    migrate(:down)
+    expect(task.reload.input).to eq(legacy_input)
+    expect(task.result.dig("evidence", 0, "kind")).to eq("fact")
+    migrate(:up)
+    context.destroy!
+    expect(answer.reload.career_context_id).to be_nil
+  end
+end

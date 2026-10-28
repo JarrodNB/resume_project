@@ -18,11 +18,11 @@ import text_limits
 from agents.interview_questions_agent import interview_questions_agent
 from model_inputs.interview import build_interview_question_context
 from schemas.gap_analysis_context import (
+    CareerContext,
     CareerLibrary,
     LibraryCertification,
     LibraryEducation,
     LibraryExperience,
-    LibraryFact,
     LibraryHighlight,
     LibraryProject,
     LibrarySkill,
@@ -292,7 +292,7 @@ def test_screened_only_context_fails_closed(task_dependencies, monkeypatch):
     monkeypatch.setattr("worker.interview_questions_handler.screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=False))
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(
-        facts=[LibraryFact(id="fact", requirement="Leadership", response="Some details")]))
+        career_contexts=[CareerContext(id="career_context", requirement="Leadership", response="Some details")]))
     assert "Add usable" in handle_ai_task(_task(), deps).error_message
 
 
@@ -457,7 +457,7 @@ def test_question_prompt_retains_relevant_career_context():
 def test_job_requirement_is_context_only(task_dependencies, monkeypatch, replacement, cite_requirement):
     """Screened requirements clarify responses without becoming citable personal evidence."""
     requirement = "Experience managing large teams"
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response="Python")])
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement=requirement, response="Python")])
     deps = replace(task_dependencies, read_career_library=lambda user_id: library)
     screened = []
 
@@ -489,17 +489,17 @@ def test_job_requirement_is_context_only(task_dependencies, monkeypatch, replace
     assert any("response:\nPython" in text for text in screened)
     if replacement:
         assert _task(True).input["question_text"] not in screened
-    assert library.facts[0].requirement == requirement
+    assert library.career_contexts[0].requirement == requirement
 
 
 @pytest.mark.parametrize("checked_context", [False, True])
-def test_fact_context_reuses_saved_checks_without_rescreening_response(task_dependencies, monkeypatch, checked_context):
+def test_context_context_reuses_saved_checks_without_rescreening_response(task_dependencies, monkeypatch, checked_context):
     """Context enters a covered prompt only after its own check; approved answers are reused."""
     from screening.session import prompt_is_covered, screening_session
 
     requirement = "Five years of Kubernetes experience"
     response = "I used it for two years."
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement=requirement, response=response,
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement=requirement, response=response,
         screened_fields=["response", "requirement"] if checked_context else ["response"])])
     screened = []
 
@@ -529,9 +529,9 @@ def test_fact_context_reuses_saved_checks_without_rescreening_response(task_depe
 
 
 @pytest.mark.parametrize("unchecked", [False, True])
-def test_rejected_fact_context_cannot_reach_generation(task_dependencies, monkeypatch, unchecked):
+def test_rejected_context_context_cannot_reach_generation(task_dependencies, monkeypatch, unchecked):
     """A previously approved response cannot bring blocked or unavailable context into a prompt."""
-    library = CareerLibrary(facts=[LibraryFact(id="fact", requirement="Kubernetes experience",
+    library = CareerLibrary(career_contexts=[CareerContext(id="career_context", requirement="Kubernetes experience",
         response="I used it for two years.", screened_fields=["response"])])
     monkeypatch.setattr(interview_questions_handler, "screen_user_text",
                         lambda *args, **kwargs: ScreenOutcome(allowed=False, unchecked=unchecked))

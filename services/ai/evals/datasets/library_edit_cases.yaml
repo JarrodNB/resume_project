@@ -52,9 +52,9 @@ cases:
       feedback: Keep my role as a contributor, retain the technical detail, and improve the wording. No outcome measurements or further facts are available; propose a revision now.
   - name: fact-response-stays-on-requirement
     inputs:
-      section: facts
+      section: career_contexts
       library:
-        facts:
+        career_contexts:
           - id: fact-1
             requirement: Inventory management experience
             response: I maintained the store stock count sheet so colleagues could see which items needed reordering.

@@ -43,9 +43,9 @@ module Types
     field :resume, Types::ResumeType,
           description: "The newest resume saved for this job, if any."
 
-    # Returns this job's answers, with their library facts.
+    # Returns this job's answers, with their career context entries.
     def gap_responses
-      object.gap_responses.includes(:library_fact)
+      object.gap_responses.includes(:career_context)
     end
 
     # Returns the job's newest analyze_gaps task.

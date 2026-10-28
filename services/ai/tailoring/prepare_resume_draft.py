@@ -47,7 +47,7 @@ def _library_text_length(library: CareerLibrary) -> int:
         (library.educations, ("institution", "degree", "field_of_study", "description")),
         (library.certifications, ("name", "issuer", "credential_id", "credential_url", "description")),
         (library.skills, ("name", "category")),
-        (library.facts, ("requirement", "response")),
+        (library.career_contexts, ("requirement", "response")),
     ):
         total += sum(len(getattr(row, name) or "") for row in rows for name in names)
     total += sum(len(highlight.content) for experience in library.experiences

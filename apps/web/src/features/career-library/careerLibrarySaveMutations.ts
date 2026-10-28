@@ -8,7 +8,7 @@
  *   - CREATE_EDUCATION_MUTATION, UPDATE_EDUCATION_MUTATION
  *   - CREATE_CERTIFICATION_MUTATION, UPDATE_CERTIFICATION_MUTATION
  *   - CREATE_SKILL_MUTATION, UPDATE_SKILL_MUTATION
- *   - CREATE_LIBRARY_FACT_MUTATION, UPDATE_LIBRARY_FACT_MUTATION
+ *   - CREATE_CAREER_CONTEXT_MUTATION, UPDATE_CAREER_CONTEXT_MUTATION
  */
 import { graphql } from '@/graphql/generated'
 
@@ -84,17 +84,17 @@ export const UPDATE_SKILL_MUTATION = graphql(`
   }
 `)
 
-export const CREATE_LIBRARY_FACT_MUTATION = graphql(`
-  mutation CreateLibraryFact($attributes: LibraryFactAttributesInput!) {
-    createLibraryFact(input: { attributes: $attributes }) {
+export const CREATE_CAREER_CONTEXT_MUTATION = graphql(`
+  mutation CreateCareerContext($attributes: CareerContextAttributesInput!) {
+    createCareerContext(input: { attributes: $attributes }) {
       errors
     }
   }
 `)
 
-export const UPDATE_LIBRARY_FACT_MUTATION = graphql(`
-  mutation UpdateLibraryFact($id: ID!, $attributes: LibraryFactAttributesInput!) {
-    updateLibraryFact(input: { id: $id, attributes: $attributes }) {
+export const UPDATE_CAREER_CONTEXT_MUTATION = graphql(`
+  mutation UpdateCareerContext($id: ID!, $attributes: CareerContextAttributesInput!) {
+    updateCareerContext(input: { id: $id, attributes: $attributes }) {
       errors
     }
   }

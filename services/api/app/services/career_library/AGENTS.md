@@ -19,15 +19,15 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   and user: fills fields blank on the target, appends highlights the target doesn't have, then
   deletes a saved source. Works with an unsaved source (the import).
 - `clear_career_library_service.rb` — deletes the user's roles, projects, education, skills,
-  and facts, and clears the profile fields an import fills (name, contact, links, summary).
-  Sign-in email, jobs, and tailored resumes stay. Job answers that pointed at a fact stay,
+  and career context entries, and clears the profile fields an import fills (name, contact, links, summary).
+  Sign-in email, jobs, and tailored resumes stay. Job answers that pointed at a career context entry stay,
   unlinked. Queues one embedding sync when an entry was removed; a second call changes nothing.
 - `reorder_library_entries_service.rb` — saves a new order for a relation of the user's entries
   (used for skills; experiences, projects, and educations are ordered by date instead): the ids
   must be exactly the relation's ids, and each position becomes its index. Repeating the call
   changes nothing.
 - `build_embedding_texts_service.rb` — one text per experience, highlight, project, education,
-  skill, and library fact, with context ("Senior Engineer at Acme: Cut deploy time 40%",
+  skill, and career context entry, with context ("Senior Engineer at Acme: Cut deploy time 40%",
   "Languages: Ruby", "Fact: Kubernetes: Used it at Acme for two years"); job-only gap responses
   are not included; queries the tables directly so a sync never sees stale loaded associations
 - `sync_library_embeddings_service.rb` — under a per-user advisory lock, embeds entries whose
@@ -50,7 +50,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 
 ## Section review
 
-- `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Facts section
+- `ReviewSnapshot` captures only the requested Summary, Experience, Projects, or Career context section
   with per-record context digests. Only narrative fields become targets.
 - `StartReviewService` queues or reuses an active `review_library_section` task; `ReviewStateService`
   returns its last completed individual grades and optional enrichment questions with
@@ -77,7 +77,7 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   may replay without new feedback; ordinary continuations still need feedback or an explicit skip.
   New continuation turns require the latest edit for that target, so an older failed draft
   cannot displace a newer draft through a stale tab. Exact existing-child retries remain idempotent.
-  Summary accepts change only `User.summary`; projects change only `description`; facts change
+  Summary accepts change only `User.summary`; projects change only `description`; career context entries change
   only `response`. The owned-record allowlist never resolves classes from browser strings.
 - Acceptance requires unchanged source/context, queues embeddings, and stores the proposed
   assessment for the new digest. Exact generated text receives reusable field coverage without

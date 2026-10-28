@@ -112,7 +112,7 @@ RSpec.describe "Interview practice services" do
     expect(result).to be_success
     expect(result.value.input).to include("answer_text" => "I led a project.", "question_revision" => 1, "answer_revision" => 1)
     expect(question.reload.answer_text).to eq("I led a project.")
-    expect(user.library_facts).to be_empty
+    expect(user.career_contexts).to be_empty
   end
 
   it "keeps coaching current after capitalization and whitespace edits without changing revisions" do

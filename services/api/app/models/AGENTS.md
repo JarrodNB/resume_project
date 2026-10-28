@@ -34,7 +34,7 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 - Career library (source of truth for the user's facts):
   - `experience.rb` + `experience_highlight.rb` (ordered bullet points)
   - `project.rb`, `education.rb`, `skill.rb`
-  - `library_fact.rb` — a requirement plus the user's answer, added from a gap response; embedded
+  - `career_context.rb` — a requirement plus the user's answer, added from a gap response; embedded
     like the other entries. Deleting it unlinks job answers (`dependent: :nullify`) and keeps them
   - `library_embedding.rb` — derived data: the embedding (pgvector, 1536 dimensions, HNSW
     cosine index, `has_neighbors`) of one library entry's text, keyed by `source_type` +
@@ -43,10 +43,10 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
   - `concerns/most_recent_first.rb` — `most_recent_first` scope for experiences, projects, and
     educations (ongoing first, then by end date, undated last); `User` lists them this way
   - `concerns/library_size_limit.rb` — `library_size_limit` stops a create once the user is at
-    the cap in `config/initializers/text_limits.rb` (roles, projects, education, skills, facts)
+    the cap in `config/initializers/text_limits.rb` (roles, projects, education, skills, career context)
 - `job.rb` — job profile + application stage; `ai_tasks` it is the subject of (scrape,
   gap analyses, tailoring; nulled, not deleted, with the job so costs stay counted),
-  `gap_responses` (deleted with the job; library facts they point at are kept),
+  `gap_responses` (deleted with the job; career context entries they point at are kept),
   `latest_gap_analysis`, and `latest_tailoring`
 - `resume.rb` + `resume_section.rb` — resumes tailored to a job (there is no base resume; the
   career library is the base). Section `content` is a JSON snapshot, so editing a resume never

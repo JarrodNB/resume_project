@@ -6,7 +6,7 @@
 #   - call: destroys the record; returns it on success, errors on failure
 module Records
   class DestroyRecordService < ApplicationService
-    LIBRARY_MODELS = [ Experience, Project, Education, Certification, Skill, LibraryFact ].freeze
+    LIBRARY_MODELS = [ Experience, Project, Education, Certification, Skill, CareerContext ].freeze
 
     def initialize(record:)
       @record = record

@@ -5,7 +5,7 @@ module Interviews
     SOURCE_TYPES = {
       "profile" => "User", "experiences" => "Experience", "highlights" => "ExperienceHighlight",
       "projects" => "Project", "educations" => "Education", "certifications" => "Certification",
-      "skills" => "Skill", "library_facts" => "LibraryFact"
+      "skills" => "Skill", "career_contexts" => "CareerContext"
     }.freeze
 
     def self.valid_source?(source)

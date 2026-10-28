@@ -1,10 +1,10 @@
-# Extend the same owned review/edit flow to summary, project descriptions, and fact answers.
+# Extend the same owned review/edit flow to summary, project descriptions, and context answers.
 require "rails_helper"
 
 RSpec.describe "Career library narrative AI targets" do
   let(:user) { create(:user, summary: "I build practical internal tools.") }
   let!(:project) { create(:project, user: user, description: "Built a shared inventory sheet.") }
-  let!(:fact) { create(:library_fact, user: user, requirement: "Inventory experience", response: "I maintained the count sheet.") }
+  let!(:context) { create(:career_context, user: user, requirement: "Inventory experience", response: "I maintained the count sheet.") }
   let(:queue) { double("queue", send_message: nil) }
 
   before { allow(Shoryuken::Client).to receive(:queues).and_return(queue) }
@@ -13,7 +13,7 @@ RSpec.describe "Career library narrative AI targets" do
     case section
     when "summary" then [ "user", user, "summary" ]
     when "projects" then [ "project", project, "description" ]
-    when "facts" then [ "library_fact", fact, "response" ]
+    when "career_contexts" then [ "career_context", context, "response" ]
     end
   end
 
@@ -30,7 +30,7 @@ RSpec.describe "Career library narrative AI targets" do
     GQL
   end
 
-  def complete(task, text = "Clearer wording supported by the user's supplied facts.")
+  def complete(task, text = "Clearer wording supported by the user's supplied career_contexts.")
     AiTasks::ApplyAiResultService.call(message: { "ai_task_id" => task.id, "status" => "completed", "message_history" => [],
       "result" => { "text" => text, "color" => "yellow", "reason" => "Add an outcome if known." } })
   end
@@ -41,11 +41,11 @@ RSpec.describe "Career library narrative AI targets" do
     GQL
   end
 
-  %w[summary projects facts].each do |section|
+  %w[summary projects career_contexts].each do |section|
     it "reviews only owned #{section} narrative targets" do
       create(:experience, user: user)
       create(:project)
-      create(:library_fact)
+      create(:career_context)
       payload = review(section)
       expect(payload["errors"]).to eq([])
       input = payload.dig("aiTask", "input")
@@ -58,7 +58,7 @@ RSpec.describe "Career library narrative AI targets" do
     it "accepts exactly the #{section} field and revokes generated coverage after a manual edit" do
       kind, record, field = target(section)
       before_profile = user.attributes.slice("name", "contact_email", "phone", "links")
-      before_requirement = fact.requirement
+      before_requirement = context.requirement
       started = edit(section)
       expect(started["errors"]).to eq([])
       task = AiTask.find(started.dig("aiTask", "id"))
@@ -74,14 +74,14 @@ RSpec.describe "Career library narrative AI targets" do
       expect(record.reload[field]).to eq(task.reload.result["text"])
       expect(record.screened_fields).to include(field)
       expect(user.reload.attributes.slice("name", "contact_email", "phone", "links")).to eq(before_profile)
-      expect(fact.reload.requirement).to eq(before_requirement)
+      expect(context.reload.requirement).to eq(before_requirement)
       state = CareerLibrary::ReviewStateService.call(user: user, section: section).value
       expect(state[:assessments].first.slice("record_id", "color", "stale")).to eq("record_id" => record.id, "color" => "yellow", "stale" => false)
 
       case kind
       when "user" then Users::UpdateProfileService.call(user: user, attributes: { summary: "New user summary" })
       when "project" then Projects::UpdateProjectService.call(project: project, attributes: { description: "New user description" })
-      when "library_fact" then LibraryFacts::UpdateLibraryFactService.call(library_fact: fact, attributes: { response: "New user response" })
+      when "career_context" then CareerContexts::UpdateCareerContextService.call(career_context: context, attributes: { response: "New user response" })
       end
       expect(record.reload.screened_fields).not_to include(field)
       expect(CareerLibrary::ReviewStateService.call(user: user, section: section).value[:assessments].first["stale"]).to be(true)

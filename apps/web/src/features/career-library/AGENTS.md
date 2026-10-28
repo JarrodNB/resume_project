@@ -3,7 +3,7 @@
 ## Purpose
 
 The career library page (`/library`): the user's profile (contact details, summary),
-experiences with highlights, projects, education, skills, and facts. The library is the base that
+experiences with highlights, projects, education, skills, and career context entries. The library is the base that
 tailored resumes are built from, so resumes are not listed here. Experiences, projects, and
 educations are listed most recent first (the API orders them by date; they can't be dragged).
 Each section can add an entry, and each entry can be edited. Entries can be deleted, and
@@ -21,9 +21,9 @@ their category.
   count and an Add button; each starts collapsed and stays that way until opened),
   `LibraryEntry.tsx` (ruled entry with an `actions` slot) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,
-  `FactsSection.tsx` — one section each, owning its add/edit dialog
+  `CareerContextSection.tsx` — one section each, owning its add/edit dialog
 - `ExperienceFormDialog.tsx`, `ProjectFormDialog.tsx`, `EducationFormDialog.tsx`,
-  `ProfileFormDialog.tsx`, `SkillFormDialog.tsx`, `FactFormDialog.tsx` — save dialogs
+  `ProfileFormDialog.tsx`, `SkillFormDialog.tsx`, `CareerContextFormDialog.tsx` — save dialogs
 - `EntryFormDialog.tsx` — shared dialog shell; `LibraryField.tsx` — labelled input
 - `libraryFormValues.ts` — `blankToNull` and `highlightsToSave` (an unchanged bullet list is
   omitted so highlight ids stay put)
@@ -31,7 +31,7 @@ their category.
 - `SortableHighlightList.tsx` — a role's draggable highlights (drop area works when empty)
 - `SkillList.tsx` — skill chips grouped by category, draggable within a category, with edit
   and delete
-- `FactList.tsx` — facts (a requirement and the user's answer), with edit and delete
+- `CareerContextList.tsx` — career context entries (a requirement and the user's answer), with edit and delete
 - `LibraryEntryActions.tsx` — "…" menu per entry (Edit, Delete, Merge into…);
   `DeleteEntryDialog.tsx`, `MergeEntryDialog.tsx` (pick another entry in the same section)
 - `libraryEntryLabels.ts` — entry labels for menus and dialogs (with dates, so look-alike
@@ -66,7 +66,7 @@ their category.
 - Edit forms send every field, so a cleared optional field is stored as null. An experience
   update omits `highlights` when the bullets are unchanged.
 - Section ids are `library.profile`, `library.experience`, `library.projects`, `library.education`,
-  `library.skills`, and `library.facts`. A collapsed section's entries are not in the page, so
+  `library.skills`, and `library.career_contexts`. A collapsed section's entries are not in the page, so
   they are not drag targets.
 
 - Certifications have a distinct section with name, issuer, issue/expiry dates, credential ID/URL, and description.
@@ -91,8 +91,8 @@ their category.
   live task progress. `LibraryAssessment` shows text-labeled red/yellow/green or neutral
   stale/unreviewed state. Up to three current enrichment questions appear together beside the assessed detail
   and in the selected workspace; stale questions are hidden.
-- Summary, Experience, Projects, and Facts each have independent explicit review actions.
-  Review/edit targets are summary, role descriptions/highlights, project descriptions, and fact
+- Summary, Experience, Projects, and Career context each have independent explicit review actions.
+  Review/edit targets are summary, role descriptions/highlights, project descriptions, and career context
   responses; other sections and profile contact fields are not sent as context. Highlight moves
   refresh assessments after saving, because the optimistic
   library change may be visible before persistence.

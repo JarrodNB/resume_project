@@ -53,11 +53,11 @@ RSpec.describe InterviewQuestionSet do
     expect(question_set.questions.build(position: 6, question_text: "Other?")).not_to be_valid
   end
 
-  it "stores answers and feedback separately from library facts" do
+  it "stores answers and feedback separately from library career_contexts" do
     question = add_question(1, answer_text: "My answer", answer_revision: 1,
       feedback: { "strengths" => [ "Clear" ] }, feedback_question_revision: 1, feedback_answer_revision: 1)
     expect(question.reload.feedback).to eq("strengths" => [ "Clear" ])
-    expect(user.library_facts).to be_empty
+    expect(user.career_contexts).to be_empty
     expect(question.update(answer_text: "")).to be(true)
     expect(question.update(answer_text: "a" * 10_001)).to be(false)
   end

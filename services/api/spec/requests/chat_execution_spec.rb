@@ -60,4 +60,27 @@ RSpec.describe "Chat execution callbacks", type: :request do
     expect(response).to have_http_status(:conflict)
     expect(chat.messages).to be_empty
   end
+
+  it "accepts the private versioned summary update with the reply in one transaction" do
+    (1..19).each do |turn|
+      text = "Accepted career fact #{turn}"
+      chat.messages.create!(role: "user", position: turn * 2 - 1, content: text, screened_sha256: Digest::SHA256.hexdigest(text))
+      chat.messages.create!(role: "assistant", position: turn * 2, content: "Accepted reply #{turn}")
+    end
+    post path("claim"), params: {}, as: :json, headers: headers
+    expect(response).to have_http_status(:ok)
+    claim = response.parsed_body
+    expect(claim.dig("payload", "summary_plan")).to eq("through_position" => 30, "scheduled" => true)
+    args = claim.slice("attempt_id", "claim_generation").merge(reply: "Next step", screened_message_sha256: Digest::SHA256.hexdigest(operation.message),
+      summary_update: { text: "Earlier career facts", expected_version: 0, through_position: 30 })
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:ok)
+    expect(chat.reload.summary_version).to eq(1)
+    expect(chat.summary_through_position).to eq(30)
+    expect(chat.messages.count).to eq(40)
+    post path("accept"), params: args, as: :json, headers: headers
+    expect(response).to have_http_status(:ok)
+    expect(chat.reload.summary_version).to eq(1)
+  end
+
 end

@@ -334,3 +334,178 @@ async def test_exhausted_provider_fallback_has_recoverable_failure_state():
     assert owner.accepted == []
     assert len(owner.starts) == 2
     assert sink.events[-1][0] == 'failed'
+
+
+def test_rolling_claim_starts_after_covered_checkpoint_and_preserves_complete_history():
+    current = claim(summary={'text': 'Earlier career goals.', 'version': 1, 'through_position': 30},
+        messages=[{'role': 'user', 'content': 'Recent question', 'position': 31},
+                  {'role': 'assistant', 'content': 'Recent answer', 'position': 32}])
+    assert current.payload.messages[0].position == 31
+    assert current.payload.summary.through_position == 30
+
+
+def memory_history(first_turn, last_turn):
+    return [message for turn in range(first_turn, last_turn + 1) for message in (
+        {'role': 'user', 'content': f'[U{turn}] career detail', 'position': turn * 2 - 1},
+        {'role': 'assistant', 'content': f'[A{turn}] guidance', 'position': turn * 2})]
+
+
+def model_text(messages):
+    return '\n'.join(part.content for message in messages for part in message.parts
+                     if isinstance(getattr(part, 'content', None), str))
+
+
+class MemoryModels:
+    def __init__(self, summary_output=None):
+        self.summary_output = summary_output
+        self.summary_inputs = []
+        self.reply_inputs = []
+
+    def accounted(self, owner, claimed, stage, model):
+        from pydantic_ai.messages import ModelResponse, TextPart
+
+        def summarize(messages, info):
+            self.summary_inputs.append(model_text(messages))
+            return ModelResponse(parts=[TextPart(self.summary_output if self.summary_output is not None else
+                f'Rolling memory {len(self.summary_inputs)}')])
+
+        async def reply(messages, info):
+            self.reply_inputs.append(model_text(messages))
+            yield 'Career advice'
+
+        provider = FunctionModel(summarize, stream_function=reply, model_name='gpt-6-luna')
+        return ChatModel(provider, owner, claimed, stage, 'openai', 'gpt-6-luna')
+
+
+@pytest.mark.anyio
+async def test_two_rolling_checkpoints_and_interim_context_keep_all_uncovered_turns():
+    owner, models = Owner(), MemoryModels()
+    adapter = ChatExecutionAdapter(owner, models)
+    adapter._screen = AsyncMock()
+    first = claim(messages=memory_history(1, 19), summary_plan={'through_position': 30, 'scheduled': True})
+    await asyncio.wait_for(adapter.execute(first, Sink()), 5)
+    update = owner.accepted[-1]['summary_update']
+    assert update == {'text': 'Rolling memory 1', 'expected_version': 0, 'through_position': 30}
+    assert '[U15]' in models.summary_inputs[0] and '[U16]' not in models.summary_inputs[0]
+    assert '[U19]' in models.reply_inputs[0] and '[U1]' in models.reply_inputs[0]
+    assert [entry[1] for entry in owner.starts] == ['reply', 'summary']
+
+    summary = {'text': update['text'], 'version': 1, 'through_position': 30}
+    await adapter.execute(claim(summary=summary, messages=memory_history(16, 20)), Sink())
+    assert 'Rolling memory 1' in models.reply_inputs[1]
+    assert all(f'[U{i}]' in models.reply_inputs[1] for i in range(16, 21))
+    assert 'summary_update' not in owner.accepted[-1]
+
+    await adapter.execute(claim(summary=summary, messages=memory_history(16, 39),
+        summary_plan={'through_position': 70, 'scheduled': True}), Sink())
+    assert 'Rolling memory 1' in models.summary_inputs[1]
+    assert '[U16]' in models.summary_inputs[1] and '[U35]' in models.summary_inputs[1]
+    assert '[U15]' not in models.summary_inputs[1] and '[U36]' not in models.summary_inputs[1]
+    assert owner.accepted[-1]['summary_update']['through_position'] == 70
+    assert owner.accepted[-1]['summary_update']['expected_version'] == 1
+    assert adapter._screen.await_count == 3
+    assert not owner.failed
+
+
+@pytest.mark.anyio
+async def test_early_compaction_precedes_reply_and_keeps_five_complete_exchanges():
+    owner, models = Owner(), MemoryModels()
+    adapter = ChatExecutionAdapter(owner, models)
+    adapter._screen = AsyncMock()
+    history = memory_history(1, 7)
+    for item in history:
+        item['content'] += 'x' * (10000 if item['role'] == 'user' else 8000)
+    current = claim(messages=history, summary_plan={'through_position': 4, 'scheduled': False})
+    await asyncio.wait_for(adapter.execute(current, Sink()), 5)
+    assert not owner.failed
+    assert [entry[1] for entry in owner.starts] == ['summary', 'reply']
+    assert '[U1]' in models.summary_inputs[0] and '[U2]' in models.summary_inputs[0]
+    assert '[U3]' not in models.summary_inputs[0]
+    assert '[U1]' not in models.reply_inputs[0] and 'Rolling memory 1' in models.reply_inputs[0]
+    assert all(f'[U{i}]' in models.reply_inputs[0] for i in range(3, 8))
+    adapter._screen.assert_awaited_once()
+    assert owner.accepted[-1]['summary_update']['through_position'] == 4
+
+
+@pytest.mark.anyio
+async def test_failed_scheduled_summary_discards_provisional_reply_but_keeps_known_charges():
+    owner, models, sink = Owner(), MemoryModels(summary_output=' '), Sink()
+    adapter = ChatExecutionAdapter(owner, models)
+    adapter._screen = AsyncMock()
+    await asyncio.wait_for(adapter.execute(claim(messages=memory_history(1, 19),
+        summary_plan={'through_position': 30, 'scheduled': True}), sink), 5)
+    assert owner.accepted == []
+    assert owner.failed == [('execution_failed', False)]
+    assert sink.events[-1][0] == 'failed'
+    assert any(kind == 'delta' for kind, _ in sink.events)
+    assert [entry[1] for entry in owner.starts] == ['reply', 'summary', 'summary']
+    assert all(entries and not incomplete for observation, entries, incomplete in owner.receipts if observation)
+
+
+@pytest.mark.parametrize('changes', [
+    {'summary': {'text': 'Fake', 'version': 1, 'through_position': 3}},
+    {'summary': {'text': '', 'version': 1, 'through_position': 2}},
+    {'summary_plan': {'through_position': 32, 'scheduled': True}},
+    {'summary_plan': {'through_position': 30, 'scheduled': False}},
+])
+def test_claim_rejects_unfenced_or_incomplete_summary_ranges(changes):
+    from pydantic import ValidationError
+    with pytest.raises(ValidationError):
+        claim(messages=memory_history(1, 19), **changes)
+
+
+@pytest.mark.anyio
+async def test_oversized_minimum_recent_window_fails_without_screening_or_generation():
+    owner, models = Owner(), MemoryModels()
+    adapter = ChatExecutionAdapter(owner, models)
+    adapter._screen = AsyncMock()
+    history = memory_history(1, 7)
+    for item in history:
+        if item['position'] >= 5:
+            item['content'] += 'x' * 13000
+    await asyncio.wait_for(adapter.execute(claim(messages=history,
+        summary_plan={'through_position': 4, 'scheduled': False}), Sink()), 5)
+    assert owner.failed == [('context_limit', False)]
+    assert not owner.starts and not owner.accepted
+    adapter._screen.assert_not_awaited()
+
+
+@pytest.mark.anyio
+async def test_rolling_summary_contacts_are_masked_for_both_models_and_restored_only_at_acceptance(monkeypatch):
+    import re
+
+    from pydantic_ai.messages import ModelResponse, TextPart
+
+    email = 'alex@example.test'
+    def detect(text):
+        start = text.find(email)
+        return [(start, start + len(email), 'EMAIL_ADDRESS')] if start >= 0 else []
+    monkeypatch.setattr('pii._detect_spans', detect)
+    observed = []
+
+    def summarize(messages, info):
+        text = model_text(messages)
+        observed.append(text)
+        assert email not in text
+        token = re.search(r'«pii:[^»]+»', text).group()
+        return ModelResponse(parts=[TextPart('User contact: ' + token)])
+
+    async def reply(messages, info):
+        text = model_text(messages)
+        observed.append(text)
+        assert email not in text
+        yield 'We can discuss your next step.'
+
+    class ContactModels:
+        def accounted(self, owner, current, stage, model):
+            provider = FunctionModel(summarize, stream_function=reply, model_name='gpt-6-luna')
+            return ChatModel(provider, owner, current, stage, 'openai', 'gpt-6-luna')
+
+    owner = Owner()
+    adapter = ChatExecutionAdapter(owner, ContactModels())
+    adapter._screen = AsyncMock()
+    await asyncio.wait_for(adapter.execute(claim(summary={'text': 'Contact: ' + email, 'version': 1, 'through_position': 30},
+        messages=memory_history(16, 22), summary_plan={'through_position': 34, 'scheduled': False}), Sink()), 5)
+    assert owner.accepted[-1]['summary_update']['text'] == 'User contact: ' + email
+    assert len(observed) == 2 and not owner.failed
+    adapter._screen.assert_awaited_once()

@@ -14,7 +14,8 @@ module Internal
       respond ::Chat::RenewClaimService.call(operation: @operation, **identity)
     end
     def accept
-      respond ::Chat::AcceptReplyService.call(operation: @operation, **identity, reply: params.require(:reply), screened_message_sha256: params.require(:screened_message_sha256))
+      respond ::Chat::AcceptReplyService.call(operation: @operation, **identity, reply: params.require(:reply), screened_message_sha256: params.require(:screened_message_sha256),
+        summary_update: params[:summary_update].respond_to?(:to_unsafe_h) ? params[:summary_update].to_unsafe_h : params[:summary_update])
     end
     def fail
       respond ::Chat::FailOperationService.call(operation: @operation, **identity, code: params.require(:code), retryable: params.fetch(:retryable, false))

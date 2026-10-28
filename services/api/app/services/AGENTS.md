@@ -6,7 +6,7 @@ All business logic, as service objects grouped by domain folder.
 
 ## Contents
 
-- `chat/` — saved chat creation and owner/conversation-bound keyset pagination. These reads expose accepted public history only; no provider calls or execution admission.
+- `chat/` — private saved chat pagination and durable execution policy. `ContextSnapshotService` selects only uncovered accepted dialogue and fixes rolling-summary checkpoints; summaries and replies commit atomically. No provider calls occur in Rails.
 
 - `application_service.rb` — base class: `self.call(...)`, `success(value)`, `failure(errors)`
 - `service_result.rb` — immutable result: `success?`, `value`, `errors`

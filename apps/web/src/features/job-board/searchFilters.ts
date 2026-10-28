@@ -31,3 +31,12 @@ export function describeSearch(search: BoardSearch) {
     filters.sortBy === 'relevance' ? 'Most relevant' : 'Newest',
   ].filter(Boolean).join(' · ')
 }
+
+/** Roles shown per numbered results page; matches the size the job provider returns per request. */
+export const boardPageSize = 20
+
+/** Page numbers to show: first, last, and neighbors of the current page, with null for a gap. */
+export function pagerItems(current: number, total: number): Array<number | null> {
+  const wanted = [...new Set([0, total - 1, current - 1, current, current + 1].filter((page) => page >= 0 && page < total))].sort((a, b) => a - b)
+  return wanted.flatMap((page, index) => index > 0 && page - wanted[index - 1] > 1 ? [null, page] : [page])
+}

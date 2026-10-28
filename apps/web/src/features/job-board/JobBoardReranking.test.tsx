@@ -115,7 +115,7 @@ it('requests a new snapshot after loading more without sending the displayed rer
   await screen.findByRole('heading', { name: 'first role' })
   await user.click(toggle())
   await screen.findByText('Loaded roles ranked using your career library.')
-  await user.click(screen.getByRole('button', { name: 'Load more' }))
+  await user.click(screen.getByRole('button', { name: 'Next page' }))
   await waitFor(() => expect(titles()).toEqual(['third role', 'second role', 'first role']))
 })
 

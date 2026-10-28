@@ -23,6 +23,7 @@ module Types
   class MutationType < Types::BaseObject
     field :send_chat_message, mutation: Mutations::Chat::SendMessage
     field :retry_chat_message, mutation: Mutations::Chat::RetryMessage
+    field :set_chat_message_feedback, mutation: Mutations::Chat::SetMessageFeedback
     field :create_chat_conversation, mutation: Mutations::Chat::CreateConversation
     field :authorize_ai_execution_stream, mutation: Mutations::AuthorizeAiExecutionStream
     field :start_interview, mutation: Mutations::Interviews::StartInterview

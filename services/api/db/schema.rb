@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -214,10 +214,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "screened_sha256"
+    t.boolean "thumbs_down", default: false, null: false
     t.index ["chat_conversation_id", "position"], name: "index_chat_messages_on_chat_conversation_id_and_position", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_messages_on_chat_conversation_id"
     t.check_constraint "\"position\" > 0", name: "chat_message_positive_position"
     t.check_constraint "length(content) > 0", name: "chat_message_content_present"
+    t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
     t.check_constraint "role::text = ANY (ARRAY['user'::character varying::text, 'assistant'::character varying::text])", name: "chat_message_role"
   end
 
@@ -246,9 +248,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120000) do
     t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
     t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
-    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.check_constraint "length(message) > 0", name: "chat_operation_message"
-    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying]::text[])", name: "chat_operation_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text])", name: "chat_operation_status"
   end
 
   create_table "chat_provider_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

@@ -16,7 +16,7 @@ export const CHAT_CONVERSATION_QUERY = graphql(`
     chatConversation(id: $id) {
       id title createdAt updatedAt
       messages(cursor: $cursor) {
-        messages { id role content position createdAt }
+        messages { id role content position createdAt thumbsDown }
         nextCursor errors
       }
     }
@@ -27,6 +27,15 @@ export const CREATE_CHAT_CONVERSATION = graphql(`
   mutation CreateChatConversation {
     createChatConversation(input: {}) {
       conversation { id title createdAt updatedAt }
+      errors
+    }
+  }
+`)
+
+export const SET_CHAT_MESSAGE_FEEDBACK = graphql(`
+  mutation SetChatMessageFeedback($conversationId: ID!, $messageId: ID!, $thumbsDown: Boolean!) {
+    setChatMessageFeedback(input: { conversationId: $conversationId, messageId: $messageId, thumbsDown: $thumbsDown }) {
+      message { id thumbsDown }
       errors
     }
   }

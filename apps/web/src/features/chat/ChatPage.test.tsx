@@ -22,9 +22,9 @@ function workspaceMock(conversations = [conversation('chat-1', 'Preparing for in
     chatConversations: { __typename: 'ChatConversationPage', conversations, nextCursor, errors: [] },
   } } }
 }
-function historyMock(id: string, messages: { id: string; role: string; content: string; position: number }[] = [], nextCursor: string | null = null, cursor: string | null = null) {
+function historyMock(id: string, messages: { id: string; role: string; content: string; position: number; thumbsDown?: boolean }[] = [], nextCursor: string | null = null, cursor: string | null = null) {
   return { request: { query: CHAT_CONVERSATION_QUERY, variables: { id, cursor } }, result: { data: {
-    chatConversation: { ...conversation(id, id === 'chat-1' ? 'Preparing for interviews' : 'New chat'), messages: { __typename: 'ChatMessagePage', messages: messages.map((message) => ({ __typename: 'ChatMessage', ...message, createdAt: '2026-10-28T00:00:00Z' })), nextCursor, errors: [] } },
+    chatConversation: { ...conversation(id, id === 'chat-1' ? 'Preparing for interviews' : 'New chat'), messages: { __typename: 'ChatMessagePage', messages: messages.map((message) => ({ __typename: 'ChatMessage', thumbsDown: false, ...message, createdAt: '2026-10-28T00:00:00Z' })), nextCursor, errors: [] } },
   } } }
 }
 
@@ -47,6 +47,7 @@ it('reopens saved dialogue directly after refresh and prepends earlier history',
     historyMock('chat-1', [{ id: 'm1', role: 'user', content: 'I have an interview.', position: 1 }, { id: 'm2', role: 'assistant', content: 'What role is it for?', position: 2 }], null, 'older'),
   ] })
   expect(await screen.findByText('Start with the role requirements.')).toBeInTheDocument()
+  expect(screen.getAllByRole('button', { name: 'Thumbs down' })).toHaveLength(1)
   expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('aria-current', 'page')
   fireEvent.click(screen.getByRole('button', { name: 'Load earlier messages' }))
   expect(await screen.findByText('I have an interview.')).toBeInTheDocument()

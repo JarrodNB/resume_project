@@ -3,7 +3,16 @@ default: &default
     - polling_interval: 1
       batch_size: 500
   workers:
-    - queues: "*"
+    # Latency-sensitive AI execution jobs get their own threads so slow
+    # maintenance, embedding, or mail jobs can never starve them. Each worker
+    # process has its own primary-DB pool (database.yml), so threads stay <= pool size.
+    - queues: ai_executions
+      threads: 2
+      processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
+      polling_interval: 1
+    # Everything else. Solid Queue cannot say "all but ai_executions", so list
+    # the other queues; add any new queue name here or its jobs will never run.
+    - queues: [default, maintenance, ai_maintenance]
       threads: 3
       processes: <%= ENV.fetch("JOB_CONCURRENCY", 1) %>
       polling_interval: 1

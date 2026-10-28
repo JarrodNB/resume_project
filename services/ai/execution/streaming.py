@@ -129,8 +129,14 @@ class StreamSink:
         self.available = True
 
     async def emit(self, kind, **payload):
-        event = StreamEvent(**self.identity.model_dump(), type=kind, **payload)
         if not self.available or self.buffer.closed:
+            return False
+        try:
+            event = StreamEvent(**self.identity.model_dump(), type=kind, **payload)
+        except (ValueError, TypeError):
+            # A bad event must not fail durable work. Stop streaming so output has no
+            # silent gap; the error is dropped because it would echo provisional text.
+            self.available = False
             return False
         current, key = stream_keys(self.identity)
         try:

@@ -369,7 +369,8 @@ than rolling the schema back and losing those cleanup obligations.
 Private Rails callbacks expose execution and media authority to the authenticated service;
 they expose no browser-facing execution interface. `/internal/interviews/operations` is the generic shared route.
 Set `INTERVIEW_SERVICE_SECRET` to a separate random credential and send exactly
-`Authorization: Bearer <secret>`. An unset credential disables these routes. Browser
+`Authorization: Bearer <secret>`. An unset credential disables these routes. The generic execution nudge (`/internal/executions`) and
+stream callbacks use `AI_EXECUTION_SERVICE_SECRET` when set, else fall back to this same secret. Browser
 cookies and caller-supplied user IDs confer no authority. Request bodies are capped at
 300,000 bytes before JSON parsing, including streams without Content-Length. Callbacks
 bound database lock waits to two seconds and statements to five seconds; a timeout

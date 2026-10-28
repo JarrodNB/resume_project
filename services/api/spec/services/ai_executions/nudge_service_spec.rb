@@ -94,6 +94,27 @@ RSpec.describe AiExecutions::NudgeService do
     end
   end
 
+  it "prefers the generic execution credential over the interview one" do
+    ENV["AI_EXECUTION_SERVICE_SECRET"] = "generic-test-secret"
+    @server = TCPServer.new("127.0.0.1", 0)
+    ENV["AI_HTTP_ORIGIN"] = "http://127.0.0.1:#{@server.addr[1]}"
+    @response_thread = Thread.new do
+      socket = @server.accept
+      headers = +""
+      headers << socket.gets until headers.end_with?("\r\n\r\n")
+      socket.read(headers[/content-length: (\d+)/i, 1].to_i)
+      socket.write("HTTP/1.1 202 Accepted\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+      socket.close
+      headers
+    end
+    described_class.call(feature: "interviews", operation_id: "owned-operation")
+    headers = @response_thread.value
+    expect(headers).to include("Bearer generic-test-secret")
+    expect(headers).not_to include("capacity-test-secret")
+  ensure
+    ENV.delete("AI_EXECUTION_SERVICE_SECRET")
+  end
+
   it "requires the configured service credential" do
     ENV["INTERVIEW_SERVICE_SECRET"] = nil
     expect(described_class.call(feature: "interviews", operation_id: "owned-operation")).not_to be_success

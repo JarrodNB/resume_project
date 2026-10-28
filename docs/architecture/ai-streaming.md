@@ -9,7 +9,10 @@ execution and their existing GraphQL subscription updates.
 No production feature currently opts into incremental output. Enabling streaming
 configuration alone does not turn interviews into token streams. A future chat adapter
 registers with the same runner and declares `stream_output = True`; its Rails feature
-adapter supplies ownership/current-attempt checks. It does not add another dispatcher,
+adapter supplies ownership/current-attempt checks. A feature streams end to end only
+when both halves exist: its AI adapter sets `stream_output`, and Rails registers its
+authority in `AiExecutions::Features::STREAM_AUTHORITIES` (a one-line addition).
+Missing either one means no stream; an unregistered feature raises `ArgumentError`. It does not add another dispatcher,
 claim store, retry policy, supervisor or accounting engine.
 
 ## Transport and authority
@@ -26,7 +29,11 @@ It authorizes an owned current attempt and returns a 60-second, single-use obser
 capability. Rails stores its digest, session binding and fenced attempt identity. A
 browser may hold at most eight live capabilities; a scheduled job prunes expired rows
 in bounded batches and schedules another batch when needed. Ordinary interview admission
-does not issue these capabilities.
+does not issue these capabilities. A second party cannot reuse a token, but the first
+redeem may be retried with the same token for 10 seconds after `redeemed_at` (so a lost
+response or failed "attached" send does not strand the observer). A retry returns the
+same payload and still needs an unexpired grant, a valid session and a current attempt;
+later retries fail with "Capability already used".
 
 The browser connects to `/ai/executions/stream` through the same-origin reverse proxy,
 then sends the capability in its first JSON frame, never a URL parameter. Exact Origin

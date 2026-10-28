@@ -142,6 +142,9 @@ class ExecutionRunner:
         self._tails.discard(task)
         if not task.cancelled():
             task.exception()
+        if not self._tails:
+            # The stuck work is gone, so health recovers. A shutdown stays closed.
+            self._unhealthy = False
 
     def reopen(self):
         if not self._tails:

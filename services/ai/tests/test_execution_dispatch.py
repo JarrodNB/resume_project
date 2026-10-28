@@ -393,3 +393,59 @@ def test_repeated_shutdown_cancellation_does_not_extend_the_cleanup_budget():
             await runner.close()
 
     asyncio.run(scenario())
+
+
+def test_health_recovers_when_a_stuck_cleanup_tail_finishes_but_a_closed_runner_stays_closed():
+    from execution.runner import ExecutionRunner
+
+    class Adapter:
+        async def claim(self, identity):
+            return SimpleNamespace(execution_deadline=datetime.now(UTC) + timedelta(seconds=5))
+
+    async def scenario():
+        runner = ExecutionRunner({"interviews": Adapter()}, cleanup_seconds=0.02)
+
+        async def stuck_cleanup():
+            release = asyncio.Event()
+
+            async def ignore_cancellation():
+                while not release.is_set():
+                    try:
+                        await release.wait()
+                    except asyncio.CancelledError:
+                        pass  # Like an adapter finishing accounting after cancellation.
+
+            task = asyncio.create_task(ignore_cancellation())
+            await asyncio.sleep(0)  # Let it start, or cancellation would end it at once.
+            return task, release
+
+        stuck, release = await stuck_cleanup()
+        await runner._drain([stuck])
+        assert not runner.ready
+        assert runner.start("interviews", "one") == "overloaded"
+        release.set()
+        await asyncio.gather(stuck, return_exceptions=True)
+        assert runner.ready
+
+        stuck, release = await stuck_cleanup()
+        await runner._drain([stuck])
+        runner.pause()
+        release.set()
+        await asyncio.gather(stuck, return_exceptions=True)
+        assert runner._unhealthy is False
+        assert runner._closed is True
+        assert not runner.ready
+
+    asyncio.run(scenario())
+
+
+def test_execution_secret_prefers_generic_credential_and_falls_back_to_interview(monkeypatch):
+    from routes.executions import execution_service_secret
+
+    monkeypatch.delenv("AI_EXECUTION_SERVICE_SECRET", raising=False)
+    monkeypatch.setenv("INTERVIEW_SERVICE_SECRET", "interview-secret")
+    assert execution_service_secret() == "interview-secret"
+    monkeypatch.setenv("AI_EXECUTION_SERVICE_SECRET", "  ")
+    assert execution_service_secret() == "interview-secret"
+    monkeypatch.setenv("AI_EXECUTION_SERVICE_SECRET", "generic-secret")
+    assert execution_service_secret() == "generic-secret"

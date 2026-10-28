@@ -15,10 +15,16 @@ as a supervised process using the same release, primary database and application
 configuration as Rails. The queue scheduler runs the development/production tasks
 from `config/recurring.yml`.
 
+`config/queue.yml` runs two workers on the primary database connection: one with 2 threads
+only for `ai_executions` (dispatch and recovery), and one with 3 threads for `default`,
+`maintenance`, and `ai_maintenance`. Slow cleanup or embedding jobs therefore cannot
+delay AI execution jobs. Solid Queue cannot exclude a queue, so a job on a new queue name
+needs that name added to the second worker's list or it never runs.
+
 New queue tables are installed by the normal application migrations. Do not load
-the old standalone `db/queue_schema.rb` into an existing database: its generated
-schema uses destructive table creation. Normal application schema dumps now include
-the queue tables.
+a standalone queue schema into an existing database: generated Solid Queue schemas
+use destructive table creation. The old `db/queue_schema.rb` was removed; normal
+application schema dumps now include the queue tables.
 
 `python3 script/native.py check` verifies the jobs supervisor's recorded process
 identity. A live supervisor does not prove successful delivery. For a delivery
@@ -100,6 +106,9 @@ deploying it to an installation that has one:
    no separate Solid Queue connection, and start its supervised jobs process.
    Verify queue/domain pool identity and a bounded provider-free delivery check
    before resuming producers.
+
+Jobs still pending in the old `api_production_queue` database are not migrated and
+are orphaned once the new release runs, so drain it before deploying.
 
 If the old queue cannot be drained, stop the rollout and prepare an explicit
 transfer plan; removing its database or silently changing connections loses work.

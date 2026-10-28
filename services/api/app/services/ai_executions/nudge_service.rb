@@ -13,7 +13,7 @@ module AiExecutions
     # @return [ServiceResult<Symbol>] :accepted or :busy, otherwise a transport failure
     def call
       uri = URI(ENV.fetch("AI_HTTP_ORIGIN", "http://ai-http:8000"))
-      secret = ENV["INTERVIEW_SERVICE_SECRET"]
+      secret = ENV["AI_EXECUTION_SERVICE_SECRET"].presence || ENV["INTERVIEW_SERVICE_SECRET"]
       return failure("AI execution unavailable") unless secret.present? &&
         %w[http https].include?(uri.scheme) && uri.host && !uri.userinfo &&
         [ nil, "", "/" ].include?(uri.path) && !uri.query && !uri.fragment

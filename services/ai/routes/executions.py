@@ -1,6 +1,7 @@
 """Accept authenticated, bounded execution nudges without waiting for model work."""
 
 import hmac
+import os
 from uuid import UUID
 
 from fastapi import Request
@@ -12,6 +13,11 @@ class StartExecution(BaseModel):
     model_config = ConfigDict(extra="forbid")
     feature: str = Field(pattern=r"^[a-z][a-z_]{0,30}$")
     operation_id: UUID
+
+
+def execution_service_secret():
+    """Secret for generic execution/stream calls; falls back to the interview secret when unset."""
+    return os.getenv("AI_EXECUTION_SERVICE_SECRET", "").strip() or os.getenv("INTERVIEW_SERVICE_SECRET", "")
 
 
 def install_execution_routes(app, *, secret):

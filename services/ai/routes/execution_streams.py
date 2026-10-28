@@ -13,6 +13,9 @@ from starlette.websockets import WebSocketDisconnect
 from execution.streaming import CURSOR, StreamGap, StreamUnavailable
 from schemas.execution_stream import StreamIdentity
 
+# Mirrors the finished states of Rails InterviewSessionOperation::STATUSES.
+TERMINAL_OPERATION_STATUSES = {"accepted", "failed", "expired"}
+
 
 async def send(socket, payload, *, timeout=1):
     async with asyncio.timeout(timeout):
@@ -83,8 +86,8 @@ async def relay_output(socket, buffer, owner, *, send_timeout=1, authorization_s
                     cursor = event_id
                     if event["type"] in {"completed", "failed", "cancelled", "superseded"}:
                         return
-                if checked.get("status") == "accepted":
-                    # Acceptance can survive a lost final Redis write; restore saved state.
+                if checked.get("status") in TERMINAL_OPERATION_STATUSES:
+                    # A finished operation can survive a lost final Redis write; restore saved state.
                     await send(socket, {"type": "reset", "code": "saved_state_required"}, timeout=send_timeout)
                     return
 

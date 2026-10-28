@@ -83,6 +83,21 @@ def test_output_is_replayed_in_order_by_another_replica(redis_url):
     asyncio.run(scenario())
 
 
+def test_invalid_stream_event_disables_the_sink_without_raising():
+    from execution.streaming import StreamBuffer
+
+    async def scenario():
+        buffer = StreamBuffer("redis://127.0.0.1:1/0")
+        sink = buffer.sink(**identity())
+        assert not await sink.emit("delta", text="")
+        assert not sink.available
+        assert not await sink.emit("delta", text="later valid text")
+        assert not await sink.emit("bogus_kind")
+        await buffer.close()
+
+    asyncio.run(scenario())
+
+
 def test_socket_attaches_on_another_replica_and_reconnect_never_starts_work(redis_url):
     from datetime import UTC, datetime, timedelta
     from types import SimpleNamespace
@@ -405,7 +420,8 @@ def test_streaming_execution_uses_shared_lease_cancellation_and_finalization(red
     asyncio.run(scenario())
 
 
-def test_missing_terminal_buffer_event_restores_the_saved_accepted_result(redis_url):
+@pytest.mark.parametrize("terminal_status", ["accepted", "failed", "expired"])
+def test_missing_terminal_buffer_event_restores_the_saved_result(redis_url, terminal_status):
     from contextlib import asynccontextmanager
     from datetime import UTC, datetime, timedelta
 
@@ -416,7 +432,7 @@ def test_missing_terminal_buffer_event_restores_the_saved_accepted_result(redis_
     from routes.execution_streams import install_output_stream
 
     metadata = identity()
-    grant = dict(metadata, grant_id=str(uuid4()), status="accepted",
+    grant = dict(metadata, grant_id=str(uuid4()), status=terminal_status,
                  expires_at=(datetime.now(UTC) + timedelta(seconds=20)).isoformat())
     buffer = StreamBuffer(redis_url)
 

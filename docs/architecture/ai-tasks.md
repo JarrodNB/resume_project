@@ -7,7 +7,10 @@ Task execution and the contracts between Rails and Python workers.
 ## AI Task Flow
 
 1. The user triggers an action (e.g. "analyze this job against my resume").
-2. Rails creates an `AiTask` record (`status: queued`) and publishes a message to `ai_tasks`.
+2. Rails creates an `AiTask` record (`status: queued`) and publishes a message to `ai_tasks`. The task is saved with `awaiting_queue_publish: true`,
+   cleared once the message is sent. A minutely Rails job (`AiTasks::RepublishUnpublishedTasksJob`)
+   re-sends tasks still marked after a minute (a crash between save and send), and fails them
+   after 15 minutes. A duplicate send is safe (see Duplicate Messages).
 3. An AI worker runs the matching Pydantic AI agent, traced in Logfire.
 4. The worker publishes to `ai_results` with one of:
    - `completed` + structured payload (the agent's Pydantic `output_type`)

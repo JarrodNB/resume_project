@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -126,12 +126,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
     t.integer "generation", default: 0, null: false
     t.integer "usage_generation", default: -1, null: false
     t.uuid "hourly_admission_task_id"
+    t.boolean "awaiting_queue_publish", default: false, null: false
+    t.index ["created_at"], name: "index_ai_tasks_awaiting_queue_publish", where: "awaiting_queue_publish"
     t.index ["hourly_admission_task_id"], name: "index_ai_tasks_on_hourly_admission_task_id"
     t.index ["subject_type", "subject_id"], name: "index_ai_tasks_on_subject"
     t.index ["user_id", "created_at"], name: "index_ai_tasks_on_user_id_and_created_at"
     t.index ["user_id", "status"], name: "index_ai_tasks_on_user_id_and_status"
     t.index ["user_id"], name: "index_ai_tasks_on_user_id"
-    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying::text, 'interview_speech'::character varying::text, 'interview_transcription'::character varying::text, 'interview_clarification'::character varying::text, 'interview_references'::character varying::text, 'interview_session_feedback'::character varying::text])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
+    t.check_constraint "hourly_admission_task_id IS NULL OR hourly_admission_task_id <> id AND (task_type::text = ANY (ARRAY['interview_turn'::character varying, 'interview_speech'::character varying, 'interview_transcription'::character varying, 'interview_clarification'::character varying, 'interview_references'::character varying, 'interview_session_feedback'::character varying]::text[])) AND subject_type::text = 'InterviewSession'::text AND subject_id IS NOT NULL", name: "ai_task_hourly_interview_child"
   end
 
   create_table "ai_usage_attempts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -239,7 +241,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
     t.check_constraint "length(content) > 0", name: "chat_message_content_present"
     t.check_constraint "role::text = 'assistant'::text OR thumbs_down = false", name: "chat_feedback_assistant_only"
     t.check_constraint "role::text = 'assistant'::text OR thumbs_up = false", name: "chat_positive_feedback_assistant_only"
-    t.check_constraint "role::text = ANY (ARRAY['user'::character varying, 'assistant'::character varying]::text[])", name: "chat_message_role"
+    t.check_constraint "role::text = ANY (ARRAY['user'::character varying::text, 'assistant'::character varying::text])", name: "chat_message_role"
   end
 
   create_table "chat_operations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -269,9 +271,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_150000) do
     t.index ["ai_task_id"], name: "index_chat_operations_on_ai_task_id"
     t.index ["chat_conversation_id", "idempotency_key"], name: "index_chat_operations_on_idempotency", unique: true
     t.index ["chat_conversation_id"], name: "index_chat_operations_on_chat_conversation_id"
-    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["chat_conversation_id"], name: "index_chat_operations_one_active", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.check_constraint "length(message) > 0", name: "chat_operation_message"
-    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'running'::character varying, 'accepted'::character varying, 'failed'::character varying]::text[])", name: "chat_operation_status"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying::text, 'running'::character varying::text, 'accepted'::character varying::text, 'failed'::character varying::text])", name: "chat_operation_status"
     t.check_constraint "summary_base_version >= 0 AND jsonb_typeof(summary_plan) = 'object'::text", name: "chat_operation_summary_snapshot"
   end
 

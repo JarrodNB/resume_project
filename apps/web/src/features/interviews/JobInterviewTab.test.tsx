@@ -36,6 +36,11 @@ it('restores the saved round choices when repeating practice for the same job', 
   expect(start).toHaveBeenCalledWith('', { questionCount: 5, questionFormat: 'technical', difficulty: 'stretch', interviewer: 'maya', focusAreas: ['leadership'] }, 'job-1')
 })
 
+it('says the interview ended when an abandoned job interview returns here', async () => {
+  mount(true, { interviewEnded: 'abandoned' })
+  expect(await screen.findByText('Interview ended. You can prepare another whenever you’re ready.')).toBeVisible()
+})
+
 it('loads selection from the route again on reload, then starts practice for that exact job', async () => {
   const first = mount()
   expect(screen.getByRole('status')).toHaveTextContent('Loading job')

@@ -64,7 +64,7 @@ First milestone: the AI engineering core (see `docs/mvp_plan.md`).
 Format text before it goes into a prompt
 Do not screen text that we generated or has already been screened and recorded
 Make sure traces are proper and include cost
-
+Stop gating functionality behind ENV
 
 ## Human-friendly file headers
 

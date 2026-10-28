@@ -83,3 +83,4 @@ crash.*.log
 /docs/plans/*
 Workflow.md
 KANBAN.md
+.impeccable/*

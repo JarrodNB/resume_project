@@ -18,6 +18,9 @@ the dedicated jobs process. See `docs/architecture/background-jobs.md` from the 
   bounded framework-failure reconciliation. HTTP202 alone never completes delivery;
   stale delivery/watchdog identities cannot stop a newer execution cycle.
 
+- `ai_tasks/republish_unpublished_tasks_job.rb` — minutely repair for AI tasks saved but never sent to SQS
+  (`awaiting_queue_publish`); never touches interview HTTP work.
+
 - `interview_prep/` — question-specific saved Q&A vector jobs; after-commit enqueue, temporary provider retries, missing-key skip, no AI-task accounting.
 
 - `application_job.rb` — generated base class

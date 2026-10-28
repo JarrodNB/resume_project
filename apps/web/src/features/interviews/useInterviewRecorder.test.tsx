@@ -6,12 +6,13 @@ import { useInterviewRecorder } from './useInterviewRecorder'
 class FakeRecorder {
   static isTypeSupported = vi.fn(() => true)
   static latest: FakeRecorder
+  static options: MediaRecorderOptions | undefined
   mimeType = 'audio/webm;codecs=opus'
   state = 'inactive'
   ondataavailable: ((event: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
   onerror: (() => void) | null = null
-  constructor() { FakeRecorder.latest = this }
+  constructor(_stream: MediaStream, options?: MediaRecorderOptions) { FakeRecorder.latest = this; FakeRecorder.options = options }
   start() { this.state = 'recording' }
   stop() { this.state = 'inactive'; this.onstop?.() }
   chunk(data: Blob) { this.ondataavailable?.({ data }) }
@@ -35,6 +36,13 @@ describe('useInterviewRecorder', () => {
   it('keeps recording until Done, then returns the actual MIME and stops tracks', async () => {
     const { result } = renderHook(useInterviewRecorder)
     await act(() => result.current.start())
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: {
+      channelCount: { ideal: 1 },
+      echoCancellation: { ideal: true },
+      noiseSuppression: { ideal: true },
+      autoGainControl: { ideal: true },
+    } })
+    expect(FakeRecorder.options?.audioBitsPerSecond).toBe(128_000)
     act(() => FakeRecorder.latest.chunk(new Blob(['answer'])))
     expect(result.current.status).toBe('recording')
     expect(result.current.recording).toBeNull()

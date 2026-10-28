@@ -12,7 +12,7 @@ Database migrations and the generated schema.
 - `schema.rb` — generated; never edit by hand
 - `cache_schema.rb`, `cable_schema.rb` — generated separate Solid* schemas.
 - Solid Queue tables use normal primary migrations and appear in `schema.rb`;
-  `queue_schema.rb` is the legacy standalone schema, not a primary migration.
+  there is no separate `queue_schema.rb`.
 - `seeds.rb` — development-only confirmed QA accounts; credentials and usage in `docs/testing.md`
 
 ## Local Rules

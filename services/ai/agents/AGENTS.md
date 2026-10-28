@@ -96,3 +96,5 @@ instructions from `prompts/`.
 - `library_edit_agent.py` — one-field revisions with a proposed assessment and a deferred
   `ask_user` tool for one missing fact. Saved questions/history are trusted server records;
   only new feedback/answers and unchecked used library fields are screened by its handler.
+
+- `interview_session_feedback_agent.py` — qualitative completed-session coaching with exact answered-question coverage and aggregate output bounds.

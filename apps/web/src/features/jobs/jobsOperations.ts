@@ -7,7 +7,7 @@
  *   - PARSE_JOB_POSTING_MUTATION: starts a parse_job_posting AI task for a pasted ad
  *   - CREATE_JOB_MUTATION, UPDATE_JOB_MUTATION: manual add and edit
  *   - MOVE_JOB_TO_STAGE_MUTATION: application stage, including the first applied date
- *   - DELETE_JOB_MUTATION: removes the job; a tailored resume stays, unlinked
+ *   - ARCHIVE_JOB_MUTATION: hides the job while keeping all linked records
  * Live task status comes from features/ai-tasks.
  */
 import { graphql } from '@/graphql/generated'
@@ -89,9 +89,9 @@ export const MOVE_JOB_TO_STAGE_MUTATION = graphql(`
   }
 `)
 
-export const DELETE_JOB_MUTATION = graphql(`
-  mutation DeleteJob($id: ID!) {
-    deleteJob(input: { id: $id }) {
+export const ARCHIVE_JOB_MUTATION = graphql(`
+  mutation ArchiveJob($id: ID!) {
+    archiveJob(input: { id: $id }) {
       errors
     }
   }

@@ -30,6 +30,7 @@ import { libraryHasContent } from '@/features/career-library/libraryHasContent'
 import { JOB_PIPELINE_QUERY } from './homeOperations'
 import { readHomeView, rememberHomeView, type HomeView } from './homeView'
 import { AiWorkStrip } from './AiWorkStrip'
+import { ArchiveHomeJobButton } from './ArchiveHomeJobButton'
 import { NextStep, SignalDot } from './NextStepSignal'
 import { DraggableJobTile, StageDropColumn, stageFromDropId } from './PipelineDragParts'
 
@@ -145,7 +146,10 @@ function PipelineBoard({ entries }: { entries: PipelineEntry[] }) {
                     >
                       <JobName entry={entry} />
                       <JobStopLine stage={stage} />
-                      <div className="next-step-row"><NextStep entry={entry} /></div>
+                      <div className="next-step-row flex items-center justify-between gap-2">
+                        <NextStep entry={entry} />
+                        <ArchiveHomeJobButton jobId={entry.job.id} title={entry.job.title} />
+                      </div>
                     </DraggableJobTile>
                   ))}
                 </ul>
@@ -173,7 +177,10 @@ function PipelineList({ entries }: { entries: PipelineEntry[] }) {
               {inStage.map((entry) => (
                 <li key={entry.job.id} className={cn('pipeline-row', stage === 'REJECTED' && 'is-closed')}>
                   <JobName entry={entry} />
-                  <NextStep entry={entry} />
+                  <div className="flex items-center gap-2">
+                    <NextStep entry={entry} />
+                    <ArchiveHomeJobButton jobId={entry.job.id} title={entry.job.title} />
+                  </div>
                 </li>
               ))}
             </ul>

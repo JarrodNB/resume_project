@@ -49,6 +49,45 @@ function playbackMock(messageId = 'opening') {
 beforeEach(() => { localStorage.clear(); recorder.candidateTranscript = null; recorder.transcript = ''; recorder.effectiveMode = 'browser'; recorder.fallbackReason = null; vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn() })); state.interview = structuredClone(snapshot); state.busy = false; state.error = null; state.unresolved = null; state.loadError = null; recorder.status = 'idle'; recorder.recording = null; recorder.error = null; vi.clearAllMocks(); vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(); vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {}); state.answer.mockResolvedValue(true); state.transcribeRecording.mockResolvedValue('capture'); state.cancelTranscription.mockResolvedValue(true) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 describe('InterviewPage', () => {
+  it('pauses automatic microphone capture while reviewing a Career context copy', async () => {
+    vi.useFakeTimers()
+    try {
+      localStorage.setItem('Careergrind:interview-microphone:owner', JSON.stringify({ automatic: true, seconds: 0 }))
+      state.interview = { ...snapshot, messages: [
+        ...snapshot.messages,
+        { id: 'answer', questionId: 'question', kind: 'answer', position: 2, content: 'Reduced processing time.' },
+      ] }
+      renderInterview()
+      fireEvent.click(screen.getByRole('button', { name: 'Save to Career context' }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(recorder.start).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      await act(async () => { await vi.advanceTimersByTimeAsync(1000) })
+      expect(recorder.start).toHaveBeenCalledOnce()
+    } finally { vi.useRealTimers() }
+  })
+
+  it('offers editable career context copies beside accepted core and follow-up answers in history', async () => {
+    state.interview = { ...snapshot, messages: [
+      ...snapshot.messages,
+      { id: 'answer-1', questionId: 'question', kind: 'answer', position: 2, content: 'Built a scheduling tool.' },
+      { id: 'follow-up', questionId: 'question', kind: 'follow_up', position: 3, content: 'What improved?', acknowledgement: 'Thank you.' },
+      { id: 'answer-2', questionId: 'question', kind: 'answer', position: 4, content: 'Saved two hours each week.' },
+    ] }
+    renderInterview()
+    const history = within(screen.getByRole('complementary', { name: 'History' }))
+    const actions = history.getAllByRole('button', { name: 'Save to Career context' })
+    expect(actions).toHaveLength(2)
+    await userEvent.click(actions[0])
+    expect(screen.getByLabelText('Requirement')).toHaveValue('Describe a project.')
+    expect(screen.getByLabelText('Response')).toHaveValue('Built a scheduling tool.')
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(actions[1])
+    expect(screen.getByLabelText('Requirement')).toHaveValue('What improved?')
+    expect(screen.getByLabelText('Response')).toHaveValue('Saved two hours each week.')
+    expect(state.answerText).not.toHaveBeenCalled()
+  })
+
   it.each(['preparing', 'ready'])('identifies the saved job and return path when resuming %s preparation', (status) => {
     state.interview = { ...snapshot, status, preparedRole: { title: 'Original laboratory technician', requirements: [], responsibilities: [] },
       jobContext: { id: 'job-1', title: 'Original laboratory technician', company: 'Original Labs', description: null, requirements: [], responsibilities: [], niceToHaves: [] } }
@@ -1114,7 +1153,7 @@ it('groups retained completed dialogue by core question and remembers expanded r
   await userEvent.click(screen.getByRole('button', { name: 'Core question 1 · Remaining follow-up skipped' }))
   expect(screen.getByText('Remaining follow-up skipped. Your earlier answers are saved below.')).toBeVisible()
   const group = screen.getByText('I built a scheduler.').closest('ol')!
-  expect(within(group).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+  expect(within(group).getAllByRole('listitem').map((item) => Array.from(item.querySelectorAll('p')).map((paragraph) => paragraph.textContent).join(''))).toEqual([
     'Your answerI built a scheduler.', 'Follow-upHow did you test it?', 'Your answerI wrote integration tests.',
   ])
   await userEvent.click(screen.getByRole('button', { name: 'Core question 2' }))

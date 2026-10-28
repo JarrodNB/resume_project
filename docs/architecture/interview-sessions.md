@@ -994,6 +994,23 @@ bodies and task inputs/results while retaining billing records. Completed review
 show historical references. See the offline evaluation command below and the manual QA
 steps in the real interview guide.
 
+### Saving accepted answers to Career context
+
+Active interview history and completed reviews offer **Save to Career context** beside each
+retained accepted answer. The preview pairs it with the preceding opening or follow-up for
+that core question. The user can edit the requirement/topic and response, then explicitly
+save through ordinary Career context creation. Only the selected answer is copied; drafts,
+interviewer messages, unavailable prompts and expired text are excluded. Automatic microphone
+capture pauses while the active room's preview is open.
+
+The new context is an independent library entry and survives the interview's seven-day text
+expiry. Existing topic uniqueness, field lengths and library-size limits apply; duplicate
+topics require renaming and never overwrite another response. Overlong source text remains
+visible for editing before save. Saving does not change the interview or refresh saved
+references. The context is eligible for subsequent career-library retrieval, including
+interview references, with the normal embedding sync and keyword fallback; relevance still
+determines selection. Only its saved response is displayed as career evidence.
+
 ### Retrieval evaluation evidence
 
 From `services/ai`, run `python -m evals.run_interview_reference_evals` with its installed

@@ -30,6 +30,14 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     expect(user.interview_sessions).to be_empty
   end
 
+  it "keeps saved interviews linked when the job is archived" do
+    interview = Interviews::StartPreparationService.call(user: user, job: job).value
+    result = execute_graphql('mutation($id: ID!) { archiveJob(input: { id: $id }) { errors } }', user: user, variables: { id: job.id })
+    expect(result.dig("data", "archiveJob", "errors")).to eq([])
+    expect(interview.reload.job_id).to eq(job.id)
+    expect(interview.frozen_context.dig("job", "description")).to eq("Maintain instruments.")
+  end
+
   it "retains frozen history after edits and publishes detached navigation when the job is deleted" do
     interview = Interviews::StartPreparationService.call(user: user, job: job).value
     preparation = interview.operations.preparation.first
@@ -48,8 +56,8 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     expect(execute_graphql(query, user: create(:user)).dig("data", "recentInterviewSessions")).to eq([])
 
     allow(Interviews::PublishSnapshotService).to receive(:call).and_call_original
-    deleted = execute_graphql('mutation($id: ID!) { deleteJob(input: {id: $id}) { errors } }', user: user, variables: { id: job.id })
-    expect(deleted.dig("data", "deleteJob", "errors")).to eq([])
+    deleted = Records::DestroyRecordService.call(record: user.jobs.find(job.id))
+    expect(deleted).to be_success
     expect(Interviews::PublishSnapshotService).to have_received(:call).with(interview_id: interview.id)
     saved = execute_graphql(query, user: user).dig("data", "recentInterviewSessions", 0, "jobContext")
     expect(saved).to eq("id" => nil, "title" => "Laboratory technician", "company" => nil)
@@ -76,8 +84,8 @@ RSpec.describe "Saved-job spoken interview GraphQL" do
     reject_deletion = -> { errors.add(:base, "Deletion unavailable"); throw :abort }
     Job.set_callback(:destroy, :before, reject_deletion)
     begin
-      deleted = execute_graphql('mutation($id: ID!) { deleteJob(input: {id: $id}) { errors } }', user: user, variables: { id: job.id })
-      expect(deleted.dig("data", "deleteJob", "errors")).to include("Deletion unavailable")
+      deleted = Records::DestroyRecordService.call(record: user.jobs.find(job.id))
+      expect(deleted.errors).to include("Deletion unavailable")
       expect(interview.reload.job_id).to eq(job.id)
     ensure
       Job.skip_callback(:destroy, :before, reject_deletion)

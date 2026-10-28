@@ -67,7 +67,8 @@ module Types
     field :create_job, mutation: Mutations::Jobs::CreateJob
     field :update_job, mutation: Mutations::Jobs::UpdateJob
     field :move_job_to_stage, mutation: Mutations::Jobs::MoveJobToStage
-    field :delete_job, mutation: Mutations::Jobs::DeleteJob
+    field :archive_job, mutation: Mutations::Jobs::ArchiveJob
+    field :delete_job, mutation: Mutations::Jobs::DeleteJob, deprecation_reason: "Use archiveJob; jobs are retained."
     field :scrape_job, mutation: Mutations::Jobs::ScrapeJob
     field :parse_job_posting, mutation: Mutations::Jobs::ParseJobPosting
 

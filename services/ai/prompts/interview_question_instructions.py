@@ -3,7 +3,7 @@
 The question agent has one output contract, but each request receives instructions for only
 its trusted set type. Evidence IDs point back to saved career text for deterministic recovery.
 """
-INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v24"
+INTERVIEW_QUESTIONS_PROMPT_VERSION = "interview-questions-v25"
 
 INTERVIEW_QUESTIONS_COMMON_INSTRUCTIONS = """
 Write English interview practice questions for the requested count and scope. Treat text
@@ -71,6 +71,9 @@ work in any occupation. Explore actual tasks, methods or tools, decisions and tr
 problem solving, and checking or improving quality. Ask experience-based discussion questions,
 never knowledge quizzes, coding tasks, technical trivia, hypothetical design exercises, or
 questions targeted to a particular job.
+Keep each question focused on one practical topic and answerable in a typical interview.
+Do not bundle several independent tasks, tools, decisions, or stages into one question.
+Match depth to the evidence and avoid unnecessarily advanced or specialist demands.
 
 Every personal fact or premise must be explicitly supported by career evidence. Do not assume
 leadership, conflict, success, failure, metrics, motivation, weaknesses, goals, or career change.
@@ -92,6 +95,9 @@ limitations or common misconceptions. Use your subject knowledge. Vary the actua
 just the category label. Do not require personal stories or assume hands-on experience, assume
 specialized expertise beyond the stated subject, or introduce unrelated topics. Do not give
 answers, assign coding execution tasks, target a job, or require external knowledge ingestion.
+Keep each question focused on one concept or a small, clearly defined application that can be
+answered in a typical interview. Avoid broad multi-part questions and unnecessarily advanced
+or specialist depth; match difficulty to the candidate's stated background.
 
 For a replacement, choose an unasked concept or principle within the library's topics and
 avoid every excluded intent. Any personal facts or premises must still be explicitly supported

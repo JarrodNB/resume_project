@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
+import { SaveInterviewAnswer } from './SaveInterviewAnswer'
 import { CompletedInterviewReview } from './CompletedInterviewReview'
 import { InterviewSetup } from './InterviewSetup'
 import { InterviewRoleStep } from './InterviewRoleStep'
@@ -90,6 +91,7 @@ function OwnedInterview({ id }: { id: string }) {
   const { operation: reviewOperation, pending: reviewPending, saving: savingRecording } = answer.review
   const [muted, setMuted] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [careerContextOpen, setCareerContextOpen] = useState(false)
   const [pendingTranscriptionMode, setPendingTranscriptionMode] = useState<TranscriptionMode | null>(null)
   const [skipOpen, setSkipOpen] = useState(false)
   const microphone = useInterviewMicSettings(user?.id ?? '')
@@ -113,7 +115,7 @@ function OwnedInterview({ id }: { id: string }) {
     promptId: autoPrompt?.id,
     enabled: microphone.automatic,
     seconds: microphone.seconds,
-    paused: terminal || !pageVisible || settingsOpen || skipOpen || interview?.status !== 'active' || speechPlaying || state.loading || Boolean(state.loadError) || state.busy || Boolean(state.unresolved) || state.skipPending || Boolean(recorder.error) || reviewPending || savingRecording || Boolean(interview?.operations.some((item) => item.kind === 'turn' && (item.status === 'pending' || item.status === 'running'))),
+    paused: terminal || !pageVisible || settingsOpen || careerContextOpen || skipOpen || interview?.status !== 'active' || speechPlaying || state.loading || Boolean(state.loadError) || state.busy || Boolean(state.unresolved) || state.skipPending || Boolean(recorder.error) || reviewPending || savingRecording || Boolean(interview?.operations.some((item) => item.kind === 'turn' && (item.status === 'pending' || item.status === 'running'))),
     answered: Boolean(draftText) || recorder.status !== 'idle' || Boolean(recorder.recording),
     start: startCapture,
   })
@@ -260,6 +262,7 @@ function OwnedInterview({ id }: { id: string }) {
           <p className="text-sm font-medium">{message.kind === 'answer' ? 'Your transcript' : 'Interviewer'}</p>
           {message.acknowledgement && <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.acknowledgement}</p>}
           <p className="max-w-prose whitespace-pre-wrap break-words text-sm leading-relaxed">{message.content}</p>
+          <SaveInterviewAnswer interview={interview} message={message} onPreviewOpenChange={setCareerContextOpen} />
         </li>)}
       </ol>
       {!historyMessages.length && <p className="text-sm text-muted-foreground">Your conversation will appear here as the interview progresses.</p>}

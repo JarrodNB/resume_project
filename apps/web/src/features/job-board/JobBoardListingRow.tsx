@@ -21,7 +21,7 @@ export function JobBoardListingRow({ listing, busyId, onCreate }: Props) {
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
   const employmentLabel = employmentTypeOptions.find(([value]) => value === listing.employmentType)?.[1]
   return (
-    <li className="board-listing">
+    <li className="board-listing" data-saved={Boolean(listing.savedJob)}>
       <article aria-labelledby={`listing-${listing.id}`}>
         <div className="board-listing-header">
           <div className="board-listing-identity">

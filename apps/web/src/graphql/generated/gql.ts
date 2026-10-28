@@ -105,7 +105,7 @@ type Documents = {
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateJobDocument,
     "\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n": typeof types.MoveJobToStageDocument,
-    "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.DeleteJobDocument,
+    "\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n": typeof types.ArchiveJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ScrapeJobDocument,
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseJobPostingDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": typeof types.ParseResumeDocument,
@@ -217,7 +217,7 @@ const documents: Documents = {
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateJobDocument,
     "\n  mutation MoveJobToStage($id: ID!, $stage: JobStageEnum!) {\n    moveJobToStage(input: { id: $id, stage: $stage }) {\n      errors\n    }\n  }\n": types.MoveJobToStageDocument,
-    "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n": types.DeleteJobDocument,
+    "\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n": types.ArchiveJobDocument,
     "\n  mutation ScrapeJob($url: String!) {\n    scrapeJob(input: { url: $url }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ScrapeJobDocument,
     "\n  mutation ParseJobPosting($text: String!) {\n    parseJobPosting(input: { text: $text }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseJobPostingDocument,
     "\n  mutation ParseResume($file: Upload!) {\n    parseResume(input: { file: $file }) {\n      aiTask {\n        id\n        status\n      }\n      errors\n    }\n  }\n": types.ParseResumeDocument,
@@ -619,7 +619,7 @@ export function graphql(source: "\n  mutation MoveJobToStage($id: ID!, $stage: J
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteJob($id: ID!) {\n    deleteJob(input: { id: $id }) {\n      errors\n    }\n  }\n"];
+export function graphql(source: "\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation ArchiveJob($id: ID!) {\n    archiveJob(input: { id: $id }) {\n      errors\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

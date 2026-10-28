@@ -5,7 +5,11 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 
-from documents.extract_document_text import DOCX_CONTENT_TYPE, DocumentTooLongError, extract_document_text
+from documents.extract_document_text import (
+    DOCX_CONTENT_TYPE,
+    DocumentTooLongError,
+    extract_document_text,
+)
 
 
 @pytest.mark.parametrize("many_parts", [False, True])

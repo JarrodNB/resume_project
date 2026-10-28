@@ -13,6 +13,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
     expect(result).to be_success
     ai_task = result.value
     expect(ai_task).to be_persisted.and be_queued
+    expect(ai_task.reload.awaiting_queue_publish).to be(false)
     expect(queue).to have_received(:send_message) do |message_body:|
       expect(JSON.parse(message_body)).to eq(
         "ai_task_id" => ai_task.id,

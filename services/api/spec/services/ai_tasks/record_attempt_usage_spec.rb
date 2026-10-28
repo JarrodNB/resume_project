@@ -54,8 +54,9 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(task.cost_microdollars).to eq(105)
     expect(task.input_tokens).to eq(300)
     expect(task.cached_input_tokens).to eq(60)
+    # Once for each report that changed the totals: the first usage, the completion, the late usage.
     expect(ApiSchema.subscriptions).to have_received(:trigger)
-      .with(:ai_task_updated, { id: task.id }, task).once
+      .with(:ai_task_updated, { id: task.id }, task).exactly(3).times
   end
 
   it "counts late tailoring executions without changing the completed draft" do
@@ -71,6 +72,7 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(task).to be_completed
     expect(task.result).to eq(draft)
     expect(task.input).to eq(snapshots)
-    expect(ApiSchema.subscriptions).not_to have_received(:trigger).with(:ai_task_updated, anything, anything)
+    # Two distinct late reports changed the totals; the redelivered copy did not.
+    expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, anything, anything).twice
   end
 end

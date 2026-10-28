@@ -4,7 +4,7 @@
 #   - call: saves the task and publishes {ai_task_id, user_id, task_type, input}; returns the task
 module AiTasks
   class EnqueueAiTaskService < ApplicationService
-    QUEUE_ERRORS = [ Aws::SQS::Errors::ServiceError, Seahorse::Client::NetworkingError ].freeze
+    QUEUE_ERRORS = PublishTaskToQueueService::QUEUE_ERRORS
 
     # @param source_file [ActiveStorage::Blob, nil] an uploaded file the task reads, attached
     #   to the task so it stays linked to the upload
@@ -30,13 +30,7 @@ module AiTasks
       return result unless result.success?
       return result if @resolved_existing
 
-      ai_task = result.value
-      publish(ai_task)
-      success(ai_task)
-    rescue *QUEUE_ERRORS => error
-      Rails.logger.error("Could not publish AiTask #{ai_task.id}: #{error.message}")
-      UpdateTaskService.call(task: ai_task, attributes: { status: "failed", error_message: "Could not queue the task", completed_at: Time.current })
-      failure([ "Could not queue the AI task, please try again" ])
+      publish_or_fail(result.value)
     end
 
     private
@@ -52,7 +46,8 @@ module AiTasks
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: @user)
         next allowance unless allowance.success?
 
-        ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject)
+        ai_task = @user.ai_tasks.new(task_type: @task_type, input: @input, subject: @subject,
+                                     awaiting_queue_publish: true)
         if @prepare_task
           preparation = @prepare_task.call(ai_task)
           next preparation unless preparation.success?
@@ -62,15 +57,14 @@ module AiTasks
       end
     end
 
-    # Sends the task message to the ai_tasks queue.
-    def publish(ai_task)
-      message = {
-        ai_task_id: ai_task.id,
-        user_id: ai_task.user_id,
-        task_type: ai_task.task_type,
-        input: ai_task.input
-      }
-      Shoryuken::Client.queues(AI_TASKS_QUEUE_NAME).send_message(message_body: message.to_json)
+    # Publishes the saved task; if the queue is unreachable, marks the task failed instead.
+    def publish_or_fail(ai_task)
+      PublishTaskToQueueService.call(ai_task: ai_task)
+      success(ai_task)
+    rescue *QUEUE_ERRORS => error
+      Rails.logger.error("Could not publish AiTask #{ai_task.id}: #{error.message}")
+      UpdateTaskService.call(task: ai_task, attributes: { status: "failed", awaiting_queue_publish: false, error_message: "Could not queue the task", completed_at: Time.current })
+      failure([ "Could not queue the AI task, please try again" ])
     end
   end
 end

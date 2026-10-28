@@ -9,7 +9,10 @@ execution and their existing GraphQL subscription updates.
 No production feature currently opts into incremental output. Enabling streaming
 configuration alone does not turn interviews into token streams. A future chat adapter
 registers with the same runner and declares `stream_output = True`; its Rails feature
-adapter supplies ownership/current-attempt checks. It does not add another dispatcher,
+adapter supplies ownership/current-attempt checks. A feature streams end to end only
+when both halves exist: its AI adapter sets `stream_output`, and Rails registers its
+authority in `AiExecutions::Features::STREAM_AUTHORITIES` (a one-line addition).
+Missing either one means no stream; an unregistered feature raises `ArgumentError`. It does not add another dispatcher,
 claim store, retry policy, supervisor or accounting engine.
 
 ## Transport and authority

@@ -132,3 +132,15 @@ RSpec.describe "AI execution stream grants" do
     expect(AiExecutionStreamGrant.pluck(:id)).to eq([ live.id ])
   end
 end
+
+RSpec.describe AiExecutions::Features, ".stream_authority" do
+  it "looks features up in the registry" do
+    expect(described_class.stream_authority("interviews")).to eq(Interviews::StreamAuthority)
+  end
+
+  it "uses any registered feature and rejects unknown ones" do
+    stub_const("AiExecutions::Features::STREAM_AUTHORITIES", { "chat" => "Interviews::StreamAuthority" }.freeze)
+    expect(described_class.stream_authority("chat")).to eq(Interviews::StreamAuthority)
+    expect { described_class.stream_authority("interviews") }.to raise_error(ArgumentError, "Unknown execution feature")
+  end
+end

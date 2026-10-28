@@ -1,6 +1,7 @@
 """Validate observer grants only with the configured Rails origin."""
 
 import asyncio
+import json
 from urllib.parse import urlsplit
 
 import httpx
@@ -30,8 +31,6 @@ class RailsStreamOwner:
                     body.extend(chunk)
                     if len(body) > 4096:
                         raise ValueError("Observer response too large")
-        import json
-
         return json.loads(body)
 
     async def close(self):

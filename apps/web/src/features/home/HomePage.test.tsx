@@ -7,6 +7,7 @@ import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperatio
 import { CAREER_LIBRARY_QUERY } from '@/features/career-library/careerLibraryOperations'
 import { JOB_PIPELINE_QUERY, RUNNING_AI_TASKS_QUERY } from './homeOperations'
 import { HomePage } from './HomePage'
+import { ARCHIVE_JOB_MUTATION } from '@/features/jobs/jobsOperations'
 
 afterEach(() => localStorage.clear())
 
@@ -152,4 +153,47 @@ it('lets every board tile be dragged to another stage, but not list rows', async
   expect(screen.getAllByRole('group', { name: /, draggable$/ })).toHaveLength(pipeline.length)
   await user.click(screen.getByRole('button', { name: 'List' }))
   expect(screen.queryByRole('group', { name: /, draggable$/ })).not.toBeInTheDocument()
+})
+
+for (const view of ['Board', 'List']) {
+  it(`archives a job from Home's ${view.toLowerCase()} after confirmation and updates the saved count`, async () => {
+    const user = userEvent.setup()
+    renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
+      { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: pipeline } } },
+      runningMock([]), libraryMock([]),
+      {
+        request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
+        result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: [] } } },
+      },
+    ] })
+    await screen.findByText('5 saved jobs')
+    await user.click(screen.getByRole('button', { name: view, exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('Your answers, resumes, and interview history are kept.')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByRole('link', { name: 'Platform Engineer', exact: true })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Archive Platform Engineer' }))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive', exact: true }))
+    expect(await screen.findByText('4 saved jobs')).toBeVisible()
+    expect(screen.queryByRole('link', { name: 'Platform Engineer', exact: true })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Data Analyst', exact: true })).toBeVisible()
+  })
+}
+
+it('keeps a Home tile visible when archiving fails', async () => {
+  const user = userEvent.setup()
+  renderPage({ path: '/', url: '/', element: <HomePage />, mocks: [
+    { request: { query: JOB_PIPELINE_QUERY }, result: { data: { jobPipeline: pipeline } } },
+    runningMock([]), libraryMock([]),
+    {
+      request: { query: ARCHIVE_JOB_MUTATION, variables: { id: 'job-1' } },
+      result: { data: { archiveJob: { __typename: 'ArchiveJobPayload', errors: ['Archive unavailable'] } } },
+    },
+  ] })
+  await user.click(await screen.findByRole('button', { name: 'Archive Platform Engineer' }))
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive', exact: true }))
+  expect(await screen.findByText('Archive unavailable')).toBeVisible()
+  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
+  expect(screen.getByText('5 saved jobs')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Platform Engineer', exact: true })).toBeInTheDocument()
 })

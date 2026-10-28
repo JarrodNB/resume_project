@@ -4,6 +4,11 @@ module Chat
     include ExecutionPolicy
     MODELS = { "screening" => { "typesafe" => %w[jev-1.13.0], "openai" => %w[gpt-5-nano] },
       "reply" => { "openai" => %w[gpt-6-luna gpt-5-nano] }, "summary" => { "openai" => %w[gpt-6-luna gpt-5-nano] } }.freeze
+    # An 80k input needs up to 48 overlapping 2k chunks (the smaller documented
+    # screening setting). Allow primary + fallback for each, with bounded retry
+    # headroom. Screening must not consume the shared reply/summary run's 8 calls.
+    SCREENING_REQUEST_LIMIT = 128
+    GENERATION_REQUEST_LIMIT = 8
     def initialize(operation:, attempt_id:, claim_generation:, observation_id:, stage:, provider:, model:)
       @operation, @attempt_id, @generation, @observation_id = operation, attempt_id, claim_generation, observation_id
       @stage, @provider, @model = stage, provider, model
@@ -17,7 +22,10 @@ module Chat
         previous = execution.provider_attempts.find_by(observation_id: @observation_id)
         next(previous.attributes.slice(*labels.keys) == labels ? success({ observation_id: @observation_id }) : failure("Provider start conflicts")) if previous
         next failure("Claim is stale or expired") unless current_claim?
-        next failure("Provider attempt limit reached") if execution.provider_attempts.count >= 12
+        screening = @stage == "screening"
+        stages = screening ? ["screening"] : %w[reply summary]
+        limit = screening ? SCREENING_REQUEST_LIMIT : GENERATION_REQUEST_LIMIT
+        next failure("Provider attempt limit reached") if execution.provider_attempts.where(stage: stages).count >= limit
         next failure("Provider identity already used") if AiUsageAttempt.exists?(attempt_id: @observation_id)
         allowance = AiUsage::CheckAiTaskAllowanceService.call(user: conversation.user, existing_task: @operation.ai_task)
         next allowance unless allowance.success?

@@ -5,6 +5,14 @@ Index: language and shared domain terms.
 
 ## Language
 
+**Summary inclusion**:
+Whether a summary appears on a resume. The library preference supplies the default for new
+resumes; each resume has its own choice. Hiding a summary retains its text for later use.
+
+**Summary proposal**:
+A suggested draft for a missing career profile or resume summary. It changes saved content
+only when the user accepts it, and can be edited or discarded during review.
+
 **Library proposal**:
 A suggested replacement for one career-library narrative detail, such as a summary, achievement,
 project description, or saved career context response. It changes the saved detail only

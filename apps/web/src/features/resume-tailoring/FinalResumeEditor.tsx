@@ -1,6 +1,6 @@
 /**
  * Review and edit the finished resume before saving it once. Sections start collapsed.
- * Edits and inclusion choices stay together. Unsaved drafts warn before navigation;
+ * Edits and inclusion choices stay together; excluded summary text survives first save. Unsaved drafts warn before navigation;
  * The full resume appears first; the editing view retains all draft choices.
  * Controls pause during the first save because success switches to the saved editor.
  */
@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { cn } from '@/lib/utils'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
+import { SummaryInclusionControl } from './SummaryInclusionControl'
 import { ResumeEditorActions } from './ResumeEditorActions'
 import { ResumeUnsavedChanges } from './ResumeUnsavedChanges'
 import { SectionFields } from './SectionFields'
@@ -25,23 +26,25 @@ import { contentFromSectionDraft, sectionDraftFromContent, type SectionDraft } f
 interface FinalResumeEditorProps {
   jobId: string
   sections: TailorSection[]
+  includeSummary?: boolean
   warnings: string[]
   pending: boolean
   errors: string[]
-  onSave: (sections: { section_type: string; title: string; content: unknown }[]) => Promise<boolean> | boolean | void
+  onSave: (sections: { section_type: string; title: string; content: unknown }[], includeSummary?: boolean) => Promise<boolean> | boolean | void
 }
 
 /** Lets the user edit the whole draft, then save it once. */
-export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, onSave }: FinalResumeEditorProps) {
+export function FinalResumeEditor({ jobId, sections, includeSummary = true, warnings, pending, errors, onSave }: FinalResumeEditorProps) {
   const [drafts, setDrafts] = useState(() => sections.map((section) => ({
     ...section,
     draft: sectionDraftFromContent(section.sectionType, section.content),
-    included: true,
+    included: section.sectionType !== 'summary' || includeSummary,
   })))
 
+  const [emptySummaryIncluded, setEmptySummaryIncluded] = useState(includeSummary)
   const [editing, setEditing] = useState(false)
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
-  const snapshot = JSON.stringify(drafts)
+  const snapshot = JSON.stringify({ drafts, emptySummaryIncluded })
   const dirty = snapshot !== savedSnapshot
   const selected = drafts.filter((section) => section.included).map((section) => ({
     sectionType: section.sectionType,
@@ -49,9 +52,16 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
     content: contentFromSectionDraft(section.draft),
   }))
 
+  const summaryIncluded = drafts.find((section) => section.sectionType === 'summary')?.included ?? emptySummaryIncluded
+
   async function save() {
     if (selected.length === 0 || pending) return
-    if (await onSave(selected.map(({ sectionType, ...section }) => ({ ...section, section_type: sectionType })))) setSavedSnapshot(snapshot)
+    const retained = drafts.filter((section) => section.included || section.sectionType === 'summary').map((section) => ({
+      section_type: section.sectionType,
+      title: section.title || SECTION_TITLES[section.sectionType],
+      content: contentFromSectionDraft(section.draft),
+    }))
+    if (await onSave(retained, summaryIncluded)) setSavedSnapshot(snapshot)
   }
 
   return (
@@ -65,6 +75,10 @@ export function FinalResumeEditor({ jobId, sections, warnings, pending, errors, 
           <AlertDescription>{warnings.map((warning) => <p key={warning}>{warning}</p>)}</AlertDescription>
         </Alert>
       )}
+      {editing && <SummaryInclusionControl checked={summaryIncluded} disabled={pending} onChange={(checked) => {
+        setEmptySummaryIncluded(checked)
+        setDrafts((current) => current.map((section) => section.sectionType === 'summary' ? { ...section, included: checked } : section))
+      }} />}
       {editing && <fieldset disabled={pending} className="resume-section-list">
         {drafts.map((section, index) => (
           <FinalSection
@@ -117,9 +131,9 @@ function FinalSection({
               <h2 className="text-base font-medium">{title}</h2>
             </CollapseToggle>
           ) : <h2 className="flex-1 font-medium">{title}</h2>}
-          <Button type="button" variant="ghost" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
+          {draft.kind !== 'summary' && <Button type="button" variant="ghost" aria-label={`${included ? 'Exclude' : 'Include'} ${title}`} onClick={onToggleIncluded}>
             {included ? 'Exclude' : 'Include'}
-          </Button>
+          </Button>}
         </div>
       </CardHeader>
       {!included && <p className="px-5 pb-4 text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}

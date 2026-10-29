@@ -10,11 +10,11 @@ export function useTailorActions(aiTaskId: string, onSaved: () => void) {
   const [errors, setErrors] = useState<string[]>([])
   const [pending, setPending] = useState(false)
 
-  async function saveResume(sections: { section_type: string; title: string; content: unknown }[]) {
+  async function saveResume(sections: { section_type: string; title: string; content: unknown }[], includeSummary?: boolean) {
     setErrors([])
     setPending(true)
     try {
-      const { data } = await save({ variables: { aiTaskId, sections } })
+      const { data } = await save({ variables: { aiTaskId, sections, ...(includeSummary === undefined ? {} : { includeSummary }) } })
       const payload = data?.saveTailoredResume
       if (payload?.resume && payload.errors.length === 0) {
         onSaved()

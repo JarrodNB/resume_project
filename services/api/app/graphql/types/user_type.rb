@@ -15,6 +15,7 @@ module Types
     field :location, String
     field :links, [ Types::ProfileLinkType ], null: false
     field :summary, String
+    field :include_summary, Boolean, null: false
     field :ai_usage, Types::AiUsageType, null: false
 
     # Returns structured links while keeping legacy string rows readable.

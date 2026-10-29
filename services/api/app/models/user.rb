@@ -3,6 +3,7 @@
 # existing passwords stay usable until the account holder chooses a replacement.
 # Index:
 #   - profile columns: name, contact_email, phone, location, links, summary
+#   - include_summary: default for new resumes; never changes existing resume output
 #   - career library: experiences, projects, educations (most recent first), certifications (issued date), skills (by position),
 #     career_contexts (answers the user added from gap analysis, by created_at)
 #   - jobs, resumes, ai_tasks, ai_task_outcomes, interview_question_sets, interview_sessions, chat_conversations
@@ -26,6 +27,8 @@ class User < ApplicationRecord
   has_many :ai_tasks, dependent: :destroy
   has_many :ai_embedding_requests, dependent: :delete_all
   has_many :library_embeddings, dependent: :delete_all
+
+  validates :include_summary, inclusion: { in: [ true, false ] }
 
   validates :name, :contact_email, :phone, :location, length: { maximum: TextLimits::SHORT }
   validates :summary, length: { maximum: TextLimits::PROSE }

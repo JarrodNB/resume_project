@@ -1,6 +1,7 @@
 /** Check that save feedback and leave warnings follow what was actually persisted,
  * including failures and edits made while a request is still running.
  */
+import { useState } from 'react'
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
@@ -18,7 +19,7 @@ const sections = [{ id: 'section-1', sectionType: 'SUMMARY', title: 'Summary', p
 
 function updateMock(text: string, errors: string[] = [], delay = 10) {
   return {
-    request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume-1', sections: [{ id: 'section-1', content: { text } }] } },
+    request: { query: UPDATE_RESUME_MUTATION, variables: { id: 'resume-1', includeSummary: true, sections: [{ id: 'section-1', content: { text } }] } },
     delay,
     result: { data: { updateResume: {
       __typename: 'UpdateResumePayload', errors,
@@ -180,4 +181,94 @@ it('starts with the saved preview and preserves unsaved edits when switching vie
   expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Original summary. My edit.')
+})
+
+it('saves a summary inclusion round trip without losing its text', async () => {
+  const user = userEvent.setup()
+  const hidden = updateMock('Original summary.')
+  hidden.request.variables.includeSummary = false
+  const shown = updateMock('Original summary.')
+  renderEditor([hidden, shown])
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('Original summary.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).toHaveTextContent('Original summary.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('All changes saved'))
+})
+
+it('keeps the summary choice editable on a resume with no summary section', async () => {
+  const user = userEvent.setup()
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume-1" sections={[]} includeSummary={false} onDeleted={vi.fn()} /> })
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes')
+})
+
+it('offers explicit resume summary generation and pauses it for unsaved section edits', async () => {
+  const user = userEvent.setup()
+  const { SUMMARY_GENERATION_QUERY } = await import('@/features/summary-generation/summaryGenerationOperations')
+  renderPage({ path: '/', url: '/', element: <SavedResumeEditor resumeId="resume-1" sections={[{ id: 'skills-1', sectionType: 'SKILLS', title: 'Skills', position: 0, content: { items: [{ name: 'Ruby' }] } }]} onDeleted={vi.fn()} />, mocks: [
+    { request: { query: SUMMARY_GENERATION_QUERY, variables: { targetKind: 'resume', targetId: 'resume-1' } }, result: { data: { summaryGeneration: { __typename: 'SummaryGeneration', stale: false, aiTask: null } } } },
+  ] })
+  expect(await screen.findByRole('button', { name: 'Generate summary' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Skills' }))
+  await user.type(screen.getByRole('textbox', { name: 'New skill' }), 'Python{Enter}')
+  expect(screen.getByRole('button', { name: 'Generate summary' })).toBeDisabled()
+})
+
+
+it('preserves section edits by ID when a refreshed summary is inserted ahead of them', async () => {
+  const user = userEvent.setup()
+  const { SUMMARY_GENERATION_QUERY } = await import('@/features/summary-generation/summaryGenerationOperations')
+  const skills = { id: 'skills-1', sectionType: 'SKILLS', title: 'Skills', position: 0, content: { items: [{ name: 'Ruby' }] } }
+  const inserted = { id: 'summary-2', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'New saved summary.' } }
+  function Harness() {
+    const [current, setCurrent] = useState<Parameters<typeof SavedResumeEditor>[0]['sections']>([skills])
+    return <><button onClick={() => setCurrent([inserted, { ...skills, position: 1 }])}>Refresh saved resume</button><SavedResumeEditor resumeId="resume-1" sections={current} includeSummary={false} onDeleted={vi.fn()} /></>
+  }
+  renderPage({ path: '/', url: '/', element: <Harness />, mocks: [
+    { request: { query: SUMMARY_GENERATION_QUERY, variables: { targetKind: 'resume', targetId: 'resume-1' } }, result: { data: { summaryGeneration: { __typename: 'SummaryGeneration', stale: false, aiTask: null } } } },
+  ] })
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('button', { name: 'Skills' }))
+  await user.type(screen.getByRole('textbox', { name: 'New skill' }), 'Python{Enter}')
+  await user.click(screen.getByRole('button', { name: 'Refresh saved resume' }))
+  expect(screen.getByText('Python')).toBeInTheDocument()
+  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('New saved summary.')
+  expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Remove Python' }))
+  expect(screen.getByText('All changes saved')).toBeInTheDocument()
+})
+
+it('accepts a reviewed resume summary then refreshes output without changing inclusion', async () => {
+  const user = userEvent.setup()
+  const { SUMMARY_GENERATION_QUERY, ACCEPT_SUMMARY_GENERATION_MUTATION } = await import('@/features/summary-generation/summaryGenerationOperations')
+  const proposal = { __typename: 'AiTask', id: 'summary-task', status: 'COMPLETED', result: { text: 'A reviewed summary.' }, errorMessage: null, acceptedAt: null }
+  function Harness() {
+    const [current, setCurrent] = useState<Parameters<typeof SavedResumeEditor>[0]['sections']>([{ id: 'skills-1', sectionType: 'SKILLS', title: 'Skills', position: 0, content: { items: [{ name: 'Ruby' }] } }])
+    return <SavedResumeEditor resumeId="resume-1" sections={current} includeSummary={false} onDeleted={vi.fn()} onSummaryAccepted={() => setCurrent((previous) => [{ id: 'new-summary', sectionType: 'SUMMARY', title: 'Summary', position: 0, content: { text: 'A reviewed summary.' } }, ...previous.map((section) => ({ ...section, position: section.position + 1 }))])} />
+  }
+  renderPage({ path: '/', url: '/', element: <Harness />, mocks: [
+    { request: { query: SUMMARY_GENERATION_QUERY, variables: { targetKind: 'resume', targetId: 'resume-1' } }, result: { data: { summaryGeneration: { __typename: 'SummaryGeneration', stale: false, aiTask: proposal } } } },
+    { request: { query: ACCEPT_SUMMARY_GENERATION_MUTATION, variables: { aiTaskId: 'summary-task', text: 'A reviewed summary.' } }, result: { data: { acceptSummaryGeneration: { __typename: 'AcceptSummaryGenerationPayload', aiTask: { ...proposal, acceptedAt: '2026-10-28T00:00:00Z' }, errors: [] } } } },
+  ] })
+  await user.click(await screen.findByRole('button', { name: 'Accept summary' }))
+  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Proposed summary' })).not.toBeInTheDocument())
+  expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('A reviewed summary.')
+  expect(screen.getByRole('status')).toHaveTextContent('All changes saved')
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  await user.click(screen.getByRole('button', { name: 'Summary' }))
+  expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('A reviewed summary.')
 })

@@ -60,3 +60,5 @@ Source of the web app, organized by feature.
 - `lib/formatCertificationDates.ts` formats explicit issue and expiry labels.
 
 - Completed interview reviews include explicit on-demand coaching through `CompletedInterviewFeedback` and `useInterviewSessionFeedback`; opening the review/section never starts model work.
+
+- `features/summary-generation/` — reusable explicit generation/review controls, owned task recovery and subscription progress for missing summaries.

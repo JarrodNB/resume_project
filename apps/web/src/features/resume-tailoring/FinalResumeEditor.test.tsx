@@ -64,18 +64,18 @@ it('preserves edits when a section is collapsed, excluded, and included again', 
   await user.clear(screen.getByRole('textbox', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), 'Edited summary.')
   await user.click(screen.getByRole('button', { name: 'Summary' }))
-  await user.click(screen.getByRole('button', { name: 'Exclude Summary' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
   await user.click(screen.getByRole('button', { name: 'Skills' }))
   expect(screen.getByText('Ruby')).toBeInTheDocument()
   await user.type(screen.getByRole('textbox', { name: 'New skill' }), 'Python{Enter}')
-  await user.click(screen.getByRole('button', { name: 'Include Summary' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
   await user.click(screen.getByRole('button', { name: 'Summary' }))
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('Edited summary.')
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
   expect(onSave).toHaveBeenCalledWith([
     { section_type: 'summary', title: 'Summary', content: { text: 'Edited summary.' } },
     { section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }, { name: 'Python', category: null }] } },
-  ])
+  ], true)
 })
 
 vi.mock('./ResumePdfPreview', () => ({
@@ -103,7 +103,7 @@ it('previews and saves only the selected sections with current edits in original
   expect(screen.getByText('Projects omitted: no relevant evidence.')).toBeInTheDocument()
   expect(screen.getByText('Save unavailable.')).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  expect(onSave).toHaveBeenCalledWith([{ section_type: 'summary', title: 'Summary', content: { text: 'Edited summary.' } }])
+  expect(onSave).toHaveBeenCalledWith([{ section_type: 'summary', title: 'Summary', content: { text: 'Edited summary.' } }], true)
 })
 
 it('requires at least one included section and allows restoring a section before saving', async () => {
@@ -111,7 +111,7 @@ it('requires at least one included section and allows restoring a section before
   const onSave = vi.fn()
   render(<FinalResumeEditor jobId="job-1" sections={sections} warnings={[]} pending={false} errors={[]} onSave={onSave} />)
   await user.click(screen.getByRole('button', { name: 'Edit sections' }))
-  await user.click(screen.getByRole('button', { name: 'Exclude Summary' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
   await user.click(screen.getByRole('button', { name: 'Exclude Skills' }))
   expect(screen.getByRole('button', { name: 'Save resume' })).toBeDisabled()
   expect(screen.getByText('Include at least one section to preview or save your resume.')).toBeInTheDocument()
@@ -120,5 +120,33 @@ it('requires at least one included section and allows restoring a section before
   expect(onSave).not.toHaveBeenCalled()
   await user.click(screen.getByRole('button', { name: 'Include Skills' }))
   await user.click(screen.getByRole('button', { name: 'Save resume' }))
-  expect(onSave).toHaveBeenCalledWith([{ section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] } }])
+  expect(onSave).toHaveBeenCalledWith([
+    { section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } },
+    { section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] } },
+  ], false)
+})
+
+it('retains an excluded summary in the first save and passes its inclusion separately', async () => {
+  const user = userEvent.setup()
+  const onSave = vi.fn()
+  render(<FinalResumeEditor jobId="job-1" sections={sections} warnings={[]} pending={false} errors={[]} onSave={onSave} />)
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  await user.click(screen.getByRole('checkbox', { name: 'Include summary' }))
+  await user.click(screen.getByRole('button', { name: 'Preview' }))
+  expect(screen.getByTestId('pdf-model')).not.toHaveTextContent('Backend engineer.')
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  expect(onSave).toHaveBeenCalledWith([
+    { section_type: 'summary', title: 'Summary', content: { text: 'Backend engineer.' } },
+    { section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] } },
+  ], false)
+})
+
+it('uses a disabled summary default even before summary text exists', async () => {
+  const user = userEvent.setup()
+  const onSave = vi.fn()
+  render(<FinalResumeEditor jobId="job-1" sections={[sections[1]]} includeSummary={false} warnings={[]} pending={false} errors={[]} onSave={onSave} />)
+  await user.click(screen.getByRole('button', { name: 'Edit sections' }))
+  expect(screen.getByRole('checkbox', { name: 'Include summary' })).not.toBeChecked()
+  await user.click(screen.getByRole('button', { name: 'Save resume' }))
+  expect(onSave).toHaveBeenCalledWith([{ section_type: 'skills', title: 'Skills', content: { items: [{ name: 'Ruby', category: null }] } }], false)
 })

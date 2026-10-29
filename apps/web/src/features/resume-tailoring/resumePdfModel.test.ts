@@ -76,3 +76,10 @@ it('retains exact certification expiry days in the PDF', () => {
   } }])
   expect(model.blocks[0]?.entries[0]?.dates).toBe('Issued Jun 2024 · Expires Oct 31, 2026')
 })
+
+it('omits excluded summary text from the shared preview and export model', () => {
+  const sections = [{ sectionType: 'summary' as const, title: 'Summary', content: { text: 'Retained summary.' } }]
+  expect(buildResumePdfModel(sections, false).blocks).toEqual([])
+  expect(buildResumePdfModel(sections, true).blocks).toEqual([{ title: 'Summary', text: 'Retained summary.', entries: [] }])
+  expect(sections[0].content.text).toBe('Retained summary.')
+})

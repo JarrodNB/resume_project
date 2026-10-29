@@ -19,6 +19,7 @@ import { START_RESUME_TAILORING_MUTATION, TAILOR_JOB_QUERY } from './tailorOpera
 export interface TailorTaskView {
   id: string
   status: AiTaskStatusEnum
+  input: unknown
   result: unknown
   errorMessage: string | null
   acceptedAt: string | null
@@ -79,6 +80,7 @@ export function useResumeTailoring(jobId: string, { autoStart = true }: { autoSt
 function taskFrom(source: {
   id: string
   status: AiTaskStatusEnum
+  input?: unknown
   result?: unknown
   errorMessage?: string | null
   acceptedAt?: string | null
@@ -87,6 +89,7 @@ function taskFrom(source: {
   return {
     id: source.id,
     status: source.status,
+    input: source.input ?? null,
     result: source.result ?? null,
     errorMessage: source.errorMessage ?? null,
     acceptedAt: source.acceptedAt ?? null,

@@ -14,6 +14,21 @@ RSpec.describe ResumeTailoring::SaveTailoredResumeService do
     create(:ai_task, user: user, subject: job, task_type: "tailor_resume", status: "completed", result: { "sections" => sections })
   end
 
+  it "retains summary text while excluding it, independently of later library defaults" do
+    ai_task.update!(input: { "include_summary" => false })
+    result = described_class.call(ai_task: ai_task, sections: sections)
+    expect(result).to be_success
+    expect(result.value.include_summary).to be(false)
+    expect(result.value.sections.find_by!(section_type: "summary").content).to eq("text" => "Backend engineer.")
+    Users::UpdateProfileService.call(user: user, attributes: { include_summary: true })
+    expect(result.value.reload.include_summary).to be(false)
+  end
+
+  it "allows overriding the snapshotted default on first save" do
+    ai_task.update!(input: { "include_summary" => false })
+    expect(described_class.call(ai_task: ai_task, sections: sections, include_summary: true).value.include_summary).to be(true)
+  end
+
   it "creates the resume and its sections once" do
     result = described_class.call(ai_task: ai_task, sections: sections)
 

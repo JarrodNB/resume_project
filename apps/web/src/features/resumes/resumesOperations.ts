@@ -40,6 +40,7 @@ export const RESUME_QUERY = graphql(`
         title
         company
       }
+      includeSummary
       sections {
         id
         sectionType

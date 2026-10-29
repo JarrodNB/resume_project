@@ -26,11 +26,21 @@ RSpec.describe ResumeTailoring::StartResumeTailoringService do
     task = result.value
     expect(task).to be_tailor_resume.and be_queued
     expect(task.subject).to eq(job)
-    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses")
+    expect(task.input.keys).to contain_exactly("job_id", "contact", "gap_analysis", "gap_responses", "include_summary")
     expect(task.input["contact"]).to include("full_name" => "Ada Lovelace", "email" => "ada@example.com")
     expect(task.input["gap_analysis"]).to eq(gap_analysis)
     expect(task.input["gap_responses"]).to eq([ { "id" => response.id, "requirement" => "Python", "body" => "Five years.", "screened_fields" => [ "requirement" ] } ])
     expect(queue).to have_received(:send_message)
+  end
+
+  it "snapshots the library default without changing resumed drafts" do
+    User.find(user.id).update!(include_summary: false)
+    expect(user.include_summary).to be(true) # The caller may hold a stale account instance.
+    task = described_class.call(user: user, job: job).value
+    expect(task.input["include_summary"]).to be(false)
+    user.update!(include_summary: true)
+    expect(described_class.call(user: user, job: job).value).to eq(task)
+    expect(task.reload.input["include_summary"]).to be(false)
   end
 
   it "queues a tailor task when no comparison has finished" do

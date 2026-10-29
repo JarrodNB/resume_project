@@ -10,5 +10,6 @@ module Types
     argument :location, String, required: false
     argument :links, [ Types::ProfileLinkAttributesInput ], required: false
     argument :summary, String, required: false
+    argument :include_summary, Boolean, required: false
   end
 end

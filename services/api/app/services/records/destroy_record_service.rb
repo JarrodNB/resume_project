@@ -14,7 +14,12 @@ module Records
 
     # Destroys the record.
     def call
-      destroyed = if @record.is_a?(Job)
+      destroyed = if @record.is_a?(Resume)
+        @record.user.with_lock do
+          @record.lock!
+          @record.destroy
+        end
+      elsif @record.is_a?(Job)
         @record.user.with_lock do
           @record.lock!
           @record.interview_sessions.where("expires_at > ?", Time.current).where(content_purged_at: nil).find_each do |interview|
@@ -31,6 +36,8 @@ module Records
 
       CareerLibrary::SyncLibraryEmbeddingsJob.perform_later(@record.user_id) if LIBRARY_MODELS.include?(@record.class)
       success(@record)
+    rescue ActiveRecord::RecordNotFound
+      failure([ "Record not found" ])
     end
   end
 end

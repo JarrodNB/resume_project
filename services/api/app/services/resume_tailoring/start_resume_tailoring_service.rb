@@ -18,11 +18,19 @@ module ResumeTailoring
         task_type: "tailor_resume",
         input: task_input,
         subject: @job,
-        resolve_existing: method(:resolve_existing)
+        resolve_existing: method(:resolve_existing),
+        prepare_task: method(:snapshot_summary_inclusion)
       )
     end
 
     private
+
+    # Enqueue has reloaded and locked the owner, so concurrent preference changes cannot
+    # leave a new task with the stale default from a previously loaded User instance.
+    def snapshot_summary_inclusion(task)
+      task.input = task.input.merge("include_summary" => @user.include_summary)
+      success(task)
+    end
 
     def resolve_existing
       return failure([ ALREADY_SAVED_MESSAGE ]) if @user.resumes.exists?(job_id: @job.id)

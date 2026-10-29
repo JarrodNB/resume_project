@@ -24,7 +24,7 @@ function resumeQuery(job: Record<string, unknown> | null) {
     result: {
       data: {
         resume: {
-          __typename: 'Resume',
+          __typename: 'Resume', includeSummary: true,
           id: 'resume-1',
           title: 'Engineer at Acme',
           job,
@@ -108,7 +108,7 @@ it('starts saved sections collapsed, retains unsaved edits, and remembers open s
 
 it('cancels deletion without a request, then deletes an orphan resume and returns to the list', async () => {
   const user = userEvent.setup()
-  const deleted = vi.fn(() => ({ data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } }))
+  const deleted = vi.fn(() => ({ data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1' }, errors: [] } } }))
   const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
     mocks: [resumeQuery(null), { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: deleted }],
@@ -125,7 +125,7 @@ it('cancels deletion without a request, then deletes an orphan resume and return
 
 it('keeps edits after network and payload failures, prevents duplicate requests, and retries to the list', async () => {
   const user = userEvent.setup()
-  const deleted = vi.fn(() => ({ data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } }))
+  const deleted = vi.fn(() => ({ data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1' }, errors: [] } } }))
   const request = { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }
   const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
@@ -157,16 +157,16 @@ it('clears cached resume detail and list entries while preserving other resumes'
   const user = userEvent.setup()
   const cache = new InMemoryCache()
   // Only orphaned resumes are edited here; the job workspace's resume tests cover clearing a job's link.
-  const resume = { ...resumeQuery(null).result.data.resume, __typename: 'Resume' as const, job: null,
+  const resume = { ...resumeQuery(null).result.data.resume, __typename: 'Resume' as const, includeSummary: true, job: null,
     sections: [{ __typename: 'ResumeSection' as const, id: 'section-1', sectionType: 'SUMMARY' as const, title: 'Summary', position: 0, content: { text: 'Backend engineer.' } }] }
   const list = [
-    { __typename: 'Resume', id: 'resume-1', title: resume.title, updatedAt: '2026-10-18', job: null },
-    { __typename: 'Resume', id: 'other', title: 'Another resume', updatedAt: '2026-10-18', job: null },
+    { __typename: 'Resume', includeSummary: true, id: 'resume-1', title: resume.title, updatedAt: '2026-10-18', job: null },
+    { __typename: 'Resume', includeSummary: true, id: 'other', title: 'Another resume', updatedAt: '2026-10-18', job: null },
   ]
   cache.writeQuery({ query: RESUMES_QUERY, data: { resumes: list } })
   cache.writeQuery({ query: RESUME_QUERY, variables: { id: 'resume-1' }, data: { resume } })
   const { router } = renderPage({ path: '/resumes/:id', url: '/resumes/resume-1',
-    element: <MockedProvider cache={cache} mocks={[{ request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } }]}><ResumePage /></MockedProvider>,
+    element: <MockedProvider cache={cache} mocks={[{ request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1' }, errors: [] } } } }]}><ResumePage /></MockedProvider>,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
   })
   await user.click(await screen.findByRole('button', { name: 'Delete resume' }))
@@ -182,7 +182,7 @@ it('blocks PDF downloading while a saved resume deletion is pending', async () =
   renderPage({ path: '/resumes/:id', url: '/resumes/resume-1', element: <ResumePage />,
     extraRoutes: [{ path: '/resumes', element: <p>Resume list</p> }],
     mocks: [resumeQuery(null), { request: { query: DELETE_RESUME_MUTATION, variables: { id: 'resume-1' } }, delay: 200,
-      result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', id: 'resume-1' }, errors: [] } } } }],
+      result: { data: { deleteResume: { __typename: 'DeleteResumePayload', resume: { __typename: 'Resume', includeSummary: true, id: 'resume-1' }, errors: [] } } } }],
   })
   const download = await screen.findByRole('button', { name: 'Download PDF' })
   const docxDownload = screen.getByRole('button', { name: 'Download DOCX' })

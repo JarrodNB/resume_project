@@ -21,12 +21,14 @@ from worker.queue_messages import AiResultMessage, AiTaskMessage, TaskType
 from worker.rerank_job_listings_handler import handle_rerank_job_listings_task
 from worker.scrape_job_handler import handle_scrape_job_task
 from worker.study_guide_handler import handle_study_guide_task
+from worker.summary_generation_handler import handle_summary_generation_task
 from worker.tailor_resume_handler import handle_tailor_resume_task
 from worker.task_dependencies import TaskDependencies
 
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
+    "generate_summary": handle_summary_generation_task,
     "rerank_job_listings": handle_rerank_job_listings_task,
     "generate_study_guide": handle_study_guide_task,
     "improve_library_entry": handle_library_edit_task,

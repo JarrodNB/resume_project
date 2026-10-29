@@ -18,6 +18,15 @@ RSpec.describe ResumeTailoring::UpdateResumeSectionsService do
     )
   end
 
+  it "persists summary inclusion without deleting text, even on an empty resume" do
+    result = described_class.call(resume: resume, sections: [], include_summary: false)
+    expect(result).to be_success
+    expect(resume.reload.include_summary).to be(false)
+    expect(summary.reload.content).to eq("text" => "Old.")
+    expect(described_class.call(resume: resume, sections: [], include_summary: true)).to be_success
+    expect(resume.reload.include_summary).to be(true)
+  end
+
   it "replaces section content and keeps type, title, and order" do
     result = described_class.call(
       resume: resume,
@@ -45,11 +54,13 @@ RSpec.describe ResumeTailoring::UpdateResumeSectionsService do
   it "rejects a section whose text is over the screen cap" do
     result = described_class.call(
       resume: resume,
+      include_summary: false,
       sections: [ { "id" => summary.id, "content" => { "text" => "a" * (TextLimits::SCREENED_TEXT + 1) } } ]
     )
 
     expect(result).not_to be_success
     expect(result.errors).to include(TextLimits::SECTION_TOO_LONG)
+    expect(resume.reload.include_summary).to be(true)
     expect(summary.reload.content).to eq("text" => "Old.")
   end
 

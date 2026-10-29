@@ -8,13 +8,15 @@ module Mutations
       argument :ai_task_id, ID, required: true
       argument :sections, GraphQL::Types::JSON, required: false
 
+      argument :include_summary, Boolean, required: false
+
       field :resume, Types::ResumeType
 
       # Calls ResumeTailoring::SaveTailoredResumeService.
-      def resolve(ai_task_id:, sections: nil)
+      def resolve(ai_task_id:, sections: nil, include_summary: nil)
         ai_task = current_user.ai_tasks.find(ai_task_id)
         payload_from(
-          ::ResumeTailoring::SaveTailoredResumeService.call(ai_task: ai_task, sections: sections),
+          ::ResumeTailoring::SaveTailoredResumeService.call(ai_task: ai_task, sections: sections, include_summary: include_summary),
           :resume
         )
       end

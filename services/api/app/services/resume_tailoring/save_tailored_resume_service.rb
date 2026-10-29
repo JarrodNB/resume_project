@@ -1,18 +1,21 @@
 # Saves a completed draft and its sections once. Acceptance stays recorded after deletion.
 # The owner lock serializes saves with new tailoring starts; the task lock keeps acceptance
-# atomic. Deleting the job later keeps these saved snapshots.
+# atomic. Hidden summary content is retained separately from its inclusion choice.
+# Deleting the job later keeps these saved snapshots.
 module ResumeTailoring
   class SaveTailoredResumeService < ApplicationService
     NOT_READY_MESSAGE = "Finish the resume before saving it.".freeze
     ALREADY_SAVED_MESSAGE = "This resume has already been saved.".freeze
 
-    def initialize(ai_task:, sections: nil)
+    def initialize(ai_task:, sections: nil, include_summary: nil)
       @ai_task = ai_task
       @sections = sections
+      @include_summary = include_summary
     end
 
     # Saves once. A second call returns an error without creating another resume.
     def call
+      return failure([ "Include summary must be true or false." ]) unless @include_summary.nil? || [ true, false ].include?(@include_summary)
       return failure([ NOT_READY_MESSAGE ]) unless @ai_task.tailor_resume? && @ai_task.completed?
 
       return failure([ "This job no longer exists." ]) unless @ai_task.subject.is_a?(Job)
@@ -53,7 +56,7 @@ module ResumeTailoring
       job = @ai_task.subject
       title = job ? "#{job.title} at #{job.company.presence || 'Unknown company'}" : "Tailored resume"
       Resume.transaction do
-        resume = @ai_task.user.resumes.create!(job: job, title: title)
+        resume = @ai_task.user.resumes.create!(job: job, title: title, include_summary: @include_summary.nil? ? @ai_task.input.fetch("include_summary", true) : @include_summary)
         sections.each_with_index do |section, index|
           resume.sections.create!(
             section_type: section["section_type"],

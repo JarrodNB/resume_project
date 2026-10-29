@@ -2,6 +2,7 @@
 /** Inspect real Word output rather than mocking the document generator. */
 import { expect, it, vi } from 'vitest'
 import { unzipSync, strFromU8 } from 'fflate'
+import { buildResumePdfModel } from './resumePdfModel'
 import { generateResumeDocx } from './resumeDocxDocument'
 vi.stubGlobal('localStorage', { clear() {} })
 
@@ -39,4 +40,16 @@ it('uses shared section mapping, omits empty sections and preserves long documen
   expect(xml).not.toContain('<w:keepLines')
   expect(xml).toContain('w:w="12240" w:h="15840"')
   expect(strFromU8(zip['word/numbering.xml'])).toContain('w:val="bullet"')
+})
+
+it('leaves retained excluded summary text out of the actual DOCX', async () => {
+  const model = buildResumePdfModel([
+    { sectionType: 'contact', title: 'Contact', content: { full_name: 'Ada' } },
+    { sectionType: 'summary', title: 'Summary', content: { text: 'Retained private summary.' } },
+  ], false)
+  const zip = unzipSync(new Uint8Array(await (await generateResumeDocx(model)).arrayBuffer()))
+  const xml = strFromU8(zip['word/document.xml'])
+  expect(xml).toContain('Ada')
+  expect(xml).not.toContain('Retained private summary.')
+  expect(xml).not.toContain('Summary')
 })

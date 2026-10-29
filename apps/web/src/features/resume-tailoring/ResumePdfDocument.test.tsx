@@ -66,3 +66,20 @@ it('flows a single long experience across pages without dropping text or drawing
     for (let index = 0; index < bullets.length; index++) expect(text).toContain(`Achievement ${index}:`)
   } finally { await loading.destroy() }
 })
+
+it('leaves retained excluded summary text out of the actual PDF', async () => {
+  const model = buildResumePdfModel([
+    { sectionType: 'contact', title: 'Contact', content: { full_name: 'Ada' } },
+    { sectionType: 'summary', title: 'Summary', content: { text: 'Retained private summary.' } },
+  ], false)
+  const blob = await generateResumePdf(model)
+  const loading = getDocument({ data: new Uint8Array(await blob.arrayBuffer()), useSystemFonts: true })
+  try {
+    const pdf = await loading.promise
+    const content = await (await pdf.getPage(1)).getTextContent()
+    const text = content.items.map((item) => 'str' in item ? item.str : '').join(' ')
+    expect(text).toContain('Ada')
+    expect(text).not.toContain('Retained private summary.')
+    expect(text).not.toContain('SUMMARY')
+  } finally { await loading.destroy() }
+})

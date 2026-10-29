@@ -147,3 +147,5 @@ payloads may omit `certifications`. Tailored resumes use a separate Certificatio
 - `legacy_career_context.py` normalizes structural identifiers in task envelopes published
   before the database rename. User prose, history strings and source digests remain exact;
   ordinary handlers and schemas use only canonical career-context names.
+
+- `summary_generation_handler.py` — frozen owned facts, exact saved screening reuse, batched unknown-field checks, readable prompts and cited proposals; no domain writes.

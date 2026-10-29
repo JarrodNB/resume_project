@@ -788,3 +788,12 @@ def test_gap_library_text_collision_preserves_each_provenance(preparation, block
             assert prompt_is_covered(prompt)
         assert len([text for text in calls if "Saved gap response" in text]) == 1
     asyncio.run(run())
+
+
+def test_summary_inclusion_snapshot_does_not_change_generation_contract():
+    """Formatting preferences stay in Rails while the writer still produces reusable text."""
+    from tailoring.tailor_resume_input import TailorResumeInput
+
+    value = TailorResumeInput.model_validate({"job_id": "11111111-1111-1111-1111-111111111111", "include_summary": False})
+    assert str(value.job_id) == "11111111-1111-1111-1111-111111111111"
+    assert value.contact == {}

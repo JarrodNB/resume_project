@@ -4,7 +4,7 @@
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
-      "chat_reply" => "Chat reply",
+      "generate_summary" => "Summary draft", "chat_reply" => "Chat reply",
       "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
@@ -43,6 +43,10 @@ module AiTasks
       when "chat_reply"
         conversation = owned_subject("ChatConversation", @user.chat_conversations)
         conversation ? "/chat/#{conversation.id}" : "/chat"
+      when "generate_summary"
+        return "/library" unless @task.input["target_kind"] == "resume"
+        resume = @user.resumes.find_by(id: @task.input["target_id"])
+        resume ? (resume.job_id ? "/jobs/#{resume.job_id}/resume" : "/resumes/#{resume.id}") : "/resumes"
       when "rerank_job_listings"
         "/jobs/find"
       when "parse_resume"

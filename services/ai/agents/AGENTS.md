@@ -102,3 +102,5 @@ instructions from `prompts/`.
 - `chat_agent.py` — tool-free career discussion with the exact newest-message conversational guard, bounded plain-text reply and stream-safe request masking. Accepted public history is supplied only by Rails.
 
 - `chat_summary_agent.py` — bounded rolling memory of server-selected accepted dialogue; exact trusted prompt guard, no repeated screening, shared chat provider accounting.
+
+- `summary_generation_agent.py` — guarded missing-summary writer with bounded text and frozen-source citation validation.

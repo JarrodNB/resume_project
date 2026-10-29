@@ -17,7 +17,7 @@ their category.
 - `CareerLibraryPage.tsx` — page, wrapped in one `DragDropProvider`; `ClearLibraryButton.tsx`
   and `ClearLibraryDialog.tsx` empty the library after confirmation; `useClearCareerLibrary.ts`
   runs `clearCareerLibrary` and refetches
-- `ProfileSection.tsx` (profile card with Edit), `LibrarySection.tsx` (quiet card with a tone-colored icon, a
+- `ProfileSection.tsx` (profile card with Edit and the persisted Include summary default for new resumes), `LibrarySection.tsx` (quiet card with a tone-colored icon, a
   count and an Add button; each starts collapsed and stays that way until opened),
   `LibraryEntry.tsx` (ruled entry with an `actions` slot) — display pieces
 - `ExperienceSection.tsx`, `ProjectSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`,
@@ -110,3 +110,5 @@ their category.
   Matching saved review-origin tasks restore queued/proposal state after reload; failed
   generations offer Retry revision as a linked turn. All answers remain editable on
   mutation errors. Failed batch retries reuse their saved pairs without inventing new feedback. Accept/discard refetch assessments; stale questions cannot submit.
+
+- An empty profile summary exposes `SummaryGenerationPanel`: explicit generation from saved career facts, editable proposal, accept/discard, retry and reload recovery. It is separate from existing single-detail improvement.

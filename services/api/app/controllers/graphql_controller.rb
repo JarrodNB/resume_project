@@ -5,6 +5,8 @@
 #   - execute: runs a GraphQL query or mutation
 #   - prepare_variables: normalizes variables from JSON, form data, or blank
 class GraphqlController < ApplicationController
+  class InvalidVariables < StandardError; end
+
   before_action :authenticate_user!
 
   # Runs the GraphQL operation for the signed-in user.
@@ -16,6 +18,8 @@ class GraphqlController < ApplicationController
       operation_name: params[:operationName]
     )
     render json: result
+  rescue InvalidVariables
+    render json: { errors: [ { message: "Variables must be a JSON object" } ] }, status: :bad_request
   rescue StandardError => e
     raise e unless Rails.env.development?
     handle_error_in_development(e)
@@ -27,7 +31,7 @@ class GraphqlController < ApplicationController
   def prepare_variables(variables_param)
     case variables_param
     when String
-      variables_param.present? ? JSON.parse(variables_param) || {} : {}
+      variables_param.present? ? parse_variables_json(variables_param) : {}
     when Hash
       variables_param
     when ActionController::Parameters
@@ -37,6 +41,17 @@ class GraphqlController < ApplicationController
     else
       raise ArgumentError, "Unexpected parameter: #{variables_param}"
     end
+  end
+
+  # Variables sent as a string must be a JSON object; anything else is the client's mistake, not a 500.
+  def parse_variables_json(json)
+    parsed = JSON.parse(json)
+    return {} if parsed.nil?
+    raise InvalidVariables unless parsed.is_a?(Hash)
+
+    parsed
+  rescue JSON::ParserError
+    raise InvalidVariables
   end
 
   # Renders the error and backtrace (development only).

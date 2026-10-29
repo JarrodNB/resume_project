@@ -16,7 +16,8 @@ Before a submitted search, chips show the signed-in user's saved job-title sugge
 confirmed resume imports. They come from `me.jobTitleSuggestions`, fetched when the board
 opens so a later accepted import is reflected. Missing or unavailable suggestions retain the
 three default examples. Clicking a chip fills and focuses the keyword without submitting or
-changing filters. Manual-only users keep defaults until they confirm an import.
+changing filters. Manual-only users keep defaults until they confirm an import. Clearing the
+career library also clears these imported suggestions, returning the board to defaults.
 
 ## Ownership and provider access
 

@@ -52,6 +52,17 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
     expect(user.reload.name).to be_nil
   end
 
+  it "clears imported search suggestions only for the owner, including on repeated resets" do
+    user.update!(job_title_suggestions: [ "Backend engineer" ])
+    other_user = create(:user, job_title_suggestions: [ "Product designer" ])
+
+    2.times do
+      expect { described_class.call(user: user) }.not_to have_enqueued_job(CareerLibrary::SyncLibraryEmbeddingsJob)
+      expect(user.reload.job_title_suggestions).to eq([])
+    end
+    expect(other_user.reload.job_title_suggestions).to eq([ "Product designer" ])
+  end
+
   it "queues one embedding sync when an entry is removed, and none when the library is already empty" do
     create(:skill, user: user)
 
@@ -68,5 +79,4 @@ RSpec.describe CareerLibrary::ClearCareerLibraryService do
     expect(theirs.reload).to be_persisted
     expect(described_class.call(user: user)).to be_success
   end
-
 end

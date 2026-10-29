@@ -14,7 +14,7 @@ from io import BytesIO
 from math import ceil
 from typing import Any
 from urllib.parse import urlparse
-from zipfile import BadZipFile
+from zipfile import BadZipFile, ZipFile
 
 from docx import Document
 from docx.oxml.ns import qn
@@ -164,6 +164,11 @@ def _text_inside_rectangle(
 
 def _extract_docx_text(file_bytes: bytes) -> str:
     """Keep body text and active margin stories, including their hyperlink destinations."""
+    # python-docx eagerly inflates package parts, including unused embedded objects.
+    with ZipFile(BytesIO(file_bytes)) as archive:
+        parts = archive.infolist()
+        if len(parts) > 1_000 or sum(part.file_size for part in parts) > 20 * 1024 * 1024:
+            raise DocumentTooLongError("The DOCX package is too large to unpack")
     document = Document(BytesIO(file_bytes))
     return "\n".join([
         *_docx_margin_lines(document, "header"),

@@ -7,6 +7,7 @@ ever sees screened text, and every paid call is recorded against the caller's op
 Only tools with a renderer here are offered to the model. If the server is unreachable,
 the run continues without tools rather than failing.
 """
+import asyncio
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -56,11 +57,15 @@ class _ResultHandler:
 
     screen: Callable[[str], Awaitable[object]]
     results: dict[str, str] = field(default_factory=dict)
+    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def __call__(self, ctx, call_tool, name, tool_args):
-        if name not in self.results:
-            self.results[name] = await _RENDERED_TOOLS[name](self, call_tool, tool_args)
-        return self.results[name]
+        # Models may request the same tool in parallel. Keep its read and paid
+        # screening together so another call reuses the completed result.
+        async with self._lock:
+            if name not in self.results:
+                self.results[name] = await _RENDERED_TOOLS[name](self, call_tool, tool_args)
+            return self.results[name]
 
     async def read_career_library(self, call_tool, tool_args) -> str:
         with logfire.span("mcp_client.read_career_library") as span:

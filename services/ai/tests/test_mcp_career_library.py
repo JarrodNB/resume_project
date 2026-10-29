@@ -1,4 +1,5 @@
 """Check the MCP tool server over real local HTTP, and the client that renders its results."""
+import asyncio
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
@@ -198,3 +199,30 @@ async def test_client_calls_the_server_once_per_run():
     first = await handler(None, call_tool, "read_career_library", {})
     second = await handler(None, call_tool, "read_career_library", {})
     assert first == second and calls == ["read_career_library"]
+
+
+@pytest.mark.anyio
+async def test_parallel_calls_share_the_read_and_paid_screening():
+    from mcp_tools.career_library import library_payload
+
+    reads, screens = [], []
+    library = CareerLibrary(skills=[{"id": "s1", "name": "Ruby"}])
+
+    async def call_tool(name, args):
+        reads.append(name)
+        await asyncio.sleep(0)
+        return {"library": library_payload(library)}
+
+    async def screen(text):
+        screens.append(text)
+        await asyncio.sleep(0)
+        return SimpleNamespace(allowed=True)
+
+    handler = _ResultHandler(screen)
+    first, second = await asyncio.gather(
+        handler(None, call_tool, "read_career_library", {}),
+        handler(None, call_tool, "read_career_library", {}),
+    )
+    assert first == second and "Ruby" in first
+    assert reads == ["read_career_library"]
+    assert len(screens) == 1

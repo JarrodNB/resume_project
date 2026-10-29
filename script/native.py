@@ -24,6 +24,7 @@ RUBY = "3.4.11"
 PORT = "55432"
 REDIS_PORT = 56379
 LOCAL_REDIS = f"redis://127.0.0.1:{REDIS_PORT}/0"
+MCP_PORT = 8001
 PACKAGES = [
     "build-essential", "git", "curl", "ca-certificates", "pkg-config",
     "libssl-dev", "libyaml-dev", "libreadline-dev", "zlib1g-dev", "libffi-dev",
@@ -73,7 +74,12 @@ def config():
                  "interview_secret": secrets.token_hex(32)}
         with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as stream:
             json.dump(value, stream)
-    return json.loads(path.read_text())
+    value = json.loads(path.read_text())
+    # Upgrade existing native installations without rotating their credentials.
+    if "mcp_secret" not in value:
+        value["mcp_secret"] = secrets.token_hex(32)
+        path.write_text(json.dumps(value))
+    return value
 
 
 def app_env(service):
@@ -116,11 +122,13 @@ def app_env(service):
             "NATIVE_STORAGE_ORIGIN", "http://localhost:9090"),
         "INTERVIEW_TRANSCRIPTION_TARGET": "http://127.0.0.1:8000",
         "AI_HTTP_TARGET": "http://127.0.0.1:8000",
+        "MCP_TOOLS_SECRET": cfg["mcp_secret"],
+        "MCP_TOOLS_URL": f"http://127.0.0.1:{MCP_PORT}/mcp",
     })
     env.setdefault("AI_STREAMING_ENABLED", "false")
     if env["AI_STREAMING_ENABLED"] == "true" and not env.get("AI_STREAM_REDIS_URL"):
         env["AI_STREAM_REDIS_URL"] = LOCAL_REDIS
-    if service in {"ai", "ai-worker", "ai-http"}:
+    if service in {"ai", "ai-worker", "ai-http", "ai-mcp"}:
         env.update(DB_USERNAME="ai_reader", DB_PASSWORD=cfg["reader_password"],
                    PGPASSWORD=cfg["reader_password"],
                    DATABASE_URL=f"postgresql://ai_reader:{cfg['reader_password']}@127.0.0.1:{PORT}/api_development")
@@ -277,7 +285,7 @@ def start():
     # Refuse occupied ports instead of accidentally using another stack's database/storage.
     import socket
     env = app_env("api")
-    ports = [int(PORT), 9090, 3000, 8000, 5173, 5174]
+    ports = [int(PORT), 9090, 3000, 8000, MCP_PORT, 5173, 5174]
     if local_redis(env):
         require_tools(env, ["redis-server"])
         ports.append(REDIS_PORT)
@@ -321,6 +329,7 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
             "jobs": (["bundle", "exec", "ruby", "bin/jobs"], "services/api", env),
             "results": (["bundle", "exec", "shoryuken", "-R", "-C", "config/shoryuken.yml"], "services/api", env),
             "ai-worker": (["uv", "run", "--no-sync", "--env-file", ".env", "python", "-m", "worker.main"], "services/ai", app_env("ai-worker")),
+            "ai-mcp": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "--factory", "mcp_tools.server:create_app", "--host", "127.0.0.1", "--port", str(MCP_PORT)], "services/ai", app_env("ai-mcp")),
             "ai-http": (["uv", "run", "--no-sync", "--env-file", ".env", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--ws-max-size", "65536"], "services/ai", app_env("ai-http")),
             "web": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/web", env),
             "landing": (["npm", "run", "dev", "--", "--host", "0.0.0.0"], "apps/landing", env),
@@ -330,6 +339,8 @@ s3.put_bucket_cors(Bucket='careergrind-uploads', CORSConfiguration={'CORSRules':
             processes.append((name, spawn(name, args, ROOT / cwd, child_env)))
             if name == "api":
                 wait_port(3000, timeout=120)
+            if name == "ai-mcp":
+                wait_port(MCP_PORT)
         for port in (8000, 5173, 5174):
             wait_port(port)
         time.sleep(2)
@@ -393,6 +404,7 @@ def stop():
 def check():
     # HTTP requests stay local and never invoke a model or enqueue AI work.
     for name, url in (("API", "http://127.0.0.1:3000/up"),
+                      ("MCP tools", f"http://127.0.0.1:{MCP_PORT}/health"),
                       ("web", "http://127.0.0.1:5173"),
                       ("landing", "http://127.0.0.1:5174")):
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))

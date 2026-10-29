@@ -8,6 +8,10 @@ RSpec.describe "Job Board authentication", type: :request do
     expect(JobBoard::ImportListingService).not_to receive(:call)
     queries = [
       '{ jobBoardLocations(query: "Boston") { errors } }',
+      '{ jobPreferences { version } }',
+      'mutation { saveJobPreferenceDraft(input: { expectedVersion: 0, criteria: [] }) { errors } }',
+      'mutation { confirmJobPreferences(input: { expectedVersion: 0 }) { errors } }',
+      'mutation { clearJobPreferences(input: { expectedVersion: 0 }) { errors } }',
       '{ jobBoardSearch(keyword: "Engineer") { errors } }',
       'mutation { importJobBoardListing(input: { listingId: "unknown" }) { errors } }'
     ]

@@ -6,6 +6,8 @@ Domain models. Associations, validations, enums, and tiny predicates only; no bu
 
 ## Contents
 
+- `job_preference_profile.rb` — private next-job preference draft and confirmed snapshots with monotonic edit versions.
+
 - `chat_operation.rb`, `chat_execution_attempt.rb` and `chat_provider_attempt.rb` — logical chat submissions, fenced execution/provider identities and shared general-allowance accounting receipts. Accepted messages remain separate from pending or failed output.
 
 - `chat_conversation.rb` and `chat_message.rb` — owner-scoped saved chats and ordered accepted public messages, separate from provisional output and failed attempts. Conversations retain one bounded summary with a versioned covered-position checkpoint; full visible history stays saved.

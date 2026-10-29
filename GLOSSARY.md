@@ -5,6 +5,18 @@ Index: language and shared domain terms.
 
 ## Language
 
+**Next-job preference**:
+A condition the user wants from their next job, marked as a must-have or a nice-to-have.
+It describes the job they want, not their qualifications.
+
+**Preference profile**:
+The user's reusable set of confirmed next-job preferences. An editable draft stays separate
+until the user confirms it.
+
+**Preference assessment**:
+A comparison of one job posting with the user's confirmed preferences. A condition can match,
+conflict, or remain unknown when the posting does not establish it.
+
 **Summary inclusion**:
 Whether a summary appears on a resume. The library preference supplies the default for new
 resumes; each resume has its own choice. Hiding a summary retains its text for later use.

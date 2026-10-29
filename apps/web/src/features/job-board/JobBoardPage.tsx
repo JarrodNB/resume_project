@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
+import { JobPreferences } from './JobPreferences'
 import { boardPageSize, describeSearch } from './searchFilters'
 import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
@@ -52,6 +53,7 @@ export function JobBoardPage() {
   return (
     <div className="job-board">
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
+      <JobPreferences />
       {!submittedSearch && <div className="board-introduction">
         <h2>Find a role worth your next step.</h2>
         <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>

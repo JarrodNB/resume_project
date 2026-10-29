@@ -1,6 +1,5 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
- * The search form's keyword and main filters stay on top; its experience-level and later filters
- * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
+ * The search form, with its collapsible Filters panel, sits above the results.
  * The URL owns submitted filters; a session visit retains results and ordering
  * while users open saved jobs or move through search history.
  * The form owns editable filters until submission.
@@ -83,10 +82,10 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visit])
 
-  // Stacked layout (narrow screens): bring the results into view so a search visibly happens.
+  // Bring the results into view below the search form so a search visibly happens.
   useEffect(() => {
     if (returning.current) { returning.current = false; return }
-    if (!submittedSearch || window.matchMedia?.('(min-width: 1000px)').matches) return
+    if (!submittedSearch) return
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }, [submittedSearch])
 
@@ -120,7 +119,6 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
           {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
         </div>
       </div>}
-      <div className="board-layout">
       <JobBoardSearchForm key={location.key} initialSearch={urlSearch} keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
@@ -130,7 +128,6 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
         </div>
       </JobBoardSearchForm>
 
-      <div className="board-main">
       {submittedSearch && <div id="job-board-results" className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
@@ -166,8 +163,6 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
           {page.stale && <><ErrorAlert title="Couldn't refresh these results" messages={page.errors} /><Button variant="outline" className="justify-self-start" disabled={board.loading} onClick={() => board.retry(page.cursor)}>Retry results</Button></>}
         </div>)}</div>
       </div>}
-      </div>
-      </div>
     </div>
   )
 }

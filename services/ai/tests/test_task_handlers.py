@@ -121,7 +121,7 @@ def test_parse_resume_reports_token_usage(
     """The completed result carries the agent run's tokens and cost for the configured model."""
     fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
 
-    offline_resume_model_resolution(TestModel())
+    offline_resume_model_resolution(TestModel(model_name=task_dependencies.settings.resume_parsing_model))
     result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert len(result.usage) == 3
@@ -273,7 +273,7 @@ def test_parse_resume_reports_screen_usage_when_allowed(
 
     monkeypatch.setattr("worker.parse_resume_handler.screen_user_text", allow)
 
-    offline_resume_model_resolution(TestModel())
+    offline_resume_model_resolution(TestModel(model_name=task_dependencies.settings.resume_parsing_model))
     result = handle_ai_task(build_parse_resume_task(), task_dependencies)
 
     assert result.status == "completed"
@@ -313,3 +313,21 @@ def test_parse_resume_fails_for_unsupported_file_type(
 
     assert result.status == "failed"
     assert result.error_message == UNREADABLE_FILE_MESSAGE
+
+
+@pytest.mark.parametrize("suggestions,expected", [
+    (["Backend engineer"], ["Backend engineer"]),
+    (["Generated «pii:unknown:PERSON:1»"], []),
+])
+def test_parse_resume_publishes_separate_restorable_suggestions(
+    suggestions, expected, task_dependencies, fake_file_storage, offline_resume_model_resolution,
+):
+    fake_file_storage.files[FILE_KEY] = build_docx_bytes(["Jane Doe", "Engineer at Acme"])
+    offline_resume_model_resolution(TestModel(custom_output_args={"job_title_suggestions": suggestions}))
+
+    result = handle_ai_task(build_parse_resume_task(), task_dependencies)
+
+    assert result.status == "completed"
+    assert result.result["job_title_suggestions"] == expected
+    assert "job_title_suggestions" not in result.result["parsed_resume"]
+    assert len(result.usage) == 3

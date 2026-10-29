@@ -1,7 +1,7 @@
 # Reloads the owner before clearing so concurrent summary approvals are invalidated atomically.
 # Description: Empties one user's career library so a later resume import starts fresh.
 # Removes roles (and their bullets), projects, education, certifications, skills, and career context entries, and clears the
-# profile fields an import fills (name, contact, links, summary). The sign-in email, saved
+# profile fields an import fills (name, contact, links, summary, search suggestions). The sign-in email, saved
 # jobs, and tailored resumes stay. Job answers that pointed at a context stay, unlinked.
 # Queues one embedding sync when any entry was removed. Running it twice changes nothing.
 # Index:
@@ -9,7 +9,7 @@
 #   - call: deletes the entries and clears the profile in one transaction; returns the user
 module CareerLibrary
   class ClearCareerLibraryService < ApplicationService
-    PROFILE_FIELDS = %i[name contact_email phone location links summary].freeze
+    PROFILE_FIELDS = %i[name contact_email phone location links summary job_title_suggestions].freeze
 
     def initialize(user:)
       @user = user
@@ -38,7 +38,7 @@ module CareerLibrary
 
     # Sets each import-filled profile column back to blank.
     def clear_profile
-      blank = PROFILE_FIELDS.index_with { |column| column == :links ? [] : nil }
+      blank = PROFILE_FIELDS.index_with { |column| %i[links job_title_suggestions].include?(column) ? [] : nil }
       changes = blank.select { |column, value| @user.public_send(column) != value }
       if changes.any?
         @user.assign_attributes(changes)

@@ -1,5 +1,6 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
- * On wide screens the search form is a sticky sidebar so results stay in view beside it.
+ * The search form's keyword and main filters stay on top; its experience-level and later filters
+ * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
  * Search owns submitted results and optional ordering; the form owns editable filters.
  */
 import { useEffect, useState } from 'react'
@@ -17,11 +18,12 @@ import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
 import { useBoardPreferenceCheck } from './useBoardPreferenceCheck'
+import { useJobBoardSearchIdeas } from './useJobBoardSearchIdeas'
 import './jobBoard.css'
 
-const searchIdeas = ['Software engineer', 'Product designer', 'Data analyst']
 
 export function JobBoardPage() {
+  const searchIdeas = useJobBoardSearchIdeas()
   const [keyword, setKeyword] = useState('')
   const [hideSaved, setHideSaved] = useState(false)
   const [ordering, setOrdering] = useState<'provider' | 'library' | 'preferences'>('provider')
@@ -64,6 +66,13 @@ export function JobBoardPage() {
     <div className="job-board">
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
       <JobPreferences />
+      {!submittedSearch && <div className="board-introduction">
+        <h2>Find a role worth your next step.</h2>
+        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
+        <div className="board-search-ideas" aria-label="Search ideas">
+          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
+        </div>
+      </div>}
       <div className="board-layout">
       <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
         <div className="board-reranking-options">
@@ -73,13 +82,6 @@ export function JobBoardPage() {
       </JobBoardSearchForm>
 
       <div className="board-main">
-      {!submittedSearch && <div className="board-introduction">
-        <h2>Find a role worth your next step.</h2>
-        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
-        <div className="board-search-ideas" aria-label="Search ideas">
-          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
-        </div>
-      </div>}
       {submittedSearch && <div id="job-board-results" className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>

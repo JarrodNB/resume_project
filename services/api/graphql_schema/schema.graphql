@@ -3957,6 +3957,7 @@ type User {
   email: String!
   id: ID!
   includeSummary: Boolean!
+  jobTitleSuggestions: [String!]!
   links: [ProfileLink!]!
   location: String
   name: String

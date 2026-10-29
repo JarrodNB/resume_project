@@ -1,6 +1,9 @@
-/** Keep editable preferences separate from submitted searches. All filters sit in a
- * remembered, collapsible panel (kept mounted so choices survive closing it), with
- * advanced filters in a second disclosure; location names must resolve before a search is sent.
+/** Keep editable preferences separate from submitted searches. The keyword, search button and
+ * main filters (date, remote, location, sort) sit in a remembered, collapsible top panel. Experience
+ * level, employment type, advanced filters and the children (reranking) form a second part that
+ * the page shows as a sidebar beside the results on wide screens. Both parts belong to one form
+ * (`display: contents`), stay mounted so choices survive closing the panel, and location names
+ * must resolve before a search is sent.
  */
 import { useState, type ReactNode } from 'react'
 import { Globe2, Search, SlidersHorizontal } from 'lucide-react'
@@ -30,7 +33,7 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
   const salaryValid = !minimumSalary || (Number.isInteger(Number(minimumSalary)) && Number(minimumSalary) >= 1 && Number(minimumSalary) <= 1_000_000_000)
   const advancedCount = Number(Boolean(companyName.trim())) + Number(Boolean(minimumSalary))
   const activeFilterCount = advancedCount + Number(Boolean(maxAge)) + Number(Boolean(remote)) + Number(Boolean(location)) + Number(sortBy !== 'published') + Number(experienceLevels.length > 0) + Number(employmentTypes.length > 0)
-  return <form aria-label="Find jobs" className="board-search" onSubmit={(event) => {
+  return <form aria-label="Find jobs" className="board-search-form" onSubmit={(event) => {
     event.preventDefault()
     if (!keyword.trim() || unresolvedLocation || !salaryValid) return
     const filters: JobBoardFiltersInput = {
@@ -43,6 +46,7 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
     }
     onSearch({ keyword: keyword.trim(), remoteOnly: Boolean(remote), experienceLevels: [...experienceLevels], ...(Object.keys(filters).length > 0 && { filters }), locationLabel: location?.label })
   }}>
+    <div className="board-search">
     <Label htmlFor="job-board-keyword">Keyword or job title</Label>
     <div className="board-search-field"><div className="board-keyword"><Search size={19} strokeWidth={1.7} aria-hidden />
       <Input id="job-board-keyword" value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="e.g. Software engineer" maxLength={200} autoComplete="off" />
@@ -57,6 +61,11 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
       <JobBoardLocationPicker onChange={(choice, unresolved) => { setLocation(choice); setUnresolvedLocation(unresolved) }} />
       <div><Label htmlFor="board-sort">Sort by</Label><select id="board-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="published">Newest</option><option value="relevance">Most relevant</option></select></div>
     </div>
+    </div>
+    {unresolvedLocation && !filters.open && <p role="alert" className="board-filter-help">Choose a location from the list in Filters, or clear it, to search.</p>}
+    </div>
+    <aside className="board-sidebar">
+    <div id={filters.panelId + '-more'} data-open={filters.open} className="board-sidebar-filters">
     <fieldset className="board-experience-levels" aria-describedby="experience-level-help"><legend>Experience level</legend><p id="experience-level-help">Select any levels, or leave blank to include all.</p>
       <div className="board-level-options">{experienceLevelOptions.map(({ value, label }) => <Label key={value} className="board-remote" data-checked={experienceLevels.includes(value)}>
         <Checkbox checked={experienceLevels.includes(value)} onCheckedChange={(checked) => setExperienceLevels((current) => experienceLevelOptions.filter((option) => option.value === value ? checked === true : current.includes(option.value)).map((option) => option.value))} />{label}
@@ -77,8 +86,8 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
       </div>}
     </div>
     </div>
-    {unresolvedLocation && !filters.open && <p role="alert" className="board-filter-help">Choose a location from the list in Filters, or clear it, to search.</p>}
     {!salaryValid && <p role="alert" className="board-filter-help">Enter a whole-number minimum salary between 1 and 1,000,000,000, or clear the minimum in More filters.</p>}
     {children}
+    </aside>
   </form>
 }

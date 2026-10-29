@@ -12,7 +12,7 @@ Index:
     - ParsedResume: the full parse result (the agent's output_type)
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 CERTIFICATION_DATE_DESCRIPTION = (
     "YYYY-MM-DD, YYYY-MM, or YYYY: preserve exactly the precision stated. Null if not stated."
@@ -106,7 +106,7 @@ class ParsedSkill(BaseModel):
 
 
 class ParsedResume(BaseModel):
-    """Everything extracted from one resume. Nothing here may be invented."""
+    """Faithfully extracted resume facts; inferred search suggestions stay outside this model."""
 
     contact: ParsedContactInfo = Field(default_factory=ParsedContactInfo)
     summary: str | None = None
@@ -150,10 +150,29 @@ class ProjectsSkillsExtraction(BaseModel):
 
 
 class ProfileExtraction(BaseModel):
-    """Extract contact, summary, education and certifications."""
+    """Extract profile facts and separate optional job-search suggestions."""
 
     contact: ParsedContactInfo = Field(default_factory=ParsedContactInfo)
     summary: str | None = None
     educations: list[ParsedEducation] = Field(default_factory=list)
     certifications: list[ParsedCertification] = Field(default_factory=list)
     parsing_warnings: list[str] = Field(default_factory=list)
+
+    job_title_suggestions: list[str] = Field(
+        default_factory=list,
+        description="3–5 career-grounded job search titles, separate from extracted facts; fewer if unsupported.",
+        max_length=5,
+    )
+
+    @field_validator("job_title_suggestions", mode="before")
+    @classmethod
+    def normalize_suggestions(cls, value):
+        """Discard unusable optional metadata without retrying otherwise valid extraction."""
+        if not isinstance(value, list) or any(not isinstance(title, str) for title in value):
+            return []
+        titles = {}
+        for title in value:
+            title = title.strip()
+            if title and len(title) <= 100:
+                titles.setdefault(title.casefold(), title)
+        return list(titles.values())[:5]

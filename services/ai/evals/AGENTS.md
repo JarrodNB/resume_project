@@ -32,14 +32,18 @@ score attached, so runs can be compared across prompt and model changes.
   Run `docker compose run --rm ai-worker python -m evals.run_prompt_guardrail_evals`.
 - Parsing quality runs exclude expected input blocks; the fixtures remain for deterministic
   evaluator tests and the dedicated capability suite. No production screening bypass exists.
-- `datasets/resume_parsing_cases.yaml` — 8 synthetic, hand-labelled resumes (clean, year-only
+- `datasets/resume_parsing_cases.yaml` — 11 synthetic, hand-labelled resumes (clean, year-only
   dates, messy two-column extraction, ambiguous entries, not a resume, an embedded instruction,
-  and a longer promotion history with projects and credentials)
+  a longer promotion history with projects and credentials, equivalent search titles, sparse
+  evidence requiring no suggestions, and an intern without invented seniority)
 - `resume_parsing_evaluators.py` — deterministic evaluators: `SourceFaithfulness`,
-  `ExperienceMatch` (one-to-one roles and their own verbatim bullet recall), `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`
+  `ExperienceMatch` (one-to-one roles and their own verbatim bullet recall), `SectionRecall`, `WarnsWhenAmbiguous`, `IgnoresEmbeddedInstructions`, and `JobTitleSuggestions`
   (matching helpers come from
   `documents/text_matching.py`, shared with the production faithfulness guard; evals score the
-  raw agent output, before that guard runs)
+  raw agent output, before that guard runs). The eval-only output also retains inferred search
+  suggestions separately from facts. Suggestion scores use finite evaluator-only alias labels,
+  expected counts/abstention, and unsupported-seniority terms. An unlisted plausible title
+  needs human review; the alias score alone does not prove hallucination.
 - `run_resume_parsing_evals.py` — runner:
   `docker compose run --rm ai-worker python -m evals.run_resume_parsing_evals`; prepares local
   contact masking before screening/parsing and restores raw structured outputs before

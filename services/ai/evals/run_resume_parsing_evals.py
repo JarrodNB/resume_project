@@ -1,5 +1,6 @@
 """
-Description: Runs the resume parsing evals against the real model and reports the average of
+Description: Scores faithful resume facts and separate inferred search suggestions against
+the real model and reports the average of
 each score to Logfire (one trace per run, agent calls nested inside).
 Run: docker compose run --rm ai-worker python -m evals.run_resume_parsing_evals
 Index:
@@ -15,11 +16,11 @@ from pydantic_evals.reporting import EvaluationReport
 
 from agents.resume_parsing_agent import parse_resume_text
 from evals.report_capture import override_settings
-from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS
+from evals.resume_parsing_evaluators import RESUME_PARSING_EVALUATORS, ResumeParsingEvaluationOutput
 from evals.telemetry import evaluate_dataset
+from pii import PiiRestorationError
 from privacy.contact_mask import import_privacy_scope
 from prompts.resume_parsing_instructions import RESUME_PARSING_PROMPT_VERSION
-from schemas.parsed_resume import ParsedResume
 from screening.screen_user_text import screen_user_text
 from screening.session import screening_session
 from settings import load_settings
@@ -28,9 +29,9 @@ DATASET_PATH = Path(__file__).parent / "datasets" / "resume_parsing_cases.yaml"
 TRACE_NAME = "evals.resume_parsing"
 
 
-def load_resume_parsing_dataset() -> Dataset[str, ParsedResume, dict[str, Any]]:
+def load_resume_parsing_dataset() -> Dataset[str, ResumeParsingEvaluationOutput, dict[str, Any]]:
     """Loads the labelled resume parsing cases."""
-    return Dataset[str, ParsedResume, dict[str, Any]].from_file(
+    return Dataset[str, ResumeParsingEvaluationOutput, dict[str, Any]].from_file(
         DATASET_PATH, custom_evaluator_types=RESUME_PARSING_EVALUATORS
     )
 
@@ -41,7 +42,7 @@ def run_resume_parsing_evals(model_override: str | None = None, *, max_concurren
     model = settings.resume_parsing_model
     thinking = settings.resume_parsing_thinking
 
-    def parse_case(resume_text: str) -> ParsedResume:
+    def parse_case(resume_text: str) -> ResumeParsingEvaluationOutput:
         """The task under evaluation."""
         with import_privacy_scope() as privacy, screening_session(settings.llm_run_timeout_seconds):
             masked_text = privacy.prepare(resume_text)
@@ -59,7 +60,14 @@ def run_resume_parsing_evals(model_override: str | None = None, *, max_concurren
                 timeout_seconds=settings.llm_run_timeout_seconds,
                 fallback_model=settings.generative_fallback_model,
             )
-            return privacy.restore(run.parsed_resume)
+            facts = privacy.restore(run.parsed_resume)
+            try:
+                suggestions = privacy.restore(run.job_title_suggestions or [])
+            except PiiRestorationError:
+                suggestions = []
+            return ResumeParsingEvaluationOutput(
+                **facts.model_dump(), job_title_suggestions=suggestions
+            )
 
     dataset = load_resume_parsing_dataset()
     # Expected rejections are measured by run_prompt_guardrail_evals, never bypassed here.

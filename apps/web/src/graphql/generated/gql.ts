@@ -99,6 +99,7 @@ type Documents = {
     "\n  query JobBoardLocations($query: String!) {\n    jobBoardLocations(query: $query) {\n      locations { kind providerId label }\n      errors\n    }\n  }\n": typeof types.JobBoardLocationsDocument,
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": typeof types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": typeof types.JobBoardRerankingDocument,
+    "\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n": typeof types.JobBoardSearchIdeasDocument,
     "\n  query JobPreferences {\n    jobPreferences { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n  }\n": typeof types.JobPreferencesDocument,
     "\n  mutation SaveJobPreferenceDraft($expectedVersion: Int!, $criteria: [JobPreferenceCriterionInput!]!) {\n    saveJobPreferenceDraft(input: { expectedVersion: $expectedVersion, criteria: $criteria }) {\n      profile { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n      errors\n    }\n  }\n": typeof types.SaveJobPreferenceDraftDocument,
     "\n  mutation ConfirmJobPreferences($expectedVersion: Int!) {\n    confirmJobPreferences(input: { expectedVersion: $expectedVersion }) {\n      profile { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n      errors\n    }\n  }\n": typeof types.ConfirmJobPreferencesDocument,
@@ -217,6 +218,7 @@ const documents: Documents = {
     "\n  query JobBoardLocations($query: String!) {\n    jobBoardLocations(query: $query) {\n      locations { kind providerId label }\n      errors\n    }\n  }\n": types.JobBoardLocationsDocument,
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": types.JobBoardRerankingDocument,
+    "\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n": types.JobBoardSearchIdeasDocument,
     "\n  query JobPreferences {\n    jobPreferences { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n  }\n": types.JobPreferencesDocument,
     "\n  mutation SaveJobPreferenceDraft($expectedVersion: Int!, $criteria: [JobPreferenceCriterionInput!]!) {\n    saveJobPreferenceDraft(input: { expectedVersion: $expectedVersion, criteria: $criteria }) {\n      profile { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n      errors\n    }\n  }\n": types.SaveJobPreferenceDraftDocument,
     "\n  mutation ConfirmJobPreferences($expectedVersion: Int!) {\n    confirmJobPreferences(input: { expectedVersion: $expectedVersion }) {\n      profile { version confirmedRevision draftCriteria { id text priority } confirmedCriteria { id text priority } }\n      errors\n    }\n  }\n": types.ConfirmJobPreferencesDocument,
@@ -604,6 +606,10 @@ export function graphql(source: "\n  mutation RerankJobBoardListings($keyword: S
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n"): (typeof documents)["\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n"): (typeof documents)["\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

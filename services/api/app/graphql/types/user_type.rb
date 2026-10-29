@@ -3,7 +3,7 @@
 # Description: The signed-in user.
 # Index:
 #   - id, email (sign-in), name
-#   - profile: contact_email, phone, location, links, summary
+#   - profile: contact_email, phone, location, links, summary; derived job search suggestions
 #   - ai_usage: this month's estimated AI spend and budget
 module Types
   class UserType < Types::BaseObject
@@ -14,6 +14,7 @@ module Types
     field :phone, String
     field :location, String
     field :links, [ Types::ProfileLinkType ], null: false
+    field :job_title_suggestions, [ String ], null: false
     field :summary, String
     field :include_summary, Boolean, null: false
     field :ai_usage, Types::AiUsageType, null: false

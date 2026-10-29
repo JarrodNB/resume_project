@@ -1,14 +1,24 @@
 /**
- * Description: Persistent interview sets and answer, feedback, and replacement operations.
- * Index: INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY, GENERATE_INTERVIEW_SET, DELETE_INTERVIEW_SET, SAVE_INTERVIEW_ANSWER, REQUEST_INTERVIEW_FEEDBACK, REGENERATE_INTERVIEW_QUESTION
+ * Description: Persistent interview sets, the question bank, and answer, feedback, and replacement operations.
+ * Index: INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY, GENERATE_INTERVIEW_SET, DELETE_INTERVIEW_SET, SAVE_INTERVIEW_ANSWER, REQUEST_INTERVIEW_FEEDBACK, REGENERATE_INTERVIEW_QUESTION
  */
 import { graphql } from '@/graphql/generated'
 
+export const INTERVIEW_QUESTION_BANK_QUERY = graphql(`
+  query InterviewQuestionBank {
+    interviewQuestions {
+      id position retiredAt questionText answerText feedback feedbackOutdated
+      latestTask { id status taskType }
+      questionSet { id number setType createdAt }
+    }
+  }
+`)
 export const INTERVIEW_SETS_QUERY = graphql(`
   query InterviewSets {
     interviewQuestionSets {
       id number setType createdAt
       latestTask { id status errorMessage }
+      questions { id answerText }
     }
   }
 `)

@@ -1,11 +1,15 @@
 # Description: User-owned interview practice data and reloadable AI task status.
 # Index:
 #   - InterviewQuestionType: persisted practice fields and latest task
+#   - retired_at/question_set: question-bank context; retired copies have no position
 module Types
   class InterviewQuestionType < Types::BaseObject
     field :avoided, Boolean, null: false
     field :id, ID, null: false
-    field :position, Integer, null: false
+    field :position, Integer, description: "Slot 1–5 for active questions; null for retired copies."
+    field :retired_at, GraphQL::Types::ISO8601DateTime,
+          description: "When an answered question was replaced and kept as a read-only copy."
+    field :question_set, Types::InterviewQuestionSetType, null: false, method: :interview_question_set
     field :question_text, String, null: false
     field :answer_text, String, null: false
     field :question_revision, Integer, null: false

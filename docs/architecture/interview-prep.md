@@ -33,7 +33,8 @@ and web `src/lib/textLimits.ts`. Answers never become career-library entries. De
 cascades its questions and nullifies AI task subjects, retaining usage records and task inputs.
 
 `InterviewPrep` services own generation, saving, replacement, feedback, and deletion. GraphQL
-exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries and the mutations
+exposes owned `interviewQuestionSets` / `interviewQuestionSet(id)` queries, the question-bank
+`interviewQuestions` query (newest set first, active slots by position, then retired copies), and the mutations
 `generateInterviewQuestionSet(input: {setType: GENERAL | TECHNICAL | KNOWLEDGE})`, `saveInterviewAnswer`, `regenerateInterviewQuestion`,
 `requestInterviewAnswerFeedback`, and `deleteInterviewQuestionSet`. Question mutations scope
 `questionId` through the owned `questionSetId`. AI work uses the shared usage allowance checks.
@@ -48,8 +49,8 @@ feedback permits edits. Replacing an answered question requires `confirmed: true
 Result services check ownership, subject/set/question identity, latest task identity, and
 snapshot revisions before writing. Replacement requires unchanged question and answer
 revisions and checks distinctness against the current set, including the old question. On
-success it increments both revisions and clears only that slot's answer and feedback; on
-failure it preserves the old content. Feedback requires an unchanged question and the latest
+success it first keeps a nonblank answer as a retired copy (below), then increments both
+revisions and clears only that slot's answer and feedback; on failure it preserves the old content. Feedback requires an unchanged question and the latest
 feedback task, but accepts a newer answer revision: coaching is stored against the reviewed
 revisions, so GraphQL `feedbackOutdated` marks substantive edits outdated. Capitalization and
 whitespace changes remain current when a completed task's matching feedback and reviewed
@@ -107,11 +108,35 @@ remain separate. Newly requested feedback uses the guidance without rewriting sa
 Feedback evals cover complete and incomplete stories, no example, uncertain/negative outcomes,
 and legacy nonbehavioral questions alongside technical and knowledge regressions.
 
-The web routes `/practice/questions` and `/practice/questions/:id` (old `/interview-prep` links redirect) list numbered/date sets newest first
-and display five ordered cards. Persisted `latestTask` fields restore subscriptions on reload.
-Cards preserve local drafts, show outdated feedback for substantive unsaved changes too, warn before
-navigation with unsaved answers, and keep replacement controls locked until the new question
-revision is fetched. Set deletion is confirmed; feedback/examples remain beside the answer.
+## Retired questions
+
+Replacing an answered slot keeps the old question, answer, revisions, feedback, field approvals,
+and Q&A vector as a retired copy in the same set: `retired_at` is set and `position` is null. A
+check constraint requires active rows to hold positions 1–5 and retired rows to hold none.
+`InterviewQuestionSet#questions` returns only active slots, so generation, replacement
+distinctness, recent-question history, screening, and every question mutation ignore retired
+copies; they are read-only and cannot be edited, reviewed, replaced, or avoided. Because the copy
+keeps the reviewed revisions, its feedback stays current, and its existing vector moves to it.
+Unanswered replacements keep no copy. Deleting a set deletes its retired copies too.
+
+## Web
+
+`/practice/questions` (old `/interview-prep` links redirect) is the question bank. It generates a
+set of a chosen type, shows sets still generating or failed, and lists every active question with
+progress derived from saved state: not answered, no feedback yet, getting feedback, feedback ready,
+or out of date. Progress and type filters and text search run in the browser. Answers from
+replaced questions sit in a collapsed read-only section; finished sets, with answered counts and
+confirmed deletion, sit in another.
+
+`/practice/questions/:id/:questionId?` works one question at a time. Without a question id it
+pins the first unanswered question (or the first) in the URL, so saving never moves the open
+question. The set's five questions form a linked stop line. All cards stay mounted and only the
+open one shows, so drafts and task subscriptions survive moving between questions; only leaving
+the set warns about unsaved answers. Persisted `latestTask` fields restore subscriptions on reload.
+Get feedback sends the typed answer (the server saves it first), so there is no separate save step;
+it stays disabled once feedback matches the current text, including formatting-only edits. Cards
+show outdated feedback for substantive unsaved changes too and keep replacement locked until the
+new question revision is fetched. Replace and "Don't show this again" live in the card's actions menu.
 
 ## Avoided questions
 
@@ -152,8 +177,8 @@ categories while choosing different concrete focuses within them.
 
 - **Interview practice is persistent and independent of the library.** Existing questions
   stay fixed when career details change; new generation uses the current library. Multiple
-  numbered/date sets support repeated practice without custom names or archived question
-  history. Each set has five distinct English questions within its selected scope;
+  numbered/date sets support repeated practice without custom names; only answered questions
+  that were replaced are kept, as retired copies. Each set has five distinct English questions within its selected scope;
   job-specific generation remains future work.
 
 - **Interview feedback coaches the user's answer.** It never fills or replaces the answer
@@ -177,12 +202,20 @@ categories while choosing different concrete focuses within them.
   work. Atomic five-slot creation and single-slot replacement avoid partially populated sets
   or clearing unrelated answers. Confirmation protects an answered slot from accidental loss.
 
+- **Replacing an answered question keeps the answer.** Answers are the user's work and the bank's
+  value grows as they are refined, so a replacement retires a read-only copy instead of deleting it.
+  Copies live in the same table and set rather than a history table so ownership, deletion, vectors
+  and GraphQL types stay shared; the nullable position and active-only association keep the five
+  slots and all existing slot rules unchanged. Retired copies are not editable, to avoid a second
+  feedback and revision lifecycle for rows that no longer belong to a slot.
+
 - **Interview Q&A vectors remain separate from career-library evidence.** Future successful
   nonblank answer saves (including unchanged saves and feedback saves) enqueue a question-specific
   `InterviewPrep::SyncQuestionEmbeddingJob` after commit. `interview_question_embeddings` stores
   original combined Q&A, a model/masked-text digest, source revisions, and a 1536-dimension vector.
   Contact is masked only for the provider. A unique question foreign key cascades deletion;
-  edits/clears and successful replacements invalidate vectors in the source transaction.
+  edits/clears invalidate vectors in the source transaction. A successful replacement moves an
+  answered slot's vector to its retired copy (same content and revisions) and leaves the slot without one.
   The service snapshots and rechecks ownership, content, and revisions under the owner lock,
   releasing it during HTTP. A question advisory lock serializes duplicate jobs. Late results
   cannot restore obsolete content. There is no backfill, search index/interface, library

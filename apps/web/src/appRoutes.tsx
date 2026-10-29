@@ -80,7 +80,7 @@ export const appRoutes: RouteObject[] = [
           { path: '/jobs/:id/tailor', element: <RedirectToPath to="/jobs/:id/resume" /> },
           { path: '/practice', element: <Navigate to="/practice/questions" replace /> },
           { path: '/practice/questions', element: <InterviewPrepPage /> },
-          { path: '/practice/questions/:id', element: <InterviewSetPage /> },
+          { path: '/practice/questions/:id/:questionId?', element: <InterviewSetPage /> },
           { path: '/practice/interviews/:id?', element: <InterviewPage /> },
           { path: '/resumes', element: <ResumesPage /> },
           { path: '/resumes/:id', element: <ResumePage /> },

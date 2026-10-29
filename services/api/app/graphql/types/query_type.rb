@@ -4,7 +4,7 @@
 # reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
 #   - interview_session, recent_interview_sessions, unfinished_interview_session
-#   - interview_question_sets, interview_question_set(id:)
+#   - interview_question_sets, interview_question_set(id:), interview_questions (question bank)
 #   - me
 #   - experiences, projects, educations, certifications, skills, career_contexts (career library)
 #   - jobs(stage:), job(id:), job_pipeline (each job's suggested next step)
@@ -72,6 +72,8 @@ module Types
     field :interview_question_set, Types::InterviewQuestionSetType, null: false do
       argument :id, ID, required: true
     end
+    field :interview_questions, [ Types::InterviewQuestionType ], null: false,
+          description: "Every practice question the signed-in user has, including retired answered copies."
 
     field :job_board_search, Types::JobBoardSearchPageType, null: false do
       argument :keyword, String, required: true
@@ -172,6 +174,15 @@ module Types
 
     # Returns one authorized practice set with ordered questions.
     def interview_question_set(id:) = current_user.interview_question_sets.find(id)
+
+    # Returns the question bank: newest set first, active slots in order, then retired copies.
+    def interview_questions
+      InterviewQuestion.joins(:interview_question_set).includes(:interview_question_set)
+        .where(interview_question_sets: { user_id: current_user.id })
+        .order(Arel.sql("interview_question_sets.created_at DESC, interview_question_sets.id DESC, " \
+          "interview_questions.retired_at IS NOT NULL, interview_questions.position, " \
+          "interview_questions.retired_at, interview_questions.id"))
+    end
 
     # Returns the signed-in user.
     def me = current_user

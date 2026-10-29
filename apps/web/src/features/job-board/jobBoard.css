@@ -147,3 +147,9 @@
   .board-pager ol button:not([aria-current=page]):hover { background: var(--muted); border-color: var(--rule-strong); }
   .board-description-toggle:hover { color: var(--foreground); background: var(--muted); }
 }
+
+/* Applied choices remain readable and removable above the results on every screen. */
+.board-applied-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.board-filter-chip, .board-clear-filters { min-height: 44px; height: auto; white-space: normal; text-align: left; }
+.board-filter-chip { max-width: 100%; overflow-wrap: anywhere; }
+.board-filter-chip svg { flex-shrink: 0; }

@@ -13,6 +13,7 @@ import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { JobBoardAppliedFilters } from './JobBoardAppliedFilters'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
 import { boardPageSize, describeSearch, type BoardSearch } from './searchFilters'
 import { parseSearchUrl, serializeSearchUrl } from './searchUrl'
@@ -135,6 +136,7 @@ function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisi
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
           {board.listings.length > 0 && <span className="board-results-count">{visibleListings.length} shown · {board.listings.length} loaded{hiddenCount > 0 && ` · ${hiddenCount} saved hidden`}</span>}</div>
       </div>}
+      {submittedSearch && <JobBoardAppliedFilters search={submittedSearch} onSearch={submitSearch} />}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
         {board.listings.length === 0 && <div aria-hidden="true" className="board-skeletons">{[0, 1, 2].map((item) => <div className="board-skeleton" key={item}><span /><span /><span /></div>)}</div>}
       </div>}

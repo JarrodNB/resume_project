@@ -705,3 +705,90 @@ it('starts a newly submitted search at page one even when its URL has a retained
   await screen.findByRole('heading', { name: 'New first page' })
   expect(screen.queryByRole('heading', { name: 'Old role 20' })).not.toBeInTheDocument()
 })
+
+
+it('removes an applied remote chip immediately and discards unrelated keyword drafts', async () => {
+  const user = userEvent.setup()
+  const { router } = renderBoard([
+    queryMock(searchVariables('engineer', true)),
+    queryMock(searchVariables(), page([listing('new', 'Broader results')])),
+  ])
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'remote')
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), ' draft')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '7d')
+  await user.click(screen.getByRole('button', { name: 'Remove Any remote option filter' }))
+  await screen.findByRole('heading', { name: 'Broader results' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  expect(screen.getByRole('combobox', { name: 'Date posted' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Remote arrangement' })).toHaveValue('')
+  expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+})
+
+
+it('removes each applied filter value while preserving the other submitted choices', async () => {
+  const user = userEvent.setup()
+  const initialUrl = '?q=engineer&level=EN&level=SE&employment=FULL_TIME&employment=CONTRACT&remote=hybrid&age=7d&city=123&place=Boston&company=Acme&salary=100000&undisclosed=0&sort=relevance'
+  const filters = { remoteType: 'hybrid', maxAge: '7d', cityId: 123, companyName: 'Acme', employmentTypes: ['FULL_TIME', 'CONTRACT'], minimumSalary: 100000, includeUndisclosedSalaries: false, sortBy: 'relevance' }
+  const changes = [
+    { label: 'Entry level', levels: ['SE'] },
+    { label: 'Contract', filters: { ...filters, employmentTypes: ['FULL_TIME'] } },
+    { label: 'Boston', remove: ['cityId'], urlRemove: ['city', 'place'] },
+    { label: 'Minimum pay: 100,000 (disclosed only)', remove: ['minimumSalary', 'includeUndisclosedSalaries'], urlRemove: ['salary', 'undisclosed'] },
+    { label: 'Hybrid', remove: ['remoteType'], urlRemove: ['remote'], remoteOnly: false },
+    { label: 'Past 7 days', remove: ['maxAge'], urlRemove: ['age'] },
+    { label: 'Company: Acme', remove: ['companyName'], urlRemove: ['company'] },
+    { label: 'Most relevant', remove: ['sortBy'], urlRemove: ['sort'] },
+  ]
+  const steps: { keyword: string; remoteOnly: boolean; experienceLevels: string[]; cursor: string | null; filters?: Record<string, unknown> }[] = []
+  let current = { ...searchVariables('engineer', true, null, ['EN', 'SE']), filters: { ...filters } as Record<string, unknown> }
+  steps.push(current)
+  for (const change of changes) {
+    current = { ...current, filters: change.filters ?? { ...current.filters }, experienceLevels: change.levels ?? current.experienceLevels, remoteOnly: change.remoteOnly ?? current.remoteOnly }
+    change.remove?.forEach((key) => { delete current.filters[key] })
+    steps.push(current)
+  }
+  const { router } = renderBoard(steps.map((variables, index) => queryMock(variables, page([listing(`step-${index}`, `Step ${index}`)]))))
+  await act(() => router.navigate('/jobs/find' + initialUrl))
+  await screen.findByRole('heading', { name: 'Step 0' })
+  for (const [index, change] of changes.entries()) {
+    await user.click(screen.getByRole('button', { name: `Remove ${change.label} filter` }))
+    await screen.findByRole('heading', { name: `Step ${index + 1}` })
+    expect(screen.queryByRole('button', { name: `Remove ${change.label} filter` })).not.toBeInTheDocument()
+    change.urlRemove?.forEach((key) => expect(new URLSearchParams(router.state.location.search).has(key)).toBe(false))
+  }
+  expect(screen.getByRole('checkbox', { name: 'Senior' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Full-time' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Entry level' })).not.toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Contract' })).not.toBeChecked()
+  expect(screen.getByRole('textbox', { name: 'US city or state' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
+})
+
+it('clears every filter and sort while retaining the applied keyword', async () => {
+  const user = userEvent.setup()
+  const filters = { stateId: 456, remoteType: 'fully_remote', maxAge: '24h', employmentTypes: ['PART_TIME'], companyName: 'Acme', minimumSalary: 50000, includeUndisclosedSalaries: true, sortBy: 'relevance' }
+  const initialVariables = { ...searchVariables('engineer', true, null, ['MI']), filters }
+  const { router } = renderBoard([
+    queryMock(initialVariables),
+    queryMock(searchVariables(), page([listing('cleared', 'Unfiltered role')])),
+  ])
+  await act(() => router.navigate('/jobs/find?q=engineer&level=MI&employment=PART_TIME&remote=fully_remote&age=24h&state=456&company=Acme&salary=50000&sort=relevance'))
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByRole('button', { name: 'Remove Selected state (456) filter' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Minimum pay: 50,000 (undisclosed included) filter' })).toBeInTheDocument()
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), ' draft')
+  await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+  await screen.findByRole('heading', { name: 'Unfiltered role' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  expect(screen.queryByRole('group', { name: 'Applied filters' })).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
+  expect(screen.getByRole('checkbox', { name: 'Mid level' })).not.toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Part-time' })).not.toBeChecked()
+  await user.click(screen.getByRole('button', { name: 'More filters' }))
+  expect(screen.getByRole('textbox', { name: 'Company' })).toHaveValue('')
+  expect(screen.getByRole('spinbutton', { name: 'Minimum salary' })).toHaveValue(null)
+})

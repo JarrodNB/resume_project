@@ -82,6 +82,15 @@ export function useJobBoardSearch(rerankingEnabled = false) {
     void request(submitted, null, generation.current)
   }
 
+  function clear() {
+    generation.current += 1
+    pending.current = false
+    setSnapshot({ submitted: null, pages: [], listings: [] })
+    setLoading(false)
+    setErrors([])
+    setFailedCursor(null)
+  }
+
   function retry(cursor: string | null = failedCursor) {
     if (pending.current || !submitted) return
     void request(submitted, cursor, generation.current)
@@ -93,5 +102,5 @@ export function useJobBoardSearch(rerankingEnabled = false) {
     void request(submitted, nextCursor, generation.current)
   }
 
-  return { listings, submittedSearch: submitted, reranking, pages, loading, errors, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
+  return { listings, submittedSearch: submitted, reranking, pages, loading, errors, search, clear, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
 }

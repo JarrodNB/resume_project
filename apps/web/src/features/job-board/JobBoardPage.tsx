@@ -1,9 +1,11 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
  * The search form's keyword and main filters stay on top; its experience-level and later filters
  * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
- * Search owns submitted results and optional ordering; the form owns editable filters.
+ * The URL owns submitted filters; search owns results and optional ordering.
+ * The form owns editable filters until submission.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
@@ -11,7 +13,8 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
-import { boardPageSize, describeSearch } from './searchFilters'
+import { boardPageSize, describeSearch, type BoardSearch } from './searchFilters'
+import { parseSearchUrl, serializeSearchUrl } from './searchUrl'
 import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
@@ -21,12 +24,37 @@ import './jobBoard.css'
 
 
 export function JobBoardPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const urlSearch = parseSearchUrl(location.search)
+  const appliedLocation = useRef<string | null>(null)
   const searchIdeas = useJobBoardSearchIdeas()
-  const [keyword, setKeyword] = useState('')
+  const [keywordDraft, setKeywordDraft] = useState({ entry: location.key, value: urlSearch?.keyword ?? '' })
+  if (keywordDraft.entry !== location.key) setKeywordDraft({ entry: location.key, value: urlSearch?.keyword ?? '' })
+  const keyword = keywordDraft.entry === location.key ? keywordDraft.value : urlSearch?.keyword ?? ''
+  function setKeyword(value: string) { setKeywordDraft({ entry: location.key, value }) }
   const [hideSaved, setHideSaved] = useState(false)
   const [rerankingEnabled, setRerankingEnabled] = useState(false)
   const board = useJobBoardSearch(rerankingEnabled)
   const { reranking, submittedSearch } = board
+  useEffect(() => {
+    if (appliedLocation.current === location.key) return
+    appliedLocation.current = location.key
+    const submitted = parseSearchUrl(location.search)
+    const canonical = submitted ? serializeSearchUrl(submitted) : ''
+    if (canonical !== location.search) {
+      void navigate({ pathname: location.pathname, search: canonical }, { replace: true })
+      return
+    }
+    if (submitted) board.search(submitted)
+    else board.clear()
+  }, [location.key, location.pathname, location.search, navigate, board])
+
+  function submitSearch(search: BoardSearch) {
+    const next = serializeSearchUrl(search)
+    if (next === location.search) board.search(search)
+    else navigate({ pathname: location.pathname, search: next })
+  }
   const importer = useImportJobBoardListing()
   // Listings saved from this page stay in place; the row offers a link to the new job instead.
   const [savedHere, setSavedHere] = useState<Record<string, { jobId: string; warnings: string[] }>>({})
@@ -69,7 +97,7 @@ export function JobBoardPage() {
         </div>
       </div>}
       <div className="board-layout">
-      <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
+      <JobBoardSearchForm key={location.key} initialSearch={urlSearch} keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
             <Checkbox aria-describedby="board-reranking-help" checked={rerankingEnabled} onCheckedChange={(checked) => setRerankingEnabled(checked === true)} />Rerank using my career library

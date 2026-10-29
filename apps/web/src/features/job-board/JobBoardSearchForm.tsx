@@ -3,7 +3,8 @@
  * level, employment type, advanced filters and the children (reranking) form a second part that
  * the page shows as a sidebar beside the results on wide screens. Both parts belong to one form
  * (`display: contents`), stay mounted so choices survive closing the panel, and location names
- * must resolve before a search is sent.
+ * must resolve before a search is sent. Router entries remount the form with a submitted
+ * initial search; later edits stay local until the user submits.
  */
 import { useState, type ReactNode } from 'react'
 import { Globe2, Search, SlidersHorizontal } from 'lucide-react'
@@ -17,17 +18,23 @@ import { useOpenSection } from '@/components/useOpenSection'
 import { JobBoardLocationPicker, type LocationChoice } from './JobBoardLocationPicker'
 import { ageOptions, employmentTypeOptions, experienceLevelOptions, remoteOptions, type BoardSearch } from './searchFilters'
 
-export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, children }: { children?: ReactNode; onSearch: (search: BoardSearch) => void; keyword: string; onKeywordChange: (value: string) => void }) {
-  const [remote, setRemote] = useState('')
-  const [maxAge, setMaxAge] = useState('')
-  const [sortBy, setSortBy] = useState('published')
-  const [experienceLevels, setExperienceLevels] = useState<JobBoardExperienceLevel[]>([])
-  const [employmentTypes, setEmploymentTypes] = useState<string[]>([])
-  const [location, setLocation] = useState<LocationChoice | null>(null)
+export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, children, initialSearch }: { initialSearch?: BoardSearch | null; children?: ReactNode; onSearch: (search: BoardSearch) => void; keyword: string; onKeywordChange: (value: string) => void }) {
+  const [remote, setRemote] = useState(initialSearch?.filters?.remoteType ?? (initialSearch?.remoteOnly ? 'remote' : ''))
+  const [maxAge, setMaxAge] = useState(initialSearch?.filters?.maxAge ?? '')
+  const [sortBy, setSortBy] = useState(initialSearch?.filters?.sortBy ?? 'published')
+  const [experienceLevels, setExperienceLevels] = useState<JobBoardExperienceLevel[]>(initialSearch?.experienceLevels ?? [])
+  const [employmentTypes, setEmploymentTypes] = useState<string[]>(initialSearch?.filters?.employmentTypes ?? [])
+  const [location, setLocation] = useState<LocationChoice | null>(() => {
+    const filters = initialSearch?.filters
+    const id = filters?.cityId ?? filters?.stateId
+    if (!id) return null
+    const kind = filters?.cityId ? 'city' : 'state'
+    return { kind, providerId: id, label: initialSearch?.locationLabel ?? `Selected ${kind} (${id})` }
+  })
   const [unresolvedLocation, setUnresolvedLocation] = useState(false)
-  const [companyName, setCompanyName] = useState('')
-  const [minimumSalary, setMinimumSalary] = useState('')
-  const [includeUndisclosed, setIncludeUndisclosed] = useState(true)
+  const [companyName, setCompanyName] = useState(initialSearch?.filters?.companyName ?? '')
+  const [minimumSalary, setMinimumSalary] = useState(initialSearch?.filters?.minimumSalary?.toString() ?? '')
+  const [includeUndisclosed, setIncludeUndisclosed] = useState(initialSearch?.filters?.includeUndisclosedSalaries !== false)
   const filters = useOpenSection('job-board:filters')
   const advanced = useOpenSection('job-board:more-filters')
   const salaryValid = !minimumSalary || (Number.isInteger(Number(minimumSalary)) && Number(minimumSalary) >= 1 && Number(minimumSalary) <= 1_000_000_000)
@@ -58,7 +65,7 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
     <div className="board-filter-grid">
       <div><Label htmlFor="board-age">Date posted</Label><select id="board-age" value={maxAge} onChange={(event) => setMaxAge(event.target.value)}>{ageOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
       <div><Label htmlFor="board-remote">Remote arrangement</Label><select id="board-remote" value={remote} onChange={(event) => setRemote(event.target.value)}>{remoteOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
-      <JobBoardLocationPicker onChange={(choice, unresolved) => { setLocation(choice); setUnresolvedLocation(unresolved) }} />
+      <JobBoardLocationPicker initialChoice={location} onChange={(choice, unresolved) => { setLocation(choice); setUnresolvedLocation(unresolved) }} />
       <div><Label htmlFor="board-sort">Sort by</Label><select id="board-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value)}><option value="published">Newest</option><option value="relevance">Most relevant</option></select></div>
     </div>
     </div>

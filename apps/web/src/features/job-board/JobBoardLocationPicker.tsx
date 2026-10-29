@@ -8,10 +8,10 @@ import { Label } from '@/components/ui/label'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { useJobBoardLocations } from './useJobBoardLocations'
 export type LocationChoice = { kind: string; providerId: number; label: string }
-export function JobBoardLocationPicker({ onChange }: { onChange: (choice: LocationChoice | null, unresolved: boolean) => void }) {
+export function JobBoardLocationPicker({ onChange, initialChoice }: { initialChoice?: LocationChoice | null; onChange: (choice: LocationChoice | null, unresolved: boolean) => void }) {
   const input = useRef<HTMLInputElement>(null)
-  const [text, setText] = useState('')
-  const [selected, setSelected] = useState<LocationChoice | null>(null)
+  const [text, setText] = useState(initialChoice?.label ?? '')
+  const [selected, setSelected] = useState<LocationChoice | null>(initialChoice ?? null)
   const { choices, loading, searched, errors, reset, findLocations } = useJobBoardLocations()
   function change(value: string) {
     reset()

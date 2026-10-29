@@ -57,7 +57,7 @@ it('reopens saved dialogue directly after refresh and prepends earlier history',
 })
 
 it('loads another saved-chat page without losing the first page', async () => {
-  renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(undefined, 'older-chats'), workspaceMock([conversation('old', 'Changing careers')], null, 'older-chats')] })
+  renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(undefined, 'older-chats'), workspaceMock([conversation('old', 'Changing careers')], null, 'older-chats'), historyMock('chat-1'), ...operationMocks('chat-1')] })
   fireEvent.click(await screen.findByRole('button', { name: 'Load older chats' }))
   expect(await screen.findByRole('link', { name: /Changing careers/ })).toHaveAttribute('href', '/chat/old')
   expect(screen.getByRole('link', { name: /Preparing for interviews/ })).toBeInTheDocument()
@@ -65,13 +65,13 @@ it('loads another saved-chat page without losing the first page', async () => {
 })
 
 it('retains saved chats and stays put when creating a chat fails', async () => {
-  const { router } = renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(), {
+  const { router } = renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(), historyMock('chat-1'), ...operationMocks('chat-1'), {
     request: { query: CREATE_CHAT_CONVERSATION }, result: { data: { createChatConversation: { __typename: 'CreateConversationPayload', conversation: null, errors: ['Could not save this chat. Try again.'] } } },
   }] })
   await screen.findByRole('link', { name: /Preparing for interviews/ })
   fireEvent.click(screen.getByRole('button', { name: 'New chat' }))
   expect(await screen.findByText('Could not save this chat. Try again.')).toBeInTheDocument()
-  expect(router.state.location.pathname).toBe('/chat')
+  expect(router.state.location.pathname).toBe('/chat/chat-1')
   expect(screen.getByRole('link', { name: /Preparing for interviews/ })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'New chat' })).toBeEnabled()
 })
@@ -85,8 +85,14 @@ it('offers recovery when a bookmarked chat cannot be loaded', async () => {
   expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
 })
 
+it('opens the most recent saved chat when no chat is selected', async () => {
+  const { router } = renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock([conversation('chat-2'), conversation('chat-1', 'Preparing for interviews')]), historyMock('chat-2'), ...operationMocks('chat-2')] })
+  expect(await screen.findByText('This chat is ready for your first message.')).toBeInTheDocument()
+  expect(router.state.location.pathname).toBe('/chat/chat-2')
+})
+
 it('shows the notes panel beside the conversation', async () => {
-  renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock()] })
+  renderPage({ path: '/chat/:id?', url: '/chat', element: <ChatPage />, mocks: [workspaceMock(), historyMock('chat-1'), ...operationMocks('chat-1')] })
   expect(await screen.findByRole('link', { name: /Preparing for interviews/ })).toHaveAttribute('href', '/chat/chat-1')
   expect(screen.getByRole('complementary', { name: 'About this chat' })).toHaveTextContent('Messages can contain up to 10,000 characters.')
 })

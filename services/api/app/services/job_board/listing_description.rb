@@ -36,9 +36,9 @@ module JobBoard
         if heading?(element)
           heading = clean(element.xpath(".//text()").map(&:text).join(" ")).downcase.tr("’", "'")
           current = category(heading)
-        elsif (labelled = paragraph_label(element)) && category(labelled.first)
-          current = category(labelled.first)
-          result[current].concat(list_items(labelled.last))
+        elsif (labelled = paragraph_label(element)) && (labelled_category = category(labelled.first))
+          # The label covers only its own paragraph, not list items that follow it.
+          result[labelled_category].concat(list_items(labelled.last))
         elsif element.name == "li" && current
           text = list_item_text(element)
           result[current] << clean(text) if clean(text).present?

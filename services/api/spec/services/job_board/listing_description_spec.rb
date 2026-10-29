@@ -69,4 +69,11 @@ RSpec.describe JobBoard::ListingDescription do
     description = described_class.new("<h3>Requirements</h3><p>Note: Apply online.</p><ul><li>Ruby</li></ul>")
     expect(description.sections[:requirements]).to eq([ "Ruby" ])
   end
+
+  it "keeps an inline-labelled paragraph from claiming the list items after it" do
+    description = described_class.new(
+      "<h3>Travel</h3><p>Travel Requirement: Up to 25% travel.</p><p>Benefits at Example</p><ul><li>Medical plan</li></ul>"
+    )
+    expect(description.sections[:requirements]).to eq([ "Up to 25% travel." ])
+  end
 end

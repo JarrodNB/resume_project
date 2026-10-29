@@ -145,8 +145,8 @@ including blank locations, are never backfilled or changed by a repeat import.
 
 New Jobs map provided fields directly and extract bullets only beneath recognized
 description headings. A paragraph that starts with a short label, such as "Duties: ...",
-counts as a heading. When that label names duties, responsibilities, skills, or
-requirements, its sentences (or semicolon items, for a long one-sentence list) become
+is its own small section; it never claims list items that follow it. When that label names
+duties, responsibilities, skills, or requirements, its sentences (or semicolon items, for a long one-sentence list) become
 bullets in both the extracted lists and the displayed text. Other long labelled
 paragraphs move under their own label line. There is no LLM classification or automatic AI task on
 import. The saved Job can then use the existing gap-analysis and tailoring flows.

@@ -145,11 +145,19 @@ Per task type:
 
 - `parse_resume`: input `{source_file: {key, filename, content_type}}`, where `key` is the
   Active Storage blob key in the S3 uploads bucket. The completed result is
-  `{parsed_resume: ParsedResume}` (`services/ai/schemas/parsed_resume.py`). The user reviews and
+  `{parsed_resume: ParsedResume, job_title_suggestions: [...]}`. The optional suggestions are
+  inferred search metadata, separate from faithfully extracted `ParsedResume` facts. The existing
+  profile extraction response supplies up to five distinct titles (100 characters each), with no
+  additional model call. Unusable suggestions are dropped without failing valid extracted facts;
+  privacy restoration also applies before publication. The user reviews and
   edits it, then the `importParsedResume` mutation writes it to the career library and
   fills blank profile fields on the user (contact details, summary). It creates no resume;
   resumes are only created when tailoring for a job. Each task imports once, tracked by
-  `AiTask#accepted_at`.
+  `AiTask#accepted_at`. Acceptance also saves nonempty valid suggestions from the owned stored
+  task result to the user in the same transaction; client-reviewed JSON cannot set them.
+  Later accepted imports replace suggestions; legacy/empty/unusable metadata preserves them.
+  Replaying an accepted task cannot overwrite a later list. Parsing completion alone changes
+  no saved suggestions. Library edits do not automatically refresh them.
   The AI worker validates the original extracted text limits, then `services/ai/pii/`
   detects names, emails, and phones locally using bundled Presidio/spaCy assets.
   Parsing screens the complete masked source once (using chunks when necessary), then

@@ -6,11 +6,39 @@ import { Link } from 'react-router'
 import { JobsPage } from '@/features/jobs/JobsPage'
 import { JOBS_QUERY } from '@/features/jobs/jobsOperations'
 import type { MockLink } from '@apollo/client/testing'
-import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, JOB_BOARD_LOCATIONS_QUERY } from './jobBoardOperations'
+import { IMPORT_JOB_BOARD_LISTING_MUTATION, JOB_BOARD_SEARCH_QUERY, JOB_BOARD_LOCATIONS_QUERY, JOB_BOARD_SEARCH_IDEAS_QUERY } from './jobBoardOperations'
 import { renderPage } from '@/test/renderPage'
 import { setSectionOpen } from '@/lib/openSections'
 import type { BoardListing } from './useJobBoardSearch'
 import { JobBoardPage } from './JobBoardPage'
+
+it('uses imported title chips without searching or changing selected filters', async () => {
+  const user = userEvent.setup()
+  const fetched = vi.fn(() => ({ data: { jobBoardSearch: page() } }))
+  renderBoard([
+    { request: { query: JOB_BOARD_SEARCH_IDEAS_QUERY }, result: { data: { me: { __typename: 'User', id: 'me', jobTitleSuggestions: ['Backend engineer', 'API developer'] } } } },
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('Backend engineer', true) }, result: fetched },
+  ])
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'remote')
+  await user.click(await screen.findByRole('button', { name: 'Backend engineer' }))
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('Backend engineer')
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveFocus()
+  expect(screen.getByRole('combobox', { name: 'Remote arrangement' })).toHaveValue('remote')
+  expect(screen.queryByRole('button', { name: 'Software engineer' })).not.toBeInTheDocument()
+  expect(fetched).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: 'Search jobs' }))
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(fetched).toHaveBeenCalledTimes(1)
+})
+
+it.each([false, true])('keeps default chips when suggestions are unavailable (error: %s)', async (fails) => {
+  renderBoard([{
+    request: { query: JOB_BOARD_SEARCH_IDEAS_QUERY },
+    ...(fails ? { error: new Error('Unavailable') } : { result: { data: { me: { __typename: 'User', id: 'me', jobTitleSuggestions: [] } } } }),
+  }])
+  expect(await screen.findByRole('button', { name: 'Software engineer' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Search jobs' })).toBeDisabled()
+})
 
 it('starts with a keyword invitation without requesting listings', async () => {
   const fetched = vi.fn(() => ({ data: { jobBoardSearch: page() } }))

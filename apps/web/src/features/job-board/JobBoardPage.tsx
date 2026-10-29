@@ -15,11 +15,12 @@ import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
+import { useJobBoardSearchIdeas } from './useJobBoardSearchIdeas'
 import './jobBoard.css'
 
-const searchIdeas = ['Software engineer', 'Product designer', 'Data analyst']
 
 export function JobBoardPage() {
+  const searchIdeas = useJobBoardSearchIdeas()
   const [keyword, setKeyword] = useState('')
   const [hideSaved, setHideSaved] = useState(false)
   const [rerankingEnabled, setRerankingEnabled] = useState(false)

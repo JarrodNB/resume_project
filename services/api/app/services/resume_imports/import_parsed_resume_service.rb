@@ -1,6 +1,7 @@
 # Locks the owner before the import task so blank-profile checks see current values and approvals.
 # Description: Imports a parsed resume (as reviewed and edited by the user) into the career
-# library and fills blank profile fields (contact, summary). Experiences, projects, and
+# library and fills blank profile fields (contact, summary). Saves generated search titles
+# from the owned task only when acceptance commits, separately from reviewed career facts. Experiences, projects, and
 # educations and certifications that match an existing entry are merged into it instead of duplicated; the counts
 # are stored on the task as result["import_summary"] = { "added", "merged" }. Each parse_resume
 # task can be imported once. The library's embeddings are re-synced after the import commits.
@@ -63,6 +64,18 @@ module ResumeImports
       add_or_merge_records(@user.educations, items("educations")) { |record, item| assign_education(record, item) }
       add_or_merge_records(@user.certifications, items("certifications")) { |record, item| assign_certification(record, item) }
       create_new_skills
+      save_job_title_suggestions
+    end
+
+    # Optional generated metadata belongs to the stored task, never client-edited resume JSON.
+    # A legacy or unusable result preserves existing suggestions.
+    def save_job_title_suggestions
+      titles = @ai_task.result&.fetch("job_title_suggestions", nil)
+      return unless titles.is_a?(Array) && titles.all?(String)
+
+      normalized = titles.map(&:strip).select { |title| title.present? && title.length <= 100 }
+        .uniq(&:downcase).first(5)
+      @user.update!(job_title_suggestions: normalized) if normalized.any?
     end
 
     # Sets name, contact details, and summary only where the user has nothing yet, so a later

@@ -113,3 +113,7 @@ clarification, assessment, or accepted answer.
 Reusable context about the user’s career, stored as a requirement or topic and their response.
 A `CareerContext` belongs to the user’s career library; a job-specific answer may link to it.
 The requirement explains the response and is not itself evidence of the user’s experience.
+
+**Job-title search suggestion**:
+A suggested role title to help start a job search. It is a search aid based on career evidence,
+not a claim that the person holds that title or meets every qualification for it.

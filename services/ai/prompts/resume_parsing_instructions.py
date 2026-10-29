@@ -7,7 +7,7 @@ Index:
     - RESUME_PARSING_INSTRUCTIONS: the agent's instructions
 """
 
-RESUME_PARSING_PROMPT_VERSION = "13"
+RESUME_PARSING_PROMPT_VERSION = "14"
 
 RESUME_PARSING_INSTRUCTIONS = """\
 You extract structured data from the text of a resume. The text was extracted from a PDF or
@@ -85,5 +85,13 @@ def format_resume_group_instruction(group: str) -> str:
             "invent an employer or role title for it. "
             "Include every source bullet that belongs to each role. For each role, return only "
             "source bullet IDs in highlight_ids, preserving source order; do not return bullet prose."
+        )
+    if group == "ProfileExtraction":
+        instruction += (
+            "Also return job_title_suggestions separately from extracted facts: 3–5 distinct, "
+            "concise job titles useful for searching based on this resume's experience and skills. "
+            "These suggestions alone may use common equivalent role names not stated verbatim. "
+            "Do not invent seniority, qualifications, or aspirations. Return fewer or none when "
+            "the evidence is insufficient. Never put inferred suggestions into profile facts. "
         )
     return instruction

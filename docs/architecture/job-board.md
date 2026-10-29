@@ -12,6 +12,12 @@ It starts without a search. Jobs (`/jobs`)
 remains the current user's private saved list. Only **Create job** saves a listing;
 **Open saved job** opens a match already owned by that user.
 
+Before a submitted search, chips show the signed-in user's saved job-title suggestions from
+confirmed resume imports. They come from `me.jobTitleSuggestions`, fetched when the board
+opens so a later accepted import is reflected. Missing or unavailable suggestions retain the
+three default examples. Clicking a chip fills and focuses the keyword without submitting or
+changing filters. Manual-only users keep defaults until they confirm an import.
+
 ## Ownership and provider access
 
 Rails calls CleanJobData's list endpoint through `JobBoard::SearchCleanJobDataService`.

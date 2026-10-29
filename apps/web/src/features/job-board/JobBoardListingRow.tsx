@@ -1,9 +1,11 @@
 /** Present one opportunity with scannable details and a private save/open action.
- * Descriptions remain plain text and remember whether the user has expanded them.
+ * Descriptions remain plain text, shown with their labels and bullets, and remember
+ * whether the user has expanded them.
  */
 import { Link } from 'react-router'
 import { ArrowUpRight, MapPin, Plus, Radio } from 'lucide-react'
 import { CollapseToggle } from '@/components/CollapseToggle'
+import { FormattedDescription } from '@/components/FormattedDescription'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
 import { employmentTypeOptions, remoteOptions } from './searchFilters'
@@ -45,7 +47,7 @@ export function JobBoardListingRow({ listing, busyId, onCreate }: Props) {
           <CollapseToggle open={open} panelId={panelId} onToggle={toggle} className="board-description-toggle">
             <span>Description <span className="sr-only">for {listing.title}</span></span>
           </CollapseToggle>
-          {open && <div id={panelId} className="board-description">{listing.description}</div>}
+          {open && <FormattedDescription id={panelId} className="board-description" text={listing.description} />}
         </> : <p className="board-description-missing">No description provided.</p>}
       </article>
     </li>

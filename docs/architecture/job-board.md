@@ -86,7 +86,8 @@ Displayed IDs are deduplicated in first-seen order. A failed page retry preserve
 successful pages. A successful earlier-page refresh preserves descendants when its
 continuation is unchanged; a changed cursor drops the obsolete descendants.
 Request generations prevent old successes or failures replacing a newer search.
-Descriptions are text inside remembered collapsed disclosures, never raw HTML.
+Descriptions are text inside remembered collapsed disclosures, never raw HTML. Short
+"Label:" lines and "- " bullets are shown as labels and lists; the text itself is not parsed as markup.
 Hide already saved immediately filters loaded results by the owner-scoped `savedJob`
 reference, after optional career-library ordering. It does not change provider requests,
 shared pages, or reranking candidates. Counts distinguish shown, loaded, and hidden rows;
@@ -143,7 +144,11 @@ same rule, including new imports of older catalogue snapshots. Existing saved Jo
 including blank locations, are never backfilled or changed by a repeat import.
 
 New Jobs map provided fields directly and extract bullets only beneath recognized
-description headings. There is no LLM classification or automatic AI task on
+description headings. A paragraph that starts with a short label, such as "Duties: ...",
+is its own small section; it never claims list items that follow it. When that label names
+duties, responsibilities, skills, or requirements, its sentences (or semicolon items, for a long one-sentence list) become
+bullets in both the extracted lists and the displayed text. Other long labelled
+paragraphs move under their own label line. There is no LLM classification or automatic AI task on
 import. The saved Job can then use the existing gap-analysis and tailoring flows.
 Provider licence confirmation remains a commercial-rollout dependency.
 

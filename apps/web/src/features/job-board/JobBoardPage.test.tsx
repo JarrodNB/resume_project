@@ -86,13 +86,14 @@ it('submits multiple experience levels and preserves them on pagination despite 
     { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, null, ['EN', 'SE']) }, result: first },
     queryMock(searchVariables('engineer', false, 'next', ['EN', 'SE']), page([listing('two', 'Second role')])),
   ])
-  await user.click(screen.getByRole('checkbox', { name: 'Entry level' }))
-  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
+  await toggleFilterOption(user, 'Experience level', 'Entry level')
+  await toggleFilterOption(user, 'Experience level', 'Senior')
   expect(first).not.toHaveBeenCalled()
+  expect(filterSummary('Experience level')).toBe('Entry level, Senior')
   await search(user)
   await screen.findByRole('heading', { name: 'First role' })
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Entry level, Senior')
-  await user.click(screen.getByRole('checkbox', { name: 'Mid level' }))
+  await toggleFilterOption(user, 'Experience level', 'Mid level')
   expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Mid level')
   await user.click(screen.getByRole('button', { name: 'Next page' }))
   await screen.findByRole('heading', { name: 'Second role' })
@@ -124,10 +125,10 @@ it('retries selected experience levels after the draft selection changes', async
     queryMock(searchVariables('engineer', false, null, ['EX']), page([], { retrievedAt: null, errors: ['Try later.'] })),
     queryMock(searchVariables('engineer', false, null, ['EX']), page([listing()])),
   ])
-  await user.click(screen.getByRole('checkbox', { name: 'Executive' }))
+  await toggleFilterOption(user, 'Experience level', 'Executive')
   await search(user)
   await screen.findByText('Try later.')
-  await user.click(screen.getByRole('checkbox', { name: 'Executive' }))
+  await toggleFilterOption(user, 'Experience level', 'Executive')
   await user.click(screen.getByRole('button', { name: 'Try again' }))
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Executive')
@@ -136,8 +137,8 @@ it('retries selected experience levels after the draft selection changes', async
 it('clears selected levels back to an unrestricted search', async () => {
   const user = userEvent.setup()
   renderBoard([queryMock()])
-  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
-  await user.click(screen.getByRole('checkbox', { name: 'Senior' }))
+  await toggleFilterOption(user, 'Experience level', 'Senior')
+  await toggleFilterOption(user, 'Experience level', 'Senior')
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('All experience levels')
@@ -171,6 +172,13 @@ it('collapses filters, remembers the choice, and keeps their values and count', 
   await user.click(toggle)
   expect(screen.getByRole('combobox', { name: 'Date posted' })).toHaveValue('7d')
 })
+/** Experience level and employment type are dropdowns; open the right one before picking. */
+async function toggleFilterOption(user: ReturnType<typeof userEvent.setup>, filter: string, option: string) {
+  if (!screen.queryByRole('checkbox', { name: option })) await user.click(filterTrigger(filter))
+  await user.click(screen.getByRole('checkbox', { name: option }))
+}
+function filterTrigger(filter: string) { return screen.getByRole('button', { name: new RegExp(`^${filter}`) }) }
+function filterSummary(filter: string) { return filterTrigger(filter).textContent }
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {
   const input = screen.getByRole('textbox', { name: 'Keyword or job title' })
   await user.clear(input)
@@ -441,8 +449,8 @@ it('submits all provider filters and keeps their snapshot for pagination and ret
   await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '7d')
   await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'fully_remote')
   await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'relevance')
-  await user.click(screen.getByRole('checkbox', { name: 'Full-time' }))
-  await user.click(screen.getByRole('checkbox', { name: 'Contract' }))
+  await toggleFilterOption(user, 'Employment type', 'Full-time')
+  await toggleFilterOption(user, 'Employment type', 'Contract')
   await user.type(screen.getByRole('textbox', { name: 'US city or state' }), 'California')
   await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), 'engineer')
   expect(screen.getByRole('button', { name: 'Search jobs' })).toBeDisabled()
@@ -458,7 +466,7 @@ it('submits all provider filters and keeps their snapshot for pagination and ret
   expect(screen.getByText(/For “engineer”/)).toHaveTextContent('Company: Acme')
   await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '30d')
   await user.selectOptions(screen.getByRole('combobox', { name: 'Sort by' }), 'published')
-  await user.click(screen.getByRole('checkbox', { name: 'Full-time' }))
+  await toggleFilterOption(user, 'Employment type', 'Full-time')
   await user.clear(screen.getByRole('textbox', { name: 'Company' }))
   await user.click(screen.getByRole('button', { name: 'Clear location' }))
   await user.click(screen.getByRole('button', { name: 'Next page' }))
@@ -495,7 +503,7 @@ it('shows salary, employment, remote restrictions and a valid posting date', asy
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   expect(screen.getByText('$60 per hour · USD')).toBeInTheDocument()
   expect(screen.getByText('Remote — country restricted', { selector: 'span' })).toBeInTheDocument()
-  expect(screen.getAllByText('Contract')).toHaveLength(2)
+  expect(within(screen.getByRole('list', { name: 'Job listings' })).getByText('Contract')).toBeInTheDocument()
   expect(screen.getAllByRole('time').some((item) => item.getAttribute('datetime') === '2026-10-26T00:00:00Z')).toBe(true)
 })
 
@@ -552,7 +560,7 @@ it('hydrates a bookmarked search and uses resolved identities without another lo
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
   expect(screen.getByRole('textbox', { name: 'US city or state' })).toHaveValue('Boston, MA')
-  expect(screen.getByRole('checkbox', { name: 'Senior' })).toBeChecked()
+  expect(filterSummary('Experience level')).toBe('Senior')
   expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('relevance')
 })
 
@@ -770,10 +778,8 @@ it('removes each applied filter value while preserving the other submitted choic
     expect(screen.queryByRole('button', { name: `Remove ${change.label} filter` })).not.toBeInTheDocument()
     change.urlRemove?.forEach((key) => expect(new URLSearchParams(router.state.location.search).has(key)).toBe(false))
   }
-  expect(screen.getByRole('checkbox', { name: 'Senior' })).toBeChecked()
-  expect(screen.getByRole('checkbox', { name: 'Full-time' })).toBeChecked()
-  expect(screen.getByRole('checkbox', { name: 'Entry level' })).not.toBeChecked()
-  expect(screen.getByRole('checkbox', { name: 'Contract' })).not.toBeChecked()
+  expect(filterSummary('Experience level')).toBe('Senior')
+  expect(filterSummary('Employment type')).toBe('Full-time')
   expect(screen.getByRole('textbox', { name: 'US city or state' })).toHaveValue('')
   expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
 })
@@ -797,8 +803,8 @@ it('clears every filter and sort while retaining the applied keyword', async () 
   expect(screen.queryByRole('group', { name: 'Applied filters' })).not.toBeInTheDocument()
   expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
   expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
-  expect(screen.getByRole('checkbox', { name: 'Mid level' })).not.toBeChecked()
-  expect(screen.getByRole('checkbox', { name: 'Part-time' })).not.toBeChecked()
+  expect(filterSummary('Experience level')).toBe('All levels')
+  expect(filterSummary('Employment type')).toBe('All types')
   await user.click(screen.getByRole('button', { name: 'More filters' }))
   expect(screen.getByRole('textbox', { name: 'Company' })).toHaveValue('')
   expect(screen.getByRole('spinbutton', { name: 'Minimum salary' })).toHaveValue(null)

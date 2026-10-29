@@ -27,7 +27,10 @@ def test_generates_from_the_frozen_description_without_library(task_dependencies
     with study_guide_agent.override(model=TestModel()):
         result = handle_ai_task(task(), task_dependencies)
     assert result.status == "completed"
-    assert result.result["study_guide"]["topics"][0]["exercises"]
+    guide = result.result["study_guide"]
+    assert guide["version"] == 1
+    assert len(guide["questions"]) == 5
+    assert all(question["question"] and question["answer"] and question["example"] for question in guide["questions"])
 
 
 @pytest.mark.parametrize("description", ["", " ", "x" * 20_001])
@@ -100,4 +103,32 @@ def test_invalid_model_output_exhausts_repair_with_usage_retained(task_dependenc
     assert result.status == "failed"
     assert result.result is None
     assert result.usage
+    assert result.usage[-1].output_tokens > 0
+
+
+def test_unusable_description_fails_clearly_without_inventing_questions(task_dependencies):
+    from agents.study_guide_agent import study_guide_agent
+
+    with study_guide_agent.override(model=TestModel(seed=1, custom_output_args={
+        "cannot_generate_reason": "Add a meaningful job description with duties to study.",
+    })):
+        result = handle_ai_task(task("The clouds were beautiful."), task_dependencies)
+    assert result.status == "failed"
+    assert result.result == {"failure_code": "insufficient_description"}
+    assert "job description" in result.error_message
+    assert result.usage[-1].output_tokens > 0
+
+
+@pytest.mark.parametrize("count", [4, 6])
+def test_incomplete_or_oversized_batch_cannot_complete(task_dependencies, count):
+    from agents.study_guide_agent import study_guide_agent
+
+    question = {"question": "How do you reconcile stock?", "why_it_matters": "The role reconciles stock.",
+                "answer": "Compare counts and check receipts to explain discrepancies.", "example": "10 recorded minus 8 counted leaves 2 to investigate."}
+    with study_guide_agent.override(model=TestModel(custom_output_args={
+        "version": 1, "title": "Stock", "questions": [question] * count,
+    })):
+        result = handle_ai_task(task(), task_dependencies)
+    assert result.status == "failed"
+    assert result.result is None
     assert result.usage[-1].output_tokens > 0

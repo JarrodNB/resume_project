@@ -101,8 +101,12 @@ with a short reason and an optional question about useful missing detail. It eva
 description, not the person's employability.
 
 **Study guide**:
-Saved learning material derived from a job description, with prioritized topics, explanations,
-practice exercises, and self-check questions. It describes what to study, not the job seeker's experience.
+A saved collection of learning questions derived from a job description, with explained answers
+and worked examples. It teaches subject knowledge, not claims about the job seeker's experience.
+
+**Study question**:
+One focused learning question with its supplied explanation and worked example, separate from
+a candidate's own interview-practice answer.
 
 **Career reference**:
 A saved career-library piece shown during interview practice to help the candidate recall

@@ -10,6 +10,7 @@ from schemas.study_guide import StudyGuide
 class StudyGuideEvalInput(BaseModel):
     description: str
     expects_block: bool = False
+    expects_unusable: bool = False
 
 
 class StudyGuideEvalOutput(BaseModel):
@@ -24,4 +25,6 @@ class StudyGuideOutcome(Evaluator[StudyGuideEvalInput, StudyGuideEvalOutput, Non
     def evaluate(self, ctx: EvaluatorContext[StudyGuideEvalInput, StudyGuideEvalOutput, None]):
         if ctx.inputs.expects_block:
             return {"expected_outcome": float(ctx.output.status == "failed" and ctx.output.guide is None and ctx.output.failure_code == "input_rejected")}
+        if ctx.inputs.expects_unusable:
+            return {"expected_outcome": float(ctx.output.status == "failed" and ctx.output.guide is None and ctx.output.failure_code == "insufficient_description")}
         return {"expected_outcome": float(ctx.output.status == "completed" and ctx.output.guide is not None)}

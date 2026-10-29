@@ -47,9 +47,11 @@ RSpec.describe "Study guide generation" do
     expect(saved.reload.result).to eq("study_guide" => { "title" => "Saved material" })
     expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: expired.id }, expired).once
 
-    late_guide = { "title" => "Late output", "topics" => [ { "title" => "Inventory reconciliation",
-      "why_it_matters" => "The job reconciles stock.", "explanation" => "Compare physical counts with stock records.",
-      "exercises" => [ "Reconcile a sample ledger." ], "self_check_questions" => [ "What causes discrepancies?" ] } ] }
+    late_guide = { "version" => 1, "title" => "Late output", "questions" => Array.new(5) { |index|
+      { "question" => "How do you reconcile inventory #{index + 1}?", "why_it_matters" => "The job reconciles stock.",
+        "answer" => "Compare physical counts with stock records and investigate missing receipts.",
+        "example" => "A count of 8 against a record of 10 leaves 2 to investigate before correction." }
+    } }
     late = { "ai_task_id" => expired.id, "status" => "completed", "attempt_id" => SecureRandom.uuid,
       "usage" => [ { "cost_microdollars" => 7 } ], "result" => { "study_guide" => late_guide } }
     2.times { AiTasks::ApplyAiResultService.call(message: late) }

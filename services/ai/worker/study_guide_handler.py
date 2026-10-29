@@ -8,7 +8,7 @@ from pydantic_ai.usage import RunUsage
 from agents.study_guide_agent import generate_study_guide
 from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.blocks import source_block
-from schemas.study_guide import StudyGuideInput
+from schemas.study_guide import StudyGuideInput, StudyGuideUnavailable
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, within_screening_session
 from worker.queue_messages import AiResultMessage
@@ -50,6 +50,10 @@ def handle_study_guide_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="The AI could not produce a valid study guide. Try again.")
     model = reported_model_name(run.response.model_name or settings.study_guide_model, settings.study_guide_model)
+    if isinstance(run.output, StudyGuideUnavailable):
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+            result={"failure_code": "insufficient_description"}, error_message=run.output.cannot_generate_reason,
+            usage=[*usage, build_model_usage(model, run.usage)])
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
         result={"study_guide": run.output.model_dump(mode="json")},
         usage=[*usage, build_model_usage(model, run.usage)])

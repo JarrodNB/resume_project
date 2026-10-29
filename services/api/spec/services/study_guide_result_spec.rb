@@ -6,7 +6,11 @@ RSpec.describe "Study guide results" do
   let(:job) { create(:job, user: user, description: "Reconcile inventory.") }
   let(:task) { create(:ai_task, user: user, subject: job, task_type: "generate_study_guide", input: { job_id: job.id, description: job.description }) }
   let(:guide) do
-    { "title" => "Inventory study guide", "topics" => [ { "title" => "Stock reconciliation", "why_it_matters" => "The job requires reconciliation.", "explanation" => "Compare recorded stock with physical counts and investigate differences.", "exercises" => [ "Reconcile a sample stock ledger." ], "self_check_questions" => [ "What can cause a discrepancy?" ] } ] }
+    { "version" => 1, "title" => "Inventory study guide", "questions" => Array.new(5) { |index|
+      { "question" => "How do you reconcile stock #{index + 1}?", "why_it_matters" => "The job requires reconciliation.",
+        "answer" => "Compare recorded stock with physical counts and investigate differences.",
+        "example" => "A count of 8 and a ledger of 10 differ by 2. Check receipts before correcting the ledger." }
+    } }
   end
 
   before { allow(ApiSchema.subscriptions).to receive(:trigger) }
@@ -19,6 +23,24 @@ RSpec.describe "Study guide results" do
     apply("study_guide" => { "title" => "Empty", "topics" => [] })
     expect(task.reload).to be_failed
     expect(task.result).to be_nil
+  end
+
+  [ 4, 6 ].each do |count|
+    it "rejects a batch of #{count} questions" do
+      guide["questions"] = Array.new(count) { guide["questions"].first.deep_dup }
+      apply("study_guide" => guide)
+      expect(task.reload).to be_failed
+      expect(task.result).to be_nil
+    end
+  end
+
+  [ "question", "why_it_matters", "answer", "example" ].each do |field|
+    it "rejects a question with a blank #{field}" do
+      guide["questions"][0][field] = "  "
+      apply("study_guide" => guide)
+      expect(task.reload).to be_failed
+      expect(task.result).to be_nil
+    end
   end
 
   it "retains a valid guide and immutable source, ignoring duplicate result delivery" do

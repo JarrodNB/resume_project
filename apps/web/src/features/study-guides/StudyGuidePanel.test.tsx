@@ -10,7 +10,7 @@ import { AI_TASK_UPDATED_SUBSCRIPTION } from '@/features/ai-tasks/aiTaskOperatio
 import { GENERATE_STUDY_GUIDE_MUTATION, STUDY_GUIDE_QUERY, STUDY_GUIDE_CONTENT_QUERY } from './studyGuideOperations'
 
 beforeEach(() => localStorage.clear())
-const result = (title = 'Inventory study guide') => ({ study_guide: { title, topics: [{ title: 'Stock reconciliation', why_it_matters: 'The role reconciles stock.', explanation: 'Compare physical counts with the ledger.', exercises: ['Reconcile a sample ledger.'], self_check_questions: ['What causes discrepancies?'] }] } })
+const result = (title = 'Inventory study guide') => ({ study_guide: { version: 1 as const, title, questions: Array.from({ length: 5 }, (_, index) => ({ question: `How do you reconcile stock ${index + 1}?`, why_it_matters: 'The role reconciles stock.', answer: `Compare physical counts with the ledger ${index + 1}.`, example: 'A ledger of 12 and a count of 10 differ by 2; investigate receipts before changing the record.' })) } })
 const saved = { __typename: 'AiTask' as const, id: 'guide-1', status: 'COMPLETED', errorMessage: null as string | null, createdAt: '2026-10-25T12:00:00Z', studyGuideRetryAfterSeconds: null as number | null }
 const summary = (id = saved.id, createdAt = saved.createdAt, sourceDescriptionFingerprint = 'original') => ({ __typename: 'StudyGuideSummary' as const, id, createdAt, sourceDescriptionFingerprint, outOfDate: sourceDescriptionFingerprint !== 'original' })
 function historyMock({ guides = [summary()], nextCursor = null as string | null, cursor = null as string | null, task = saved as typeof saved | null, jobId = 'job-1', errors = [] as string[], fingerprint = 'original' } = {}) {
@@ -247,8 +247,37 @@ it('resets history and selection when the route switches jobs', async () => {
   function JobGuides() { return <StudyGuidePanel jobId={useParams().id!} description="Original description" /> }
   const view = renderPage({ path: '/jobs/:id', url: '/jobs/job-1', element: <JobGuides />, mocks: [historyMock(), contentMock(), historyMock({ jobId: 'job-2', guides: [summary('second')], task: null }), contentMock('second', 'Second job guide', 'job-2')] })
   expect(await screen.findByRole('heading', { name: 'Inventory study guide' })).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.getByText('Compare physical counts with the ledger 2.')).toBeInTheDocument()
   await view.router.navigate('/jobs/job-2')
   expect(await screen.findByRole('heading', { name: 'Second job guide' })).toBeInTheDocument()
   expect(screen.queryByRole('heading', { name: 'Inventory study guide' })).not.toBeInTheDocument()
+  expect(screen.getByText('Question 1 of 5')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Show answer' })).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.queryByText('Compare physical counts with the ledger 2.')).not.toBeInTheDocument()
   expect(screen.getAllByRole('button', { name: /Read guide from/ })).toHaveLength(1)
+})
+
+
+it('reveals one explained answer at a time and hides it when navigating', async () => {
+  renderPage({ path: '/', url: '/', element: <StudyGuidePanel jobId="job-1" description="Original description" />, mocks: [historyMock(), contentMock()] })
+  expect(await screen.findByRole('heading', { name: 'How do you reconcile stock 1?' })).toBeInTheDocument()
+  expect(screen.getByText('Question 1 of 5')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled()
+  expect(screen.queryByText('Compare physical counts with the ledger 1.')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.getByText('Compare physical counts with the ledger 1.')).toBeInTheDocument()
+  expect(screen.getByText(/A ledger of 12/)).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+  expect(screen.getByRole('heading', { name: 'How do you reconcile stock 2?' })).toHaveFocus()
+  expect(screen.getByText('Question 2 of 5')).toBeInTheDocument()
+  expect(screen.queryByText('Compare physical counts with the ledger 1.')).not.toBeInTheDocument()
+  expect(screen.queryByText('Compare physical counts with the ledger 2.')).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Previous' }))
+  expect(screen.getByRole('heading', { name: 'How do you reconcile stock 1?' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Show answer' })).toHaveAttribute('aria-expanded', 'false')
+  for (let i = 0; i < 4; i++) await userEvent.click(screen.getByRole('button', { name: 'Next' }))
+  expect(screen.getByText('Question 5 of 5')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled()
 })

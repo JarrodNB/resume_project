@@ -26,11 +26,11 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
     monkeypatch.setattr(suite, "judge_output", judge)
     inputs = StudyGuideEvalInput(description="Inventory clerk: reconcile stock counts.")
     output = StudyGuideEvalOutput(status="completed", guide=StudyGuide.model_validate({
-        "title": "Inventory study guide", "topics": [{
-            "title": "Stock reconciliation", "why_it_matters": "The job requires accurate stock counts.",
-            "explanation": "Compare a physical count with the ledger and investigate differences.",
-            "exercises": ["Reconcile a sample ledger."], "self_check_questions": ["What causes discrepancies?"],
-        }],
+        "title": "Inventory study guide", "questions": [{
+            "question": f"How do you reconcile stock {index}?", "why_it_matters": "The job requires accurate stock counts.",
+            "answer": "Compare a physical count with the ledger and investigate differences.",
+            "example": "A ledger of 12 and a count of 10 differ by 2; check receipts before correcting records.",
+        } for index in range(5)],
     }))
 
     def evaluate_dataset(load_dataset, _task, **kwargs):
@@ -44,15 +44,15 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
     material = "\n".join(seen)
     for expected in [
         "Job description:\nInventory clerk: reconcile stock counts.",
-        "Expected behavior: Generate a study guide", "Actual outcome: completed", "Failure code: none",
-        "Guide title: Inventory study guide", "Topic 1: Stock reconciliation",
+        "Expected behavior: Generate five answered study questions", "Actual outcome: completed", "Failure code: none",
+        "Guide title: Inventory study guide", "Question 1: How do you reconcile stock 0?",
         "Why it matters: The job requires accurate stock counts.",
-        "Explanation: Compare a physical count with the ledger and investigate differences.",
-        "Exercise 1: Reconcile a sample ledger.", "Self-check 1: What causes discrepancies?",
+        "Answer: Compare a physical count with the ledger and investigate differences.",
+        "Worked example: A ledger of 12 and a count of 10 differ by 2; check receipts before correcting records.",
     ]:
         assert expected in material
     assert '"description":' not in material
-    assert '"topics":' not in material
+    assert '"questions":' not in material
 
 
 def test_quality_judge_keeps_rejection_and_screening_outage_distinct(monkeypatch):
@@ -80,3 +80,18 @@ def test_quality_judge_keeps_rejection_and_screening_outage_distinct(monkeypatch
         assert "Expected behavior: Reject the injected input (expects_block=true)." in seen[-1]
         assert "Guide: none" in seen[-1]
         assert StudyGuideOutcome().evaluate(context)["expected_outcome"] == float(code == "input_rejected")
+
+
+def test_unusable_source_requires_its_own_failure_code():
+    from types import SimpleNamespace
+
+    from evals.study_guide_evaluators import (
+        StudyGuideEvalInput,
+        StudyGuideEvalOutput,
+        StudyGuideOutcome,
+    )
+
+    inputs = StudyGuideEvalInput(description="Clouds were orange.", expects_unusable=True)
+    for code in ("insufficient_description", "input_rejected", "screening_unavailable"):
+        context = SimpleNamespace(inputs=inputs, output=StudyGuideEvalOutput(status="failed", failure_code=code))
+        assert StudyGuideOutcome().evaluate(context)["expected_outcome"] == float(code == "insufficient_description")

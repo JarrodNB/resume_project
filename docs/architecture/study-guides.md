@@ -1,6 +1,6 @@
 # Study guides
 
-Study guides turn a saved job description into readable learning material. They are separate
+Study guides turn a saved job description into answered learning questions. They are separate
 from career-library interview practice and fictional-role interview preparation.
 
 `generateStudyGuide(jobId)` authorizes through the current user's jobs and queues
@@ -28,10 +28,13 @@ The worker screens the frozen description afresh. Existing saved-job approvals c
 fields and are not reused. Unavailable screening and rejected input both fail closed, with
 distinct diagnostics. The versioned Pydantic AI agent uses the official input guard, contact
 masking, tracing, bounded run limits, and configured model/fallback policy. It returns
-`result.study_guide` with a title and 1–8 ordered topics. Each topic contains a title,
-`why_it_matters`, an explanation, 1–5 exercises, and 1–5 self-check questions. The model
+`result.study_guide` version 1 with a title and exactly five ordered questions. Each question
+contains `question`, `why_it_matters`, a well-explained `answer` (up to 6,000 characters),
+and a worked `example` (up to 3,000 characters). Question and relevance text are each bounded
+to 1,000 characters. The worker can instead return an unavailable output with a reason;
+this becomes a failed task with `failure_code=insufficient_description` and retained usage. The model
 teaches relevant subject knowledge without inventing candidate experience or employer facts.
-Irrelevant source text receives a brief request for a meaningful description, not an invented role.
+Irrelevant source text fails with a request for a meaningful description, not an invented role.
 
 Rails validates the result shape and existing owned job under owner/task/job locks before
 accepting completion. Each successful output remains on its own AI task. The newest attempt
@@ -49,8 +52,11 @@ owned job's Study tab (`/jobs/:id/study`); deleted or unavailable jobs fall back
 
 Study guides live on the job workspace's Study tab, which is always open.
 It loads a guide body only when that guide is selected, follows task subscriptions instead of polling,
-and shows generation errors beside retained successful material. It offers readable
-exercises and questions without answer persistence, grading, or progress tracking.
+and shows generation errors beside retained successful material. It shows one question at a time
+with a revealable explained answer and worked example. Previous/Next
+controls move focus to the question heading and hide the answer. Changing guides or jobs resets
+the reader. No user-answer persistence, grading, or progress tracking is provided. Topic-format
+development guides are unsupported; users can explicitly generate the new question format.
 
 `job.studyGuides(cursor)` returns five successful guide summaries at a time, newest first
 by request time and then task ID. The summaries contain IDs, generation dates, and source
@@ -92,6 +98,7 @@ generation is disabled; reload to verify saved history and freshness.
 Quality checks: `python -m evals.run_study_guide_evals` uses five synthetic descriptions
 covering inventory, backend engineering, a sparse bakery role, irrelevant text, and an
 injected instruction. Deterministic checks verify outcomes; a separate judge assesses
-relevance, subject accuracy, and useful exercises. Screening outages fail evaluation rather
+relevance, subject accuracy, answer depth, and useful worked examples. Screening outages fail
+evaluation rather
 than counting as attack rejection. Offline contracts live in handler and evaluator tests;
 finite model evaluations do not prove universal subject correctness.

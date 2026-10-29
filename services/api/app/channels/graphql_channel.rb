@@ -34,9 +34,14 @@ class GraphqlChannel < ApplicationCable::Channel
   end
 
   # Subscription broadcasts bypass execute; guard their delivery as well.
-  def transmit(data, **options)
+  # The inherited method logs raw result.inspect, including private transcripts.
+  def transmit(data, via: nil)
     return connection.check_session unless connection.session_valid?
-    super
+    logger.debug "GraphqlChannel transmitting a private result"
+    ActiveSupport::Notifications.instrument("transmit.action_cable",
+      channel_class: self.class.name, data: data, via: via) do
+      connection.transmit(identifier: identifier, message: data)
+    end
   end
 
   # Cleans up every GraphQL subscription opened on this channel.

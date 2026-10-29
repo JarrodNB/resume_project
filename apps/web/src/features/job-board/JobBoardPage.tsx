@@ -1,5 +1,6 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
- * On wide screens the search form is a sticky sidebar so results stay in view beside it.
+ * The search form's keyword and main filters stay on top; its experience-level and later filters
+ * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
  * Search owns submitted results and optional ordering; the form owns editable filters.
  */
 import { useEffect, useState } from 'react'

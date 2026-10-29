@@ -83,3 +83,65 @@ def test_history_requires_server_owned_previous_turn():
     with pytest.raises(ValidationError, match="owned previous task"):
         JobPreferenceConversationInput(profile_version=0, message="Remote", turn=1,
             history=[{"kind": "response", "parts": []}])
+
+
+def test_registered_preference_agent_masks_request_and_restores_response(task_dependencies, monkeypatch):
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from agents.job_preference_conversation_agent import job_preference_conversation_agent
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
+    from screening.screen_user_text import ScreenOutcome
+
+    install_contact_hooks()
+    screened = []
+    monkeypatch.setattr("worker.job_preference_conversation_handler.screen_user_text",
+        lambda text, *_a, **_k: screened.append(text) or ScreenOutcome(True))
+    contacts = ["Jane Doe", "jane@example.test", "+1 202 555 0199"]
+    payload = {"profile_version": 0, "criteria": [], "message": "Jane Doe needs remote work. Contact: jane@example.test, +1 202 555 0199",
+        "history": [], "turn": 1}
+
+    def proposal(messages, info):
+        rendered = str(messages)
+        assert not any(value in rendered for value in contacts)
+        assert "«name»" in rendered
+        assert "«email»" in rendered
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "reply": "«name», review and confirm your draft.",
+            "criteria": [{"text": "Remote work", "priority": "must_have"}]} )])
+
+    with contact_scope(KnownContact.from_values(names=[contacts[0]], emails=[contacts[1]], phones=[contacts[2]])), job_preference_conversation_agent.override(model=FunctionModel(proposal)):
+        result = handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+            task_type="elicit_job_preferences", input=payload), task_dependencies)
+    assert result.status == "completed"
+    assert "Jane Doe" in result.result["reply"]
+    assert all(not any(value in text for value in contacts) for text in screened)
+
+
+def test_preference_provider_failure_contains_only_masked_request_text(task_dependencies, monkeypatch):
+    from pydantic_ai.models.function import FunctionModel
+
+    from agents.job_preference_conversation_agent import job_preference_conversation_agent
+    from privacy.contact_mask import contact_scope, install_contact_hooks
+    from privacy.known_contact import KnownContact
+    from screening.screen_user_text import ScreenOutcome
+
+    install_contact_hooks()
+    monkeypatch.setattr("worker.job_preference_conversation_handler.screen_user_text", lambda *_a, **_k: ScreenOutcome(True))
+    payload = {"profile_version": 0, "criteria": [], "message": "Jane Doe needs remote work. jane@example.test",
+        "history": [], "turn": 1}
+
+    def fail(messages, _info):
+        raise RuntimeError("Provider failed for " + str(messages))
+
+    with (
+        contact_scope(KnownContact.from_values(names=["Jane Doe"], emails=["jane@example.test"])),
+        job_preference_conversation_agent.override(model=FunctionModel(fail)),
+        pytest.raises(RuntimeError) as raised,
+    ):
+        handle_ai_task(AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(),
+            task_type="elicit_job_preferences", input=payload), task_dependencies)
+    assert "Jane Doe" not in str(raised.value)
+    assert "jane@example.test" not in str(raised.value)
+    assert "«name»" in str(raised.value)

@@ -5,6 +5,16 @@ RSpec.describe "Query scoping" do
   let(:user) { create(:user) }
   let(:other_user) { create(:user) }
 
+  it "exposes only the signed-in user's job-title suggestions" do
+    user.update!(job_title_suggestions: [ "Backend engineer" ])
+    other_user.update!(job_title_suggestions: [ "Product designer" ])
+
+    result = execute_graphql("{ me { jobTitleSuggestions } }", user: user)
+
+    expect(result.dig("data", "me", "jobTitleSuggestions")).to eq([ "Backend engineer" ])
+    expect(execute_graphql("{ me { jobTitleSuggestions } }", user: nil).dig("data", "me")).to be_nil
+  end
+
   it "lists only the user's own jobs, optionally filtered by stage" do
     create(:job, user: user, title: "Mine", stage: "applied")
     create(:job, user: user, title: "Mine too")

@@ -50,7 +50,8 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
             }
         else:
             await asyncio.sleep(0.01)
-            args = {"summary": "Summary", "parsing_warnings": ["Profile warning"]}
+            args = {"summary": "Summary", "parsing_warnings": ["Profile warning"],
+                    "job_title_suggestions": [" Backend engineer ", "backend engineer", "", "API developer"]}
         active -= 1
         return ModelResponse(
             parts=[ToolCallPart(info.output_tools[0].name, args)],
@@ -67,6 +68,9 @@ def test_groups_overlap_and_assemble_in_fixed_order(offline_model_resolution):
     assert result.parsed_resume.experiences[0].highlights == ["Built a thing"]
     assert result.parsed_resume.skills[0].name == "Python"
     assert result.parsed_resume.summary == "Summary"
+    assert result.job_title_suggestions == ["Backend engineer", "API developer"]
+    assert "job_title_suggestions" not in result.parsed_resume.model_dump()
+    assert result.usage.requests == 3
     assert result.parsed_resume.parsing_warnings == [
         "Experience warning",
         "Shared",
@@ -646,3 +650,17 @@ def test_experience_source_reconstruction_rejects_unvalidated_invalid_selections
 
     with pytest.raises(ValueError, match="Use only known source bullet IDs, once per resume"):
         source.reconstruct(output)
+
+
+@pytest.mark.parametrize("suggestions", [None, "wrong", [42], ["", "x" * 101]])
+def test_unusable_optional_titles_do_not_fail_extraction(suggestions, offline_model_resolution):
+    def answer(messages, info):
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {
+            "job_title_suggestions": suggestions, "summary": "Original summary",
+        })])
+
+    offline_model_resolution("openai:gpt-5-mini", FunctionModel(answer))
+    result = parse()
+    assert result.parsed_resume.summary == "Original summary"
+    assert result.job_title_suggestions == []
+    assert result.usage.requests == 3

@@ -19,7 +19,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
   and user: fills fields blank on the target, appends highlights the target doesn't have, then
   deletes a saved source. Works with an unsaved source (the import).
 - `clear_career_library_service.rb` — deletes the user's roles, projects, education, skills,
-  and career context entries, and clears the profile fields an import fills (name, contact, links, summary).
+  and career context entries, and clears the profile fields an import fills (name, contact, links, summary,
+  and generated job-title search suggestions).
   Sign-in email, jobs, and tailored resumes stay. Job answers that pointed at a career context entry stay,
   unlinked. Queues one embedding sync when an entry was removed; a second call changes nothing.
 - `reorder_library_entries_service.rb` — saves a new order for a relation of the user's entries

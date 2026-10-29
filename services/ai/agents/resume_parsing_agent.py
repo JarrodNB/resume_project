@@ -3,6 +3,7 @@
 The public interface returns one ParsedResume only after all groups succeed. The parser
 owns group assembly, one deadline and combined budgets, and awaits cancelled siblings.
 The documents module owns experience passage IDs and exact highlight reconstruction.
+Optional inferred search titles travel beside the extracted facts, never inside ParsedResume.
 """
 
 import asyncio
@@ -94,6 +95,7 @@ class ResumeParsingRun(NamedTuple):
     usage: RunUsage
     model: str = ""
     model_usages: list[ModelUsage] | None = None
+    job_title_suggestions: list[str] | None = None
 
 
 @within_screening_session
@@ -186,6 +188,7 @@ async def _run_with_deadline(
                         task.cancel()
                 await asyncio.gather(*tasks, return_exceptions=True)
     fields = {}
+    suggestions = []
     warnings = []
     usage = RunUsage()
     charges = []
@@ -195,6 +198,7 @@ async def _run_with_deadline(
             if experience_source is not None
             else result.output.model_dump()
         )
+        suggestions.extend(values.pop("job_title_suggestions", []))
         warnings.extend(values.pop("parsing_warnings"))
         fields.update(values)
         usage.incr(result.usage)
@@ -205,4 +209,5 @@ async def _run_with_deadline(
         usage,
         (charges[0].model if len({charge.model for charge in charges}) == 1 else model),
         charges,
+        suggestions,
     )

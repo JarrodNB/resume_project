@@ -22,6 +22,49 @@ RSpec.describe ResumeImports::ImportParsedResumeService do
     }
   end
 
+  it "saves generated search titles only when accepting the import, ignoring client metadata" do
+    ai_task.update!(result: ai_task.result.merge("job_title_suggestions" => [ " Backend engineer ", "backend engineer", "API developer" ]))
+    expect(user.reload.job_title_suggestions).to eq([])
+    parsed_resume["job_title_suggestions"] = [ "Invented chief executive" ]
+
+    result = described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)
+
+    expect(result).to be_success
+    expect(user.reload.job_title_suggestions).to eq([ "Backend engineer", "API developer" ])
+  end
+
+  it "replaces suggestions on a later acceptance but never on replay of an accepted task" do
+    ai_task.update!(result: ai_task.result.merge("job_title_suggestions" => [ "Backend engineer" ]))
+    expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).to be_success
+    later = create(:ai_task, :completed_resume_parse, user: user)
+    later.update!(result: later.result.merge("job_title_suggestions" => [ "API developer" ]))
+    expect(described_class.call(ai_task: later, parsed_resume: parsed_resume)).to be_success
+
+    expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).not_to be_success
+    expect(user.reload.job_title_suggestions).to eq([ "API developer" ])
+  end
+
+  [ nil, [], "wrong", [ 42 ], [ "", "x" * 101 ] ].each do |suggestions|
+    it "preserves saved suggestions for unavailable optional metadata #{suggestions.inspect}" do
+      user.update!(job_title_suggestions: [ "Existing role" ])
+      ai_task.update!(result: ai_task.result.merge("job_title_suggestions" => suggestions))
+      expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).to be_success
+      expect(user.reload.job_title_suggestions).to eq([ "Existing role" ])
+    end
+  end
+
+  it "bounds saved suggestions and rolls them back when career facts cannot be imported" do
+    ai_task.update!(result: ai_task.result.merge("job_title_suggestions" => (1..8).map { |i| "Role #{i}" }))
+    expect(described_class.call(ai_task: ai_task, parsed_resume: parsed_resume)).to be_success
+    expect(user.reload.job_title_suggestions).to eq((1..5).map { |i| "Role #{i}" })
+
+    failed_task = create(:ai_task, :completed_resume_parse, user: user)
+    failed_task.update!(result: failed_task.result.merge("job_title_suggestions" => [ "Replacement" ]))
+    parsed_resume["experiences"] << { "company" => "", "title" => "Invalid" }
+    expect(described_class.call(ai_task: failed_task, parsed_resume: parsed_resume)).not_to be_success
+    expect(user.reload.job_title_suggestions).to eq((1..5).map { |i| "Role #{i}" })
+  end
+
   it "creates library records with converted dates and ordered highlights" do
     create(:experience, user: user, position: 0)
     create(:skill, user: user, name: "Python")

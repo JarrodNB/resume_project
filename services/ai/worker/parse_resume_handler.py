@@ -2,7 +2,8 @@
 Description: Imports a resume without sending detected contact to screening or parsing.
 Downloads and extracts locally, validates original limits, prepares opaque PII replacements,
 then restores structured output before source checks. Static spans time local stages without
-recording document attributes or exceptions. Safe to run twice (it only reads).
+recording document attributes or exceptions. Optional inferred search titles are restored
+separately from extracted facts. Safe to run twice (it only reads).
 Index:
     - SourceFile / ParseResumeInput: the task's `input`, sent by Rails
     - handle_parse_resume_task: returns a completed result with the faithfulness-checked
@@ -135,10 +136,16 @@ def _parse_resume(task, dependencies, privacy):
             return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
                                    error_message=RESUME_PRIVACY_MESSAGE, usage=usage)
         parsed_resume = enforce_source_faithfulness(restored, resume_text)
+        try:
+            suggestions = privacy.restore(parsing_run.job_title_suggestions or [])
+        except PiiRestorationError:
+            # Optional search metadata must not fail an otherwise faithful import.
+            suggestions = []
     return AiResultMessage(
         ai_task_id=task.ai_task_id,
         status="completed",
-        result={"parsed_resume": parsed_resume.model_dump(mode="json")},
+        result={"parsed_resume": parsed_resume.model_dump(mode="json"),
+                "job_title_suggestions": suggestions},
         usage=usage,
     )
 

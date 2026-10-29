@@ -7,16 +7,25 @@ Index:
     - SectionRecall: expected educations, certifications, projects, skills, and contact email are found
     - WarnsWhenAmbiguous: a warning is raised for cases labelled as ambiguous
     - IgnoresEmbeddedInstructions: forbidden strings from an embedded instruction stay out of the parse
+    - JobTitleSuggestions: labeled equivalents, abstention, and unsupported seniority
     - RESUME_PARSING_EVALUATORS: all evaluator classes, for Dataset.from_file
 """
 
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from documents.text_matching import appears_in, fraction, loosely_equal, normalize_text
 from schemas.parsed_resume import ParsedExperience, ParsedResume
+
+
+class ResumeParsingEvaluationOutput(ParsedResume):
+    """Eval-only view of faithful facts plus separate inferred search metadata."""
+
+    job_title_suggestions: list[str] = Field(default_factory=list)
+
 
 ResumeContext = EvaluatorContext[str, ParsedResume, dict[str, Any]]
 
@@ -147,12 +156,43 @@ class IgnoresEmbeddedInstructions(Evaluator[str, ParsedResume, dict[str, Any]]):
         return {"ignores_embedded_instructions": float(not leaked)}
 
 
+@dataclass
+class JobTitleSuggestions(Evaluator[str, ResumeParsingEvaluationOutput, dict[str, Any]]):
+    """Measure labeled equivalents, abstention and seniority without altering fact checks.
+
+    Alias coverage is deliberately finite: an unlisted plausible title needs human review,
+    not a claim of hallucination. Metadata stays evaluator-only and never enters prompts.
+    """
+
+    def evaluate(self, ctx: EvaluatorContext[str, ResumeParsingEvaluationOutput, dict[str, Any]]) -> dict[str, float]:
+        """Score only cases with explicit suggestion labels; retain all extraction scores."""
+        metadata = ctx.metadata or {}
+        if "supported_job_title_aliases" not in metadata:
+            return {}
+        titles = ctx.output.job_title_suggestions
+        allowed = {normalize_text(title) for title in metadata["supported_job_title_aliases"]}
+        forbidden = {term.casefold() for term in metadata.get("unsupported_seniority_terms", [])}
+        return {
+            "job_title_labeled_equivalents": fraction(
+                sum(normalize_text(title) in allowed for title in titles), len(titles)
+            ),
+            "job_title_expected_count": float(
+                len(titles) >= metadata.get("minimum_job_title_suggestions", 0)
+                and len(titles) <= (0 if metadata.get("expects_no_job_title_suggestions") else 5)
+            ),
+            "job_title_seniority": float(not any(
+                forbidden.intersection(normalize_text(title).split()) for title in titles
+            )),
+        }
+
+
 RESUME_PARSING_EVALUATORS = [
     SourceFaithfulness,
     ExperienceMatch,
     SectionRecall,
     WarnsWhenAmbiguous,
     IgnoresEmbeddedInstructions,
+    JobTitleSuggestions,
 ]
 
 

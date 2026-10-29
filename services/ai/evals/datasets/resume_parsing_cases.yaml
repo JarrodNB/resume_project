@@ -1,5 +1,6 @@
 # Description: Hand-labelled eval cases for the resume parsing agent. All resumes are synthetic.
-# `inputs` is resume text as extracted from a file; `expected_output` is a ParsedResume.
+# `inputs` is extracted resume text; `expected_output` adds eval-only search suggestions
+# to faithful ParsedResume facts. Supported aliases and seniority limits are evaluator-only.
 # Metadata:
 #   - ambiguous_entries: company names that may reasonably land in experiences or projects
 #   - expects_warning: the agent should explain an ambiguity in parsing_warnings
@@ -432,9 +433,82 @@ cases:
           expiry_date: "2027"
 
 
+  - name: search_titles_equivalent_backend_roles
+    inputs: |
+      Morgan Ellis
+      Software Developer — Harbor Tools, 2021 – Present
+      • Build Python APIs and maintain PostgreSQL services.
+      Skills: Python, PostgreSQL, REST APIs
+    expected_output:
+      contact: {full_name: Morgan Ellis}
+      experiences:
+        - company: Harbor Tools
+          title: Software Developer
+          start_date: "2021"
+          is_current: true
+          highlights: [Build Python APIs and maintain PostgreSQL services.]
+      skills: [{name: Python}, {name: PostgreSQL}, {name: REST APIs}]
+      job_title_suggestions: [Backend engineer, API developer, Software engineer]
+    metadata:
+      supported_job_title_aliases:
+        - Backend engineer
+        - Backend developer
+        - Back-end engineer
+        - Back-end developer
+        - API engineer
+        - API developer
+        - Software engineer
+        - Software developer
+        - Python developer
+        - Python engineer
+      minimum_job_title_suggestions: 3
+      unsupported_seniority_terms: [senior, lead, principal, staff, chief, manager, director]
+
+  - name: search_titles_abstain_without_career_evidence
+    inputs: |
+      Casey Lane
+      casey.lane@example.test
+    expected_output:
+      contact: {full_name: Casey Lane, email: casey.lane@example.test}
+      job_title_suggestions: []
+    metadata:
+      supported_job_title_aliases: []
+      expects_no_job_title_suggestions: true
+
+  - name: search_titles_do_not_promote_an_intern
+    inputs: |
+      Robin Chen
+      Data Analyst Intern — Cedar Analytics, June 2025 – August 2025
+      • Cleaned CSV files with Python and created weekly Excel reports.
+      Skills: Python, Excel, SQL
+    expected_output:
+      contact: {full_name: Robin Chen}
+      experiences:
+        - company: Cedar Analytics
+          title: Data Analyst Intern
+          start_date: "2025-06"
+          end_date: "2025-08"
+          highlights: [Cleaned CSV files with Python and created weekly Excel reports.]
+      skills: [{name: Python}, {name: Excel}, {name: SQL}]
+      job_title_suggestions: [Data analyst, Junior data analyst, Reporting analyst]
+    metadata:
+      supported_job_title_aliases:
+        - Data analyst
+        - Junior data analyst
+        - Entry level data analyst
+        - Entry-level data analyst
+        - Data analyst intern
+        - Analytics intern
+        - Reporting analyst
+        - Junior reporting analyst
+        - Data analytics associate
+      minimum_job_title_suggestions: 3
+      unsupported_seniority_terms: [senior, lead, principal, staff, chief, manager, director]
+
 evaluators:
   - SourceFaithfulness
   - ExperienceMatch
   - SectionRecall
   - WarnsWhenAmbiguous
   - IgnoresEmbeddedInstructions
+  - JobTitleSuggestions

@@ -60,3 +60,9 @@ export const JOB_BOARD_RERANKING_SUBSCRIPTION = graphql(`
     aiTaskUpdated(id: $id) { id status result errorMessage }
   }
 `)
+
+export const JOB_BOARD_SEARCH_IDEAS_QUERY = graphql(`
+  query JobBoardSearchIdeas {
+    me { id jobTitleSuggestions }
+  }
+`)

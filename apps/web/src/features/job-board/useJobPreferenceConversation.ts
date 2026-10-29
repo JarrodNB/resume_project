@@ -25,7 +25,8 @@ export function useJobPreferenceConversation(version: number, onAccepted: () => 
   const { aiTask: update, error: subscriptionError } = useAiTaskUpdates(base?.id ?? '')
   const task = update?.id === base?.id ? update : base
   const expectedVersion = versionOf(task?.result) ?? versionOf(task?.input)
-  const stale = state?.stale === true || (typeof expectedVersion === 'number' && expectedVersion !== version)
+  const stale = (state?.aiTask?.id === task?.id && state?.stale === true) ||
+    (typeof expectedVersion === 'number' && expectedVersion !== version)
   const busy = requestState.loading || (task?.status === 'QUEUED' && !stale)
   const refetch = query.refetch
 

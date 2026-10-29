@@ -76,3 +76,32 @@ it('keeps a newer submitted turn when recovery of its predecessor finishes later
   expect(screen.getByText('new:QUEUED')).toBeInTheDocument()
   expect(screen.getByRole('button', {name: 'Answer'})).toBeDisabled()
 })
+
+it('keeps a fresh current-revision turn busy despite the old query conversation being stale', async () => {
+  const user = userEvent.setup()
+  setSectionOpen('job-preferences', true)
+  const old = task('old-stale', 'COMPLETED')
+  const next = {...task('fresh', 'QUEUED'), input: {profile_version: 2, message: 'Remote is required'}}
+  const completed = {...next, status: 'COMPLETED' as const, result: {reply: 'Review the updated remote draft', profile_version: 3, criteria: []}}
+  const profile = {__typename: 'JobPreferenceProfile', version: 2, confirmedRevision: 0,
+    draftCriteria: [{__typename: 'JobPreferenceCriterion', id: 'remote', text: 'Remote work', priority: 'must_have'}], confirmedCriteria: []}
+  const updated = {...profile, version: 3, draftCriteria: [{...profile.draftCriteria[0], text: 'Fully remote work'}]}
+  const queuedResult = vi.fn(() => ({data: {startJobPreferenceConversation: {__typename: 'StartConversationPayload', aiTask: next, errors: []}}}))
+  renderPage({path: '/jobs/find', url: '/jobs/find', element: <JobPreferences />, mocks: [
+    {request: {query: JOB_PREFERENCES_QUERY}, result: {data: {jobPreferences: profile}}},
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: {data: {jobPreferenceConversation: {__typename: 'JobPreferenceConversation', aiTask: old, turns: [], stale: true}}}},
+    {request: {query: AI_TASK_UPDATED_SUBSCRIPTION, variables: {id: 'old-stale'}}, delay: Infinity, result: {data: {aiTaskUpdated: old}}},
+    {request: {query: START_JOB_PREFERENCE_CONVERSATION, variables: {message: 'Remote is required', expectedVersion: 2, previousTaskId: null}}, result: queuedResult},
+    {request: {query: AI_TASK_UPDATED_SUBSCRIPTION, variables: {id: 'fresh'}}, delay: 250, result: {data: {aiTaskUpdated: completed}}},
+    {request: {query: JOB_PREFERENCES_QUERY}, result: {data: {jobPreferences: updated}}},
+    {request: {query: JOB_PREFERENCE_CONVERSATION}, result: conversation(completed, 'Review the updated remote draft')},
+  ]})
+  await screen.findByText('Your preferences changed after this conversation. Your next message starts from the current draft.')
+  await user.type(screen.getByRole('textbox', {name: 'Tell me what you want next'}), 'Remote is required')
+  await user.click(screen.getByRole('button', {name: 'Send preferences'}))
+  await waitFor(() => expect(queuedResult).toHaveBeenCalledOnce())
+  expect(await screen.findByText('Working on your preferences…')).toBeInTheDocument()
+  expect(screen.getByRole('textbox', {name: 'Preference 1'})).toBeDisabled()
+  expect(screen.getByRole('button', {name: 'Send preferences'})).toBeDisabled()
+  expect(await screen.findByDisplayValue('Fully remote work')).toBeEnabled()
+})

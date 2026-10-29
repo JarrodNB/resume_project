@@ -65,8 +65,11 @@ def run_preference_conversation_evals():
         max_concurrency=1, metadata={"model": settings.chat_model, "fallback": settings.generative_fallback_model,
             "cases": 3, "max_turns_per_case": 2}, version=JOB_PREFERENCE_CONVERSATION_PROMPT_VERSION)
     print(json.dumps({"outputs": observed, "known_cost_microdollars": sum(item["known_cost_microdollars"] for item in observed)}, indent=2))
-    if report.failures or any(case.evaluator_failures for case in report.cases):
-        raise RuntimeError("Preference conversation evaluation had execution or evaluator failures")
+    required_scores = ("clarification_route", "stated_preferences_and_priorities", "unsupported_preferences_absent")
+    if not report.cases or report.failures or any(case.evaluator_failures or
+        any(case.scores.get(key) is None or case.scores[key].value != 1.0 for key in required_scores)
+        for case in report.cases):
+        raise RuntimeError("Preference conversation evaluation had execution, evaluator or deterministic quality failures")
     return report
 
 

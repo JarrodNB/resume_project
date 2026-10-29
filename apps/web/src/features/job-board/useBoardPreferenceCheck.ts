@@ -1,29 +1,38 @@
 /** One explicit task covers the raw loaded search snapshot and one confirmed profile revision.
  * Local display choices cannot start work; stale callbacks remain attached to their old scope.
+ * The session visit retains pending and completed work across navigation without buying it again.
  */
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { useApolloClient, useQuery, useSubscription } from '@apollo/client/react'
 import type { AiTaskStatusEnum, JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_PREFERENCES_QUERY } from './jobPreferenceOperations'
 import { CHECK_JOB_BOARD_PREFERENCE_RESULTS, JOB_PREFERENCE_CHECK_SUBSCRIPTION } from './preferenceCheckOperations'
 import { boardPreferenceDecisions, orderByPreferences } from './preferenceAssessments'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import type { SearchSnapshot } from './useJobBoardSearch'
 
 type Profile = JobPreferencesQuery['jobPreferences']
 type Identity = { client: object; scope: SearchSnapshot; revision?: number }
 type CheckTask = { id: string; status: AiTaskStatusEnum; result: unknown; errorMessage?: string | null }
 type Request = Identity & { profile: Profile; task: CheckTask }
+export interface PreferenceCheckState {
+  active: boolean
+  request: Request | null
+  pending: Identity | null
+  failure: (Identity & { message: string }) | null
+}
+export type PreferenceCheckLock = Identity | null
 const sameScope = (left: Identity | null, right: Identity) => left?.client === right.client && left.scope === right.scope
 
-export function useBoardPreferenceCheck(snapshot: SearchSnapshot) {
+export function useBoardPreferenceCheck(snapshot: SearchSnapshot, visit: JobBoardVisit) {
   const client = useApolloClient()
-  const [active, setActive] = useState(false)
+  const { active, request, pending, failure } = visit.getState().preferenceCheck
+  const setActive = (active: boolean) => visit.update((state) => ({ preferenceCheck: { ...state.preferenceCheck, active } }))
+  const setRequest = (change: Request | null | ((current: Request | null) => Request | null)) => visit.update((state) => ({ preferenceCheck: { ...state.preferenceCheck, request: typeof change === 'function' ? change(state.preferenceCheck.request) : change } }))
+  const setPending = (change: Identity | null | ((current: Identity | null) => Identity | null)) => visit.update((state) => ({ preferenceCheck: { ...state.preferenceCheck, pending: typeof change === 'function' ? change(state.preferenceCheck.pending) : change } }))
+  const setFailure = (failure: PreferenceCheckState['failure']) => visit.update((state) => ({ preferenceCheck: { ...state.preferenceCheck, failure } }))
   const { data } = useQuery(JOB_PREFERENCES_QUERY, { skip: !active, fetchPolicy: 'cache-first' })
-  const [request, setRequest] = useState<Request | null>(null)
-  const [pending, setPending] = useState<Identity | null>(null)
-  const [failure, setFailure] = useState<(Identity & { message: string }) | null>(null)
-  const lock = useRef<Identity | null>(null)
   const identity = { client, scope: snapshot, revision: data?.jobPreferences.confirmedRevision }
   const latest = useRef(identity)
   useLayoutEffect(() => { latest.current = identity })
@@ -43,8 +52,8 @@ export function useBoardPreferenceCheck(snapshot: SearchSnapshot) {
 
   async function check() {
     const operation: Identity = { client, scope: snapshot }
-    if ((sameScope(lock.current, operation) && (lock.current?.revision === undefined || lock.current.revision === identity.revision)) || !snapshot.listings.length || snapshot.listings.length > 100) return
-    lock.current = operation
+    if ((sameScope(visit.preferenceLock, operation) && (visit.preferenceLock?.revision === undefined || visit.preferenceLock.revision === identity.revision)) || !snapshot.listings.length || snapshot.listings.length > 100) return
+    visit.setPreferenceLock(operation)
     setPending(operation)
     setFailure(null)
     const isCurrent = () => sameScope(latest.current, operation) && (operation.revision === undefined || latest.current.revision === undefined || latest.current.revision === operation.revision)
@@ -65,7 +74,7 @@ export function useBoardPreferenceCheck(snapshot: SearchSnapshot) {
       setRequest({ ...operation, profile, task: response.aiTask })
     } catch (cause) { fail(requestErrorMessage(cause, 'Could not check these results. Please try again.')) }
     finally {
-      if (lock.current === operation) lock.current = null
+      if (visit.preferenceLock === operation) visit.setPreferenceLock(null)
       setPending((value) => value && sameScope(value, operation) && value.revision === operation.revision ? null : value)
     }
   }

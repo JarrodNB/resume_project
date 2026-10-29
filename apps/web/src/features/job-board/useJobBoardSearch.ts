@@ -1,14 +1,15 @@
 /** Owns the submitted search, provider pages and optional ordering as one snapshot.
  * Drafts stay in the form. Each accepted page creates a fresh ranking identity;
  * retries keep successful pages, and superseded requests cannot replace this search.
+ * Session visits retain the snapshot and request lock across route navigation.
  * Rails owns freshness and listing identity.
  */
-import { useRef, useState } from 'react'
 import { useApolloClient } from '@apollo/client/react'
 import type { JobBoardSearchQuery } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_BOARD_SEARCH_QUERY } from './jobBoardOperations'
 import type { BoardSearch } from './searchFilters'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import { useJobBoardReranking } from './useJobBoardReranking'
 
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
@@ -26,26 +27,25 @@ function providerListings(pages: LoadedPage[]): BoardListing[] {
 }
 
 /** Submit a form snapshot; displayed context, pagination and optional ranking stay together. */
-export function useJobBoardSearch() {
+export function useJobBoardSearch(visit: JobBoardVisit) {
   const client = useApolloClient()
-  const generation = useRef(0)
-  const pending = useRef(false)
-  const [snapshot, setSnapshot] = useState<SearchSnapshot>({ submitted: null, pages: [], listings: [] })
+  const { snapshot, loading, errors, failedCursor } = visit.getState()
   const { submitted, pages } = snapshot
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState<string[]>([])
-  const [failedCursor, setFailedCursor] = useState<string | null>(null)
-  const { listings, ...reranking } = useJobBoardReranking(snapshot)
+  const setErrors = (errors: string[]) => visit.update({ errors })
+  const setLoading = (loading: boolean) => visit.update({ loading })
+  const setFailedCursor = (failedCursor: string | null) => visit.update({ failedCursor })
+  const setSnapshot = (change: SearchSnapshot | ((current: SearchSnapshot) => SearchSnapshot)) => visit.update((state) => ({ snapshot: typeof change === 'function' ? change(state.snapshot) : change }))
+  const { listings, ...reranking } = useJobBoardReranking(snapshot, visit)
 
   async function request(search: BoardSearch, cursor: string | null, current: number) {
-    pending.current = true
+    visit.setPending(true)
     setLoading(true)
     setErrors([])
     try {
       // Rails owns shared freshness, including shorter date-filtered cache windows.
       const { keyword, remoteOnly, experienceLevels, filters } = search
       const { data } = await client.query({ query: JOB_BOARD_SEARCH_QUERY, variables: { keyword, remoteOnly, experienceLevels, ...(filters && { filters }), cursor }, fetchPolicy: 'no-cache' })
-      if (generation.current !== current) return
+      if (visit.generation !== current) return
       const page = data?.jobBoardSearch
       if (!page?.retrievedAt) {
         setErrors(page?.errors.length ? page.errors : ['Could not load jobs. Please try again.'])
@@ -62,12 +62,12 @@ export function useJobBoardSearch() {
         return { ...snapshot, pages, listings: providerListings(pages) }
       })
     } catch (error) {
-      if (generation.current !== current) return
+      if (visit.generation !== current) return
       setErrors([requestErrorMessage(error, 'Could not load jobs. Please try again.')])
       setFailedCursor(cursor)
     } finally {
-      if (generation.current === current) {
-        pending.current = false
+      if (visit.generation === current) {
+        visit.setPending(false)
         setLoading(false)
       }
     }
@@ -76,22 +76,32 @@ export function useJobBoardSearch() {
   function search(draft: BoardSearch) {
     if (!draft.keyword.trim()) return
     const submitted = { ...draft, keyword: draft.keyword.trim(), experienceLevels: [...draft.experienceLevels], ...(draft.filters && { filters: { ...draft.filters, ...(draft.filters.employmentTypes && { employmentTypes: [...draft.filters.employmentTypes] }) } }) }
-    generation.current += 1
+    visit.startSearch()
+    setFailedCursor(null)
     setSnapshot({ submitted, pages: [], listings: [] })
     setErrors([])
-    void request(submitted, null, generation.current)
+    void request(submitted, null, visit.generation)
+  }
+
+  function clear() {
+    visit.startSearch()
+    visit.setPending(false)
+    setSnapshot({ submitted: null, pages: [], listings: [] })
+    setLoading(false)
+    setErrors([])
+    setFailedCursor(null)
   }
 
   function retry(cursor: string | null = failedCursor) {
-    if (pending.current || !submitted) return
-    void request(submitted, cursor, generation.current)
+    if (visit.pending || !submitted) return
+    void request(submitted, cursor, visit.generation)
   }
 
   const nextCursor = pages.at(-1)?.nextCursor ?? null
   function loadMore() {
-    if (!nextCursor || pending.current || !submitted || pages.some((page) => page.cursor === nextCursor)) return
-    void request(submitted, nextCursor, generation.current)
+    if (!nextCursor || visit.pending || !submitted || pages.some((page) => page.cursor === nextCursor)) return
+    void request(submitted, nextCursor, visit.generation)
   }
 
-  return { listings, providerListings: snapshot.listings, snapshot, submittedSearch: submitted, reranking, pages, loading, errors, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
+  return { listings, providerListings: snapshot.listings, snapshot, submittedSearch: submitted, reranking, pages, loading, errors, search, clear, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
 }

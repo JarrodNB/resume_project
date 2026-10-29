@@ -1,5 +1,5 @@
 /** Follow optional reranking through the page's real GraphQL operations and result ordering. */
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApolloClient, InMemoryCache } from '@apollo/client'
 import { ApolloProvider } from '@apollo/client/react'
@@ -12,7 +12,7 @@ import { JobBoardPage } from './JobBoardPage'
 import { JOB_BOARD_SEARCH_QUERY, JOB_BOARD_RERANKING_SUBSCRIPTION, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
 
 function listing(id: string) {
-  return { __typename: 'JobBoardListing', preferenceSourceDigest: 'fixture-digest', id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing', preferenceSourceDigest: 'fixture-digest', applicationUrl: null, id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function searchMock(keyword = 'engineer', ids = ['first', 'second'], cursor: string | null = null, nextCursor: string | null = null): MockLink.MockedResponse {
   return {
@@ -177,17 +177,92 @@ it('uses submitted context when provider controls contain unsent edits', async (
   expect(screen.getByText(/For “engineer”/)).not.toHaveTextContent('Past 24 hours')
 })
 
-it('discards private ordering when the signed-in session replaces its Apollo client', async () => {
+it('discards private listings, preferences and ordering when the session replaces its Apollo client', async () => {
   const user = userEvent.setup()
   const firstClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([searchMock(), rankMock()]) })
-  const secondClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([]) })
+  const secondFetch = vi.fn(() => ({ data: { jobBoardSearch: { __typename: 'JobBoardSearchPage', listings: [listing('new-account')], nextCursor: null, retrievedAt: '2026-10-26T00:00:00Z', stale: false, errors: [] } } }))
+  const secondClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([
+    { ...searchMock(), result: secondFetch },
+  ]) })
   const page = (client: ApolloClient) => <ApolloProvider client={client}><MemoryRouter><JobBoardPage /></MemoryRouter></ApolloProvider>
   const view = render(page(firstClient))
   await search(user)
   await screen.findByRole('heading', { name: 'first role' })
   await user.click(toggle())
   await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
   view.rerender(page(secondClient))
+  expect(screen.queryByRole('heading', { name: 'first role' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'second role' })).not.toBeInTheDocument()
+  await screen.findByRole('heading', { name: 'new-account role' })
+  expect(screen.getByRole('combobox', { name: 'Result order' })).toHaveValue('provider')
+  expect(secondFetch).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('Loaded roles ranked using your career library.')).not.toBeInTheDocument()
+})
+
+it('ignores a previous task subscription update after resubmitting the same candidates', async () => {
+  const user = userEvent.setup()
+  const oldUpdate = vi.fn(() => ({ data: { aiTaskUpdated: task('rank-1', ['second', 'first']) } }))
+  renderBoard([
+    searchMock(), rankMock(), searchMock('designer'),
+    rankMock('designer', ['first', 'second'], [], { result: { data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-2', null), errors: [] } } } }),
+    { request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-2' } }, result: oldUpdate },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  await search(user, 'designer')
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await waitFor(() => expect(oldUpdate).toHaveBeenCalledOnce())
   expect(titles()).toEqual(['first role', 'second role'])
   expect(screen.queryByText('Loaded roles ranked using your career library.')).not.toBeInTheDocument()
+  expect(screen.getByText(/For “designer”/)).toBeInTheDocument()
+})
+
+
+it.each(['completed', 'queued'])('resumes %s reranking after leaving during its mutation without buying another task', async (status) => {
+  const ranked = vi.fn(() => ({ data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-1', status === 'completed' ? ['second', 'first'] : null), errors: [] } } }))
+  const { router } = renderPage({ path: '/jobs/find', url: '/jobs/find?q=engineer', element: <JobBoardPage />, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }], mocks: [
+    searchMock(), rankMock('engineer', ['first', 'second'], [], { result: ranked, delay: 150 }),
+    ...(status === 'queued' ? [{ request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-1' } }, result: { data: { aiTaskUpdated: task('rank-1', ['second', 'first']) } } }] : []),
+  ] })
+  await screen.findByRole('heading', { name: 'first role' })
+  vi.useFakeTimers()
+  try {
+    fireEvent.click(toggle())
+    expect(screen.getByText(/Reranking loaded roles/)).toBeInTheDocument()
+    await act(() => router.navigate('/jobs/saved'))
+    await act(() => vi.advanceTimersByTimeAsync(200))
+    await act(() => router.navigate(-1))
+    await act(() => vi.advanceTimersByTimeAsync(100))
+    expect(screen.getByText('Loaded roles ranked using your career library.')).toBeInTheDocument()
+    expect(titles()).toEqual(['second role', 'first role'])
+    expect(screen.getByRole('combobox', { name: 'Result order' })).toHaveValue('library')
+    expect(ranked).toHaveBeenCalledTimes(1)
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
+
+it('requires an explicit rerank after refreshing the same provider IDs', async () => {
+  const user = userEvent.setup()
+  const stale = searchMock()
+  stale.result = { data: { jobBoardSearch: { __typename: 'JobBoardSearchPage', listings: ['first', 'second'].map(listing), nextCursor: null, retrievedAt: '2026-10-26T00:00:00Z', stale: true, errors: ['Temporarily unavailable.'] } } }
+  const refreshedRank = vi.fn(() => ({ data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-2', ['first', 'second']), errors: [] } } }))
+  renderBoard([stale, rankMock(), searchMock(), rankMock('engineer', ['first', 'second'], ['first', 'second'], { result: refreshedRank })])
+  await search(user)
+  await screen.findByRole('heading', { name: 'first role' })
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(titles()).toEqual(['second role', 'first role'])
+  await user.click(screen.getByRole('button', { name: 'Retry results' }))
+  await waitFor(() => expect(titles()).toEqual(['first role', 'second role']))
+  expect(refreshedRank).not.toHaveBeenCalled()
+  await user.click(toggle())
+  await screen.findByText('Loaded roles ranked using your career library.')
+  expect(refreshedRank).toHaveBeenCalledOnce()
 })

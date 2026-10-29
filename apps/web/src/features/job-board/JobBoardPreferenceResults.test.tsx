@@ -15,7 +15,7 @@ import type { BoardListing } from './useJobBoardSearch'
 
 type TestListing = BoardListing & { __typename: string; savedJob: { id: string; __typename: string } | null }
 function listing(id: string): TestListing {
-  return { __typename: 'JobBoardListing', id, preferenceSourceDigest: `digest-${id}`, title: `${id} role`, company: 'Acme', location: 'US', description: 'Role details.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing', applicationUrl: null, id, preferenceSourceDigest: `digest-${id}`, title: `${id} role`, company: 'Acme', location: 'US', description: 'Role details.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 const criteria = [
   { __typename: 'JobPreferenceCriterion' as const, id: 'must', text: 'Fully remote', priority: 'must_have' },
@@ -231,6 +231,7 @@ it('discards private preference assessments when the signed-in session replaces 
   const user = userEvent.setup()
   const first = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([search(), preferences(), check()]) })
   const second = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([
+    search(['new-account']),
     { request: { query: JOB_PREFERENCES_QUERY }, result: { data: { jobPreferences: { ...profile, version: 0, confirmedRevision: 0, draftCriteria: [], confirmedCriteria: [] } } } },
   ]) })
   const page = (client: ApolloClient) => <ApolloProvider client={client}><MemoryRouter><JobBoardPage /></MemoryRouter></ApolloProvider>
@@ -242,5 +243,30 @@ it('discards private preference assessments when the signed-in session replaces 
   view.rerender(page(second))
   expect(screen.queryByText('Loaded roles checked against your confirmed preferences.')).not.toBeInTheDocument()
   expect(screen.queryByText('Checked against your confirmed preferences.')).not.toBeInTheDocument()
-  expect(titles()[0]).toBe('conflict role')
+  expect(screen.queryByRole('heading', { name: 'conflict role' })).not.toBeInTheDocument()
+  await screen.findByRole('heading', { name: 'new-account role' })
+  expect(screen.getByRole('combobox', { name: 'Result order' })).toHaveValue('provider')
+})
+
+
+it.each([['COMPLETED', '/jobs/saved'], ['QUEUED', '/jobs/saved'], ['QUEUED', '/jobs/find?q=designer']])('restores a %s preference check after visiting %s during its mutation without buying another task', async (status, destination) => {
+  const user = userEvent.setup()
+  const checked = vi.fn(() => ({ data: { checkJobBoardPreferenceResults: { __typename: 'CheckPreferenceResultsPayload', errors: [], aiTask: {
+    __typename: 'AiTask', id: 'batch-1', status, result: status === 'COMPLETED' ? result() : null, errorMessage: null,
+  } } } }))
+  const { router } = renderPage({ path: '/jobs/find', url: '/jobs/find?q=engineer', element: <JobBoardPage />,
+    extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }], mocks: [search(), search(['other'], 'designer'), preferences(), check(undefined, { result: checked, delay: 200 }),
+      ...(status === 'QUEUED' ? [{ request: { query: JOB_PREFERENCE_CHECK_SUBSCRIPTION, variables: { id: 'batch-1' } }, result: { data: { aiTaskUpdated: { __typename: 'AiTask', id: 'batch-1', status: 'COMPLETED', result: result(), errorMessage: null } } } }] : []),
+    ] })
+  await screen.findByRole('heading', { name: 'conflict role' })
+  await user.click(screen.getByRole('button', { name: 'Check these results' }))
+  await screen.findByText('Checking loaded roles against your preferences…')
+  await act(() => router.navigate(destination))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 250)))
+  expect(screen.queryByText('Loaded roles checked against your confirmed preferences.')).not.toBeInTheDocument()
+  await act(() => router.navigate(-1))
+  await screen.findByText('Loaded roles checked against your confirmed preferences.')
+  expect(titles()).toEqual(['match role', 'tie role', 'unknown role', 'conflict role'])
+  expect(screen.getByRole('button', { name: 'Check these results' })).toBeDisabled()
+  expect(checked).toHaveBeenCalledOnce()
 })

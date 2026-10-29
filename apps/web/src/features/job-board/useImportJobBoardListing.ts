@@ -1,18 +1,19 @@
-/** Saves a listing through Rails. A synchronous lock prevents repeated clicks while saving. */
-import { useRef, useState } from 'react'
+/** Saves a listing through Rails. The session visit keeps its lock and feedback
+ * across navigation, including a save that finishes while the board is closed.
+ */
 import { useApolloClient } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import { IMPORT_JOB_BOARD_LISTING_MUTATION } from './jobBoardOperations'
 
-export function useImportJobBoardListing() {
+export function useImportJobBoardListing(visit: JobBoardVisit) {
   const client = useApolloClient()
-  const saving = useRef(false)
-  const [busyId, setBusyId] = useState<string | null>(null)
-  const [errors, setErrors] = useState<string[]>([])
+  const { busyId, importErrors: errors } = visit.getState()
+  const setBusyId = (busyId: string | null) => visit.update({ busyId })
+  const setErrors = (importErrors: string[]) => visit.update({ importErrors })
 
   async function save(listingId: string) {
-    if (saving.current) return null
-    saving.current = true
+    if (visit.getState().busyId) return null
     setBusyId(listingId)
     setErrors([])
     try {
@@ -29,7 +30,6 @@ export function useImportJobBoardListing() {
       setErrors([requestErrorMessage(error, 'Could not save this job. Please try again.')])
       return null
     } finally {
-      saving.current = false
       setBusyId(null)
     }
   }

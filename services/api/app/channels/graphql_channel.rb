@@ -1,4 +1,4 @@
-# Description: ActionCable channel that runs GraphQL operations (mainly subscriptions) for the
+# Description: ActionCable channel that runs only GraphQL subscriptions for the
 # connected user. Task-outcome baselines wait for actual pubsub readiness, then refresh
 # their cursor so a completion during registration cannot fall through the gap. Follows the graphql-ruby ActionCableSubscriptions protocol used by Apollo.
 # Index:
@@ -9,13 +9,25 @@ class GraphqlChannel < ApplicationCable::Channel
   # Starts with no GraphQL subscriptions.
   def subscribed
     @subscription_ids = []
+    @subscription_reservations = {}
+    @subscription_budget = ApplicationCable::SubscriptionBudget.for_connection(connection)
     @outcome_handshakes = []
     @outcome_handshake_mutex = Mutex.new
   end
 
-  # Runs a GraphQL operation as the connected user and transmits the result.
+  # HTTP owns queries and mutations, including their CSRF and rate-limit checks.
   def execute(data)
     return connection.check_session unless connection.session_valid?
+    operation = GraphQL::Query.new(ApiSchema, data["query"], operation_name: data["operationName"]) if data["query"].is_a?(String)
+    unless operation&.subscription?
+      transmit({ result: { errors: [ { message: "Cable accepts subscriptions only" } ] }, more: false })
+      return
+    end
+    reservation = @subscription_budget.acquire
+    unless reservation
+      transmit({ result: { errors: [ { message: "Too many active subscriptions" } ] }, more: false })
+      return
+    end
     result = ApiSchema.execute(
       data["query"],
       variables: data["variables"] || {},
@@ -23,7 +35,18 @@ class GraphqlChannel < ApplicationCable::Channel
       context: { current_user: current_user, current_user_id: current_user.id, channel: self }
     )
     subscription_id = result.context[:subscription_id]
-    @subscription_ids << subscription_id if subscription_id
+    if subscription_id
+      retained = @outcome_handshake_mutex.synchronize do
+        next false if unsubscribed?
+        @subscription_ids << subscription_id
+        @subscription_reservations[subscription_id] = reservation
+        true
+      end
+      unless retained
+        ApiSchema.subscriptions.delete_subscription(subscription_id)
+        return
+      end
+    end
     if subscription_id && result.context[:task_outcome_handshake]
       event = result.context.namespace(:subscriptions).fetch(:events).first
       @outcome_handshake_mutex.synchronize { @outcome_handshakes << [ subscription_id, event ] }
@@ -31,6 +54,8 @@ class GraphqlChannel < ApplicationCable::Channel
     else
       transmit({ result: result.to_h, more: result.subscription? })
     end
+  ensure
+    @subscription_budget.release(reservation) if reservation && !retained
   end
 
   # Subscription broadcasts bypass execute; guard their delivery as well.
@@ -46,8 +71,16 @@ class GraphqlChannel < ApplicationCable::Channel
 
   # Cleans up every GraphQL subscription opened on this channel.
   def unsubscribed
-    @subscription_ids.each { |subscription_id| ApiSchema.subscriptions.delete_subscription(subscription_id) }
-    @outcome_handshake_mutex.synchronize { @outcome_handshakes.clear }
+    ids, reservations = @outcome_handshake_mutex.synchronize do
+      saved = [ @subscription_ids.dup, @subscription_reservations.values ]
+      @subscription_ids.clear
+      @subscription_reservations.clear
+      @outcome_handshakes.clear
+      saved
+    end
+    ids.each { |subscription_id| ApiSchema.subscriptions.delete_subscription(subscription_id) }
+  ensure
+    reservations&.each { |reservation| @subscription_budget.release(reservation) }
   end
 
   private

@@ -10,11 +10,14 @@ clients connected to Puma.
 
 - `application_cable/connection.rb` — authenticates the persisted cookie session
 - `application_cable/channel.rb` — base channel
-- `graphql_channel.rb` — runs GraphQL operations for the connected user (Apollo protocol)
+- `graphql_channel.rb` — runs only GraphQL subscriptions for the connected user (Apollo protocol)
 
 ## Local Rules
 
 - Every connection is authenticated; there are no anonymous channels.
+- Queries and mutations use HTTP, where CSRF and request throttles apply. Cable rejects them before resolution.
+- Retain at most 50 active GraphQL subscriptions across all channels on one connection.
+  Release reservations on schema failures and unsubscribe; cleanup must be idempotent.
 - Use the same persisted-session check as HTTP. Validate before operations and
   private transmissions; the normal heartbeat closes invalid/expired connections.
   Keep trusted-origin enforcement. Never put session credentials in WebSocket URLs.

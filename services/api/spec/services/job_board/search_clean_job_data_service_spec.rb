@@ -141,7 +141,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     { "data" => [], "pagination" => { "limit" => 20, "next_page" => 9 }, "meta" => {} } ].each do |payload|
     it "rejects malformed page #{payload.inspect}" do
       respond_with("200", payload)
-      expect(search.errors).to eq([ "CleanJobData returned an invalid search page." ])
+      expect(search.errors).to eq([ "Job search returned an invalid page." ])
     end
   end
 
@@ -170,7 +170,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
   it "controls a successful HTTP response without a body" do
     response = respond_with
     allow(response).to receive(:body).and_return(nil)
-    expect(search.errors).to eq([ "CleanJobData returned an invalid search page." ])
+    expect(search.errors).to eq([ "Job search returned an invalid page." ])
   end
 
   it "keeps only import/display fields and replaces unsafe application URLs with nil" do
@@ -188,7 +188,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
   it "controls invalid JSON without exposing the body" do
     response = respond_with
     allow(response).to receive(:body).and_return("test-secret invalid json")
-    expect(search.errors).to eq([ "CleanJobData returned an invalid search page." ])
+    expect(search.errors).to eq([ "Job search returned an invalid page." ])
   end
 
   { "400" => "rejected this search", "401" => "authentication failed", "403" => "does not allow API access",
@@ -206,7 +206,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
   [ Net::OpenTimeout, Net::ReadTimeout, SocketError, Errno::ECONNREFUSED, OpenSSL::SSL::SSLError, EOFError, Net::HTTPBadResponse, Net::ProtocolError ].each do |error|
     it "controls #{error} without automatic retry" do
       allow(http).to receive(:request).and_raise(error, "test-secret")
-      expect(search.errors).to eq([ "CleanJobData is temporarily unavailable. Please retry." ])
+      expect(search.errors).to eq([ "Job search is temporarily unavailable. Please retry." ])
       expect(http).to have_received(:request).once
     end
   end
@@ -229,7 +229,7 @@ RSpec.describe JobBoard::SearchCleanJobDataService do
     expect(search).to be_success
     expect(http).to have_received(:request).twice
     allow(http).to receive(:request).and_return(limited)
-    expect(search.errors).to eq([ "CleanJobData is busy. Please retry shortly." ])
+    expect(search.errors).to eq([ "Job search is busy. Please retry shortly." ])
     expect(http).to have_received(:request).exactly(4).times
   end
   it "forwards every optional filter using provider parameter names" do

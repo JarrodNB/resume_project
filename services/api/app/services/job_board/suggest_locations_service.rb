@@ -15,7 +15,7 @@ module JobBoard
 
     def call
       return failure("Enter a city or state of 2 to 100 characters.") unless @query.is_a?(String) && @query.valid_encoding? && @query.strip.length.between?(2, 100) && !@query.match?(/[[:cntrl:]]/)
-      return failure("CleanJobData is not configured.") unless @api_key.is_a?(String) && !@api_key.strip.empty?
+      return failure("Job search is not configured.") unless @api_key.is_a?(String) && !@api_key.strip.empty?
 
       uri = URI(ENDPOINT)
       uri.query = URI.encode_www_form(q: @query.strip, kinds: "city,state", limit: 30)

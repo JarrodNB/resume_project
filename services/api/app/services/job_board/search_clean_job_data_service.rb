@@ -11,8 +11,8 @@ module JobBoard
   class SearchCleanJobDataService < ApplicationService
     ENDPOINT = "https://api.cleanjobdata.com/jobs".freeze
     TRANSIENT_RATE_LIMIT = "Too many requests. Please slow down and retry.".freeze
-    UNAVAILABLE = "CleanJobData is temporarily unavailable. Please retry.".freeze
-    INVALID_PAGE = "CleanJobData returned an invalid search page.".freeze
+    UNAVAILABLE = "Job search is temporarily unavailable. Please retry.".freeze
+    INVALID_PAGE = "Job search returned an invalid page.".freeze
     STRING_FIELDS = %w[description published remote_type expired_at employment_type salary_text salary_currency].freeze
 
     # @param keyword [String] nonblank title/keyword search, at most 200 characters
@@ -34,13 +34,14 @@ module JobBoard
     def call
       return failure("Enter a keyword of 1 to 200 characters.") unless valid_text?(@keyword, 200)
       return failure("Invalid search filters.") unless @filters && @experience_levels && [ true, false ].include?(@remote_only) && (@cursor.nil? || valid_text?(@cursor, 4096))
-      return failure("CleanJobData is not configured.") unless valid_text?(@api_key, 4096)
+      return failure("Job search is not configured.") unless valid_text?(@api_key, 4096)
 
       # The total deadline also bounds slow streaming reads across both attempts.
       Timeout.timeout(8) { fetch_page }
     rescue JSON::ParserError
       failure(INVALID_PAGE)
-    rescue Timeout::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError, Net::HTTPBadResponse, Net::ProtocolError
+    rescue Timeout::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError, Net::HTTPBadResponse, Net::ProtocolError => error
+      Rails.logger.warn("CleanJobData search failed: #{error.class}")
       failure(UNAVAILABLE)
     end
 
@@ -63,9 +64,10 @@ module JobBoard
             sleep(1)
             next
           end
-          return failure("CleanJobData monthly quota is exhausted.") if message.is_a?(String) && message.start_with?("Monthly request limit of ")
-          return failure("CleanJobData is busy. Please retry shortly.")
+          return failure("Job search quota is exhausted.") if message.is_a?(String) && message.start_with?("Monthly request limit of ")
+          return failure("Job search is busy. Please retry shortly.")
         end
+        Rails.logger.warn("CleanJobData search failed: HTTP #{response.code}")
         return failure(http_error(response.code))
       end
     end
@@ -94,9 +96,9 @@ module JobBoard
 
     def http_error(code)
       case code
-      when "400" then "CleanJobData rejected this search."
-      when "401" then "CleanJobData authentication failed."
-      when "403" then "The CleanJobData plan does not allow API access."
+      when "400" then "Job search rejected this search."
+      when "401" then "Job search authentication failed."
+      when "403" then "The job search plan does not allow API access."
       else UNAVAILABLE
       end
     end

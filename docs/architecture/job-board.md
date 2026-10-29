@@ -8,8 +8,8 @@ uses provider relevance. Company and salary live in a remembered More filters
 disclosure. People may select multiple levels; leaving them all blank omits
 the provider filter, including jobs with unspecified experience. Selecting all four
 is an explicit filter and remains distinct from leaving the selection blank.
-It starts without a search. Jobs (`/jobs`)
-remains the current user's private saved list. Only **Create job** saves a listing;
+A bare Find jobs URL starts without a search. Jobs (`/jobs`)
+remains the current user's private saved list. Only **Save job** saves a listing;
 **Open saved job** opens a match already owned by that user.
 
 Before a submitted search, chips show the signed-in user's saved job-title suggestions from
@@ -78,14 +78,31 @@ not receive access to the catalogue tables.
 
 `jobBoardSearch(keyword:, remoteOnly:, experienceLevels:, filters:, cursor:)` returns ordered listings, an opaque
 continuation cursor, retrieval time, stale status, and errors. The browser requests
-only on submit, load more, or retry. All provider controls are draft
+on submitted searches (including validated URL visits), load more, or retry. All provider controls are draft
 filters until submit; displayed result context and all continuation/retry requests use
 the submitted snapshot even if the form changes. Apollo's search cache is bypassed
 so Rails
 controls freshness. Loaded pages retain individual timestamps and stale warnings.
-`useJobBoardSearch` owns that submitted snapshot, its provider pages, and optional
-ranking coordination. The page supplies a form snapshot and ranking preference,
-then reads submitted context and displayed listings together. Each submission or
+Submitted keywords, filters and sort live in the URL. Bounded parsing rejects invalid
+keywords and drops unsupported filter values before requests; location labels are display
+text and only validated numeric city/state identities reach the provider. Refresh or a
+copied URL reruns the search from page 1. Back/Forward restores the corresponding search.
+Applied filter chips remove one submitted choice and immediately submit the remaining
+choices, synchronizing the form without applying unrelated drafts. Clear filters retains
+the submitted keyword and restores default filters and sort.
+
+`useJobBoardVisit` keeps up to five recent searches in memory for the current Apollo
+session client. Inactive visits with more than 200 provider rows are discarded. Returning
+from a saved Job restores retained loaded pages, selected page, scroll, save feedback,
+retry state and display preferences. Explicitly submitting a search starts at page 1 even
+when that URL has a retained visit. Nothing is persisted to browser storage; account/client
+replacement discards access to the prior session's visits and resets private preferences.
+Pending search, save and ranking completions update their original visit while away;
+returning reuses completed ranking or reconnects to queued work without re-enqueueing.
+
+`useJobBoardSearch` owns submitted search execution and optional ranking coordination
+against that visit. The page submits a form snapshot, then reads submitted context and
+displayed listings together. Each submission or
 accepted provider page creates a new snapshot identity, including refreshes with
 unchanged listing IDs; ranking uses that identity directly. Form drafts and the
 Hide already saved preference do not change ranking candidates or identity.

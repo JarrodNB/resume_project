@@ -1,5 +1,5 @@
 /** Exercise Job Board through its form and GraphQL boundary, without provider traffic. */
-import { act, fireEvent, screen } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
@@ -144,7 +144,7 @@ it('clears selected levels back to an unrestricted search', async () => {
 })
 
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
-  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }
@@ -323,8 +323,10 @@ it('creates a private job once during a double click, stays on the board, and li
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
-  await user.dblClick(screen.getByRole('button', { name: 'Save job' }))
-  expect(await screen.findByText('Saved with a few changes')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Platform Engineer' }))
+  await user.dblClick(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save job' }))
+  expect(await within(screen.getByRole('dialog')).findByText('Saved with a few changes')).toBeInTheDocument()
+  expect(within(screen.getByRole('dialog')).getByText('The application link was omitted.')).toBeInTheDocument()
   expect(imported).toHaveBeenCalledOnce()
   expect(router.state.location.pathname).toBe('/jobs/find')
   await user.click(screen.getByRole('link', { name: 'Open saved job' }))
@@ -333,7 +335,7 @@ it('creates a private job once during a double click, stays on the board, and li
   expect(router.state.location.state).toEqual({ jobBoardImport: { jobId: 'saved-one', warnings: ['The application link was omitted.'] } })
 })
 
-it('opens the current user’s existing job without importing and renders descriptions as remembered text disclosures', async () => {
+it('opens an accessible preview by keyboard, closes to its title, and opens the owned saved job', async () => {
   const user = userEvent.setup()
   renderBoard([queryMock(searchVariables(), page([{ ...listing(), company: null, description: '<img src=x onerror=alert(1)> Role details', savedJob: { __typename: 'Job', id: 'existing' } }]))])
   await search(user)
@@ -342,12 +344,20 @@ it('opens the current user’s existing job without importing and renders descri
   expect(screen.getByText('United States')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Open saved job' })).toHaveAttribute('href', '/jobs/existing')
   expect(screen.queryByRole('button', { name: 'Save job' })).not.toBeInTheDocument()
-  const details = screen.getByRole('button', { name: 'Description for Platform Engineer' })
-  expect(details).toHaveAttribute('aria-expanded', 'false')
-  await user.click(details)
+  const scroll = vi.spyOn(window, 'scrollTo')
+  scroll.mockClear()
+  const details = screen.getByRole('button', { name: 'Platform Engineer' })
+  details.focus()
+  await user.keyboard('{Enter}')
+  expect(screen.getByRole('dialog', { name: 'Platform Engineer' })).toBeInTheDocument()
   expect(screen.getByText('<img src=x onerror=alert(1)> Role details')).toBeInTheDocument()
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
-  await user.click(screen.getByRole('link', { name: 'Open saved job' }))
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(details).toHaveFocus()
+  expect(scroll).not.toHaveBeenCalled()
+  await user.click(details)
+  await user.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Open saved job' }))
   await screen.findByText('Saved job page')
 })
 
@@ -362,11 +372,12 @@ it.each(['validation', 'network'])('keeps search results after an import %s fail
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Platform Engineer' }))
   await user.click(screen.getByRole('button', { name: 'Save job' }))
-  await screen.findByText('Could not save this job. Please try again.')
-  expect(screen.getByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+  await within(screen.getByRole('dialog')).findByText('Could not save this job. Please try again.')
+  expect(screen.getByRole('dialog', { name: 'Platform Engineer' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Save job' }))
-  expect(await screen.findByText('Saved to your jobs')).toBeInTheDocument()
+  expect(await within(screen.getByRole('dialog')).findByText('Saved to your jobs')).toBeInTheDocument()
 })
 
 it('refreshes an already visited private Jobs list after creating a listing', async () => {
@@ -791,4 +802,20 @@ it('clears every filter and sort while retaining the applied keyword', async () 
   await user.click(screen.getByRole('button', { name: 'More filters' }))
   expect(screen.getByRole('textbox', { name: 'Company' })).toHaveValue('')
   expect(screen.getByRole('spinbutton', { name: 'Minimum salary' })).toHaveValue(null)
+})
+
+it.each([null, '', 'javascript:alert(1)', '/relative', 'https://user:secret@example.com/job', 'broken', 'https://example.com/job'])('only exposes usable original web postings (%s)', async (applicationUrl) => {
+  const user = userEvent.setup()
+  renderBoard([queryMock(searchVariables(), page([{ ...listing(), applicationUrl, salaryText: '120,000 per year', salaryCurrency: 'USD', employmentType: 'full_time', remoteType: 'remote', published: '2026-10-20T00:00:00Z' }]))])
+  await search(user)
+  await user.click(await screen.findByRole('button', { name: 'Platform Engineer' }))
+  const preview = within(screen.getByRole('dialog'))
+  expect(preview.getByText('120,000 per year · USD')).toBeInTheDocument()
+  expect(preview.getByRole('time')).toHaveAttribute('datetime', '2026-10-20T00:00:00Z')
+  if (applicationUrl === 'https://example.com/job') {
+    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('href', applicationUrl)
+    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('rel', 'noopener noreferrer')
+  } else expect(preview.queryByRole('link', { name: 'View original posting' })).not.toBeInTheDocument()
+  await user.click(preview.getByRole('button', { name: 'Close' }))
+  expect(screen.getByRole('button', { name: 'Platform Engineer' })).toHaveFocus()
 })

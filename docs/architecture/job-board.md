@@ -93,7 +93,7 @@ Displayed IDs are deduplicated in first-seen order. A failed page retry preserve
 successful pages. A successful earlier-page refresh preserves descendants when its
 continuation is unchanged; a changed cursor drops the obsolete descendants.
 Request generations prevent old successes or failures replacing a newer search.
-Descriptions are text inside remembered collapsed disclosures, never raw HTML. Short
+Listing titles open an accessible preview dialog: a right-side panel on desktop and a full-screen panel on phones. Closing it or pressing Escape returns focus to the title while the list and its scroll position stay in place. The preview uses the already loaded listing; it starts no detail request or public route. Descriptions are plain text, never raw HTML. Short
 "Label:" lines and "- " bullets are shown as labels and lists; the text itself is not parsed as markup.
 Hide already saved immediately filters loaded results by the owner-scoped `savedJob`
 reference, after optional career-library ordering. It does not change provider requests,
@@ -103,7 +103,7 @@ an all-hidden page keeps Load more available and explains how to reveal saved re
 `importJobBoardListing(input: { listingId: })` delegates to `ImportListingService` and returns
 the saved or existing private Job plus field-omission warnings. The UI prevents
 concurrent save clicks, invalidates a cached private Jobs list after success, and
-opens the returned Job. Warnings travel with that navigation and remain visible
+keeps the listing in place with an Open saved job action. Both the row and preview share the visit save lock and feedback. Errors and field-omission warnings are visible inside an open preview. A View original posting link is available only for an absolute HTTP(S) application URL without embedded credentials. Warnings travel with saved-job navigation and remain visible
 on the matching saved Job's workspace. Import errors keep the search results for retry.
 
 ## Optional hybrid reranking

@@ -19,7 +19,7 @@ export function useJobPreferenceConversation(version: number, onAccepted: () => 
   const [submitted, setSubmitted] = useState<Task | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const pending = useRef(false)
-  const recovered = useRef('')
+  const recovered = useRef(new Set<string>())
   const state = query.data?.jobPreferenceConversation
   const base = submitted ?? state?.aiTask
   const { aiTask: update, error: subscriptionError } = useAiTaskUpdates(base?.id ?? '')
@@ -30,11 +30,16 @@ export function useJobPreferenceConversation(version: number, onAccepted: () => 
   const refetch = query.refetch
 
   useEffect(() => {
-    if (!task || task.status === 'QUEUED' || !submitted || recovered.current === task.id) return
-    recovered.current = task.id
-    void Promise.all([refetch(), onAccepted()]).then(() => setSubmitted(null))
-      .catch(() => { recovered.current = ''; setErrors(['Could not refresh the saved conversation. Reload to recover it.']) })
-  }, [task, submitted, refetch, onAccepted])
+    if (!task || task.status === 'QUEUED' || recovered.current.has(task.id)) return
+    if (submitted?.id !== task.id && update?.id !== task.id) return
+    // Reopened tasks arrive through the subscription without local submission state.
+    // A task recovers once; late recovery must not discard a newer submitted turn.
+    const taskId = task.id
+    recovered.current.add(taskId)
+    void Promise.all([refetch(), onAccepted()]).then(() => {
+      setSubmitted((current) => current?.id === taskId ? null : current)
+    }).catch(() => { setErrors(['Could not refresh the saved conversation. Reload to recover it.']) })
+  }, [task, submitted, update, refetch, onAccepted])
 
   async function send(message: string, fresh = false) {
     if (pending.current || busy) return false
@@ -57,10 +62,11 @@ export function useJobPreferenceConversation(version: number, onAccepted: () => 
   }
 
   async function reload() {
+    const taskId = task?.id
     setErrors([])
     try {
       await Promise.all([refetch(), onAccepted()])
-      setSubmitted(null)
+      setSubmitted((current) => current?.id === taskId ? null : current)
     } catch { setErrors(['Could not refresh the saved conversation. Please try again.']) }
   }
 

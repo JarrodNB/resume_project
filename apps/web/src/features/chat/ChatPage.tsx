@@ -1,10 +1,11 @@
 /**
  * A saved career-chat workspace. The URL selects a conversation so refresh and bookmarks reopen it.
+ * Opening `/chat` with no conversation picked reopens the most recent saved chat (the list is newest first).
  *
  * Three columns: saved chats, the conversation with its pinned message box, and a plain notes
  * panel. Its look lives in the `.chat-*` rules in index.css.
  */
-import { useNavigate, useParams } from 'react-router'
+import { Navigate, useNavigate, useParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import { PageHeading } from '@/components/PageHeading'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -19,6 +20,8 @@ export function ChatPage() {
   const workspace = useChatWorkspace()
   const navigate = useNavigate()
   const maxCharacters = workspace.settings?.maxInputCharacters ?? 10000
+  const mostRecentId = workspace.conversations?.[0]?.id
+  if (!id && mostRecentId) return <Navigate to={`/chat/${mostRecentId}`} replace />
 
   async function createChat() {
     const createdId = await workspace.createChat()

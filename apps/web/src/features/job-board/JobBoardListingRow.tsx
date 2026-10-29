@@ -38,7 +38,7 @@ export function JobBoardListingRow({ listing, busyId, onCreate }: Props) {
           {listing.savedJob ? (
             <Button asChild variant="outline" className="board-listing-action"><Link to={`/jobs/${listing.savedJob.id}`}>Open saved job <ArrowUpRight aria-hidden /></Link></Button>
           ) : (
-            <Button variant="outline" className="board-listing-action" disabled={busyId !== null} onClick={() => onCreate(listing.id)}><Plus aria-hidden />{busyId === listing.id ? 'Creating…' : 'Create job'}</Button>
+            <Button variant="outline" className="board-listing-action" disabled={busyId !== null} onClick={() => onCreate(listing.id)}><Plus aria-hidden />{busyId === listing.id ? 'Saving…' : 'Save job'}</Button>
           )}
         </div>
         {listing.description ? <>

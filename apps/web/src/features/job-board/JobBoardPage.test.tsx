@@ -1,6 +1,6 @@
 /** Exercise Job Board through its form and GraphQL boundary, without provider traffic. */
 import { act, fireEvent, screen } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
 import { JobsPage } from '@/features/jobs/JobsPage'
@@ -11,6 +11,8 @@ import { renderPage } from '@/test/renderPage'
 import { setSectionOpen } from '@/lib/openSections'
 import type { BoardListing } from './useJobBoardSearch'
 import { JobBoardPage } from './JobBoardPage'
+
+afterEach(() => vi.restoreAllMocks())
 
 it('uses imported title chips without searching or changing selected filters', async () => {
   const user = userEvent.setup()
@@ -576,4 +578,130 @@ it('canonicalizes malformed URL filters before making a single valid request', a
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   expect(router.state.location.search).toBe('?q=engineer')
   expect(fetched).toHaveBeenCalledTimes(1)
+})
+
+
+it('restores loaded pages and selected page after visiting a saved job without another provider request', async () => {
+  const user = userEvent.setup()
+  const batch = (prefix: string) => Array.from({ length: 20 }, (_, index) => listing(`${prefix}${index}`, `${prefix} role ${index}`))
+  const first = vi.fn(() => ({ data: { jobBoardSearch: page(batch('a'), { nextCursor: 'next' }) } }))
+  const second = vi.fn(() => ({ data: { jobBoardSearch: page(batch('b')) } }))
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const { router } = renderBoard([
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result: first },
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, 'next') }, result: second },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'a role 0' })
+  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  await user.click(screen.getByRole('checkbox', { name: 'Hide already saved' }))
+  vi.spyOn(window, 'scrollY', 'get').mockReturnValue(640)
+  fireEvent.scroll(window)
+  await act(() => router.navigate('/jobs/saved'))
+  await screen.findByText('Saved job page')
+  await act(() => router.navigate(-1))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('checkbox', { name: 'Hide already saved' })).toBeChecked()
+  expect(first).toHaveBeenCalledTimes(1)
+  expect(second).toHaveBeenCalledTimes(1)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 640, behavior: 'instant' })
+})
+
+
+it('records a save that completes while away and restores its feedback and link', async () => {
+  const user = userEvent.setup()
+  const imported = vi.fn(() => ({ data: { importJobBoardListing: { __typename: 'ImportListingPayload', job: { __typename: 'Job', id: 'saved-one' }, warnings: ['The application link was omitted.'], errors: [] } } }))
+  const { router } = renderBoard([
+    queryMock(),
+    { request: { query: IMPORT_JOB_BOARD_LISTING_MUTATION, variables: { listingId: 'one' } }, result: imported, delay: 150 },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Save job' }))
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 200)))
+  await act(() => router.navigate(-1))
+  await screen.findByText('Saved with a few changes')
+  expect(screen.getByRole('link', { name: 'Open saved job' })).toHaveAttribute('href', '/jobs/saved-one')
+  expect(imported).toHaveBeenCalledOnce()
+  await user.click(screen.getByRole('link', { name: 'Open saved job' }))
+  expect(router.state.location.state).toEqual({ jobBoardImport: { jobId: 'saved-one', warnings: ['The application link was omitted.'] } })
+})
+
+it('keeps a failed continuation and retries its cursor after returning', async () => {
+  const user = userEvent.setup()
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page([listing()], { nextCursor: 'next' })),
+    queryMock(searchVariables('engineer', false, 'next'), page([], { retrievedAt: null, errors: ['Continuation unavailable.'] })),
+    queryMock(searchVariables('engineer', false, 'next'), page([listing('two', 'Recovered role')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await screen.findByText('Continuation unavailable.')
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => router.navigate(-1))
+  expect(await screen.findByText('Continuation unavailable.')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  await screen.findByRole('heading', { name: 'Recovered role' })
+  expect(screen.queryByText('Continuation unavailable.')).not.toBeInTheDocument()
+})
+
+
+it('reruns an oversized search from its first page after leaving instead of retaining its corpus', async () => {
+  const user = userEvent.setup()
+  const large = Array.from({ length: 201 }, (_, index) => listing(`large-${index}`, `Large role ${index}`))
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page(large)),
+    queryMock(searchVariables(), page([listing('fresh', 'Fresh first page')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Large role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'Large role 20' })
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => router.navigate(-1))
+  await screen.findByRole('heading', { name: 'Fresh first page' })
+  expect(screen.queryByRole('heading', { name: 'Large role 20' })).not.toBeInTheDocument()
+})
+
+it('evicts older searches after five visits and fetches them fresh from their URL', async () => {
+  const fetchedAgain = vi.fn(() => ({ data: { jobBoardSearch: page([listing('fresh', 'Reloaded old search')]) } }))
+  const { router } = renderBoard([
+    ...Array.from({ length: 6 }, (_, index) => queryMock(searchVariables(`search${index}`), page([listing(`id${index}`, `Search role ${index}`)]))),
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('search0') }, result: fetchedAgain },
+  ])
+  for (let index = 0; index < 6; index += 1) {
+    await act(() => router.navigate(`/jobs/find?q=search${index}`))
+    await screen.findByRole('heading', { name: `Search role ${index}` })
+  }
+  await act(() => router.navigate(-5))
+  await screen.findByRole('heading', { name: 'Reloaded old search' })
+  expect(fetchedAgain).toHaveBeenCalledOnce()
+})
+
+
+it('starts a newly submitted search at page one even when its URL has a retained visit', async () => {
+  const user = userEvent.setup()
+  const batch = Array.from({ length: 21 }, (_, index) => listing(`old-${index}`, `Old role ${index}`))
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page(batch)),
+    queryMock(searchVariables('designer'), page([listing('designer', 'Designer')])),
+    queryMock(searchVariables(), page([listing('fresh', 'New first page')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Old role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'Old role 20' })
+  await act(() => router.navigate('/jobs/find?q=designer'))
+  await screen.findByRole('heading', { name: 'Designer' })
+  const keyword = screen.getByRole('textbox', { name: 'Keyword or job title' })
+  await user.clear(keyword)
+  await user.type(keyword, 'engineer')
+  await user.click(screen.getByRole('button', { name: 'Search jobs' }))
+  await screen.findByRole('heading', { name: 'New first page' })
+  expect(screen.queryByRole('heading', { name: 'Old role 20' })).not.toBeInTheDocument()
 })

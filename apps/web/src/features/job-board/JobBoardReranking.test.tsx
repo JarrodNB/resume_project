@@ -1,5 +1,5 @@
 /** Follow optional reranking through the page's real GraphQL operations and result ordering. */
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ApolloClient, InMemoryCache } from '@apollo/client'
 import { ApolloProvider } from '@apollo/client/react'
@@ -254,11 +254,12 @@ it('reranks a refreshed page even when the keyword and provider listing IDs stay
   expect(titles()).toEqual(['first role', 'second role'])
 })
 
-it('discards private ordering when the signed-in session replaces its Apollo client', async () => {
+it('discards private listings, preferences and ordering when the session replaces its Apollo client', async () => {
   const user = userEvent.setup()
   const firstClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([searchMock(), rankMock()]) })
+  const secondFetch = vi.fn(() => ({ data: { jobBoardSearch: { __typename: 'JobBoardSearchPage', listings: [listing('new-account')], nextCursor: null, retrievedAt: '2026-10-26T00:00:00Z', stale: false, errors: [] } } }))
   const secondClient = new ApolloClient({ cache: new InMemoryCache(), link: new MockLink([
-    rankMock('engineer', ['first', 'second'], [], { result: { data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: null, errors: ['Add career library entries first.'] } } } }),
+    { ...searchMock(), result: secondFetch },
   ]) })
   const page = (client: ApolloClient) => <ApolloProvider client={client}><MemoryRouter><JobBoardPage /></MemoryRouter></ApolloProvider>
   const view = render(page(firstClient))
@@ -268,9 +269,12 @@ it('discards private ordering when the signed-in session replaces its Apollo cli
   await screen.findByText('Loaded roles ranked using your career library.')
   expect(titles()).toEqual(['second role', 'first role'])
   view.rerender(page(secondClient))
-  expect(titles()).toEqual(['first role', 'second role'])
-  await screen.findByText('Add career library entries first.')
-  expect(titles()).toEqual(['first role', 'second role'])
+  expect(screen.queryByRole('heading', { name: 'first role' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'second role' })).not.toBeInTheDocument()
+  expect(toggle()).not.toBeChecked()
+  await screen.findByRole('heading', { name: 'new-account role' })
+  expect(secondFetch).toHaveBeenCalledTimes(1)
+  expect(screen.queryByText('Loaded roles ranked using your career library.')).not.toBeInTheDocument()
 })
 
 it('ignores a previous task subscription update after resubmitting the same candidates', async () => {
@@ -291,4 +295,29 @@ it('ignores a previous task subscription update after resubmitting the same cand
   expect(titles()).toEqual(['first role', 'second role'])
   expect(screen.queryByText('Loaded roles ranked using your career library.')).not.toBeInTheDocument()
   expect(screen.getByText(/For “designer”/)).toBeInTheDocument()
+})
+
+
+it.each(['completed', 'queued'])('resumes %s reranking after leaving during its mutation without buying another task', async (status) => {
+  const ranked = vi.fn(() => ({ data: { rerankJobBoardListings: { __typename: 'RerankJobBoardListingsPayload', aiTask: task('rank-1', status === 'completed' ? ['second', 'first'] : null), errors: [] } } }))
+  const { router } = renderPage({ path: '/jobs/find', url: '/jobs/find?q=engineer', element: <JobBoardPage />, extraRoutes: [{ path: '/jobs/:id', element: <p>Saved job page</p> }], mocks: [
+    searchMock(), rankMock('engineer', ['first', 'second'], [], { result: ranked, delay: 150 }),
+    ...(status === 'queued' ? [{ request: { query: JOB_BOARD_RERANKING_SUBSCRIPTION, variables: { id: 'rank-1' } }, result: { data: { aiTaskUpdated: task('rank-1', ['second', 'first']) } } }] : []),
+  ] })
+  await screen.findByRole('heading', { name: 'first role' })
+  vi.useFakeTimers()
+  try {
+    fireEvent.click(toggle())
+    expect(screen.getByText(/Reranking loaded roles/)).toBeInTheDocument()
+    await act(() => router.navigate('/jobs/saved'))
+    await act(() => vi.advanceTimersByTimeAsync(200))
+    await act(() => router.navigate(-1))
+    await act(() => vi.advanceTimersByTimeAsync(100))
+    expect(screen.getByText('Loaded roles ranked using your career library.')).toBeInTheDocument()
+    expect(titles()).toEqual(['second role', 'first role'])
+    expect(toggle()).toBeChecked()
+    expect(ranked).toHaveBeenCalledTimes(1)
+  } finally {
+    vi.useRealTimers()
+  }
 })

@@ -1,10 +1,11 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
  * The search form's keyword and main filters stay on top; its experience-level and later filters
  * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
- * The URL owns submitted filters; search owns results and optional ordering.
+ * The URL owns submitted filters; a session visit retains results and ordering
+ * while users open saved jobs or move through search history.
  * The form owns editable filters until submission.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
@@ -20,10 +21,18 @@ import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
 import { useJobBoardSearchIdeas } from './useJobBoardSearchIdeas'
+import { useJobBoardVisit } from './useJobBoardVisit'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import './jobBoard.css'
 
 
 export function JobBoardPage() {
+  const { visit, state, forgetSearch } = useJobBoardVisit()
+  // Changing account or submitted URL remounts draft-only form state as well.
+  return <JobBoardVisitPage key={visit.id} visit={visit} state={state} forgetSearch={forgetSearch} />
+}
+
+function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisit; state: ReturnType<JobBoardVisit['getState']>; forgetSearch: (search: string) => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const urlSearch = parseSearchUrl(location.search)
@@ -33,9 +42,10 @@ export function JobBoardPage() {
   if (keywordDraft.entry !== location.key) setKeywordDraft({ entry: location.key, value: urlSearch?.keyword ?? '' })
   const keyword = keywordDraft.entry === location.key ? keywordDraft.value : urlSearch?.keyword ?? ''
   function setKeyword(value: string) { setKeywordDraft({ entry: location.key, value }) }
-  const [hideSaved, setHideSaved] = useState(false)
-  const [rerankingEnabled, setRerankingEnabled] = useState(false)
-  const board = useJobBoardSearch(rerankingEnabled)
+  const { hideSaved, rerankingEnabled, savedHere, pageChoice } = state
+  const setHideSaved = (hideSaved: boolean) => visit.update({ hideSaved })
+  const setRerankingEnabled = (rerankingEnabled: boolean) => visit.update({ rerankingEnabled })
+  const board = useJobBoardSearch(visit)
   const { reranking, submittedSearch } = board
   useEffect(() => {
     if (appliedLocation.current === location.key) return
@@ -46,34 +56,47 @@ export function JobBoardPage() {
       void navigate({ pathname: location.pathname, search: canonical }, { replace: true })
       return
     }
-    if (submitted) board.search(submitted)
-    else board.clear()
-  }, [location.key, location.pathname, location.search, navigate, board])
+    if (!visit.initialized) {
+      if (submitted) board.search(submitted)
+      else board.clear()
+    }
+  }, [location.key, location.pathname, location.search, navigate, board, visit.initialized])
 
   function submitSearch(search: BoardSearch) {
     const next = serializeSearchUrl(search)
     if (next === location.search) board.search(search)
-    else navigate({ pathname: location.pathname, search: next })
+    else {
+      forgetSearch(next)
+      void navigate({ pathname: location.pathname, search: next })
+    }
   }
-  const importer = useImportJobBoardListing()
+  const importer = useImportJobBoardListing(visit)
   // Listings saved from this page stay in place; the row offers a link to the new job instead.
-  const [savedHere, setSavedHere] = useState<Record<string, { jobId: string; warnings: string[] }>>({})
+  const returning = useRef(visit.initialized)
+  useLayoutEffect(() => {
+    if (returning.current) window.scrollTo({ top: visit.scrollY, behavior: 'instant' })
+    const rememberScroll = () => { visit.scrollY = window.scrollY }
+    window.addEventListener('scroll', rememberScroll)
+    return () => { window.removeEventListener('scroll', rememberScroll) }
+    // This effect belongs to the visit, rather than each async state update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visit])
 
   // Stacked layout (narrow screens): bring the results into view so a search visibly happens.
   useEffect(() => {
+    if (returning.current) { returning.current = false; return }
     if (!submittedSearch || window.matchMedia?.('(min-width: 1000px)').matches) return
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }, [submittedSearch])
 
   async function createJob(listingId: string) {
     const result = await importer.save(listingId)
-    if (result) setSavedHere((current) => ({ ...current, [listingId]: result }))
+    if (result) visit.update((current) => ({ savedHere: { ...current.savedHere, [listingId]: result } }))
   }
 
   const visibleListings = board.listings.filter((listing) => !hideSaved || !listing.savedJob)
   const hiddenCount = board.listings.length - visibleListings.length
   // The wanted page belongs to one submitted search; a new search starts back at page 1.
-  const [pageChoice, setPageChoice] = useState<{ search: unknown; page: number }>({ search: null, page: 0 })
   const totalPages = Math.max(1, Math.ceil(visibleListings.length / boardPageSize))
   const wantedPage = pageChoice.search === submittedSearch ? pageChoice.page : 0
   // Asking for the page after the last loaded one waits here until Load fetches it.
@@ -82,7 +105,7 @@ export function JobBoardPage() {
 
   function goToPage(next: number) {
     if (next > page && page >= totalPages - 1) board.loadMore()
-    setPageChoice({ search: submittedSearch, page: next })
+    visit.update({ pageChoice: { search: submittedSearch, page: next } })
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }
 

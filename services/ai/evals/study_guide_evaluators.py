@@ -1,7 +1,7 @@
 """Synthetic guide outcomes and deterministic checks for safe source handling."""
 from dataclasses import dataclass
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext
 
 from schemas.study_guide import StudyGuide
@@ -9,6 +9,7 @@ from schemas.study_guide import StudyGuide
 
 class StudyGuideEvalInput(BaseModel):
     description: str
+    previous_questions: list[str] = Field(default_factory=list)
     expects_block: bool = False
     expects_unusable: bool = False
 

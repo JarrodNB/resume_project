@@ -4,9 +4,13 @@ from evals.run_study_guide_evals import load_study_guide_dataset
 
 def test_synthetic_dataset_has_varied_roles_sparse_irrelevant_and_blocked_cases():
     cases = load_study_guide_dataset().cases
-    assert len(cases) == 5
+    assert len(cases) == 7
     assert sum(case.inputs.expects_block for case in cases) == 1
     assert {case.name for case in cases} >= {"inventory_clerk", "backend_engineer", "sparse_bakery_role", "irrelevant_description"}
+    append = {case.name: case.inputs for case in cases if case.inputs.previous_questions}
+    assert set(append) == {"fresh_append", "exhausted_subject"}
+    assert not append["fresh_append"].expects_unusable
+    assert append["exhausted_subject"].expects_unusable
 
 
 def test_quality_judge_receives_readable_description_and_learning_material(monkeypatch):
@@ -24,7 +28,8 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
         return SimpleNamespace(reason="Useful learning material.", score=1.0)
 
     monkeypatch.setattr(suite, "judge_output", judge)
-    inputs = StudyGuideEvalInput(description="Inventory clerk: reconcile stock counts.")
+    inputs = StudyGuideEvalInput(description="Inventory clerk: reconcile stock counts.",
+                                 previous_questions=["How do receipts affect recorded stock?"])
     output = StudyGuideEvalOutput(status="completed", guide=StudyGuide.model_validate({
         "title": "Inventory study guide", "questions": [{
             "question": f"How do you reconcile stock {index}?", "why_it_matters": "The job requires accurate stock counts.",
@@ -47,6 +52,7 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
     material = "\n".join(seen)
     for expected in [
         "Job description:\nInventory clerk: reconcile stock counts.",
+        "Previous saved questions:\n1. How do receipts affect recorded stock?",
         "Expected behavior: Generate five answered study questions", "Actual outcome: completed", "Failure code: none",
         "Guide title: Inventory study guide", "Question 1: How do you reconcile stock 0?",
         "Diagram caption: Compare stock", "Diagram explanation: Compare physical and recorded counts.",
@@ -101,3 +107,30 @@ def test_unusable_source_requires_its_own_failure_code():
     for code in ("insufficient_description", "input_rejected", "screening_unavailable"):
         context = SimpleNamespace(inputs=inputs, output=StudyGuideEvalOutput(status="failed", failure_code=code))
         assert StudyGuideOutcome().evaluate(context)["expected_outcome"] == float(code == "insufficient_description")
+
+
+def test_append_evaluation_passes_prior_prompts_to_production_without_expected_labels(monkeypatch):
+    """Exercise the runner's task seam so append cases cannot lose their generation context."""
+    from types import SimpleNamespace
+
+    from evals import run_study_guide_evals as suite
+    from evals.study_guide_evaluators import StudyGuideEvalInput
+
+    inputs = StudyGuideEvalInput(description="Sort washers by size.",
+                                 previous_questions=["How do you compare a washer with the size gauge?"],
+                                 expects_unusable=True)
+    seen = []
+
+    def handle(task, _dependencies):
+        seen.append(task.input)
+        return SimpleNamespace(status="failed", result={"failure_code": "insufficient_description"})
+
+    def evaluate(_load_dataset, task, **_kwargs):
+        assert task(inputs).failure_code == "insufficient_description"
+        return SimpleNamespace(failures=[], report_evaluator_failures=[], cases=[])
+
+    monkeypatch.setattr(suite, "handle_study_guide_task", handle)
+    monkeypatch.setattr(suite, "evaluate_dataset", evaluate)
+    suite.run_study_guide_evals()
+    assert seen[0]["previous_questions"] == ["How do you compare a washer with the size gauge?"]
+    assert set(seen[0]) == {"job_id", "description", "previous_questions"}

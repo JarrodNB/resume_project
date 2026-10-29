@@ -93,8 +93,11 @@ Offline checks use worker dispatch, Rails result application and GraphQL collect
 and the rendered React panel. They cover frozen prior prompts, repeat rejection, limits,
 source screening, signed cursor scoping and equal-time ordering, page failures, appending
 behind unloaded pages, answer visibility, freshness edits/restoration, and manual retry.
-`python -m evals.run_study_guide_evals` uses five synthetic descriptions: inventory, backend
-engineering, sparse bakery work, irrelevant input, and injected instructions. Deterministic
+`python -m evals.run_study_guide_evals` uses seven synthetic cases: inventory, backend
+engineering, sparse bakery work, irrelevant input, injected instructions, a fresh appended
+batch, and exhausted subject matter with earlier saved questions. Prior prompts pass through
+the production worker and are shown to the judge as readable context; evaluation-only labels
+never enter generation. The judge checks repeated learning concepts as well as wording. Deterministic
 outcomes distinguish unavailable screening from a successful rejection. A subject-quality
 judge assesses relevance, accuracy, answer depth, and worked examples. Finite evaluations
 do not prove universal correctness or semantic duplicate detection.

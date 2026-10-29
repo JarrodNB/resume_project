@@ -21,6 +21,8 @@ HTTP entry points. Kept minimal: REST for auth, a single GraphQL endpoint for ev
 - Preserve the shared persisted-session validity check and no-store response headers.
 - Don't add REST endpoints for domain data; add GraphQL fields instead.
 
+- `internal/service_callbacks.rb` — shared Bearer-secret check and short DB lock/statement
+  timeouts for every `internal/` controller; each names its `service_secret` and busy message.
 - `internal/interviews_controller.rb` is the scoped machine-to-machine exception:
   authenticated `/internal/interviews/operations` callbacks use `INTERVIEW_SERVICE_SECRET`
   with the Bearer scheme, never browser identity or a supplied owner ID. It inherits

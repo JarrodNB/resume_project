@@ -2,8 +2,7 @@
 # authentication or user-ID authority; every operation resolves its persisted owner.
 module Internal
   class InterviewsController < ActionController::API
-    before_action :authenticate_service
-    around_action :bound_database_waits
+    include ServiceCallbacks
     before_action :find_operation, except: [ :claim_clarification, :claim_references, :claim_feedback ]
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: [ "Record not found" ] }, status: :not_found }
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: [ "Missing parameter" ] }, status: :unprocessable_entity }
@@ -97,33 +96,8 @@ module Internal
 
     private
 
-    def authenticate_service
-      expected = ENV["INTERVIEW_SERVICE_SECRET"]
-      authorization = request.headers["Authorization"].to_s
-      supplied = authorization.delete_prefix("Bearer ")
-      unless authorization.start_with?("Bearer ") && expected.present? && supplied.present? && ActiveSupport::SecurityUtils.secure_compare(supplied, expected)
-        render json: { errors: [ "Unauthorized" ] }, status: :unauthorized
-      end
-      response.set_header("Cache-Control", "no-store")
-    end
-
-    # Restore connection limits before returning it to the pool. The request itself
-    # must not hold a transaction open across media I/O after service locks release.
-    def bound_database_waits
-      ApplicationRecord.connection_pool.with_connection do |connection|
-        previous_lock = connection.select_value("SHOW lock_timeout")
-        previous_statement = connection.select_value("SHOW statement_timeout")
-        begin
-          connection.execute("SET lock_timeout = '2s'")
-          connection.execute("SET statement_timeout = '5s'")
-          yield
-        ensure
-          connection.execute("SET lock_timeout = #{connection.quote(previous_lock)}")
-          connection.execute("SET statement_timeout = #{connection.quote(previous_statement)}")
-        end
-      end
-    rescue ActiveRecord::LockWaitTimeout, ActiveRecord::QueryCanceled
-      render json: { errors: [ "Interview service is busy; retry the same request" ] }, status: :service_unavailable
+    def service_busy_message
+      "Interview service is busy; retry the same request"
     end
 
     def find_operation

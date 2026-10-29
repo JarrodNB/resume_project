@@ -1,8 +1,7 @@
 # Service-authenticated callbacks resolve the persisted chat owner, never browser-supplied identity.
 module Internal
   class ChatController < ActionController::API
-    before_action :authenticate_service
-    around_action :bound_database_waits
+    include ServiceCallbacks
     before_action :find_operation
     rescue_from ActiveRecord::RecordNotFound, with: -> { render json: { errors: ["Record not found"] }, status: :not_found }
     rescue_from ActionController::ParameterMissing, with: -> { render json: { errors: ["Missing parameter"] }, status: :unprocessable_entity }
@@ -34,15 +33,15 @@ module Internal
     end
 
     private
-    def authenticate_service
-      expected = ENV["AI_EXECUTION_SERVICE_SECRET"].presence || ENV["INTERVIEW_SERVICE_SECRET"]
-      authorization = request.headers["Authorization"].to_s
-      supplied = authorization.delete_prefix("Bearer ")
-      unless authorization.start_with?("Bearer ") && expected.present? && supplied.present? && ActiveSupport::SecurityUtils.secure_compare(supplied, expected)
-        render json: { errors: ["Unauthorized"] }, status: :unauthorized
-      end
-      response.set_header("Cache-Control", "no-store")
+
+    def service_secret
+      ENV["AI_EXECUTION_SERVICE_SECRET"].presence || ENV["INTERVIEW_SERVICE_SECRET"]
     end
+
+    def service_busy_message
+      "Chat service busy; retry the same request"
+    end
+
     def find_operation
       @operation = ChatOperation.find(params[:id])
     end
@@ -51,22 +50,6 @@ module Internal
     end
     def respond(result)
       render json: result.success? ? result.value : { errors: result.errors }, status: result.success? ? :ok : :conflict
-    end
-    def bound_database_waits
-      ApplicationRecord.connection_pool.with_connection do |connection|
-        previous_lock = connection.select_value("SHOW lock_timeout")
-        previous_statement = connection.select_value("SHOW statement_timeout")
-        begin
-          connection.execute("SET lock_timeout = '2s'")
-          connection.execute("SET statement_timeout = '5s'")
-          yield
-        ensure
-          connection.execute("SET lock_timeout = #{connection.quote(previous_lock)}")
-          connection.execute("SET statement_timeout = #{connection.quote(previous_statement)}")
-        end
-      end
-    rescue ActiveRecord::LockWaitTimeout, ActiveRecord::QueryCanceled
-      render json: { errors: ["Chat service busy; retry the same request"] }, status: :service_unavailable
     end
   end
 end

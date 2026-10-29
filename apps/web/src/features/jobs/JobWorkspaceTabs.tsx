@@ -2,6 +2,7 @@
  * Each tab reads the job (and the shared comparison) from `useJobWorkspace`. A tab's main
  * content stays open; only the long full description collapses.
  */
+import { FormattedDescription } from '@/components/FormattedDescription'
 import { GapAnalysisCard } from '@/features/gap-analysis/GapAnalysisCard'
 import { StudyGuidePanel } from '@/features/study-guides/StudyGuidePanel'
 import { CollapsibleJobCard } from './JobDetailCards'
@@ -35,7 +36,7 @@ export function JobPostingTab() {
       )}
       {job.description && (
         <CollapsibleJobCard sectionId={`job.${job.id}.description`} title="Full description">
-          <p className="text-sm whitespace-pre-line text-muted-foreground">{job.description}</p>
+          <FormattedDescription className="text-sm text-muted-foreground" text={job.description} />
         </CollapsibleJobCard>
       )}
     </div>

@@ -67,14 +67,11 @@ RSpec.describe "Prepared interview allowances" do
     expect(AiUsage::CheckAiTaskAllowanceService.call(user: user)).to be_success
   end
 
-  it "requires resuming or abandoning an unfinished prepared session before creating another" do
+  it "allows another prepared session while one is unfinished" do
     stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 30)
-    first = Interviews::StartPreparationService.call(user: user).value
-    result = Interviews::StartPreparationService.call(user: user)
-    expect(result.errors.join).to include("Resume or abandon")
-    expect(user.interview_sessions.count).to eq(1)
-    expect(Interviews::AbandonService.call(interview: first)).to be_success
+    Interviews::StartPreparationService.call(user: user).value
     expect(Interviews::StartPreparationService.call(user: user)).to be_success
+    expect(user.interview_sessions.count).to eq(2)
   end
 
   it "bounds new failed recordings without counting them as accepted answers" do

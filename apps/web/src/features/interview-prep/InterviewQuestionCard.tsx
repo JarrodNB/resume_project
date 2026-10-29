@@ -1,25 +1,25 @@
 /**
- * Description: Persistent answers, feedback, replacement, and saved question avoidance.
- * Index: InterviewQuestionCard
+ * Description: One practice question: write and save an answer, get coaching, or replace the question.
+ * Get feedback saves the typed answer first. Replacing an answered question keeps the old answer
+ * as a read-only copy on the practice page. "Don't show this again" only affects future questions.
  */
 import { useEffect, useState } from 'react'
-import { LoaderCircle } from 'lucide-react'
-import { SectionCard } from '@/components/SectionCard'
+import { Ellipsis, LoaderCircle } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { INTERVIEW_ANSWER_TEXT } from '@/lib/textLimits'
 import type { InterviewSetQuery } from '@/graphql/generated/graphql'
 import { InterviewFeedback } from './InterviewFeedback'
 import { InterviewTaskStatus } from './InterviewTaskStatus'
 import { useInterviewAnswer } from './useInterviewAnswer'
-
 import { useQuestionAvoidance } from './useQuestionAvoidance'
 
 type Question = InterviewSetQuery['interviewQuestionSet']['questions'][number]
-/** Keeps drafts and subscriptions alive even when a question's section is collapsed. */
-export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { question: Question; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
+/** Keeps drafts and subscriptions alive while another question in the set is open. */
+export function InterviewQuestionCard({ question, number, total, setId, refetch, onDirty }: { question: Question; number: number; total: number; setId: string; refetch: () => Promise<unknown>; onDirty: (id: string, dirty: boolean) => void }) {
   const avoidance = useQuestionAvoidance(setId, question.id, question.questionRevision, question.avoided)
   const [edits, setEdits] = useState(0)
   const [submittedEdits, setSubmittedEdits] = useState<number | null>(null)
@@ -68,38 +68,49 @@ export function InterviewQuestionCard({ question, setId, refetch, onDirty }: { q
     if (result.ok && operation === 'replace') setConfirmOpen(false)
     try { await refetch() } catch { /* The page query exposes refresh errors and keeps the draft available. */ }
   }
-  return <>
+  const canRequestFeedback = !busy && !replacing && !reviewing && !(feedbackForVersion && !feedbackDraftChanged) &&
+    answer.trim() !== '' && answer.length <= INTERVIEW_ANSWER_TEXT
+  const saveStatus = busy === 'save' ? 'Saving…' : busy === 'feedback' ? 'Saving and sending for feedback…'
+    : reviewing ? 'Getting feedback. You can keep editing.' : dirty ? 'Unsaved changes' : 'Saved'
+  return <article className="question-card" aria-labelledby={`question-${question.id}`}>
     {task && <InterviewTaskStatus key={task.id} task={task} onFinished={refetch} operation={task.taskType === 'REVIEW_INTERVIEW_ANSWER' ? 'feedback' : 'replacement'} />}
-    <SectionCard tone="career_contexts" title={`Question ${question.position}`} sectionId={`interview.${setId}.${question.id}`}>
-      <p className="mb-4 whitespace-pre-wrap">{question.questionText}</p>
-      <div className="mb-4 grid justify-items-start gap-2">
-        <Button variant="outline" disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onClick={() => void avoidance.save()}>
-          {avoidance.saved ? 'Question avoided' : avoidance.saving ? 'Saving preference…' : "Don't see this again"}
-        </Button>
-        {avoidance.saved && <p role="status" className="text-sm text-muted-foreground">Saved — future interviews will avoid this question.</p>}
-        <ErrorAlert title="Couldn't save preference" messages={avoidance.errors} />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <div className="grid min-w-0 content-start gap-3">
-          <label htmlFor={`answer-${question.id}`} className="font-medium">Your answer</label>
-          <Textarea id={`answer-${question.id}`} value={answer} maxLength={INTERVIEW_ANSWER_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnswer(event.target.value) }} className="min-h-48" />
-          <p className="text-sm text-muted-foreground" role="status">{busy === 'save' ? 'Saving answer…' : dirty ? 'Unsaved changes' : 'Answer saved'} · {answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
-          <ErrorAlert title="Couldn't complete this action" messages={errors} />
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={!!busy || replacing || !dirty} onClick={() => void perform('save')}>Save answer</Button>
-            <Button disabled={!!busy || replacing || reviewing || feedbackForVersion || dirty || !answer.trim() || answer.length > INTERVIEW_ANSWER_TEXT} onClick={() => void perform('feedback')}>
-              {(busy === 'feedback' || reviewing) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
-              {busy === 'feedback' ? 'Requesting feedback…' : reviewing ? 'Reviewing answer…' : 'Get feedback'}
-            </Button>
-            <Button variant="outline" disabled={!!busy || replacing || reviewing} onClick={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Regenerate question</Button>
-          </div>
-          {(busy === 'feedback' || reviewing) && <p role="status" className="text-sm text-muted-foreground">{busy === 'feedback' ? 'Sending your answer for feedback…' : 'Feedback is being prepared. You can keep editing your answer.'}</p>}
-          {dirty && <p className="text-sm text-muted-foreground">Save your answer before requesting feedback.</p>}
-          {feedbackForVersion && !dirty && <p className="text-sm text-muted-foreground">Feedback received for this version. Save a changed answer to request feedback again.</p>}
+    <header className="question-card-header">
+      <p className="question-card-kicker">Question {number} of {total}</p>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={`Actions for question ${number}`}><Ellipsis /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem disabled={!!busy || replacing || reviewing} onSelect={() => { if (answer.trim() || question.answerText.trim()) setConfirmOpen(true); else void perform('replace') }}>Replace question</DropdownMenuItem>
+          <DropdownMenuItem disabled={avoidance.saved || avoidance.saving || replacing || busy === 'replace'} onSelect={() => void avoidance.save()}>
+            {avoidance.saved ? 'Hidden from new questions' : "Don't show this again"}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+    <h2 id={`question-${question.id}`} className="question-card-title">{question.questionText}</h2>
+    {(avoidance.saved || avoidance.saving) && <p role="status" className="text-sm text-muted-foreground">{avoidance.saving ? 'Saving preference…' : "Saved. New questions won't repeat this one."}</p>}
+    <ErrorAlert title="Couldn't save preference" messages={avoidance.errors} />
+    <div className="question-card-body">
+      <div className="grid min-w-0 content-start gap-3">
+        <label htmlFor={`answer-${question.id}`} className="font-bold">Your answer</label>
+        <Textarea id={`answer-${question.id}`} value={answer} maxLength={INTERVIEW_ANSWER_TEXT} disabled={replacing || busy === 'replace'} onChange={(event) => { setEdits((count) => count + 1); setAnswer(event.target.value) }} className="min-h-64" />
+        <div className="question-answer-status">
+          <p role="status">{saveStatus}</p>
+          <p>{answer.length.toLocaleString()} / {INTERVIEW_ANSWER_TEXT.toLocaleString()}</p>
         </div>
-        <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
+        <ErrorAlert title="Couldn't complete this action" messages={errors} />
+        <div className="flex flex-wrap gap-2">
+          <Button disabled={!canRequestFeedback} onClick={() => void perform('feedback')}>
+            {(busy === 'feedback' || reviewing) && <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />}
+            {busy === 'feedback' ? 'Sending…' : reviewing ? 'Getting feedback…' : 'Get feedback'}
+          </Button>
+          <Button variant="outline" disabled={!!busy || replacing || !dirty} onClick={() => void perform('save')}>Save</Button>
+        </div>
+        {feedbackForVersion && !feedbackDraftChanged && !reviewing && <p className="text-sm text-muted-foreground">This feedback is for your current answer. Change your answer to get new feedback.</p>}
       </div>
-    </SectionCard>
-    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this answered question?</DialogTitle><DialogDescription>Successful replacement clears this answer and its feedback. Your current question stays available if replacement fails.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
-  </>
+      <InterviewFeedback feedback={question.feedback} outdated={question.feedbackOutdated || feedbackDraftChanged} unsavedChanges={feedbackDraftChanged} />
+    </div>
+    <Dialog open={confirmOpen} onOpenChange={(open) => { if (!busy) setConfirmOpen(open) }}><DialogContent><DialogHeader><DialogTitle>Replace this question?</DialogTitle><DialogDescription>Your saved answer and its feedback are kept under “Answers from replaced questions” on the practice page.{dirty ? ' Unsaved changes will be lost.' : ''} If replacement fails, nothing changes.</DialogDescription></DialogHeader><ErrorAlert title="Couldn't replace question" messages={errors} /><DialogFooter><DialogClose asChild><Button variant="outline" disabled={!!busy}>Cancel</Button></DialogClose><Button disabled={!!busy} onClick={() => void perform('replace')}>Replace question</Button></DialogFooter></DialogContent></Dialog>
+  </article>
 }

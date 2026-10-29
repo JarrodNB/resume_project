@@ -64,4 +64,4 @@ Job Board search/import intentionally read shared provider catalogue records aft
 All saved Job lookup remains scoped to the current user, including listing/URL matches via
 JobBoard::SavedJobLookup. Never expose raw catalogue payloads or provider credentials.
 
-- Study guides: `generateStudyGuide(jobId)` queues description-only learning material; Job exposes separate `latestStudyGuide` (successful content) and `latestStudyGuideTask` (newest attempt). See `docs/architecture/study-guides.md` at the repository root.
+- Study guides: `generateStudyGuide(jobId)` queues five description-only answered questions; `studyQuestionBatches(cursor)` reads the owned oldest-first collection. Job exposes separate `latestStudyGuide` (successful content) and `latestStudyGuideTask` (newest attempt). See `docs/architecture/study-guides.md` at the repository root.

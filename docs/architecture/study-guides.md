@@ -1,97 +1,134 @@
-# Study guides
+# Study questions
 
-Study guides turn a saved job description into readable learning material. They are separate
-from career-library interview practice and fictional-role interview preparation.
+A job's Study tab is one saved collection of individually answered learning questions.
+It is separate from career-library interview practice and fictional-role preparation.
+`generateStudyGuide(jobId)` generates exactly five questions per successful request;
+**Generate 5 more** appends another successful batch to the collection. Nothing is
+generated automatically when opening the tab, editing a description, or loading a page.
+Old topic-format development guides are unsupported and are not included in this collection.
 
-`generateStudyGuide(jobId)` authorizes through the current user's jobs and queues
-`generate_study_guide`. Enqueueing serializes on the owner and locks/reloads the job before
-capturing `{job_id, description}`. The Python worker uses that exact description; it never
-loads the career library, gaps, or separate job requirement fields. An empty description
-cannot start generation. One recently queued generation per job prevents overlapping requests.
+## Generation and input
 
-Manual recovery uses the same `IN_FLIGHT_WINDOW` as shared allowance checks (currently
-15 minutes from task creation). A queued task older than that window no longer prevents
-a retry. Only an explicit new request retires expired queued tasks as failed, under the
-owner/job locks, after allowance and description validation. It preserves source snapshots,
-earlier guides, and usage; state changes are broadcast after the enqueue transaction. Late
-output cannot revive a retired task, while late per-attempt usage is still counted once.
-Recent queued work remains protected, and retry requests still consume normal allowances.
+The mutation authorizes through the current user's jobs. `StartGuideService` uses the
+shared owner lock and locks/reloads the job before capturing the exact description and
+all earlier saved question prompts. It does not use career-library evidence, gaps, or
+other requirement fields. Blank descriptions cannot start a batch. One recent queued
+request per job prevents overlapping generation. Existing AI allowances still apply.
 
-`studyGuideRetryAfterSeconds` supplies server-calculated remaining time for queued guides.
-The reader uses a one-shot timer to offer manual retry if it stays open, and recognizes
-already-expired work after reload. It keeps the subscription and old material readable;
-the timer never polls, starts generation, or changes persisted task state. The server
-rechecks eligibility when the user clicks retry. This also recovers lost emulator queue
-messages after a restart without leaving a saved job permanently blocked.
+`QuestionCollection` selects only owned, completed question-format results with five
+usable questions. The prior prompts come from these saved generated results, never
+from browser arguments. They are frozen as `previous_questions` alongside `{job_id,
+description}`. The bounded generation context accepts at most 200 prior prompts and
+40,000 total prior-prompt characters; if either limit is exceeded, enqueueing returns a
+clear limit error and keeps all saved questions. It never silently drops older prompts.
+A final batch may bring the collection above 200 questions; another batch then cannot start.
+These limits bound model context and queue input, not reading of saved material.
 
-The worker screens the frozen description afresh. Existing saved-job approvals cover other
-fields and are not reused. Unavailable screening and rejected input both fail closed, with
-distinct diagnostics. The versioned Pydantic AI agent uses the official input guard, contact
-masking, tracing, bounded run limits, and configured model/fallback policy. It returns
-`result.study_guide` with a title and 1–8 ordered topics. Each topic contains a title,
-`why_it_matters`, an explanation, 1–5 exercises, and 1–5 self-check questions. The model
-teaches relevant subject knowledge without inventing candidate experience or employer facts.
-Irrelevant source text receives a brief request for a meaningful description, not an invented role.
+The Python worker validates the frozen snapshot, screens the job description afresh,
+and uses official input-guard coverage, contact masking, tracing, and configured bounded
+model/fallback execution. Unavailable screening and rejected source fail closed with
+distinct diagnostics. Saved prompts are trusted generated sources from the Rails-owned
+enqueue path; they are not screened again. The assembled prompt renders a labeled
+`job_description` block and numbered `previous_study_questions` block without dumping JSON.
+The versioned instructions request fresh concepts and avoid close paraphrases of earlier questions.
 
-Rails validates the result shape and existing owned job under owner/task/job locks before
-accepting completion. Each successful output remains on its own AI task. The newest attempt
-and newest successful guide are separate fields (`latestStudyGuideTask` and
-`latestStudyGuide`) so pending/failed work leaves saved material readable. Finished-task
-and attempt-accounting guards retain the shared duplicate-delivery behavior.
+A valid `result.study_guide` version 1 contains a title and exactly five ordered questions.
+Each has a question and job relevance (up to 1,000 characters each), a well-explained
+answer (up to 6,000 characters), and a hypothetical worked example (up to 3,000 characters).
+Questions teach subject knowledge across occupations without inventing candidate experience
+or employer facts. An unusable description, or exhausted subject matter that cannot support
+another useful batch, can return `StudyGuideUnavailable`; the worker fails the task with
+`failure_code=insufficient_description` and retains actual model usage.
 
-Job deletion takes the same owner/job locking order, nullifies task subjects, and retains
-usage records. Late completions fail. Direct task reads and subscriptions hide a deleted
-job's guide result and source snapshot; historical usage remains available.
+Rails accepts results under owner/task/job locks. It validates the batch, rejects duplicate
+prompts within it, and checks against all current saved prompts for that job. Normalization
+uses Unicode NFKC, lowercase, and collapsed non-alphanumeric separators. Thus a stale
+enqueue snapshot cannot bypass exact-repeat rejection. Prompt instructions address semantic
+repetition; normalization does not claim to detect every close paraphrase. The finished-task
+guard ensures duplicate result delivery cannot append twice. Each successful batch remains
+on its own AI task, preserving source snapshots, usage, and task outcome receipts.
 
-Terminal outcomes use the shared notification feed, including expired attempts retired by
-manual retry. Notices say "Study guide completed" or "Study guide failed" and link to the
-owned job's Study tab (`/jobs/:id/study`); deleted or unavailable jobs fall back to the jobs list.
+## Reading and freshness
 
-Study guides live on the job workspace's Study tab, which is always open.
-It loads a guide body only when that guide is selected, follows task subscriptions instead of polling,
-and shows generation errors beside retained successful material. It offers readable
-exercises and questions without answer persistence, grading, or progress tracking.
+`job.studyQuestionBatches(cursor)` returns one batch (five answered questions), oldest
+first by request timestamp then task ID, an `endCursor`, `totalQuestions`, and errors.
+Signed cursors bind the exact timestamp, ID, and owned job. The end cursor remains valid
+at the end of the collection, allowing a newly completed batch to be read later. A newly
+appended batch cannot shift earlier pages. Failed, pending, topic-format and malformed
+results are excluded. Ordinary job reads do not fetch generated question bodies.
 
-`job.studyGuides(cursor)` returns five successful guide summaries at a time, newest first
-by request time and then task ID. The summaries contain IDs, generation dates, and source
-fingerprints/freshness, without generated bodies or source descriptions;
-`job.studyGuide(id)` loads selected content and requires that successful guide to belong
-to the same owned job. Signed cursors bind the job and the last row's exact timestamp/ID,
-so adding newer guides does not shift later pages. Failed and pending attempts never
-become successful history entries.
+The reader loads the first batch, then loads subsequent batches only when Next crosses
+a loaded boundary. Previous reuses loaded batches. One index and total cover the whole
+collection; a completed generation updates the total without resetting the current question
+or revealed answer, including when earlier batches have not yet been loaded. A failed
+page retains the current question and retries the same cursor on Next. Switching jobs
+resets collection state, question position, answer visibility, and outstanding UI work.
 
-The reader initially selects the newest guide. History buttons show local dates and times,
-including seconds, and older pages load on request. A new completion refreshes history once
-without discarding a selected older guide or already loaded entries. Page failures preserve
-readable material and allow retrying the same continuation. Switching jobs resets the
-history, selected guide, and in-flight UI state; reopening a section starts with the newest
-guide again. Long learning material uses the workspace's readable prose measure.
+Each batch exposes its immutable source-description fingerprint. A current-description
+fingerprint lets the reader refresh freshness for every loaded question after one small
+read, including batches not on the first page. Freshness compares exact case and whitespace.
+The selected question's notice reflects its own batch, so new questions do not make old
+material appear current. Restoring the exact original description restores matching
+questions to current status; clearing it keeps saved material readable and disables generation.
+Overlapping description changes or generation completion queue a final metadata read,
+preventing an older Apollo-deduplicated response from becoming the final freshness state.
 
-Each guide's freshness compares the exact enqueue snapshot with the current description,
-including case and whitespace. `studyGuideOutOfDate` reports selected-task freshness;
-history entries expose `outOfDate` and an immutable `sourceDescriptionFingerprint`. Job's
-`studyGuideDescriptionFingerprint` identifies its current text. These SHA-256 fingerprints
-let the reader update every loaded history entry after one small refresh, including older
-pages, without sending source text or loading guide bodies again. A description cleared
-to blank makes valid earlier guides stale and prevents another generation request.
+## Recovery and deletion
 
-Saved description edits refresh freshness, not generation. Overlapping edits and generation
-completions queue a final read after an in-flight refresh, avoiding stale Apollo-deduplicated
-responses. Reopening the section also checks the server. Old material stays readable;
-description changes during generation can produce an immediately out-of-date completed
-guide. Restoring exactly the original description makes matching guides current again.
-Manual regeneration appends a new guide from the description captured for that request.
+The collection follows task subscriptions instead of polling. Pending and failed work keeps
+saved questions readable. `studyGuideRetryAfterSeconds` supplies the remaining server wait;
+a one-shot timer reveals manual retry but never starts AI work. A new explicit request can
+retire queued tasks older than the shared `IN_FLIGHT_WINDOW` (currently 15 minutes), after
+allowance and source/context validation. Late output cannot revive a retired task, while
+late per-attempt usage is still counted once.
 
-For human QA, load more than one history page and select an older guide; edit and restore
-the description while keeping the section open. Check the reader and all loaded history
-notices without losing the selected material or starting AI work. Generate again, edit
-while it runs, then check that the finished guide reflects its original request and is
-marked out of date. Clear the description and verify older guides remain readable while
-generation is disabled; reload to verify saved history and freshness.
+Job deletion uses the owner/job lock order, nullifies task subjects, and retains usage.
+Late completions fail; direct task reads and subscriptions hide deleted jobs' source and
+results. Terminal task outcomes use the shared notification feed and link to the owned
+job's Study tab, falling back to the jobs list when the job is unavailable.
 
-Quality checks: `python -m evals.run_study_guide_evals` uses five synthetic descriptions
-covering inventory, backend engineering, a sparse bakery role, irrelevant text, and an
-injected instruction. Deterministic checks verify outcomes; a separate judge assesses
-relevance, subject accuracy, and useful exercises. Screening outages fail evaluation rather
-than counting as attack rejection. Offline contracts live in handler and evaluator tests;
-finite model evaluations do not prove universal subject correctness.
+## Verification
+
+Offline checks use worker dispatch, Rails result application and GraphQL collection reads,
+and the rendered React panel. They cover frozen prior prompts, repeat rejection, limits,
+source screening, signed cursor scoping and equal-time ordering, page failures, appending
+behind unloaded pages, answer visibility, freshness edits/restoration, and manual retry.
+`python -m evals.run_study_guide_evals` uses seven synthetic cases: inventory, backend
+engineering, sparse bakery work, irrelevant input, injected instructions, a fresh appended
+batch, and exhausted subject matter with earlier saved questions. Prior prompts pass through
+the production worker and are shown to the judge as readable context; evaluation-only labels
+never enter generation. The judge checks repeated learning concepts as well as wording. Deterministic
+outcomes distinguish unavailable screening from a successful rejection. A subject-quality
+judge assesses relevance, accuracy, answer depth, and worked examples. Finite evaluations
+do not prove universal correctness or semantic duplicate detection.
+
+For human QA, generate a batch, reveal an answer, and request five more. Confirm the answer
+and current position remain, then navigate across the batch boundary and reload. Load a
+later batch, edit/restore the description, and confirm that question's freshness without
+losing position. Check blank descriptions, pending/failed batches, manual retries, keyboard
+focus, narrow layouts, and both themes. No grading, answer persistence, or progress tracking
+is provided.
+
+## Optional answer diagrams
+
+Each question may include `diagram`, or leave it null. A diagram is a small relationship map,
+not model-authored markup: a caption (up to 200 characters), a prose `explanation` (up to 1,000),
+2–6 nodes with unique lowercase identifiers and labels, and 1–8 directed edges. Node and edge
+labels are bounded to 160 characters. Every edge references two different declared nodes;
+every node participates, and repeated directed connections are rejected. The Python schema and
+Rails result acceptance validate these constraints before a batch is saved.
+
+The reader renders each connection as a source concept, labeled arrow, and destination concept.
+Connections stack vertically on narrow screens; labels wrap and use the existing theme tokens.
+The caption and prose equivalent remain readable without the visual map. The visual map is
+hidden from assistive technology to avoid repeating the equivalent prose. React escapes all
+labels as text; diagrams cannot supply HTML, SVG, links, styling, or executable diagram syntax.
+A malformed optional diagram in a saved result is omitted by the defensive parser while its
+question, answer, and example remain readable. Diagram absence is normal. Diagrams appear only
+inside revealed answers, and generation instructions require them to add teaching value.
+
+The study-guide quality judge receives readable caption, explanation, concepts and relationships,
+with no JSON dump. It assesses correctness, teaching usefulness and the text equivalent, while
+accepting answers that do not benefit from diagrams. Non-browser tests cover diagram reveal,
+malformed fallback and escaped long labels; actual narrow-layout and light/dark visual QA remain
+human checks.

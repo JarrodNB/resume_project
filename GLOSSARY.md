@@ -44,6 +44,15 @@ The model work consumed while handling a user's AI tasks, including unsuccessful
 **Conversation transcript**:
 A readable record of the AI exchanges for one AI task, stored separately from other tasks even when they share a job or interview question set. It includes instructions, messages, tool calls and results, and repeated attempts as seen by the model. Local development transcripts also highlight observed validation/provider failures, actual fallback execution and task redeliveries; production uses tracing only.
 
+**Question bank**:
+Every written practice question a user has, shown together with each answer's progress
+(not answered, no feedback yet, feedback ready, or out of date). Questions still arrive in
+practice sets of five; the bank is how the user browses and returns to them.
+
+**Retired question**:
+A read-only copy of an answered practice question that was replaced. It keeps the old
+question, answer, and feedback in the question bank but no longer fills one of its set's five slots.
+
 **Interview session**:
 One practice interview with its own questions, accepted dialogue, and progress. It is separate
 from a written interview practice set.
@@ -113,8 +122,12 @@ with a short reason and an optional question about useful missing detail. It eva
 description, not the person's employability.
 
 **Study guide**:
-Saved learning material derived from a job description, with prioritized topics, explanations,
-practice exercises, and self-check questions. It describes what to study, not the job seeker's experience.
+A saved collection of learning questions derived from a job description, with explained answers
+and worked examples. It teaches subject knowledge, not claims about the job seeker's experience.
+
+**Study question**:
+One focused learning question with its supplied explanation and worked example, separate from
+a candidate's own interview-practice answer.
 
 **Career reference**:
 A saved career-library piece shown during interview practice to help the candidate recall

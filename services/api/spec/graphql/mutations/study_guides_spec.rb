@@ -14,8 +14,27 @@ RSpec.describe "Study guide generation" do
     task = user.ai_tasks.last
     expect(task.task_type).to eq("generate_study_guide")
     expect(task.subject).to eq(job)
-    expect(task.input).to eq("job_id" => job.id, "description" => job.description)
+    expect(task.input).to eq("job_id" => job.id, "description" => job.description, "previous_questions" => [])
   end
+  it "freezes all earlier owned question prompts when appending" do
+    prompts = Array.new(5) { |i| { "question" => "Prior question #{i}?", "why_it_matters" => "Role", "answer" => "Explanation", "example" => "Example" } }
+    create(:ai_task, user: user, subject: job, task_type: "generate_study_guide", status: "completed",
+      result: { "study_guide" => { "version" => 1, "title" => "Prior", "questions" => prompts } })
+    execute_graphql(mutation, user: user, variables: { id: job.id })
+    expect(user.ai_tasks.order(created_at: :desc).first.input["previous_questions"]).to eq(prompts.map { |item| item["question"] })
+  end
+
+  it "does not forget old questions when generation reaches its bounded context" do
+    prompts = Array.new(5) { |i| { "question" => "Prior question #{i}?", "why_it_matters" => "Role", "answer" => "Explanation", "example" => "Example" } }
+    41.times do
+      create(:ai_task, user: user, subject: job, task_type: "generate_study_guide", status: "completed", created_at: 2.hours.ago,
+        result: { "study_guide" => { "version" => 1, "title" => "Prior", "questions" => prompts } })
+    end
+    response = execute_graphql(mutation, user: user, variables: { id: job.id })
+    expect(response.dig("data", "generateStudyGuide", "errors")).to include(/generation limit/)
+    expect(user.ai_tasks.count).to eq(41)
+  end
+
   it "rejects another user's job" do
     response = execute_graphql(mutation, user: user, variables: { id: create(:job).id })
     expect(response["errors"].first["message"]).to eq("Record not found")
@@ -47,9 +66,11 @@ RSpec.describe "Study guide generation" do
     expect(saved.reload.result).to eq("study_guide" => { "title" => "Saved material" })
     expect(ApiSchema.subscriptions).to have_received(:trigger).with(:ai_task_updated, { id: expired.id }, expired).once
 
-    late_guide = { "title" => "Late output", "topics" => [ { "title" => "Inventory reconciliation",
-      "why_it_matters" => "The job reconciles stock.", "explanation" => "Compare physical counts with stock records.",
-      "exercises" => [ "Reconcile a sample ledger." ], "self_check_questions" => [ "What causes discrepancies?" ] } ] }
+    late_guide = { "version" => 1, "title" => "Late output", "questions" => Array.new(5) { |index|
+      { "question" => "How do you reconcile inventory #{index + 1}?", "why_it_matters" => "The job reconciles stock.",
+        "answer" => "Compare physical counts with stock records and investigate missing receipts.",
+        "example" => "A count of 8 against a record of 10 leaves 2 to investigate before correction." }
+    } }
     late = { "ai_task_id" => expired.id, "status" => "completed", "attempt_id" => SecureRandom.uuid,
       "usage" => [ { "cost_microdollars" => 7 } ], "result" => { "study_guide" => late_guide } }
     2.times { AiTasks::ApplyAiResultService.call(message: late) }

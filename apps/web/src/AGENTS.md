@@ -14,7 +14,7 @@ Source of the web app, organized by feature.
   mode, deep forest in `.dark`; shared responsive workspace/auth styles and section icon accents
   (`--section-<tone>-accent`). Root `DESIGN.md` records the main app visual system
 - `features/auth/` — sign-in/up pages, cookie-session bootstrap/context, route guards
-- `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?`; generation and streaming use separate execution state
+- `features/chat/` — private saved career-chat workspace, create/list/reopen and paginated accepted history at `/chat/:id?` (`/chat` reopens the most recent chat); generation and streaming use separate execution state
 - `features/home/` — Home (`/`): saved jobs by stage as a board or list (choice remembered in
   localStorage), each with the next step Rails suggests (`jobPipeline`) linked to the job tab that
   handles it, AI work in progress, and three starting steps before any job is saved (the library step shows done once the library has content; with jobs but an empty library, a red note points to importing)
@@ -26,7 +26,7 @@ Source of the web app, organized by feature.
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   and the job workspace (`/jobs/:id`: header with stage, edit, and delete, plus Fit, Resume,
   Study, Interview, and Posting tabs)
-- `features/study-guides/` — description-only study guides on a job's Study tab, paginated history, selected-guide reading, per-guide freshness and live generation status
+- `features/study-guides/` — description-only answered study questions on a job's Study tab, five-question generation and append, stable collection pagination, per-batch freshness and live generation status
 - `features/gap-analysis/` — compare a job with the career library (the job's Fit tab)
 - `features/resumes/` — saved resumes list (`/resumes`) and the editor for resumes whose job was
   deleted (`/resumes/:id`; linked resumes redirect to their job's Resume tab)

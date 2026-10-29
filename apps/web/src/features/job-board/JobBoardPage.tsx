@@ -2,7 +2,6 @@
  * Search owns submitted results and optional ordering; the form owns editable filters.
  */
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
@@ -29,11 +28,12 @@ export function JobBoardPage() {
   const preferenceCheck = useBoardPreferenceCheck(board.snapshot)
   const { reranking, submittedSearch } = board
   const importer = useImportJobBoardListing()
-  const navigate = useNavigate()
+  // Listings saved from this page stay in place; the row offers a link to the new job instead.
+  const [savedHere, setSavedHere] = useState<Record<string, { jobId: string; warnings: string[] }>>({})
 
   async function createJob(listingId: string) {
     const result = await importer.save(listingId)
-    if (result) navigate(`/jobs/${result.jobId}`, { state: { jobBoardImport: result } })
+    if (result) setSavedHere((current) => ({ ...current, [listingId]: result }))
   }
 
   const orderedListings = ordering === 'preferences' ? preferenceCheck.orderedListings : ordering === 'library' ? board.listings : board.providerListings
@@ -113,7 +113,7 @@ export function JobBoardPage() {
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Go to the next page to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
       {visibleListings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} assessment={preferenceCheck.assessments?.has(listing.id) && preferenceCheck.profile ? { ...preferenceCheck.assessments.get(listing.id)!, profile: preferenceCheck.profile } : undefined} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} assessment={preferenceCheck.assessments?.has(listing.id) && preferenceCheck.profile ? { ...preferenceCheck.assessments.get(listing.id)!, profile: preferenceCheck.profile } : undefined} busyId={importer.busyId} savedHere={savedHere[listing.id]} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}

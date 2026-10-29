@@ -1,12 +1,14 @@
 /** Present one opportunity with scannable details and a private save/open action.
- * Descriptions remain plain text and remember whether the user has expanded them.
+ * Descriptions remain plain text, shown with their labels and bullets, and remember
+ * whether the user has expanded them.
  */
 import { PreferenceAssessment } from './PreferenceAssessment'
 import type { ListingAssessment } from './preferenceAssessments'
 import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { Link } from 'react-router'
-import { ArrowUpRight, MapPin, Plus, Radio } from 'lucide-react'
+import { ArrowUpRight, Check, MapPin, Plus, Radio } from 'lucide-react'
 import { CollapseToggle } from '@/components/CollapseToggle'
+import { FormattedDescription } from '@/components/FormattedDescription'
 import { useOpenSection } from '@/components/useOpenSection'
 import { Button } from '@/components/ui/button'
 import { employmentTypeOptions, remoteOptions } from './searchFilters'
@@ -16,10 +18,12 @@ interface Props {
   assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
   listing: BoardListing
   busyId: string | null
+  /** Set once this listing was saved from the board, so the row can link to the new job. */
+  savedHere?: { jobId: string; warnings: string[] }
   onCreate: (listingId: string) => void
 }
 
-export function JobBoardListingRow({ listing, busyId, onCreate, assessment }: Props) {
+export function JobBoardListingRow({ listing, busyId, savedHere, onCreate, assessment }: Props) {
   const { open, toggle, panelId } = useOpenSection(`job-board:${listing.id}:description`)
   const published = listing.published ? new Date(listing.published) : null
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
@@ -41,15 +45,20 @@ export function JobBoardListingRow({ listing, busyId, onCreate, assessment }: Pr
           </div>
           {listing.savedJob ? (
             <Button asChild variant="outline" className="board-listing-action"><Link to={`/jobs/${listing.savedJob.id}`}>Open saved job <ArrowUpRight aria-hidden /></Link></Button>
+          ) : savedHere ? (
+            <div className="board-listing-saved">
+              <p role="status"><Check size={14} aria-hidden />{savedHere.warnings.length ? 'Saved with a few changes' : 'Saved to your jobs'}</p>
+              <Button asChild variant="outline" className="board-listing-action"><Link to={`/jobs/${savedHere.jobId}`} state={{ jobBoardImport: savedHere }}>Open saved job <ArrowUpRight aria-hidden /></Link></Button>
+            </div>
           ) : (
-            <Button variant="outline" className="board-listing-action" disabled={busyId !== null} onClick={() => onCreate(listing.id)}><Plus aria-hidden />{busyId === listing.id ? 'Creating…' : 'Create job'}</Button>
+            <Button variant="outline" className="board-listing-action" disabled={busyId !== null} onClick={() => onCreate(listing.id)}><Plus aria-hidden />{busyId === listing.id ? 'Saving…' : 'Save job'}</Button>
           )}
         </div>
         {listing.description ? <>
           <CollapseToggle open={open} panelId={panelId} onToggle={toggle} className="board-description-toggle">
             <span>Description <span className="sr-only">for {listing.title}</span></span>
           </CollapseToggle>
-          {open && <div id={panelId} className="board-description">{listing.description}</div>}
+          {open && <FormattedDescription id={panelId} className="board-description" text={listing.description} />}
         </> : <p className="board-description-missing">No description provided.</p>}
         {assessment && <PreferenceAssessment listing={listing} {...assessment} />}
       </article>

@@ -6,10 +6,6 @@ class InterviewSession < ApplicationRecord
   before_destroy -> { Interviews::SessionFeedback.new.purge(interview: self, reason: :deleted) }, prepend: true
   STATUSES = %w[preparing ready active completed expired abandoned].freeze
   INTERVIEW_TYPES = %w[basic].freeze
-  # Mirrors admission: only live sessions with durable prepared-source context block a new start.
-  scope :blocking_new_preparation, -> {
-    where(status: %w[preparing ready active]).where("expires_at > ?", Time.current).where.not(frozen_context: {})
-  }
   attr_readonly :execution_mode, :execution_config, :setup_config
   validates :execution_mode, inclusion: { in: Interviews::ExecutionConfiguration::PRESETS.keys }
   validates :execution_config, inclusion: { in: ->(session) { [ Interviews::ExecutionConfiguration::PRESETS[session.execution_mode] ] } }

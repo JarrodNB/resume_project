@@ -7,7 +7,6 @@ import { renderPage } from '@/test/renderPage'
 import { JOB_QUERY } from '@/features/jobs/jobsOperations'
 import { JobWorkspaceLayout } from '@/features/jobs/JobWorkspaceLayout'
 import { JobInterviewTab } from './JobInterviewTab'
-import { UNFINISHED_INTERVIEW } from './interviewOperations'
 
 const { start } = vi.hoisted(() => ({ start: vi.fn() }))
 vi.mock('./useInterviewSession', () => ({ useStartInterview: () => ({ start, loading: false, error: null }), useInterviewSession: vi.fn() }))
@@ -19,8 +18,7 @@ const request = { query: JOB_QUERY, variables: { id: 'job-1' } }
 const interviewTab = [{ path: 'interview', element: <JobInterviewTab /> }]
 function mount(available = true, historyState?: unknown) {
   return renderPage({ path: '/jobs/:id', url: '/jobs/job-1/interview', historyState, element: <JobWorkspaceLayout />, children: interviewTab,
-    mocks: [available ? { request, result: { data: { job } } } : { request, result: { errors: [new GraphQLError('Record not found')] } },
-      { request: { query: UNFINISHED_INTERVIEW }, result: { data: { unfinishedInterviewSession: null } } }],
+    mocks: [available ? { request, result: { data: { job } } } : { request, result: { errors: [new GraphQLError('Record not found')] } }],
     extraRoutes: [{ path: '/practice/interviews/:id', element: <p>Saved preparation</p> }, { path: '/jobs', element: <p>My jobs</p> }],
   })
 }
@@ -65,8 +63,7 @@ it('keeps unavailable jobs out of setup instead of offering generic preparation'
 it('keeps setup closed when loading the job fails on the network', async () => {
   renderPage({ path: '/jobs/:id', url: '/jobs/job-1/interview', element: <JobWorkspaceLayout />, children: interviewTab,
     mocks: [
-      { request, error: new Error('Connection unavailable') },
-      { request: { query: UNFINISHED_INTERVIEW }, result: { data: { unfinishedInterviewSession: null } } },
+      { request, error: new Error('Connection unavailable') }
     ],
   })
   expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load this job")

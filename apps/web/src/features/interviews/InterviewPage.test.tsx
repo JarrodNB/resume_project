@@ -33,7 +33,7 @@ function renderInterview(url = '/practice/interviews/session', mocks: MockLink.M
 type SavedJob = { id: string; title: string; company: string | null; stage: 'UNAPPLIED' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'OFFER' }
 /** Saved jobs offered on the role step; mocked on every render so setup never waits on an unmocked query. */
 function jobsMock(jobs: SavedJob[] = []): MockLink.MockedResponse {
-  return { request: { query: JOBS_QUERY }, result: { data: { jobs: jobs.map((job) => ({ __typename: 'Job' as const, location: null, createdAt: '2026-10-01T00:00:00Z', ...job })) } } }
+  return { request: { query: JOBS_QUERY }, result: { data: { jobs: jobs.map((job) => ({ __typename: 'Job' as const, location: null, url: null, createdAt: '2026-10-01T00:00:00Z', ...job })) } } }
 }
 /** Opens the mock interview overview and picks the default practice role, landing on round setup. */
 async function renderPracticeRoleSetup() {

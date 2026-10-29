@@ -26,6 +26,7 @@ it.each(['Acme', null])('lists saved jobs with their stage and company %s', asyn
           company,
           location: 'Remote',
           stage: 'UNAPPLIED',
+          url: 'https://acme.example/apply',
           createdAt: '2026-10-01T00:00:00Z',
         },
       ]),
@@ -35,7 +36,8 @@ it.each(['Acme', null])('lists saved jobs with their stage and company %s', asyn
   expect(await screen.findByText('AI Engineer')).toBeInTheDocument()
   expect(screen.getByText(`${company ?? 'Unknown company'} · Remote`)).toBeInTheDocument()
   expect(screen.getByText('Not applied')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /AI Engineer/ })).toHaveAttribute('href', '/jobs/job-1')
+  expect(screen.getByRole('link', { name: /^AI Engineer/ })).toHaveAttribute('href', '/jobs/job-1')
+  expect(screen.getByRole('link', { name: 'Open AI Engineer application page' })).toHaveAttribute('href', 'https://acme.example/apply')
 })
 
 it('invites the user to add a job when there are none', async () => {

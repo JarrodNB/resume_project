@@ -590,6 +590,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .record-list > li + li { border-top: 1px solid var(--border); }
 .job-record { position: relative; }
 .job-record .record-link { padding-bottom: 52px; }
+.job-record-url { position: absolute; right: 16px; bottom: 20px; display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--muted-foreground); }
+.job-record-url:hover { color: var(--foreground); text-decoration: underline; }
 .job-record-step { position: absolute; left: 16px; bottom: 20px; }
 .record-link { display: flex; align-items: center; gap: 20px; padding: 24px 16px; border-radius: 4px; transition: background-color 160ms; }
 .record-link:active { background: var(--accent); }

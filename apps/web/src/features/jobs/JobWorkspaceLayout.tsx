@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router'
 import { ErrorAlert } from '@/components/ErrorAlert'
+import { ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useGapAnalysis } from '@/features/gap-analysis/useGapAnalysis'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
@@ -89,8 +90,12 @@ function JobWorkspace({ id }: { id: string }) {
               onCompare={() => void comparison.start()}
             />
           )}
+          {job.url && (
+            <Button asChild variant="outline">
+              <a href={job.url} target="_blank" rel="noreferrer"><ExternalLink aria-hidden /> Visit website</a>
+            </Button>
+          )}
           <JobActionsMenu
-            url={job.url}
             onEdit={() => setEditing(true)}
             onArchive={() => {
               clearErrors()

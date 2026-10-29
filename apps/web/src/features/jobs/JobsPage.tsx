@@ -7,7 +7,7 @@
  */
 import { useState } from 'react'
 import { useQuery } from '@apollo/client/react'
-import { ArrowUpRight, BriefcaseBusiness, ClipboardPaste, Link2 } from 'lucide-react'
+import { ArrowUpRight, BriefcaseBusiness, ClipboardPaste, ExternalLink, Link2 } from 'lucide-react'
 import { JOB_PIPELINE_QUERY } from '@/features/home/homeOperations'
 import { NextStep } from '@/features/home/NextStepSignal'
 import { Link, useNavigate } from 'react-router'
@@ -62,6 +62,11 @@ export function JobsPage() {
                 <JobStopLine stage={job.stage} showLabel className="is-compact" />
                 <ArrowUpRight size={17} className="record-arrow" aria-hidden />
               </Link>
+              {job.url && (
+                <a href={job.url} target="_blank" rel="noreferrer" className="job-record-url" aria-label={`Open ${job.title} application page`}>
+                  <ExternalLink size={14} aria-hidden /> Application page
+                </a>
+              )}
               {pipelineByJob.get(job.id) && <div className="job-record-step"><NextStep entry={pipelineByJob.get(job.id)!} /></div>}
             </li>
           ))}

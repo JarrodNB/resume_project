@@ -36,7 +36,8 @@ RSpec.describe "Prepared interview admission contention" do
     threads&.each(&:join)
   end
 
-  it "admits only one unfinished prepared session and one hourly root" do
+  it "admits only one competing start at the hourly limit" do
+    stub_const("DEFAULT_INTERVIEW_SESSIONS_PER_HOUR", 1)
     results = compete { Interviews::StartPreparationService.call(user: User.find(@user.id)) }
     expect(results.count(&:success?)).to eq(1)
     expect(@user.interview_sessions.count).to eq(1)

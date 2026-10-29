@@ -27,8 +27,7 @@ remain 30 starts/hour and $3/month; this local QA mode does not enforce those sp
 Spoken interviews still have three concurrent-operation slots.
 They do not consume general AI limits, and general AI usage does not consume interview limits.
 Every preparation/turn/speech bill remains in the interview usage records.
-Only one unfinished prepared session is allowed per account: resume or abandon it before
-preparing another. Each question permits six submitted recordings, including failed inputs,
+Each question permits six submitted recordings, including failed inputs,
 with at most three accepted responses. A processing retry reuses the original recording slot.
 
 The public launcher rejects scripted sessions and has no mode selector. Older scripted

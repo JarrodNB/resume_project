@@ -274,7 +274,7 @@ it('discards descendants only after a refreshed page changes the cursor chain', 
   await screen.findByRole('heading', { name: 'New second role' })
 })
 
-it('creates a private job once during a double click and opens it with import warnings', async () => {
+it('creates a private job once during a double click, stays on the board, and links to it with import warnings', async () => {
   const user = userEvent.setup()
   const imported = vi.fn(() => ({ data: { importJobBoardListing: { __typename: 'ImportListingPayload', job: { __typename: 'Job', id: 'saved-one' }, warnings: ['The application link was omitted.'], errors: [] } } }))
   const { router } = renderBoard([
@@ -284,8 +284,11 @@ it('creates a private job once during a double click and opens it with import wa
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   await user.dblClick(screen.getByRole('button', { name: 'Save job' }))
-  await screen.findByText('Saved job page')
+  expect(await screen.findByText('Saved with a few changes')).toBeInTheDocument()
   expect(imported).toHaveBeenCalledOnce()
+  expect(router.state.location.pathname).toBe('/jobs/find')
+  await user.click(screen.getByRole('link', { name: 'Open saved job' }))
+  await screen.findByText('Saved job page')
   expect(router.state.location.pathname).toBe('/jobs/saved-one')
   expect(router.state.location.state).toEqual({ jobBoardImport: { jobId: 'saved-one', warnings: ['The application link was omitted.'] } })
 })
@@ -323,7 +326,7 @@ it.each(['validation', 'network'])('keeps search results after an import %s fail
   await screen.findByText('Could not save this job. Please try again.')
   expect(screen.getByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Save job' }))
-  await screen.findByText('Saved job page')
+  expect(await screen.findByText('Saved to your jobs')).toBeInTheDocument()
 })
 
 it('refreshes an already visited private Jobs list after creating a listing', async () => {
@@ -338,7 +341,7 @@ it('refreshes an already visited private Jobs list after creating a listing', as
       { request: { query: JOBS_QUERY }, result: { data: { jobs: [] } } },
       queryMock(),
       { request: { query: IMPORT_JOB_BOARD_LISTING_MUTATION, variables: { listingId: 'one' } }, result: { data: { importJobBoardListing: { __typename: 'ImportListingPayload', job: { __typename: 'Job', id: 'saved-one' }, warnings: [], errors: [] } } } },
-      { request: { query: JOBS_QUERY }, result: { data: { jobs: [{ __typename: 'Job', id: 'saved-one', title: 'Platform Engineer', company: 'Acme', location: 'United States', stage: 'UNAPPLIED', createdAt: '2026-10-19T00:00:00Z' }] } } },
+      { request: { query: JOBS_QUERY }, result: { data: { jobs: [{ __typename: 'Job', id: 'saved-one', title: 'Platform Engineer', company: 'Acme', location: 'United States', stage: 'UNAPPLIED', url: null, createdAt: '2026-10-19T00:00:00Z' }] } } },
     ],
   })
   await screen.findByText(/No jobs yet/)
@@ -346,6 +349,7 @@ it('refreshes an already visited private Jobs list after creating a listing', as
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
   await user.click(screen.getByRole('button', { name: 'Save job' }))
+  await user.click(await screen.findByRole('link', { name: 'Open saved job' }))
   await user.click(await screen.findByRole('link', { name: 'Return to saved jobs' }))
   expect(await screen.findByRole('link', { name: /Platform Engineer/ })).toHaveAttribute('href', '/jobs/saved-one')
 })

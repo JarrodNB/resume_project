@@ -161,8 +161,7 @@ it('offers the saved website in a new tab without changing the application stage
     ],
   })
 
-  await openActionsMenu(user)
-  const website = screen.getByRole('menuitem', { name: 'Visit website' })
+  const website = await screen.findByRole('link', { name: 'Visit website' })
   expect(website).toHaveAttribute('href', 'https://example.com/careers/engineer')
   expect(website).toHaveAttribute('target', '_blank')
   expect(website).toHaveAttribute('rel', 'noreferrer')
@@ -171,13 +170,13 @@ it('offers the saved website in a new tab without changing the application stage
   expect(screen.getByRole('combobox', { name: 'Stage' })).toHaveValue('UNAPPLIED')
 })
 
-it('omits the website action when no URL is saved', async () => {
+it('omits the website link when no URL is saved', async () => {
   const user = userEvent.setup()
   renderWorkspace({ mocks: [jobQuery(job())] })
 
   await openActionsMenu(user)
   expect(screen.getByRole('menuitem', { name: 'Edit job' })).toBeInTheDocument()
-  expect(screen.queryByRole('menuitem', { name: 'Visit website' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: 'Visit website' })).not.toBeInTheDocument()
 })
 
 it('saves an edit and clears an optional field', async () => {

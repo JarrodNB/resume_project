@@ -20,6 +20,7 @@ export const JOBS_QUERY = graphql(`
       company
       location
       stage
+      url
       createdAt
     }
   }

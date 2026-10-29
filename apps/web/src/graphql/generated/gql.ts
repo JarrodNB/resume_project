@@ -84,8 +84,6 @@ type Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
-    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": typeof types.UnfinishedInterviewSessionDocument,
-    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": typeof types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": typeof types.RequestInterviewClarificationDocument,
@@ -100,7 +98,7 @@ type Documents = {
     "\n  query JobBoardLocations($query: String!) {\n    jobBoardLocations(query: $query) {\n      locations { kind providerId label }\n      errors\n    }\n  }\n": typeof types.JobBoardLocationsDocument,
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": typeof types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": typeof types.JobBoardRerankingDocument,
-    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
+    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
     "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      responsibilities\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": typeof types.JobDocument,
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateJobDocument,
@@ -196,8 +194,6 @@ const documents: Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
-    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": types.UnfinishedInterviewSessionDocument,
-    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": types.RequestInterviewClarificationDocument,
@@ -212,7 +208,7 @@ const documents: Documents = {
     "\n  query JobBoardLocations($query: String!) {\n    jobBoardLocations(query: $query) {\n      locations { kind providerId label }\n      errors\n    }\n  }\n": types.JobBoardLocationsDocument,
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": types.JobBoardRerankingDocument,
-    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": types.JobsDocument,
+    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n": types.JobsDocument,
     "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      responsibilities\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": types.JobDocument,
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateJobDocument,
@@ -535,14 +531,6 @@ export function graphql(source: "\n  query RecentInterviewSessions {\n    recent
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"): (typeof documents)["\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"): (typeof documents)["\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -599,7 +587,7 @@ export function graphql(source: "\n  subscription JobBoardReranking($id: ID!) {\
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n"];
+export function graphql(source: "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

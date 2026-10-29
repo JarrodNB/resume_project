@@ -3,7 +3,7 @@
 # Root queries keep private records, including saved chat history, owner-scoped. Authenticated Job Board search
 # reads shared provider listings and attaches only the current owner's saved Jobs.
 # Index:
-#   - interview_session, recent_interview_sessions, unfinished_interview_session
+#   - interview_session, recent_interview_sessions
 #   - interview_question_sets, interview_question_set(id:)
 #   - me
 #   - experiences, projects, educations, certifications, skills, career_contexts (career library)
@@ -43,7 +43,6 @@ module Types
 
     field :interviews_enabled, Boolean, null: false
     field :recent_interview_sessions, [ Types::InterviewSessionType ], null: false
-    field :unfinished_interview_session, Types::InterviewSessionType, null: true
     field :interview_session, Types::InterviewSessionType, null: false do
       argument :id, ID, required: true
     end
@@ -61,11 +60,6 @@ module Types
       context[:current_user].interview_sessions.where(execution_mode: "real",
         status: %w[preparing ready active completed]).where("expires_at > ?", Time.current)
         .order(created_at: :desc, id: :desc).limit(20)
-    end
-
-    def unfinished_interview_session
-      Interviews::Access.check!(current_user)
-      current_user.interview_sessions.blocking_new_preparation.order(created_at: :desc, id: :desc).first
     end
 
     field :interview_question_sets, [ Types::InterviewQuestionSetType ], null: false

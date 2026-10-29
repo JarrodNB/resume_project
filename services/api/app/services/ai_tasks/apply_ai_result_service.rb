@@ -34,7 +34,7 @@ module AiTasks
           usage_recorded = RecordAttemptUsageService.call(ai_task: ai_task, message: @message).value
         end
         # Late usage still changes the task's cost totals, so subscribers need to hear about it.
-        next usage_recorded if status == "usage" || ai_task.finished? || (ai_task.improve_library_entry? && !ai_task.queued?)
+        next usage_recorded if status == "usage" || ai_task.finished? || ((ai_task.improve_library_entry? || ai_task.elicit_job_preferences?) && !ai_task.queued?)
 
         InterviewPrep::RecordScreeningService.call(ai_task: ai_task, reports: @message["interview_question_screening"])
         Jobs::RecordScreeningService.call(ai_task: ai_task, reports: @message["job_screening"])
@@ -50,7 +50,10 @@ module AiTasks
 
         attributes = attributes_for(status)
         attributes.merge!(usage_attributes) unless @message["attempt_id"].present?
-        if ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
+        if ai_task.elicit_job_preferences? && %w[completed needs_user_input].include?(status)
+          result = JobPreferences::ApplyConversationService.call(ai_task: ai_task, message: @message)
+          attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
+        elsif ai_task.improve_library_entry? && %w[completed needs_user_input].include?(status)
           result = CareerLibrary::ApplyEditService.call(ai_task: ai_task, message: @message)
           attributes.merge!(result.success? ? result.value : { status: "failed", result: nil, message_history: [], pending_questions: [], error_message: result.errors.join(", "), completed_at: Time.current })
         elsif status == "completed"

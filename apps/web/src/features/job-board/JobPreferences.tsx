@@ -1,6 +1,7 @@
 /** A remembered, collapsed home for the user's reusable next-job preferences. */
 import { SectionCard } from '@/components/SectionCard'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { JobPreferenceConversation } from './JobPreferenceConversation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,18 +20,24 @@ export function JobPreferences() {
 
 function PreferenceContents() {
   const preferences = useJobPreferences()
+  const [dirty, setDirty] = useState(false)
+  const [conversationBusy, setConversationBusy] = useState(false)
   return <div className="grid gap-4">
     {preferences.loading && <p role="status">Loading preferences…</p>}
     <ErrorAlert title="Couldn't update preferences" messages={preferences.errors} />
     {preferences.errors.length > 0 && <Button type="button" variant="outline" disabled={preferences.busy} onClick={() => void preferences.reload()}>Reload preferences</Button>}
-    {preferences.profile && <PreferenceEditor key={preferences.profile.version} profile={preferences.profile} busy={preferences.busy} update={preferences.update} />}
+    {preferences.profile && <>
+      <JobPreferenceConversation version={preferences.profile.version} disabled={dirty || preferences.busy} onBusyChange={setConversationBusy} onAccepted={preferences.reload} />
+      <PreferenceEditor key={preferences.profile.version} profile={preferences.profile} busy={preferences.busy || conversationBusy} update={preferences.update} onDirtyChange={setDirty} />
+    </>}
   </div>
 }
 
-function PreferenceEditor({ profile, busy, update }: { profile: Profile; busy: boolean; update: ReturnType<typeof useJobPreferences>['update'] }) {
+function PreferenceEditor({ profile, busy, update, onDirtyChange }: { profile: Profile; busy: boolean; onDirtyChange: (dirty: boolean) => void; update: ReturnType<typeof useJobPreferences>['update'] }) {
   const saved = profile.draftCriteria.map(({ id, text, priority }) => ({ id, text, priority }))
   const [criteria, setCriteria] = useState<Criterion[]>(saved)
   const dirty = JSON.stringify(criteria) !== JSON.stringify(saved)
+  useEffect(() => { onDirtyChange(dirty) }, [dirty, onDirtyChange])
   const invalid = criteria.some((criterion) => !criterion.text.trim())
   const pendingConfirmation = profile.version > profile.confirmedRevision
 

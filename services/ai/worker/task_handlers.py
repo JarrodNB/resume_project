@@ -13,6 +13,7 @@ from worker.interview_feedback_handler import handle_interview_feedback_task
 from worker.interview_questions_handler import handle_interview_questions_task
 from worker.interview_references_handler import handle_interview_references_task
 from worker.interview_session_feedback_handler import handle_interview_session_feedback_task
+from worker.job_preference_conversation_handler import handle_job_preference_conversation_task
 from worker.library_edit_handler import handle_library_edit_task
 from worker.library_review_handler import handle_library_review_task
 from worker.parse_job_posting_handler import handle_parse_job_posting_task
@@ -31,6 +32,7 @@ TASK_HANDLERS: dict[TaskType, TaskHandler] = {
     "generate_summary": handle_summary_generation_task,
     "rerank_job_listings": handle_rerank_job_listings_task,
     "generate_study_guide": handle_study_guide_task,
+    "elicit_job_preferences": handle_job_preference_conversation_task,
     "improve_library_entry": handle_library_edit_task,
     "review_library_section": handle_library_review_task,
     "interview_session_feedback": handle_interview_session_feedback_task,

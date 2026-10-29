@@ -4,7 +4,7 @@
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
-      "generate_summary" => "Summary draft", "chat_reply" => "Chat reply",
+      "elicit_job_preferences" => "Job preferences", "generate_summary" => "Summary draft", "chat_reply" => "Chat reply",
       "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",
@@ -47,7 +47,7 @@ module AiTasks
         return "/library" unless @task.input["target_kind"] == "resume"
         resume = @user.resumes.find_by(id: @task.input["target_id"])
         resume ? (resume.job_id ? "/jobs/#{resume.job_id}/resume" : "/resumes/#{resume.id}") : "/resumes"
-      when "rerank_job_listings"
+      when "elicit_job_preferences", "rerank_job_listings"
         "/jobs/find"
       when "parse_resume"
         "/library/import/#{@task.id}"

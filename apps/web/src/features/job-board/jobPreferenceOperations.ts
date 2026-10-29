@@ -33,3 +33,22 @@ export const CLEAR_JOB_PREFERENCES = graphql(`
     }
   }
 `)
+
+export const JOB_PREFERENCE_CONVERSATION = graphql(`
+  query JobPreferenceConversation {
+    jobPreferenceConversation {
+      aiTask { id status result pendingQuestions errorMessage input }
+      turns { userMessage assistantMessage }
+      stale
+    }
+  }
+`)
+
+export const START_JOB_PREFERENCE_CONVERSATION = graphql(`
+  mutation StartJobPreferenceConversation($message: String!, $expectedVersion: Int!, $previousTaskId: ID) {
+    startJobPreferenceConversation(input: { message: $message, expectedVersion: $expectedVersion, previousTaskId: $previousTaskId }) {
+      aiTask { id status result pendingQuestions errorMessage input }
+      errors
+    }
+  }
+`)

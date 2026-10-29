@@ -21,7 +21,7 @@ Source of the web app, organized by feature.
 - `features/resume-import/` — upload, live parse status, review form, import
 - `features/career-library/` — career library page
 - `features/job-board/` — shared US listing search with date, resolved city/state, employment, remote arrangement, salary, company, experience, and sorting controls, a collapsible, remembered Filters panel (closed by default, with an active-filter count), plus a local hide-saved toggle; temporary opt-in career-library reranking of loaded results, results shown as numbered pages of 20 over the loaded roles ("Next page" on the last one fetches the next provider page), and explicit import into private Jobs (`/jobs/find`, the "Find jobs" tab); Rails owns provider access, caching, and duplicate matching
-  - `JobPreferences` — collapsed “What I want next” editor, private saved drafts, priorities and explicit confirmation/reuse; all writes use the read profile version.
+  - `JobPreferences` — collapsed “What I want next” editor, private saved drafts, priorities and explicit confirmation/reuse; all writes use the read profile version. Its focused queued conversation saves accepted dialogue and proposes a draft with explicit confirmation; subscriptions recover replies without polling.
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   and the job workspace (`/jobs/:id`: header with stage, edit, and delete, plus Fit, Resume,
   Study, Interview, and Posting tabs)

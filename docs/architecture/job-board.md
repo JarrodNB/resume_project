@@ -121,6 +121,40 @@ never enter shared listing payloads or private saved Jobs. Editing preferences m
 provider/model calls. Browser drafts are saved explicitly; failed writes preserve local edits
 and offer an explicit reload of the latest saved state.
 
+## Preference conversation
+
+“What I want next” also offers a focused conversation. `startJobPreferenceConversation`
+queues `elicit_job_preferences` through the normal general allowance and SQS lifecycle;
+it does not extend generic Chat or change its HTTP execution contract. The configured
+`CHAT_MODEL` and generative fallback draft preferences. One Pydantic AI deferred `ask_user`
+question can pause each turn. Up to 12 linked turns, 4,000 input characters per turn,
+120,000 input bytes, and 100,000 history bytes bound the exchange.
+
+Rails resolves previous task IDs through the owner, freezes the profile version and
+current draft, and stores model history privately. `jobPreferenceConversation` returns
+only accepted public user/assistant text, latest task state and a stale warning. Public
+task input excludes raw history. Matching duplicate submissions reuse a child; different
+answers cannot overwrite it. Accepted paused/completed turns cannot be replaced by a
+redelivery, while attempt accounting still accepts late usage independently.
+
+Validated completion saves an editable draft and increments its version atomically;
+it never confirms preferences. Changed/cleared/confirmed profiles and superseding turns
+fence late output. New conversations can start after a clear even while obsolete work
+finishes. Unsaved manual edits must be saved before sending a message; the local editor
+pauses during its current conversation request. Cross-tab edits are protected by the
+same server revision fence. Failed messages remain available for retry after reopening.
+
+The worker screens new user text and unknown draft criteria. Exact criteria from accepted
+turn inputs or generated proposals reuse server-owned provenance; generated questions and
+validated saved history are not screened again. Readable labeled text, the official input
+guardrail, contact masking, prompt version `job-preference-conversation-v1`, tracing and
+per-attempt accounting remain active. Deferred question IDs and text must match saved tool
+calls before Rails permits continuation.
+
+Synthetic evaluation uses three cases for stated priorities, one real clarification,
+and salary units. This small deterministic sample does not establish broad intent fidelity;
+human QA should check that eligibility context is not turned into an unintended constraint.
+
 ## Optional hybrid reranking
 
 The default-off browser toggle requests an asynchronous rerank of currently loaded

@@ -12,6 +12,14 @@
 #   - ai_task(id:)
 module Types
   class QueryType < Types::BaseObject
+    field :job_preference_conversation, Types::JobPreferenceConversationType, null: false
+
+    def job_preference_conversation
+      raise GraphQL::ExecutionError, "Authentication required" unless current_user
+
+      ::JobPreferences::ConversationStateService.call(user: current_user).value
+    end
+
     field :job_preferences, Types::JobPreferenceProfileType, null: false
 
     def job_preferences

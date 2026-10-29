@@ -1,7 +1,8 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
+ * On wide screens the search form is a sticky sidebar so results stay in view beside it.
  * Search owns submitted results and optional ordering; the form owns editable filters.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
@@ -28,6 +29,12 @@ export function JobBoardPage() {
   // Listings saved from this page stay in place; the row offers a link to the new job instead.
   const [savedHere, setSavedHere] = useState<Record<string, { jobId: string; warnings: string[] }>>({})
 
+  // Stacked layout (narrow screens): bring the results into view so a search visibly happens.
+  useEffect(() => {
+    if (!submittedSearch || window.matchMedia?.('(min-width: 1000px)').matches) return
+    document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
+  }, [submittedSearch])
+
   async function createJob(listingId: string) {
     const result = await importer.save(listingId)
     if (result) setSavedHere((current) => ({ ...current, [listingId]: result }))
@@ -52,13 +59,7 @@ export function JobBoardPage() {
   return (
     <div className="job-board">
       <PageHeading title="Find jobs" description="Search current US listings. Save the roles you want to pursue to your saved jobs." />
-      {!submittedSearch && <div className="board-introduction">
-        <h2>Find a role worth your next step.</h2>
-        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
-        <div className="board-search-ideas" aria-label="Search ideas">
-          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
-        </div>
-      </div>}
+      <div className="board-layout">
       <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
@@ -68,6 +69,14 @@ export function JobBoardPage() {
         </div>
       </JobBoardSearchForm>
 
+      <div className="board-main">
+      {!submittedSearch && <div className="board-introduction">
+        <h2>Find a role worth your next step.</h2>
+        <p>Start with a job title or a skill. Explore the details, then save the opportunities you want to pursue.</p>
+        <div className="board-search-ideas" aria-label="Search ideas">
+          {searchIdeas.map((idea) => <Button key={idea} type="button" variant="outline" onClick={() => { setKeyword(idea); document.getElementById('job-board-keyword')?.focus() }}>{idea}<ArrowRight size={14} aria-hidden /></Button>)}
+        </div>
+      </div>}
       {submittedSearch && <div id="job-board-results" className="board-results-heading">
         <div><p className="board-results-title">{board.loading && board.listings.length === 0 ? 'Finding opportunities' : 'Search results'}</p><p className="board-results-query">{describeSearch(submittedSearch)}</p></div>
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
@@ -102,6 +111,8 @@ export function JobBoardPage() {
           {page.stale && <><ErrorAlert title="Couldn't refresh these results" messages={page.errors} /><Button variant="outline" className="justify-self-start" disabled={board.loading} onClick={() => board.retry(page.cursor)}>Retry results</Button></>}
         </div>)}</div>
       </div>}
+      </div>
+      </div>
     </div>
   )
 }

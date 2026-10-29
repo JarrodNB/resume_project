@@ -113,6 +113,13 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 - In managed cloud, run natively without Docker. Follow `docs/native-development.md`,
   `script/install-native-cloud.sh`, and `script/start-native-cloud.sh` for installation,
   startup, prerequisites, and emulator limits.
+- In managed cloud, commands that need the network (including `git fetch`) may need
+  explicit sandbox network access. When using `exec_command`, set
+  `sandbox_permissions: "with_additional_permissions"` and
+  `additional_permissions: { network: { enabled: true } }` when supported.
+  A proxy connection failure can mean the command lacks network access even when
+  the environment reports connected. Check command permissions before diagnosing
+  the proxy; preserve the configured proxy and TLS verification.
 - The host is native Ubuntu with bash. The current checkout is at
   `/home/jarrod/Desktop/resume_project`. Use Linux commands and Docker Engine with the
   Docker Compose plugin; run commands from the checkout being changed.

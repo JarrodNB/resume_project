@@ -99,6 +99,10 @@ module AiTasks
         result = SummaryGeneration::ValidateResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)
       end
+      if ai_task.check_job_preferences?
+        result = JobPreferences::ValidateCheckResultService.call(ai_task: ai_task, result: @message["result"])
+        return result.success? ? {} : failed_attributes(result.errors)
+      end
       if ai_task.rerank_job_listings?
         result = JobBoard::ValidateRerankingResultService.call(ai_task: ai_task, result: @message["result"])
         return result.success? ? {} : failed_attributes(result.errors)

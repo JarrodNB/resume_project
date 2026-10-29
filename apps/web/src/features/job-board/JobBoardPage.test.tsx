@@ -104,7 +104,7 @@ it('clears selected levels back to an unrestricted search', async () => {
 })
 
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
-  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing' as const, preferenceSourceDigest: 'fixture-digest', id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }

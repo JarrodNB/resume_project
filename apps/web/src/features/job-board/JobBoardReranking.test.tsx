@@ -12,7 +12,7 @@ import { JobBoardPage } from './JobBoardPage'
 import { JOB_BOARD_SEARCH_QUERY, JOB_BOARD_RERANKING_SUBSCRIPTION, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
 
 function listing(id: string) {
-  return { __typename: 'JobBoardListing', id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing', preferenceSourceDigest: 'fixture-digest', id, title: `${id} role`, company: 'Acme', location: 'US', description: 'Build tools.', hasRemote: false, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function searchMock(keyword = 'engineer', ids = ['first', 'second'], cursor: string | null = null, nextCursor: string | null = null): MockLink.MockedResponse {
   return {

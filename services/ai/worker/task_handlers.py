@@ -7,6 +7,7 @@ Index:
 
 from collections.abc import Callable
 
+from worker.job_preference_handler import handle_job_preference_check_task
 from worker.analyze_gaps_handler import handle_analyze_gaps_task
 from worker.interview_clarification_handler import handle_interview_clarification_task
 from worker.interview_feedback_handler import handle_interview_feedback_task
@@ -29,6 +30,7 @@ from worker.task_dependencies import TaskDependencies
 TaskHandler = Callable[[AiTaskMessage, TaskDependencies], AiResultMessage]
 
 TASK_HANDLERS: dict[TaskType, TaskHandler] = {
+    "check_job_preferences": handle_job_preference_check_task,
     "generate_summary": handle_summary_generation_task,
     "rerank_job_listings": handle_rerank_job_listings_task,
     "generate_study_guide": handle_study_guide_task,

@@ -155,6 +155,60 @@ Synthetic evaluation uses three cases for stated priorities, one real clarificat
 and salary units. This small deterministic sample does not establish broad intent fidelity;
 human QA should check that eligibility context is not turned into an unintended constraint.
 
+## Explicit preference checks with JEV
+
+Each search listing exposes `preferenceSourceDigest`, a SHA-256 of readable title,
+company, location, remote classification/option, employment, salary/currency and
+plain description. `checkJobBoardPreferences(listingId:, expectedDigest:,
+confirmedRevision:)` checks a single loaded listing. Rails rejects changed content,
+missing confirmation and stale profile revisions before enqueueing. The browser
+never supplies trusted posting text. Checks create no private Job.
+
+`check_job_preferences` freezes the owner profile/revision, criterion identities and
+priorities, source digest, truncation flag and labeled exact passages. The source
+excerpt is at most 8,000 UTF-8 bytes; each passage is at most 500 characters, with at
+most 64 passages. The input must fit 40,000 UTF-8 bytes. The worker has no catalogue
+or preference-profile database grant. Shared pages contain no private results.
+
+The new JEV preference agent chooses supporting and contradicting passage IDs for
+each criterion in one request. Its fixed options include `none`; it cannot generate
+evidence prose. Application code copies the exact selected source excerpts. Neither
+side means unknown, support alone matching, contradiction alone conflicting, and
+both sides unknown with a contradictory-evidence reason. Incomplete excerpts and
+unstated salary units or remote restrictions cannot become assumed promises.
+Provider failure is a failed check, separate from an evidence-based unknown.
+
+Unknown preference text and the cohesive listing source are screened before the
+matching request. Exact generated criterion output from validated owned conversation
+results is trusted by provenance; accepted conversation inputs and successful check
+snapshots can supply matching source approvals. Those flags originate only in Rails,
+never browser input. Changed source values cannot reuse approvals. Fixed labeled
+source blocks, the official input guardrail, contact masking, versioned prompts,
+Logfire traces and normal worker attempt accounting apply.
+
+Single-listing checks allow at most 16 screening chunks (each with a primary and one
+fallback), then one JEV decision request. An actual request budget covers validation retries as
+well as primary/fallback calls and stops all work at 33 provider requests. All work shares
+the existing 240-second task deadline; the matching request additionally has a
+30-second timeout, one request, 24,000 total tokens and 2,000 output tokens. The
+whole check has a 64,000-token budget including screening. An over-limit response
+can be billed once; its known usage remains accounted even when the check fails.
+
+Rails accepts only exact queued listing/criterion coverage and exact frozen evidence,
+consistent outcomes/reasons, the matching profile revision and unchanged live source
+digests. Finished tasks keep their outcome under duplicate delivery; late usage remains
+independently deduplicated. The UI follows subscriptions, makes checks explicit, and
+invalidates displayed conclusions when the loaded search snapshot or confirmed
+revision changes. Normal already-loaded page navigation preserves the snapshot.
+
+Run `python -m evals.run_job_preference_evals` from the AI service for the eight-case
+synthetic production-screening/JEV experiment. It prints deterministic decision and
+exact-evidence scores plus actual known usage; it uses paid providers and writes no
+report file. The cases cover explicit support/contradiction, omissions, incompatible
+salary units, remote-location restrictions, contradictory passages, a compound
+condition with missing information, and an injected posting. Offline evaluator tests
+check that fabricated quotes and screening outages cannot pass.
+
 ## Optional hybrid reranking
 
 The default-off browser toggle requests an asynchronous rerank of currently loaded

@@ -95,7 +95,7 @@ export function JobBoardPage() {
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Go to the next page to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
       {visibleListings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} assessmentScope={board.pages} busyId={importer.busyId} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}

@@ -84,9 +84,9 @@
 .board-sidebar { min-width: 0; }
 .board-layout .board-search { margin-bottom: 0; }
 @media (min-width: 1000px) {
-  .board-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 0 40px; align-items: start; margin-top: 28px; }
-  .board-layout .board-search { grid-column: 1 / -1; margin-top: 0; }
-  .board-layout .board-sidebar { grid-column: 1; grid-row: 2; position: sticky; top: 16px; margin-top: 24px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .board-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0 40px; align-items: start; margin-top: 28px; }
+  .board-layout .board-search { grid-column: 2; grid-row: 1; margin-top: 0; }
+  .board-layout .board-sidebar { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
   .board-layout .board-main { grid-column: 2; grid-row: 2; margin-top: 8px; }
   .board-layout .board-advanced .board-filter-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .board-layout .board-experience-levels:first-child { margin-top: 0; }

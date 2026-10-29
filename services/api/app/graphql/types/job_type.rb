@@ -32,6 +32,9 @@ module Types
           description: "The newest successful study guide, retained across later failed attempts."
     field :latest_study_guide_task, Types::AiTaskType,
           description: "The newest study-guide generation attempt, including pending or failed work."
+    field :study_question_batches, Types::StudyQuestionBatchPageType, null: false do
+      argument :cursor, String, required: false
+    end
     field :study_guides, Types::StudyGuideHistoryPageType, null: false do
       argument :cursor, String, required: false
     end
@@ -63,6 +66,11 @@ module Types
 
     def latest_study_guide_task
       object.ai_tasks.where(user_id: context[:current_user].id, task_type: "generate_study_guide").order(created_at: :desc, id: :desc).first
+    end
+
+    def study_question_batches(cursor: nil)
+      result = ::StudyGuides::ListQuestionBatchesService.call(job: object, user: context[:current_user], cursor: cursor)
+      result.value || { batches: [], end_cursor: nil, total_questions: 0, errors: result.errors }
     end
 
     def study_guides(cursor: nil)

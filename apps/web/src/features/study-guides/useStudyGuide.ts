@@ -1,62 +1,57 @@
-/** Owns paginated guide history, selected content, and live generation without discarding saved material. */
+/** Reads one ordered job collection in bounded batches and follows generation without moving the reader. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react'
 import { useAiTaskUpdates } from '@/features/ai-tasks/useAiTaskUpdates'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
-import type { StudyGuideForJobQuery } from '@/graphql/generated/graphql'
-import { GENERATE_STUDY_GUIDE_MUTATION, STUDY_GUIDE_QUERY, STUDY_GUIDE_CONTENT_QUERY } from './studyGuideOperations'
+import type { StudyQuestionCollectionQuery } from '@/graphql/generated/graphql'
+import { GENERATE_STUDY_GUIDE_MUTATION, STUDY_QUESTION_COLLECTION_QUERY } from './studyGuideOperations'
+import { parseStudyGuide } from './parseStudyGuide'
 
-type Summary = StudyGuideForJobQuery['job']['studyGuides']['guides'][number]
-function unique(guides: Summary[]) {
-  const seen = new Set<string>()
-  return guides.filter((guide) => {
-    if (seen.has(guide.id)) return false
-    seen.add(guide.id)
-    return true
-  })
-}
+type Batch = StudyQuestionCollectionQuery['job']['studyQuestionBatches']['batches'][number]
 
-/** The caller keys this hook's content by job identity so no selection or request state crosses jobs. */
+/** Key the caller by job identity so neither saved questions nor in-flight state cross jobs. */
 export function useStudyGuide(jobId: string, description: string | null) {
   const client = useApolloClient()
-  const query = useQuery(STUDY_GUIDE_QUERY, { variables: { jobId, cursor: null }, fetchPolicy: 'cache-and-network' })
+  const query = useQuery(STUDY_QUESTION_COLLECTION_QUERY, { variables: { jobId, cursor: null }, fetchPolicy: 'cache-and-network' })
   const [mutate, { loading: starting }] = useMutation(GENERATE_STUDY_GUIDE_MUTATION)
   const [errors, setErrors] = useState<string[]>([])
-  const [retainedGuides, setRetainedGuides] = useState<Summary[]>([])
-  const [selected, setSelected] = useState<string | null>(null)
-  const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined)
+  const [laterBatches, setLaterBatches] = useState<Batch[]>([])
+  const [tailCursor, setTailCursor] = useState<string | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [historyError, setHistoryError] = useState<string | null>(null)
+  const [pageError, setPageError] = useState<string | null>(null)
   const [retryReadyId, setRetryReadyId] = useState<string | null>(null)
+  const [additionalTotal, setAdditionalTotal] = useState(0)
   const requesting = useRef(false)
   const requestingPage = useRef(false)
   const mounted = useRef(true)
   const refreshed = useRef('')
+  const followed = useRef('')
   const previousDescription = useRef(description)
   const refreshRevision = useRef(0)
   const refreshInFlight = useRef<Promise<void> | null>(null)
-  const firstPage = query.data?.job?.studyGuides
-  const currentFingerprint = query.data?.job?.studyGuideDescriptionFingerprint
-  // Source fingerprints are immutable, so a single current-description refresh updates every loaded page.
-  const history = useMemo(() => unique([...(firstPage?.guides ?? []), ...retainedGuides]).map((guide) => ({
-    ...guide,
-    outOfDate: currentFingerprint ? guide.sourceDescriptionFingerprint !== currentFingerprint : guide.outOfDate,
-  })), [firstPage, retainedGuides, currentFingerprint])
-  const nextCursor = olderCursor === undefined ? firstPage?.nextCursor ?? null : olderCursor
-  const latest = query.data?.job?.latestStudyGuideTask ?? null
+  const first = query.data?.job.studyQuestionBatches
+  const fingerprint = query.data?.job.studyGuideDescriptionFingerprint
+  const latest = query.data?.job.latestStudyGuideTask ?? null
   const active = latest && latest.status !== 'COMPLETED' && latest.status !== 'FAILED'
   const { aiTask, error: subscriptionError } = useAiTaskUpdates(active ? latest.id : '')
   const task = aiTask?.id === latest?.id ? aiTask : latest
-  const retryTaskId = latest?.status === 'QUEUED' ? latest.id : null
   const retryAfterSeconds = latest?.studyGuideRetryAfterSeconds
   const retryReady = task?.status === 'QUEUED' && (retryAfterSeconds === 0 || task.id === retryReadyId)
   const busy = starting || Boolean(task && task.status !== 'COMPLETED' && task.status !== 'FAILED' && !retryReady)
-  const selectedId = selected ?? history[0]?.id ?? null
-  const content = useQuery(STUDY_GUIDE_CONTENT_QUERY, { variables: { jobId, guideId: selectedId ?? '' }, skip: !selectedId })
+  const totalQuestions = Math.max(first?.totalQuestions ?? 0, additionalTotal)
+  const questions = useMemo(() => {
+    const seen = new Set<string>()
+    return [...(first?.batches ?? []), ...laterBatches].filter((batch) => {
+      if (seen.has(batch.id)) return false
+      seen.add(batch.id); return true
+    }).flatMap((batch) => (parseStudyGuide(batch.result)?.questions ?? []).map((question) => ({
+      ...question,
+      outOfDate: fingerprint ? batch.sourceDescriptionFingerprint !== fingerprint : batch.outOfDate,
+    })))
+  }, [first, laterBatches, fingerprint])
   const { refetch } = query
 
-  // Apollo can deduplicate identical overlapping queries. Queue one more read when a saved edit
-  // or completion lands during a read, so an earlier response cannot become the final state.
+  // Queue a final read when Apollo deduplicates a description edit or completion with an in-flight read.
   const refresh = useCallback(() => {
     refreshRevision.current += 1
     if (refreshInFlight.current) return refreshInFlight.current
@@ -75,47 +70,41 @@ export function useStudyGuide(jobId: string, description: string | null) {
   }, [refetch])
 
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-
   useEffect(() => {
-    if (!retryTaskId || retryAfterSeconds == null || retryAfterSeconds <= 0) return
-    // This only reveals a manual action. The server remains authoritative on admission.
-    const timer = setTimeout(() => setRetryReadyId(retryTaskId), Math.ceil(retryAfterSeconds * 1000))
+    if (latest?.status !== 'QUEUED' || retryAfterSeconds == null || retryAfterSeconds <= 0) return
+    const timer = setTimeout(() => setRetryReadyId(latest.id), Math.ceil(retryAfterSeconds * 1000))
     return () => clearTimeout(timer)
-  }, [retryTaskId, retryAfterSeconds])
-
+  }, [latest?.id, latest?.status, retryAfterSeconds])
   useEffect(() => {
     if (previousDescription.current === description) return
     previousDescription.current = description
-    setHistoryError(null)
-    void refresh().catch(() => {
-      if (mounted.current) setHistoryError("Couldn't refresh guide freshness. Reload to try again.")
-    })
+    setPageError(null)
+    void refresh().catch(() => { if (mounted.current) setPageError("Couldn't refresh question freshness. Reload to try again.") })
   }, [description, refresh])
-
+  useEffect(() => { if (active && latest) followed.current = latest.id }, [active, latest])
   useEffect(() => {
-    if (task?.status === 'COMPLETED' && !query.data?.job?.studyGuides.guides.some((guide) => guide.id === task.id) && !history.some((guide) => guide.id === task.id) && task.id !== refreshed.current) {
-      refreshed.current = task.id
-      const previousGuides = firstPage?.guides ?? []
-      void refresh().then(() => {
-        if (mounted.current) setRetainedGuides((existing) => unique([...previousGuides, ...existing]))
-      }).catch(() => { if (mounted.current) setHistoryError("Couldn't refresh saved guides. Reload to try again.") })
-    }
-  }, [task, history, firstPage, query.data, refresh])
+    if (task?.status !== 'COMPLETED' || task.id !== followed.current || task.id === refreshed.current) return
+    refreshed.current = task.id
+    void refresh().catch(() => { if (mounted.current) setPageError("Couldn't refresh saved questions. Reload to try again.") })
+  }, [task, refresh])
 
   async function loadMore() {
-    if (!nextCursor || requestingPage.current) return
-    requestingPage.current = true
-    setLoadingMore(true)
-    setHistoryError(null)
+    const cursor = tailCursor ?? first?.endCursor
+    if (!cursor || requestingPage.current) return false
+    requestingPage.current = true; setLoadingMore(true); setPageError(null)
     try {
-      const response = await client.query({ query: STUDY_GUIDE_QUERY, variables: { jobId, cursor: nextCursor }, fetchPolicy: 'no-cache' })
-      if (!mounted.current) return
-      const page = response.data?.job?.studyGuides
-      if (!page || page.errors.length) { setHistoryError(page?.errors.join(' ') || "Couldn't load older guides. Try again."); return }
-      setRetainedGuides((existing) => unique([...(firstPage?.guides ?? []), ...existing, ...page.guides]))
-      setOlderCursor(page.nextCursor ?? null)
-    } catch (error) {
-      if (mounted.current) setHistoryError(requestErrorMessage(error, "Couldn't load older guides. Try again."))
+      const response = await client.query({ query: STUDY_QUESTION_COLLECTION_QUERY, variables: { jobId, cursor }, fetchPolicy: 'no-cache' })
+      if (!mounted.current) return false
+      const page = response.data?.job.studyQuestionBatches
+      if (!page || page.errors.length || !page.batches.length) {
+        setPageError(page?.errors.join(' ') || "Couldn't load more questions. Try Next again."); return false
+      }
+      setLaterBatches((existing) => [...existing, ...page.batches.filter((batch) => !existing.some((saved) => saved.id === batch.id))])
+      setTailCursor(page.endCursor); setAdditionalTotal(page.totalQuestions)
+      return true
+    } catch {
+      if (mounted.current) setPageError("Couldn't load more questions. Try Next again.")
+      return false
     } finally {
       requestingPage.current = false
       if (mounted.current) setLoadingMore(false)
@@ -124,27 +113,21 @@ export function useStudyGuide(jobId: string, description: string | null) {
 
   async function start() {
     if (requesting.current || busy) return
-    requesting.current = true
-    setErrors([])
-    setRetainedGuides((existing) => unique([...(firstPage?.guides ?? []), ...existing]))
+    requesting.current = true; setErrors([])
     try {
       const response = await mutate({ variables: { jobId }, update(cache, { data }) {
         const payload = data?.generateStudyGuide
         if (!payload?.aiTask || payload.errors.length) return
-        cache.updateQuery({ query: STUDY_GUIDE_QUERY, variables: { jobId, cursor: null } }, (existing) => existing?.job
+        cache.updateQuery({ query: STUDY_QUESTION_COLLECTION_QUERY, variables: { jobId, cursor: null } }, (existing) => existing?.job
           ? { job: { ...existing.job, latestStudyGuideTask: payload.aiTask } } : existing)
       } })
       const payload = response.data?.generateStudyGuide
-      if (mounted.current && (!payload?.aiTask || payload.errors.length)) setErrors(payload?.errors.length ? payload.errors : ["Couldn't start the study guide. Try again."])
+      if (mounted.current && (!payload?.aiTask || payload.errors.length)) setErrors(payload?.errors.length ? payload.errors : ["Couldn't start study questions. Try again."])
     } catch (error) {
       if (mounted.current) setErrors([requestErrorMessage(error, "Couldn't reach the server. Try again.")])
     } finally { requesting.current = false }
   }
 
-  const guideTask = content.data?.job?.studyGuide
-  return { guideTask: guideTask?.id === selectedId ? guideTask : null, task, busy, retryReady, starting, start,
-    guideOutOfDate: history.find((entry) => entry.id === selectedId)?.outOfDate ?? guideTask?.studyGuideOutOfDate ?? false,
-    history, selectedId, select: setSelected, nextCursor, loadMore, loadingMore, historyError: historyError ?? firstPage?.errors.join(' '),
-    contentLoading: content.loading, contentError: content.error, retryContent: content.refetch,
-    loading: query.loading, loadError: query.error, errors, subscriptionError }
+  return { questions, totalQuestions, task, busy, retryReady, starting, start, loadMore, loadingMore,
+    pageError: pageError ?? first?.errors.join(' '), loading: query.loading, loadError: query.error, errors, subscriptionError }
 }

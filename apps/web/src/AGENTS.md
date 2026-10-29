@@ -24,7 +24,7 @@ Source of the web app, organized by feature.
 - `features/jobs/` — saved jobs: add from a posting link or a pasted ad (live task status) or by hand, list,
   and the job workspace (`/jobs/:id`: header with stage, edit, and delete, plus Fit, Resume,
   Study, Interview, and Posting tabs)
-- `features/study-guides/` — description-only study guides on a job's Study tab, paginated history, selected-guide reading, per-guide freshness and live generation status
+- `features/study-guides/` — description-only answered study questions on a job's Study tab, five-question generation and append, stable collection pagination, per-batch freshness and live generation status
 - `features/gap-analysis/` — compare a job with the career library (the job's Fit tab)
 - `features/resumes/` — saved resumes list (`/resumes`) and the editor for resumes whose job was
   deleted (`/resumes/:id`; linked resumes redirect to their job's Resume tab)

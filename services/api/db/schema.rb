@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_180001) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_29_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "vector"
@@ -413,7 +413,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_180001) do
 
   create_table "interview_questions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "interview_question_set_id", null: false
-    t.integer "position", null: false
+    t.integer "position"
     t.text "question_text", null: false
     t.text "answer_text", default: "", null: false
     t.integer "question_revision", default: 1, null: false
@@ -424,10 +424,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_180001) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.text "screened_fields", default: [], null: false, array: true
+    t.datetime "retired_at"
     t.index ["interview_question_set_id", "position"], name: "idx_on_interview_question_set_id_position_e4061dd6c2", unique: true
     t.index ["interview_question_set_id"], name: "index_interview_questions_on_interview_question_set_id"
-    t.check_constraint "\"position\" >= 1 AND \"position\" <= 5", name: "interview_question_position"
     t.check_constraint "question_revision > 0 AND answer_revision >= 0", name: "interview_question_revisions"
+    t.check_constraint "retired_at IS NULL AND \"position\" IS NOT NULL AND \"position\" >= 1 AND \"position\" <= 5 OR retired_at IS NOT NULL AND \"position\" IS NULL", name: "interview_question_position"
   end
 
   create_table "interview_session_feedbacks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|

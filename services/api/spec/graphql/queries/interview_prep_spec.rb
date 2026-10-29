@@ -29,6 +29,34 @@ RSpec.describe "Interview practice queries" do
     ])
   end
 
+  it "lists the owned question bank newest set first, retired copies after active slots" do
+    older = user.interview_question_sets.create!(number: 1, set_type: "technical", created_at: 1.day.ago)
+    newer = user.interview_question_sets.create!(number: 2)
+    older_question = older.questions.create!(position: 1, question_text: "How did you test it?")
+    retired = newer.retired_questions.create!(question_text: "Replaced?", answer_text: "Kept", retired_at: Time.current)
+    second = newer.questions.create!(position: 2, question_text: "Second?")
+    first = newer.questions.create!(position: 1, question_text: "First?")
+    create(:user).interview_question_sets.create!(number: 1).questions.create!(position: 1, question_text: "Private?")
+    result = execute_graphql(<<~GQL, user: user)
+      { interviewQuestions { id position retiredAt questionSet { id setType } } }
+    GQL
+    rows = result.dig("data", "interviewQuestions")
+    expect(rows.map { |row| row["id"] }).to eq([ first.id, second.id, retired.id, older_question.id ])
+    expect(rows[2]).to include("position" => nil, "questionSet" => { "id" => newer.id, "setType" => "GENERAL" })
+    expect(rows[2]["retiredAt"]).to be_present
+    expect(rows[3]["questionSet"]["setType"]).to eq("TECHNICAL")
+  end
+
+  it "keeps retired copies out of a set's five slots" do
+    question_set = user.interview_question_sets.create!(number: 1)
+    question_set.retired_questions.create!(question_text: "Replaced?", answer_text: "Kept", retired_at: Time.current)
+    active = question_set.questions.create!(position: 1, question_text: "Current?")
+    result = execute_graphql(<<~GQL, user: user, variables: { id: question_set.id })
+      query($id: ID!) { interviewQuestionSet(id: $id) { questions { id } } }
+    GQL
+    expect(result.dig("data", "interviewQuestionSet", "questions")).to eq([ { "id" => active.id } ])
+  end
+
   it "rejects another user's set" do
     other_set = create(:user).interview_question_sets.create!(number: 1)
     result = execute_graphql(<<~GQL, user: user, variables: { id: other_set.id })

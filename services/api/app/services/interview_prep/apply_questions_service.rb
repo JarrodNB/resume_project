@@ -36,11 +36,12 @@ module InterviewPrep
         excluded = record.interview_question_set.questions.pluck(:question_text)
         return failure([ INVALID_MESSAGE ]) if excluded.any? { |text| normalize(text) == normalize(drafts.first["question_text"]) }
 
+        retained = retain_answered_copy(record)
         record.update!(question_text: drafts.first["question_text"],
                        question_revision: record.question_revision + 1,
                        screened_fields: [], answer_text: "", answer_revision: record.answer_revision + 1,
                        feedback: {}, feedback_question_revision: nil, feedback_answer_revision: nil)
-        record.embedding&.destroy!
+        record.embedding&.destroy! unless retained
       end
       success(record)
     rescue ActiveRecord::RecordInvalid => error
@@ -73,6 +74,23 @@ module InterviewPrep
       return unless question_set.set_type == @task.input.fetch("set_type", "general")
 
       record
+    end
+
+    # Keeps an answered question as a retired, slotless copy before its slot is replaced.
+    # The copy keeps the same revisions, so its feedback stays current and its vector moves with it.
+    def retain_answered_copy(record)
+      return false if record.answer_text.strip.empty?
+
+      copy = record.interview_question_set.retired_questions.create!(
+        retired_at: Time.current, position: nil, question_text: record.question_text,
+        answer_text: record.answer_text, question_revision: record.question_revision,
+        answer_revision: record.answer_revision, feedback: record.feedback,
+        feedback_question_revision: record.feedback_question_revision,
+        feedback_answer_revision: record.feedback_answer_revision, screened_fields: record.screened_fields)
+      record.embedding&.update!(interview_question_id: copy.id)
+      # Forget the moved vector so saving the slot cannot autosave it back.
+      record.association(:embedding).reset
+      true
     end
 
     # Rejects malformed worker data before creating any records.

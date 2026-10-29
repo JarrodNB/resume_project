@@ -8,9 +8,9 @@ from pydantic_ai.usage import RunUsage
 from agents.study_guide_agent import generate_study_guide
 from llm.model_prices import build_model_usage, reported_model_name
 from model_inputs.blocks import source_block
-from schemas.study_guide import StudyGuideInput
+from schemas.study_guide import StudyGuideInput, StudyGuideUnavailable
 from screening.screen_user_text import screen_user_text
-from screening.session import bind_screened_prompt, within_screening_session
+from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage
 
 
@@ -35,8 +35,13 @@ def handle_study_guide_task(task, dependencies):
             result={"failure_code": "screening_unavailable" if unavailable else "input_rejected"},
             error_message=("Screening is unavailable. Try generating the study guide again later." if unavailable else
                            "This job description could not be used safely. Edit it and try again."))
-    prompt = bind_screened_prompt([snapshot.description],
-        lambda sources: "Create study material for this job description (source data):\n\n" + source_block("job_description", sources[0]))
+    # Rails freezes these prompts from owned, completed generated batches; they are not browser fields.
+    previous = "\n".join(f"{number}. {question}" for number, question in enumerate(snapshot.previous_questions, 1))
+    if previous:
+        trust_generated_source(previous)
+    prompt = bind_screened_prompt([snapshot.description, *([previous] if previous else [])],
+        lambda sources: "Create study material for this job description (source data):\n\n" + source_block("job_description", sources[0])
+        + ("\n\nPrevious saved study questions (avoid these questions and closely repeated concepts):\n" + source_block("previous_study_questions", sources[1]) if len(sources) > 1 else ""))
     try:
         with capture_run_messages() as messages:
             run = generate_study_guide(prompt, settings)
@@ -50,6 +55,10 @@ def handle_study_guide_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
             error_message="The AI could not produce a valid study guide. Try again.")
     model = reported_model_name(run.response.model_name or settings.study_guide_model, settings.study_guide_model)
+    if isinstance(run.output, StudyGuideUnavailable):
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
+            result={"failure_code": "insufficient_description"}, error_message=run.output.cannot_generate_reason,
+            usage=[*usage, build_model_usage(model, run.usage)])
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed",
         result={"study_guide": run.output.model_dump(mode="json")},
         usage=[*usage, build_model_usage(model, run.usage)])

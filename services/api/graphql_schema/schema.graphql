@@ -1406,9 +1406,19 @@ type InterviewQuestion {
   feedbackQuestionRevision: Int
   id: ID!
   latestTask: AiTask
-  position: Int!
+
+  """
+  Slot 1–5 for active questions; null for retired copies.
+  """
+  position: Int
   questionRevision: Int!
+  questionSet: InterviewQuestionSet!
   questionText: String!
+
+  """
+  When an answered question was replaced and kept as a read-only copy.
+  """
+  retiredAt: ISO8601DateTime
 }
 
 type InterviewQuestionSet {
@@ -1568,6 +1578,7 @@ type Job {
   """
   studyGuideDescriptionFingerprint: String!
   studyGuides(cursor: String): StudyGuideHistoryPage!
+  studyQuestionBatches(cursor: String): StudyQuestionBatchPage!
   title: String!
   url: String
 }
@@ -2593,6 +2604,11 @@ type Query {
   experiences: [Experience!]!
   interviewQuestionSet(id: ID!): InterviewQuestionSet!
   interviewQuestionSets: [InterviewQuestionSet!]!
+
+  """
+  Every practice question the signed-in user has, including retired answered copies.
+  """
+  interviewQuestions: [InterviewQuestion!]!
   interviewSession(id: ID!): InterviewSession!
   interviewsEnabled: Boolean!
   job(id: ID!): Job!
@@ -3388,6 +3404,20 @@ type StudyGuideSummary {
   Opaque identity of the exact description used for this guide.
   """
   sourceDescriptionFingerprint: String
+}
+
+type StudyQuestionBatch {
+  id: ID!
+  outOfDate: Boolean!
+  result: JSON!
+  sourceDescriptionFingerprint: String
+}
+
+type StudyQuestionBatchPage {
+  batches: [StudyQuestionBatch!]!
+  endCursor: String
+  errors: [String!]!
+  totalQuestions: Int!
 }
 
 """

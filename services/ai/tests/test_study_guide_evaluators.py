@@ -30,6 +30,9 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
             "question": f"How do you reconcile stock {index}?", "why_it_matters": "The job requires accurate stock counts.",
             "answer": "Compare a physical count with the ledger and investigate differences.",
             "example": "A ledger of 12 and a count of 10 differ by 2; check receipts before correcting records.",
+            "diagram": {"caption": "Compare stock", "explanation": "Compare physical and recorded counts.",
+                        "nodes": [{"id": "physical", "label": "Physical count"}, {"id": "record", "label": "Recorded count"}],
+                        "edges": [{"from_node": "physical", "to_node": "record", "label": "Compare with"}]} if index == 0 else None,
         } for index in range(5)],
     }))
 
@@ -46,6 +49,8 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
         "Job description:\nInventory clerk: reconcile stock counts.",
         "Expected behavior: Generate five answered study questions", "Actual outcome: completed", "Failure code: none",
         "Guide title: Inventory study guide", "Question 1: How do you reconcile stock 0?",
+        "Diagram caption: Compare stock", "Diagram explanation: Compare physical and recorded counts.",
+        "Concept physical: Physical count", "Relationship: physical -> record: Compare with", "Diagram: none",
         "Why it matters: The job requires accurate stock counts.",
         "Answer: Compare a physical count with the ledger and investigate differences.",
         "Worked example: A ledger of 12 and a count of 10 differ by 2; check receipts before correcting records.",
@@ -53,6 +58,7 @@ def test_quality_judge_receives_readable_description_and_learning_material(monke
         assert expected in material
     assert '"description":' not in material
     assert '"questions":' not in material
+    assert '"nodes":' not in material
 
 
 def test_quality_judge_keeps_rejection_and_screening_outage_distinct(monkeypatch):

@@ -59,6 +59,46 @@ RSpec.describe "Study guide results" do
     expect(task.error_message).to include("repeated")
   end
 
+  let(:diagram) do
+    { "caption" => "Stock reconciliation", "explanation" => "Compare the count with the record.",
+      "nodes" => [ { "id" => "count", "label" => "Physical count" }, { "id" => "record", "label" => "Stock record" } ],
+      "edges" => [ { "from_node" => "count", "to_node" => "record", "label" => "Compare with" } ] }
+  end
+
+  it "retains an optional structured diagram with its answer" do
+    guide["questions"][0]["diagram"] = diagram
+    apply("study_guide" => guide)
+    expect(task.reload).to be_completed
+    expect(task.result.dig("study_guide", "questions", 0, "diagram")).to eq(diagram)
+  end
+
+  it "rejects a diagram referencing an unknown node" do
+    diagram["edges"][0]["to_node"] = "missing"
+    guide["questions"][0]["diagram"] = diagram
+    apply("study_guide" => guide)
+    expect(task.reload).to be_failed
+    expect(task.result).to be_nil
+  end
+
+  %w[duplicate_id too_many_nodes too_many_edges oversized_label markup_field unused_node self_loop duplicate_edge].each do |change|
+    it "rejects an invalid diagram: #{change}" do
+      case change
+      when "duplicate_id" then diagram["nodes"][1]["id"] = "count"
+      when "too_many_nodes" then diagram["nodes"] *= 4
+      when "too_many_edges" then diagram["edges"] *= 9
+      when "oversized_label" then diagram["nodes"][0]["label"] = "x" * 161
+      when "markup_field" then diagram["html"] = "<script>alert(1)</script>"
+      when "unused_node" then diagram["nodes"] << { "id" => "unused", "label" => "Unused" }
+      when "self_loop" then diagram["edges"][0]["to_node"] = "count"
+      when "duplicate_edge" then diagram["edges"] *= 2
+      end
+      guide["questions"][0]["diagram"] = diagram
+      apply("study_guide" => guide)
+      expect(task.reload).to be_failed
+      expect(task.result).to be_nil
+    end
+  end
+
   it "retains a valid guide and immutable source, ignoring duplicate result delivery" do
     apply("study_guide" => guide)
     apply("study_guide" => { "title" => "duplicate" })

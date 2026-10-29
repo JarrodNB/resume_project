@@ -105,3 +105,27 @@ later batch, edit/restore the description, and confirm that question's freshness
 losing position. Check blank descriptions, pending/failed batches, manual retries, keyboard
 focus, narrow layouts, and both themes. No grading, answer persistence, or progress tracking
 is provided.
+
+## Optional answer diagrams
+
+Each question may include `diagram`, or leave it null. A diagram is a small relationship map,
+not model-authored markup: a caption (up to 200 characters), a prose `explanation` (up to 1,000),
+2–6 nodes with unique lowercase identifiers and labels, and 1–8 directed edges. Node and edge
+labels are bounded to 160 characters. Every edge references two different declared nodes;
+every node participates, and repeated directed connections are rejected. The Python schema and
+Rails result acceptance validate these constraints before a batch is saved.
+
+The reader renders each connection as a source concept, labeled arrow, and destination concept.
+Connections stack vertically on narrow screens; labels wrap and use the existing theme tokens.
+The caption and prose equivalent remain readable without the visual map. The visual map is
+hidden from assistive technology to avoid repeating the equivalent prose. React escapes all
+labels as text; diagrams cannot supply HTML, SVG, links, styling, or executable diagram syntax.
+A malformed optional diagram in a saved result is omitted by the defensive parser while its
+question, answer, and example remain readable. Diagram absence is normal. Diagrams appear only
+inside revealed answers, and generation instructions require them to add teaching value.
+
+The study-guide quality judge receives readable caption, explanation, concepts and relationships,
+with no JSON dump. It assesses correctness, teaching usefulness and the text equivalent, while
+accepting answers that do not benefit from diagrams. Non-browser tests cover diagram reveal,
+malformed fallback and escaped long labels; actual narrow-layout and light/dark visual QA remain
+human checks.

@@ -166,3 +166,54 @@ def test_prior_context_limit_fails_without_silently_dropping_questions(task_depe
     request = task()
     request.input["previous_questions"] = previous
     assert handle_ai_task(request, task_dependencies).status == "failed"
+
+
+def test_generated_diagram_survives_the_worker_result(task_dependencies):
+    from agents.study_guide_agent import study_guide_agent
+
+    diagram = {"caption": "Stock reconciliation", "explanation": "Compare the physical count with the stock record before investigating differences.",
+               "nodes": [{"id": "count", "label": "Physical count"}, {"id": "record", "label": "Recorded stock"}],
+               "edges": [{"from_node": "count", "to_node": "record", "label": "Compare with"}]}
+    question = {"question": "How do you reconcile stock?", "why_it_matters": "The role reconciles stock.",
+                "answer": "Compare counts and check receipts to explain discrepancies.", "example": "10 recorded minus 8 counted leaves 2 to investigate.",
+                "diagram": diagram}
+    with study_guide_agent.override(model=TestModel(custom_output_args={
+        "version": 1, "title": "Stock", "questions": [question] * 5,
+    })):
+        result = handle_ai_task(task(), task_dependencies)
+    assert result.status == "completed"
+    assert result.result["study_guide"]["questions"][0]["diagram"] == diagram
+
+
+@pytest.mark.parametrize("change", ["missing_node", "duplicate_id", "too_many_nodes", "too_many_edges", "oversized_label", "markup_field", "unused_node", "self_loop", "duplicate_edge"])
+def test_invalid_diagram_cannot_complete_and_retains_usage(task_dependencies, change):
+    from agents.study_guide_agent import study_guide_agent
+
+    diagram = {"caption": "Reconciliation", "explanation": "Compare counts and records.",
+               "nodes": [{"id": "count", "label": "Count"}, {"id": "record", "label": "Record"}],
+               "edges": [{"from_node": "count", "to_node": "record", "label": "Compare"}]}
+    if change == "missing_node":
+        diagram["edges"][0]["to_node"] = "missing"
+    elif change == "duplicate_id":
+        diagram["nodes"][1]["id"] = "count"
+    elif change == "too_many_nodes":
+        diagram["nodes"] *= 4
+    elif change == "too_many_edges":
+        diagram["edges"] *= 9
+    elif change == "oversized_label":
+        diagram["nodes"][0]["label"] = "x" * 161
+    elif change == "markup_field":
+        diagram["html"] = "<script>alert(1)</script>"
+    elif change == "unused_node":
+        diagram["nodes"].append({"id": "unused", "label": "Unused"})
+    elif change == "self_loop":
+        diagram["edges"][0]["to_node"] = "count"
+    elif change == "duplicate_edge":
+        diagram["edges"] *= 2
+    question = {"question": "How do you reconcile stock?", "why_it_matters": "The role reconciles stock.",
+                "answer": "Compare physical and recorded counts.", "example": "A count of 10 differs from 12 by 2.", "diagram": diagram}
+    with study_guide_agent.override(model=TestModel(custom_output_args={"version": 1, "title": "Stock", "questions": [question] * 5})):
+        result = handle_ai_task(task(), task_dependencies)
+    assert result.status == "failed"
+    assert result.result is None
+    assert result.usage[-1].output_tokens > 0

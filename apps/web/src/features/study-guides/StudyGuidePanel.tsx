@@ -4,6 +4,7 @@ import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
 import type { StudyGuide } from './parseStudyGuide'
 import { useStudyGuide } from './useStudyGuide'
+import { StudyAnswerDiagram } from './StudyAnswerDiagram'
 
 /** The job workspace's Study tab: saved questions and generation, always open. */
 export function StudyGuidePanel({ jobId, description }: { jobId: string; description: string | null }) {
@@ -69,6 +70,7 @@ export function StudyGuideView({ guide, totalQuestions = guide.questions.length,
         {revealed && <>
           <div className="grid gap-2"><h5 className="font-semibold">Answer explained</h5><p className="whitespace-pre-line">{question.answer}</p></div>
           <div className="grid gap-2"><h5 className="font-semibold">Worked example</h5><p className="whitespace-pre-line">{question.example}</p></div>
+          {question.diagram && <StudyAnswerDiagram diagram={question.diagram} />}
         </>}
       </div>
     </section>

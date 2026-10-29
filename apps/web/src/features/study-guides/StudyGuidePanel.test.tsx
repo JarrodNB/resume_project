@@ -156,3 +156,57 @@ it('shows a server generation-limit error without losing saved questions', async
   expect(await screen.findByText(/This job has reached the study-question generation limit/)).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'How do you count stock 1?' })).toBeInTheDocument()
 })
+
+
+it('reveals an optional relationship diagram and its text equivalent with the answer', async () => {
+  const diagram = { caption: 'Stock reconciliation', explanation: 'Compare the physical count with recorded stock.',
+    nodes: [{ id: 'count', label: 'Physical count' }, { id: 'record', label: 'Stock record' }],
+    edges: [{ from_node: 'count', to_node: 'record', label: 'Compare with' }] }
+  const savedBatch = batch()
+  const withDiagram = { ...savedBatch, result: { study_guide: { ...savedBatch.result.study_guide,
+    questions: savedBatch.result.study_guide.questions.map((question, i) => ({ ...question, diagram: i === 0 ? diagram : null })) } } }
+  render([page({ batches: [withDiagram] })]); await ready()
+  expect(screen.queryByRole('figure', { name: 'Stock reconciliation' })).not.toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.getByRole('figure', { name: 'Stock reconciliation' })).toBeInTheDocument()
+  expect(screen.getByText('Compare the physical count with recorded stock.')).toBeInTheDocument()
+  expect(screen.getByText('Physical count')).toBeInTheDocument()
+  expect(screen.getByText('Stock record')).toBeInTheDocument()
+  await next()
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.queryByRole('figure')).not.toBeInTheDocument()
+})
+
+
+it.each([
+  { caption: 'Broken', explanation: 'Unknown destination', nodes: [{ id: 'a', label: 'Count' }, { id: 'b', label: 'Record' }], edges: [{ from_node: 'a', to_node: 'missing', label: 'Compare' }] },
+  { caption: 'Broken', explanation: 'Duplicate identifiers', nodes: [{ id: 'a', label: 'Count' }, { id: 'a', label: 'Record' }], edges: [{ from_node: 'a', to_node: 'a', label: 'Compare' }] },
+  { caption: 'Broken', explanation: 'Oversized label', nodes: [{ id: 'a', label: 'x'.repeat(161) }, { id: 'b', label: 'Record' }], edges: [{ from_node: 'a', to_node: 'b', label: 'Compare' }] },
+  { caption: 'Broken', explanation: 'Executable field', html: '<script>alert(1)</script>', nodes: [], edges: [] },
+  'not a diagram',
+])('keeps the answer readable when an optional saved diagram is malformed', async (diagram) => {
+  const savedBatch = batch()
+  const malformed = { ...savedBatch, result: { study_guide: { ...savedBatch.result.study_guide,
+    questions: savedBatch.result.study_guide.questions.map((question) => ({ ...question, diagram })) } } }
+  render([page({ batches: [malformed] })]); await ready()
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.getByText('Count carefully 1.')).toBeInTheDocument()
+  expect(screen.queryByRole('figure')).not.toBeInTheDocument()
+})
+
+it('renders long diagram labels as escaped text in both theme contexts', async () => {
+  const literalLabel = ('<img src=x onerror=alert(1)> ' + 'long unbroken label '.repeat(5)).trim()
+  const diagram = { caption: 'Compare stock', explanation: 'Compare the physical count with the record before investigating.',
+    nodes: [{ id: 'count', label: literalLabel }, { id: 'record', label: 'Stock record' }],
+    edges: [{ from_node: 'count', to_node: 'record', label: 'Compare with' }] }
+  const savedBatch = batch()
+  const withDiagram = { ...savedBatch, result: { study_guide: { ...savedBatch.result.study_guide,
+    questions: savedBatch.result.study_guide.questions.map((question) => ({ ...question, diagram })) } } }
+  const view = render([page({ batches: [withDiagram] })]); await ready()
+  await userEvent.click(screen.getByRole('button', { name: 'Show answer' }))
+  expect(screen.getByText(literalLabel)).toBeInTheDocument()
+  expect(view.container.querySelector('img, script, iframe')).toBeNull()
+  view.container.classList.add('dark')
+  expect(screen.getByRole('figure', { name: 'Compare stock' })).toBeInTheDocument()
+  expect(screen.getByText(literalLabel)).toBeInTheDocument()
+})

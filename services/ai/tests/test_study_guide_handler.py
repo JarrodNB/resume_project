@@ -89,7 +89,9 @@ def test_screened_description_covers_the_exact_prompt_once(task_dependencies, mo
     monkeypatch.setattr("screening.screen_user_text.screen_user_message", classify)
     monkeypatch.setattr("screening.prompt_guardrail._screen_prompt_text", forbidden)
     with study_guide_agent.override(model=TestModel()):
-        result = handle_ai_task(task("Maintain stock records."), task_dependencies)
+        request = task("Maintain stock records.")
+        request.input["previous_questions"] = ["How do you count stock?"]
+        result = handle_ai_task(request, task_dependencies)
     assert result.status == "completed"
     assert seen == ["Maintain stock records."]
     assert result.usage[0].input_tokens == 10
@@ -132,3 +134,35 @@ def test_incomplete_or_oversized_batch_cannot_complete(task_dependencies, count)
     assert result.status == "failed"
     assert result.result is None
     assert result.usage[-1].output_tokens > 0
+
+@pytest.mark.real_guardrail
+def test_saved_questions_are_readable_trusted_context_without_repeat_screening(task_dependencies, monkeypatch):
+    from pydantic_ai.exceptions import UnexpectedModelBehavior
+    seen = []
+    screened = []
+    monkeypatch.setattr("worker.study_guide_handler.screen_user_text", lambda value, **kw: screened.append(value) or ScreenOutcome(allowed=True))
+    def generate(prompt, settings):
+        seen.append(prompt)
+        raise UnexpectedModelBehavior("test stop after observing context")
+    monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", generate)
+    request = task()
+    request.input["previous_questions"] = ["How do you count stock?", "Why investigate count differences?"]
+    result = handle_ai_task(request, task_dependencies)
+    assert seen
+    assert "Previous saved study questions" in seen[0]
+    assert "1. How do you count stock?" in seen[0]
+    assert "2. Why investigate count differences?" in seen[0]
+    assert '"previous_questions"' not in seen[0]
+    assert screened == [request.input["description"]]
+    assert result.status == "failed"
+
+
+@pytest.mark.parametrize("previous", [["Question?"] * 201, ["x" * 1000] * 41])
+def test_prior_context_limit_fails_without_silently_dropping_questions(task_dependencies, monkeypatch, previous):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("oversized context reached generation or screening")
+    monkeypatch.setattr("worker.study_guide_handler.generate_study_guide", forbidden)
+    monkeypatch.setattr("worker.study_guide_handler.screen_user_text", forbidden)
+    request = task()
+    request.input["previous_questions"] = previous
+    assert handle_ai_task(request, task_dependencies).status == "failed"

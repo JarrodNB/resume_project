@@ -11,6 +11,11 @@ module StudyGuides
       return failure([ "This job no longer exists." ]) unless job && @task.input["job_id"] == job.id && @task.input["description"].is_a?(String) && @task.input["description"].present?
       guide = @result["study_guide"] if @result.is_a?(Hash)
       return failure([ "The AI could not produce a valid study guide. Try again." ]) unless valid_guide?(guide)
+      prompts = guide["questions"].map { |question| QuestionCollection.normalize(question["question"]) }
+      previous = QuestionCollection.prompts(job: job, user: @task.user).map { |question| QuestionCollection.normalize(question) }
+      if prompts.uniq.size != prompts.size || (prompts & previous).any?
+        return failure([ "The AI returned repeated study questions. Your saved questions are unchanged; try generating again." ])
+      end
       success(guide)
     end
 

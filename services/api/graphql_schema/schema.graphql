@@ -1568,6 +1568,7 @@ type Job {
   """
   studyGuideDescriptionFingerprint: String!
   studyGuides(cursor: String): StudyGuideHistoryPage!
+  studyQuestionBatches(cursor: String): StudyQuestionBatchPage!
   title: String!
   url: String
 }
@@ -3389,6 +3390,20 @@ type StudyGuideSummary {
   Opaque identity of the exact description used for this guide.
   """
   sourceDescriptionFingerprint: String
+}
+
+type StudyQuestionBatch {
+  id: ID!
+  outOfDate: Boolean!
+  result: JSON!
+  sourceDescriptionFingerprint: String
+}
+
+type StudyQuestionBatchPage {
+  batches: [StudyQuestionBatch!]!
+  endCursor: String
+  errors: [String!]!
+  totalQuestions: Int!
 }
 
 """

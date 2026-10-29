@@ -2,7 +2,7 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 QuestionText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
@@ -14,6 +14,13 @@ class StudyGuideInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
     job_id: UUID
     description: Annotated[str, StringConstraints(min_length=1, max_length=20_000)]
+    previous_questions: list[QuestionText] = Field(default_factory=list, max_length=200)
+
+    @model_validator(mode="after")
+    def bounded_previous_questions(self):
+        if sum(map(len, self.previous_questions)) > 40_000:
+            raise ValueError("Previous study questions exceed the generation context limit")
+        return self
 
 
 class StudyQuestion(BaseModel):

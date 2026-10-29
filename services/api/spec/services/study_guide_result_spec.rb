@@ -43,6 +43,22 @@ RSpec.describe "Study guide results" do
     end
   end
 
+  it "rejects repeated prompts within a batch after case, whitespace and punctuation normalization" do
+    guide["questions"][1]["question"] = " HOW do you reconcile STOCK 1!!! "
+    apply("study_guide" => guide)
+    expect(task.reload).to be_failed
+    expect(task.error_message).to include("repeated")
+  end
+
+  it "rejects prompts already saved for this job, even if absent from an old enqueue snapshot" do
+    create(:ai_task, user: user, subject: job, task_type: "generate_study_guide", status: "completed",
+      result: { "study_guide" => guide })
+    apply("study_guide" => guide)
+    expect(task.reload).to be_failed
+    expect(task.result).to be_nil
+    expect(task.error_message).to include("repeated")
+  end
+
   it "retains a valid guide and immutable source, ignoring duplicate result delivery" do
     apply("study_guide" => guide)
     apply("study_guide" => { "title" => "duplicate" })

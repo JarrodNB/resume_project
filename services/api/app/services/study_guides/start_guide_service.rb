@@ -1,4 +1,4 @@
-# Captures one owned job description and queues a guide without requiring career evidence.
+# Captures one owned job description and prior generated prompts to queue five fresh study questions.
 # Owner locking serializes requests; the job lock makes the saved source snapshot exact.
 # Manual retry retires expired queued work while keeping existing guides and usage intact.
 module StudyGuides
@@ -28,13 +28,17 @@ module StudyGuides
     def prepare_task(task)
       @job.lock!
       return failure([ "Add a job description before generating a study guide." ]) if @job.description.blank?
+      previous = QuestionCollection.prompts(job: @job, user: @user)
+      if previous.size > QuestionCollection::MAX_PREVIOUS_QUESTIONS || previous.sum(&:length) > QuestionCollection::MAX_PREVIOUS_CHARACTERS
+        return failure([ "This job has reached the study-question generation limit. Your saved questions remain available." ])
+      end
       queued_guides.where("created_at < ?", @cutoff).lock.each do |expired|
         AiTasks::UpdateTaskService.call(task: expired, attributes: { status: "failed", completed_at: Time.current,
           error_message: "This study guide took too long. A new generation was requested." })
         @expired_tasks << expired
       end
       task.subject = @job
-      task.input = { "job_id" => @job.id, "description" => @job.description }
+      task.input = { "job_id" => @job.id, "description" => @job.description, "previous_questions" => previous }
       success(task)
     rescue ActiveRecord::RecordNotFound
       failure([ "This job no longer exists." ])

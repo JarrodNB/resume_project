@@ -1,11 +1,11 @@
-/** Offers saved, description-based reference guides beside a job, as individual questions with explained answers. */
+/** Offers one saved job-question collection with explained answers and explicit five-question generation. */
 import { useId, useRef, useState } from 'react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { Button } from '@/components/ui/button'
-import { parseStudyGuide, type StudyGuide } from './parseStudyGuide'
+import type { StudyGuide } from './parseStudyGuide'
 import { useStudyGuide } from './useStudyGuide'
 
-/** The job workspace's Study tab: saved guides and generation, always open. */
+/** The job workspace's Study tab: saved questions and generation, always open. */
 export function StudyGuidePanel({ jobId, description }: { jobId: string; description: string | null }) {
   return <section className="grid gap-5" aria-labelledby={`study-guides-${jobId}`}>
     <div className="grid gap-1">
@@ -19,50 +19,35 @@ export function StudyGuidePanel({ jobId, description }: { jobId: string; descrip
 function StudyGuideContent({ jobId, description }: { jobId: string; description: string | null }) {
   const state = useStudyGuide(jobId, description)
   const hasDescription = Boolean(description?.trim())
-  const guide = parseStudyGuide(state.guideTask?.result)
   return <div className="grid gap-5">
-    <ErrorAlert messages={state.errors} title="Couldn't start the study guide" />
-    {state.loadError && <ErrorAlert messages={[state.loadError.message]} title="Couldn't load saved guides" />}
+    <ErrorAlert messages={state.errors} title="Couldn't start study questions" />
+    {state.loadError && <ErrorAlert messages={[state.loadError.message]} title="Couldn't load saved questions" />}
     {state.subscriptionError && <ErrorAlert messages={[state.subscriptionError.message]} title="Couldn't follow generation. Reload to reconnect." />}
-    {state.loading && !state.guideTask && <p className="text-sm text-muted-foreground">Loading study guides…</p>}
-    {state.task?.status === 'FAILED' && <ErrorAlert title="The study guide failed" messages={[state.task.errorMessage ?? 'Try generating again.']} />}
-    {state.historyError && <ErrorAlert title="Couldn't load guide history" messages={[state.historyError]} />}
-    {state.history.length > 0 && <div className="grid gap-3">
-      <h3 className="text-sm font-medium">Saved guides</h3>
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Saved study guides">
-        {state.history.map((entry) => <Button key={entry.id} variant={state.selectedId === entry.id ? 'secondary' : 'outline'}
-          className="h-auto min-h-8 whitespace-normal text-left" aria-pressed={state.selectedId === entry.id}
-          aria-label={`Read guide from ${formatGuideDate(entry.createdAt)}${entry.outOfDate ? ' — Out of date' : ''}`} onClick={() => state.select(entry.id)}>
-          <time dateTime={entry.createdAt}>{formatGuideDate(entry.createdAt)}</time>
-          {entry.outOfDate && <span className="text-muted-foreground">Out of date</span>}
-        </Button>)}
-      </div>
-      {state.nextCursor && <Button className="justify-self-start" variant="ghost" disabled={state.loadingMore}
-        onClick={() => void state.loadMore()}>{state.loadingMore ? 'Loading older guides…' : 'Load older guides'}</Button>}
-    </div>}
-    {state.contentLoading && <p role="status" className="text-sm text-muted-foreground">Loading selected guide…</p>}
-    {state.contentError && <div className="grid gap-2"><ErrorAlert title="Couldn't load this guide" messages={[state.contentError.message]} />
-      <Button className="justify-self-start" variant="outline" onClick={() => void state.retryContent().catch(() => {})}>Retry guide</Button></div>}
-    {state.busy && <p role="status" className="text-sm text-muted-foreground">Generating your study guide… You can keep reading saved material.</p>}
-    {state.retryReady && !state.starting && <p role="status" className="max-w-prose text-sm text-muted-foreground">This study guide is taking longer than expected. You can retry without losing saved guides.</p>}
-    {guide && state.guideOutOfDate && <p role="status" className="max-w-prose text-sm text-muted-foreground">This guide is out of date because the job description changed. Generate another guide when you’re ready.</p>}
-    {guide && <StudyGuideView key={state.guideTask?.id} guide={guide} />}
-    {state.guideTask && !guide && <p className="text-sm text-muted-foreground">This guide couldn't be displayed. Generate another guide.</p>}
-    {!hasDescription && <p className="text-sm text-muted-foreground">Add a job description to generate a study guide.</p>}
-    <Button className="justify-self-start" variant={guide ? 'outline' : 'default'} disabled={!hasDescription || state.busy || state.loading || Boolean(state.loadError)}
-      onClick={() => void state.start()}>{state.starting ? 'Starting…' : state.retryReady ? 'Retry study guide' : guide ? 'Generate another guide' : 'Generate study guide'}</Button>
+    {state.loading && !state.questions.length && <p role="status" className="text-sm text-muted-foreground">Loading study questions…</p>}
+    {state.task?.status === 'FAILED' && <ErrorAlert title="Question generation failed" messages={[state.task.errorMessage ?? 'Try generating again.']} />}
+    {state.pageError && <ErrorAlert title="Couldn't update study questions" messages={[state.pageError]} />}
+    {state.busy && <p role="status" className="text-sm text-muted-foreground">Generating five questions… You can keep reading saved questions.</p>}
+    {state.retryReady && !state.starting && <p role="status" className="max-w-prose text-sm text-muted-foreground">This batch is taking longer than expected. You can retry without losing saved questions.</p>}
+    {state.questions.length > 0 && <StudyGuideView guide={{ title: 'Study questions', version: 1, questions: state.questions }}
+      totalQuestions={state.totalQuestions} loadMore={state.loadMore} loadingMore={state.loadingMore} freshness={state.questions.map((question) => question.outOfDate)} />}
+    {!hasDescription && <p className="text-sm text-muted-foreground">Add a job description to generate study questions.</p>}
+    <Button className="justify-self-start" variant={state.questions.length ? 'outline' : 'default'} disabled={!hasDescription || state.busy || state.loading || Boolean(state.loadError)}
+      onClick={() => void state.start()}>{state.starting ? 'Starting…' : state.retryReady ? 'Retry 5 questions' : state.totalQuestions ? 'Generate 5 more' : 'Generate 5 questions'}</Button>
   </div>
 }
 
 /** One focused question, with its answer revealed only when the reader is ready. */
-export function StudyGuideView({ guide }: { guide: StudyGuide }) {
+export function StudyGuideView({ guide, totalQuestions = guide.questions.length, loadMore, loadingMore = false, freshness = [] }: {
+  guide: StudyGuide; totalQuestions?: number; loadMore?: () => Promise<boolean>; loadingMore?: boolean; freshness?: boolean[]
+}) {
   const answerId = useId()
   const heading = useRef<HTMLHeadingElement>(null)
   const [index, setIndex] = useState(0)
   const [revealed, setRevealed] = useState(false)
   const question = guide.questions[index]
 
-  function navigate(next: number) {
+  async function navigate(next: number) {
+    if (next >= guide.questions.length && (!loadMore || !await loadMore())) return
     setIndex(next)
     setRevealed(false)
     heading.current?.focus()
@@ -74,9 +59,10 @@ export function StudyGuideView({ guide }: { guide: StudyGuide }) {
       <p className="text-sm text-muted-foreground">Think through each question, then reveal the explanation and worked example.</p>
     </header>
     <section className="grid gap-4 border-t-2 border-foreground pt-5">
-      <p role="status" className="text-sm tabular-nums text-muted-foreground">Question {index + 1} of {guide.questions.length}</p>
+      <p role="status" className="text-sm tabular-nums text-muted-foreground">Question {index + 1} of {totalQuestions}</p>
       <h4 ref={heading} tabIndex={-1} className="text-xl font-semibold leading-snug focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">{question.question}</h4>
       <p className="text-sm leading-relaxed text-muted-foreground">{question.why_it_matters}</p>
+      {freshness[index] && <p role="status" className="text-sm text-muted-foreground">This question is out of date because the job description changed. Generate more questions when you’re ready.</p>}
       <Button variant="outline" className="justify-self-start" aria-expanded={revealed} aria-controls={answerId}
         onClick={() => setRevealed(!revealed)}>{revealed ? 'Hide answer' : 'Show answer'}</Button>
       <div id={answerId} hidden={!revealed} className="grid gap-4 border-t pt-5 text-base leading-relaxed">
@@ -87,12 +73,8 @@ export function StudyGuideView({ guide }: { guide: StudyGuide }) {
       </div>
     </section>
     <nav aria-label="Study questions" className="flex flex-wrap justify-between gap-3 border-t pt-4">
-      <Button variant="outline" disabled={index === 0} onClick={() => navigate(index - 1)}>Previous</Button>
-      <Button variant="outline" disabled={index === guide.questions.length - 1} onClick={() => navigate(index + 1)}>Next</Button>
+      <Button variant="outline" disabled={index === 0 || loadingMore} onClick={() => void navigate(index - 1)}>Previous</Button>
+      <Button variant="outline" disabled={index >= totalQuestions - 1 || loadingMore} onClick={() => void navigate(index + 1)}>{loadingMore ? 'Loading…' : 'Next'}</Button>
     </nav>
   </article>
-}
-
-function formatGuideDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }).format(new Date(value))
 }

@@ -79,4 +79,4 @@ async def assess_preference_listing(criteria, listing, *, usage=None):
             status, reason = "unknown", "incomplete_source" if listing.truncated else "not_stated"
         decisions.append({"id": str(criterion.id), "status": status, "reason": reason,
             "support": support, "contradiction": contradiction})
-    return {"id": str(listing.id), "source_digest": listing.source_digest, "criteria": decisions}, result
+    return {"id": str(listing.id), "source_digest": listing.source_digest, "truncated": listing.truncated, "criteria": decisions}, result

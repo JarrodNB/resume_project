@@ -6,8 +6,13 @@ from evals.job_preference_evaluators import (
     PreferenceEvalLabels,
     PreferenceEvalOutput,
     PreferenceOutcome,
+    expand_preference_decision,
 )
-from evals.run_job_preference_evals import load_job_preference_dataset
+from evals.run_job_preference_evals import (
+    BatchSmokeOutcome,
+    load_job_preference_batch_smoke_dataset,
+    load_job_preference_dataset,
+)
 
 
 def test_grounded_match_passes_and_fabricated_quote_fails():
@@ -35,3 +40,20 @@ def test_dataset_contains_only_eight_bounded_synthetic_cases_with_expected_label
     assert sum(case.metadata.blocked for case in cases) == 1
     assert {case.metadata.status for case in cases} == {"matching", "conflicting", "unknown", "failed"}
     assert all("status" not in case.inputs.model_dump() for case in cases)
+
+
+def test_batch_smoke_is_one_bounded_case_and_rejects_wrong_order_and_evidence():
+    cases = load_job_preference_batch_smoke_dataset().cases
+    assert len(cases) == 1
+    assert len(cases[0].inputs["criteria"]) == len(cases[0].inputs["listings"]) == 3
+    assert "decisions" not in cases[0].inputs
+    ctx = SimpleNamespace(metadata=cases[0].metadata, output={"decisions": cases[0].metadata["decisions"], "evidence_valid": True, "order": cases[0].metadata["order"]})
+    assert all(score == 1 for score in BatchSmokeOutcome().evaluate(ctx).values())
+    ctx.output.update(evidence_valid=False, order=["conflict", "unknown", "strong"])
+    assert BatchSmokeOutcome().evaluate(ctx) == {"decision_match": 1.0, "evidence_valid": 0.0, "order_match": 0.0}
+
+
+def test_compact_evidence_expansion_preserves_the_actual_result_quote():
+    listing = {"evidence_passages": [{"passage_id": "P1", "text": "Actual frozen quote"}]}
+    decision = {"status": "matching", "support": {"passage_id": "P1"}, "contradiction": None}
+    assert expand_preference_decision(listing, decision)["support"]["text"] == "Actual frozen quote"

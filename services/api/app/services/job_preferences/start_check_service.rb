@@ -1,9 +1,16 @@
-# Freeze one current catalogue listing and confirmed owner preferences before queue publication.
+# Freeze up to 100 loaded catalogue listings and confirmed preferences into one queued check.
 # Identical pending checks reuse admission; changed browser sources are rejected before paid work.
 module JobPreferences
   class StartCheckService < ApplicationService
-    def initialize(user:, listing_id:, expected_digest:, confirmed_revision:)
-      @user, @listing_id, @expected_digest, @revision = user, listing_id, expected_digest, confirmed_revision
+    MAX_LISTINGS = 100
+    MAX_INPUT_BYTES = 180_000
+    MAX_RESULT_BYTES = 160_000
+    TEXT_BUDGET_BYTES = 100_000
+    UUID = /\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i
+
+    def initialize(user:, confirmed_revision:, listings:)
+      @user, @revision = user, confirmed_revision
+      @listings = listings
     end
 
     def call
@@ -17,35 +24,61 @@ module JobPreferences
       profile = @user.reload.job_preference_profile
       return failure([ "Confirm your job preferences before checking results." ]) unless profile && profile.confirmed_criteria.present?
       return failure([ "Your confirmed preferences changed. Reload them and check again." ]) unless profile.confirmed_revision == @revision
-      listing = JobBoardListing.find_by(id: @listing_id)
-      return failure([ "This listing is no longer available. Refresh your search results." ]) unless listing
-      source = JobBoard::PreferenceListingSnapshot.new(listing)
-      return failure([ "This listing changed. Refresh your search results before checking." ]) unless source.digest == @expected_digest
+      return failure([ "Select between 1 and 100 loaded listings to check." ]) unless @listings.is_a?(Array) && @listings.size.between?(1, MAX_LISTINGS)
+      requested = @listings.map { |item| item.to_h.symbolize_keys }
+      return failure([ "Select distinct, valid loaded listings to check." ]) unless requested.all? { |item| item[:listing_id].is_a?(String) && item[:listing_id].match?(UUID) }
+      requested.each { |item| item[:listing_id] = item[:listing_id].downcase }
+      ids = requested.map { |item| item[:listing_id] }
+      return failure([ "Select distinct, valid loaded listings to check." ]) unless ids.uniq.size == ids.size
+      by_id = JobBoardListing.where(id: ids).index_by(&:id)
+      return failure([ "This listing is no longer available. Refresh your search results." ]) unless by_id.size == ids.size
+      byte_budget = [ TEXT_BUDGET_BYTES / ids.size, JobBoard::PreferenceListingSnapshot::MAX_TEXT_BYTES ].min
+      snapshots = requested.map do |item|
+        source = JobBoard::PreferenceListingSnapshot.new(by_id.fetch(item[:listing_id])).snapshot(max_text_bytes: byte_budget)
+        return failure([ "This listing changed. Refresh your search results before checking." ]) unless source["source_digest"] == item[:expected_digest]
+        return failure([ "A listing has no usable posting text. Refresh or narrow your search." ]) if source["passages"].empty?
+        source.merge("screened" => checked_listing?(source))
+      end
       criteria = profile.confirmed_criteria.map do |criterion|
         criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => checked_criterion?(criterion))
       end
       @input = { "profile_id" => profile.id, "confirmed_revision" => profile.confirmed_revision,
-        "criteria" => criteria, "listings" => [source.snapshot.merge("screened" => checked_listing?(listing.id, source.digest))] }
-      return failure([ "These preferences and listing are too large to check." ]) if JSON.generate(@input).bytesize > 40_000
+        "criteria" => criteria, "listings" => snapshots }
+      return failure([ "This check has too much listing evidence. Narrow your search or check fewer results." ]) if
+        JSON.generate(@input).bytesize > MAX_INPUT_BYTES || largest_result_bytes > MAX_RESULT_BYTES
       success(@input)
+    end
+
+    # Bound decisions and distinct quote dictionaries conservatively before any model work.
+    def largest_result_bytes
+      listings = @input["listings"].map do |source|
+        longest = source["passages"].max_by { |p| JSON.generate(p).bytesize }
+        evidence = longest && { "passage_id" => longest["id"] }
+        item = { "id" => source["id"], "source_digest" => source["source_digest"], "truncated" => source["truncated"], "criteria" => @input["criteria"].map do |criterion|
+          { "id" => criterion["id"], "status" => "unknown", "reason" => "contradictory_evidence", "support" => evidence, "contradiction" => evidence }
+        end }
+        item["evidence_passages"] = source["passages"].map { |p| { "passage_id" => p["id"], "text" => p["text"] } }
+        item
+      end
+      JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end
 
     def generated_criterion?(criterion)
       # Provenance is established from validated, completed Rails-owned output, never client flags.
       @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
-        .where("result @> ?", {criteria: [criterion]}.to_json).exists?
+        .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
     end
 
     def checked_criterion?(criterion)
       prior_check = @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
-        .where("input @> ?", {criteria: [criterion]}.to_json).exists?
+        .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
       prior_check || @user.ai_tasks.where(task_type: "elicit_job_preferences", status: %w[completed needs_user_input])
-        .where("input @> ?", {criteria: [criterion.slice("text", "priority")]}.to_json).exists?
+        .where("input @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
     end
 
-    def checked_listing?(id, digest)
+    def checked_listing?(source)
       @user.ai_tasks.where(task_type: "check_job_preferences", status: "completed")
-        .where("input @> ?", {listings: [{id: id, source_digest: digest}]}.to_json).exists?
+        .where("input @> ?", { listings: [ source.slice("id", "source_digest", "passages") ] }.to_json).exists?
     end
 
     def resolve_existing

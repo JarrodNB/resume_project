@@ -1,4 +1,5 @@
 """Private frozen preference-check inputs; IDs and exact passages come from Rails."""
+import json
 from typing import Literal
 from uuid import UUID
 
@@ -42,7 +43,15 @@ class PreferenceCheckInput(BaseModel):
     profile_id: UUID
     confirmed_revision: int = Field(ge=1)
     criteria: list[FrozenPreference] = Field(min_length=1, max_length=10)
-    listings: list[PreferenceListing] = Field(min_length=1, max_length=1)
+    listings: list[PreferenceListing] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def bounded_batch(self):
+        if len({item.id for item in self.listings}) != len(self.listings):
+            raise ValueError("Repeated listing")
+        if len(json.dumps(self.model_dump(mode="json"), ensure_ascii=False).encode("utf-8")) > 180_000:
+            raise ValueError("Preference check input is too large")
+        return self
 
     @field_validator("criteria")
     @classmethod

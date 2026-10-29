@@ -23,6 +23,13 @@ class PreferenceEvalOutput(BaseModel):
     failure_code: str | None = None
 
 
+def expand_preference_decision(listing, decision):
+    """Resolve compact result references for evaluation without trusting or inventing quote text."""
+    passages = {item["passage_id"]: item for item in listing["evidence_passages"]}
+    return {**decision, **{side: None if decision[side] is None else passages[decision[side]["passage_id"]]
+        for side in ("support", "contradiction")}}
+
+
 @dataclass
 class PreferenceOutcome(Evaluator[PreferenceEvalInput, PreferenceEvalOutput, PreferenceEvalLabels]):
     """Keep provider outages separate from block decisions and factual matching accuracy."""

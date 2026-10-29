@@ -32,7 +32,112 @@ def test_dispatch_returns_exact_frozen_evidence(task_dependencies):
     assert result.status == "completed"
     outcome = result.result["listings"][0]["criteria"][0]
     assert outcome["status"] == "matching"
-    assert outcome["support"] == {"passage_id": "P1", "text": "This job is fully remote within the US."}
+    assert outcome["support"] == {"passage_id": "P1"}
+    assert result.result["listings"][0]["evidence_passages"] == [{"passage_id": "P1", "text": "This job is fully remote within the US."}]
+
+
+def test_supported_criteria_still_report_a_truncated_source(task_dependencies):
+    values = snapshot()
+    values["listings"][0]["truncated"] = True
+    with job_preference_agent.override(model=model()):
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.result["listings"][0]["truncated"] is True
+    assert result.result["listings"][0]["criteria"][0]["status"] == "matching"
+
+
+def test_batch_returns_every_listing_with_separate_run_limits_and_shared_accounting(task_dependencies, offline_model_resolution):
+    from llm.usage import collect_task_usage
+    values = snapshot()
+    values["listings"] += [{**values["listings"][0], "id": str(uuid4())} for _ in range(2)]
+    offline_model_resolution("typesafe:jev-1.13.0", model())
+    with collect_task_usage() as accounting:
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed"
+    assert [item["id"] for item in result.result["listings"]] == [item["id"] for item in values["listings"]]
+    assert len(accounting.entries) == 3
+    assert sum(entry.input_tokens for entry in accounting.entries) == 300
+
+
+def test_compact_batch_keeps_each_exact_quote_once_and_references_only_known_passages(task_dependencies):
+    values = snapshot()
+    with job_preference_agent.override(model=model("P1", "P1")):
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    listing = result.result["listings"][0]
+    assert listing["criteria"][0]["support"] == {"passage_id": "P1"}
+    assert listing["criteria"][0]["contradiction"] == {"passage_id": "P1"}
+    assert listing["evidence_passages"] == [{"passage_id": "P1", "text": values["listings"][0]["passages"][0]["text"]}]
+
+
+def test_one_hundred_small_listings_remain_bounded_and_each_gets_one_decision(task_dependencies, offline_model_resolution):
+    from llm.usage import collect_task_usage
+    values = snapshot()
+    values["listings"] += [{**values["listings"][0], "id": str(uuid4())} for _ in range(99)]
+    offline_model_resolution("typesafe:jev-1.13.0", model())
+    with collect_task_usage() as accounting:
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed"
+    assert len(result.result["listings"]) == 100
+    assert len(accounting.entries) == 100
+    assert len(result.model_dump_json().encode("utf-8")) < 240_000
+
+
+def test_oversized_serialized_batch_is_rejected_before_any_model_request(task_dependencies, monkeypatch):
+    values = snapshot()
+    values["listings"] = [{**values["listings"][0], "id": str(uuid4()), "passages": [{"id": f"P{index + 1}", "text": "x" * 500} for index in range(16)]} for _ in range(100)]
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Oversized input reached a model")
+    monkeypatch.setattr("worker.job_preference_handler.assess_preference_listing", forbidden)
+    assert handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies).status == "failed"
+
+
+def test_batch_concurrency_is_bounded_and_all_runs_finish_before_return(task_dependencies, offline_model_resolution):
+    import asyncio
+
+    from worker.job_preference_handler import MAX_CONCURRENT_DECISIONS
+    active = 0
+    peak = 0
+    async def answer(messages, info):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        try:
+            await asyncio.sleep(0.001)
+            return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name, {"c0_support": "P1", "c0_contradiction": "none"})],
+                model_name="jev-1.13.0", usage=RequestUsage(input_tokens=100, output_tokens=5))
+        finally:
+            active -= 1
+    values = snapshot()
+    values["listings"] += [{**values["listings"][0], "id": str(uuid4())} for _ in range(9)]
+    offline_model_resolution("typesafe:jev-1.13.0", FunctionModel(answer, model_name="jev-1.13.0"))
+    result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed"
+    assert peak == MAX_CONCURRENT_DECISIONS
+    assert active == 0
+
+
+def test_batch_request_budget_blocks_unpaid_work_but_preserves_known_charges(task_dependencies, offline_model_resolution, monkeypatch):
+    from llm.usage import collect_task_usage
+    monkeypatch.setattr("worker.job_preference_handler.MAX_MODEL_REQUESTS", 2)
+    values = snapshot()
+    values["listings"] += [{**values["listings"][0], "id": str(uuid4())} for _ in range(2)]
+    offline_model_resolution("typesafe:jev-1.13.0", model())
+    with collect_task_usage() as accounting, pytest.raises(UsageLimitExceeded):
+        handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert len(accounting.entries) == 2
+    assert sum(entry.input_tokens for entry in accounting.entries) == 200
+
+
+def test_oversized_result_returns_a_small_failure_with_actual_usage(task_dependencies, offline_model_resolution, monkeypatch):
+    from llm.usage import collect_task_usage
+    monkeypatch.setattr("worker.job_preference_handler.MAX_RESULT_BYTES", 1)
+    offline_model_resolution("typesafe:jev-1.13.0", model())
+    with collect_task_usage() as accounting:
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=snapshot()), task_dependencies)
+    assert result.status == "failed"
+    assert "too much listing evidence" in result.error_message
+    assert result.result is None
+    assert len(accounting.entries) == 1
+    assert result.usage[0].input_tokens == 100
 
 
 import pytest
@@ -110,7 +215,7 @@ def test_task_wide_screening_chunk_budget_stops_additional_work(task_dependencie
     values = snapshot()
     values["criteria"][0]["trusted_generated"] = False
     def too_many_chunks(*args, **kwargs):
-        for _ in range(17):
+        for _ in range(129):
             _record_chunk_attempt()
         return ScreenOutcome(allowed=True, usage=RunUsage(input_tokens=1), model="jev-1.13.0")
     monkeypatch.setattr("worker.job_preference_handler.screen_user_text", too_many_chunks)

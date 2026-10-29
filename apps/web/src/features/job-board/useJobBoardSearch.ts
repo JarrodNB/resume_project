@@ -14,7 +14,7 @@ import { useJobBoardReranking } from './useJobBoardReranking'
 type SearchPage = JobBoardSearchQuery['jobBoardSearch']
 export type BoardListing = SearchPage['listings'][number]
 type LoadedPage = Omit<SearchPage, 'retrievedAt'> & { retrievedAt: string; cursor: string | null }
-type SearchSnapshot = { submitted: BoardSearch | null; pages: LoadedPage[]; listings: BoardListing[] }
+export type SearchSnapshot = { submitted: BoardSearch | null; pages: LoadedPage[]; listings: BoardListing[] }
 
 function providerListings(pages: LoadedPage[]): BoardListing[] {
   const seen = new Set<string>()
@@ -26,7 +26,7 @@ function providerListings(pages: LoadedPage[]): BoardListing[] {
 }
 
 /** Submit a form snapshot; displayed context, pagination and optional ranking stay together. */
-export function useJobBoardSearch(rerankingEnabled = false) {
+export function useJobBoardSearch() {
   const client = useApolloClient()
   const generation = useRef(0)
   const pending = useRef(false)
@@ -35,7 +35,7 @@ export function useJobBoardSearch(rerankingEnabled = false) {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [failedCursor, setFailedCursor] = useState<string | null>(null)
-  const { listings, ...reranking } = useJobBoardReranking(rerankingEnabled, snapshot)
+  const { listings, ...reranking } = useJobBoardReranking(snapshot)
 
   async function request(search: BoardSearch, cursor: string | null, current: number) {
     pending.current = true
@@ -93,5 +93,5 @@ export function useJobBoardSearch(rerankingEnabled = false) {
     void request(submitted, nextCursor, generation.current)
   }
 
-  return { listings, submittedSearch: submitted, reranking, pages, loading, errors, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
+  return { listings, providerListings: snapshot.listings, snapshot, submittedSearch: submitted, reranking, pages, loading, errors, search, retry, loadMore, nextCursor: pages.some((page) => page.cursor === nextCursor) ? null : nextCursor }
 }

@@ -25,13 +25,14 @@ module JobBoard
 
     def digest = Digest::SHA256.hexdigest(text)
 
-    def snapshot
+    def snapshot(max_text_bytes: MAX_TEXT_BYTES)
       source = text
-      excerpt = source.truncate_bytes(MAX_TEXT_BYTES, omission: "")
+      excerpt = source.truncate_bytes(max_text_bytes, omission: "")
       pieces = excerpt.split("\n").reject(&:blank?).flat_map { |line| line.scan(/.{1,#{PASSAGE_CHARACTERS}}/m) }
+      passage_limit = [ 64, [ max_text_bytes / 80, 1 ].max ].min
       { "id" => @listing.id, "source_digest" => Digest::SHA256.hexdigest(source),
-        "truncated" => excerpt != source || pieces.size > 64,
-        "passages" => pieces.first(64).each_with_index.map { |piece, index| { "id" => "P#{index + 1}", "text" => piece } } }
+        "truncated" => excerpt != source || pieces.size > passage_limit,
+        "passages" => pieces.first(passage_limit).each_with_index.map { |piece, index| { "id" => "P#{index + 1}", "text" => piece } } }
     end
   end
 end

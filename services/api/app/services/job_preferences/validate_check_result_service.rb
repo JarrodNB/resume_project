@@ -25,13 +25,23 @@ module JobPreferences
     end
 
     def valid_result?
+      return false if JSON.generate(@result).bytesize > StartCheckService::MAX_RESULT_BYTES
       return false unless exact_keys?(@result, %w[confirmed_revision listings]) && @result["confirmed_revision"] == @task.input["confirmed_revision"]
       actual, expected = @result["listings"], @task.input["listings"]
       return false unless actual.is_a?(Array) && actual.size == expected.size
       actual.zip(expected).all? do |item, source|
-        exact_keys?(item, %w[id source_digest criteria]) && item["id"] == source["id"] && item["source_digest"] == source["source_digest"] &&
+        exact_keys?(item, %w[id source_digest truncated criteria evidence_passages]) && valid_passages?(item, source) && item["id"] == source["id"] && item["source_digest"] == source["source_digest"] && item["truncated"] == source["truncated"] &&
           valid_criteria?(item["criteria"], source)
       end
+    end
+
+    def valid_passages?(item, source)
+      passages = item["evidence_passages"]
+      return false unless passages.is_a?(Array) && passages.size <= source["passages"].size
+      return false unless passages.all? { |p| exact_keys?(p, %w[passage_id text]) && source["passages"].any? { |s| s["id"] == p["passage_id"] && s["text"] == p["text"] } }
+      return false unless passages.pluck("passage_id").uniq.size == passages.size
+      referenced = item["criteria"].is_a?(Array) && item["criteria"].flat_map { |c| c.is_a?(Hash) ? [ c["support"], c["contradiction"] ] : [] }.compact
+      referenced.is_a?(Array) && referenced.all? { |r| r.is_a?(Hash) && passages.any? { |p| p["passage_id"] == r["passage_id"] } }
     end
 
     def valid_criteria?(actual, source)
@@ -42,13 +52,13 @@ module JobPreferences
           valid_evidence?(decision["support"], source) && valid_evidence?(decision["contradiction"], source)
         support, conflict = decision.values_at("support", "contradiction")
         status, reason = if support && conflict
-          ["unknown", "contradictory_evidence"]
+          [ "unknown", "contradictory_evidence" ]
         elsif support
-          ["matching", "supported"]
+          [ "matching", "supported" ]
         elsif conflict
-          ["conflicting", "contradicted"]
+          [ "conflicting", "contradicted" ]
         else
-          ["unknown", source["truncated"] ? "incomplete_source" : "not_stated"]
+          [ "unknown", source["truncated"] ? "incomplete_source" : "not_stated" ]
         end
         decision["status"] == status && decision["reason"] == reason
       end
@@ -56,8 +66,8 @@ module JobPreferences
 
     def valid_evidence?(evidence, source)
       return true if evidence.nil?
-      return false unless exact_keys?(evidence, %w[passage_id text])
-      source["passages"].any? { |p| p["id"] == evidence["passage_id"] && p["text"] == evidence["text"] }
+      return false unless exact_keys?(evidence, %w[passage_id])
+      source["passages"].any? { |p| p["id"] == evidence["passage_id"] }
     end
 
     def exact_keys?(value, keys)

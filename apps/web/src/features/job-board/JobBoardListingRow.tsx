@@ -1,7 +1,9 @@
 /** Present one opportunity with scannable details and a private save/open action.
  * Descriptions remain plain text and remember whether the user has expanded them.
  */
-import { ListingPreferenceCheck } from './ListingPreferenceCheck'
+import { PreferenceAssessment } from './PreferenceAssessment'
+import type { ListingAssessment } from './preferenceAssessments'
+import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
 import { Link } from 'react-router'
 import { ArrowUpRight, MapPin, Plus, Radio } from 'lucide-react'
 import { CollapseToggle } from '@/components/CollapseToggle'
@@ -11,13 +13,13 @@ import { employmentTypeOptions, remoteOptions } from './searchFilters'
 import type { BoardListing } from './useJobBoardSearch'
 
 interface Props {
-  assessmentScope?: object
+  assessment?: ListingAssessment & { profile: JobPreferencesQuery['jobPreferences'] }
   listing: BoardListing
   busyId: string | null
   onCreate: (listingId: string) => void
 }
 
-export function JobBoardListingRow({ listing, busyId, onCreate, assessmentScope = listing }: Props) {
+export function JobBoardListingRow({ listing, busyId, onCreate, assessment }: Props) {
   const { open, toggle, panelId } = useOpenSection(`job-board:${listing.id}:description`)
   const published = listing.published ? new Date(listing.published) : null
   const remoteLabel = remoteOptions.find(([value]) => value === listing.remoteType)?.[1] ?? 'Remote option'
@@ -49,7 +51,7 @@ export function JobBoardListingRow({ listing, busyId, onCreate, assessmentScope 
           </CollapseToggle>
           {open && <div id={panelId} className="board-description">{listing.description}</div>}
         </> : <p className="board-description-missing">No description provided.</p>}
-        <ListingPreferenceCheck listing={listing} scope={assessmentScope} />
+        {assessment && <PreferenceAssessment listing={listing} {...assessment} />}
       </article>
     </li>
   )

@@ -159,20 +159,28 @@ human QA should check that eligibility context is not turned into an unintended 
 
 Each search listing exposes `preferenceSourceDigest`, a SHA-256 of readable title,
 company, location, remote classification/option, employment, salary/currency and
-plain description. `checkJobBoardPreferences(listingId:, expectedDigest:,
-confirmedRevision:)` checks a single loaded listing. Rails rejects changed content,
+plain description. `checkJobBoardPreferenceResults(listings: [{listingId:, expectedDigest:}],
+confirmedRevision:)` queues one assessment for 1–100 loaded listings in their provider order. Rails rejects changed content,
 missing confirmation and stale profile revisions before enqueueing. The browser
 never supplies trusted posting text. Checks create no private Job.
 
 `check_job_preferences` freezes the owner profile/revision, criterion identities and
 priorities, source digest, truncation flag and labeled exact passages. The source
-excerpt is at most 8,000 UTF-8 bytes; each passage is at most 500 characters, with at
-most 64 passages. The input must fit 40,000 UTF-8 bytes. The worker has no catalogue
+excerpt is at most 8,000 UTF-8 bytes per listing and shares a 100,000-byte source
+budget across the batch. Each passage is at most 500 characters, with at most 64
+passages per listing; smaller per-listing budgets also reduce the passage count so
+short-line metadata stays bounded. Omitted bytes or passages set the truncation flag.
+The complete input must fit 180,000 UTF-8 bytes. A conservative result-size preflight
+rejects evidence-heavy sets before paid work, even below the 100-listing limit. A normal
+20-listing page with all ten criteria is covered by a boundary regression. The worker has no catalogue
 or preference-profile database grant. Shared pages contain no private results.
 
 The new JEV preference agent chooses supporting and contradicting passage IDs for
 each criterion in one request. Its fixed options include `none`; it cannot generate
-evidence prose. Application code copies the exact selected source excerpts. Neither
+evidence prose. Application code copies each distinct selected source excerpt once into the listing
+result's `evidence_passages`; criterion support/contradiction values reference its passage ID.
+Rails validates every dictionary quote against the frozen input, and the browser resolves
+only validated references for display. This avoids repeating a long quote for every criterion. Neither
 side means unknown, support alone matching, contradiction alone conflicting, and
 both sides unknown with a contradictory-evidence reason. Incomplete excerpts and
 unstated salary units or remote restrictions cannot become assumed promises.
@@ -181,25 +189,48 @@ Provider failure is a failed check, separate from an evidence-based unknown.
 Unknown preference text and the cohesive listing source are screened before the
 matching request. Exact generated criterion output from validated owned conversation
 results is trusted by provenance; accepted conversation inputs and successful check
-snapshots can supply matching source approvals. Those flags originate only in Rails,
+snapshots can supply matching source approvals. Listing reuse requires the same digest
+AND exact passages: a previous smaller excerpt cannot approve previously unseen text.
+Those flags originate only in Rails,
 never browser input. Changed source values cannot reuse approvals. Fixed labeled
 source blocks, the official input guardrail, contact masking, versioned prompts,
 Logfire traces and normal worker attempt accounting apply.
+Criterion provenance follows the exact text, so changing only its priority does not
+repeat screening of unchanged wording.
 
-Single-listing checks allow at most 16 screening chunks (each with a primary and one
-fallback), then one JEV decision request. An actual request budget covers validation retries as
-well as primary/fallback calls and stops all work at 33 provider requests. All work shares
-the existing 240-second task deadline; the matching request additionally has a
-30-second timeout, one request, 24,000 total tokens and 2,000 output tokens. The
-whole check has a 64,000-token budget including screening. An over-limit response
-can be billed once; its known usage remains accounted even when the check fails.
+Each task allows at most 128 screening chunks. A shared actual-request budget covers
+primary/fallback screening, decisions and validation retries and stops at 240 provider
+requests or 600,000 consumed tokens. Each listing has a fresh one-request JEV run;
+runs never reuse a cumulative per-agent usage counter. Up to four decision runs execute
+concurrently, preserve source order, and cancel/await sibling work on failure. All work
+shares the existing 240-second task deadline; each matching request additionally has a
+30-second timeout, 24,000 total tokens and 2,000 output tokens. An over-limit response
+can be billed once; known usage remains accounted even when the check fails. Result JSON
+must fit 160,000 bytes, reserving queue space for concrete usage receipts. The worker also
+checks its complete serialized result envelope against 240,000 bytes and returns a small,
+usage-preserving failure rather than an oversized success.
 
 Rails accepts only exact queued listing/criterion coverage and exact frozen evidence,
 consistent outcomes/reasons, the matching profile revision and unchanged live source
 digests. Finished tasks keep their outcome under duplicate delivery; late usage remains
 independently deduplicated. The UI follows subscriptions, makes checks explicit, and
 invalidates displayed conclusions when the loaded search snapshot or confirmed
-revision changes. Normal already-loaded page navigation preserves the snapshot.
+revision changes. Normal already-loaded page navigation and hiding already-saved roles
+preserve the snapshot. Draft-only preference edits do not invalidate a confirmed check.
+No per-row query/subscription hooks are mounted: the one batch task supplies pure row views.
+
+“Check these results” explicitly assesses all raw loaded candidates, before local hiding or
+20-row paging. Preference fit ordering uses fewer must-have conflicts, then fewer unknown
+must-haves, more matching nice-to-haves, and fewer conflicting nice-to-haves; ties retain
+provider order. Every listing stays accessible. Criterion outcomes and counts describe
+preference fit, never qualification percentages. One Result order selector chooses search,
+career-library or preference order and reuses completed outcomes without model requests.
+Each row shows outcome counts first, with remembered, initially collapsed preference
+details for inspecting criteria and quotes. An omitted-source notice stays visible even
+when all criteria have supporting or contradicting evidence.
+New search submissions, accepted refreshed pages, newly loaded provider pages and confirmed
+profile revisions require an explicit new check; stale starts, completion, failures and busy
+state cannot affect the newer scope or a replacement signed-in session.
 
 Run `python -m evals.run_job_preference_evals` from the AI service for the eight-case
 synthetic production-screening/JEV experiment. It prints deterministic decision and
@@ -207,15 +238,19 @@ exact-evidence scores plus actual known usage; it uses paid providers and writes
 report file. The cases cover explicit support/contradiction, omissions, incompatible
 salary units, remote-location restrictions, contradictory passages, a compound
 condition with missing information, and an injected posting. Offline evaluator tests
-check that fabricated quotes and screening outages cannot pass.
+check that fabricated quotes and screening outages cannot pass. `--batch-smoke` runs just
+one fixed three-listing/three-criterion batch through the same worker, with production
+screening, deterministic exact-evidence/outcome/order scores, duration and known cost receipts.
+It is a paid smoke experiment, not a 100-listing load or general-quality claim.
 
 ## Optional hybrid reranking
 
-The default-off browser toggle requests an asynchronous rerank of currently loaded
-candidates. It does not change the search provider's keyword, remote, or selected
-experience-level filters and does not infer a user's seniority. Turning it off restores
-provider order. New searches and loaded pages have their own candidate snapshot; an old
-ranking cannot reorder a newer set. Ranking is limited to 100 loaded candidates.
+The explicit “Rerank using my career library” action requests an asynchronous rerank
+of currently loaded candidates. It does not change the search provider's keyword, remote, or selected
+experience-level filters and does not infer a user's seniority. The Result order selector restores
+search order or reuses a completed career ranking without starting new work. New searches and loaded pages have their own candidate snapshot; an old
+ranking cannot reorder a newer set, and no new ranking starts automatically. Ranking is
+limited to 100 loaded candidates.
 
 `rerankJobBoardListings(input: {keyword:, listingIds:})` reads only those shared catalogue
 IDs, captures their title/plain-description excerpts, and queues `rerank_job_listings`.

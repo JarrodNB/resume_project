@@ -22,9 +22,9 @@ it('starts with a keyword invitation without requesting listings', async () => {
   expect(fetched).not.toHaveBeenCalled()
 })
 
-it('starts with optional career-library reranking switched off', () => {
+it('starts with career-library reranking available only after loading results', () => {
   renderBoard()
-  expect(screen.getByRole('checkbox', { name: 'Rerank using my career library' })).not.toBeChecked()
+  expect(screen.getByRole('button', { name: 'Rerank using my career library' })).toBeDisabled()
 })
 
 it('searches a submitted keyword and displays a retrieved listing', async () => {

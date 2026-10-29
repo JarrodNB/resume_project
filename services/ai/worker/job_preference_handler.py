@@ -1,9 +1,10 @@
-"""Assess a frozen searched listing against its owner's confirmed preferences.
+"""Assess a bounded frozen search batch against its owner's confirmed preferences.
 
 Rails owns identity, provenance and persistence. The worker screens only unknown sources,
 returns extractive evidence, and bounds all screening and decision calls for this task.
 """
 import asyncio
+import json
 
 from pydantic import ValidationError
 from pydantic_ai.exceptions import UsageLimitExceeded
@@ -20,8 +21,28 @@ from screening.session import (
 )
 from worker.queue_messages import AiResultMessage
 
-MAX_SCREEN_CHUNKS = 16  # Each allows primary plus one fallback: at most 32 calls, then one decision.
-MAX_TASK_TOKENS = 64_000
+MAX_SCREEN_CHUNKS = 128
+MAX_MODEL_REQUESTS = 240  # Includes actual screening, fallback, decision and validation requests.
+MAX_TASK_TOKENS = 600_000
+MAX_CONCURRENT_DECISIONS = 4
+MAX_RESULT_BYTES = 160_000  # Leave queue space for concrete model usage and execution metadata.
+MAX_ENVELOPE_BYTES = 240_000
+
+
+async def assess_listings(criteria, listings):
+    """Keep source order, bound concurrency, and finish cancellation before returning a failure."""
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_DECISIONS)
+    async def assess(listing):
+        async with semaphore:
+            return await assess_preference_listing(criteria, listing)
+    tasks = [asyncio.create_task(assess(listing)) for listing in listings]
+    try:
+        return await asyncio.gather(*tasks)
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
 
 
 @within_screening_session
@@ -31,7 +52,7 @@ def handle_job_preference_check_task(task, dependencies):
         snapshot = PreferenceCheckInput.model_validate(task.input)
     except ValidationError:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed",
-            error_message="Checking preferences needs one current listing and up to ten confirmed criteria.")
+            error_message="Checking preferences needs 1–100 current listings and up to ten confirmed criteria.")
     requests = 0
     usage = []
     failure_code = "input_rejected"
@@ -58,23 +79,36 @@ def handle_job_preference_check_task(task, dependencies):
         failure_code = "screening_unavailable" if screen.unchecked or screen.too_long else "input_rejected"
         return screen.allowed
 
-    with model_request_budget(request_limit=33, token_limit=MAX_TASK_TOKENS), observe_screen_chunks(budget):
+    with model_request_budget(request_limit=MAX_MODEL_REQUESTS, token_limit=MAX_TASK_TOKENS), observe_screen_chunks(budget):
         for criterion in snapshot.criteria:
             if not approve(criterion.text, generated=criterion.trusted_generated, checked=criterion.screened):
                 return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage, result={"failure_code": failure_code},
                     error_message="A preference could not be screened. Edit it or try checking again later.")
-        listing = snapshot.listings[0]
-        source = "\n".join(p.text for p in listing.passages)
-        if not approve(source, checked=listing.screened):
-            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage, result={"failure_code": failure_code},
-                error_message="This listing could not be screened. Try checking again later.")
-        # The single cohesive listing was screened once; bind its exact selected passages.
-        for passage in listing.passages:
-            approve_projected_source(passage.text, source,
-                lambda _value, exact=source: exact, ScreenOutcome(allowed=True))
-        result, run = asyncio.run(assess_preference_listing(snapshot.criteria, listing))
-    usage.append(build_model_usage(JEV_PREFERENCE_MODEL, run.usage))
+        for listing in snapshot.listings:
+            source = "\n".join(p.text for p in listing.passages)
+            if not approve(source, checked=listing.screened):
+                return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage, result={"failure_code": failure_code},
+                    error_message="A listing could not be screened. Try checking again later.")
+            for passage in listing.passages:
+                approve_projected_source(passage.text, source,
+                    lambda _value, exact=source: exact, ScreenOutcome(allowed=True))
+        assessed = asyncio.run(assess_listings(snapshot.criteria, snapshot.listings))
+    usage.extend(build_model_usage(JEV_PREFERENCE_MODEL, run.usage) for _, run in assessed)
     if sum(item.input_tokens + item.output_tokens for item in usage) > MAX_TASK_TOKENS:
         raise UsageLimitExceeded("This preference check exceeded its token budget.")
-    return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", usage=usage,
-        result={"confirmed_revision": snapshot.confirmed_revision, "listings": [result]})
+    listings = [value for value, _ in assessed]
+    for listing in listings:
+        passages = {}
+        for decision in listing["criteria"]:
+            for side in ("support", "contradiction"):
+                evidence = decision[side]
+                if evidence:
+                    passages[evidence["passage_id"]] = evidence
+                    decision[side] = {"passage_id": evidence["passage_id"]}
+        listing["evidence_passages"] = list(passages.values())
+    result = {"confirmed_revision": snapshot.confirmed_revision, "listings": listings}
+    completed = AiResultMessage(ai_task_id=task.ai_task_id, status="completed", usage=usage, result=result)
+    if len(json.dumps(result, ensure_ascii=False).encode("utf-8")) > MAX_RESULT_BYTES or len(completed.model_dump_json().encode("utf-8")) > MAX_ENVELOPE_BYTES:
+        return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+            error_message="This check has too much listing evidence. Narrow your search or check fewer results.")
+    return completed

@@ -17,9 +17,9 @@ RSpec.describe "Next-job preference conversation" do
   end
 
   def complete(task, status: "completed")
-    message = { "ai_task_id" => task.id, "status" => status, "message_history" => [{ "kind" => "response", "parts" => [{"part_kind" => "text", "content" => "Draft ready"}] }],
-      "result" => { "reply" => "Review these preferences before confirming.", "criteria" => [{ "text" => "Fully remote work", "priority" => "must_have" }] } }
-    message["pending_questions"] = [{ "id" => "q1", "question" => "Where can you work?" }] if status == "needs_user_input"
+    message = { "ai_task_id" => task.id, "status" => status, "message_history" => [ { "kind" => "response", "parts" => [ { "part_kind" => "text", "content" => "Draft ready" } ] } ],
+      "result" => { "reply" => "Review these preferences before confirming.", "criteria" => [ { "text" => "Fully remote work", "priority" => "must_have" } ] } }
+    message["pending_questions"] = [ { "id" => "q1", "question" => "Where can you work?" } ] if status == "needs_user_input"
     AiTasks::ApplyAiResultService.call(message: message)
   end
 
@@ -46,8 +46,8 @@ RSpec.describe "Preference conversation recovery and fencing" do
   end
 
   def paused(task)
-    {"ai_task_id" => task.id, "status" => "needs_user_input", "message_history" => [{"kind" => "response", "parts" => [{"part_kind" => "tool-call", "tool_name" => "ask_user", "tool_call_id" => "q", "args" => {"question" => "Which location?"}}]}],
-      "pending_questions" => [{"id" => "q", "question" => "Which location?"}]}
+    { "ai_task_id" => task.id, "status" => "needs_user_input", "message_history" => [ { "kind" => "response", "parts" => [ { "part_kind" => "tool-call", "tool_name" => "ask_user", "tool_call_id" => "q", "args" => { "question" => "Which location?" } } ] } ],
+      "pending_questions" => [ { "id" => "q", "question" => "Which location?" } ] }
   end
 
   it "reuses duplicate turns, resumes private history and preserves accepted pause on late delivery" do
@@ -60,22 +60,22 @@ RSpec.describe "Preference conversation recovery and fencing" do
     expect(child.input["question_id"]).to eq("q")
     expect(start(user, message: "United States", previous: task.id).value.id).to eq(child.id)
     expect(start(user, message: "Different", previous: task.id)).not_to be_success
-    AiTasks::ApplyAiResultService.call(message: message.merge("pending_questions" => [{"id" => "late", "question" => "Old retry"}]))
+    AiTasks::ApplyAiResultService.call(message: message.merge("pending_questions" => [ { "id" => "late", "question" => "Old retry" } ]))
     expect(task.reload.pending_questions.first["id"]).to eq("q")
     expect(start(create(:user), previous: task.id)).not_to be_success
     result = execute_graphql("query { jobPreferenceConversation { turns { userMessage assistantMessage } aiTask { input } } }", user: user)
-    expect(result.dig("data", "jobPreferenceConversation", "turns")).to eq([{"userMessage" => "Remote is required", "assistantMessage" => "Which location?"}])
+    expect(result.dig("data", "jobPreferenceConversation", "turns")).to eq([ { "userMessage" => "Remote is required", "assistantMessage" => "Which location?" } ])
     expect(result.dig("data", "jobPreferenceConversation", "aiTask", "input")).not_to have_key("history")
     expect(execute_graphql("query { jobPreferenceConversation { aiTask { id } turns { userMessage } } }", user: create(:user)).dig("data", "jobPreferenceConversation", "aiTask")).to be_nil
   end
 
   it "rejects late proposals after manual changes, confirmation, or clearing" do
-    [:save_draft, :confirm, :clear].each do |action|
+    [ :save_draft, :confirm, :clear ].each do |action|
       owner = create(:user)
       task = start(owner).value
       JobPreferences::UpdateProfileService.call(user: owner, expected_version: 0, action: action,
-        criteria: [{text: "Keep this manual preference", priority: "must_have"}])
-      message = paused(task).merge("status" => "completed", "result" => {"reply" => "Review this", "criteria" => [{"text" => "Old generated text", "priority" => "must_have"}]})
+        criteria: [ { text: "Keep this manual preference", priority: "must_have" } ])
+      message = paused(task).merge("status" => "completed", "result" => { "reply" => "Review this", "criteria" => [ { "text" => "Old generated text", "priority" => "must_have" } ] })
       AiTasks::ApplyAiResultService.call(message: message)
       expect(task.reload).to be_failed
       expect(owner.reload.job_preference_profile.version).to eq(1)
@@ -85,7 +85,7 @@ RSpec.describe "Preference conversation recovery and fencing" do
 
   it "rejects malformed proposals and does not turn history into public input" do
     task = start(user).value
-    message = paused(task).merge("status" => "completed", "result" => {"reply" => "Review", "criteria" => [{"text" => "", "priority" => "invented"}]})
+    message = paused(task).merge("status" => "completed", "result" => { "reply" => "Review", "criteria" => [ { "text" => "", "priority" => "invented" } ] })
     AiTasks::ApplyAiResultService.call(message: message)
     expect(task.reload).to be_failed
     expect(user.reload.job_preference_profile).to be_nil
@@ -93,10 +93,10 @@ RSpec.describe "Preference conversation recovery and fencing" do
   end
   it "rejects malformed history and question identities before making history reusable" do
     [
-      paused(start(create(:user)).value).merge("message_history" => [{"kind" => "request", "parts" => "bad"}]),
-      paused(start(create(:user)).value).merge("pending_questions" => [{"id" => "foreign-tool", "question" => "Which location?"}]),
-      paused(start(create(:user)).value).merge("status" => "completed", "message_history" => [{"kind" => "invented", "parts" => []}],
-        "result" => {"reply" => "Review", "criteria" => []})
+      paused(start(create(:user)).value).merge("message_history" => [ { "kind" => "request", "parts" => "bad" } ]),
+      paused(start(create(:user)).value).merge("pending_questions" => [ { "id" => "foreign-tool", "question" => "Which location?" } ]),
+      paused(start(create(:user)).value).merge("status" => "completed", "message_history" => [ { "kind" => "invented", "parts" => [] } ],
+        "result" => { "reply" => "Review", "criteria" => [] })
     ].each do |message|
       AiTasks::ApplyAiResultService.call(message: message)
       task = AiTask.find(message["ai_task_id"])
@@ -121,5 +121,4 @@ RSpec.describe "Preference conversation recovery and fencing" do
     result = execute_graphql("query { jobPreferenceConversation { stale } }", user: nil)
     expect(result["errors"].first["message"]).to eq("Authentication required")
   end
-
 end

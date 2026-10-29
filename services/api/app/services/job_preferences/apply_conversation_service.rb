@@ -8,22 +8,22 @@ module JobPreferences
     def call
       profile = @task.user.reload.job_preference_profile || @task.user.build_job_preference_profile
       latest = @task.user.ai_tasks.elicit_job_preferences.order(created_at: :desc, id: :desc).first
-      return failure([UpdateProfileService::STALE_MESSAGE]) unless profile.version == @task.input["profile_version"] && latest&.id == @task.id
+      return failure([ UpdateProfileService::STALE_MESSAGE ]) unless profile.version == @task.input["profile_version"] && latest&.id == @task.id
       history = @message["message_history"]
-      return failure(["The conversation returned invalid history. Please try again."]) unless valid_history?(history)
+      return failure([ "The conversation returned invalid history. Please try again." ]) unless valid_history?(history)
       if @message["status"] == "needs_user_input"
         question = @message["pending_questions"]
         valid = question.is_a?(Array) && question.one? && question.first.is_a?(Hash) &&
           question.first["id"].is_a?(String) && question.first["id"].present? &&
           question.first["question"].is_a?(String) && question.first["question"].strip.present? && question.first["question"].length <= 500 && deferred_question_matches?(history, question.first)
-        return valid ? success({message_history: history}) : failure(["The conversation returned an invalid question."])
+        return valid ? success({ message_history: history }) : failure([ "The conversation returned an invalid question." ])
       end
       output = @message["result"]
-      return failure(["The conversation returned an invalid summary."]) unless output.is_a?(Hash) &&
+      return failure([ "The conversation returned an invalid summary." ]) unless output.is_a?(Hash) &&
         output["reply"].is_a?(String) && output["reply"].strip.present? && output["reply"].length <= 1000 && output["criteria"].is_a?(Array)
       existing = profile.draft_criteria
       criteria = output["criteria"].map do |value|
-        return failure(["The conversation returned an invalid preference."]) unless value.is_a?(Hash)
+        return failure([ "The conversation returned an invalid preference." ]) unless value.is_a?(Hash)
         # Keep IDs for unchanged meaning; never trust model-authored record identities.
         match = existing.find { |item| item.values_at("text", "priority") == value.values_at("text", "priority") }
         value.slice("text", "priority").merge("id" => match&.fetch("id", nil))
@@ -31,7 +31,7 @@ module JobPreferences
       updated = UpdateProfileService.call(user: @task.user, expected_version: profile.version, action: :save_draft, criteria: criteria)
       return updated unless updated.success?
       accepted = output.slice("reply").merge("criteria" => updated.value.draft_criteria, "profile_version" => updated.value.version)
-      success({message_history: history, result: accepted})
+      success({ message_history: history, result: accepted })
     end
 
     private

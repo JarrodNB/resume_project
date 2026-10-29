@@ -9,11 +9,11 @@ module JobPreferences
     end
 
     def call
-      return failure(["Describe what you want in 1–4000 characters."]) if @message.blank? || @message.length > 4000
+      return failure([ "Describe what you want in 1–4000 characters." ]) if @message.blank? || @message.length > 4000
       AiTasks::EnqueueAiTaskService.call(user: @user, task_type: "elicit_job_preferences",
         resolve_existing: method(:resolve_existing), prepare_task: method(:prepare))
     rescue ActiveRecord::RecordNotFound
-      failure(["Record not found"])
+      failure([ "Record not found" ])
     end
 
     private
@@ -24,18 +24,18 @@ module JobPreferences
       if @previous_id
         @previous = @user.ai_tasks.elicit_job_preferences.find(@previous_id)
         child = @user.ai_tasks.elicit_job_preferences.where("input ->> 'previous_task_id' = ?", @previous.id).first
-        return child.input["message"] == @message ? success(child) : failure(["A newer turn exists. Reload the conversation."]) if child
-        return failure(["Wait for the current reply."]) if @previous.queued?
-        return failure(["This conversation reached its turn limit. Start a new conversation."]) if @previous.input["turn"].to_i >= MAX_TURNS
+        return child.input["message"] == @message ? success(child) : failure([ "A newer turn exists. Reload the conversation." ]) if child
+        return failure([ "Wait for the current reply." ]) if @previous.queued?
+        return failure([ "This conversation reached its turn limit. Start a new conversation." ]) if @previous.input["turn"].to_i >= MAX_TURNS
         expected = @previous.result&.fetch("profile_version", nil) || @previous.input["profile_version"]
-        return failure([UpdateProfileService::STALE_MESSAGE]) unless expected == current_version
+        return failure([ UpdateProfileService::STALE_MESSAGE ]) unless expected == current_version
         latest = @user.ai_tasks.elicit_job_preferences.order(created_at: :desc, id: :desc).first
-        return failure(["A newer conversation exists. Reload to continue."]) unless latest&.id == @previous.id
+        return failure([ "A newer conversation exists. Reload to continue." ]) unless latest&.id == @previous.id
       else
         existing = @user.ai_tasks.elicit_job_preferences.queued.where("input ->> 'profile_version' = ?", current_version.to_s).order(created_at: :desc).first
-        return existing.input["message"] == @message && existing.input["profile_version"] == @version ? success(existing) : failure(["Wait for the current reply."]) if existing
+        return existing.input["message"] == @message && existing.input["profile_version"] == @version ? success(existing) : failure([ "Wait for the current reply." ]) if existing
       end
-      return failure([UpdateProfileService::STALE_MESSAGE]) unless @version == current_version
+      return failure([ UpdateProfileService::STALE_MESSAGE ]) unless @version == current_version
       nil
     end
 
@@ -51,10 +51,10 @@ module JobPreferences
         "previous_task_id" => @previous&.id, "history" => @previous&.message_history.presence || @previous&.input&.fetch("history", []) || [],
         "question_id" => if @previous&.needs_user_input?
           @previous.pending_questions.first&.fetch("id", nil)
-        elsif @previous&.failed?
+                         elsif @previous&.failed?
           @previous.input["question_id"]
-        end }
-      return failure(["This conversation is too long. Start a new conversation."]) if task.input.to_json.bytesize > MAX_BYTES
+                         end }
+      return failure([ "This conversation is too long. Start a new conversation." ]) if task.input.to_json.bytesize > MAX_BYTES
       success(task)
     end
   end

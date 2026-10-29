@@ -2,7 +2,7 @@
 module Types
   class JobPreferenceConversationType < Types::BaseObject
     field :ai_task, Types::AiTaskType
-    field :turns, [Types::JobPreferenceConversationTurnType], null: false
+    field :turns, [ Types::JobPreferenceConversationTurnType ], null: false
     field :stale, Boolean, null: false
   end
 end

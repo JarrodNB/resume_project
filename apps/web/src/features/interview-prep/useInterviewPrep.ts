@@ -1,12 +1,19 @@
 /**
  * Description: Fetching and mutation state for persistent interview preparation.
- * Index: useInterviewSets, useInterviewSet, useGenerateInterviewSet, useDeleteInterviewSet
+ * Index: useQuestionBank, useInterviewSets, useInterviewSet, useGenerateInterviewSet, useDeleteInterviewSet
  */
 import { useState } from 'react'
 import { useMutation, useQuery } from '@apollo/client/react'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import type { InterviewQuestionSetTypeEnum } from '@/graphql/generated/graphql'
-import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
+import { DELETE_INTERVIEW_SET, GENERATE_INTERVIEW_SET, INTERVIEW_QUESTION_BANK_QUERY, INTERVIEW_SETS_QUERY, INTERVIEW_SET_QUERY } from './interviewPrepOperations'
+
+/** Loads every saved question, split into current slots and answers kept from replaced questions. */
+export function useQuestionBank() {
+  const query = useQuery(INTERVIEW_QUESTION_BANK_QUERY, { fetchPolicy: 'cache-and-network' })
+  const all = query.data?.interviewQuestions
+  return { ...query, questions: all?.filter((question) => !question.retiredAt), retired: all?.filter((question) => question.retiredAt) }
+}
 
 /** Refreshes the persistent list whenever its page opens. */
 export function useInterviewSets() {

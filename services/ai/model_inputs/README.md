@@ -53,7 +53,7 @@ The call-site audit covers every production reasoning agent and evaluation judge
 | Library review | `career_records` block containing target labels |
 | Library editing | Career records plus separate feedback, generated question, and answer blocks, including deferred tool answers |
 | Written interview questions/feedback | Matching boundary lines chosen outside all source text |
-| Study guide | `job_description` block |
+| Study guide | `job_description` and numbered trusted `previous_study_questions` blocks |
 | Question clarification | `interview_question` block |
 | Spoken preparation/turns | Escaped XML blocks for frozen context, candidate answers, and earlier utterances; reconstructed public dialogue retains model message roles |
 | Screening LLM fallback | `<user_text>` with every source line quoted by a pipe prefix |

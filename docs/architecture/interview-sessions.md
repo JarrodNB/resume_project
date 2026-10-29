@@ -48,16 +48,12 @@ Job deletion detaches live retained sessions through normal snapshot callbacks u
 existing owner/job locks. This updates live navigation without changing progression revision,
 accepted dialogue or pending answer identity. A rejected deletion rolls back the detachment.
 
-Job setup checks `unfinishedInterviewSession` before enabling preparation. This owner-scoped
-read uses the same live preparing/ready/active, nonempty-context scope as admission, rather
-than the latest twenty history entries. An unfinished round offers explicit resume and
-confirmed cancellation/abandonment. Ending it keeps the selected job and every current
-setup choice; preparing another round still requires a separate user action.
-Failed or uncertain start replies trigger a read of saved state, never an automatic replay
-of the start mutation. A failed state read keeps preparation disabled until an explicit
-successful check. The setup also offers another saved job and manual reload after a failed
-job read; an unavailable source never falls back to fictional-role preparation. These
-recovery reads are on demand and do not poll or execute provider work.
+A user may have several unfinished interviews at once; preparing one never requires resolving
+another. Cost and load stay bounded by the separate monthly spend, hourly start and in-flight
+operation limits. A failed or uncertain start reply never replays the start mutation, and the
+setup keeps the user's round choices so they can try again. The setup also offers another saved
+job and manual reload after a failed job read; an unavailable source never falls back to
+fictional-role preparation.
 
 Frozen setup also records difficulty (Warm-up, Realistic or Stretch), interviewer
 (Maya, Daniel or Priya), and optional allowlisted focus areas. New and older sessions

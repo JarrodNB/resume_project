@@ -23,9 +23,9 @@ be edited, moved between application stages, and archived.
 - `JobWorkspaceLayout.tsx` (`/jobs/:id`) — loads the job and owns the live comparison
   (`useGapAnalysis`), shared with every tab. The header shows title, company · location, the
   applied date once set, `JobStageSelect` (`moveJobToStage`), `WriteResumeAction` (only when the
-  job has no resume and the Resume tab isn't open), and `JobActionsMenu.tsx` ("More job actions":
-  Edit job, Visit website when a URL is saved, Archive job). Visit website opens a new tab and does
-  not change the stage. Below it, the "Job sections" tabs:
+  job has no resume and the Resume tab isn't open), a visible "Visit website" link when a URL is
+  saved (opens a new tab, does not change the stage), and `JobActionsMenu.tsx` ("More job
+  actions": Edit job, Archive job). Below it, the "Job sections" tabs:
   Fit (`/jobs/:id`), Resume (`/jobs/:id/resume`, `features/resume-tailoring/`), Study
   (`/jobs/:id/study`), Interview (`/jobs/:id/interview`, `features/interviews/`), and Posting
   (`/jobs/:id/posting`).

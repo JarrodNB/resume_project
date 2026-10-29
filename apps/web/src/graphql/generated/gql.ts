@@ -64,7 +64,8 @@ type Documents = {
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      errors\n    }\n  }\n": typeof types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": typeof types.JobPipelineDocument,
     "\n  query RunningAiTasks {\n    runningAiTasks {\n      id\n      label\n      destination\n    }\n  }\n": typeof types.RunningAiTasksDocument,
-    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": typeof types.InterviewSetsDocument,
+    "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n": typeof types.InterviewQuestionBankDocument,
+    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n": typeof types.InterviewSetsDocument,
     "\n  query InterviewSet($id: ID!) {\n    interviewQuestionSet(id: $id) {\n      id number setType createdAt\n      latestTask { id status errorMessage result }\n      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }\n    }\n  }\n": typeof types.InterviewSetDocument,
     "\n  mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {\n    generateInterviewQuestionSet(input: { setType: $setType }) {\n      errors\n      aiTask { id input }\n    }\n  }\n": typeof types.GenerateInterviewSetDocument,
     "\n  mutation DeleteInterviewSet($id: ID!) {\n    deleteInterviewQuestionSet(input: { id: $id }) { errors }\n  }\n": typeof types.DeleteInterviewSetDocument,
@@ -84,8 +85,6 @@ type Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": typeof types.RecentInterviewSessionsDocument,
-    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": typeof types.UnfinishedInterviewSessionDocument,
-    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": typeof types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": typeof types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": typeof types.RequestInterviewClarificationDocument,
@@ -101,7 +100,7 @@ type Documents = {
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": typeof types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": typeof types.JobBoardRerankingDocument,
     "\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n": typeof types.JobBoardSearchIdeasDocument,
-    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
+    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n": typeof types.JobsDocument,
     "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      responsibilities\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": typeof types.JobDocument,
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": typeof types.UpdateJobDocument,
@@ -118,9 +117,8 @@ type Documents = {
     "\n  mutation DeleteResume($id: ID!) {\n    deleteResume(input: { id: $id }) {\n      resume {\n        id\n      }\n      errors\n    }\n  }\n": typeof types.DeleteResumeDocument,
     "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": typeof types.ResumesDocument,
     "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      includeSummary\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": typeof types.ResumeDocument,
-    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": typeof types.StudyGuideForJobDocument,
-    "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": typeof types.StudyGuideContentDocument,
     "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": typeof types.GenerateStudyGuideDocument,
+    "\n  query StudyQuestionCollection($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyQuestionBatches(cursor: $cursor) {\n        batches { id result sourceDescriptionFingerprint outOfDate }\n        endCursor totalQuestions errors\n      }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": typeof types.StudyQuestionCollectionDocument,
     "\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n": typeof types.SummaryGenerationDocument,
     "\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.StartSummaryGenerationDocument,
     "\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": typeof types.AcceptSummaryGenerationDocument,
@@ -177,7 +175,8 @@ const documents: Documents = {
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      errors\n    }\n  }\n": types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": types.JobPipelineDocument,
     "\n  query RunningAiTasks {\n    runningAiTasks {\n      id\n      label\n      destination\n    }\n  }\n": types.RunningAiTasksDocument,
-    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": types.InterviewSetsDocument,
+    "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n": types.InterviewQuestionBankDocument,
+    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n": types.InterviewSetsDocument,
     "\n  query InterviewSet($id: ID!) {\n    interviewQuestionSet(id: $id) {\n      id number setType createdAt\n      latestTask { id status errorMessage result }\n      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }\n    }\n  }\n": types.InterviewSetDocument,
     "\n  mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {\n    generateInterviewQuestionSet(input: { setType: $setType }) {\n      errors\n      aiTask { id input }\n    }\n  }\n": types.GenerateInterviewSetDocument,
     "\n  mutation DeleteInterviewSet($id: ID!) {\n    deleteInterviewQuestionSet(input: { id: $id }) { errors }\n  }\n": types.DeleteInterviewSetDocument,
@@ -197,8 +196,6 @@ const documents: Documents = {
     "\n  mutation BeginInterview($interviewId: ID!) {\n    beginInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.BeginInterviewDocument,
     "\n  mutation AbandonInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { ...InterviewSnapshot } errors }\n  }\n": types.AbandonInterviewDocument,
     "\n  query RecentInterviewSessions {\n    recentInterviewSessions { id status createdAt currentQuestionPosition questions { id } jobContext { id title company } }\n  }\n": types.RecentInterviewSessionsDocument,
-    "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n": types.UnfinishedInterviewSessionDocument,
-    "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n": types.AbandonUnfinishedInterviewDocument,
     "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n": types.StartRecordedTranscriptionDocument,
     "\n  mutation CancelRecordedTranscription($input: CancelRecordedTranscriptionInput!) {\n    cancelRecordedTranscription(input: $input) { interview { ...InterviewSnapshot } errors }\n  }\n": types.CancelRecordedTranscriptionDocument,
     "\n  mutation RequestInterviewClarification($input: RequestInterviewClarificationInput!) {\n    requestInterviewClarification(input: $input) {\n      clarification { id status explanation attemptCount aiTaskId deadline }\n      errors\n    }\n  }\n": types.RequestInterviewClarificationDocument,
@@ -214,7 +211,7 @@ const documents: Documents = {
     "\n  mutation RerankJobBoardListings($keyword: String!, $listingIds: [ID!]!) {\n    rerankJobBoardListings(input: { keyword: $keyword, listingIds: $listingIds }) {\n      aiTask { id status result errorMessage }\n      errors\n    }\n  }\n": types.RerankJobBoardListingsDocument,
     "\n  subscription JobBoardReranking($id: ID!) {\n    aiTaskUpdated(id: $id) { id status result errorMessage }\n  }\n": types.JobBoardRerankingDocument,
     "\n  query JobBoardSearchIdeas {\n    me { id jobTitleSuggestions }\n  }\n": types.JobBoardSearchIdeasDocument,
-    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n": types.JobsDocument,
+    "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n": types.JobsDocument,
     "\n  query Job($id: ID!) {\n    job(id: $id) {\n      id\n      title\n      company\n      location\n      stage\n      url\n      description\n      notes\n      appliedAt\n      requirements\n      responsibilities\n      niceToHaves\n      gapResponses {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      latestGapAnalysis {\n        id\n        status\n        result\n        errorMessage\n        createdAt\n      }\n      resume {\n        id\n      }\n    }\n  }\n": types.JobDocument,
     "\n  mutation CreateJob($attributes: JobAttributesInput!) {\n    createJob(input: { attributes: $attributes }) {\n      job {\n        id\n      }\n      errors\n    }\n  }\n": types.CreateJobDocument,
     "\n  mutation UpdateJob($id: ID!, $attributes: JobAttributesInput!) {\n    updateJob(input: { id: $id, attributes: $attributes }) {\n      errors\n    }\n  }\n": types.UpdateJobDocument,
@@ -231,9 +228,8 @@ const documents: Documents = {
     "\n  mutation DeleteResume($id: ID!) {\n    deleteResume(input: { id: $id }) {\n      resume {\n        id\n      }\n      errors\n    }\n  }\n": types.DeleteResumeDocument,
     "\n  query Resumes {\n    resumes {\n      id\n      title\n      updatedAt\n      job {\n        id\n        title\n        company\n      }\n    }\n  }\n": types.ResumesDocument,
     "\n  query Resume($id: ID!) {\n    resume(id: $id) {\n      id\n      title\n      job {\n        id\n        title\n        company\n      }\n      includeSummary\n      sections {\n        id\n        sectionType\n        title\n        position\n        content\n      }\n    }\n  }\n": types.ResumeDocument,
-    "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": types.StudyGuideForJobDocument,
-    "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n": types.StudyGuideContentDocument,
     "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n": types.GenerateStudyGuideDocument,
+    "\n  query StudyQuestionCollection($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyQuestionBatches(cursor: $cursor) {\n        batches { id result sourceDescriptionFingerprint outOfDate }\n        endCursor totalQuestions errors\n      }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n": types.StudyQuestionCollectionDocument,
     "\n  query SummaryGeneration($targetKind: String!, $targetId: ID) {\n    summaryGeneration(targetKind: $targetKind, targetId: $targetId) {\n      stale\n      aiTask { id status result errorMessage acceptedAt }\n    }\n  }\n": types.SummaryGenerationDocument,
     "\n  mutation StartSummaryGeneration($targetKind: String!, $targetId: ID) {\n    startSummaryGeneration(input: {targetKind: $targetKind, targetId: $targetId}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.StartSummaryGenerationDocument,
     "\n  mutation AcceptSummaryGeneration($aiTaskId: ID!, $text: String!) {\n    acceptSummaryGeneration(input: {aiTaskId: $aiTaskId, text: $text}) {\n      aiTask { id status result errorMessage acceptedAt }\n      errors\n    }\n  }\n": types.AcceptSummaryGenerationDocument,
@@ -457,7 +453,11 @@ export function graphql(source: "\n  query RunningAiTasks {\n    runningAiTasks 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n"): (typeof documents)["\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n"];
+export function graphql(source: "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n"): (typeof documents)["\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n"): (typeof documents)["\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -537,14 +537,6 @@ export function graphql(source: "\n  query RecentInterviewSessions {\n    recent
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"): (typeof documents)["\n  query UnfinishedInterviewSession {\n    unfinishedInterviewSession { id status jobContext { id title company } }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"): (typeof documents)["\n  mutation AbandonUnfinishedInterview($interviewId: ID!) {\n    abandonInterview(input: {interviewId: $interviewId}) { interview { id status } errors }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"): (typeof documents)["\n  mutation StartRecordedTranscription($input: StartRecordedTranscriptionInput!) {\n    startRecordedTranscription(input: $input) { operationId interview { ...InterviewSnapshot } errors }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -605,7 +597,7 @@ export function graphql(source: "\n  query JobBoardSearchIdeas {\n    me { id jo
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      createdAt\n    }\n  }\n"];
+export function graphql(source: "\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n"): (typeof documents)["\n  query Jobs {\n    jobs {\n      id\n      title\n      company\n      location\n      stage\n      url\n      createdAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -673,15 +665,11 @@ export function graphql(source: "\n  query Resume($id: ID!) {\n    resume(id: $i
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"): (typeof documents)["\n  query StudyGuideForJob($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyGuides(cursor: $cursor) { guides { id createdAt sourceDescriptionFingerprint outOfDate } nextCursor errors }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n"): (typeof documents)["\n  query StudyGuideContent($jobId: ID!, $guideId: ID!) {\n    job(id: $jobId) {\n      id\n      studyGuide(id: $guideId) { id result createdAt studyGuideOutOfDate }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"): (typeof documents)["\n  mutation GenerateStudyGuide($jobId: ID!) {\n    generateStudyGuide(input: {jobId: $jobId}) {\n      aiTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n      errors\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query StudyQuestionCollection($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyQuestionBatches(cursor: $cursor) {\n        batches { id result sourceDescriptionFingerprint outOfDate }\n        endCursor totalQuestions errors\n      }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"): (typeof documents)["\n  query StudyQuestionCollection($jobId: ID!, $cursor: String) {\n    job(id: $jobId) {\n      id\n      studyGuideDescriptionFingerprint\n      studyQuestionBatches(cursor: $cursor) {\n        batches { id result sourceDescriptionFingerprint outOfDate }\n        endCursor totalQuestions errors\n      }\n      latestStudyGuideTask { id status errorMessage createdAt studyGuideRetryAfterSeconds }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

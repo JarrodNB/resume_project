@@ -27,6 +27,10 @@ module Api
     # a separate connects_to declaration would silently break that guarantee.
     config.active_job.queue_adapter = :solid_queue
 
+    # Uploads enter through authenticated GraphQL; interview media uses scoped S3 grants.
+    # Default Active Storage controllers otherwise expose unauthenticated upload signing.
+    config.active_storage.draw_routes = false
+
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.

@@ -102,3 +102,68 @@ def test_exact_period_is_reserved_before_matching_a_wrong_period():
     scores = ExperienceMatch().evaluate(context)
     assert scores["experience_dates"] == 1.0
     assert scores["experience_highlight_recall"] == 0.5
+
+
+def test_existing_eval_runner_retains_search_suggestions_without_label_leakage(monkeypatch):
+    """The quality runner must measure the sidecar output, not silently discard it."""
+    from contextlib import contextmanager
+
+    from pydantic_ai.usage import RunUsage
+
+    from agents.resume_parsing_agent import ResumeParsingRun
+    from evals import run_resume_parsing_evals as runner
+
+    seen = []
+
+    @contextmanager
+    def privacy_scope():
+        yield SimpleNamespace(prepare=lambda text: text, restore=lambda value: value)
+
+    def parse(text, **kwargs):
+        seen.append(text)
+        return ResumeParsingRun(ParsedResume(summary="Original summary"), RunUsage(),
+                                job_title_suggestions=["API developer"])
+
+    monkeypatch.setattr(runner, "import_privacy_scope", privacy_scope)
+    monkeypatch.setattr(runner, "screen_user_text", lambda *args, **kwargs: SimpleNamespace(allowed=True))
+    monkeypatch.setattr(runner, "parse_resume_text", parse)
+    monkeypatch.setattr(runner, "evaluate_dataset", lambda dataset, task, **kwargs: task("Software engineer resume"))
+
+    output = runner.run_resume_parsing_evals()
+
+    assert output.job_title_suggestions == ["API developer"]
+    assert output.summary == "Original summary"
+    assert seen == ["Software engineer resume"]
+
+
+def test_suggestion_labels_score_equivalents_but_reject_missing_or_promoted_titles():
+    from evals.resume_parsing_evaluators import JobTitleSuggestions, ResumeParsingEvaluationOutput
+
+    cases = {case.name: case for case in load_resume_parsing_dataset().cases}
+    equivalent = cases["search_titles_equivalent_backend_roles"]
+    context = SimpleNamespace(metadata=equivalent.metadata, output=ResumeParsingEvaluationOutput(
+        job_title_suggestions=["Back-end developer", "API engineer", "Python developer"],
+    ))
+    assert all(score == 1.0 for score in JobTitleSuggestions().evaluate(context).values())
+    context.output.job_title_suggestions = []
+    assert JobTitleSuggestions().evaluate(context)["job_title_expected_count"] == 0.0
+
+    intern = cases["search_titles_do_not_promote_an_intern"]
+    context.metadata = intern.metadata
+    context.output.job_title_suggestions = ["Senior data analyst", "Principal engineer", "Data analyst"]
+    scores = JobTitleSuggestions().evaluate(context)
+    assert scores["job_title_seniority"] == 0.0
+    assert scores["job_title_labeled_equivalents"] == 1 / 3
+
+
+def test_suggestion_labels_require_abstention_without_evidence():
+    from evals.resume_parsing_evaluators import JobTitleSuggestions, ResumeParsingEvaluationOutput
+
+    sparse = next(case for case in load_resume_parsing_dataset().cases
+                  if case.name == "search_titles_abstain_without_career_evidence")
+    context = SimpleNamespace(metadata=sparse.metadata, output=ResumeParsingEvaluationOutput())
+    assert all(score == 1.0 for score in JobTitleSuggestions().evaluate(context).values())
+    context.output.job_title_suggestions = ["Software engineer"]
+    scores = JobTitleSuggestions().evaluate(context)
+    assert scores["job_title_expected_count"] == 0.0
+    assert scores["job_title_labeled_equivalents"] == 0.0

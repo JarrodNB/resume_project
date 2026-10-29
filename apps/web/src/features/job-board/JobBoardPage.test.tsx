@@ -1,5 +1,5 @@
 /** Exercise Job Board through its form and GraphQL boundary, without provider traffic. */
-import { act, screen } from '@testing-library/react'
+import { act, fireEvent, screen } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
@@ -32,12 +32,22 @@ it('uses imported title chips without searching or changing selected filters', a
 })
 
 it.each([false, true])('keeps default chips when suggestions are unavailable (error: %s)', async (fails) => {
-  renderBoard([{
-    request: { query: JOB_BOARD_SEARCH_IDEAS_QUERY },
-    ...(fails ? { error: new Error('Unavailable') } : { result: { data: { me: { __typename: 'User', id: 'me', jobTitleSuggestions: [] } } } }),
-  }])
-  expect(await screen.findByRole('button', { name: 'Software engineer' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Search jobs' })).toBeDisabled()
+  vi.useFakeTimers()
+  try {
+    renderBoard([{
+      request: { query: JOB_BOARD_SEARCH_IDEAS_QUERY },
+      delay: 50,
+      ...(fails ? { error: new Error('Unavailable') } : { result: { data: { me: { __typename: 'User', id: 'me', jobTitleSuggestions: [] } } } }),
+    }])
+    // Initial defaults are not evidence of fallback: deliver the response/error first.
+    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+    fireEvent.click(screen.getByRole('button', { name: 'Software engineer' }))
+    expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('Software engineer')
+    expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Search jobs' })).toBeEnabled()
+  } finally {
+    vi.useRealTimers()
+  }
 })
 
 it('starts with a keyword invitation without requesting listings', async () => {

@@ -51,7 +51,8 @@ All business logic, as service objects grouped by domain folder.
   differing only in fragments/tracking parameters reuse an owned Job without changing edits.
   Saved Jobs retain their own snapshots. Oversized URLs are omitted, never shortened.
   `listing_description.rb` reads HTML as plain text and copies bullets only under known
-  headings; neither helper calls the provider or AI.
+  headings, including inline "Label: paragraph" headings whose sentences it splits into
+  bullets; neither helper calls the provider or AI.
 - `jobs/` — `create_job_service.rb`, `update_job_service.rb`, `move_job_to_stage_service.rb`;
   `build_pipeline_service.rb` picks each owned job's single Home next step (`jobPipeline`) in
   three queries (jobs, newest owned analyze_gaps/tailor_resume per job via DISTINCT ON, resume job ids);

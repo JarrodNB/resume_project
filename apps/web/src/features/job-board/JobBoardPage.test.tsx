@@ -1,6 +1,6 @@
 /** Exercise Job Board through its form and GraphQL boundary, without provider traffic. */
-import { act, fireEvent, screen } from '@testing-library/react'
-import { expect, it, vi } from 'vitest'
+import { act, fireEvent, screen, within } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { Link } from 'react-router'
 import { JobsPage } from '@/features/jobs/JobsPage'
@@ -11,6 +11,8 @@ import { renderPage } from '@/test/renderPage'
 import { setSectionOpen } from '@/lib/openSections'
 import type { BoardListing } from './useJobBoardSearch'
 import { JobBoardPage } from './JobBoardPage'
+
+afterEach(() => vi.restoreAllMocks())
 
 it('uses imported title chips without searching or changing selected filters', async () => {
   const user = userEvent.setup()
@@ -142,7 +144,7 @@ it('clears selected levels back to an unrestricted search', async () => {
 })
 
 function listing(id = 'one', title = 'Platform Engineer'): Omit<BoardListing, '__typename' | 'savedJob'> & { __typename: 'JobBoardListing'; savedJob: ({ id: string; __typename: 'Job' }) | null } {
-  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
+  return { __typename: 'JobBoardListing' as const, id, title, company: 'Acme', location: 'United States', description: 'Build useful tools.', applicationUrl: null, hasRemote: true, remoteType: null, published: null, employmentType: null, salaryText: null, salaryCurrency: null, savedJob: null }
 }
 function page(listings = [listing()], overrides: Record<string, unknown> = {}) {
   return { __typename: 'JobBoardSearchPage', listings, nextCursor: null, retrievedAt: '2026-10-19T00:00:00Z', stale: false, errors: [], ...overrides }
@@ -321,8 +323,10 @@ it('creates a private job once during a double click, stays on the board, and li
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
-  await user.dblClick(screen.getByRole('button', { name: 'Save job' }))
-  expect(await screen.findByText('Saved with a few changes')).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Platform Engineer' }))
+  await user.dblClick(within(screen.getByRole('dialog')).getByRole('button', { name: 'Save job' }))
+  expect(await within(screen.getByRole('dialog')).findByText('Saved with a few changes')).toBeInTheDocument()
+  expect(within(screen.getByRole('dialog')).getByText('The application link was omitted.')).toBeInTheDocument()
   expect(imported).toHaveBeenCalledOnce()
   expect(router.state.location.pathname).toBe('/jobs/find')
   await user.click(screen.getByRole('link', { name: 'Open saved job' }))
@@ -331,7 +335,7 @@ it('creates a private job once during a double click, stays on the board, and li
   expect(router.state.location.state).toEqual({ jobBoardImport: { jobId: 'saved-one', warnings: ['The application link was omitted.'] } })
 })
 
-it('opens the current user’s existing job without importing and renders descriptions as remembered text disclosures', async () => {
+it('opens an accessible preview by keyboard, closes to its title, and opens the owned saved job', async () => {
   const user = userEvent.setup()
   renderBoard([queryMock(searchVariables(), page([{ ...listing(), company: null, description: '<img src=x onerror=alert(1)> Role details', savedJob: { __typename: 'Job', id: 'existing' } }]))])
   await search(user)
@@ -340,12 +344,20 @@ it('opens the current user’s existing job without importing and renders descri
   expect(screen.getByText('United States')).toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Open saved job' })).toHaveAttribute('href', '/jobs/existing')
   expect(screen.queryByRole('button', { name: 'Save job' })).not.toBeInTheDocument()
-  const details = screen.getByRole('button', { name: 'Description for Platform Engineer' })
-  expect(details).toHaveAttribute('aria-expanded', 'false')
-  await user.click(details)
+  const scroll = vi.spyOn(window, 'scrollTo')
+  scroll.mockClear()
+  const details = screen.getByRole('button', { name: 'Platform Engineer' })
+  details.focus()
+  await user.keyboard('{Enter}')
+  expect(screen.getByRole('dialog', { name: 'Platform Engineer' })).toBeInTheDocument()
   expect(screen.getByText('<img src=x onerror=alert(1)> Role details')).toBeInTheDocument()
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
-  await user.click(screen.getByRole('link', { name: 'Open saved job' }))
+  await user.keyboard('{Escape}')
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(details).toHaveFocus()
+  expect(scroll).not.toHaveBeenCalled()
+  await user.click(details)
+  await user.click(within(screen.getByRole('dialog')).getByRole('link', { name: 'Open saved job' }))
   await screen.findByText('Saved job page')
 })
 
@@ -360,11 +372,12 @@ it.each(['validation', 'network'])('keeps search results after an import %s fail
   ])
   await search(user)
   await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Platform Engineer' }))
   await user.click(screen.getByRole('button', { name: 'Save job' }))
-  await screen.findByText('Could not save this job. Please try again.')
-  expect(screen.getByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+  await within(screen.getByRole('dialog')).findByText('Could not save this job. Please try again.')
+  expect(screen.getByRole('dialog', { name: 'Platform Engineer' })).toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: 'Save job' }))
-  expect(await screen.findByText('Saved to your jobs')).toBeInTheDocument()
+  expect(await within(screen.getByRole('dialog')).findByText('Saved to your jobs')).toBeInTheDocument()
 })
 
 it('refreshes an already visited private Jobs list after creating a listing', async () => {
@@ -530,4 +543,279 @@ it('keeps an invalid salary visible and blocks submission after advanced filters
   await user.click(screen.getByRole('button', { name: 'More filters (1)' }))
   await user.clear(screen.getByRole('spinbutton', { name: 'Minimum salary' }))
   expect(screen.getByRole('button', { name: 'Search jobs' })).toBeEnabled()
+})
+
+
+it('hydrates a bookmarked search and uses resolved identities without another lookup', async () => {
+  setSectionOpen('job-board:filters', true)
+  renderPage({ path: '/jobs/find', url: '/jobs/find?q=engineer&remote=hybrid&level=SE&city=4930956&place=Boston%2C+MA&age=7d&sort=relevance', element: <JobBoardPage />, mocks: [queryMock({ ...searchVariables('engineer', true, null, ['SE']), filters: { remoteType: 'hybrid', cityId: 4930956, maxAge: '7d', sortBy: 'relevance' } } as ReturnType<typeof searchVariables>)] })
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  expect(screen.getByRole('textbox', { name: 'US city or state' })).toHaveValue('Boston, MA')
+  expect(screen.getByRole('checkbox', { name: 'Senior' })).toBeChecked()
+  expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('relevance')
+})
+
+it('pushes submitted searches and restores them with Back and Forward while drafts stay private', async () => {
+  const user = userEvent.setup()
+  const { router } = renderBoard([
+    queryMock(), queryMock(searchVariables('designer'), page([listing('two', 'Designer')])),
+    queryMock(), queryMock(searchVariables('designer'), page([listing('two', 'Designer')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  const input = screen.getByRole('textbox', { name: 'Keyword or job title' })
+  await user.clear(input)
+  await user.type(input, 'designer')
+  expect(router.state.location.search).toBe('?q=engineer')
+  await user.click(screen.getByRole('button', { name: 'Search jobs' }))
+  await screen.findByRole('heading', { name: 'Designer' })
+  await act(() => router.navigate(-1))
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(input).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  await act(() => router.navigate(1))
+  await screen.findByRole('heading', { name: 'Designer' })
+  await act(() => router.navigate(-2))
+  expect(await screen.findByText('Find a role worth your next step.')).toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Designer' })).not.toBeInTheDocument()
+})
+
+
+it('canonicalizes malformed URL filters before making a single valid request', async () => {
+  const fetched = vi.fn(() => ({ data: { jobBoardSearch: page() } }))
+  const { router } = renderPage({ path: '/jobs/find', url: '/jobs/find?q=engineer&city=-1&salary=1e9&level=BAD&remote=bad&sort=published&unknown=ignored', element: <JobBoardPage />, mocks: [{ request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result: fetched }] })
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  expect(fetched).toHaveBeenCalledTimes(1)
+})
+
+
+it('restores loaded pages and selected page after visiting a saved job without another provider request', async () => {
+  const user = userEvent.setup()
+  const batch = (prefix: string) => Array.from({ length: 20 }, (_, index) => listing(`${prefix}${index}`, `${prefix} role ${index}`))
+  const first = vi.fn(() => ({ data: { jobBoardSearch: page(batch('a'), { nextCursor: 'next' }) } }))
+  const second = vi.fn(() => ({ data: { jobBoardSearch: page(batch('b')) } }))
+  const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => {})
+  const { router } = renderBoard([
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables() }, result: first },
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('engineer', false, 'next') }, result: second },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'a role 0' })
+  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  await user.click(screen.getByRole('checkbox', { name: 'Hide already saved' }))
+  vi.spyOn(window, 'scrollY', 'get').mockReturnValue(640)
+  fireEvent.scroll(window)
+  await act(() => router.navigate('/jobs/saved'))
+  await screen.findByText('Saved job page')
+  await act(() => router.navigate(-1))
+  await screen.findByRole('heading', { name: 'b role 0' })
+  expect(screen.getByRole('button', { name: 'Page 2' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.getByRole('checkbox', { name: 'Hide already saved' })).toBeChecked()
+  expect(first).toHaveBeenCalledTimes(1)
+  expect(second).toHaveBeenCalledTimes(1)
+  expect(scrollTo).toHaveBeenCalledWith({ top: 640, behavior: 'instant' })
+})
+
+
+it('records a save that completes while away and restores its feedback and link', async () => {
+  const user = userEvent.setup()
+  const imported = vi.fn(() => ({ data: { importJobBoardListing: { __typename: 'ImportListingPayload', job: { __typename: 'Job', id: 'saved-one' }, warnings: ['The application link was omitted.'], errors: [] } } }))
+  const { router } = renderBoard([
+    queryMock(),
+    { request: { query: IMPORT_JOB_BOARD_LISTING_MUTATION, variables: { listingId: 'one' } }, result: imported, delay: 150 },
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Save job' }))
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => new Promise((resolve) => setTimeout(resolve, 200)))
+  await act(() => router.navigate(-1))
+  await screen.findByText('Saved with a few changes')
+  expect(screen.getByRole('link', { name: 'Open saved job' })).toHaveAttribute('href', '/jobs/saved-one')
+  expect(imported).toHaveBeenCalledOnce()
+  await user.click(screen.getByRole('link', { name: 'Open saved job' }))
+  expect(router.state.location.state).toEqual({ jobBoardImport: { jobId: 'saved-one', warnings: ['The application link was omitted.'] } })
+})
+
+it('keeps a failed continuation and retries its cursor after returning', async () => {
+  const user = userEvent.setup()
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page([listing()], { nextCursor: 'next' })),
+    queryMock(searchVariables('engineer', false, 'next'), page([], { retrievedAt: null, errors: ['Continuation unavailable.'] })),
+    queryMock(searchVariables('engineer', false, 'next'), page([listing('two', 'Recovered role')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.click(screen.getByRole('button', { name: 'Next page' }))
+  await screen.findByText('Continuation unavailable.')
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => router.navigate(-1))
+  expect(await screen.findByText('Continuation unavailable.')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Platform Engineer' })).toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Try again' }))
+  await screen.findByRole('heading', { name: 'Recovered role' })
+  expect(screen.queryByText('Continuation unavailable.')).not.toBeInTheDocument()
+})
+
+
+it('reruns an oversized search from its first page after leaving instead of retaining its corpus', async () => {
+  const user = userEvent.setup()
+  const large = Array.from({ length: 201 }, (_, index) => listing(`large-${index}`, `Large role ${index}`))
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page(large)),
+    queryMock(searchVariables(), page([listing('fresh', 'Fresh first page')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Large role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'Large role 20' })
+  await act(() => router.navigate('/jobs/other'))
+  await act(() => router.navigate(-1))
+  await screen.findByRole('heading', { name: 'Fresh first page' })
+  expect(screen.queryByRole('heading', { name: 'Large role 20' })).not.toBeInTheDocument()
+})
+
+it('evicts older searches after five visits and fetches them fresh from their URL', async () => {
+  const fetchedAgain = vi.fn(() => ({ data: { jobBoardSearch: page([listing('fresh', 'Reloaded old search')]) } }))
+  const { router } = renderBoard([
+    ...Array.from({ length: 6 }, (_, index) => queryMock(searchVariables(`search${index}`), page([listing(`id${index}`, `Search role ${index}`)]))),
+    { request: { query: JOB_BOARD_SEARCH_QUERY, variables: searchVariables('search0') }, result: fetchedAgain },
+  ])
+  for (let index = 0; index < 6; index += 1) {
+    await act(() => router.navigate(`/jobs/find?q=search${index}`))
+    await screen.findByRole('heading', { name: `Search role ${index}` })
+  }
+  await act(() => router.navigate(-5))
+  await screen.findByRole('heading', { name: 'Reloaded old search' })
+  expect(fetchedAgain).toHaveBeenCalledOnce()
+})
+
+
+it('starts a newly submitted search at page one even when its URL has a retained visit', async () => {
+  const user = userEvent.setup()
+  const batch = Array.from({ length: 21 }, (_, index) => listing(`old-${index}`, `Old role ${index}`))
+  const { router } = renderBoard([
+    queryMock(searchVariables(), page(batch)),
+    queryMock(searchVariables('designer'), page([listing('designer', 'Designer')])),
+    queryMock(searchVariables(), page([listing('fresh', 'New first page')])),
+  ])
+  await search(user)
+  await screen.findByRole('heading', { name: 'Old role 0' })
+  await user.click(screen.getByRole('button', { name: 'Page 2' }))
+  await screen.findByRole('heading', { name: 'Old role 20' })
+  await act(() => router.navigate('/jobs/find?q=designer'))
+  await screen.findByRole('heading', { name: 'Designer' })
+  const keyword = screen.getByRole('textbox', { name: 'Keyword or job title' })
+  await user.clear(keyword)
+  await user.type(keyword, 'engineer')
+  await user.click(screen.getByRole('button', { name: 'Search jobs' }))
+  await screen.findByRole('heading', { name: 'New first page' })
+  expect(screen.queryByRole('heading', { name: 'Old role 20' })).not.toBeInTheDocument()
+})
+
+
+it('removes an applied remote chip immediately and discards unrelated keyword drafts', async () => {
+  const user = userEvent.setup()
+  const { router } = renderBoard([
+    queryMock(searchVariables('engineer', true)),
+    queryMock(searchVariables(), page([listing('new', 'Broader results')])),
+  ])
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Remote arrangement' }), 'remote')
+  await search(user)
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), ' draft')
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Date posted' }), '7d')
+  await user.click(screen.getByRole('button', { name: 'Remove Any remote option filter' }))
+  await screen.findByRole('heading', { name: 'Broader results' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  expect(screen.getByRole('combobox', { name: 'Date posted' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Remote arrangement' })).toHaveValue('')
+  expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument()
+})
+
+
+it('removes each applied filter value while preserving the other submitted choices', async () => {
+  const user = userEvent.setup()
+  const initialUrl = '?q=engineer&level=EN&level=SE&employment=FULL_TIME&employment=CONTRACT&remote=hybrid&age=7d&city=123&place=Boston&company=Acme&salary=100000&undisclosed=0&sort=relevance'
+  const filters = { remoteType: 'hybrid', maxAge: '7d', cityId: 123, companyName: 'Acme', employmentTypes: ['FULL_TIME', 'CONTRACT'], minimumSalary: 100000, includeUndisclosedSalaries: false, sortBy: 'relevance' }
+  const changes = [
+    { label: 'Entry level', levels: ['SE'] },
+    { label: 'Contract', filters: { ...filters, employmentTypes: ['FULL_TIME'] } },
+    { label: 'Boston', remove: ['cityId'], urlRemove: ['city', 'place'] },
+    { label: 'Minimum pay: 100,000 (disclosed only)', remove: ['minimumSalary', 'includeUndisclosedSalaries'], urlRemove: ['salary', 'undisclosed'] },
+    { label: 'Hybrid', remove: ['remoteType'], urlRemove: ['remote'], remoteOnly: false },
+    { label: 'Past 7 days', remove: ['maxAge'], urlRemove: ['age'] },
+    { label: 'Company: Acme', remove: ['companyName'], urlRemove: ['company'] },
+    { label: 'Most relevant', remove: ['sortBy'], urlRemove: ['sort'] },
+  ]
+  const steps: { keyword: string; remoteOnly: boolean; experienceLevels: string[]; cursor: string | null; filters?: Record<string, unknown> }[] = []
+  let current = { ...searchVariables('engineer', true, null, ['EN', 'SE']), filters: { ...filters } as Record<string, unknown> }
+  steps.push(current)
+  for (const change of changes) {
+    current = { ...current, filters: change.filters ?? { ...current.filters }, experienceLevels: change.levels ?? current.experienceLevels, remoteOnly: change.remoteOnly ?? current.remoteOnly }
+    change.remove?.forEach((key) => { delete current.filters[key] })
+    steps.push(current)
+  }
+  const { router } = renderBoard(steps.map((variables, index) => queryMock(variables, page([listing(`step-${index}`, `Step ${index}`)]))))
+  await act(() => router.navigate('/jobs/find' + initialUrl))
+  await screen.findByRole('heading', { name: 'Step 0' })
+  for (const [index, change] of changes.entries()) {
+    await user.click(screen.getByRole('button', { name: `Remove ${change.label} filter` }))
+    await screen.findByRole('heading', { name: `Step ${index + 1}` })
+    expect(screen.queryByRole('button', { name: `Remove ${change.label} filter` })).not.toBeInTheDocument()
+    change.urlRemove?.forEach((key) => expect(new URLSearchParams(router.state.location.search).has(key)).toBe(false))
+  }
+  expect(screen.getByRole('checkbox', { name: 'Senior' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Full-time' })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Entry level' })).not.toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Contract' })).not.toBeChecked()
+  expect(screen.getByRole('textbox', { name: 'US city or state' })).toHaveValue('')
+  expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
+})
+
+it('clears every filter and sort while retaining the applied keyword', async () => {
+  const user = userEvent.setup()
+  const filters = { stateId: 456, remoteType: 'fully_remote', maxAge: '24h', employmentTypes: ['PART_TIME'], companyName: 'Acme', minimumSalary: 50000, includeUndisclosedSalaries: true, sortBy: 'relevance' }
+  const initialVariables = { ...searchVariables('engineer', true, null, ['MI']), filters }
+  const { router } = renderBoard([
+    queryMock(initialVariables),
+    queryMock(searchVariables(), page([listing('cleared', 'Unfiltered role')])),
+  ])
+  await act(() => router.navigate('/jobs/find?q=engineer&level=MI&employment=PART_TIME&remote=fully_remote&age=24h&state=456&company=Acme&salary=50000&sort=relevance'))
+  await screen.findByRole('heading', { name: 'Platform Engineer' })
+  expect(screen.getByRole('button', { name: 'Remove Selected state (456) filter' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Remove Minimum pay: 50,000 (undisclosed included) filter' })).toBeInTheDocument()
+  await user.type(screen.getByRole('textbox', { name: 'Keyword or job title' }), ' draft')
+  await user.click(screen.getByRole('button', { name: 'Clear filters' }))
+  await screen.findByRole('heading', { name: 'Unfiltered role' })
+  expect(router.state.location.search).toBe('?q=engineer')
+  expect(screen.queryByRole('group', { name: 'Applied filters' })).not.toBeInTheDocument()
+  expect(screen.getByRole('textbox', { name: 'Keyword or job title' })).toHaveValue('engineer')
+  expect(screen.getByRole('combobox', { name: 'Sort by' })).toHaveValue('published')
+  expect(screen.getByRole('checkbox', { name: 'Mid level' })).not.toBeChecked()
+  expect(screen.getByRole('checkbox', { name: 'Part-time' })).not.toBeChecked()
+  await user.click(screen.getByRole('button', { name: 'More filters' }))
+  expect(screen.getByRole('textbox', { name: 'Company' })).toHaveValue('')
+  expect(screen.getByRole('spinbutton', { name: 'Minimum salary' })).toHaveValue(null)
+})
+
+it.each([null, '', 'javascript:alert(1)', '/relative', 'https://user:secret@example.com/job', 'broken', 'https://example.com/job'])('only exposes usable original web postings (%s)', async (applicationUrl) => {
+  const user = userEvent.setup()
+  renderBoard([queryMock(searchVariables(), page([{ ...listing(), applicationUrl, salaryText: '120,000 per year', salaryCurrency: 'USD', employmentType: 'full_time', remoteType: 'remote', published: '2026-10-20T00:00:00Z' }]))])
+  await search(user)
+  await user.click(await screen.findByRole('button', { name: 'Platform Engineer' }))
+  const preview = within(screen.getByRole('dialog'))
+  expect(preview.getByText('120,000 per year · USD')).toBeInTheDocument()
+  expect(preview.getByRole('time')).toHaveAttribute('datetime', '2026-10-20T00:00:00Z')
+  if (applicationUrl === 'https://example.com/job') {
+    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('href', applicationUrl)
+    expect(preview.getByRole('link', { name: 'View original posting' })).toHaveAttribute('rel', 'noopener noreferrer')
+  } else expect(preview.queryByRole('link', { name: 'View original posting' })).not.toBeInTheDocument()
+  await user.click(preview.getByRole('button', { name: 'Close' }))
+  expect(screen.getByRole('button', { name: 'Platform Engineer' })).toHaveFocus()
 })

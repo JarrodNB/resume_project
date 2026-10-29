@@ -1,51 +1,103 @@
 /** Find shared US opportunities, then save a chosen listing to private Jobs.
  * The search form's keyword and main filters stay on top; its experience-level and later filters
  * become a sticky sidebar beside the results on wide screens so a search is visibly happening.
- * Search owns submitted results and optional ordering; the form owns editable filters.
+ * The URL owns submitted filters; a session visit retains results and ordering
+ * while users open saved jobs or move through search history.
+ * The form owns editable filters until submission.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { PageHeading } from '@/components/PageHeading'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { JobBoardAppliedFilters } from './JobBoardAppliedFilters'
 import { JobBoardSearchForm } from './JobBoardSearchForm'
-import { boardPageSize, describeSearch } from './searchFilters'
+import { boardPageSize, describeSearch, type BoardSearch } from './searchFilters'
+import { parseSearchUrl, serializeSearchUrl } from './searchUrl'
 import { JobBoardPager } from './JobBoardPager'
 import { JobBoardListingRow } from './JobBoardListingRow'
 import { useImportJobBoardListing } from './useImportJobBoardListing'
 import { useJobBoardSearch } from './useJobBoardSearch'
 import { useJobBoardSearchIdeas } from './useJobBoardSearchIdeas'
+import { useJobBoardVisit } from './useJobBoardVisit'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import './jobBoard.css'
 
 
 export function JobBoardPage() {
+  const { visit, state, forgetSearch } = useJobBoardVisit()
+  // Changing account or submitted URL remounts draft-only form state as well.
+  return <JobBoardVisitPage key={visit.id} visit={visit} state={state} forgetSearch={forgetSearch} />
+}
+
+function JobBoardVisitPage({ visit, state, forgetSearch }: { visit: JobBoardVisit; state: ReturnType<JobBoardVisit['getState']>; forgetSearch: (search: string) => void }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const urlSearch = parseSearchUrl(location.search)
+  const appliedLocation = useRef<string | null>(null)
   const searchIdeas = useJobBoardSearchIdeas()
-  const [keyword, setKeyword] = useState('')
-  const [hideSaved, setHideSaved] = useState(false)
-  const [rerankingEnabled, setRerankingEnabled] = useState(false)
-  const board = useJobBoardSearch(rerankingEnabled)
+  const [keywordDraft, setKeywordDraft] = useState({ entry: location.key, value: urlSearch?.keyword ?? '' })
+  if (keywordDraft.entry !== location.key) setKeywordDraft({ entry: location.key, value: urlSearch?.keyword ?? '' })
+  const keyword = keywordDraft.entry === location.key ? keywordDraft.value : urlSearch?.keyword ?? ''
+  function setKeyword(value: string) { setKeywordDraft({ entry: location.key, value }) }
+  const { hideSaved, rerankingEnabled, savedHere, pageChoice } = state
+  const setHideSaved = (hideSaved: boolean) => visit.update({ hideSaved })
+  const setRerankingEnabled = (rerankingEnabled: boolean) => visit.update({ rerankingEnabled })
+  const board = useJobBoardSearch(visit)
   const { reranking, submittedSearch } = board
-  const importer = useImportJobBoardListing()
+  useEffect(() => {
+    if (appliedLocation.current === location.key) return
+    appliedLocation.current = location.key
+    const submitted = parseSearchUrl(location.search)
+    const canonical = submitted ? serializeSearchUrl(submitted) : ''
+    if (canonical !== location.search) {
+      void navigate({ pathname: location.pathname, search: canonical }, { replace: true })
+      return
+    }
+    if (!visit.initialized) {
+      if (submitted) board.search(submitted)
+      else board.clear()
+    }
+  }, [location.key, location.pathname, location.search, navigate, board, visit.initialized])
+
+  function submitSearch(search: BoardSearch) {
+    const next = serializeSearchUrl(search)
+    if (next === location.search) board.search(search)
+    else {
+      forgetSearch(next)
+      void navigate({ pathname: location.pathname, search: next })
+    }
+  }
+  const importer = useImportJobBoardListing(visit)
   // Listings saved from this page stay in place; the row offers a link to the new job instead.
-  const [savedHere, setSavedHere] = useState<Record<string, { jobId: string; warnings: string[] }>>({})
+  const returning = useRef(visit.initialized)
+  useLayoutEffect(() => {
+    if (returning.current) window.scrollTo({ top: visit.scrollY, behavior: 'instant' })
+    const rememberScroll = () => { visit.scrollY = window.scrollY }
+    window.addEventListener('scroll', rememberScroll)
+    return () => { window.removeEventListener('scroll', rememberScroll) }
+    // This effect belongs to the visit, rather than each async state update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visit])
 
   // Stacked layout (narrow screens): bring the results into view so a search visibly happens.
   useEffect(() => {
+    if (returning.current) { returning.current = false; return }
     if (!submittedSearch || window.matchMedia?.('(min-width: 1000px)').matches) return
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }, [submittedSearch])
 
   async function createJob(listingId: string) {
     const result = await importer.save(listingId)
-    if (result) setSavedHere((current) => ({ ...current, [listingId]: result }))
+    if (result) visit.update((current) => ({ savedHere: { ...current.savedHere, [listingId]: result } }))
   }
 
   const visibleListings = board.listings.filter((listing) => !hideSaved || !listing.savedJob)
   const hiddenCount = board.listings.length - visibleListings.length
   // The wanted page belongs to one submitted search; a new search starts back at page 1.
-  const [pageChoice, setPageChoice] = useState<{ search: unknown; page: number }>({ search: null, page: 0 })
   const totalPages = Math.max(1, Math.ceil(visibleListings.length / boardPageSize))
   const wantedPage = pageChoice.search === submittedSearch ? pageChoice.page : 0
   // Asking for the page after the last loaded one waits here until Load fetches it.
@@ -54,7 +106,7 @@ export function JobBoardPage() {
 
   function goToPage(next: number) {
     if (next > page && page >= totalPages - 1) board.loadMore()
-    setPageChoice({ search: submittedSearch, page: next })
+    visit.update({ pageChoice: { search: submittedSearch, page: next } })
     document.getElementById('job-board-results')?.scrollIntoView?.({ block: 'start' })
   }
 
@@ -69,7 +121,7 @@ export function JobBoardPage() {
         </div>
       </div>}
       <div className="board-layout">
-      <JobBoardSearchForm keyword={keyword} onKeywordChange={setKeyword} onSearch={board.search}>
+      <JobBoardSearchForm key={location.key} initialSearch={urlSearch} keyword={keyword} onKeywordChange={setKeyword} onSearch={submitSearch}>
         <div className="board-reranking-options">
           <Label className="board-remote" data-checked={rerankingEnabled}>
             <Checkbox aria-describedby="board-reranking-help" checked={rerankingEnabled} onCheckedChange={(checked) => setRerankingEnabled(checked === true)} />Rerank using my career library
@@ -84,6 +136,7 @@ export function JobBoardPage() {
         <div className="board-result-controls"><Label className="board-hide-saved"><Checkbox checked={hideSaved} onCheckedChange={(checked) => setHideSaved(checked === true)} />Hide already saved</Label>
           {board.listings.length > 0 && <span className="board-results-count">{visibleListings.length} shown · {board.listings.length} loaded{hiddenCount > 0 && ` · ${hiddenCount} saved hidden`}</span>}</div>
       </div>}
+      {submittedSearch && <JobBoardAppliedFilters search={submittedSearch} onSearch={submitSearch} />}
       {board.loading && <div role="status" className="board-loading"><span>Loading jobs…</span>
         {board.listings.length === 0 && <div aria-hidden="true" className="board-skeletons">{[0, 1, 2].map((item) => <div className="board-skeleton" key={item}><span /><span /><span /></div>)}</div>}
       </div>}
@@ -104,7 +157,7 @@ export function JobBoardPage() {
       {!board.loading && board.pages.length > 0 && board.listings.length === 0 && <div className="board-no-results"><h2>No matching roles this time.</h2><p>No matches. Try another keyword or broaden your filters.</p></div>}
       {hideSaved && hiddenCount > 0 && visibleListings.length === 0 && <p className="board-saved-empty" role="status">All loaded roles are already saved.{board.nextCursor ? ' Go to the next page to keep looking, or turn off “Hide already saved”.' : ' Turn off “Hide already saved” to see them.'}</p>}
       {visibleListings.length > 0 && <ul aria-label="Job listings" className="board-listings">
-        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} savedHere={savedHere[listing.id]} onCreate={(id) => void createJob(id)} />)}
+        {pageListings.map((listing) => <JobBoardListingRow key={listing.id} listing={listing} busyId={importer.busyId} errors={importer.errors} savedHere={savedHere[listing.id]} onCreate={(id) => void createJob(id)} />)}
       </ul>}
       {board.pages.length > 0 && <div className="board-results-footer">
         {(totalPages > 1 || board.nextCursor) && <JobBoardPager page={page} totalPages={totalPages} hasMore={Boolean(board.nextCursor)} loading={board.loading} onPage={goToPage} />}

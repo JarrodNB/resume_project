@@ -3,15 +3,16 @@
  * Requests are cached for this page visit so switching off and on does not repeat work.
  * Late mutations/subscriptions stay attached to their snapshot, never a newer search.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useApolloClient, useSubscription } from '@apollo/client/react'
 import type { AiTaskStatusEnum } from '@/graphql/generated/graphql'
 import { requestErrorMessage } from '@/graphql/requestErrorMessage'
 import { JOB_BOARD_RERANKING_SUBSCRIPTION, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
+import type { JobBoardVisit } from './useJobBoardVisit'
 import type { BoardListing } from './useJobBoardSearch'
 
 interface RerankingTask { id: string; status: AiTaskStatusEnum; result: unknown; errorMessage?: string | null }
-interface Request { starting: boolean; task?: RerankingTask; error?: string; order?: string[] }
+export interface RerankingRequest { starting: boolean; task?: RerankingTask; error?: string; order?: string[] }
 interface Snapshot { submitted: { keyword: string } | null; listings: BoardListing[] }
 
 /** Only a complete permutation can replace the provider order. */
@@ -22,15 +23,12 @@ function resultOrder(result: unknown, ids: string[]): string[] | null {
     && order.every((id): id is string => typeof id === 'string' && ids.includes(id)) ? order : null
 }
 
-export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot) {
+export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot, visit: JobBoardVisit) {
   const { listings } = snapshot
   const keyword = snapshot.submitted?.keyword ?? ''
   const client = useApolloClient()
-  // Replacing the Apollo client changes the signed-in session, so discard private ordering.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const requests = useMemo(() => new Map<Snapshot, Request>(), [client])
-  const mounted = useRef(true)
-  const [, refresh] = useState(0)
+  const requests = visit.requests
+  const refresh = () => visit.update((state) => ({ rankingRevision: state.rankingRevision + 1 }))
   const [attempt, setAttempt] = useState(0)
   const ids = listings.map((listing) => listing.id)
   const available = ids.length > 0 && ids.length <= 100
@@ -41,17 +39,12 @@ export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot) {
   })
 
   useEffect(() => {
-    mounted.current = true
-    return () => { mounted.current = false }
-  }, [])
-
-  useEffect(() => {
     if (!enabled || !available || !keyword || requests.has(snapshot)) return
-    const request: Request = { starting: true }
+    const request: RerankingRequest = { starting: true }
     requests.set(snapshot, request)
     // A page visit keeps only a small history; in-flight callbacks retain their own record.
     if (requests.size > 10) requests.delete(requests.keys().next().value!)
-    refresh((value) => value + 1)
+    refresh()
     void client.mutate({ mutation: RERANK_JOB_BOARD_LISTINGS_MUTATION, variables: { keyword, listingIds: ids } }).then(({ data }) => {
       const payload = data?.rerankJobBoardListings
       if (!payload?.aiTask || payload.errors.length) request.error = payload?.errors.join(' ') || 'Could not start reranking. Please try again.'
@@ -66,7 +59,7 @@ export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot) {
       request.error = requestErrorMessage(error, 'Could not start reranking. Please try again.')
     }).finally(() => {
       request.starting = false
-      if (mounted.current) refresh((value) => value + 1)
+      refresh()
     })
     // Search creates a new immutable snapshot on submission or accepted provider pages.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,7 +75,7 @@ export function useJobBoardReranking(enabled: boolean, snapshot: Snapshot) {
       if (!request.order) request.error = 'The reranking result was incomplete. Please try again.'
     }
     if (update.status === 'FAILED') request.error = update.errorMessage || 'Could not rerank these jobs. Please try again.'
-    refresh((value) => value + 1)
+    refresh()
     // Snapshot identity also determines the exact expected result IDs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, snapshot, data, requests])

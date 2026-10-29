@@ -10,6 +10,7 @@ export const JOB_BOARD_SEARCH_QUERY = graphql(`
         company
         location
         description
+        applicationUrl
         remoteType
         published
         employmentType

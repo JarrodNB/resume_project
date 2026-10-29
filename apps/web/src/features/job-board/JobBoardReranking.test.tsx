@@ -7,6 +7,7 @@ import { MockLink } from '@apollo/client/testing'
 import { MemoryRouter } from 'react-router'
 import { expect, it, vi } from 'vitest'
 import { renderPage } from '@/test/renderPage'
+import { setSectionOpen } from '@/lib/openSections'
 import { JobBoardPage } from './JobBoardPage'
 import { JOB_BOARD_SEARCH_QUERY, JOB_BOARD_RERANKING_SUBSCRIPTION, RERANK_JOB_BOARD_LISTINGS_MUTATION } from './jobBoardOperations'
 
@@ -30,6 +31,7 @@ function rankMock(keyword = 'engineer', ids = ['first', 'second'], order = ['sec
   }
 }
 function renderBoard(mocks: MockLink.MockedResponse[]) {
+  setSectionOpen('job-board:filters', true)
   return renderPage({ path: '/jobs/find', url: '/jobs/find', element: <JobBoardPage />, mocks })
 }
 async function search(user: ReturnType<typeof userEvent.setup>, keyword = 'engineer') {

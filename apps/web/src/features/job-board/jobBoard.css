@@ -18,7 +18,7 @@
 .board-remote:has(:focus-visible) { outline: 2px solid var(--ring); outline-offset: 2px; }
 .board-remote[data-checked=true] button[role=checkbox] { border-color: var(--background); }
 
-.board-introduction { display: grid; justify-items: start; padding: 48px 0 40px; }
+.board-introduction { display: grid; justify-items: start; padding: 28px 0 0; }
 .board-introduction h2, .board-no-results h2 { max-width: 24ch; font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; text-wrap: balance; }
 .board-introduction > p { max-width: 52ch; margin-top: 12px; font-size: 16px; line-height: 1.55; color: var(--muted-foreground); }
 .board-search-ideas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
@@ -90,6 +90,7 @@
 .board-location-choices label { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; font-weight: 400; cursor: pointer; }
 .board-location-choices input { min-height: auto; accent-color: var(--rule-strong); }
 .board-location-choices span { color: var(--muted-foreground); margin-left: auto; font-size: 12px; }
+.board-filters-toggle { width: auto; min-height: 44px; padding-inline: 8px; font-size: 14px; font-weight: 700; }
 .board-advanced { margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border); }
 .board-advanced > button { min-height: 44px; font-size: 14px; font-weight: 700; }
 .board-undisclosed { margin-top: 12px; min-height: 44px; }
@@ -99,8 +100,8 @@
 
 /* Wide screens: date, remote and sort share a row; the location picker gets a wider row below. */
 @media (min-width: 900px) {
-  .board-search > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .board-search > .board-filter-grid > .board-location-picker { grid-column: span 2; order: 1; }
+  .board-filters-panel > .board-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .board-filters-panel > .board-filter-grid > .board-location-picker { grid-column: span 2; order: 1; }
 }
 @media (max-width: 599px) {
   .board-search { padding: 16px; }
@@ -108,7 +109,7 @@
   .board-search-submit { width: 100%; }
   .board-filter-grid select { font-size: 16px; }
   .board-search-options { flex-wrap: wrap; }
-  .board-introduction { padding: 36px 0; }
+  .board-introduction { padding: 20px 0 0; }
   .board-introduction h2, .board-no-results h2 { font-size: 24px; }
   .board-listing-header { flex-direction: column; gap: 16px; }
   .board-listing-action { width: 100%; }

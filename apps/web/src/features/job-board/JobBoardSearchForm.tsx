@@ -1,8 +1,9 @@
-/** Keep editable preferences separate from submitted searches. Advanced filters stay
- * in a remembered disclosure; location names must resolve before a search is sent.
+/** Keep editable preferences separate from submitted searches. All filters sit in a
+ * remembered, collapsible panel (kept mounted so choices survive closing it), with
+ * advanced filters in a second disclosure; location names must resolve before a search is sent.
  */
 import { useState, type ReactNode } from 'react'
-import { Globe2, Search } from 'lucide-react'
+import { Globe2, Search, SlidersHorizontal } from 'lucide-react'
 import type { JobBoardExperienceLevel, JobBoardFiltersInput } from '@/graphql/generated/graphql'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -24,9 +25,11 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
   const [companyName, setCompanyName] = useState('')
   const [minimumSalary, setMinimumSalary] = useState('')
   const [includeUndisclosed, setIncludeUndisclosed] = useState(true)
+  const filters = useOpenSection('job-board:filters')
   const advanced = useOpenSection('job-board:more-filters')
   const salaryValid = !minimumSalary || (Number.isInteger(Number(minimumSalary)) && Number(minimumSalary) >= 1 && Number(minimumSalary) <= 1_000_000_000)
   const advancedCount = Number(Boolean(companyName.trim())) + Number(Boolean(minimumSalary))
+  const activeFilterCount = advancedCount + Number(Boolean(maxAge)) + Number(Boolean(remote)) + Number(Boolean(location)) + Number(sortBy !== 'published') + Number(experienceLevels.length > 0) + Number(employmentTypes.length > 0)
   return <form aria-label="Find jobs" className="board-search" onSubmit={(event) => {
     event.preventDefault()
     if (!keyword.trim() || unresolvedLocation || !salaryValid) return
@@ -44,7 +47,10 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
     <div className="board-search-field"><div className="board-keyword"><Search size={19} strokeWidth={1.7} aria-hidden />
       <Input id="job-board-keyword" value={keyword} onChange={(event) => onKeywordChange(event.target.value)} placeholder="e.g. Software engineer" maxLength={200} autoComplete="off" />
     </div><Button type="submit" disabled={!keyword.trim() || unresolvedLocation || !salaryValid} className="board-search-submit"><Search aria-hidden />Search jobs</Button></div>
-    <div className="board-search-options"><span className="board-region"><Globe2 size={15} aria-hidden />US-based opportunities</span></div>
+    <div className="board-search-options"><span className="board-region"><Globe2 size={15} aria-hidden />US-based opportunities</span>
+      <CollapseToggle open={filters.open} panelId={filters.panelId} onToggle={filters.toggle} className="board-filters-toggle"><SlidersHorizontal size={15} aria-hidden />Filters{activeFilterCount > 0 && ` (${activeFilterCount})`}</CollapseToggle>
+    </div>
+    <div id={filters.panelId} hidden={!filters.open} className="board-filters-panel">
     <div className="board-filter-grid">
       <div><Label htmlFor="board-age">Date posted</Label><select id="board-age" value={maxAge} onChange={(event) => setMaxAge(event.target.value)}>{ageOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
       <div><Label htmlFor="board-remote">Remote arrangement</Label><select id="board-remote" value={remote} onChange={(event) => setRemote(event.target.value)}>{remoteOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></div>
@@ -70,6 +76,8 @@ export function JobBoardSearchForm({ onSearch, keyword, onKeywordChange, childre
         </div>
       </div>}
     </div>
+    </div>
+    {unresolvedLocation && !filters.open && <p role="alert" className="board-filter-help">Choose a location from the list in Filters, or clear it, to search.</p>}
     {!salaryValid && <p role="alert" className="board-filter-help">Enter a whole-number minimum salary between 1 and 1,000,000,000, or clear the minimum in More filters.</p>}
     {children}
   </form>

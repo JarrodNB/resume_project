@@ -1,4 +1,8 @@
-"""Build a tool-free career-chat agent with exact newest-message guard coverage."""
+"""Build the career-chat agent with exact newest-message guard coverage.
+
+Callers pass the run's tools as toolsets already scoped to the conversation owner.
+The guard checks only the newest message; tools must return screened text themselves.
+"""
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.capabilities import Hooks
 from pydantic_ai_harness import InputGuardrail
@@ -8,9 +12,9 @@ from privacy.contact_mask import _mask_request
 from prompts.chat_instructions import CHAT_INSTRUCTIONS
 
 
-def make_chat_agent(guard):
+def make_chat_agent(guard, toolsets=()):
     agent = Agent(name="career_chat", output_type=str, instructions=CHAT_INSTRUCTIONS,
-                  defer_model_check=True, retries=1,
+                  defer_model_check=True, retries=1, toolsets=list(toolsets),
                   capabilities=[ConversationLogging(), Hooks(before_model_request=_mask_request),
                                 InputGuardrail(guard=guard)])
 

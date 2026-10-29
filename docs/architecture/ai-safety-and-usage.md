@@ -74,8 +74,9 @@ requests get a JSON 429 with `Retry-After`.
 - **An agent run stops at a modest cap, and the task fails.** Each run allows 6 model requests
   (the first answer, two output-validator retries, and the same three after a switch to the
   fallback model), no tool calls, 64,000 output tokens, and 128,000 total tokens. The library
-  default of 50 requests is a loop these agents never need. There are no tools yet, so a tool
-  call fails the run until one is registered and the cap is raised. Reasoning tokens count as
+  default of 50 requests is a loop these agents never need. Queued agents have no tools, so a
+  tool call fails the run. Chat replies are the exception: they allow two read-only MCP tool
+  calls and 12 requests (see [chat tools](chat.md#tools-mcp)). Reasoning tokens count as
   output. The token caps are checked after the response, so one over-limit response is billed
   once and the task is not retried. A hit raises `UsageLimitExceeded`. The worker publishes
   `failed` on the first attempt, with no partial resume, analysis, or section. A wall-clock

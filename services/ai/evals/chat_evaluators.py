@@ -9,10 +9,13 @@ from pydantic import BaseModel, Field
 from pydantic_evals.evaluators import Evaluator
 
 from chat.client import ChatPayload
+from schemas.gap_analysis_context import CareerLibrary
 
 
 class ChatEvalInput(BaseModel):
     payload: ChatPayload
+    # Synthetic saved library the read_career_library tool returns; empty when omitted.
+    career_library: CareerLibrary = Field(default_factory=CareerLibrary)
 
 
 class ChatEvalExpectations(BaseModel):

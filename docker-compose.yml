@@ -8,6 +8,7 @@
 #   - api-jobs-worker: durable Rails jobs (same image, primary database, and code as api)
 #   - ai-worker: Python SQS worker
 #   - ai-http: FastAPI app for interactive AI execution
+#   - ai-mcp: internal MCP tool server (read-only tools for AI agents)
 #   - web: React app (port 5173)
 #   - landing: landing page (port 5174)
 
@@ -252,6 +253,39 @@ services:
         condition: service_started
       redis:
         condition: service_started
+      # Chat still answers without tools if this is down.
+      ai-mcp:
+        condition: service_started
+
+  ai-mcp:
+    # Internal MCP tool server for AI agents. No published port: only services on this
+    # network reach it, and every request needs a token signed with MCP_TOOLS_SECRET
+    # (set it in services/ai/.env, shared with ai-http). Reads use the read-only ai_reader role.
+    build:
+      context: ./services/ai
+      dockerfile: Dockerfile.dev
+    command: uvicorn --factory mcp_tools.server:create_app --host 0.0.0.0 --port 8000
+    init: true
+    restart: unless-stopped
+    env_file:
+      - path: ./services/ai/.env
+        required: false
+    environment:
+      DB_HOST: db
+      DB_NAME: api_development
+      DB_USERNAME: ai_reader
+      DB_PASSWORD: ai_reader
+      LOGFIRE_ENVIRONMENT: development
+    volumes:
+      - ./services/ai:/app
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
 
   redis:
     image: redis:8.10.2-alpine

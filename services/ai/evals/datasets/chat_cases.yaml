@@ -74,6 +74,26 @@ cases:
     - nurse
     required_summary_terms:
     - nurse
+- name: reads_saved_career_library
+  inputs:
+    payload:
+      conversation_id: synthetic-chat
+      user_id: synthetic-user
+      message: Based on my saved career library, which programming language should I
+        highlight for a backend role? Reply in one sentence.
+      max_input_characters: 10000
+      summarize_every_user_messages: 20
+    career_library:
+      skills:
+      - id: synthetic-skill
+        name: Elixir
+        category: Languages
+        screened_fields:
+        - name
+        - category
+  metadata:
+    required_reply_terms:
+    - Elixir
 - name: unsupported_app_action
   inputs:
     payload:

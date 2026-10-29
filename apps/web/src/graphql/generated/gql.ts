@@ -64,7 +64,8 @@ type Documents = {
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      errors\n    }\n  }\n": typeof types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": typeof types.JobPipelineDocument,
     "\n  query RunningAiTasks {\n    runningAiTasks {\n      id\n      label\n      destination\n    }\n  }\n": typeof types.RunningAiTasksDocument,
-    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": typeof types.InterviewSetsDocument,
+    "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n": typeof types.InterviewQuestionBankDocument,
+    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n": typeof types.InterviewSetsDocument,
     "\n  query InterviewSet($id: ID!) {\n    interviewQuestionSet(id: $id) {\n      id number setType createdAt\n      latestTask { id status errorMessage result }\n      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }\n    }\n  }\n": typeof types.InterviewSetDocument,
     "\n  mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {\n    generateInterviewQuestionSet(input: { setType: $setType }) {\n      errors\n      aiTask { id input }\n    }\n  }\n": typeof types.GenerateInterviewSetDocument,
     "\n  mutation DeleteInterviewSet($id: ID!) {\n    deleteInterviewQuestionSet(input: { id: $id }) { errors }\n  }\n": typeof types.DeleteInterviewSetDocument,
@@ -176,7 +177,8 @@ const documents: Documents = {
     "\n  mutation SaveGapResponse($jobId: ID!, $requirement: String!, $body: String!, $addToLibrary: Boolean!) {\n    saveGapResponse(input: { jobId: $jobId, requirement: $requirement, body: $body, addToLibrary: $addToLibrary }) {\n      jobGapResponse {\n        id\n        requirement\n        body\n        careerContext {\n          id\n        }\n      }\n      errors\n    }\n  }\n": types.SaveGapResponseDocument,
     "\n  query JobPipeline {\n    jobPipeline {\n      nextStep\n      job {\n        id\n        title\n        company\n        location\n        stage\n      }\n    }\n  }\n": types.JobPipelineDocument,
     "\n  query RunningAiTasks {\n    runningAiTasks {\n      id\n      label\n      destination\n    }\n  }\n": types.RunningAiTasksDocument,
-    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n": types.InterviewSetsDocument,
+    "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n": types.InterviewQuestionBankDocument,
+    "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n": types.InterviewSetsDocument,
     "\n  query InterviewSet($id: ID!) {\n    interviewQuestionSet(id: $id) {\n      id number setType createdAt\n      latestTask { id status errorMessage result }\n      questions { id avoided position questionText answerText answerRevision questionRevision feedback feedbackQuestionRevision feedbackAnswerRevision feedbackOutdated latestTask { id status taskType errorMessage } }\n    }\n  }\n": types.InterviewSetDocument,
     "\n  mutation GenerateInterviewSet($setType: InterviewQuestionSetTypeEnum!) {\n    generateInterviewQuestionSet(input: { setType: $setType }) {\n      errors\n      aiTask { id input }\n    }\n  }\n": types.GenerateInterviewSetDocument,
     "\n  mutation DeleteInterviewSet($id: ID!) {\n    deleteInterviewQuestionSet(input: { id: $id }) { errors }\n  }\n": types.DeleteInterviewSetDocument,
@@ -455,7 +457,11 @@ export function graphql(source: "\n  query RunningAiTasks {\n    runningAiTasks 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n"): (typeof documents)["\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n    }\n  }\n"];
+export function graphql(source: "\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n"): (typeof documents)["\n  query InterviewQuestionBank {\n    interviewQuestions {\n      id position retiredAt questionText answerText feedback feedbackOutdated\n      latestTask { id status taskType }\n      questionSet { id number setType createdAt }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n"): (typeof documents)["\n  query InterviewSets {\n    interviewQuestionSets {\n      id number setType createdAt\n      latestTask { id status errorMessage }\n      questions { id answerText }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

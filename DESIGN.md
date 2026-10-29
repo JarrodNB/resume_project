@@ -343,6 +343,11 @@ Solid and square-shouldered, like a sign you can press.
 - Your messages are right-aligned tiles on `secondary` with a hairline border. Replies are plain text with a small ringed bullet beside "Careergrind"; the bullet turns blue (AI working) while a reply is being written.
 - Saved chats are a list of stops: a hollow bullet per chat, filled ink for the open one, with the date under the title.
 
+### Practice Questions
+- The Questions page is a bank, not a list of batches. A 1.5px ink-bordered "Get new questions" box holds the General/Technical/Knowledge view switch, a large primary button, and one line explaining the chosen type.
+- Each question is a row with a progress mark: hollow gray stop (not answered), filled ink stop (no feedback yet), ringed ink stop (feedback ready), breathing blue dot (getting feedback), red dot (feedback out of date). Progress filters are 14px bold tabs on a 2px ink rule with outlined count badges.
+- A set's page draws its five questions as a short stop line on a 2px hairline track; the open stop sits on a pale `muted` plate with a thick underline. The question card is a 1.5px ink-bordered tile with a 22px 800-weight question, the answer on the left and feedback on a `muted` panel on the right (a dashed outline before any feedback). Replace and "Don't show this again" sit in the card's "…" menu.
+
 ### First-Run Line
 - With no jobs saved, Home shows three starting steps on a short line of their own: numbered 34px ringed bullets on a 6px ink track. It runs across on desktop and turns vertical under 900px. The stops follow real progress: done stops are filled ink with a check, the stop to do now carries the same gap-and-ring as a job's current stop, and later stops are hollow gray. When jobs exist but the library is empty, Home shows a 1.5px red-bordered note (red because the next move is the user's).
 

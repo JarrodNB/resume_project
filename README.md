@@ -120,6 +120,13 @@ Compose availability with `docker compose version` before starting the services.
    and eval reporting. Without it, startup remains noninteractive. Local database, queue, and storage connections are
    supplied by Docker Compose.
 
+   For interactive interview and chat execution, set the same private
+   `INTERVIEW_SERVICE_SECRET` for Compose interpolation in the shell or the root
+   `.env` file. Compose supplies this value to Rails and the AI processes, overriding
+   the service `.env` values; an unset value disables the internal callbacks. If using
+   `AI_EXECUTION_SERVICE_SECRET`, supply it the same way. Keep these secrets out of
+   version control and browser configuration.
+
 3. Build and start the services:
 
    ```bash

@@ -138,7 +138,11 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   Listing checks use `screened_sha256` on the shared catalogue row. Its fingerprint covers
   the exact passage-text array, not the full posting's `source_digest`: a short excerpt
   cannot approve a longer excerpt. Rails reconstructs the task's bounded excerpt and
-  verifies both passages and source digest under the listing lock. No prior-task-input
+  verifies passage fingerprints, truncation and source digest under the listing lock.
+  Preference commands retain only criterion/listing IDs and fingerprints. Python resolves
+  current owned confirmed sources and receipts in a repeatable read; result acceptance
+  rechecks revision and source fingerprints. A narrow generated-criteria view establishes
+  exact owner-text provenance without exposing other task results. No prior-task-input
   search of current check-task inputs can grant an approval. Successful inputs from
   retired preference conversations are imported once per exact text into the profile's
   normal fingerprint store; validated historical generated output retains its provenance.

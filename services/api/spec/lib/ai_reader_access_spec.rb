@@ -80,6 +80,15 @@ RSpec.describe AiReaderAccess do
     expect { select_as_ai_reader("SELECT id FROM job_board_search_pages") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
+  it "reads confirmed preference sources and receipts without drafts or write access" do
+    expect(select_as_ai_reader("SELECT id, user_id, confirmed_revision, confirmed_criteria, screened_criteria_sha256 FROM job_preference_profiles")).to eq([])
+    expect(select_as_ai_reader("SELECT screened_sha256 FROM job_board_listings")).to eq([])
+    %w[draft_criteria version].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM job_preference_profiles") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+    expect { select_as_ai_reader("UPDATE job_preference_profiles SET confirmed_criteria = '[]'") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
   it "reads only the task command and identity columns" do
     task = create(:ai_task, input: { "job_id" => "synthetic-job" })
     expect(select_as_ai_reader("SELECT id, user_id, task_type, status, input FROM ai_tasks").sole)

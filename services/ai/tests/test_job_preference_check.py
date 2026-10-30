@@ -1,5 +1,14 @@
 """Verify independent preference probabilities and queue execution without paid models."""
+from dataclasses import replace
 from types import SimpleNamespace
+
+import pytest
+
+
+@pytest.fixture
+def task_dependencies(task_dependencies):
+    return replace(task_dependencies, read_preference_input=lambda task: task.input)
+
 from uuid import uuid4
 
 from pydantic_ai.messages import ModelResponse, ToolCallPart

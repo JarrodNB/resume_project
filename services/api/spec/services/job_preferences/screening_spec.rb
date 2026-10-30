@@ -21,8 +21,8 @@ RSpec.describe "Job preference screening approvals" do
   def fingerprint(value) = Screening::RecordApprovalsService.field_fingerprint(value)
 
   def reports(task)
-    criterion = task.input["criteria"].first
-    source = task.input["listings"].first
+    criterion = task.user.job_preference_profile.confirmed_criteria.first
+    source = JobPreferences::CheckSources.listing_source(listing.reload, task.input["listings"].size)
     [ { "record_type" => "job_preference_criterion", "record_id" => criterion["id"],
         "fingerprints" => { "text" => fingerprint(criterion["text"]) } },
       { "record_type" => "job_board_listing", "record_id" => source["id"],
@@ -40,8 +40,8 @@ RSpec.describe "Job preference screening approvals" do
     expect(user.job_preference_profile.reload.screened_criteria_sha256).to eq([ fingerprint("Remote work") ])
     expect(listing.reload.screened_sha256).to eq(reports(task).last["fingerprints"]["passages"])
     next_task = start
-    expect(next_task.input["criteria"].first["screened"]).to be(true)
-    expect(next_task.input["listings"].first["screened"]).to be(true)
+    expect(next_task.input["criteria"].first).not_to have_key("screened")
+    expect(next_task.input["listings"].first).not_to have_key("screened")
   end
 
   it "shares exact listing checks across owners without sharing private criterion approvals" do
@@ -51,8 +51,8 @@ RSpec.describe "Job preference screening approvals" do
       criteria: [ { text: "Remote work", priority: "must_have" } ])
     JobPreferences::UpdateProfileService.call(user: other, expected_version: 1, action: :confirm)
     task = start(other)
-    expect(task.input["listings"].first["screened"]).to be(true)
-    expect(task.input["criteria"].first["screened"]).to be(false)
+    expect(listing.reload.screened_sha256).not_to be_nil
+    expect(other.job_preference_profile.reload.screened_criteria_sha256).to be_empty
     Screening::RecordApprovalsService.call(user: other, ai_task: task, reports: reports(start(user)))
     expect(other.job_preference_profile.reload.screened_criteria_sha256).to be_empty
   end
@@ -69,13 +69,24 @@ RSpec.describe "Job preference screening approvals" do
     expect(listing.reload.screened_sha256).to be_nil
   end
 
+  it "cannot approve criterion text after its confirmed revision changes" do
+    task = start
+    receipts = reports(task)
+    profile = user.job_preference_profile.reload
+    profile.update!(version: 3, confirmed_revision: 3)
+    apply(task, receipts)
+    expect(profile.reload.screened_criteria_sha256).to be_empty
+  end
+
   it "does not let a shorter excerpt approve passages it never screened" do
     task = start
     short = JobBoard::PreferenceListingSnapshot.new(listing).snapshot(max_text_bytes: 1200)
     task.update!(input: task.input.merge("listings" => [ short ]))
-    apply(task)
+    receipts = reports(task)
+    receipts.last["fingerprints"]["passages"] = fingerprint(short["passages"].pluck("text"))
+    apply(task, receipts)
     expect(listing.reload.screened_sha256).to be_nil
-    expect(start.input["listings"].first["screened"]).to be(false)
+    expect(start.input["listings"].first).not_to have_key("screened")
   end
 
   it "treats changed text as unchecked even when a prior criterion fingerprint remains" do
@@ -84,8 +95,20 @@ RSpec.describe "Job preference screening approvals" do
     profile = user.job_preference_profile.reload
     criteria = profile.confirmed_criteria.map { |item| item.merge("text" => "New condition") }
     profile.update!(confirmed_criteria: criteria)
-    expect(start.input["criteria"].first["screened"]).to be(false)
+    expect(start.input["criteria"].first["text_sha256"]).to eq(fingerprint("New condition"))
     listing.update!(payload: { title: "Different job", description: "Office only" })
-    expect(start.input["listings"].first["screened"]).to be(false)
+    expect(start.input["listings"].first).not_to have_key("screened")
+  end
+end
+
+RSpec.describe "Preference source projection parity" do
+  JSON.parse(File.read(Rails.root.join("../ai/tests/fixtures/preference_sources.json"))).each_with_index do |item, index|
+    it "matches cross-language source and receipt case #{index}" do
+      listing = JobBoardListing.new(id: item["expected"]["id"], payload: item["payload"])
+      actual = JobPreferences::CheckSources.listing_source(listing, item["count"])
+      expect(actual).to eq(item["expected"])
+      expect(Screening::RecordApprovalsService.field_fingerprint(item["criterion_text"])).to eq(item["criterion_fingerprint"])
+      expect(Screening::RecordApprovalsService.field_fingerprint(actual["passages"].pluck("text"))).to eq(item["fingerprint"])
+    end
   end
 end

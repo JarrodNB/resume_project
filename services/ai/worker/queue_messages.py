@@ -18,6 +18,7 @@ from schemas.screening_receipts import (
     InterviewQuestionScreening,
     JobScreening,
     LibraryScreening,
+    RecordScreening,
 )
 from worker.legacy_career_context import normalize_legacy_career_context
 
@@ -65,3 +66,4 @@ class AiResultMessage(BaseModel):
     job_screening: list[JobScreening] = Field(default_factory=list)
     gap_response_screening: list[GapResponseScreening] = Field(default_factory=list)
     interview_question_screening: list[InterviewQuestionScreening] = Field(default_factory=list)
+    record_screening: list[RecordScreening] = Field(default_factory=list)

@@ -37,6 +37,12 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   single-model passes. Cached decisions return no usage. Worker request accounting remains
   authoritative for failed runs and output-validation retries. Drivers notify the independent
   logging module immediately before fallback execution; no input text is included.
+- `records.py` — the shared path for saved database records (`screen_records`, sync
+  `screen_records_sync`). Skips approved or already-fingerprinted fields, screens the rest
+  as one labeled blob (split only past the masked screen cap, records kept whole) with no
+  phrase check, fails the whole call on any rejected blob, and writes one `RecordScreening`
+  receipt per saved record. Only the fields a caller uses are screened. Chat and interviews
+  pass their operation-billed `screen` function. Workflows move onto it one at a time; see the record-screening plan.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`
 

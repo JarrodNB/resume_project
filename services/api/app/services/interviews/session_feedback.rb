@@ -28,8 +28,7 @@ module Interviews
         success(record)
       end
       if publish
-        Shoryuken::Client.queues(AI_TASKS_QUEUE_NAME).send_message(message_body: {
-          ai_task_id: publish.id, user_id: publish.user_id, task_type: publish.task_type, input: publish.input }.to_json)
+        AiTasks::PublishTaskToQueueService.call(ai_task: publish)
       end
       result
     rescue *AiTasks::EnqueueAiTaskService::QUEUE_ERRORS

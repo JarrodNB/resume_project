@@ -129,4 +129,5 @@ def task_dependencies(
         file_storage=fake_file_storage,
         http_client=fake_job_site.build_client(),
         read_gap_analysis_context=fake_context_reader,
+        read_task_command=lambda task: task,
     )

@@ -10,7 +10,7 @@ Index:
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from schemas.model_usage import ModelUsage
 from schemas.screening_receipts import RecordScreening
@@ -29,13 +29,29 @@ TaskType = Literal[
 
 
 class AiTaskMessage(BaseModel):
-    """One unit of AI work requested by Rails."""
+    """A validated delivery identity, hydrated with the durable input before dispatch.
 
+    Version is a wire-only discriminator. Internal serialization retains the legacy
+    command shape for existing handlers and fixtures during the staged migration.
+    """
+
+    schema_version: Literal[1] | None = Field(default=None, exclude=True)
     ai_task_id: UUID
     user_id: UUID
     task_type: TaskType
     input: dict[str, Any] = Field(default_factory=dict)
 
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_notification(cls, value):
+        """Version one is identity-only; legacy bodies remain readable during rollout."""
+        if isinstance(value, dict) and "schema_version" in value:
+            if type(value["schema_version"]) is not int or value["schema_version"] != 1:
+                raise ValueError("Unsupported task notification version")
+            if set(value) != {"schema_version", "ai_task_id", "user_id", "task_type"}:
+                raise ValueError("Task notifications must contain identities only")
+        return value
 
     @field_validator("input", mode="before")
     @classmethod

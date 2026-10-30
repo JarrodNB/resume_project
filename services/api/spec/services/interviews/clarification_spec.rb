@@ -18,7 +18,10 @@ RSpec.describe "Interview question clarification" do
     expect(task.input["question_text"]).to eq(prompt.content)
     expect(task).to be_interview_clarification
     expect(Interviews::CurrentPromptWork::Clarification.new.request(interview: interview, message_id: prompt.id).value.id).to eq(result.value.id)
-    expect(queue).to have_received(:send_message).once
+    expect(queue).to have_received(:send_message).once do |message_body:|
+      expect(JSON.parse(message_body)).to eq("schema_version" => 1, "ai_task_id" => task.id,
+        "user_id" => interview.user_id, "task_type" => task.task_type)
+    end
     expect(interview.reload.attributes.slice("revision", "current_question_position")).to eq(original)
     expect(interview.messages.answer.count).to eq(0)
   end

@@ -52,11 +52,10 @@ RSpec.describe AiReaderAccess do
       .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
-  it "can't read AI tasks, the JWT denylist, or job-only gap responses" do
+  it "cannot read the JWT denylist or job-only gap responses" do
     create(:job_gap_response)
 
     expect { select_as_ai_reader("SELECT id FROM interview_clarifications") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
-    expect { select_as_ai_reader("SELECT id FROM ai_tasks") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM jwt_denylists") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM job_gap_responses") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
@@ -64,6 +63,18 @@ RSpec.describe AiReaderAccess do
   it "cannot read shared job board catalogue or search pages" do
     expect { select_as_ai_reader("SELECT id FROM job_board_listings") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
     expect { select_as_ai_reader("SELECT id FROM job_board_search_pages") }.to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+  end
+
+  it "reads only the task command and identity columns" do
+    task = create(:ai_task, input: { "job_id" => "synthetic-job" })
+    expect(select_as_ai_reader("SELECT id, user_id, task_type, status, input FROM ai_tasks").sole)
+      .to include("id" => task.id, "task_type" => task.task_type, "status" => "queued")
+    %w[result message_history error_message cost_microdollars].each do |column|
+      expect { select_as_ai_reader("SELECT #{column} FROM ai_tasks") }
+        .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
+    end
+    expect { select_as_ai_reader("UPDATE ai_tasks SET status = 'failed'") }
+      .to raise_error(ActiveRecord::StatementInvalid, /permission denied/)
   end
 
   it "can't write" do

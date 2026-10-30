@@ -19,7 +19,7 @@ RSpec.describe AiTasks::EnqueueAiTaskService do
         "ai_task_id" => ai_task.id,
         "user_id" => user.id,
         "task_type" => "analyze_gaps",
-        "input" => { "job_id" => "abc" }
+        "schema_version" => 1
       )
     end
   end

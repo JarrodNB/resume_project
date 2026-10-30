@@ -75,7 +75,20 @@ get their own IDs and normal usage accounting. Exchanges allow at most eight tur
 Both are JSON. The Python side validates them with Pydantic (`services/ai/worker/queue_messages.py`).
 
 - `ai_tasks` (published by `AiTasks::EnqueueAiTaskService`):
-  `{ai_task_id, user_id, task_type, input}`
+  `{schema_version: 1, ai_task_id, user_id, task_type}`. No source text, saved history or
+  model fields are carried on the execution queue. Before tracing, accounting or handler
+  execution Python reads the durable command from `ai_tasks` through `ai_reader`, matching
+  task ID, owner, type and `queued` status. Missing, foreign, mismatched and terminal
+  deliveries are acknowledged without publishing outcomes or usage. Database failures
+  leave messages for retry. Handler inputs remain compatible during the staged migration;
+  later feature changes remove their stored source copies in favor of owned record IDs.
+  Legacy unversioned envelopes are accepted, but their input is ignored in favor of the
+  database command. Unknown versions and versioned envelopes with input are rejected.
+
+  Deploy the new readers and grants **before** deploying the identity-only Rails publisher.
+  Drain/replace every old worker first: old workers default missing input to an empty object
+  and cannot consume the new format safely. New readers support old producers, but new
+  producers with old readers are unsupported. Roll back Rails producers before workers.
 - `ai_results` (applied by `AiTasks::ApplyAiResultService`, via the Shoryuken `AiResultWorker`
   in the `api-results-worker` process): `{ai_task_id, status, result, pending_questions,
   message_history, error_message, usage, attempt_id, attempt_finished, usage_incomplete, record_screening}`.

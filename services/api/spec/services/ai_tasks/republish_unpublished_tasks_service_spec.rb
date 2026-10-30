@@ -15,7 +15,10 @@ RSpec.describe AiTasks::RepublishUnpublishedTasksService do
 
     described_class.call
 
-    expect(queue).to have_received(:send_message).once
+    expect(queue).to have_received(:send_message).once do |message_body:|
+      expect(JSON.parse(message_body)).to eq("schema_version" => 1, "ai_task_id" => task.id,
+        "user_id" => task.user_id, "task_type" => task.task_type)
+    end
     expect(task.reload.awaiting_queue_publish).to be(false)
     expect(task).to be_queued
   end

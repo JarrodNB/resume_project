@@ -89,6 +89,16 @@ keep headers accurate as behavior changes, and avoid a repository-wide header re
 - Rails is the source of truth for domain data. The AI service connects with a read-only
   database role and returns everything it produces via the `ai_results` queue, except
   interactive interview and chat results accepted through their scoped internal HTTP boundaries below.
+- Do not make source snapshots for AI execution. Python reads the current authorized
+  job, career library and other saved records through its read-only database access.
+  Keep IDs, revisions and execution settings as durable commands; do not copy model
+  fields, source text or saved history into task/operation inputs.
+- Do not send models, source text, snapshots or conversation history over execution
+  SQS messages or internal Rails–FastAPI execution requests/claim responses. Send only
+  versioned IDs and bounded control metadata; Python loads owned records itself.
+  AI-produced results and explicit scoped media capabilities retain their own contracts.
+  Existing stored copies and HTTP payloads are being removed in the approved staged
+  migration; do not add new ones or describe the migration as finished prematurely.
 - SQS can deliver a message more than once. Every handler on either side of the queue must
   be safe to run twice (see [Duplicate Messages](docs/architecture/ai-tasks.md#duplicate-messages)).
 - Long-running AI work goes through SQS (ElasticMQ locally). Interactive interviews and chat are the

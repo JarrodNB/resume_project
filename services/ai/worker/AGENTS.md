@@ -25,6 +25,8 @@ The worker process: polls SQS, dispatches each task to the right handler, publis
   visibility expires. Repeated stop signals do not interrupt cleanup. Local Compose allows
   30 seconds for shutdown. SIGKILL and native code that delays Python signal handling can
   still leave pending spans; flushing cannot close a span whose context never unwinds.
+- `../database/task_commands.py` loads an owned queued durable command before capture,
+  usage or dispatch; both legacy and v1 notifications use database input.
 - `queue_messages.py` — Pydantic models for `ai_tasks` and `ai_results` messages (keep them in
   sync with `AiTasks::EnqueueAiTaskService` and `AiTasks::ApplyAiResultService` in Rails)
 - `task_handlers.py` — `handle_ai_task`: dispatches by `task_type` (`TASK_HANDLERS`); types

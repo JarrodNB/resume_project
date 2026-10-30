@@ -11,7 +11,7 @@ RSpec.describe AiTasks::RepublishUnpublishedTasksService do
   end
 
   it "publishes a task that has waited past the grace period and clears its marker" do
-    task = unpublished_task(age: 2.minutes)
+    task = unpublished_task(age: 2.minutes, input: { "legacy_source" => "PRIVATE SAVED SOURCE", "history" => [ "PRIVATE HISTORY" ] })
 
     described_class.call
 

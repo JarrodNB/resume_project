@@ -15,7 +15,7 @@ RSpec.describe "Basic Interview acceptance" do
     { operation: operation, attempt_id: operation.attempt_id, claim_generation: operation.claim_generation,
       transcript: "I paired with a teammate to fix our scheduler.", decision: "continue",
       reply: "What changed after that?", history_version: 1,
-      model_history: [ { "kind" => "request", "parts" => [ { "part_kind" => "user-prompt", "content" => "screened transcript" } ] } ] }
+      model_history: [] }
   end
 
   it "saves acknowledgement separately and speaks it before the accepted follow-up" do
@@ -99,11 +99,11 @@ RSpec.describe "Basic Interview acceptance" do
       .not_to change { interview.operations.speech.count }
   end
 
-  it "accepts an answer, saved follow-up and history together, incrementing only once" do
+  it "accepts an answer and saved follow-up together, incrementing only once" do
     result = Interviews::AcceptTurnService.call(**input)
     expect(result).to be_success
     expect(interview.messages.pluck(:kind)).to eq(%w[opening answer follow_up])
-    expect(question.reload).to have_attributes(accepted_answer_count: 1, history_version: 1, model_history: input[:model_history])
+    expect(question.reload).to have_attributes(accepted_answer_count: 1)
     expect(interview.reload).to have_attributes(revision: 1, status: "active")
     expect(interview.operations.speech.count).to eq(2)
     expect(operation.reload).to have_attributes(status: "accepted", accepted_result: result.value)
@@ -188,7 +188,7 @@ RSpec.describe "Basic Interview acceptance" do
     interview.update!(revision: 1)
     expect(Interviews::AcceptTurnService.call(**identities)).not_to be_success
     expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
-    expect(question.reload).to have_attributes(accepted_answer_count: 0, model_history: [])
+    expect(question.reload).to have_attributes(accepted_answer_count: 0)
   end
 
   it "rejects unsupported or oversized history and invalid transcript/decision without writes" do
@@ -201,7 +201,7 @@ RSpec.describe "Basic Interview acceptance" do
     expect(operation.reload.status).to eq("running")
   end
 
-  it "rolls back dialogue, history, counts, and advancement if speech creation fails" do
+  it "rolls back dialogue, counts, and advancement if speech creation fails" do
     interview.questions.create!(position: 1, content: "What did you learn?", question_type: "behavioral")
     acceptance = input
     allow_any_instance_of(InterviewSessionOperation).to receive(:save!).and_wrap_original do |save, *args|
@@ -215,7 +215,7 @@ RSpec.describe "Basic Interview acceptance" do
     result = Interviews::AcceptTurnService.call(**acceptance.merge(decision: "advance", reply: nil))
     expect(result).not_to be_success
     expect(interview.reload).to have_attributes(status: "active", revision: 0, completed_at: nil)
-    expect(question.reload).to have_attributes(accepted_answer_count: 0, model_history: [])
+    expect(question.reload).to have_attributes(accepted_answer_count: 0)
     expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
     expect(operation.reload.status).to eq("running")
   end
@@ -238,5 +238,33 @@ RSpec.describe "Basic Interview acceptance" do
     expect(Interviews::AcceptTurnService.call(**accepted_input)).not_to be_success
     expect(question.reload.accepted_answer_count).to eq(0)
     expect(interview.messages.count).to eq(1)
+  end
+  it "rejects copied private history on a new running claim without writing dialogue" do
+    expect(Interviews::AcceptTurnService.call(**input.merge(model_history: [ { "private" => "old source" } ]))).not_to be_success
+    expect(interview.messages.pluck(:kind)).to eq([ "opening" ])
+    expect(question.reload.accepted_answer_count).to eq(0)
+    expect(operation.reload.status).to eq("running")
+  end
+
+  it "replays an already accepted legacy callback after private columns are removed" do
+    legacy = input.merge(model_history: [ { "kind" => "request", "parts" => [ { "content" => "legacy private source", "part_kind" => "user-prompt" } ] } ])
+    normalize = ->(value) do
+      case value
+      when Hash then value.stringify_keys.sort.to_h.transform_values { |child| normalize.call(child) }
+      when Array then value.map { |child| normalize.call(child) }
+      else value
+      end
+    end
+    payload = legacy.except(:operation)
+    receipt = { "revision" => 1, "status" => "active", "message_ids" => [ "original-answer", "original-reply" ], "question_id" => question.id }
+    operation.update!(status: "accepted", accepted_at: Time.current,
+      result_fingerprint: Digest::SHA256.hexdigest(JSON.generate(normalize.call(payload))), accepted_result: receipt)
+    before = [ interview.attributes, question.attributes, operation.attributes, interview.messages.map(&:attributes) ]
+    expect(Interviews::AcceptTurnService.call(**legacy).value).to eq(receipt)
+    reordered = legacy[:model_history].map { |message| message.to_a.reverse.to_h }
+    expect(Interviews::AcceptTurnService.call(**legacy.merge(model_history: reordered)).value).to eq(receipt)
+    expect(Interviews::AcceptTurnService.call(**legacy.merge(transcript: "Changed"))).not_to be_success
+    expect(Interviews::AcceptTurnService.call(**legacy.merge(model_history: [ { "changed" => true } ]))).not_to be_success
+    expect([ interview.reload.attributes, question.reload.attributes, operation.reload.attributes, interview.messages.reload.map(&:attributes) ]).to eq(before)
   end
 end

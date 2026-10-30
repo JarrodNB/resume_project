@@ -33,7 +33,9 @@ RSpec.describe "Interview question clarification" do
   it "grants one execution, saves one result, and accounts duplicate reports once" do
     clarification = request_clarification
     task = clarification.ai_task
-    expect(Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value).to include(allowed: true, interview_id: interview.id)
+    grant = Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value
+    expect(grant.keys).to match_array(%i[allowed interview_id record_id claimed_at])
+    expect(grant).to include(allowed: true, interview_id: interview.id)
     expect(Interviews::CurrentPromptWork::Clarification.new.claim(ai_task: task).value).to eq({ allowed: false })
     message = { "ai_task_id" => task.id, "status" => "completed", "result" => { "explanation" => "Describe a real situation where you worked with others to solve a problem." },
       "attempt_id" => SecureRandom.uuid, "usage" => [ { "model" => "test", "input_tokens" => 10, "output_tokens" => 5, "cost_microdollars" => 12 } ] }

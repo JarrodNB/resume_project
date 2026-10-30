@@ -15,7 +15,7 @@ RSpec.describe "Spoken interview preparation" do
     claim = Interviews::ClaimOperationService.call(operation: interview.operations.first, execution_mode: "real")
     expect(claim).to be_success
     expect(claim.value.fetch(:payload)).not_to have_key(:frozen_context)
-    expect(interview.reload.frozen_context).to eq({})
+    expect(interview.reload).not_to respond_to(:frozen_context)
   end
 
   it "starts durable preparation instead of a fixture question and never starts speech" do
@@ -27,7 +27,7 @@ RSpec.describe "Spoken interview preparation" do
     expect(interview.messages).to be_empty
     expect(interview.operations.pluck(:kind)).to eq([ "preparation" ])
     user.update!(summary: "Changed later")
-    expect(interview.reload.frozen_context).to eq({})
+    expect(interview.reload).not_to respond_to(:frozen_context)
   end
 end
 
@@ -103,8 +103,8 @@ RSpec.describe "Preparation evidence and retention" do
     create(:career_context, user: owner, response: "Maintained equipment", requirement: "Lead a hospital department")
     result = Interviews::StartPreparationService.call(user: owner)
     expect(result).to be_success
-    text = result.value.frozen_context.to_json
-    expect(text).to eq("{}")
+    text = result.value.attributes.to_json
+    expect(result.value).not_to respond_to(:frozen_context)
     expect(text).not_to include(other.summary, "Lead a hospital department")
   end
 
@@ -130,10 +130,10 @@ RSpec.describe "Preparation evidence and retention" do
     expect(operation.reload).to be_failed
     owner.update!(summary: "New library edit")
     expect(Interviews::RetryOperationService.call(operation: operation)).to be_success
-    expect(interview.reload.frozen_context.to_json).not_to include("New library edit")
+    expect(interview.reload.attributes.to_json).not_to include("New library edit")
     interview.update!(expires_at: 1.second.ago)
     expect(Interviews::CleanupService.call).to be_success
-    expect(interview.reload).to have_attributes(status: "expired", frozen_context: {}, prepared_role: {})
+    expect(interview.reload).to have_attributes(status: "expired", prepared_role: {})
     expect(operation.reload.ai_task).to be_present
     expect(operation.ai_task.ai_usage_attempts.count).to eq(3)
   end

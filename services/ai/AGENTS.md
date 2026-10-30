@@ -68,8 +68,8 @@ test support. See docs/architecture/interview-sessions.md.
 - **Human-in-the-loop uses Pydantic AI deferred tools.** When an agent needs information
   from the user, it calls an external `ask_user` tool and the run ends with
   `DeferredToolRequests`. The worker publishes a `needs_user_input` result containing the
-  question(s) and the serialized message history. When the user answers, the follow-up task
-  resumes with that history plus `DeferredToolResults`. Career-library editing implements
+  question(s) and only newly generated provider fragments. When the user answers, Python
+  reads the owned task chain and canonical commands to rebuild `DeferredToolResults`. Career-library editing implements
   this with distinct linked tasks per turn; browser input never supplies saved agent history.
   Its handler restores exact coverage for previous checked/generated messages and screens
   only new feedback/answers. Completed career-library section reviews are a scoped
@@ -84,7 +84,7 @@ test support. See docs/architecture/interview-sessions.md.
   turns are an explicit user-authorized exception: no injection classifier runs; exact
   input integrity, context limits, contact replacement and accounting remain. A missing
   `TYPESAFE_API_KEY` prevents Jev calls. Job study-guide generation is a scoped exception:
-  it uses bounded frozen source text without injection classification or source approvals.
+  it reads bounded current owned job text without injection classification or source approvals.
   Read `screening/AGENTS.md` before changing what
   enters any prompt: it owns the rules, persisted approvals and scoped exceptions
   (scraped ads, chat, spoken interviews).

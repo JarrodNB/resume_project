@@ -170,23 +170,3 @@ def test_summary_sources_reject_a_repeated_entry_field(sources):
 def test_resume_section_type_requires_no_id():
     with pytest.raises(ValueError):
         ScreenableRecord(record_type="resume_section", record_id="1", fields={}, display_title="x")
-
-
-def test_interview_sources_group_saved_fields_and_keep_typed_job_lists():
-    from screening.record_adapters import interview_source_records
-    sources = [
-        {"type": "experiences", "id": "role-1", "field": "title", "text": "Engineer", "screened": True},
-        {"type": "experiences", "id": "role-1", "field": "company", "text": "Acme"},
-        {"type": "jobs", "id": "job-1", "field": "requirements", "text": "Python\nSQL", "value": ["Python", "SQL"]},
-        {"type": "profile", "text": "Legacy summary"},
-    ]
-    records = interview_source_records(sources)
-    assert len(records) == 3
-    assert records[0].fields == {"title": "Engineer", "company": "Acme"}
-    assert records[0].approved_fields == {"title"}
-    assert records[1].fields == {"requirements": ["Python", "SQL"]}
-    assert records[2].record_id is None
-    assert {(kind, identity) for kind, identity, _ in new_receipts(records)} == {
-        ("experience", "role-1"), ("job", "job-1")}
-    with pytest.raises(ValueError, match="Repeated"):
-        interview_source_records([sources[0], sources[0]])

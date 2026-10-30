@@ -54,7 +54,9 @@ RSpec.describe "Chat streamed turns" do
     operation = start
     saved = claim(operation)
     expect(saved.fetch(:payload).slice(:conversation_id, :user_id, :expected_position)).to eq(conversation_id: chat.id, user_id: user.id, expected_position: 0)
-    expect(saved.fetch(:payload)).not_to have_key(:message)
+    expect(saved.keys).to match_array(%i[operation_id attempt_id claim_generation lease_expires_at execution_deadline payload])
+    expect(saved.fetch(:payload).keys).to match_array(%i[version conversation_id user_id expected_position summary_base_version summary_through_position summary_plan max_input_characters summarize_every_user_messages])
+    expect(saved.to_json).not_to include(operation.message)
     expect(operation.reload.recovery_job_id).to be_present
     expect(operation.execution_attempts.count).to eq(1)
     expect(operation.ai_task.ai_usage_attempts.find_by(attempt_id: saved[:attempt_id])).to be_incomplete

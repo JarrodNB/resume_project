@@ -13,7 +13,6 @@ import pytest
 from interviews.client import Claim
 from interviews.executor import InterviewExecutor
 from interviews.fake import FOLLOW_UP, TRANSCRIPT
-from interviews.history import restore_history
 
 pytestmark = pytest.mark.real_guardrail
 
@@ -92,13 +91,13 @@ def execute(client, request, scenario="normal", uploaded=None):
         asyncio.run(executor.execute(request))
 
 
-def test_normal_turn_restores_real_pydantic_history_and_reports_each_zero_cost_stage():
+def test_normal_turn_returns_no_private_history_and_reports_each_zero_cost_stage():
     client = Client()
     execute(client, claim())
     assert not client.failed
     first = client.accepted[0]
     assert (first["transcript"], first["decision"], first["reply"]) == (TRANSCRIPT, "continue", FOLLOW_UP)
-    assert restore_history(1, first["model_history"])
+    assert first["model_history"] == []
     execute(client, claim(first["model_history"]))
     assert len(client.accepted) == 2
     starts = [call for call in client.calls if call[0] == "start"]
@@ -106,16 +105,13 @@ def test_normal_turn_restores_real_pydantic_history_and_reports_each_zero_cost_s
         assert ("usage", identity, [{"cost_microdollars": 0}]) in client.calls
 
 
-def test_advance_is_paired_tool_intent_in_history_without_choosing_next_opening():
+def test_advance_returns_only_intent_without_choosing_next_opening():
     client = Client()
     execute(client, claim(), "early-advance")
     result = client.accepted[0]
     assert result["decision"] == "advance"
     assert result["reply"] is None
-    serialized = str(result["model_history"])
-    assert "advance_to_next_question" in serialized
-    assert "tool-return" in serialized
-    restore_history(1, result["model_history"])
+    assert result["model_history"] == []
 
 
 @pytest.mark.parametrize("scenario,code", [
@@ -146,32 +142,8 @@ def test_unknown_saved_speech_fails_instead_of_playing_unrelated_fixture():
     assert all(call[0] != "reserve" for call in client.calls)
 
 
-def test_unpaired_saved_tools_are_rejected():
-    import json
-
-    from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse, ToolCallPart
-    value = json.loads(ModelMessagesTypeAdapter.dump_json([
-        ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="dangling")])]))
-    with pytest.raises(ValueError, match="Unpaired"):
-        restore_history(1, value)
 
 
-def test_mismatched_tool_return_cannot_restore_as_a_different_tool():
-    import json
-
-    from pydantic_ai.messages import (
-        ModelMessagesTypeAdapter,
-        ModelRequest,
-        ModelResponse,
-        ToolCallPart,
-        ToolReturnPart,
-    )
-    history = json.loads(ModelMessagesTypeAdapter.dump_json([
-        ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="one")]),
-        ModelRequest(parts=[ToolReturnPart("other_tool", "ok", tool_call_id="one")]),
-    ]))
-    with pytest.raises(ValueError, match="Unpaired"):
-        restore_history(1, history)
 
 
 def test_lost_acceptance_reply_reads_canonical_receipt_without_rerunning_reasoning():
@@ -210,41 +182,8 @@ def test_unfinished_transport_leaves_execution_usage_incomplete():
     assert client.calls == [("final", True)]
 
 
-def test_oversized_retained_user_history_is_rejected_before_any_interviewer_call():
-    import json
-
-    from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelRequest, UserPromptPart
-
-    from text_limits import MAX_PROMPT_TEXT
-
-    history = json.loads(ModelMessagesTypeAdapter.dump_json([
-        ModelRequest(parts=[UserPromptPart("x" * MAX_PROMPT_TEXT)])]))
-    client = Client()
-    execute(client, claim(history))
-    assert client.failed == [("context_limit", False)]
-    assert not client.accepted
-    assert not any(call[0] == "start" and call[2] == "interviewer" for call in client.calls)
 
 
-def test_unknown_retained_tool_text_is_screened_again_in_new_execution():
-    import json
-
-    from pydantic_ai.messages import (
-        ModelMessagesTypeAdapter,
-        ModelRequest,
-        ModelResponse,
-        ToolCallPart,
-        ToolReturnPart,
-    )
-    history = json.loads(ModelMessagesTypeAdapter.dump_json([
-        ModelResponse(parts=[ToolCallPart("advance_to_next_question", {}, tool_call_id="past")]),
-        ModelRequest(parts=[ToolReturnPart("advance_to_next_question", "untrusted historic value", tool_call_id="past")]),
-    ]))
-    client = Client()
-    execute(client, claim(history))
-    assert client.accepted
-    screens = [call for call in client.calls if call[0] == "start" and call[2] == "screening"]
-    assert len(screens) == 2
 
 
 def test_continue_at_cap_still_returns_intent_for_rails_to_enforce_cap():
@@ -358,7 +297,7 @@ def test_malformed_public_context_is_rejected_by_typed_claim(groups, omitted):
         Claim.model_validate(request)
 
 
-def test_total_prompt_bound_includes_required_frozen_context_and_earlier_dialogue():
+def test_total_prompt_bound_includes_fixture_context_and_earlier_dialogue():
     from text_limits import MAX_PROMPT_TEXT
 
     request = claim()

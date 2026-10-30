@@ -44,7 +44,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   receipt per saved record. Only the fields a caller uses are screened. Chat and interviews
   pass their operation-billed `screen` function.
 - `record_adapters.py` — pure snapshot-to-`ScreenableRecord` functions (library, job,
-  gap responses, written answers, frozen spoken sources, summary sources and preferences). Types, ids and fingerprints match the
+  gap responses, written answers, summary sources and preferences). Types, ids and fingerprints match the
   Rails receipt registry. Summary library sources carry saved identities; copied resume sections have no ids and are never reported. Preference criteria and exact listing passages use the same path.
 - `obvious_instruction_override.py` — a short phrase list for obvious instruction overrides
 - `yes_confidence.py` — recovers P(yes) from Jev's bool margin and `blocks_on_yes_confidence`

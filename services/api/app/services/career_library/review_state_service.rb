@@ -7,13 +7,13 @@ module CareerLibrary
     end
 
     def call
-      return success({ ai_task: nil, assessments: [] }) unless ReviewSnapshot::SECTIONS.include?(@section)
+      return success({ ai_task: nil, assessments: [] }) unless ReviewSources::SECTIONS.include?(@section)
 
       tasks = @user.ai_tasks.review_library_section.where("input ->> 'section' = ?", @section).order(created_at: :desc, id: :desc)
       completed = tasks.completed.first
-      current = ReviewSnapshot.build(user: @user, section: @section)["targets"].index_by { |target| ReviewSnapshot.target_key(target) }
+      current = ReviewSources.build(user: @user, section: @section)["targets"].index_by { |target| ReviewSources.target_key(target) }
       assessments = Array(completed&.result&.dig("assessments")).filter_map do |item|
-        target = current[ReviewSnapshot.target_key(item)]
+        target = current[ReviewSources.target_key(item)]
         next unless target
 
         questions = ApplyReviewService.questions_for(item) || []
@@ -23,9 +23,9 @@ module CareerLibrary
       if completed
         discarded = @user.ai_tasks.improve_library_entry.where(error_message: EditCommand::DISCARD_MESSAGE)
           .where("input -> 'review_question' ->> 'review_task_id' = ?", completed.id).pluck(:input)
-          .map { |input| ReviewSnapshot.target_key(input.fetch("target")) }
+          .map { |input| ReviewSources.target_key(input.fetch("target")) }
         assessments.each do |item|
-          item.merge!("questions" => [], "question" => nil) if discarded.include?(ReviewSnapshot.target_key(item))
+          item.merge!("questions" => [], "question" => nil) if discarded.include?(ReviewSources.target_key(item))
         end
       end
       accepted = @user.ai_tasks.improve_library_entry.where.not(accepted_at: nil)
@@ -34,10 +34,10 @@ module CareerLibrary
       accepted.select(:result).each do |task|
         item = task.result&.dig("assessment")
         next unless item.is_a?(Hash)
-        key = ReviewSnapshot.target_key(item)
+        key = ReviewSources.target_key(item)
         target = current[key]
         next unless target
-        assessments.reject! { |old| ReviewSnapshot.target_key(old) == key }
+        assessments.reject! { |old| ReviewSources.target_key(old) == key }
         assessments << item.merge("questions" => [], "question" => nil, "stale" => item["source_digest"] != target["source_digest"])
       end
       success({ ai_task: tasks.first, assessments: assessments })

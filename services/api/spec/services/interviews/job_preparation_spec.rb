@@ -11,7 +11,7 @@ RSpec.describe "Saved-job spoken preparation" do
   it "stores an owned job reference without copying or screening its fields" do
     result = Interviews::StartPreparationService.call(user: user, job: job)
     expect(result).to be_success
-    expect(result.value).to have_attributes(job_id: job.id, preparation_kind: "saved_job", frozen_context: {})
+    expect(result.value).to have_attributes(job_id: job.id, preparation_kind: "saved_job")
     expect(job.reload.screened_fields).to eq([ "title", "requirements" ])
     expect(job.stage).to eq("unapplied")
   end

@@ -59,7 +59,7 @@ module AiTasks
     private
 
     # Saves the unified `record_screening` receipts. Library receipts from summary generation
-    # and review/edit tasks must also match the task's frozen snapshot.
+    # and review/edit tasks must also match the task's source identities/fingerprints.
     def record_screening(ai_task)
       receipts = @message["record_screening"]
       return unless receipts.is_a?(Array)

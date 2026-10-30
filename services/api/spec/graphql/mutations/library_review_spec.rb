@@ -37,7 +37,7 @@ RSpec.describe "Career library review results" do
   let(:user) { create(:user) }
   let!(:role) { create(:experience, user: user, description: "Built services") }
   let!(:highlight) { create(:experience_highlight, experience: role, content: "Helped migrate services") }
-  let(:snapshot) { CareerLibrary::ReviewSnapshot.build(user: user, section: "experience") }
+  let(:snapshot) { CareerLibrary::ReviewSources.build(user: user, section: "experience") }
   let(:task) { create(:ai_task, user: user, task_type: "review_library_section", input: CareerLibrary::ReviewCommand.from_projection(snapshot)) }
 
   def result_for(task, color = "yellow")

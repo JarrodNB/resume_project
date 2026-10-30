@@ -1,18 +1,18 @@
-"""Select safe career-library entries and rebuild them from their checked source text.
+"""Check a bounded career library as one input and rebuild its approved source text.
 
-Each entry is one optional input, including its descriptive fields and highlights. The
+The complete input includes descriptive fields and highlights. The
 returned layout contains only application-owned field names, so prompt builders can
 reconstruct a library from checked source values. Saved field approvals are reused;
-unchecked fields are checked together for each optional entry before it is retained.
+unchecked fields are checked together. Failed checks never yield a partial library.
 """
 
 import json
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 
-from schemas.gap_analysis_context import CareerLibrary
+from schemas.gap_analysis_context import MAX_LIBRARY_ITEMS, CareerLibrary
 from screening.library_fields import screen_library_fields, screen_library_fields_async
-from text_limits import MAX_SCREENED_TEXT, NOTE_TOO_LONG_WARNING
+from text_limits import MAX_SCREENED_TEXT
 
 LIBRARY_INPUT_OMITTED_WARNING = "One of your career library entries was left out."
 _ENTRY_FIELDS = ("experiences", "projects", "educations", "certifications", "skills", "career_contexts")
@@ -54,71 +54,51 @@ def screen_library_inputs(
     library: CareerLibrary, allow_text: Callable[[str], object], *,
     include_context_requirements: bool = True,
 ) -> ScreenedLibrary:
-    """Omit rejected optional entries and retain exact strings for prompt coverage binding."""
-    selection = _Selection()
-    for field, text, snapshot in _library_entries(library, include_context_requirements):
-        if len(text) > MAX_SCREENED_TEXT:
-            selection.too_long = True
-            continue
-        selection.add(field, text, screen_library_fields(
-            snapshot, allow_text, include_context_requirements=include_context_requirements,
-            approved_sources=(text,),
-        ))
-    return selection.finish()
+    """Check all pending fields together and retain exact strings for prompt coverage binding."""
+    entries = _bounded_entries(library, include_context_requirements)
+    decision = screen_library_fields(library, allow_text,
+        include_context_requirements=include_context_requirements,
+        approved_sources=tuple(text for _, text in entries))
+    return _checked_entries(entries, decision)
 
 
 async def screen_library_inputs_async(
     library: CareerLibrary, allow_text: Callable[[str], Awaitable[object]], *,
     include_context_requirements: bool = True,
 ) -> ScreenedLibrary:
-    """Apply the same entry selection without blocking an asynchronous caller's event loop."""
-    selection = _Selection()
-    for field, text, snapshot in _library_entries(library, include_context_requirements):
-        if len(text) > MAX_SCREENED_TEXT:
-            selection.too_long = True
-            continue
-        selection.add(field, text, await screen_library_fields_async(
-            snapshot, allow_text, include_context_requirements=include_context_requirements,
-            approved_sources=(text,),
-        ))
-    return selection.finish()
+    """Check the bounded library together; a rejected check fails the entire operation."""
+    entries = _bounded_entries(library, include_context_requirements)
+    decision = await screen_library_fields_async(library, allow_text,
+        include_context_requirements=include_context_requirements,
+        approved_sources=tuple(text for _, text in entries))
+    return _checked_entries(entries, decision)
+
+
+class LibraryScreeningError(RuntimeError):
+    """A library cannot be shared in full within its safety and size limits."""
+
+
+def _bounded_entries(library, include_context_requirements):
+    entries = list(_library_entries(library, include_context_requirements))
+    item_count = len(entries) + sum(len(role.highlights) for role in library.experiences)
+    if item_count > MAX_LIBRARY_ITEMS or sum(len(text) for _, text in entries) > MAX_SCREENED_TEXT:
+        raise LibraryScreeningError("context_limit")
+    return entries
+
+
+def _checked_entries(entries, decision):
+    allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
+    if not allowed:
+        raise LibraryScreeningError("context_limit" if getattr(decision, "too_long", False) else
+            "screening_unavailable" if getattr(decision, "unchecked", False) else "screening_blocked")
+    return ScreenedLibrary(tuple(text for _, text in entries), tuple(field for field, _ in entries), ())
 
 
 def _library_entries(library: CareerLibrary, include_context_requirements: bool):
-    """Yield each optional entry's exact source text with a one-entry snapshot for its checks."""
+    """Yield each entry's exact source text for reconstruction and coverage binding."""
     if library.summary and library.summary.strip():
-        yield "summary", library.summary, CareerLibrary(
-            summary=library.summary, summary_record_id=library.summary_record_id,
-            screened_fields=library.screened_fields,
-        )
+        yield "summary", library.summary
     for field in _ENTRY_FIELDS:
         for entry in getattr(library, field):
             exclude = {"requirement"} if field == "career_contexts" and not include_context_requirements else None
-            yield (field, entry.model_dump_json(exclude_none=True, exclude=exclude),
-                   CareerLibrary(**{field: [entry]}))
-
-
-class _Selection:
-    """Collect allowed entries and the warnings for anything left out."""
-
-    def __init__(self):
-        self.sources, self.fields = [], []
-        self.omitted = self.too_long = False
-
-    def add(self, field, text, decision):
-        allowed = decision if isinstance(decision, bool) else getattr(decision, "allowed", False)
-        if allowed:
-            self.sources.append(text)
-            self.fields.append(field)
-        elif getattr(decision, "too_long", False):
-            self.too_long = True
-        else:
-            self.omitted = True
-
-    def finish(self) -> ScreenedLibrary:
-        warnings = []
-        if self.omitted:
-            warnings.append(LIBRARY_INPUT_OMITTED_WARNING)
-        if self.too_long:
-            warnings.append(NOTE_TOO_LONG_WARNING)
-        return ScreenedLibrary(tuple(self.sources), tuple(self.fields), tuple(warnings))
+            yield field, entry.model_dump_json(exclude_none=True, exclude=exclude)

@@ -212,3 +212,13 @@ def test_job_independent_library_is_user_scoped(admin_connection: psycopg.Connec
     admin_connection.execute("SET LOCAL ROLE ai_reader")
     assert [skill.name for skill in read_career_library(admin_connection, owner_id).skills] == ["Python"]
     assert read_career_library(admin_connection, other_user_id).is_empty()
+
+
+def test_library_overflow_fails_instead_of_returning_a_partial_list(admin_connection):
+    from database.career_library_reader import read_career_library
+    user_id = _insert_user(admin_connection)
+    for index in range(501):
+        _insert(admin_connection, "skills", user_id=user_id, name=f"Skill {index}", position=index)
+    admin_connection.execute("SET LOCAL ROLE ai_reader")
+    with pytest.raises(ValueError, match="item limit exceeded"):
+        read_career_library(admin_connection, user_id)

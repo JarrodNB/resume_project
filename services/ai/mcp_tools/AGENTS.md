@@ -25,7 +25,9 @@ call it. See docs/architecture/chat.md#tools-mcp for the design.
   the token's user. Raise `ToolError` with a short code; never send exception details back.
 - The model only sees text the client has screened and rendered: reuse saved field
   approvals, screen the rest with the caller's accounted screen, render readable labeled
-  text with `model_inputs/` (never JSON), cap the size and say what was left out.
+  text with `model_inputs/` (never JSON), enforce item/text caps and fail the operation on overflow or rejected/unavailable checks.
+  Pending library fields are screened together; never screen each skill independently.
+  New exact fingerprinted approvals return through chat acceptance for Rails to persist.
 - One file per tool (or per tight group of tools) holds both halves and the tool's name,
   description and version constants, so the two sides cannot drift apart.
 - To add a tool: write `mcp_tools/<tool>.py` with a `register_<tool>_tools(server, ...)`

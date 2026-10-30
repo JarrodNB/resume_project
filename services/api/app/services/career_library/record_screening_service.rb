@@ -1,6 +1,9 @@
 # Remembers reusable coverage of saved career-library fields and forgets it on user edits.
 # Ordinary reports represent successful classifier checks; AI edit acceptance also covers
 # the exact server-owned generated field without classifying it. No screening happens here.
+require "digest"
+require "json"
+
 module CareerLibrary
   class RecordScreeningService < ApplicationService
     FIELDS = {
@@ -21,7 +24,8 @@ module CareerLibrary
       record.screened_fields -= changed
     end
 
-    def initialize(user:, reports:)
+    def initialize(user:, reports:, require_fingerprints: false)
+      @require_fingerprints = require_fingerprints
       @user = user
       @reports = reports
     end
@@ -42,7 +46,15 @@ module CareerLibrary
         next unless record
 
         record.with_lock do
-          combined = record.screened_fields | fields
+          fingerprints = report["fingerprints"]
+          checked_fields = if @require_fingerprints || fingerprints.present?
+            fields.select do |field|
+              fingerprints.is_a?(Hash) && fingerprints[field] == Digest::SHA256.hexdigest(JSON.generate(record[field]))
+            end
+          else
+            fields
+          end
+          combined = record.screened_fields | checked_fields
           record.update!(screened_fields: combined) if combined != record.screened_fields
         end
       end

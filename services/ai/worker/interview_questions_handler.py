@@ -19,7 +19,7 @@ from agents.interview_questions_agent import generate_interview_questions
 from llm.model_prices import build_model_usage, reported_model_name
 from schemas.interview_questions import InterviewSetType
 from screening.interview_question_inputs import prepare_interview_question_context
-from screening.library_inputs import screen_library_inputs
+from screening.library_inputs import LibraryScreeningError, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -69,7 +69,11 @@ def handle_interview_questions_task(
 
     # Screen requirement context too; only the saved response receives an evidence ID.
     with logfire.span("interview_questions.screen_career_library"):
-        selected = screen_library_inputs(library, screen_note)
+        try:
+            selected = screen_library_inputs(library, screen_note)
+        except LibraryScreeningError as error:
+            return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
+                error_message=f"Career library check failed ({error}). Review your library and try again.")
     library = selected.library
     warnings = list(selected.warnings)
     # Ignore IDs and dates when deciding whether the context has meaningful career content.

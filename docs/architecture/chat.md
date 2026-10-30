@@ -141,3 +141,31 @@ failure accounting; and React component tests for send, recovery and feedback be
 Retain interview execution/streaming regressions when changing shared dispatch.
 Model-quality evaluation uses synthetic cases and is separate from deterministic
 correctness tests. Human QA covers visual layout and live device/browser behavior.
+
+### Complete bounded library reads
+
+`read_career_library-v3` returns the complete library or fails the operation. Each
+collection and nested highlight list is capped at 500 items; preparation also caps
+the total entries plus highlights at 500 and serialized source text at 80,000
+characters. Database reads fetch at most 501 rows per collection to detect overflow
+without loading an unlimited list. Chat checks the full rendered result against
+40,000 characters before classification. No oversized list or result is truncated.
+
+Pending fields are checked together as labeled plain text through the existing
+bounded screening/chunking policy. Approved fields need no classifier call. A blocked,
+unavailable or oversized library fails the operation; there is no per-entry retry or
+partial answer. Classification fallback for a provider outage retains the shared
+screening deadline and accounting policy.
+
+Successful checks carry record IDs, field names and SHA-256 fingerprints of exact
+canonical JSON string values. Chat returns these in `library_screening` on final
+acceptance. Rails accepts them only under the current operation fence and owner lock,
+then compares each fingerprint with the owned record under its row lock. A stale
+value earns no approval. Receipts participate in acceptance replay identity. Failed
+or stale operations save no approvals; ordinary edits still clear changed checks.
+
+Telemetry span and event names are application identifiers. Put user text in content
+attributes, never names or templates. Export masks content, logs and exceptions while
+preserving instrumentation keys and model/provider/tool identifiers, including nested
+metric dimensions. Detector discovery only receives source content, never telemetry
+or model configuration. A detected word matching a model identifier must not rename it.

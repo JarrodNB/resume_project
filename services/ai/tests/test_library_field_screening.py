@@ -87,3 +87,14 @@ def test_async_screening_uses_same_readable_input_and_keeps_fail_closed():
     assert "requirement:\nOn call" in requests[0]
     assert "response:\nWeekly" in requests[0]
     assert "fact-id" not in requests[0]
+
+
+def test_changed_value_is_not_covered_by_an_earlier_execution_receipt():
+    from schemas.gap_analysis_context import LibrarySkill
+    library = CareerLibrary(skills=[LibrarySkill(id="skill", name="Ruby")])
+    checked = []
+    with screening_session():
+        assert screen_library_fields(library, lambda text: checked.append(text) or True)
+        library.skills[0].name = "Python"
+        assert screen_library_fields(library, lambda text: checked.append(text) or True)
+    assert len(checked) == 2 and "Python" in checked[1]

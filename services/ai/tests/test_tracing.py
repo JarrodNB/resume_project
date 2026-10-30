@@ -62,9 +62,9 @@ def test_export_masks_completed_span_after_contact_scope_exits(exporters, name):
         telemetry_scope(ai_task_id="42", user_id="7", task_type="parse_resume"),
         logfire.span("task", input={"text": secret, name: [name, 42, True, None]}),
     ):
-        with trace.get_tracer("test").start_as_current_span("restored " + secret) as span:
+        with trace.get_tracer("test").start_as_current_span("restored content") as span:
             span.set_attribute("response", secret)
-            span.add_event(secret, {secret: secret})
+            span.add_event("restored content", {"content": secret})
             span.record_exception(ValueError(secret))
             logfire.info("restored", response=secret)
     thread = Thread(target=lambda: logfire.force_flush(timeout_millis=1000))
@@ -125,3 +125,23 @@ def test_flush_runs_on_failures(monkeypatch, exporters):
     with pytest.raises(ValueError), eval_run("failure"):
         raise ValueError("synthetic failure")
     assert calls == [{"timeout_millis": 5000}]
+
+
+def test_model_identifiers_survive_a_colliding_privacy_map(exporters):
+    from pii import MaskingSession
+    spans, _ = exporters
+    contact = MaskingSession({"jev": "«pii:synthetic:PERSON:1»"})
+    with contact_scope(contact), logfire.span("chat jev-1.13.0",
+            **{"gen_ai.request.model": "jev-1.13.0", "model_name": "typesafe:jev-1.13.0",
+               "gen_ai.input.messages": [{"role": "user", "content": "jev alex@example.test"}],
+               "logfire.metrics": {"operation.cost": {"details": [{"attributes": {
+                   "gen_ai.request.model": "jev-1.13.0"}, "total": 0.01}]}}}):
+        pass
+    logfire.force_flush(timeout_millis=1000)
+    span = next(s for s in spans.get_finished_spans() if s.name == "chat jev-1.13.0")
+    assert span.attributes["gen_ai.request.model"] == "jev-1.13.0"
+    assert span.attributes["model_name"] == "typesafe:jev-1.13.0"
+    assert "PERSON" in span.attributes["gen_ai.input.messages"]
+    assert "jev-1.13.0" in span.attributes["logfire.metrics"]
+    assert "PERSON" not in span.attributes["logfire.metrics"]
+    assert span.attributes.get("logfire.msg", span.name) == "chat jev-1.13.0"

@@ -3,7 +3,8 @@ require "digest"
 module Chat
   class AcceptReplyService < ApplicationService
     include ExecutionPolicy
-    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil)
+    def initialize(operation:, attempt_id:, claim_generation:, reply:, screened_message_sha256:, summary_update: nil, library_screening: [])
+      @library_screening = library_screening
       @summary_update = summary_update
       @operation, @attempt_id, @generation, @reply, @screened = operation, attempt_id, claim_generation, reply, screened_message_sha256
     end
@@ -11,8 +12,10 @@ module Chat
     def call
       return failure("Invalid reply") unless @reply.is_a?(String) && @reply.strip.present? && @reply.length <= 8000
       return failure("Screened message differs") unless @screened == Digest::SHA256.hexdigest(@operation.message)
+      return failure("Invalid library screening") unless @library_screening.is_a?(Array) && @library_screening.length <= 500 &&
+        @library_screening.all? { |report| report.is_a?(Hash) && report["fields"].is_a?(Array) && report["fields"].length <= 16 && report["fingerprints"].is_a?(Hash) && report["fingerprints"].length <= 16 }
       summary_identity = @summary_update.is_a?(Hash) ? @summary_update.sort_by { |key, _| key.to_s }.to_h : @summary_update
-      fingerprint = Digest::SHA256.hexdigest(JSON.generate([@attempt_id, @generation, @reply, @screened, summary_identity]))
+      fingerprint = Digest::SHA256.hexdigest(JSON.generate([@attempt_id, @generation, @reply, @screened, summary_identity, *@library_screening.presence]))
       with_operation_lock do |conversation|
         next(@operation.result_fingerprint == fingerprint ? success(@operation.accepted_result) : failure("Accepted result conflicts")) if @operation.accepted?
         next failure("Claim is stale or expired") unless current_claim?
@@ -26,6 +29,7 @@ module Chat
           conversation.update!(summary_text: @summary_update.fetch("text"), summary_version: conversation.summary_version + 1,
             summary_through_position: @summary_update.fetch("through_position"))
         end
+        CareerLibrary::RecordScreeningService.call(user: conversation.user, reports: @library_screening, require_fingerprints: true)
         receipt = { "message_ids" => [user_message.id, assistant.id] }
         @operation.update!(status: "accepted", result_fingerprint: fingerprint, accepted_result: receipt)
         conversation.update!(title: conversation.title == "New chat" ? @operation.message.squish.truncate(80) : conversation.title, updated_at: Time.current)

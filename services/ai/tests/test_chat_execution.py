@@ -619,9 +619,8 @@ async def test_unchecked_library_text_is_screened_on_the_claims_accounted_screen
         if not returns:
             yield {0: DeltaToolCall(name='read_career_library', json_args='{}', tool_call_id='call-1')}
         else:
-            assert 'Ruby' not in returns[0].content
-            assert 'did not pass a safety check' in returns[0].content
-            yield 'I could not use your saved skills.'
+            pytest.fail("Blocked library content must stop before another model request")
+
 
     current = claim()
     with tool_server(library) as (connection, _):
@@ -629,7 +628,8 @@ async def test_unchecked_library_text_is_screened_on_the_claims_accounted_screen
         adapter._screen = AsyncMock()
         adapter._screen_decision = AsyncMock(return_value=SimpleNamespace(allowed=False, too_long=False, unchecked=False))
         await asyncio.wait_for(adapter.execute(current, sink), 10)
-    assert owner.accepted[0]['reply'] == 'I could not use your saved skills.'
+    assert not owner.accepted
+    assert owner.failed == [('screening_blocked', False)]
     adapter._screen_decision.assert_awaited_once()
     assert adapter._screen_decision.await_args.args[0] is current
 
@@ -650,3 +650,32 @@ async def test_reply_still_answers_without_tools_when_the_tool_server_is_down():
     await asyncio.wait_for(adapter.execute(claim(), sink), 10)
     assert owner.failed == []
     assert owner.accepted[0]['reply'] == 'I can still help from what you tell me.'
+
+
+@pytest.mark.anyio
+async def test_new_library_approvals_are_sent_with_chat_acceptance():
+    import hashlib
+    import json
+
+    from pydantic_ai.models.function import DeltaToolCall
+
+    from schemas.gap_analysis_context import CareerLibrary
+
+    owner, sink = Owner(), Sink()
+    library = CareerLibrary(skills=[{"id": "s1", "name": "Ruby"}])
+
+    async def stream(messages, info):
+        if not tool_returns(messages):
+            yield {0: DeltaToolCall(name="read_career_library", json_args="{}", tool_call_id="call-1")}
+        else:
+            yield "You list Ruby."
+
+    with tool_server(library) as (connection, _):
+        adapter = ChatExecutionAdapter(owner, Models(stream), tool_server=connection)
+        adapter._screen = AsyncMock()
+        adapter._screen_decision = AsyncMock(return_value=True)
+        await asyncio.wait_for(adapter.execute(claim(), sink), 10)
+    assert not owner.failed
+    report = owner.accepted[0]["library_screening"][0]
+    assert report == {"record_type": "skill", "record_id": "s1", "fields": ["name"],
+        "fingerprints": {"name": hashlib.sha256(json.dumps("Ruby").encode()).hexdigest()}}

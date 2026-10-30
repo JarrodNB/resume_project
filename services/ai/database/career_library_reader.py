@@ -20,6 +20,7 @@ from psycopg.rows import DictRow
 
 from database.open_read_only_connection import open_read_only_connection
 from schemas.gap_analysis_context import (
+    MAX_LIBRARY_ITEMS,
     CareerContext,
     CareerLibrary,
     GapAnalysisContext,
@@ -95,16 +96,24 @@ def read_gap_analysis_context(
     return GapAnalysisContext(job=JobToAnalyze(**job_row), career_library=library)
 
 
+def _bounded_rows(cursor, query, params):
+    """Read one sentinel beyond the cap and fail instead of returning a partial list."""
+    rows = cursor.execute(query + f" LIMIT {MAX_LIBRARY_ITEMS + 1}", params).fetchall()
+    if len(rows) > MAX_LIBRARY_ITEMS:
+        raise ValueError("Career library item limit exceeded")
+    return rows
+
+
 def _read_library(cursor, params: dict) -> CareerLibrary:
     """Reads library rows within the caller's snapshot transaction."""
     summary_row = cursor.execute(SUMMARY_QUERY, params).fetchone()
-    experience_rows = cursor.execute(EXPERIENCES_QUERY, params).fetchall()
-    highlight_rows = cursor.execute(HIGHLIGHTS_QUERY, params).fetchall()
-    project_rows = cursor.execute(PROJECTS_QUERY, params).fetchall()
-    education_rows = cursor.execute(EDUCATIONS_QUERY, params).fetchall()
-    certification_rows = cursor.execute(CERTIFICATIONS_QUERY, params).fetchall()
-    skill_rows = cursor.execute(SKILLS_QUERY, params).fetchall()
-    career_context_rows = cursor.execute(CAREER_CONTEXTS_QUERY, params).fetchall()
+    experience_rows = _bounded_rows(cursor, EXPERIENCES_QUERY, params)
+    highlight_rows = _bounded_rows(cursor, HIGHLIGHTS_QUERY, params)
+    project_rows = _bounded_rows(cursor, PROJECTS_QUERY, params)
+    education_rows = _bounded_rows(cursor, EDUCATIONS_QUERY, params)
+    certification_rows = _bounded_rows(cursor, CERTIFICATIONS_QUERY, params)
+    skill_rows = _bounded_rows(cursor, SKILLS_QUERY, params)
+    career_context_rows = _bounded_rows(cursor, CAREER_CONTEXTS_QUERY, params)
     highlights_by_experience: dict[str, list[LibraryHighlight]] = {}
     for row in highlight_rows:
         highlights_by_experience.setdefault(row["experience_id"], []).append(

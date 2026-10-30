@@ -85,3 +85,56 @@ def test_quality_judge_receives_every_answered_batch_pair_without_reindexing(mon
     assert "I used repeated route questions." in received[0]
     assert "Visitors found the exhibition." in received[0]
     assert "Review question 1" not in received[0]
+
+
+def test_runner_hydrates_synthetic_deferred_turns_without_database_or_history_copies(monkeypatch):
+    import pytest
+    from pydantic_ai.messages import ModelResponse, ToolCallPart
+    from pydantic_ai.models.function import FunctionModel
+
+    from agents.library_edit_agent import library_edit_agent
+    from evals import run_library_edit_evals as runner
+    from screening.screen_user_text import ScreenOutcome
+
+    case = EditCase(library={"summary": "Synthetic library evidence", "summary_record_id": "user-1", "screened_fields": ["summary"]},
+                    section="summary", feedback="Clarify my role", answer="I built the billing service", expects_question=True)
+    results = []
+    owners = []
+    def no_database(*_args, **_kwargs):
+        pytest.fail("The evaluation runner must not use the production database fallback")
+    monkeypatch.setattr("worker.library_edit_handler.build_database_edit_reader", no_database)
+    monkeypatch.setattr("worker.library_edit_handler.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    monkeypatch.setattr("screening.records.screen_user_text", lambda *_args, **_kwargs: ScreenOutcome(True))
+    original = runner.handle_library_edit_task
+    def observe(task, dependencies):
+        assert not (task.input.keys() & {"library", "history", "turns", "original_text"})
+        owners.append(task.user_id)
+        result = original(task, dependencies)
+        results.append(result)
+        return result
+    monkeypatch.setattr(runner, "handle_library_edit_task", observe)
+    def evaluate(_dataset, improve, **_kwargs):
+        output = improve(case)
+        assert output["question"] == "Which service?"
+        assert output["text"] == "Built the billing service"
+        return SimpleNamespace(failures=[], cases=[])
+    monkeypatch.setattr(runner, "evaluate_dataset", evaluate)
+    calls = []
+    def model(messages, info):
+        calls.append(str(messages))
+        assert "Synthetic library evidence" in str(messages)
+        if len(calls) == 1:
+            return ModelResponse(parts=[ToolCallPart("ask_user", {"question": "Which service?"}, tool_call_id="eval-q")])
+        assert str(messages).count("Which service?") == 1
+        assert "I built the billing service" in str(messages)
+        return ModelResponse(parts=[ToolCallPart(info.output_tools[0].name,
+            {"text": "Built the billing service", "color": "green", "reason": "Concrete contribution"})])
+    with library_edit_agent.override(model=FunctionModel(model)):
+        runner.run_library_edit_evals()
+    assert len(calls) == 2 and len(set(owners)) == 1
+    assert [result.status for result in results] == ["needs_user_input", "completed"]
+    for result in results:
+        encoded = str(result.message_history)
+        assert all(text not in encoded for text in ("Synthetic library evidence", "Clarify my role", "I built the billing service", "reload this edit"))
+        assert not any(part.get("part_kind") == "user-prompt" for message in result.message_history for part in message.get("parts", []))
+    assert "eval-q" not in str(results[1].message_history)

@@ -4,7 +4,7 @@
 module AiTasks
   class DescribeTaskOutcomeService < ApplicationService
     LABELS = {
-      "elicit_job_preferences" => "Job preferences", "generate_summary" => "Summary draft", "chat_reply" => "Chat reply",
+      "elicit_job_preferences" => "Retired preference conversation", "generate_summary" => "Summary draft", "chat_reply" => "Chat reply",
       "check_job_preferences" => "Job preference check", "rerank_job_listings" => "Job reranking", "parse_resume" => "Resume import", "scrape_job" => "Job import", "parse_job_posting" => "Job import",
       "analyze_gaps" => "Gap analysis", "tailor_resume" => "Resume draft", "generate_study_guide" => "Study guide",
       "generate_interview_questions" => "Interview questions", "regenerate_interview_question" => "Question replacement",

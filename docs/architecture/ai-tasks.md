@@ -113,7 +113,10 @@ Both are JSON. The Python side validates them with Pydantic (`services/ai/worker
   the exact passage-text array, not the full posting's `source_digest`: a short excerpt
   cannot approve a longer excerpt. Rails reconstructs the task's bounded excerpt and
   verifies both passages and source digest under the listing lock. No prior-task-input
-  search can grant an approval. Rails migrations and the new consumer must deploy before
+  search of current check-task inputs can grant an approval. Successful inputs from
+  retired preference conversations are imported once per exact text into the profile's
+  normal fingerprint store; validated historical generated output retains its provenance.
+  Rails migrations and the new consumer must deploy before
   workers send these receipts; drain old workers/results before removing old consumers.
 
 Per task type:

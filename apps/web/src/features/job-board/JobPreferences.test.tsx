@@ -29,6 +29,7 @@ it('saves an editable draft before explicitly confirming it', async () => {
     { request: { query: CONFIRM_JOB_PREFERENCES, variables: { expectedVersion: 1 } }, result: { data: { confirmJobPreferences: { __typename: 'ConfirmPayload', profile: confirmed, errors: [] } } } },
   ] })
   await user.click(await screen.findByRole('button', { name: 'Add preference' }))
+  expect(screen.queryByRole('textbox', { name: 'Tell me what you want next' })).not.toBeInTheDocument()
   await user.type(screen.getByRole('textbox', { name: 'Preference 1' }), 'Fully remote')
   expect(screen.getByRole('button', { name: 'Confirm saved preferences' })).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Save draft' }))

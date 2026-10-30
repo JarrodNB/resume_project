@@ -62,6 +62,27 @@ module Screening
       new(user: interview.user, reports: reports, interview: interview).call
     end
 
+    # Retired preference conversations cannot emit new receipts. Preserve their exact
+    # successful input checks by importing them into the ordinary fingerprint store.
+    # Current preference checks never infer approval from previous check-task inputs.
+    def self.import_legacy_preference_checks(user:, profile:)
+      return unless profile.user_id == user.id
+
+      profile.with_lock do
+        historical = user.ai_tasks.where(task_type: "elicit_job_preferences", status: %w[completed needs_user_input])
+        fingerprints = profile.confirmed_criteria.filter_map do |criterion|
+          text = criterion["text"]
+          fingerprint = field_fingerprint(text)
+          next if profile.screened_criteria_sha256.include?(fingerprint)
+          next unless historical.where("input @> ?", { criteria: [ { text: text } ] }.to_json).exists?
+
+          fingerprint
+        end
+        combined = profile.screened_criteria_sha256 | fingerprints
+        profile.update!(screened_criteria_sha256: combined) if combined != profile.screened_criteria_sha256
+      end
+    end
+
     # @param user [User] owner of every record that may be approved
     # @param reports [Array<Hash>] receipts with record_type, record_id, fingerprints and optional revision
     # @param ai_task [AiTask, nil] needed for job, gap_response and interview_question receipts
@@ -133,7 +154,7 @@ module Screening
     # Preferences are JSON entries inside one owned profile, while catalogue listings
     # are shared rows. Both still use the common receipt shape and exact-value rule.
     def preference_scope(_record_type)
-      return unless task_for_user? && %w[check_job_preferences elicit_job_preferences].include?(@ai_task.task_type)
+      return unless task_for_user? && @ai_task.check_job_preferences?
 
       { profile_id: @ai_task.input["profile_id"] }
     end

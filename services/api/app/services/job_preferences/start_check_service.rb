@@ -40,6 +40,7 @@ module JobPreferences
         source.merge("screened" => by_id.fetch(item[:listing_id]).screened_sha256 ==
           Screening::RecordApprovalsService.field_fingerprint(source["passages"].pluck("text")))
       end
+      Screening::RecordApprovalsService.import_legacy_preference_checks(user: @user, profile: profile)
       criteria = profile.confirmed_criteria.map do |criterion|
         criterion.merge("trusted_generated" => generated_criterion?(criterion), "screened" => profile.screened_criteria_sha256.include?(Screening::RecordApprovalsService.field_fingerprint(criterion["text"])))
       end
@@ -64,8 +65,9 @@ module JobPreferences
       JSON.generate({ "confirmed_revision" => @revision, "listings" => listings }).bytesize
     end
 
+    # Retired conversations cannot run again, but retained exact owner-text provenance
+    # still prevents re-screening previously generated or successfully screened criteria.
     def generated_criterion?(criterion)
-      # Provenance is established from validated, completed Rails-owned output, never client flags.
       @user.ai_tasks.where(task_type: "elicit_job_preferences", status: "completed")
         .where("result @> ?", { criteria: [ criterion.slice("text") ] }.to_json).exists?
     end

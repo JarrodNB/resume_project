@@ -159,41 +159,11 @@ never enter shared listing payloads or private saved Jobs. Editing preferences m
 provider/model calls. Browser drafts are saved explicitly; failed writes preserve local edits
 and offer an explicit reload of the latest saved state.
 
-## Preference conversation
-
-“What I want next” also offers a focused conversation. `startJobPreferenceConversation`
-queues `elicit_job_preferences` through the normal general allowance and SQS lifecycle;
-it does not extend generic Chat or change its HTTP execution contract. The configured
-`CHAT_MODEL` and generative fallback draft preferences. One Pydantic AI deferred `ask_user`
-question can pause each turn. Up to 12 linked turns, 4,000 input characters per turn,
-120,000 input bytes, and 100,000 history bytes bound the exchange.
-
-Rails resolves previous task IDs through the owner, freezes the profile version and
-current draft, and stores model history privately. `jobPreferenceConversation` returns
-only accepted public user/assistant text, latest task state and a stale warning. Public
-task input excludes raw history. Matching duplicate submissions reuse a child; different
-answers cannot overwrite it. Accepted paused/completed turns cannot be replaced by a
-redelivery, while attempt accounting still accepts late usage independently.
-
-Validated completion saves an editable draft and increments its version atomically;
-it never confirms preferences. Changed/cleared/confirmed profiles and superseding turns
-fence late output. New conversations can start after a clear even while obsolete work
-finishes. Unsaved manual edits must be saved before sending a message; the local editor
-pauses during its current conversation request and until accepted dialogue and profile
-refreshes both settle, including on reopen. Failed recovery unlocks and offers reload.
-Cross-tab edits are protected by the
-same server revision fence. Failed messages remain available for retry after reopening.
-
-The worker screens new user text and unknown draft criteria. Exact criteria from accepted
-turn inputs or generated proposals reuse server-owned provenance; generated questions and
-validated saved history are not screened again. Readable labeled text, the official input
-guardrail, contact masking, prompt version `job-preference-conversation-v1`, tracing and
-per-attempt accounting remain active. Deferred question IDs and text must match saved tool
-calls before Rails permits continuation.
-
-Synthetic evaluation uses three cases for stated priorities, one real clarification,
-and salary units. This small deterministic sample does not establish broad intent fidelity;
-human QA should check that eligibility context is not turned into an unintended constraint.
+Preference conversation generation is retired. Existing drafts, confirmed criteria and
+historical task/usage records remain. Its GraphQL conversation operations and AI handler
+are removed; legacy queue bodies still decode and return an unsupported-task failure
+without model calls. Late successful generation results are failed without changing the
+profile, and historical task inputs continue to hide private model history.
 
 ## Explicit preference checks with JEV
 
@@ -227,10 +197,11 @@ unstated salary units or remote restrictions cannot become assumed promises.
 Provider failure is a failed check, separate from an evidence-based unknown.
 
 Unknown preference text and the cohesive listing source are screened before the
-matching request. Exact generated criterion output from validated owned conversation
-results is trusted by provenance; accepted conversation inputs and successful check
-snapshots can supply matching source approvals. Listing reuse requires the same digest
-AND exact passages: a previous smaller excerpt cannot approve previously unseen text.
+matching request. Completed owner checks and retained retired-conversation inputs can
+supply exact-text screening approvals; exact owner criteria generated in a completed
+historical conversation retain generated-source trust. These reads never restart conversations.
+Listing reuse requires the same digest AND exact passages: a previous smaller excerpt
+cannot approve previously unseen text.
 Those flags originate only in Rails,
 never browser input. Changed source values cannot reuse approvals. Fixed labeled
 source blocks, the official input guardrail, contact masking, versioned prompts,

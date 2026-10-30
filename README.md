@@ -120,6 +120,13 @@ Compose availability with `docker compose version` before starting the services.
    and eval reporting. Without it, startup remains noninteractive. Local database, queue, and storage connections are
    supplied by Docker Compose.
 
+   For interactive interview and chat execution, set the same private
+   `INTERVIEW_SERVICE_SECRET` for Compose interpolation in the shell or the root
+   `.env` file. Compose supplies this value to Rails and the AI processes, overriding
+   the service `.env` values; an unset value disables the internal callbacks. If using
+   `AI_EXECUTION_SERVICE_SECRET`, supply it the same way. Keep these secrets out of
+   version control and browser configuration.
+
 3. Build and start the services:
 
    ```bash
@@ -159,6 +166,8 @@ The local AI queue worker restarts automatically when Python files change, inclu
 prompts and schemas. Reloading interrupts active work; unfinished queue messages remain
 available for retry. Dependency changes still require an image rebuild. The Rails results
 worker needs `docker compose restart api-results-worker` after Ruby code changes.
+The AI HTTP and MCP servers do not reload automatically; restart the affected server
+after changing Python code it loads.
 
 | Task | Command |
 | --- | --- |
@@ -176,11 +185,11 @@ worker needs `docker compose restart api-results-worker` after Ruby code changes
 | Export the GraphQL schema | `docker compose run --rm api bin/rails graphql:schema:dump` |
 | Generate frontend GraphQL types | `docker compose exec web npm run codegen` |
 
-After GraphQL changes, export the schema and regenerate frontend types. Restart the
-workers after changing code they load:
+After GraphQL changes, export the schema and regenerate frontend types. For changes
+used by the AI HTTP or MCP server, restart the affected service:
 
 ```bash
-docker compose restart api-results-worker ai-worker
+docker compose restart ai-http ai-mcp
 ```
 
 To remove local database data and other named volumes, run `docker compose down -v`.

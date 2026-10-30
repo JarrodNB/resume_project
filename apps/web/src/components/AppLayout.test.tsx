@@ -31,11 +31,12 @@ it('selects the parent section and tab on a detail page', () => {
   expect(within(tabs).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
 })
 
-it('prefers the most specific tab', () => {
+it('keeps import review in the career library without a separate import tab', () => {
   renderWorkspace('/library/import/task-1')
-  const tabs = screen.getByRole('navigation', { name: 'Library pages' })
-  expect(within(tabs).getByRole('link', { name: 'Import resume' })).toHaveAttribute('aria-current', 'page')
-  expect(within(tabs).getByRole('link', { name: 'Career library' })).not.toHaveAttribute('aria-current')
+  const main = screen.getByRole('navigation', { name: 'Main navigation' })
+  expect(within(main).getByRole('link', { name: 'Library' })).toHaveAttribute('aria-current', 'page')
+  expect(screen.queryByRole('link', { name: 'Import resume' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('navigation', { name: 'Library pages' })).not.toBeInTheDocument()
 })
 
 it('keeps resumes under Jobs until they move into the job workspace', () => {

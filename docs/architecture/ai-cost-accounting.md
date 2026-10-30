@@ -71,11 +71,13 @@ identify a unique provider receipt or invoice line.
 ]
 ```
 
-Review a dry-run, then apply the same file from an operator-controlled path:
+For local Compose, place the file at `services/api/tmp/verified-receipts.json` in the
+checkout; the API container mounts that directory at `/rails/tmp`. Review a dry-run,
+then apply the same file from this operator-controlled path:
 
 ```bash
-docker compose run --rm -e RECEIPTS=/app/tmp/verified-receipts.json api bin/rails ai_usage:reconcile
-docker compose run --rm -e RECEIPTS=/app/tmp/verified-receipts.json -e APPLY=true api bin/rails ai_usage:reconcile
+docker compose run --rm -e RECEIPTS=/rails/tmp/verified-receipts.json api bin/rails ai_usage:reconcile
+docker compose run --rm -e RECEIPTS=/rails/tmp/verified-receipts.json -e APPLY=true api bin/rails ai_usage:reconcile
 ```
 
 The import locks owner then task/request, retains previous evidence in

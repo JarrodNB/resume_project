@@ -2,7 +2,8 @@
 Description: Reading and cleaning up local development AI exchanges.
 Index: location, contents, controls, failures and cleanup.
 
-Docker Compose enables transcripts automatically for the AI worker. Open
+Docker Compose and the native cloud launcher set the AI worker to local mode,
+which enables transcripts by default. Open
 `services/ai/conversation_logs/<user UUID>/` in your editor. Files are Markdown
 plain text and are ignored by Git.
 The local AI container runs as UID/GID 1000 so generated reports and transcripts
@@ -62,8 +63,9 @@ attempt. A request snapshot may therefore appear before another request's respon
 this ordering alone does not mean a retry. Use request IDs to pair them.
 
 To disable logging locally, set `CONVERSATION_LOGGING_ENABLED=false` in
-`services/ai/.env` and recreate the AI worker. Logging requires
-`WORKER_ENVIRONMENT=local`; other environments remain disabled even when the
+`services/ai/.env` and recreate the Compose AI worker or restart the native stack.
+In native cloud, an inherited environment variable takes precedence over the `.env` value.
+Logging requires `WORKER_ENVIRONMENT=local`; other environments remain disabled even when the
 logging setting is true. A Logfire environment label does not enable it. Production uses tracing only;
 transcript settings do not disable or reconfigure Logfire instrumentation.
 

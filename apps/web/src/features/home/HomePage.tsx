@@ -207,7 +207,7 @@ function EmptyLibraryNote() {
     <aside className="library-note" aria-label="Your career library is empty">
       <SignalDot signal="action" />
       <p><strong>Your career library is empty.</strong> Comparisons and resumes are built from it, so they have nothing to use yet.</p>
-      <Link to="/library/import">Import a resume <ArrowRight aria-hidden /></Link>
+      <Link to="/library">Import a resume <ArrowRight aria-hidden /></Link>
     </aside>
   )
 }
@@ -230,7 +230,7 @@ function FirstRun({ libraryStarted }: { libraryStarted: boolean | null }) {
           ) : (
             <>
               <p>Import a PDF or Word resume, or add details by hand. Everything you write later comes from here.</p>
-              <Link to="/library/import">Import a resume <ArrowRight aria-hidden /></Link>
+              <Link to="/library">Import a resume <ArrowRight aria-hidden /></Link>
             </>
           )}
         </li>

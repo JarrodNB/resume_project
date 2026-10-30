@@ -65,7 +65,7 @@ it('shows progress while the resume is being parsed', async () => {
 it('shows the error when parsing failed', async () => {
   renderTaskPage([aiTaskMock({ status: 'FAILED', errorMessage: 'The file has no readable text.' })])
   expect(await screen.findByText('The file has no readable text.')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Try another file' })).toHaveAttribute('href', '/library/import')
+  expect(screen.getByRole('link', { name: 'Try another file' })).toHaveAttribute('href', '/library')
 })
 
 it('says so when the parse was already imported', async () => {
@@ -76,7 +76,7 @@ it('says so when the parse was already imported', async () => {
 it('explains when parsing completed without a reviewable resume', async () => {
   renderTaskPage([aiTaskMock({ status: 'COMPLETED', result: null })])
   expect(await screen.findByText("We couldn't prepare a resume to review. Please upload the file again.")).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: 'Try another file' })).toHaveAttribute('href', '/library/import')
+  expect(screen.getByRole('link', { name: 'Try another file' })).toHaveAttribute('href', '/library')
   expect(screen.queryByText('Reading your resume…')).not.toBeInTheDocument()
 })
 

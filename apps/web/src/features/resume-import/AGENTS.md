@@ -7,7 +7,7 @@ Import an existing resume: upload a PDF/DOCX (`parseResume`), follow the AI pars
 
 ## Contents
 
-- `ResumeUploadPage.tsx` (`/library/import`) — `ResumeDropzone.tsx` + `resumeFileValidation.ts`; dev builds also offer one project sample resume through the same upload path
+- `ResumeUpload.tsx` (embedded in `/library`; `/library/import` redirects there) — `ResumeDropzone.tsx` + `resumeFileValidation.ts`; dev builds also offer one project sample resume through the same upload path
 - `ResumeImportTaskPage.tsx` (`/library/import/:aiTaskId`) — picks the step from the task state:
   `ParseTaskStatusCard.tsx` (connecting, parsing, failed, already imported) or
   `ParsedResumeReview.tsx` (form wired to the import mutation; on success it opens the career

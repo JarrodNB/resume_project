@@ -104,7 +104,7 @@ it('switches to a list that skips empty stages, and remembers the choice', async
 it('shows the three starting steps before any job is saved', async () => {
   renderHome([], [], [])
   const firstRun = await screen.findByRole('region', { name: 'Start your search in three steps' })
-  expect(within(firstRun).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library/import')
+  expect(within(firstRun).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library')
   expect(within(firstRun).getByRole('link', { name: 'Find jobs' })).toHaveAttribute('href', '/jobs/find')
   expect(screen.queryByRole('group', { name: 'Show jobs as' })).not.toBeInTheDocument()
 })
@@ -127,7 +127,7 @@ it('keeps the import step current while the library is empty', async () => {
 it('tells a user with saved jobs and an empty library to fill the library first', async () => {
   renderHome(pipeline, [], [])
   const note = await screen.findByRole('complementary', { name: 'Your career library is empty' })
-  expect(within(note).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library/import')
+  expect(within(note).getByRole('link', { name: 'Import a resume' })).toHaveAttribute('href', '/library')
 })
 
 it('explains a load failure and offers to try again', async () => {

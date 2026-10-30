@@ -2,7 +2,7 @@
  *
  * The sidebar has a few sections (Home, Chat, Jobs, Library, Practice). A section with more than one
  * page shows them as tabs in the top bar. A detail page belongs to the tab whose path is its longest matching prefix,
- * so `/jobs/42/resume` keeps "Saved jobs" selected and `/library/import/7` keeps "Import resume".
+ * so `/jobs/42/resume` keeps "Saved jobs" selected and `/library/import/7` stays in "Career library".
  */
 import { BookOpen, BriefcaseBusiness, House, MessagesSquare, type LucideIcon } from 'lucide-react'
 
@@ -26,7 +26,6 @@ export const WORKSPACE_SECTIONS: WorkspaceSection[] = [
     Icon: BookOpen,
     tabs: [
       { to: '/library', label: 'Career library' },
-      { to: '/library/import', label: 'Import resume' },
     ],
   },
   {

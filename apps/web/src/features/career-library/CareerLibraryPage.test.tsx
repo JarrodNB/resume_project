@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { expect, it } from 'vitest'
 import { setSectionOpen } from '@/lib/openSections'
 import { renderPage } from '@/test/renderPage'
+import { PARSE_RESUME_MUTATION } from '@/features/resume-import/resumeImportOperations'
 import { CAREER_LIBRARY_QUERY } from './careerLibraryOperations'
 import { emptyLibraryReviewMocks } from './libraryReviewTestFixtures'
 import { CareerLibraryPage } from './CareerLibraryPage'
@@ -107,6 +108,8 @@ it('shows the imported library', async () => {
   renderPage({ path: '/library', url: '/library', element: <CareerLibraryPage />, mocks: [...emptyLibraryReviewMocks, libraryMock] })
 
   expect(await screen.findByText('Engineer')).toBeInTheDocument()
+  expect(screen.queryByLabelText('Resume file')).not.toBeInTheDocument()
+  expect(screen.queryByRole('heading', { name: 'Start with your resume' })).not.toBeInTheDocument()
   expect(screen.getByText('Acme · Perth')).toBeInTheDocument()
   expect(screen.getByText('Mar 2021 – Present')).toBeInTheDocument()
   expect(screen.getByText('Built the billing service')).toBeInTheDocument()
@@ -128,4 +131,24 @@ it('shows certifications in their own section with credential metadata', async (
   expect(await screen.findByText('Cloud Architect')).toBeInTheDocument()
   expect(screen.getByText('Cloud Co, ABC, https://example.com/ABC')).toBeInTheDocument()
   expect(screen.getByText('Issued Jan 1, 2024')).toBeInTheDocument()
+})
+
+
+it('uploads directly from the empty library and opens the review task before saving', async () => {
+  const user = userEvent.setup()
+  const file = new File(['resume'], 'resume.pdf', { type: 'application/pdf' })
+  renderPage({
+    path: '/library', url: '/library', element: <CareerLibraryPage />,
+    extraRoutes: [{ path: '/library/import/:aiTaskId', element: <p>Parse and review</p> }],
+    mocks: [
+      ...emptyLibraryReviewMocks,
+      { ...libraryMock, result: { data: { ...libraryMock.result.data, experiences: [], skills: [] } } },
+      { request: { query: PARSE_RESUME_MUTATION, variables: { file } }, result: { data: {
+        parseResume: { __typename: 'ParseResumePayload', aiTask: { __typename: 'AiTask', id: 'task-1', status: 'queued' }, errors: [] },
+      } } },
+    ],
+  })
+  expect(await screen.findByRole('heading', { name: 'Start with your resume' })).toBeInTheDocument()
+  await user.upload(screen.getByLabelText('Resume file'), file)
+  expect(await screen.findByText('Parse and review')).toBeInTheDocument()
 })

@@ -30,7 +30,7 @@ def patch_edit_screen(monkeypatch, screen):
 
 def edit_input():
     payload = review_input()
-    payload.update(target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
+    payload.update(initial_feedback="Make this clearer", target=payload["targets"][1], original_text="Helped with migration", feedback="Make this clearer", history=[], root_id=str(uuid4()), turn=1, skip=False)
     return payload
 
 
@@ -105,13 +105,28 @@ def test_deferred_answer_screens_only_new_user_text_not_generated_history(task_d
     with library_edit_agent.override(model=FunctionModel(question)):
         paused = handle_ai_task(first, task_dependencies)
     assert paused.status == "needs_user_input"
+    SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
+    serialized = str(paused.message_history)
+    assert SOURCE_CONTEXT_MARKER in serialized
+    assert "Helped with migration" not in serialized
+    assert "career_records" not in serialized
     assert paused.pending_questions == [{"id": "question-1", "question": "Which part did you handle?"}]
 
+    # Old persisted histories may still contain an initial source prompt. It is
+    # discarded in favor of the reader's current owned/digest-fenced projection.
+    for message in paused.message_history:
+        for part in message.get("parts", []):
+            if part.get("part_kind") == "user-prompt":
+                part["content"] = "FORGED retained source snapshot"
     followup = {**first.input, "history": paused.message_history, "previous_task_id": str(first.ai_task_id), "turn": 2,
                 "question_id": "question-1", "feedback": "I migrated the billing API; I did not lead the team."}
     def proposal(messages, info):
         rendered = str(messages)
         assert "I did not lead the team" in rendered
+        assert "Helped with migration" in rendered
+        assert SOURCE_CONTEXT_MARKER not in rendered
+        assert "FORGED retained source snapshot" not in rendered
+        assert "Make this clearer" in rendered
         answer = next(part.content for message in messages for part in message.parts
                       if isinstance(part, ToolReturnPart) and part.tool_name == "ask_user")
         assert answer == "<user_answer>\nI migrated the billing API; I did not lead the team.\n</user_answer>"

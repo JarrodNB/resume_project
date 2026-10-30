@@ -102,9 +102,14 @@ def read_library_edit(connection, task):
                     raise ValueError("Generated question is unavailable")
                 answers.append({"question_index": index, "question": questions[index], "answer": pair["answer"]})
             review = {"review_task_id": review["review_task_id"], "answers": answers}
+        origin = next((item for item in reversed(chain) if item["status"] in ("completed", "needs_user_input")
+                       and item["message_history"]), current)
+        initial_feedback = origin["input"].get("feedback", "")
+        if review and origin["id"] == root["id"]:
+            initial_feedback = ""
         return LibraryEditInput(section=section, library=projection.library, target=selected,
                                 feedback="" if review and len(chain) == 1 else command.get("feedback", ""),
-                                skip=command.get("skip", False),
+                                initial_feedback=initial_feedback, initial_skip=origin["input"].get("skip", False), skip=command.get("skip", False),
                                 turn=command["turn"], previous_task_id=command.get("previous_task_id"),
                                 question_id=question_id, history=history, review_question=review)
 

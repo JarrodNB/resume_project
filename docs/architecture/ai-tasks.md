@@ -387,6 +387,11 @@ Python loads only the selected owned record context and rejects changed context 
 provider work. It reads prior successful/paused model history through the read-only
 `ai_library_exchanges` security-barrier view, which exposes only necessary fields for library
 review/edit tasks. General task outputs, authentication and accounting columns remain hidden.
+Persisted model history replaces its first source-bearing user prompt with a fixed marker.
+At execution, Python reconstructs that prompt from the digest-fenced current selected source
+and its original owned command feedback/answers. Generated parts, later feedback, tool state
+and deferred IDs retain their order. Even legacy initial source prompts are replaced rather
+than trusted or returned again. `library-edit-v9` records this reconstructed input path.
 Saved generated questions/history retain exact trusted provenance; only new unchecked user
 sources need screening. Review-answer mode disables further questions on all linked turns.
 

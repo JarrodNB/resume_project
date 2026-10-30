@@ -35,6 +35,45 @@ SKIP_NOTE = "The user skipped this question. Do not invent the missing fact or a
 DEFAULT_FEEDBACK = "Improve clarity and specificity while preserving the available facts."
 
 
+# This marker replaces only the source-containing first user prompt in durable history.
+# Saved generated/tool parts and later feedback retain their original order and identities.
+SOURCE_CONTEXT_MARKER = "[Careergrind: reload this edit's owned source context]"
+
+
+def replace_initial_source(history, content):
+    """Replace the source-bearing initial user part without rewriting tool/deferred state."""
+    from copy import deepcopy
+
+    messages = deepcopy(history)
+    for message in messages:
+        for part in message.get("parts", []):
+            if part.get("part_kind") == "user-prompt":
+                part["content"] = content
+                return messages
+    return messages
+
+
+def render_initial_edit(source, feedback, label, review):
+    """Rebuild the initial readable context only from the current owned DB projection."""
+    rows = [render_review(source), f"Improve only target {label}."]
+    if review and review.answers:
+        for item in review.answers:
+            number = item.question_index + 1
+            rows.extend([f"Review question {number} (generated guidance, not a statement of fact):\n" + source_block("review_question", item.question),
+                         f"User answer {number}:\n" + source_block("user_answer", item.answer)])
+        rows.extend(["Additional editing guidance:\n" + source_block("user_feedback", feedback),
+                     ("Further questions are disabled. Use all answered facts to generate one proposal. "
+                      "Unanswered questions supply no facts; do not invent answers or append disclaimers about absent details. Preserve explicitly supplied qualifications.")])
+    elif review:
+        rows.extend(["Review question (generated guidance, not a statement of fact):\n" + source_block("review_question", review.question),
+                     "User answer:\n" + source_block("user_answer", feedback),
+                     ("Further questions are disabled. Generate a proposal from known facts and this answer."
+                      " Preserve explicitly supplied qualifications; do not add disclaimers about absent details.")])
+    else:
+        rows.append("User feedback:\n" + source_block("user_feedback", feedback))
+    return "\n\n".join(rows)
+
+
 def cover_saved_history(history):
     """Restore exact coverage earned by an earlier owned successful/paused edit.
 
@@ -77,7 +116,14 @@ def handle_library_edit_task(task, dependencies):
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                                error_message=screening_failure_message(outcome))
 
-    history = ModelMessagesTypeAdapter.validate_python(snapshot.history)
+    source = snapshot.library.model_dump_json(exclude_none=True)
+    # Even retained legacy history is rebuilt from owned current sources. The stored
+    # initial user prompt is never the source of truth or a trusted source snapshot.
+    initial_feedback = snapshot.initial_feedback if snapshot.initial_feedback is not None else snapshot.feedback
+    initial_feedback = initial_feedback or (SKIP_NOTE if snapshot.initial_skip else DEFAULT_FEEDBACK)
+    restored = replace_initial_source(snapshot.history, render_initial_edit(
+        source, initial_feedback, snapshot.target.label, snapshot.review_question))
+    history = ModelMessagesTypeAdapter.validate_python(restored)
     if history and not snapshot.previous_task_id:
         raise ValueError("Saved editing history requires an owned previous task")
     if snapshot.feedback:
@@ -102,7 +148,6 @@ def handle_library_edit_task(task, dependencies):
         else:
             prompt = bind_screened_prompt([feedback], lambda values: "User feedback:\n" + source_block("user_feedback", values[0]))
     else:
-        source = snapshot.library.model_dump_json(exclude_none=True)
         # Rails approves receipts only when admission fingerprints and current fields match.
         if records := library_records(snapshot.library):
             outcome = screen_records_sync(records, approved_sources=[source])
@@ -110,10 +155,8 @@ def handle_library_edit_task(task, dependencies):
             if not outcome.allowed:
                 return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=usage,
                                        error_message=record_failure_message(outcome))
-        label = snapshot.target.label
+        sources = [source, feedback]
         if snapshot.review_question and snapshot.review_question.answers:
-            sources = [source, feedback]
-            indices = []
             for item in snapshot.review_question.answers:
                 outcome = check(item.answer)
                 if not outcome.allowed:
@@ -121,36 +164,17 @@ def handle_library_edit_task(task, dependencies):
                 approve_projected_source(item.answer, item.answer, lambda value: value, outcome)
                 trust_generated_source(item.question)
                 sources.extend([item.question, item.answer])
-                indices.append(item.question_index + 1)
-
-            def render_batch(values):
-                rows = [render_review(values[0]), f"Improve only target {label}."]
-                for position, number in enumerate(indices):
-                    rows.extend([f"Review question {number} (generated guidance, not a statement of fact):\n" + source_block("review_question", values[2 + position * 2]),
-                                 f"User answer {number}:\n" + source_block("user_answer", values[3 + position * 2])])
-                rows.extend(["Additional editing guidance:\n" + source_block("user_feedback", values[1]),
-                             ("Further questions are disabled. Use all answered facts to generate one proposal. "
-                              "Unanswered questions supply no facts; do not invent answers or append disclaimers about absent details. Preserve explicitly supplied qualifications.")])
-                return "\n\n".join(rows)
-
-            prompt = bind_screened_prompt(sources, render_batch)
         elif snapshot.review_question:
-            question = snapshot.review_question.question
-            trust_generated_source(question)
-            prompt = bind_screened_prompt([source, question, feedback], lambda values:
-                render_review(values[0]) + f"\n\nImprove only target {label}."
-                + "\nReview question (generated guidance, not a statement of fact):\n" + source_block("review_question", values[1])
-                + "\nUser answer:\n" + source_block("user_answer", values[2])
-                + "\nFurther questions are disabled. Generate a proposal from known facts and this answer."
-                + " Preserve explicitly supplied qualifications; do not add disclaimers about absent details.")
-        else:
-            prompt = bind_screened_prompt([source, feedback], lambda values:
-                render_review(values[0]) + f"\n\nImprove only target {label}.\nUser feedback:\n" + source_block("user_feedback", values[1]))
+            trust_generated_source(snapshot.review_question.question)
+            sources.append(snapshot.review_question.question)
+        prompt = bind_screened_prompt(sources, lambda _values: render_initial_edit(
+            source, feedback, snapshot.target.label, snapshot.review_question))
     deps = LibraryEditDeps(1000 if snapshot.target.kind == "experience_highlight" else 4000,
                            allow_question=snapshot.review_question is None and not snapshot.skip and snapshot.turn < 8)
     run = improve_library_entry(prompt, history, deferred, deps, dependencies.settings)
     result_usage = [*usage, build_model_usage(run.model, run.usage)]
-    if len(json.dumps(run.history, ensure_ascii=False).encode()) > 100_000:
+    saved_history = replace_initial_source(run.history, SOURCE_CONTEXT_MARKER)
+    if len(json.dumps(saved_history, ensure_ascii=False).encode()) > 100_000:
         return AiResultMessage(ai_task_id=task.ai_task_id, status="failed", usage=result_usage,
                                error_message="This editing exchange is too long. Start a new edit.")
     if isinstance(run.output, DeferredToolRequests):
@@ -158,6 +182,6 @@ def handle_library_edit_task(task, dependencies):
             raise ValueError("Ask one question at a time")
         call = run.output.calls[0]
         return AiResultMessage(ai_task_id=task.ai_task_id, status="needs_user_input", usage=result_usage,
-            pending_questions=[{"id": call.tool_call_id, "question": call.args_as_dict()["question"]}], message_history=run.history)
+            pending_questions=[{"id": call.tool_call_id, "question": call.args_as_dict()["question"]}], message_history=saved_history)
     return AiResultMessage(ai_task_id=task.ai_task_id, status="completed", result=run.output.model_dump(),
-                           message_history=run.history, usage=result_usage)
+                           message_history=saved_history, usage=result_usage)

@@ -79,6 +79,8 @@ search by the AI worker) in sync. Used by the resume import (automatic matching)
 - Python loads the selected owned record context, exact generated review questions, root answers
   and prior model history directly. Children retain root/previous IDs, never copied history or answers.
   The bounded chain verifies owner, target, turns and deferred tool identity before generation.
+  Saved model history replaces the initial source prompt with a marker, reconstructed from owned
+  current records and initial command feedback during execution; generated/tool parts stay intact.
 - `ApplyEditService` validates proposals/questions. `FinishEditService` accepts the exact saved
   proposal once, preserving highlight identity, or discards without changing career facts.
   Accepted and discarded review-answer questions retire from saved review state; failed

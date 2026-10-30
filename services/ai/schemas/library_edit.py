@@ -49,6 +49,8 @@ class LibraryEditInput(BaseModel):
     library: CareerLibrary
     target: LibraryReviewTarget
     feedback: str = Field(default="", max_length=4000)
+    initial_feedback: str | None = Field(default=None, max_length=4000)
+    initial_skip: bool = False
     history: list[dict] = Field(default_factory=list)
     previous_task_id: str | None = None
     question_id: str | None = None

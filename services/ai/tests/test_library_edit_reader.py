@@ -63,7 +63,9 @@ def test_reads_saved_history_through_owned_chain_and_rejects_foreign_root(admin_
                           input={**root.input, "previous_task_id": str(root.ai_task_id), "turn": 2, "feedback": "Keep the detail"})
     _insert_task(admin_connection, child.ai_task_id, child.user_id, child.input)
     admin_connection.execute("SET LOCAL ROLE ai_reader")
-    assert read_library_edit(admin_connection, child).history == history
+    context = read_library_edit(admin_connection, child)
+    assert context.history == history
+    assert context.initial_feedback == "Improve clarity"
     admin_connection.execute("RESET ROLE")
     admin_connection.execute("UPDATE ai_tasks SET user_id=%s WHERE id=%s", (_insert_user(admin_connection), root.ai_task_id))
     admin_connection.execute("SET LOCAL ROLE ai_reader")

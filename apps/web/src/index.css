@@ -249,6 +249,16 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 :root { --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1); }
 [data-slot=button] { transition-property: color, background-color, border-color, box-shadow, opacity, transform; transition-duration: 160ms; transition-timing-function: var(--ease-out-strong); }
 [data-slot=button]:active:not([aria-haspopup], :disabled, [aria-disabled=true]) { translate: none; transform: scale(0.97); }
+/* Collapsible panels grow from 0fr to 1fr rather than snapping, so the chevron and the content
+   move together. Only a panel the user opens animates in; one already open on load just appears. */
+.collapse-panel { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows 220ms var(--ease-out-strong), opacity 220ms var(--ease-out-strong); }
+.collapse-panel[data-state=closed] { grid-template-rows: 0fr; opacity: 0; transition-duration: 160ms; }
+.collapse-panel-inner { min-height: 0; overflow: hidden; }
+@starting-style { .collapse-panel[data-animate-in] { grid-template-rows: 0fr; opacity: 0; } }
+/* Transient alerts ease in from just above and fade out before they unmount. */
+.transient-alert { transition: opacity 200ms var(--ease-out-strong), transform 200ms var(--ease-out-strong); }
+.transient-alert[data-state=closed] { opacity: 0; transition-duration: 150ms; }
+@starting-style { .transient-alert { opacity: 0; transform: translateY(-6px); } }
 /* Phones zoom into fields smaller than 16px; keep workspace fields at 16px there. */
 @media (max-width: 599px) {
   .workspace :is(input:not([type=checkbox], [type=radio], [type=range]), textarea, select) { font-size: 16px; }

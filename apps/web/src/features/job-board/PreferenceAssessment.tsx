@@ -2,6 +2,7 @@
 import type { BoardListing } from './jobBoardVisit'
 import type { CriterionDecision } from './preferenceAssessments'
 import type { JobPreferencesQuery } from '@/graphql/generated/graphql'
+import { CollapsePanel } from '@/components/CollapsePanel'
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { useOpenSection } from '@/components/useOpenSection'
 
@@ -19,13 +20,13 @@ export function PreferenceAssessment({ listing, decisions, profile, truncated }:
     <p>{[must && `Must-have average: ${must}`, nice && `Nice-to-have average: ${nice}`].filter(Boolean).join(' · ')}</p>
     {truncated && <p>Checked an excerpt; some posting text was omitted.</p>}
     <CollapseToggle open={open} panelId={panelId} onToggle={toggle} className="justify-self-start"><span>Preference details <span className="sr-only">for {listing.title}</span></span></CollapseToggle>
-    {open && <div id={panelId} className="grid gap-3">
+    <CollapsePanel open={open} id={panelId}><div className="grid gap-3">
       {decisions.map((decision) => {
         const criterion = profile.confirmedCriteria.find((value) => value.id === decision.id)
         return <div key={decision.id} className="grid gap-1">
           <p><strong>{Math.round(decision.probability * 100)}% estimated fit</strong> · {criterion?.priority === 'must_have' ? 'Must-have' : 'Nice-to-have'}: {criterion?.text}</p>
         </div>
       })}
-    </div>}
+    </div></CollapsePanel>
   </div>
 }

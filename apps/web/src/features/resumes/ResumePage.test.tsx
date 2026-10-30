@@ -96,7 +96,7 @@ it('starts saved sections collapsed, retains unsaved edits, and remembers open s
   await user.clear(screen.getByRole('textbox', { name: 'Summary' }))
   await user.type(screen.getByRole('textbox', { name: 'Summary' }), 'My unsaved summary.')
   await user.click(toggle)
-  expect(screen.queryByRole('textbox', { name: 'Summary' })).not.toBeInTheDocument()
+  await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Summary' })).not.toBeInTheDocument())
   await user.click(toggle)
   expect(screen.getByRole('textbox', { name: 'Summary' })).toHaveValue('My unsaved summary.')
   view.unmount()

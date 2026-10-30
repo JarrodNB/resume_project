@@ -6,6 +6,7 @@
  */
 import { useState } from 'react'
 import { CircleAlert } from 'lucide-react'
+import { CollapsePanel } from '@/components/CollapsePanel'
 import { CollapseToggle } from '@/components/CollapseToggle'
 import { SECTION_TONES } from '@/components/sectionTones'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -137,11 +138,11 @@ function FinalSection({
         </div>
       </CardHeader>
       {!included && <p className="px-5 pb-4 text-sm text-muted-foreground">Excluded from this resume. Your edits are kept.</p>}
-      {included && open && (
-        <CardContent id={panelId} className="px-5 py-5">
+      <CollapsePanel open={included && open} id={panelId}>
+        <CardContent className="px-5 py-5">
           <SectionFields draft={draft} onChange={onChange} />
         </CardContent>
-      )}
+      </CollapsePanel>
     </Card>
   )
 }

@@ -1,6 +1,7 @@
 # Description: Career library entry for a degree, bootcamp, or other education.
 class Education < ApplicationRecord
   include ScreenedFields
+  screenable_fields %w[institution degree field_of_study description]
   include MostRecentFirst
   include LibrarySizeLimit
 

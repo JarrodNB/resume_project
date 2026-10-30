@@ -6,7 +6,6 @@
 #   - ai_tasks: question operations retained for usage accounting after deletion
 #   - embedding: derived current Q&A vector, deleted with its question
 class InterviewQuestion < ApplicationRecord
-  include ScreenedFields
   belongs_to :interview_question_set, inverse_of: :questions
   has_many :ai_tasks, as: :subject, dependent: :nullify
   has_one :embedding, class_name: "InterviewQuestionEmbedding", dependent: :delete

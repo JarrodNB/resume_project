@@ -15,37 +15,31 @@ module Screening
     FINGERPRINT_FORMAT = /\A[0-9a-f]{64}\z/
 
     # One row per record type the worker may report.
-    #   model:  the ActiveRecord class name, used by the ScreenedFields concern
-    #   fields: the only fields that can be approved
+    #   model:  the ActiveRecord class
+    #   fields: the only fields that can be approved; models list their own through the
+    #           ScreenedFields concern
     #   scope:  private method returning where records may come from for this call, plus
     #           any frozen task values; nil means this call can approve none of this type
     #   check:  optional private method with one more per-field rule
     # Types are processed in this order (task-bound types first, then the career library),
     # which keeps the lock order the older recorders used.
     RECORD_TYPES = {
-      "interview_question" => { model: "InterviewQuestion", fields: %w[question_text answer_text],
+      # Practice questions clear approvals through revisions, so the list lives here.
+      "interview_question" => { model: InterviewQuestion, fields: %w[question_text answer_text].freeze,
                                 scope: :interview_question_scope, check: :interview_revision_matches? },
-      "job" => { model: "Job", fields: %w[title company description requirements responsibilities nice_to_haves],
-                 scope: :job_scope },
-      "gap_response" => { model: "JobGapResponse", fields: %w[requirement body], scope: :gap_response_scope },
-      "user" => { model: "User", fields: %w[summary], scope: :library_scope },
-      "experience" => { model: "Experience", fields: %w[company title location description], scope: :library_scope },
-      "experience_highlight" => { model: "ExperienceHighlight", fields: %w[content], scope: :library_scope },
-      "project" => { model: "Project", fields: %w[name role description], scope: :library_scope },
-      "education" => { model: "Education", fields: %w[institution degree field_of_study description],
-                       scope: :library_scope },
-      "certification" => { model: "Certification", fields: %w[name issuer credential_id credential_url description],
-                           scope: :library_scope },
-      "skill" => { model: "Skill", fields: %w[name category], scope: :library_scope },
-      "career_context" => { model: "CareerContext", fields: %w[requirement response], scope: :library_scope }
-    }.freeze
+      "job" => { model: Job, scope: :job_scope },
+      "gap_response" => { model: JobGapResponse, scope: :gap_response_scope },
+      "user" => { model: User, scope: :library_scope },
+      "experience" => { model: Experience, scope: :library_scope },
+      "experience_highlight" => { model: ExperienceHighlight, scope: :library_scope },
+      "project" => { model: Project, scope: :library_scope },
+      "education" => { model: Education, scope: :library_scope },
+      "certification" => { model: Certification, scope: :library_scope },
+      "skill" => { model: Skill, scope: :library_scope },
+      "career_context" => { model: CareerContext, scope: :library_scope }
+    }.transform_values { |entry| { fields: entry[:fields] || entry[:model].screened_field_names }.merge(entry).freeze }.freeze
 
     LIBRARY_TYPES = RECORD_TYPES.select { |_, entry| entry[:scope] == :library_scope }.keys.freeze
-
-    # @return [Array<String>] screened field names for an ActiveRecord class name
-    def self.fields_for_model(model_name)
-      RECORD_TYPES.values.find { |entry| entry[:model] == model_name }&.fetch(:fields) || []
-    end
 
     # Matches Python's compact UTF-8 JSON encoding, without Rails HTML escaping.
     def self.field_fingerprint(value)

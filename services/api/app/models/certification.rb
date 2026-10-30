@@ -2,6 +2,7 @@
 # Index: user association; required name; text and library count validations
 class Certification < ApplicationRecord
   include ScreenedFields
+  screenable_fields %w[name issuer credential_id credential_url description]
   include LibrarySizeLimit
 
   belongs_to :user

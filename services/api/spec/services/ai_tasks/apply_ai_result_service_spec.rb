@@ -61,13 +61,32 @@ RSpec.describe AiTasks::ApplyAiResultService do
     expect(project.reload.screened_fields).to eq([ "name" ])
   end
 
-  it "keeps record_screening library receipts out of summary generation" do
-    skill = create(:skill, user: ai_task.user)
-    task = create(:ai_task, user: ai_task.user, task_type: "generate_summary")
-    receipt = { "record_type" => "skill", "record_id" => skill.id, "fingerprints" => { "name" => fingerprint(skill.name) } }
+  it "keeps record_screening library receipts, including the profile summary, out of summary generation" do
+    user = ai_task.user
+    user.update!(summary: "I build tools.")
+    skill = create(:skill, user: user)
+    task = create(:ai_task, user: user, task_type: "generate_summary")
+    receipts = [ { "record_type" => "skill", "record_id" => skill.id, "fingerprints" => { "name" => fingerprint(skill.name) } },
+                 { "record_type" => "user", "record_id" => user.id, "fingerprints" => { "summary" => fingerprint(user.summary) } } ]
+    described_class.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
+                                     "record_screening" => receipts })
+    expect(skill.reload.screened_fields).to eq([])
+    expect(user.reload.screened_fields).to eq([])
+  end
+
+  it "checks review-task record_screening receipts against the frozen snapshot, ignoring fields it lacks" do
+    user = ai_task.user
+    role = create(:experience, user: user, description: "Old", location: "Remote")
+    task = create(:ai_task, user: user, task_type: "review_library_section", input: { "library" => {
+      "experiences" => [ role.attributes.slice("id", "company", "title", "description").merge("highlights" => []) ]
+    } })
+    role.update!(description: "New unscreened")
+    receipt = { "record_type" => "experience", "record_id" => role.id, "fingerprints" => {
+      "company" => fingerprint(role.company), "description" => fingerprint(role.description), "location" => fingerprint(role.location)
+    } }
     described_class.call(message: { "ai_task_id" => task.id, "status" => "failed", "error_message" => "Generation failed",
                                      "record_screening" => [ receipt ] })
-    expect(skill.reload.screened_fields).to eq([])
+    expect(role.reload.screened_fields).to eq([ "company" ])
   end
 
   it "does not restore an edited field's check when a final result is redelivered" do

@@ -20,6 +20,23 @@ RSpec.describe Screening::RecordApprovalsService do
     described_class.call(user: owner, reports: reports, ai_task: ai_task)
   end
 
+  it "reads each type's allowed fields from its model" do
+    expect(described_class::RECORD_TYPES.transform_values { |entry| entry[:fields] }).to eq(
+      "interview_question" => %w[question_text answer_text],
+      "job" => %w[title company description requirements responsibilities nice_to_haves],
+      "gap_response" => %w[requirement body], "user" => %w[summary],
+      "experience" => %w[company title location description], "experience_highlight" => %w[content],
+      "project" => %w[name role description], "education" => %w[institution degree field_of_study description],
+      "certification" => %w[name issuer credential_id credential_url description],
+      "skill" => %w[name category], "career_context" => %w[requirement response]
+    )
+    expect(Skill.screened_field_names).to eq(%w[name category])
+  end
+
+  it "keeps the library discard helper failing loudly for other models" do
+    expect { CareerLibrary::RecordScreeningService.discard_changed_fields(record: build(:job)) }.to raise_error(KeyError)
+  end
+
   describe "career library" do
     it "approves each library type when the fingerprint matches, idempotently" do
       experience = create(:experience, user: user)
@@ -171,6 +188,29 @@ RSpec.describe Screening::RecordApprovalsService do
       question.update!(answer_text: "Newer answer")
       expect(record([ question_receipt ], ai_task: task)).to be_success
       expect(question.reload.screened_fields).to eq([ "question_text" ])
+    end
+
+    describe "regeneration" do
+      let!(:peer) { question_set.questions.create!(position: 2, question_text: "Describe a win?", answer_text: "I shipped.", answer_revision: 1) }
+      let(:regeneration) do
+        peer_snapshot = peer.attributes.slice("question_text", "answer_text", "question_revision", "answer_revision")
+          .merge("question_id" => peer.id, "question_set_id" => question_set.id)
+        create(:ai_task, user: user, subject: question, task_type: "regenerate_interview_question",
+          input: snapshot.merge("other_questions" => [ peer.question_text ], "other_question_snapshots" => [ peer_snapshot ]))
+      end
+
+      it "approves question text on the target and peers but never answers" do
+        expect(record([ question_receipt, question_receipt(peer) ], ai_task: regeneration)).to be_success
+        expect(question.reload.screened_fields).to eq([ "question_text" ])
+        expect(peer.reload.screened_fields).to eq([ "question_text" ])
+      end
+
+      it "rejects a peer whose snapshot text disagrees with other_questions" do
+        regeneration.input["other_questions"] = [ "Different text?" ]
+        regeneration.save!
+        expect(record([ question_receipt(peer) ], ai_task: regeneration)).to be_success
+        expect(peer.reload.screened_fields).to eq([])
+      end
     end
 
     it "ignores questions outside the task's set" do

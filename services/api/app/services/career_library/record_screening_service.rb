@@ -7,12 +7,14 @@ module CareerLibrary
   class RecordScreeningService < ApplicationService
     FIELDS = Screening::RecordApprovalsService::LIBRARY_TYPES.to_h do |record_type|
       entry = Screening::RecordApprovalsService::RECORD_TYPES.fetch(record_type)
-      [ entry[:model], entry[:fields] ]
+      [ entry[:model].name, entry[:fields] ]
     end.freeze
 
     # Call under the record row lock after assigning edits and before saving.
     # Reload before assignment so concurrent approvals of old text are invalidated.
+    # Raises KeyError for a model that is not part of the career library.
     def self.discard_changed_fields(record:)
+      FIELDS.fetch(record.class.name)
       record.discard_changed_screened_fields
     end
 

@@ -41,10 +41,11 @@ pytestmark = pytest.mark.real_guardrail
 # Today's classifier call counts on a fresh library. Each target is what the plan expects
 # after the step named in the comment.
 TAILORING_CALLS_TODAY = 37  # 20 skills + 5 roles + 10 highlights + summary + job; target after step 4: 1 library/job/gap batch
-GAP_ANALYSIS_CALLS_TODAY = 2  # target after step 4: 1 job+library batch
-SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 5 only stops discarding approvals
-JOB_PREFERENCE_CALLS_TODAY = 6  # target after step 6: 1 criteria+listings batch
+GAP_ANALYSIS_CALLS_TODAY = 2  # job + library; target after step 5: 1 job+library batch
+SUMMARY_CALLS_TODAY = 1  # unchanged by batching; step 6 starts reporting its approvals
+JOB_PREFERENCE_CALLS_TODAY = 6  # target after step 7: 1 criteria+listings batch
 SECOND_RUN_LIBRARY_CALLS = 0  # approvals from run one make the library free on run two
+SECOND_RUN_TOTAL_CALLS = 1  # only the job is screened again; a re-screened summary would make it 2
 
 LIBRARY_TEXT = ("Skill ", "Company ", "Built system")
 
@@ -55,6 +56,7 @@ def jev_screening_models(monkeypatch):
     monkeypatch.setenv("USER_TEXT_SCREEN_MODEL", "typesafe:jev-1.13.0")
     monkeypatch.setenv("USER_TEXT_SCREEN_FALLBACK_MODEL", "llm")
     monkeypatch.setenv("TYPESAFE_API_KEY", "offline-test")
+    monkeypatch.delenv("USER_TEXT_SCREEN_CHUNK_SIZE", raising=False)
 
 
 @pytest.fixture
@@ -115,6 +117,11 @@ def apply_library_approvals(library: CareerLibrary, receipts) -> None:
             library.screened_fields = list(receipt.fields)
 
 
+def library_calls(classifier_calls) -> list[str]:
+    """Classifier requests whose text contains library content (skills, roles, highlights)."""
+    return [c for c in classifier_calls.primary if any(t in c for t in LIBRARY_TEXT)]
+
+
 def tailor_task() -> AiTaskMessage:
     return AiTaskMessage(ai_task_id=uuid4(), user_id=uuid4(), task_type="tailor_resume", input={
         "job_id": str(uuid4()), "gap_responses": [],
@@ -162,14 +169,17 @@ def test_tailoring_screens_a_fresh_library_per_record(task_dependencies, classif
     assert approvals  # approvals are reported for Rails to save
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == TAILORING_CALLS_TODAY
+    assert len(library_calls(classifier_calls)) == TAILORING_CALLS_TODAY - 2  # all but the job and summary
 
     # Second run with the reported approvals applied: the library is free, the job is not.
     apply_library_approvals(context.career_library, approvals)
     classifier_calls.primary.clear()
+    classifier_calls.fallback.clear()
     second, second_approvals = run_tailoring(task_dependencies, context)
     assert second.status == "completed", second.error_message
-    library_calls = [c for c in classifier_calls.primary if any(t in c for t in LIBRARY_TEXT)]
-    assert len(library_calls) == SECOND_RUN_LIBRARY_CALLS
+    assert len(library_calls(classifier_calls)) == SECOND_RUN_LIBRARY_CALLS
+    assert classifier_calls.total() == SECOND_RUN_TOTAL_CALLS
+    assert classifier_calls.fallback == []
     assert second_approvals == []
 
 
@@ -180,13 +190,16 @@ def test_gap_analysis_screens_a_fresh_library(task_dependencies, classifier_call
     assert approvals
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == GAP_ANALYSIS_CALLS_TODAY
+    assert len(library_calls(classifier_calls)) == 1  # the library blob; the other call is the job
 
     apply_library_approvals(context.career_library, approvals)
     classifier_calls.primary.clear()
+    classifier_calls.fallback.clear()
     second, second_approvals = run_gap_analysis(task_dependencies, context)
     assert second.status == "completed", second.error_message
-    library_calls = [c for c in classifier_calls.primary if any(t in c for t in LIBRARY_TEXT)]
-    assert len(library_calls) == SECOND_RUN_LIBRARY_CALLS
+    assert len(library_calls(classifier_calls)) == SECOND_RUN_LIBRARY_CALLS
+    assert classifier_calls.total() == SECOND_RUN_TOTAL_CALLS
+    assert classifier_calls.fallback == []
     assert second_approvals == []
 
 
@@ -199,12 +212,13 @@ def test_summary_generation_screens_fresh_facts(task_dependencies, classifier_ca
         "sources": sources})
     with summary_generation_agent.override(model=TestModel(custom_output_args={
             "text": "Builds systems.", "source_labels": ["EXPERIENCES_0_DESCRIPTION"]})):
-        result = handle_ai_task(task, task_dependencies)
+        result, approvals = run_like_the_worker(task, task_dependencies)
     assert result.status == "completed", result.error_message
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == SUMMARY_CALLS_TODAY
-    # Today Rails discards these approvals, so nothing is reported back.
-    assert result.library_screening == []
+    # Today the approvals are discarded: the worker has nothing to report for Rails to save.
+    # Target after step 6: one receipt per screened source record.
+    assert approvals == []
 
 
 def test_job_preference_check_screens_each_criterion_and_listing(task_dependencies, classifier_calls):
@@ -229,3 +243,25 @@ def test_job_preference_check_screens_each_criterion_and_listing(task_dependenci
     assert result.status == "completed", result.error_message
     assert classifier_calls.fallback == []
     assert classifier_calls.total() == JOB_PREFERENCE_CALLS_TODAY
+
+
+def test_tailoring_approvals_make_the_next_gap_analysis_library_free(task_dependencies, classifier_calls):
+    context = fresh_context()
+    tailored, approvals = run_tailoring(task_dependencies, context)
+    assert tailored.status == "completed", tailored.error_message
+    assert approvals
+    apply_library_approvals(context.career_library, approvals)
+    classifier_calls.primary.clear()
+    classifier_calls.fallback.clear()
+
+    gap, gap_approvals = run_gap_analysis(task_dependencies, context)
+    assert gap.status == "completed", gap.error_message
+    # Today tailoring only screens the skill name, so gap analysis still screens the skill
+    # categories (one library call) plus the job. Target after step 5: the same field set,
+    # so only the job (1 call) remains.
+    assert len(library_calls(classifier_calls)) == 0
+    assert [c for c in classifier_calls.primary if "category:" in c] != []
+    assert classifier_calls.total() == 2
+    assert classifier_calls.fallback == []
+    assert {(a.record_type, tuple(a.fields)) for a in gap_approvals} == {("skill", ("category",))}
+    assert len(gap_approvals) == 20

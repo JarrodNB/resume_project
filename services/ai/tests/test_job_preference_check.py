@@ -243,3 +243,19 @@ def test_shared_budget_counts_actual_validation_retries_and_preserves_paid_usage
     assert len(accounting.entries) == 1
     assert accounting.entries[0].input_tokens == 20
     assert accounting.incomplete is False
+
+
+def test_approved_independent_listings_do_not_share_a_prompt_cap_after_masking(task_dependencies):
+    """A Rails-budget batch must survive masking when each listing prompt still fits."""
+    from privacy.contact_mask import contact_scope
+    from privacy.known_contact import KnownContact
+    values = snapshot()
+    text = "Description: " + "Ai " * 330
+    passages = [{"id": f"P{index // 500 + 1}", "text": text[index:index + 500]}
+                for index in range(0, len(text), 500)]
+    assert len(text.encode()) <= 100_000 // 90
+    values["listings"] = [{**values["listings"][0], "id": str(uuid4()), "passages": passages} for _ in range(90)]
+    with contact_scope(KnownContact.from_values(names=["Ai"])), job_preference_agent.override(model=model()):
+        result = handle_ai_task(SimpleNamespace(ai_task_id=uuid4(), task_type="check_job_preferences", input=values), task_dependencies)
+    assert result.status == "completed", result.error_message
+    assert len(result.result["listings"]) == 90

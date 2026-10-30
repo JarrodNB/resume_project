@@ -73,7 +73,7 @@ def handle_job_preference_check_task(task, dependencies):
         sources = [criterion.text for criterion in snapshot.criteria]
         sources.extend(passage.text for listing in snapshot.listings for passage in listing.passages)
         outcome = screen_records_sync(job_preference_records(snapshot.criteria, snapshot.listings),
-                                      approved_sources=sources)
+                                      approved_sources=sources, combined_prompt=False)
         usage.extend(outcome.decision.model_usages)
         if not outcome.allowed:
             failure_code = "screening_unavailable" if outcome.decision.unchecked or outcome.decision.too_long else "input_rejected"

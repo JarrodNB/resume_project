@@ -98,7 +98,7 @@ def field_fingerprint(value: str | list[str]) -> str:
 
 async def screen_records(
     records: Sequence[ScreenableRecord], *, approved_sources: Sequence[str] = (),
-    screen: ScreenText | None = None,
+    screen: ScreenText | None = None, combined_prompt: bool = True,
 ) -> RecordScreeningOutcome:
     """Screen every pending field of these records together and cover the caller's sources.
 
@@ -107,7 +107,9 @@ async def screen_records(
     field was already approved. Passing sources when no record has any non-blank field
     raises ValueError, since nothing would back the approval. All records' complete masked text must fit the prompt
     cap and each record's pending text must fit one screened string, or the result is
-    `too_long`.
+    `too_long`. Callers that use records in separate bounded prompts may set
+    `combined_prompt=False`: complete-record caps still apply, while the caller's
+    producer and generative boundaries own total batch and assembled-prompt limits.
 
     `screen` runs the shared screening policy on one blob, in the style of the
     `allow_text` callbacks elsewhere. It defaults to `screen_user_text_async` with the
@@ -115,7 +117,7 @@ async def screen_records(
     `screening.conversation.screen_with_operation_models`, so the primary and fallback
     classifiers bill their own operation.
     """
-    plan = _plan(records, approved_sources)
+    plan = _plan(records, approved_sources, combined_prompt=combined_prompt)
     if isinstance(plan, RecordScreeningOutcome):
         return plan
     pending, blobs = plan
@@ -130,9 +132,10 @@ async def screen_records(
 
 def screen_records_sync(
     records: Sequence[ScreenableRecord], *, approved_sources: Sequence[str] = (),
+    combined_prompt: bool = True,
 ) -> RecordScreeningOutcome:
     """Apply the same policy from synchronous handlers with the configured classifier."""
-    plan = _plan(records, approved_sources)
+    plan = _plan(records, approved_sources, combined_prompt=combined_prompt)
     if isinstance(plan, RecordScreeningOutcome):
         return plan
     pending, blobs = plan
@@ -174,7 +177,7 @@ def record_failure_message(outcome: RecordScreeningOutcome) -> str:
             "Review your recent edits and try again.")
 
 
-def _plan(records, approved_sources):
+def _plan(records, approved_sources, *, combined_prompt=True):
     """Find pending fields, check masked sizes and build blobs, or return an early outcome."""
     if approved_sources and not any(_present_fields(record) for record in records):
         raise ValueError("Approved sources need the records they were built from")
@@ -186,9 +189,11 @@ def _plan(records, approved_sources):
     pending_records = tuple(record for record, _ in pending)
     # Full limits apply to everything the caller will use, even when nothing is pending.
     present = [fields for record in records if (fields := _present_fields(record))]
-    full_text = _ENTRY_SEPARATOR.join(
-        _render_entry(number, fields) for number, fields in enumerate(present, start=1))
-    if len(mask_outbound(full_text)) > MAX_PROMPT_TEXT:
+    complete = [_render_entry(number, fields) for number, fields in enumerate(present, start=1)]
+    # Preference checks assess listings in separate prompts. Their producer bounds total
+    # batch bytes; the generative boundary still validates each actual assembled prompt.
+    prompt_groups = [_ENTRY_SEPARATOR.join(complete)] if combined_prompt else complete
+    if any(len(mask_outbound(text)) > MAX_PROMPT_TEXT for text in prompt_groups):
         return _too_long(pending_records)
     if not pending:
         return [], []

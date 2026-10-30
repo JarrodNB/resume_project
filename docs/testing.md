@@ -1,6 +1,8 @@
 # Testing and verification
 
-Run commands from the checkout being changed. All application tools run in Docker.
+Run commands from the checkout being changed. The commands below use Docker Compose
+for local development. In managed cloud, run checks natively using the installed
+runtimes and isolated test settings; see [native development setup](native-development.md).
 Choose checks for the behavior you touched; documentation-only edits need link and diff
 checks, not the full application suite.
 

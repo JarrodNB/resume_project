@@ -3,10 +3,11 @@
 Each run gets a toolset carrying a fresh token for its user and operation. Tool results
 come back as structured data, and each tool's own module turns them into screened,
 readable text before the model sees them (see TOOL_RENDERERS). This file holds only what
-every tool shares: the connection, the token, a once-per-run cache, and running without
+every tool shares: the connection, the token, a per-run cache keyed by tool and arguments, and running without
 tools when the server is unreachable. Only tools listed in TOOL_RENDERERS are offered.
 """
 import asyncio
+import json
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -51,19 +52,21 @@ class ToolServerConnection:
 
 @dataclass
 class _ResultHandler:
-    """Send each tool call through its renderer, once per tool per run."""
+    """Send each tool call through its renderer, once per tool and arguments per run."""
 
     screen: Callable[[str], Awaitable[object]]
-    results: dict[str, str] = field(default_factory=dict)
+    results: dict[tuple[str, str], str] = field(default_factory=dict)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     async def __call__(self, ctx, call_tool, name, tool_args):
-        # Models may request the same tool in parallel. Keep its read and paid
+        # Models may request the same call in parallel. Keep its read and paid
         # screening together so another call reuses the completed result.
+        # Different arguments are different reads, so they never share a result.
+        key = (name, json.dumps(tool_args or {}, sort_keys=True, default=str))
         async with self._lock:
-            if name not in self.results:
-                self.results[name] = await TOOL_RENDERERS[name](call_tool, tool_args, self.screen)
-            return self.results[name]
+            if key not in self.results:
+                self.results[key] = await TOOL_RENDERERS[name](call_tool, tool_args, self.screen)
+            return self.results[key]
 
 
 class _OptionalToolset(WrapperToolset):

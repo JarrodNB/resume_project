@@ -145,7 +145,7 @@ def test_import_privacy_survives_parent_spans_and_delayed_export(exporters):
         assert privacy.restore(masked) == SOURCE + "\nLiteral «name» and «pii:source:PERSON:4»"
         with trace.get_tracer("privacy").start_as_current_span("restored") as span:
             span.set_attribute("restored", SOURCE)
-            span.add_event("PROFILE PERSON", {"error": "PROFILE@EXAMPLE.TEST"})
+            span.add_event("profile error", {"name": "PROFILE PERSON", "error": "PROFILE@EXAMPLE.TEST"})
             span.record_exception(ValueError(SOURCE))
         logfire.info("restored output", output=SOURCE)
     assert mask_outbound(SOURCE) == SOURCE

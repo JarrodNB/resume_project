@@ -20,7 +20,7 @@ from model_inputs.interview_evidence import interview_career_evidence
 from schemas.interview_feedback import InterviewFeedbackContext
 from schemas.interview_questions import InterviewSetType
 from screening.interview_question_fields import screen_interview_field
-from screening.library_inputs import rebuild_library, screen_library_inputs
+from screening.library_inputs import LibraryScreeningError, rebuild_library, screen_library_inputs
 from screening.screen_user_text import screen_user_text
 from screening.session import bind_screened_prompt, trust_generated_source, within_screening_session
 from worker.queue_messages import AiResultMessage, AiTaskMessage
@@ -72,7 +72,10 @@ def handle_interview_feedback_task(task: AiTaskMessage, dependencies: TaskDepend
     if dependencies.read_career_library is None:
         raise RuntimeError("Career library reader is not configured")
     library = dependencies.read_career_library(task.user_id).model_copy(deep=True)
-    selected = screen_library_inputs(library, screen)
+    try:
+        selected = screen_library_inputs(library, screen)
+    except LibraryScreeningError as error:
+        return fail(f"Your answer is saved. Career library check failed ({error}). Review your library and try again.")
     library = selected.library
     warnings = list(selected.warnings)
     text = bind_screened_prompt(

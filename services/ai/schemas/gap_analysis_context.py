@@ -17,11 +17,14 @@ from pydantic import BaseModel, Field
 
 from schemas.certification_dates import DatePrecision
 
+# Hard snapshot bound shared by database reads and prompt preparation.
+MAX_LIBRARY_ITEMS = 500
+
 
 class LibraryRecord(BaseModel):
     """Saved screening metadata stays outside prompt and evidence serialization."""
 
-    screened_fields: list[str] = Field(default_factory=list, exclude=True)
+    screened_fields: list[str] = Field(default_factory=list, exclude=True, max_length=16)
 
 
 class LibraryHighlight(LibraryRecord):
@@ -41,7 +44,7 @@ class LibraryExperience(LibraryRecord):
     start_date: date | None = None
     end_date: date | None = None
     description: str | None = None
-    highlights: list[LibraryHighlight] = Field(default_factory=list)
+    highlights: list[LibraryHighlight] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
 
 
 class LibraryProject(LibraryRecord):
@@ -102,14 +105,14 @@ class CareerLibrary(BaseModel):
     """The user's career library: the only evidence the analysis may use."""
 
     summary_record_id: str | None = Field(default=None, exclude=True)
-    screened_fields: list[str] = Field(default_factory=list, exclude=True)
+    screened_fields: list[str] = Field(default_factory=list, exclude=True, max_length=16)
     summary: str | None = None
-    experiences: list[LibraryExperience] = Field(default_factory=list)
-    projects: list[LibraryProject] = Field(default_factory=list)
-    educations: list[LibraryEducation] = Field(default_factory=list)
-    certifications: list[LibraryCertification] = Field(default_factory=list)
-    skills: list[LibrarySkill] = Field(default_factory=list)
-    career_contexts: list[CareerContext] = Field(default_factory=list)
+    experiences: list[LibraryExperience] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
+    projects: list[LibraryProject] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
+    educations: list[LibraryEducation] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
+    certifications: list[LibraryCertification] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
+    skills: list[LibrarySkill] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
+    career_contexts: list[CareerContext] = Field(default_factory=list, max_length=MAX_LIBRARY_ITEMS)
 
     def is_empty(self) -> bool:
         """True when there are no entries at all (a summary alone doesn't count)."""

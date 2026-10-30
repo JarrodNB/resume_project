@@ -43,62 +43,61 @@ def classifier(monkeypatch):
         yield seen
 
 
-def test_question_generation_screens_each_library_item_once(task_dependencies, classifier):
-    """Library sources are separate checks; the assembled prompt adds no duplicate."""
+def test_question_generation_screens_the_library_together_once(task_dependencies, classifier):
+    """Library fields share one bounded check; the assembled prompt adds no duplicate."""
     library = CareerLibrary(summary="Python", skills=[LibrarySkill(id="s", name="Stock checking")])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
     assert result.status == "completed"
-    assert len(classifier) == 2
+    assert len(classifier) == 1
     assert "Python" in classifier[0]
-    assert "Stock checking" in classifier[1]
+    assert "Stock checking" in classifier[0]
     assert all("Generate 5" not in text for text in classifier)
 
 
-def test_feedback_screens_answer_question_and_library_once(task_dependencies, classifier):
-    """Question and saved answer are required independent inputs."""
+def test_feedback_screens_answer_and_library_once(task_dependencies, classifier):
+    """The saved generated question is trusted; answer and library are checked once."""
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
     request = task()
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
-    assert classifier[:2] == [request.input["answer_text"], request.input["question_text"]]
-    assert len(classifier) == 3 and "Python" in classifier[2]
+    assert classifier[0] == request.input["answer_text"]
+    assert len(classifier) == 2 and "Python" in classifier[1]
 
 
-def test_optional_rejected_library_item_is_omitted(task_dependencies, classifier):
-    """An unsafe optional skill does not discard a safe profile summary."""
+def test_rejected_library_batch_fails_the_operation(task_dependencies, classifier):
+    """An unsafe skill fails the entire batch without a per-item fallback."""
     library = CareerLibrary(summary="Python", skills=[LibrarySkill(id="s", name="synthetic_attack")])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
-    assert result.status == "completed"
-    assert result.result["warnings"]
-    assert len(classifier) == 2
+    assert result.status == "failed"
+    assert "screening_blocked" in result.error_message
+    assert len(classifier) == 1
 
 
-def test_reused_question_block_prevents_feedback(task_dependencies, classifier):
-    """A saved question is not implicitly trusted because another task generated it."""
+def test_saved_generated_question_is_not_screened_again(task_dependencies, classifier):
+    """Rails-owned generated questions retain their provenance when reused."""
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     request = task()
     request.input["question_text"] = "synthetic_attack"
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
-    assert result.status == "failed"
-    assert "saved" in result.error_message
-    assert len(classifier) == 2
+    assert result.status == "completed"
+    assert classifier == [request.input["answer_text"]]
 
 
-def test_replacement_checks_all_excluded_questions_once(task_dependencies, classifier):
-    """Previously generated questions are fresh inputs to a later replacement task."""
+def test_replacement_reuses_generated_exclusions_without_screening(task_dependencies, classifier):
+    """Immutable generated exclusions do not become new untrusted input."""
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary(summary="Python"))
     request = _task(True)
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output(1))):
         result = handle_ai_task(request, deps)
     assert result.status == "completed"
     assert "Python" in classifier[0]
-    assert classifier[1:] == [request.input["question_text"], *request.input["other_questions"]]
+    assert len(classifier) == 1
 
 
 def test_later_task_checks_unapproved_library_again(task_dependencies, classifier):
@@ -111,15 +110,15 @@ def test_later_task_checks_unapproved_library_again(task_dependencies, classifie
     assert len(classifier) == 2 and all("Python" in text for text in classifier)
 
 
-def test_required_question_outage_prevents_feedback(task_dependencies, classifier):
-    """Unavailable question screening preserves saved-answer failure behavior."""
+def test_generated_question_does_not_trigger_a_classifier_outage(task_dependencies, classifier):
+    """A generated question never triggers a separate classification request."""
     deps = replace(task_dependencies, read_career_library=lambda _: CareerLibrary())
     request = task()
     request.input["question_text"] = "synthetic_outage"
     with interview_feedback_agent.override(model=TestModel(custom_output_args=output())):
         result = handle_ai_task(request, deps)
-    assert result.status == "failed" and "saved" in result.error_message
-    assert len(classifier) == 2
+    assert result.status == "completed"
+    assert classifier == [request.input["answer_text"]]
 
 
 @pytest.mark.parametrize("feedback", [False, True])
@@ -127,18 +126,18 @@ def test_checked_library_fields_reused_but_new_fields_screen(task_dependencies, 
     """A saved name approval never covers a newly used category or a fact requirement."""
     library = CareerLibrary(summary="Python", summary_record_id="user", screened_fields=["summary"],
         skills=[LibrarySkill(id="s", name="Stock checking", category="Operations", screened_fields=["name"])],
-        career_contexts=[CareerContext(id="f", requirement="synthetic_attack", response="Checked inventory")])
+        career_contexts=[CareerContext(id="f", requirement="synthetic_attack", response="Checked inventory", screened_fields=["requirement"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     agent = interview_feedback_agent if feedback else interview_questions_agent
     with screening_session() as session, agent.override(
             model=TestModel(custom_output_args=output() if feedback else _output())):
         result = handle_ai_task(task() if feedback else _task(), deps)
-        reports = [report.model_dump() for report in session.library_screening]
+        reports = [report.model_dump(exclude={"fingerprints"}) for report in session.library_screening]
     assert result.status == "completed"
-    library_checks = classifier[2:] if feedback else classifier
-    assert len(library_checks) == 2
+    library_checks = classifier[1:] if feedback else classifier
+    assert len(library_checks) == 1
     assert "Operations" in library_checks[0] and "Stock checking" not in library_checks[0]
-    assert "Checked inventory" in library_checks[1]
+    assert "Checked inventory" in library_checks[0]
     assert all("synthetic_attack" not in text for text in classifier)
     assert reports == [
         {"record_type": "skill", "record_id": "s", "fields": ["category"]},
@@ -152,7 +151,7 @@ def test_all_checked_library_fields_skip_classifier(task_dependencies, classifie
     """Saved approvals also grant exact prompt coverage without leaking their metadata."""
     library = CareerLibrary(summary="Python", screened_fields=["summary"],
         career_contexts=[CareerContext(id="f", requirement="synthetic_attack", response="Checked inventory",
-                           screened_fields=["response"])])
+                           screened_fields=["requirement", "response"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     agent = interview_feedback_agent if feedback else interview_questions_agent
     request = task() if feedback else _task()
@@ -161,18 +160,18 @@ def test_all_checked_library_fields_skip_classifier(task_dependencies, classifie
         result = handle_ai_task(request, deps)
         assert not session.library_screening
     assert result.status == "completed"
-    assert classifier == ([request.input["answer_text"], request.input["question_text"]] if feedback else [])
+    assert classifier == ([request.input["answer_text"]] if feedback else [])
 
 
-def test_checked_oversized_entry_still_omitted(task_dependencies, classifier):
-    """Reuse must not bypass the full original source cap or omission warning."""
+def test_checked_oversized_entry_still_fails(task_dependencies, classifier):
+    """Saved approvals never bypass complete-source bounds."""
     library = CareerLibrary(summary="Python", screened_fields=["summary"],
         skills=[LibrarySkill(id="s", name="x" * 80_001, screened_fields=["name"])])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
     with interview_questions_agent.override(model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
-    assert result.status == "completed"
-    assert result.result["warnings"] == ["One of your notes was left out because it is too long."]
+    assert result.status == "failed"
+    assert "context_limit" in result.error_message
     assert classifier == []
 
 
@@ -198,7 +197,7 @@ def test_successful_library_checks_survive_generation_failure(task_dependencies,
 
 
 def test_rejected_library_fields_never_report_approval(task_dependencies, classifier):
-    """Optional rejection leaves prior approved summary usable without approving unsafe text."""
+    """A rejected batch cannot grant approval or continue with a partial summary."""
     library = CareerLibrary(summary="Python", screened_fields=["summary"],
         skills=[LibrarySkill(id="s", name="synthetic_attack")])
     deps = replace(task_dependencies, read_career_library=lambda _: library)
@@ -206,7 +205,7 @@ def test_rejected_library_fields_never_report_approval(task_dependencies, classi
             model=TestModel(custom_output_args=_output())):
         result = handle_ai_task(_task(), deps)
         assert not session.library_screening
-    assert result.status == "completed" and result.result["warnings"]
+    assert result.status == "failed" and "screening_blocked" in result.error_message
     assert len(classifier) == 1
 
 

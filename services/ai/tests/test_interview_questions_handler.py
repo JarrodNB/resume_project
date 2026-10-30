@@ -293,7 +293,7 @@ def test_screened_only_context_fails_closed(task_dependencies, monkeypatch):
                         lambda *args, **kwargs: ScreenOutcome(allowed=False))
     deps = replace(task_dependencies, read_career_library=lambda user_id: CareerLibrary(
         career_contexts=[CareerContext(id="career_context", requirement="Leadership", response="Some details")]))
-    assert "Add usable" in handle_ai_task(_task(), deps).error_message
+    assert "Career library check failed" in handle_ai_task(_task(), deps).error_message
 
 
 def test_question_prompt_uses_readable_checked_evidence(task_dependencies, monkeypatch):

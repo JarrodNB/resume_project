@@ -41,8 +41,9 @@ from privacy.known_contact import KnownContact
 from prompts.chat_instructions import CHAT_INSTRUCTIONS, CHAT_PROMPT_VERSION
 from prompts.chat_summary_instructions import CHAT_SUMMARY_INSTRUCTIONS, CHAT_SUMMARY_PROMPT_VERSION
 from screening.conversation import ScreenedConversationTurn, screen_conversation_turn
+from screening.library_inputs import LibraryScreeningError
 from screening.screen_user_text import screen_user_text_async
-from screening.session import screening_session
+from screening.session import current_session, screening_session
 from settings import load_settings
 from telemetry.model_attempt import ModelAttempt
 from telemetry.privacy import telemetry_scope
@@ -119,7 +120,7 @@ class ChatExecutionAdapter:
                     await asyncio.to_thread(privacy.prepare, "\n\n".join(
                         [claim.payload.summary.text] + [m.content for m in claim.payload.messages] + [claim.payload.message]))
                     await self._turn(claim, output, privacy)
-            except ChatRejected as error:
+            except (ChatRejected, LibraryScreeningError) as error:
                 await self.client.fail(claim, str(error), False)
                 if output:
                     await output.emit("failed")
@@ -271,6 +272,9 @@ class ChatExecutionAdapter:
         digest = hashlib.sha256(claim.payload.message.encode()).hexdigest()
         try:
             values = {"reply": reply, "screened_message_sha256": digest}
+            session = current_session()
+            if session and session.library_screening:
+                values["library_screening"] = [report.model_dump() for report in session.library_screening]
             if summary_update is not None:
                 values["summary_update"] = summary_update
             await self.client.accept(claim, **values)

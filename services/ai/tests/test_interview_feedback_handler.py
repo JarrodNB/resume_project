@@ -333,8 +333,9 @@ def test_requirements_and_blocked_notes_are_not_grounding(dependencies, monkeypa
     draft["evidence_quotes"] = ["Managed 20 people"]
     with interview_feedback_agent.override(model=TestModel(custom_output_args=draft)):
         result = handle_ai_task(task(), replace(dependencies, read_career_library=lambda user: library))
-    assert result.status == "completed"
-    assert result.result["interview_feedback"]["evidence_quotes"] == []
+    assert result.status == "failed"
+    assert "Career library check failed" in result.error_message
+    assert not result.result
     assert screened[0] == task().input["answer_text"]
     assert task().input["question_text"] not in screened
     assert "Private note" in screened[1] and "Managed 20 people" in screened[1]

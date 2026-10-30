@@ -177,4 +177,38 @@ RSpec.describe "Chat streamed turns" do
     expect(operation.execution_attempts).to be_empty
   end
 
+  it "persists exact library approvals on acceptance and cannot approve later edits or another owner" do
+    skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
+    changed = create(:skill, user: user, name: "Python", screened_fields: [])
+    other = create(:skill, user: create(:user), name: "Ruby", screened_fields: [])
+    operation = start
+    saved = claim(operation)
+    report = ->(record, value) { { "record_type" => "skill", "record_id" => record.id,
+      "fields" => ["name"], "fingerprints" => { "name" => Digest::SHA256.hexdigest(JSON.generate(value)) } } }
+    reports = [report.call(skill, "Ruby"), report.call(changed, "Python"), report.call(other, "Ruby")]
+    changed.update!(name: "Edited")
+    args = { operation: operation, **identity(saved), reply: "Saved skills reviewed.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), library_screening: reports }
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+    expect(skill.reload.screened_fields).to eq(["name"])
+    expect(changed.reload.screened_fields).to eq([])
+    expect(other.reload.screened_fields).to eq([])
+    expect(Chat::AcceptReplyService.call(**args)).to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(library_screening: reports.reverse))).not_to be_success
+  end
+
+  it "does not save library approvals for stale claims or unbounded receipt lists" do
+    skill = create(:skill, user: user, name: "Ruby", screened_fields: [])
+    operation = start
+    saved = claim(operation)
+    report = { "record_type" => "skill", "record_id" => skill.id, "fields" => ["name"],
+      "fingerprints" => { "name" => Digest::SHA256.hexdigest(JSON.generate("Ruby")) } }
+    args = { operation: operation, **identity(saved), reply: "Reviewed.",
+      screened_message_sha256: Digest::SHA256.hexdigest(operation.message), library_screening: [report] }
+    expect(Chat::AcceptReplyService.call(**args.merge(library_screening: [report] * 501))).not_to be_success
+    expect(Chat::AcceptReplyService.call(**args.merge(attempt_id: SecureRandom.uuid))).not_to be_success
+    expect(skill.reload.screened_fields).to eq([])
+    expect(chat.messages).to be_empty
+  end
+
 end

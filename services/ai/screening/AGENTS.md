@@ -53,7 +53,7 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
   whole fields. Canonical UTF-8 JSON fingerprints match Ruby stdlib JSON.generate, not
   Rails HTML escaping. Callers retain complete-source limits and bind only these used fields.
 
-- `library_inputs.py` — cohesive optional library entry selection and reconstruction from
+- `library_inputs.py` — bounded whole-library checking and reconstruction from
   checked source values for interviews and the chat library tool (sync and async), reusing saved field checks through `library_fields.py`.
 - `interview_question_inputs.py` — reconstructs the checked library and generated history
   inside exact prompt binding, returning the same complete question context used by evals.
@@ -78,7 +78,8 @@ Jev, local Llama, or a configurable LLM. Screening owns recovery and returns a s
 - Do not send the text when the screen cannot run.
 - Screen each input once per execution. Saved Job, gap-response, written practice and career-library fields reuse persisted
   checks across tasks; unchecked fields and other input screen again on later deliveries.
-  Required inputs fail closed; optional entries can be omitted.
+  Required inputs fail closed; library batches also fail the operation on any rejected
+  check or exceeded bound, rather than dropping entries. Other optional inputs retain their own policy.
 - Never grant coverage by substring matching or a caller-controlled boolean.
   Saved library checks can authorize exact sources reconstructed from their approved fields.
   `trust_generated_source` is only for immutable output from an owned completed AI task;

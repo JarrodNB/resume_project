@@ -5,6 +5,7 @@ Index:
     - test_*: one behavior per test
 """
 
+import hashlib
 import json
 from uuid import uuid4
 
@@ -241,7 +242,9 @@ def test_successful_library_checks_survive_generation_failure(monkeypatch, task_
     started, final = map(json.loads, queue.sent_bodies)
     assert not started["library_screening"]
     assert final["library_screening"] == [{"record_type": "career_context", "record_id": "career_context",
-                                           "fields": ["requirement", "response"]}]
+                                           "fields": ["requirement", "response"], "fingerprints": {
+            "requirement": hashlib.sha256(json.dumps("On call").encode()).hexdigest(),
+            "response": hashlib.sha256(json.dumps("Weekly").encode()).hexdigest()}}]
 
 
 @pytest.mark.parametrize("failure", [False, True])

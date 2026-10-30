@@ -13,7 +13,7 @@ from schemas.gap_analysis_context import (
     LibrarySkill,
 )
 from screening.interview_question_inputs import prepare_interview_question_context
-from screening.library_inputs import screen_library_inputs
+from screening.library_inputs import LibraryScreeningError, screen_library_inputs
 from screening.screen_user_text import ScreenOutcome
 from screening.session import prompt_is_covered, screening_session, trust_generated_source
 
@@ -73,19 +73,11 @@ def test_preparation_requires_approval_for_every_prompt_source(trust_history):
         assert not prompt_is_covered(context.text)
 
 
-def test_preparation_omits_rejected_sources_from_both_prompt_and_citations():
-    with screening_session():
-        selected = screen_library_inputs(
+def test_preparation_fails_instead_of_omitting_rejected_sources():
+    with screening_session(), pytest.raises(LibraryScreeningError, match="screening_blocked"):
+        screen_library_inputs(
             CareerLibrary(summary="Kept evidence", career_contexts=[
-                CareerContext(id="rejected", requirement="Secret context", response="Rejected evidence"),
+                CareerContext(id="rejected", requirement="Context", response="Rejected evidence"),
             ]),
             lambda text: ScreenOutcome(allowed="Rejected evidence" not in text),
         )
-        context = prepare_interview_question_context(selected, [], 5, "general")
-
-        assert selected.warnings
-        assert prompt_is_covered(context.text)
-        assert context.library_text == "Kept evidence"
-        assert context.evidence_by_id == {"E1": "Kept evidence"}
-        assert "Rejected evidence" not in context.text
-        assert "Secret context" not in context.text

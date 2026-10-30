@@ -1,6 +1,6 @@
 """Exact saved-source screening receipts returned to Rails by AI executions."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class LibraryScreening(BaseModel):
@@ -8,7 +8,8 @@ class LibraryScreening(BaseModel):
 
     record_type: str
     record_id: str
-    fields: list[str]
+    fields: list[str] = Field(max_length=16)
+    fingerprints: dict[str, str] = Field(default_factory=dict, max_length=16)
 
 
 class JobScreening(BaseModel):
